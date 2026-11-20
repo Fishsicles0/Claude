@@ -23,7 +23,10 @@
   "FastBreak",
   "Printer",
   "NoSlow",
-  "AirJump"
+  "AirJump",
+  "AutoCity",
+  "Excavator",
+  "PacketMine"
  ],
  "med": [
   "AimAssist",
@@ -55,6 +58,8 @@
   "HoleFiller",
   "AutoWeb",
   "BowSpam",
-  "LiquidFiller"
+  "LiquidFiller",
+  "AutoAnvil",
+  "BedAura"
  ]
 }

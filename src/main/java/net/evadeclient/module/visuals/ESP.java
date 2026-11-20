@@ -30,6 +30,7 @@ public class ESP extends Module {
     private final ColorSetting playerColor = add(new ColorSetting("Player Color", 0xFFE11D2E));
     private final ColorSetting mobColor = add(new ColorSetting("Mob Color", 0xFFFF8A1F));
     private final NumberSetting range = add(new NumberSetting("Range", 128, 16, 512, 16));
+    private final BooleanSetting tracers = add(new BooleanSetting("Tracers", false));
 
     public ESP() { super("ESP", "Shows players and mobs through walls.", Category.VISUALS); }
 
@@ -61,6 +62,7 @@ public class ESP extends Module {
             int c = color(e);
             if (fill.get()) ctx.boxFilled(box, ColorUtil.withAlpha(c, 40));
             ctx.boxOutline(box, c, 1.8f);
+            if (tracers.get()) ctx.line(ctx.crosshairPoint(), box.getCenter(), ColorUtil.withAlpha(c, 150), 1.2f);
         }
     }
 

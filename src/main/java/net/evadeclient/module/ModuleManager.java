@@ -65,6 +65,9 @@ public class ModuleManager {
         register(new Velocity());
         register(new AntiBot());
         register(new AutoLog());
+        register(new AutoCity());
+        register(new AutoAnvil());
+        register(new BedAura());
         register(new AutoWeapon());
         register(new Offhand());
         register(new SelfTrap());
@@ -88,6 +91,7 @@ public class ModuleManager {
         register(new SafeWalk());
         register(new Blink());
         register(new net.evadeclient.module.movement.Timer());
+        register(new AutoSprint());
         register(new NoSlow());
         register(new InventoryMove());
         register(new AirJump());
@@ -121,6 +125,8 @@ public class ModuleManager {
         register(new AutoFarm());
         register(new SpawnProofer());
         register(new Printer());
+        register(new PacketMine());
+        register(new Excavator());
         register(new AutoBreed());
         register(new AutoShearer());
         register(new AutoSmelter());

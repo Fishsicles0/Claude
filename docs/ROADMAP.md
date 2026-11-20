@@ -213,3 +213,40 @@ the build machine (network policy), so their feature lists come from web search 
   409 settings.
 - Meteor still has more modules (165). Evade's count is lower; what it adds is the one-click installer, the
   per-mod ban-risk labels and an in-game test for most mods.
+
+---
+
+# v0.6.0: sharper combat + more modules
+
+Continuing to close the gap with legitimate modules (no detection/screenshare evasion was added; see the note below).
+
+## Added (6)
+
+| Mod | Category | Ban risk | In-game test |
+|---|---|---|---|
+| AutoCity | Combat | high | Yes: mines the wall of an entity's hole (creative-verified; obsidian is too slow to mine in a short survival test) |
+| AutoAnvil | Combat | med | Yes: drops an anvil above the target |
+| BedAura | Combat | med | Yes: places a bed beside the target (explosions only in Nether/End) |
+| PacketMine | World | high | Yes: finishes a remembered block while facing away |
+| Excavator | World | high | Yes: clears a 3x3x3 box in front (25/27, far corners out of reach) |
+| AutoSprint | Movement | low | Yes: sprints automatically while walking |
+
+## Improved
+
+- **KillAura**: Max Targets (1-5) to hit several entities per swing and clear a crowd. Tested: three zombies cleared.
+- **Nuker**: Shape setting (Sphere or Cube), and it now respects your reach.
+- **ESP**: optional tracers to each shown entity.
+- AutoCity / AutoAnvil / BedAura target any valid entity (via the shared Targets filter), not only players.
+
+## Still not built (unchanged stance)
+
+- **Injectable loader / "untraceable" / screenshare evasion / anti-cheat disablers**: declined. The whole purpose
+  of those is to deceive the server operators whose rules the client already breaks, and no client is actually
+  untraceable. The site continues to state Evade is not undetected.
+- Larger Meteor modules not yet started: Burrow, Quiver, AutoCity's variants,
+  HighwayBuilder, Notebot, Chams, Xray. None claimed until built and tested.
+
+## Totals
+
+- Evade v0.6.0: 129 mods (Combat 28, Movement 23, Visuals 17, World 14, Player 16, HUD 18, Mods 9, Misc 4),
+  442 settings. In-game test suite: 81 checks.

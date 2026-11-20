@@ -3,6 +3,7 @@ package net.evadeclient.module.world;
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;
 import net.evadeclient.render.RenderContext;
+import net.evadeclient.util.BlockUtil;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.ModeSetting;
 import net.evadeclient.setting.NumberSetting;
@@ -25,6 +26,7 @@ import java.util.stream.StreamSupport;
 public class Nuker extends Module {
     private final ModeSetting mode = add(new ModeSetting("Mode", "All", "All", "Selected", "Flatten"));
     private final NumberSetting range = add(new NumberSetting("Range", 4, 1, 6, 0.5));
+    private final ModeSetting shape = add(new ModeSetting("Shape", "Sphere", "Sphere", "Cube"));
     private final NumberSetting perTick = add(new NumberSetting("Creative Blocks/Tick", 6, 1, 30, 1));
     private final BooleanSetting showTarget = add(new BooleanSetting("Show Target", true));
 
@@ -71,7 +73,9 @@ public class Nuker extends Module {
     private boolean ok(BlockPos p) {
         BlockState s = mc.world.getBlockState(p);
         if (s.isAir() || s.getHardness(mc.world, p) < 0 || !s.getFluidState().isEmpty()) return false;
-        if (mc.player.getEyePos().squaredDistanceTo(Vec3d.ofCenter(p)) > range.get() * range.get()) return false;
+        double d2 = mc.player.getEyePos().squaredDistanceTo(Vec3d.ofCenter(p));
+        if (shape.is("Sphere") && d2 > range.get() * range.get()) return false;
+        if (!BlockUtil.withinReach(p)) return false;
         if (mode.is("Selected") && s.getBlock() != selected) return false;
         return !mode.is("Flatten") || p.getY() >= mc.player.getBlockY();
     }

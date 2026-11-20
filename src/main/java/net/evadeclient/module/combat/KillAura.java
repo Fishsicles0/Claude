@@ -35,6 +35,7 @@ public class KillAura extends Module {
     private final BooleanSetting weaponOnly = add(new BooleanSetting("Weapon Only", true));
     private final BooleanSetting shieldCheck = add(new BooleanSetting("Shield Check", true));
     private final BooleanSetting pauseEating = add(new BooleanSetting("Pause Eating", true));
+    private final NumberSetting maxTargets = add(new NumberSetting("Max Targets", 1, 1, 5, 1));
     private final Targets targets = new Targets();
 
     private Entity current;
@@ -51,23 +52,28 @@ public class KillAura extends Module {
         if (weaponOnly.get() && !Targets.isWeapon(mc.player.getMainHandStack())) return;
         if (pauseEating.get() && mc.player.isUsingItem()) return;
 
-        LivingEntity t = pick();
-        if (t == null) return;
-        current = t;
+        List<LivingEntity> picked = pick();
+        if (picked.isEmpty()) return;
+        current = picked.getFirst();
         float need = (float) (charge.get() / 100.0) + (float) ThreadLocalRandom.current().nextDouble(0, 0.03);
         if (mc.player.getAttackCooldownProgress(0f) < Math.min(1f, need)) return;
         if (!AutoCritical.allow()) return;
 
+        // With Max Targets > 1, hit several in range this swing (the cooldown is shared, so damage is reduced,
+        // but it clears a crowd). The first target gets the rotation.
+        LivingEntity t = picked.getFirst();
         if (rotate.get()) {
             Vec3d aim = RotationUtil.closestPointToRay(t.getBoundingBox(), mc.player.getEyePos(), mc.player.getRotationVec(1f));
             float[] r = RotationUtil.rotationsTo(mc.player.getEyePos(), aim);
             PacketHooks.sendRaw(new PlayerMoveC2SPacket.LookAndOnGround(r[0], r[1], mc.player.isOnGround(), mc.player.horizontalCollision));
         }
-        mc.interactionManager.attackEntity(mc.player, t);
-        mc.player.swingHand(Hand.MAIN_HAND);
+        for (LivingEntity e : picked) {
+            mc.interactionManager.attackEntity(mc.player, e);
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
     }
 
-    private LivingEntity pick() {
+    private List<LivingEntity> pick() {
         double r = range.get();
         Vec3d eye = mc.player.getEyePos();
         Vec3d look = mc.player.getRotationVec(1f);
@@ -84,7 +90,7 @@ public class KillAura extends Module {
             if (eye.squaredDistanceTo(nearest) > r * r) return false;
             if (fov.get() < 360 && RotationUtil.angleTo(eye, look, p) > fov.get() / 2) return false;
             return walls.get() || mc.player.canSee(e);
-        }).min(order).orElse(null);
+        }).sorted(order).limit(maxTargets.getInt()).toList();
     }
 
     private boolean valid(LivingEntity e) {
