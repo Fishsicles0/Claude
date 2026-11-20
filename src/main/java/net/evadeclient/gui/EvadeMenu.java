@@ -115,14 +115,18 @@ public class EvadeMenu extends Screen {
         m.scale(s, s);
         m.translate(-width / 2f, -height / 2f);
 
-        // window with a soft red glow
-        Theme.round(ctx, wx - 3, wy - 3, wx + ww + 3, wy + wh + 3, 0x30E11D2E);
-        Theme.roundBordered(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.BORDER);
-        renderSidebar(ctx, mouseX, mouseY);
-        renderTopBar(ctx, mouseX, mouseY);
-        if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
-        else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
-        else renderGrid(ctx, mouseX, mouseY);
+        if (panelsMode()) {
+            renderPanels(ctx, mouseX, mouseY);
+        } else {
+            // window with a soft red glow
+            Theme.round(ctx, wx - 3, wy - 3, wx + ww + 3, wy + wh + 3, 0x30E11D2E);
+            Theme.roundBordered(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.BORDER);
+            renderSidebar(ctx, mouseX, mouseY);
+            renderTopBar(ctx, mouseX, mouseY);
+            if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
+            else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
+            else renderGrid(ctx, mouseX, mouseY);
+        }
 
         m.popMatrix();
     }
@@ -208,6 +212,100 @@ public class EvadeMenu extends Screen {
             out.add(mod);
         }
         return out;
+    }
+
+    /** The Doomsday style is a full-screen multi-panel ClickGUI (one panel per category) instead of a window. */
+    private boolean panelsMode() { return settings().guiStyle.get().equals("Doomsday") && selected == null && page != Page.SETTINGS; }
+
+    private static final int P_W = 128, P_HEAD = 15, P_ROW = 12, P_GAP = 8;
+
+    private record PRow(Module mod, int y) {}
+    private record Panel(String title, int x, int y, int w, int h, List<PRow> rows) {}
+
+    /** Masonry layout of category panels: each panel drops into the shortest column, so short ones stack (Misc over World). */
+    private List<Panel> layoutPanels() {
+        List<Panel> out = new ArrayList<>();
+        int margin = 30, top = 44;
+        int cols = Math.max(1, Math.min((width - 2 * margin + P_GAP) / (P_W + P_GAP), 6));
+        int startX = (width - (cols * P_W + (cols - 1) * P_GAP)) / 2;
+        int[] colBase = new int[cols];
+        java.util.Arrays.fill(colBase, top);
+        for (Page p : Page.values()) {
+            if (p == Page.ALL || p == Page.SETTINGS) continue;
+            List<Module> mods = modulesFor(p, search);
+            if (mods.isEmpty()) continue;
+            int col = 0;
+            for (int i = 1; i < cols; i++) if (colBase[i] < colBase[col]) col = i;
+            int x = startX + col * (P_W + P_GAP);
+            int baseY = colBase[col];
+            int h = P_HEAD + mods.size() * P_ROW + 3;
+            List<PRow> rows = new ArrayList<>();
+            for (int i = 0; i < mods.size(); i++) rows.add(new PRow(mods.get(i), baseY + P_HEAD + i * P_ROW - (int) Math.round(scroll)));
+            out.add(new Panel(p.label, x, baseY - (int) Math.round(scroll), P_W, h, rows));
+            colBase[col] += h + P_GAP;
+        }
+        int contentBottom = 0;
+        for (int c : colBase) contentBottom = Math.max(contentBottom, c);
+        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentBottom - height + 20)));
+        return out;
+    }
+
+    private void renderPanels(DrawContext ctx, int mx, int my) {
+        // top menu bar
+        small(ctx, "MODULES", width / 2 - 150, 16, Theme.TEXT, 0.9f);
+        boolean hSet = topBtnHover(mx, my, 0), hHud = topBtnHover(mx, my, 1), hX = topBtnHover(mx, my, 2);
+        small(ctx, "SETTINGS", topBtnX(0), 16, hSet ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.9f);
+        small(ctx, "EDIT HUD", topBtnX(1), 16, hHud ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.9f);
+        small(ctx, "CLOSE", topBtnX(2), 16, hX ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.9f);
+        // centred search box
+        int sw = 150, sx = (width - sw) / 2, sy = 28;
+        Theme.roundBordered(ctx, sx, sy, sx + sw, sy + 16, 0xF2111114, searchFocused ? Theme.RED : Theme.BORDER);
+        boolean caret = searchFocused && (System.currentTimeMillis() / 500) % 2 == 0;
+        String shown = search.isEmpty() && !searchFocused ? "Search" : search + (caret ? "_" : "");
+        ctx.drawText(textRenderer, shown, sx + (search.isEmpty() && !searchFocused ? (sw - textRenderer.getWidth("Search")) / 2 : 6), sy + 4,
+                search.isEmpty() && !searchFocused ? Theme.TEXT_FAINT : Theme.TEXT, false);
+
+        for (Panel panel : layoutPanels()) {
+            if (panel.y + panel.h < 40 || panel.y > height) continue;
+            Theme.roundBordered(ctx, panel.x, panel.y, panel.x + panel.w, panel.y + panel.h, Theme.BG, Theme.BORDER);
+            // header
+            ctx.fill(panel.x + 1, panel.y + 1, panel.x + panel.w - 1, panel.y + P_HEAD, Theme.SIDEBAR);
+            int tw = textRenderer.getWidth(panel.title);
+            ctx.drawText(textRenderer, panel.title, panel.x + (panel.w - tw) / 2, panel.y + 3, Theme.TEXT, false);
+            ctx.fill(panel.x + 1, panel.y + P_HEAD, panel.x + panel.w - 1, panel.y + P_HEAD + 1, Theme.RED);
+            for (PRow r : panel.rows) {
+                boolean hover = mx >= panel.x && mx < panel.x + panel.w && my >= r.y && my < r.y + P_ROW;
+                float on = animate("pon:" + r.mod.getName(), r.mod.isEnabled() ? 1 : 0, 16);
+                if (on > 0.01f) ctx.fill(panel.x + 1, r.y, panel.x + panel.w - 1, r.y + P_ROW, Theme.alpha(0xFF3C0F16, on));
+                if (hover) ctx.fill(panel.x + 1, r.y, panel.x + panel.w - 1, r.y + P_ROW, 0x30FFFFFF);
+                if (on > 0.5f) ctx.fill(panel.x + 1, r.y + 1, panel.x + 2, r.y + P_ROW - 1, Theme.RED);
+                ctx.drawText(textRenderer, textRenderer.trimToWidth(r.mod.getName(), panel.w - 10),
+                        panel.x + 6, r.y + 2, on > 0.5f ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, hover ? 1 : 0), false);
+            }
+        }
+        small(ctx, "Evade v" + EvadeClient.VERSION, width - 90, height - 12, Theme.TEXT_FAINT, 0.8f);
+    }
+
+    private int topBtnX(int i) { return width / 2 - 70 + i * 60; }
+    private boolean topBtnHover(int mx, int my, int i) { int x = topBtnX(i); return my >= 14 && my < 24 && mx >= x && mx < x + 50; }
+
+    private boolean clickPanels(double mx, double my, int button) {
+        int sw = 150, sx = (width - sw) / 2, sy = 28;
+        searchFocused = mx >= sx && mx < sx + sw && my >= sy && my < sy + 16;
+        if (searchFocused) return true;
+        if (topBtnHover((int) mx, (int) my, 0)) { go(Page.SETTINGS); return true; }
+        if (topBtnHover((int) mx, (int) my, 1)) { client.setScreen(new HudEditorScreen(this)); return true; }
+        if (topBtnHover((int) mx, (int) my, 2)) { close(); return true; }
+        for (Panel panel : layoutPanels()) {
+            for (PRow r : panel.rows) {
+                if (mx >= panel.x && mx < panel.x + panel.w && my >= r.y && my < r.y + P_ROW) {
+                    if (button == 1) { selected = r.mod; scroll = scrollTarget = 0; }
+                    else if (button == 0) r.mod.toggle();
+                    return true;
+                }
+            }
+        }
+        return true;
     }
 
     private int columns() { return cw >= 420 ? 3 : 2; }
@@ -397,6 +495,8 @@ public class EvadeMenu extends Screen {
         double mx = click.x(), my = click.y();
         int button = click.button();
         if (listening != null) { listening = null; return true; }
+
+        if (panelsMode()) return clickPanels(mx, my, button);
 
         if (mx >= wx + ww - 22 && mx < wx + ww - 8 && my >= wy + 10 && my < wy + 24) { close(); return true; }
 
