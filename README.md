@@ -26,6 +26,22 @@ AutoMend repairs, Reach/Hitbox extend, TriggerBot kills, AimAssist locks on, Zoo
 ToggleSprint/Time Changer work, and clicking a card in the menu toggles it. Screenshots land in
 `build/run/clientGameTest/screenshots/`.
 
+## Installer
+
+`installer/` is **Evade Installer**, a standalone Swing app (no Minecraft dependencies) that players download
+from evadeclient.com. It installs Fabric Loader, Fabric API and Evade into `.minecraft/evade` and adds an
+"Evade Client" profile (with icon) to the official Minecraft Launcher, which handles login and launching.
+
+```bash
+./gradlew :installer:jar :installer:createExe   # EvadeInstaller.jar + Evade-Installer.exe (Launch4j)
+java -jar installer/build/libs/EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings]
+java -jar installer/build/libs/EvadeInstaller.jar --screenshots OUTDIR   # render every screen to PNG
+```
+
+It reads `https://evadeclient.com/version.json` for the current Evade version and checksum, gets the newest
+stable Fabric Loader from meta.fabricmc.net and Fabric API from Modrinth, and verifies every download.
+`scripts/build-site.sh` builds both and publishes them to `site/downloads/`.
+
 ## Using it
 
 ![Menu](docs/menu.png)

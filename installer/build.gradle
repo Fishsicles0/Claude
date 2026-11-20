@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+    id 'edu.sc.seis.launch4j' version '4.0.0'
+}
+
+// Version of the installer itself (independent of the mod version it installs).
+version = '1.0.0'
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.release = 17; options.encoding = 'UTF-8' }
+
+// Single self-contained jar: Gson is bundled so it runs with just `java -jar`.
+tasks.named('jar') {
+    archiveFileName = 'EvadeInstaller.jar'
+    manifest { attributes 'Main-Class': 'net.evadeclient.installer.EvadeInstaller', 'Implementation-Version': project.version }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/9/module-info.class', 'module-info.class'
+}
+
+// Windows .exe wrapper around the jar. It looks for Java in the places the Minecraft Launcher installs
+// its own runtime, so most players don't need to install Java separately.
+launch4j {
+    mainClassName = 'net.evadeclient.installer.EvadeInstaller'
+    jarTask = tasks.named('jar').get()
+    outfile = 'Evade-Installer.exe'
+    icon = "${projectDir}/evade.ico"
+    headerType = 'gui'
+    productName = 'Evade Installer'
+    fileDescription = 'Evade Client Installer'
+    companyName = 'Evade Client'
+    copyright = 'Evade Client'
+    version = project.version
+    textVersion = project.version
+    internalName = 'EvadeInstaller'
+    jreMinVersion = '17'
+    requires64Bit = true
+    // Launch4j caps this at 260 chars: the Minecraft Launcher's Java 21 runtime (Store/new and classic installs),
+    // then JAVA_HOME. If none match, Launch4j also searches installed JREs before showing the message below.
+    bundledJrePath = [
+        '%LOCALAPPDATA%\\Packages\\Microsoft.4297127D64EC6_8wekyb3d8bbwe\\LocalCache\\Local\\runtime\\java-runtime-delta\\windows-x64\\java-runtime-delta',
+        '%APPDATA%\\.minecraft\\runtime\\java-runtime-delta\\windows-x64\\java-runtime-delta',
+        '%JAVA_HOME%'
+    ].join(';')
+    downloadUrl = 'https://adoptium.net/temurin/releases/?version=21'
+    messagesJreNotFoundError = 'Evade Installer needs Java 17 or newer. Open the Minecraft Launcher once (it installs Java), or install Java from adoptium.net.'
+}

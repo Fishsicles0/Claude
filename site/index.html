@@ -116,6 +116,12 @@ h1 .red { color: var(--red); text-shadow: 0 0 40px rgba(225,29,46,.45); }
 .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
 .meta { margin-top: 16px; font-size: 13px; color: var(--faint); }
 .meta b { color: var(--dim); font-weight: 500; }
+.meta.alts { margin-top: 8px; }
+.meta.alts a { color: var(--dim); border-bottom: 1px solid var(--border); transition: color .2s, border-color .2s; }
+.meta.alts a:hover { color: var(--text); border-color: var(--red); }
+.meta.alts span { margin: 0 6px; }
+.manual { color: var(--dim); font-size: 14px; margin-top: 18px; }
+.manual a { color: var(--red-hi); border-bottom: 1px solid rgba(255,59,76,.35); }
 
 .shot-hero {
   margin: 64px auto 0; max-width: 1040px; border-radius: 18px; overflow: hidden; position: relative;
@@ -273,17 +279,18 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
 </nav>
 
 <header class="hero wrap" id="download">
-  <div class="pill"><i></i> <span class="js-version">v0.3.0</span> &middot; now on Minecraft <span class="js-mc">1.21.11</span></div>
+  <div class="pill"><i></i> <span class="js-version">v0.3.1</span> &middot; now on Minecraft <span class="js-mc">1.21.11</span></div>
   <h1>Out-play everyone.<br><span class="red">Never get caught.</span></h1>
   <p class="lead">Evade is a free Fabric PvP client: combat modules, visuals and 17 HUD elements, all in one black and red menu.</p>
   <div class="cta">
-    <a class="btn btn-red js-dl" href="downloads/evade-client-latest.jar" download>
+    <a class="btn btn-red js-dl js-primary" href="downloads/Evade-Installer.exe" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      Download for 1.21.11
+      <span class="js-primary-label">Download for Windows</span>
     </a>
     <a class="btn btn-ghost" href="#install">How to install</a>
   </div>
-  <p class="meta"><b class="js-file">evade-client-0.3.0.jar</b> &middot; <span class="js-size">177 KB</span> &middot; Fabric Loader 0.18+ &middot; Requires Fabric API</p>
+  <p class="meta"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; Evade <span class="js-version">v0.3.1</span> &middot; Minecraft <span class="js-mc">1.21.11</span></p>
+  <p class="meta alts"><a class="js-dl js-alt" href="downloads/EvadeInstaller.jar" download>Mac &amp; Linux installer (.jar)</a> <span>&middot;</span> <a class="js-dl" href="downloads/evade-client-latest.jar" download>Mod only (.jar)</a></p>
 
   <div class="shot-hero rv" id="heroShot"><img src="assets/menu.png" alt="The Evade Client menu: a sidebar of categories and a grid of mod cards" width="1920" height="1080"></div>
 
@@ -334,11 +341,12 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
     <h2>Up and running in two minutes.</h2>
   </div>
   <div class="steps rv">
-    <div class="step"><h4>Install Fabric</h4><p>Run the installer from <a href="https://fabricmc.net/use/" target="_blank" rel="noopener">fabricmc.net</a> and pick Minecraft <b class="js-mc">1.21.11</b>.</p></div>
-    <div class="step"><h4>Get Fabric API</h4><p>Download the 1.21.11 version from <a href="https://modrinth.com/mod/fabric-api" target="_blank" rel="noopener">Modrinth</a>.</p></div>
-    <div class="step"><h4>Drop in both jars</h4><p>Put Evade and Fabric API in <span class="mono">.minecraft/mods</span>. On Windows, press Win+R and type <span class="mono">%appdata%\.minecraft</span>.</p></div>
-    <div class="step"><h4>Play</h4><p>Launch the <b>fabric-loader-1.21.11</b> profile, join a world and press Right Shift.</p></div>
+    <div class="step"><h4>Download the installer</h4><p>The <b>.exe</b> on Windows. On Mac and Linux, use the <b>.jar</b> installer (needs <a href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Java 17+</a>).</p></div>
+    <div class="step"><h4>Click Install</h4><p>It sets up Fabric, Fabric API and Evade in their own folder, so your normal mods and worlds aren't touched.</p></div>
+    <div class="step"><h4>Open the launcher</h4><p>In the Minecraft Launcher, pick <b>Evade Client</b> next to the Play button.</p></div>
+    <div class="step"><h4>Play</h4><p>Join a world and press Right Shift to open the menu. Run the installer again any time to update.</p></div>
   </div>
+  <p class="manual rv">Prefer doing it by hand? Put the <a href="downloads/evade-client-latest.jar" download>mod jar</a> and <a href="https://modrinth.com/mod/fabric-api" target="_blank" rel="noopener">Fabric API</a> in your <span class="mono">mods</span> folder with Fabric Loader for 1.21.11.</p>
   <div class="keys rv">
     <div class="key"><kbd>Right Shift</kbd>Menu</div>
     <div class="key"><kbd>C</kbd>Zoom</div>
@@ -354,21 +362,23 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
   </div>
   <div class="faq rv">
     <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
-    <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11 with Fabric Loader 0.18 or newer and Fabric API. Other versions aren't supported yet.</p></details>
+    <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
     <details><summary>Can I get banned?</summary><p>Yes, on most servers. Combat modules like Reach, TriggerBot and AutoClicker break the rules of most multiplayer servers and anti-cheats look for them. Use those in singleplayer, on your own server, or on servers that allow clients. The HUD and quality-of-life mods (Keystrokes, Zoom, ToggleSprint and so on) are the same kind of thing other PvP clients offer.</p></details>
     <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it runs alongside most others. If something conflicts, remove mods one at a time to find which one.</p></details>
-    <details><summary>Where are my settings saved?</summary><p>In <span class="mono">.minecraft/config/evade/config.json</span>. Back up that file to keep your layout and keybinds.</p></details>
-    <details><summary>Is it safe?</summary><p>Evade is built from source and contains no installers, launchers or extra programs. It's a single mod jar that Minecraft loads like any other.</p></details>
+    <details><summary>Windows says "Windows protected your PC"</summary><p>That appears for new apps that aren't code-signed yet. Click <b>More info</b>, then <b>Run anyway</b>. The installer only writes to your <span class="mono">.minecraft</span> folder.</p></details>
+    <details><summary>How do I update?</summary><p>Run the installer again. It shows <b>Update Evade Client</b> when a new version is out and replaces the old files.</p></details>
+    <details><summary>Where are my settings saved?</summary><p>In <span class="mono">.minecraft/evade/config/evade/config.json</span> if you used the installer. Back up that file to keep your layout and keybinds.</p></details>
+    <details><summary>Is it safe?</summary><p>The installer only touches your <span class="mono">.minecraft</span> folder: it adds an <span class="mono">evade</span> folder, one version file and one launcher profile, and backs up your launcher settings first. Every download is checked against a SHA-256 or SHA-512 checksum before it's used.</p></details>
   </div>
 </section>
 
 <div class="wrap">
   <div class="final rv">
     <h2>Ready to <span style="color:var(--red)">evade</span>?</h2>
-    <p class="sub">Free, one jar file, works in two minutes.</p>
-    <div class="cta"><a class="btn btn-red js-dl" href="downloads/evade-client-latest.jar" download>
+    <p class="sub">Free. Run the installer, click Install, play.</p>
+    <div class="cta"><a class="btn btn-red js-dl js-primary" href="downloads/Evade-Installer.exe" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      Download <span class="js-version">v0.3.0</span></a></div>
+      <span class="js-primary-label">Download for Windows</span></a></div>
   </div>
 </div>
 
@@ -384,7 +394,7 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
   </div>
 </footer>
 
-<div class="toast" id="toast">Downloading <b class="js-file">evade-client-0.3.0.jar</b>. Put it in your <span class="mono">mods</span> folder with Fabric API.</div>
+<div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
 
 <script>
 const MODS = [
@@ -458,12 +468,24 @@ fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
   if (!v) return;
   document.querySelectorAll(".js-version").forEach(e => e.textContent = "v" + v.version);
   document.querySelectorAll(".js-mc").forEach(e => e.textContent = v.minecraft);
-  document.querySelectorAll(".js-file").forEach(e => e.textContent = "evade-client-" + v.version + ".jar");
-  document.querySelectorAll(".js-size").forEach(e => e.textContent = v.size);
+
 }).catch(() => {});
 
-const toast = document.getElementById("toast");
+// Offer the right installer for the visitor's OS.
+const ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+const isMac = /Mac/i.test(plat) || /Macintosh/.test(ua), isLinux = !isMac && /Linux|X11/i.test(plat + ua) && !/Android/i.test(ua);
+if (isMac || isLinux) {
+  document.querySelectorAll(".js-primary").forEach(a => a.setAttribute("href", "downloads/EvadeInstaller.jar"));
+  document.querySelectorAll(".js-primary-label").forEach(e => e.textContent = isMac ? "Download for macOS" : "Download for Linux");
+  document.querySelectorAll(".js-primary-meta").forEach(e => e.textContent = "One-click installer \u00b7 needs Java 17+");
+  document.querySelectorAll(".js-alt").forEach(a => { a.setAttribute("href", "downloads/Evade-Installer.exe"); a.textContent = "Windows installer (.exe)"; });
+}
+
+const toast = document.getElementById("toast"), toastText = document.getElementById("toastText");
 document.querySelectorAll("a.js-dl[download]").forEach(a => a.addEventListener("click", () => {
+  toastText.innerHTML = /evade-client/.test(a.getAttribute("href"))
+    ? "Mod downloaded. Put it in your <b>mods</b> folder with Fabric API."
+    : "Download started. Open it and click <b>Install</b>.";
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 4500);
 }));
