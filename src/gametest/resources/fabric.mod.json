@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "evade-gametest",
+  "version": "1.0.0",
+  "name": "Evade Client Game Tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["net.evadeclient.gametest.EvadeClientGameTest"]
+  },
+  "depends": { "evade": "*" }
+}

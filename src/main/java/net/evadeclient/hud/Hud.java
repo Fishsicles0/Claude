@@ -1,12 +1,15 @@
 package net.evadeclient.hud;
 
 import net.evadeclient.EvadeClient;
+import net.evadeclient.gui.ClickGuiScreen;
+import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.Module;
 import net.evadeclient.module.client.HudModule;
 import net.evadeclient.util.ColorUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ChatScreen;
 
 import java.util.Comparator;
 import java.util.List;
@@ -16,12 +19,19 @@ public final class Hud {
 
     public static void render(DrawContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        HudModule hud = EvadeClient.modules.get(HudModule.class);
-        if (hud == null || !hud.isEnabled() || mc.player == null || mc.getDebugHud().shouldShowDebugHud()) return;
+        if (mc.player == null || mc.getDebugHud().shouldShowDebugHud()) return;
+        int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
 
+        // While the ClickGUI is open it draws the elements itself (with drag handles).
+        if (!(mc.currentScreen instanceof ClickGuiScreen)) {
+            for (HudElementModule el : EvadeClient.modules.hudElements()) {
+                if (el.isEnabled()) el.render(ctx, el.resolveX(sw), el.resolveY(sh), false);
+            }
+        }
+
+        HudModule hud = EvadeClient.modules.get(HudModule.class);
+        if (hud == null || !hud.isEnabled()) return;
         TextRenderer tr = mc.textRenderer;
-        int screenW = ctx.getScaledWindowWidth();
-        int screenH = ctx.getScaledWindowHeight();
 
         if (hud.watermark.get()) {
             String first = EvadeClient.NAME.substring(0, 1);
@@ -40,17 +50,17 @@ public final class Hud {
             for (int i = 0; i < active.size(); i++) {
                 String text = label(active.get(i));
                 int w = tr.getWidth(text);
-                int x = screenW - w - 4;
+                int x = sw - w - 4;
                 int color = hud.rainbow.get() ? ColorUtil.rainbow(i * 150L, 0.6f, 1f) : ColorUtil.ACCENT;
-                ctx.fill(x - 2, y - 1, screenW, y + tr.fontHeight, 0x90000000);
-                ctx.fill(screenW - 1, y - 1, screenW, y + tr.fontHeight, color);
+                ctx.fill(x - 2, y - 1, sw, y + tr.fontHeight, 0x90000000);
+                ctx.fill(sw - 1, y - 1, sw, y + tr.fontHeight, color);
                 ctx.drawTextWithShadow(tr, text, x, y, color);
                 y += tr.fontHeight + 1;
             }
         }
 
-        int bottom = screenH - tr.fontHeight - 2;
-        if (mc.currentScreen instanceof net.minecraft.client.gui.screen.ChatScreen) bottom -= 14;
+        int bottom = sh - tr.fontHeight - 2;
+        if (mc.currentScreen instanceof ChatScreen) bottom -= 14;
         if (hud.coords.get()) {
             String c = String.format("§7XYZ §f%.1f %.1f %.1f", mc.player.getX(), mc.player.getY(), mc.player.getZ());
             ctx.drawTextWithShadow(tr, c, 4, bottom, ColorUtil.TEXT);

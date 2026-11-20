@@ -1,19 +1,28 @@
 package net.evadeclient.module;
 
+import net.evadeclient.EvadeClient;
+import net.evadeclient.module.client.ArmorHud;
 import net.evadeclient.module.client.ClickGuiModule;
+import net.evadeclient.module.client.CooldownHud;
 import net.evadeclient.module.client.HudModule;
+import net.evadeclient.module.client.TargetHud;
+import net.evadeclient.module.combat.AimAssist;
 import net.evadeclient.module.combat.AutoClicker;
-import net.evadeclient.module.combat.KillAura;
-import net.evadeclient.module.movement.Flight;
-import net.evadeclient.module.movement.NoFall;
-import net.evadeclient.module.movement.Sprint;
-import net.evadeclient.module.movement.Step;
-import net.evadeclient.module.player.AutoRespawn;
-import net.evadeclient.module.player.FastPlace;
-import net.evadeclient.module.render.ESP;
-import net.evadeclient.module.render.Fullbright;
+import net.evadeclient.module.combat.AutoCritical;
+import net.evadeclient.module.combat.AutoMend;
+import net.evadeclient.module.combat.AutoPot;
+import net.evadeclient.module.combat.AutoTotem;
+import net.evadeclient.module.combat.Hitbox;
+import net.evadeclient.module.combat.Reach;
+import net.evadeclient.module.combat.TriggerBot;
+import net.evadeclient.module.render.ChestESP;
+import net.evadeclient.module.render.ChunkLocator;
+import net.evadeclient.module.render.PlayerTracers;
+import net.evadeclient.render.RenderContext;
+import net.evadeclient.util.TargetTracker;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.Entity;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -27,22 +36,25 @@ public class ModuleManager {
 
     public ModuleManager() {
         // Combat
-        register(new KillAura());
+        register(new AutoPot());
+        register(new AutoTotem());
+        register(new AutoMend());
+        register(new AimAssist());
+        register(new AutoCritical());
         register(new AutoClicker());
-        // Movement
-        register(new Sprint());
-        register(new Flight());
-        register(new NoFall());
-        register(new Step());
+        register(new Reach());
+        register(new TriggerBot());
+        register(new Hitbox());
         // Render
-        register(new Fullbright());
-        register(new ESP());
-        // Player
-        register(new FastPlace());
-        register(new AutoRespawn());
+        register(new ChestESP());
+        register(new ChunkLocator());
+        register(new PlayerTracers());
         // Client
-        register(new ClickGuiModule());
         register(new HudModule());
+        register(new ArmorHud());
+        register(new TargetHud());
+        register(new CooldownHud());
+        register(new ClickGuiModule());
     }
 
     private void register(Module module) { modules.add(module); }
@@ -51,6 +63,10 @@ public class ModuleManager {
 
     public List<Module> byCategory(Category category) {
         return modules.stream().filter(m -> m.getCategory() == category).toList();
+    }
+
+    public List<HudElementModule> hudElements() {
+        return modules.stream().filter(m -> m instanceof HudElementModule).map(m -> (HudElementModule) m).toList();
     }
 
     public Module get(String name) {
@@ -68,15 +84,40 @@ public class ModuleManager {
         MinecraftClient mc = MinecraftClient.getInstance();
         pollKeybinds(mc);
         if (mc.player == null || mc.world == null) return;
+        TargetTracker.tick();
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
                 m.onTick();
             } catch (Exception e) {
-                net.evadeclient.EvadeClient.LOG.error("Module {} crashed on tick, disabling", m.getName(), e);
-                m.setEnabled(false);
+                crashed(m, e);
             }
         }
+    }
+
+    public void onRender(RenderContext ctx) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || mc.world == null) return;
+        for (Module m : modules) {
+            if (!m.isEnabled()) continue;
+            try {
+                m.onRender(ctx);
+            } catch (Exception e) {
+                crashed(m, e);
+            }
+        }
+    }
+
+    public void onAttack(Entity target) {
+        TargetTracker.onAttack(target);
+        for (Module m : modules) {
+            if (m.isEnabled()) m.onAttack(target);
+        }
+    }
+
+    private static void crashed(Module m, Exception e) {
+        EvadeClient.LOG.error("Module {} crashed, disabling", m.getName(), e);
+        m.setEnabled(false);
     }
 
     /** Edge-triggered key polling so binds work without registering vanilla KeyBindings. */
@@ -85,11 +126,10 @@ public class ModuleManager {
             heldKeys.clear();
             return;
         }
-        long window = mc.getWindow().getHandle();
         Set<Integer> pressedNow = new HashSet<>();
         for (Module m : modules) {
             int key = m.getKey();
-            if (key != GLFW.GLFW_KEY_UNKNOWN && InputUtil.isKeyPressed(window, key)) pressedNow.add(key);
+            if (key != GLFW.GLFW_KEY_UNKNOWN && InputUtil.isKeyPressed(mc.getWindow(), key)) pressedNow.add(key);
         }
         for (Module m : modules) {
             int key = m.getKey();

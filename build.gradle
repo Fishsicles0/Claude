@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'fabric-loom' version '1.14.10'
     id 'maven-publish'
 }
 
@@ -29,3 +29,15 @@ java {
 }
 
 jar { from("LICENSE") { rename { "${it}_${project.base.archivesName.get()}" } } }
+
+// In-game tests: `xvfb-run ./gradlew runClientGameTest` launches Minecraft, builds a world,
+// exercises every module and saves screenshots to build/run/clientGameTest/screenshots.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "evade-gametest"
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}

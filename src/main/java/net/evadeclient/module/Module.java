@@ -1,7 +1,9 @@
 package net.evadeclient.module;
 
+import net.evadeclient.render.RenderContext;
 import net.evadeclient.setting.Setting;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -34,8 +36,15 @@ public abstract class Module {
         return setting;
     }
 
-    /** Called every client tick while enabled and in a world. */
+    /** Called every client tick (20/s) while enabled and in a world. */
     public void onTick() {}
+
+    /** Called every frame while enabled and in a world, after the world is drawn. */
+    public void onRender(RenderContext ctx) {}
+
+    /** Called right before the local player attacks {@code target} (any source: vanilla, TriggerBot, ...). */
+    public void onAttack(Entity target) {}
+
     protected void onEnable() {}
     protected void onDisable() {}
 

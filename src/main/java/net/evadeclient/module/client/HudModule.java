@@ -12,7 +12,7 @@ public class HudModule extends Module {
     public final BooleanSetting rainbow = add(new BooleanSetting("Rainbow", true));
 
     public HudModule() {
-        super("HUD", "On-screen overlay.", Category.CLIENT);
+        super("HUD", "Watermark, module list, coords and FPS.", Category.CLIENT);
         setVisible(false);
         setEnabled(true);
     }

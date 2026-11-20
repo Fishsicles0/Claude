@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.evadeclient.EvadeClient;
+import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.Module;
 import net.evadeclient.setting.Setting;
 import net.fabricmc.loader.api.FabricLoader;
@@ -28,6 +29,10 @@ public class ConfigManager {
             JsonObject settings = new JsonObject();
             for (Setting<?> s : m.getSettings()) settings.add(s.getName(), s.toJson());
             obj.add("settings", settings);
+            if (m instanceof HudElementModule h) {
+                obj.addProperty("x", h.x);
+                obj.addProperty("y", h.y);
+            }
             root.add(m.getName(), obj);
         }
         try {
@@ -54,6 +59,10 @@ public class ConfigManager {
                             try { s.fromJson(v); } catch (Exception ignored) {}
                         }
                     }
+                }
+                if (m instanceof HudElementModule h && obj.has("x") && obj.has("y")) {
+                    h.x = obj.get("x").getAsInt();
+                    h.y = obj.get("y").getAsInt();
                 }
                 if (obj.has("enabled")) m.setEnabled(obj.get("enabled").getAsBoolean());
             }

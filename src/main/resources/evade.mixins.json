@@ -4,8 +4,11 @@
   "package": "net.evadeclient.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ClientPlayerInteractionManagerMixin",
+    "EntityMixin",
+    "ItemCooldownManagerAccessor",
     "MinecraftClientAccessor",
-    "MinecraftClientMixin"
+    "PlayerEntityMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }
