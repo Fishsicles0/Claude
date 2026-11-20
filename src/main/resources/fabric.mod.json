@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "evade",
+  "version": "${version}",
+  "name": "Evade Client",
+  "description": "A utility client for Minecraft.",
+  "authors": ["Evade"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["net.evadeclient.EvadeClient"]
+  },
+  "mixins": ["evade.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
