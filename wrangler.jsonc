@@ -1,0 +1,11 @@
+// Cloudflare Workers Builds runs `npx wrangler deploy` from the repo root.
+// This serves the static download site in ./site (no Worker code needed).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evade-client",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page"
+  }
+}
