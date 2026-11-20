@@ -17,7 +17,7 @@ public class AutoWeapon extends Module {
     private final ModeSetting prefer = add(new ModeSetting("Prefer", "Damage", "Damage", "Sword", "Axe"));
 
     public AutoWeapon() {
-        super("AutoWeapon", "Switches to your best weapon when you attack.", Category.COMBAT);
+        super("AutoWeapon", "Switches to your best weapon when you attack.", Category.PVP);
     }
 
     @Override

@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=0.7.0">
+<link rel="stylesheet" href="/assets/site.css?v=0.8.0">
 </head>
 <body data-page="home">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v0.7.0</span>
+      <span class="nav-ver">v0.8.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -60,7 +60,7 @@
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <a class="pill rv" href="/features"><b>New in v0.7.0</b> 6 new mods, crystal PvP, Excavator <span class="arrow">&rarr;</span></a>
+      <a class="pill rv" href="/features"><b>New in v0.8.0</b> 6 new mods, crystal PvP, Excavator <span class="arrow">&rarr;</span></a>
       <h1 class="rv d1">129 mods.<br><span class="red">One client.</span></h1>
       <p class="lead rv d2">Evade is a free Fabric client for Minecraft 1.21.11. Combat, movement, visuals, world tools and a full HUD, all in one black and red menu that opens with <span class="kbd">Right Shift</span>.</p>
       <div class="cta rv d3">
@@ -88,9 +88,9 @@
   </div>
   <div class="wrap">
     <div class="spec rv">
-      <div><b>129</b><span>mods in v0.7.0</span></div>
+      <div><b>129</b><span>mods in v0.8.0</span></div>
       <div><b>442</b><span>settings to tune</span></div>
-      <div><b>8</b><span>categories</span></div>
+      <div><b>10</b><span>categories</span></div>
       <div><b><em>1.21.11</em></b><span>Minecraft, Fabric</span></div>
       <div><b>$0</b><span>free, no key</span></div>
     </div>
@@ -104,40 +104,44 @@
     <p>Every mod has its own settings, keybind and on/off switch. Type anywhere in the menu to search.</p>
   </div>
   <div class="bento">
-    <a class="card tile big rv" href="/features#combat">
-      <div class="num"><em>28</em></div>
-      <h3>Combat</h3>
-      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem, Offhand and more, with AntiBot to ignore fake players.</p>
-      <div class="chips"><span>KillAura</span><span>CrystalAura</span><span>AnchorAura</span><span>AimAssist</span><span>TriggerBot</span><span>Velocity</span><span>AutoTotem</span><span>Surround</span></div>
-      <span class="go">See combat</span>
+    <a class="card tile big rv" href="/features#pvp">
+      <div class="num"><em>16</em></div>
+      <h3>PvP macros</h3>
+      <p>Crystal and anchor fights handled for you: CrystalAura, AnchorAura, AutoTotem, AutoPot, Surround, AutoCity and more.</p>
+      <div class="chips"><span>CrystalAura</span><span>AnchorAura</span><span>AutoTotem</span><span>AutoPot</span><span>Surround</span><span>AutoCity</span><span>AutoAnvil</span><span>AutoWeb</span></div>
+      <span class="go">See PvP macros</span>
     </a>
-    <a class="card tile rv d1" href="/features#movement">
-      <div class="num">23</div><h3>Movement</h3>
+    <a class="card tile rv d1" href="/features#combat">
+      <div class="num">11</div><h3>Combat</h3>
+      <div class="chips"><span>KillAura</span><span>AimAssist</span><span>TriggerBot</span><span>Reach</span></div>
+    </a>
+    <a class="card tile rv d2" href="/features#movement">
+      <div class="num">24</div><h3>Movement</h3>
       <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoSlow</span></div>
     </a>
-    <a class="card tile rv d2" href="/features#visuals">
+    <a class="card tile rv d1" href="/features#visuals">
       <div class="num">17</div><h3>Visuals</h3>
       <div class="chips"><span>ESP</span><span>Waypoints</span><span>Freecam</span><span>HoleESP</span></div>
     </a>
-    <a class="card tile rv d1" href="/features#world">
-      <div class="num">14</div><h3>World</h3>
-      <div class="chips"><span>Printer</span><span>Nuker</span><span>AutoFarm</span><span>VeinMiner</span></div>
+    <a class="card tile rv d2" href="/features#world">
+      <div class="num">12</div><h3>World</h3>
+      <div class="chips"><span>Printer</span><span>Nuker</span><span>Excavator</span><span>VeinMiner</span></div>
     </a>
-    <a class="card tile rv d2" href="/features#player">
-      <div class="num">16</div><h3>Player</h3>
-      <div class="chips"><span>FakePlayer</span><span>AutoReplenish</span><span>AutoGap</span></div>
+    <a class="card tile rv d1" href="/features#utility">
+      <div class="num">15</div><h3>Utility</h3>
+      <div class="chips"><span>AutoArmor</span><span>ChestStealer</span><span>FastBreak</span></div>
     </a>
     <a class="card tile wide rv" href="/features#hud">
       <div class="num">18</div><h3>HUD</h3>
       <p>TargetHUD, Cooldowns, ArmorHUD, Keystrokes, Inventory Viewer and more. Drag, snap and resize each one.</p>
     </a>
-    <a class="card tile rv d1" href="/features#mods">
+    <a class="card tile rv d1" href="/features#server">
+      <div class="num">5</div><h3>Server-facing</h3>
+      <div class="chips"><span>AutoReconnect</span><span>AntiAFK</span><span>AutoLog</span></div>
+    </a>
+    <a class="card tile rv d2" href="/features#mods">
       <div class="num">9</div><h3>Quality of life</h3>
       <div class="chips"><span>Zoom</span><span>Freelook</span><span>ToggleSprint</span></div>
-    </a>
-    <a class="card tile rv d2" href="/features#misc">
-      <div class="num">4</div><h3>Misc</h3>
-      <div class="chips"><span>AutoReconnect</span><span>BetterChat</span><span>Notifier</span></div>
     </a>
   </div>
 </section>
@@ -146,7 +150,7 @@
   <div class="sec-head rv">
     <div class="eyebrow">Highlights</div>
     <h2>Built in. Tested in game.</h2>
-    <p>Real screenshots from the client. New features in v0.7.0 are covered by an automated in-game test suite.</p>
+    <p>Real screenshots from the client. New features in v0.8.0 are covered by an automated in-game test suite.</p>
   </div>
   <div class="shots">
     <a class="card shot-card w3 rv" href="/showcase">
@@ -214,10 +218,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.7.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=0.7.0" defer></script>
+<script src="/assets/site.js?v=0.8.0" defer></script>
 </body>
 </html>

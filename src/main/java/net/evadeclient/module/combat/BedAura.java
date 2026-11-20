@@ -31,7 +31,7 @@ public class BedAura extends Module {
     private final Targets targets = new Targets();
 
     public BedAura() {
-        super("BedAura", "Places and detonates beds next to enemies (Nether/End).", Category.COMBAT);
+        super("BedAura", "Places and detonates beds next to enemies (Nether/End).", Category.PVP);
         targets.addTo(this::add);
     }
 

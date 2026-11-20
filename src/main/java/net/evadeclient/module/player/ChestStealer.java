@@ -15,7 +15,7 @@ public class ChestStealer extends Module {
     private final BooleanSetting autoClose = add(new BooleanSetting("Close When Empty", true));
     private int wait;
 
-    public ChestStealer() { super("ChestStealer", "Empties containers into your inventory.", Category.PLAYER); }
+    public ChestStealer() { super("ChestStealer", "Empties containers into your inventory.", Category.UTILITY); }
 
     @Override
     public void onTick() {

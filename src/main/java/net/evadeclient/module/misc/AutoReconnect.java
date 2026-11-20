@@ -20,7 +20,7 @@ public class AutoReconnect extends Module {
     private static long disconnectedAt = -1;
 
     public AutoReconnect() {
-        super("AutoReconnect", "Rejoins the server after you get disconnected.", Category.MISC);
+        super("AutoReconnect", "Rejoins the server after you get disconnected.", Category.SERVER);
     }
 
     @Override

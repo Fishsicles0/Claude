@@ -13,7 +13,7 @@ import java.util.List;
 
 /** Sorts your main inventory (not the hotbar) by item type whenever you open it, one move at a time. */
 public class InventorySorter extends Module {
-    public InventorySorter() { super("InventorySorter", "Sorts your inventory when you open it.", Category.PLAYER); }
+    public InventorySorter() { super("InventorySorter", "Sorts your inventory when you open it.", Category.UTILITY); }
 
     @Override
     public void onTick() {

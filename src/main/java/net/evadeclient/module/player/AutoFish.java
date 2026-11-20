@@ -12,7 +12,7 @@ public class AutoFish extends Module {
     private final NumberSetting recastDelay = add(new NumberSetting("Recast Delay", 15, 5, 60, 1));
     private int recast = -1;
 
-    public AutoFish() { super("AutoFish", "Catches fish automatically.", Category.PLAYER); }
+    public AutoFish() { super("AutoFish", "Catches fish automatically.", Category.UTILITY); }
 
     @Override
     public void onTick() {

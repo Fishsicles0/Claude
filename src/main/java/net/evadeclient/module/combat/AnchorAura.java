@@ -33,7 +33,7 @@ public class AnchorAura extends Module {
     private int wait;
 
     public AnchorAura() {
-        super("AnchorAura", "Blows up respawn anchors next to enemies.", Category.COMBAT);
+        super("AnchorAura", "Blows up respawn anchors next to enemies.", Category.PVP);
     }
 
     @Override

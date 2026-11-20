@@ -24,7 +24,7 @@ public class AutoTrap extends Module {
     private final Targets targets = new Targets();
 
     public AutoTrap() {
-        super("AutoTrap", "Traps the nearest enemy in obsidian.", Category.COMBAT);
+        super("AutoTrap", "Traps the nearest enemy in obsidian.", Category.PVP);
     }
 
     @Override

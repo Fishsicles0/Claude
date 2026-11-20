@@ -22,7 +22,7 @@ public class AutoAnvil extends Module {
     private int wait;
 
     public AutoAnvil() {
-        super("AutoAnvil", "Drops anvils onto the nearest enemy.", Category.COMBAT);
+        super("AutoAnvil", "Drops anvils onto the nearest enemy.", Category.PVP);
         targets.addTo(this::add);
     }
 

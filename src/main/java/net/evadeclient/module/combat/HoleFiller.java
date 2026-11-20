@@ -24,7 +24,7 @@ public class HoleFiller extends Module {
     private final BooleanSetting rotate = add(new BooleanSetting("Rotate", true));
 
     public HoleFiller() {
-        super("HoleFiller", "Fills safe holes near enemies so they can't use them.", Category.COMBAT);
+        super("HoleFiller", "Fills safe holes near enemies so they can't use them.", Category.PVP);
     }
 
     @Override

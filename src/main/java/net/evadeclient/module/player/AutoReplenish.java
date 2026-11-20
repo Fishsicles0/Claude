@@ -18,7 +18,7 @@ public class AutoReplenish extends Module {
     private int wait;
 
     public AutoReplenish() {
-        super("AutoReplenish", "Refills hotbar stacks from your inventory.", Category.PLAYER);
+        super("AutoReplenish", "Refills hotbar stacks from your inventory.", Category.UTILITY);
     }
 
     @Override

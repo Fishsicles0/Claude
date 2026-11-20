@@ -26,7 +26,7 @@ public class AutoCity extends Module {
     private final Targets targets = new Targets();
 
     public AutoCity() {
-        super("AutoCity", "Mines the wall of an enemy's hole so they can be crystalled.", Category.COMBAT);
+        super("AutoCity", "Mines the wall of an enemy's hole so they can be crystalled.", Category.PVP);
         targets.addTo(this::add);
     }
 

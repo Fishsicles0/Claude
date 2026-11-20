@@ -37,7 +37,7 @@ public class AutoMend extends Module {
     private final Set<EquipmentSlot> stripped = EnumSet.noneOf(EquipmentSlot.class);
 
     public AutoMend() {
-        super("AutoMend", "Repairs Mending armour with XP bottles.", Category.COMBAT);
+        super("AutoMend", "Repairs Mending armour with XP bottles.", Category.PVP);
     }
 
     @Override

@@ -33,7 +33,7 @@ public class AutoPot extends Module {
     private long lastThrow;
 
     public AutoPot() {
-        super("AutoPot", "Throws healing and buff splash potions automatically.", Category.COMBAT);
+        super("AutoPot", "Throws healing and buff splash potions automatically.", Category.PVP);
     }
 
     @Override

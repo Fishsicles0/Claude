@@ -22,7 +22,7 @@ public class Offhand extends Module {
     private int wait;
 
     public Offhand() {
-        super("Offhand", "Keeps crystals, gapples, a shield or a totem in your offhand.", Category.COMBAT);
+        super("Offhand", "Keeps crystals, gapples, a shield or a totem in your offhand.", Category.PVP);
     }
 
     @Override

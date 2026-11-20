@@ -26,7 +26,7 @@ public class AutoArmor extends Module {
     private int wait;
 
     public AutoArmor() {
-        super("AutoArmor", "Equips the best armour you have.", Category.COMBAT);
+        super("AutoArmor", "Equips the best armour you have.", Category.UTILITY);
     }
 
     @Override

@@ -55,9 +55,9 @@ if (grid) {
     apply();
   };
   // A representative screenshot for each category, used on a module's detail hero.
-  const CAT_IMG = { combat: "/assets/hud.webp", movement: "/assets/menu.webp", visuals: "/assets/hud.webp",
-    world: "/assets/printer.webp", player: "/assets/menu-settings.webp", hud: "/assets/hud-editor.webp",
-    mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
+  const CAT_IMG = { combat: "/assets/hud.webp", pvp: "/assets/hud.webp", movement: "/assets/menu.webp",
+    server: "/assets/menu-settings.webp", visuals: "/assets/hud.webp", world: "/assets/printer.webp",
+    utility: "/assets/menu-settings.webp", hud: "/assets/hud-editor.webp", mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
   const TYPE = { slider: "Number", toggle: "Toggle", mode: "Mode", color: "Colour", key: "Key" };
   const RANGE = st => st.type === "slider" ? `${esc(st.min)} to ${esc(st.max)}`
     : st.type === "mode" ? st.options.map(esc).join(", ")
@@ -69,7 +69,7 @@ if (grid) {
   const openDetail = (name, push) => {
     const m = MODS.find(x => x.name === name);
     if (!m) return;
-    const c = m.cat.toLowerCase();
+    const c = m.slug;
     const rows = m.settings.map(st => `<tr><th scope="row">${esc(st.name)}</th><td>${TYPE[st.type] || st.type}</td>`
       + `<td class="def">${st.type === "color" ? `<i class="sw" style="background:${esc(st.default)}"></i>` : ""}${esc(st.default)}</td>`
       + `<td>${RANGE(st)}</td></tr>`).join("");
@@ -124,7 +124,7 @@ if (grid) {
   fetch("/assets/mods.json").then(r => r.json()).then(mods => {
     MODS = mods;
     grid.innerHTML = mods.map(m => {
-      const c = m.cat.toLowerCase(), n = m.settings.length;
+      const c = m.slug, n = m.settings.length;
       return `<button class="card mod" data-m="${esc(m.name)}" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
         <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
         <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>

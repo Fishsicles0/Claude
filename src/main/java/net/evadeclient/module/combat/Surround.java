@@ -22,7 +22,7 @@ public class Surround extends Module {
     private final BooleanSetting rotate = add(new BooleanSetting("Rotate", true));
 
     public Surround() {
-        super("Surround", "Surrounds your feet with obsidian.", Category.COMBAT);
+        super("Surround", "Surrounds your feet with obsidian.", Category.PVP);
     }
 
     @Override

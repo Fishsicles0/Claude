@@ -14,7 +14,7 @@ public class FastBreak extends Module {
     private final BooleanSetting noDelay = add(new BooleanSetting("No Delay", true));
     private final NumberSetting finishAt = add(new NumberSetting("Finish At %", 85, 50, 100, 5));
 
-    public FastBreak() { super("FastBreak", "Mine blocks faster.", Category.WORLD); }
+    public FastBreak() { super("FastBreak", "Mine blocks faster.", Category.UTILITY); }
 
     @Override
     public void onTick() {

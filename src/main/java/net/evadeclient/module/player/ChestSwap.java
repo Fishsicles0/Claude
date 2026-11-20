@@ -12,7 +12,7 @@ import net.minecraft.screen.slot.SlotActionType;
 /** One press swaps your chestplate for an elytra (or back again), then turns itself off. Give it a keybind. */
 public class ChestSwap extends Module {
     public ChestSwap() {
-        super("ChestSwap", "Swaps between your chestplate and elytra.", Category.PLAYER);
+        super("ChestSwap", "Swaps between your chestplate and elytra.", Category.UTILITY);
     }
 
     @Override

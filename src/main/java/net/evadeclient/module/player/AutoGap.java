@@ -14,7 +14,7 @@ public class AutoGap extends Module {
     private int eatingSlot = -1, prevSlot = -1, grace;
 
     public AutoGap() {
-        super("AutoGap", "Eats a golden apple when your health is low.", Category.PLAYER);
+        super("AutoGap", "Eats a golden apple when your health is low.", Category.PVP);
     }
 
     @Override

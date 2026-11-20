@@ -20,7 +20,7 @@ public class FakePlayer extends Module {
     private OtherClientPlayerEntity fake;
 
     public FakePlayer() {
-        super("FakePlayer", "Spawns a client-side copy of you to test modules on.", Category.PLAYER);
+        super("FakePlayer", "Spawns a client-side copy of you to test modules on.", Category.UTILITY);
     }
 
     @Override

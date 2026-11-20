@@ -12,7 +12,7 @@ public class AntiAFK extends Module {
     private final NumberSetting interval = add(new NumberSetting("Every Seconds", 30, 5, 300, 5));
     private int timer;
 
-    public AntiAFK() { super("AntiAFK", "Stops AFK kicks.", Category.PLAYER); }
+    public AntiAFK() { super("AntiAFK", "Stops AFK kicks.", Category.SERVER); }
 
     @Override
     public void onTick() {

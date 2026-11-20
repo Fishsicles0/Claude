@@ -14,7 +14,7 @@ public class MiddleClickExtra extends Module {
     private boolean wasDown;
 
     public MiddleClickExtra() {
-        super("MiddleClickExtra", "Middle-click throws a pearl without switching items.", Category.PLAYER);
+        super("MiddleClickExtra", "Middle-click throws a pearl without switching items.", Category.UTILITY);
     }
 
     @Override

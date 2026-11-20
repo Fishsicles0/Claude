@@ -49,7 +49,7 @@ public class CrystalAura extends Module {
     private final Targets targets = new Targets();
 
     public CrystalAura() {
-        super("CrystalAura", "Places and breaks end crystals near enemies.", Category.COMBAT);
+        super("CrystalAura", "Places and breaks end crystals near enemies.", Category.PVP);
     }
 
     @Override

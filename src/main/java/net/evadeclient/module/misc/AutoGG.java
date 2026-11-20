@@ -17,7 +17,7 @@ public class AutoGG extends Module {
     private int sendIn = -1;
 
     public AutoGG() {
-        super("AutoGG", "Says gg when a match ends.", Category.MISC);
+        super("AutoGG", "Says gg when a match ends.", Category.SERVER);
     }
 
     /** Called for every chat or system message we receive. */

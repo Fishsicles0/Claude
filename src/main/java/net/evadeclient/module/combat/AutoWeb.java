@@ -22,7 +22,7 @@ public class AutoWeb extends Module {
     private final Targets targets = new Targets();
 
     public AutoWeb() {
-        super("AutoWeb", "Traps the nearest enemy in cobwebs.", Category.COMBAT);
+        super("AutoWeb", "Traps the nearest enemy in cobwebs.", Category.PVP);
         targets.addTo(this::add);
     }
 

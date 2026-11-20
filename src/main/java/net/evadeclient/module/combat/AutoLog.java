@@ -15,7 +15,7 @@ public class AutoLog extends Module {
     private final BooleanSetting playerNear = add(new BooleanSetting("Only If Player Near", false));
 
     public AutoLog() {
-        super("AutoLog", "Disconnects you when you're about to die.", Category.COMBAT);
+        super("AutoLog", "Disconnects you when you're about to die.", Category.SERVER);
     }
 
     @Override

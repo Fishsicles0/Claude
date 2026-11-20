@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screen.DeathScreen;
 
 /** Respawns instantly when you die. */
 public class AutoRespawn extends Module {
-    public AutoRespawn() { super("AutoRespawn", "Respawns instantly when you die.", Category.PLAYER); }
+    public AutoRespawn() { super("AutoRespawn", "Respawns instantly when you die.", Category.UTILITY); }
 
     @Override
     public void onTick() {

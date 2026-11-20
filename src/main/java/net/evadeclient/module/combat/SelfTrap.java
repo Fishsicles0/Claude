@@ -19,7 +19,7 @@ public class SelfTrap extends Module {
     private final BooleanSetting rotate = add(new BooleanSetting("Rotate", true));
 
     public SelfTrap() {
-        super("SelfTrap", "Surrounds your head with obsidian.", Category.COMBAT);
+        super("SelfTrap", "Surrounds your head with obsidian.", Category.PVP);
     }
 
     @Override

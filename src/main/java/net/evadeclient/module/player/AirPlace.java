@@ -18,7 +18,7 @@ public class AirPlace extends Module {
     private boolean wasDown;
 
     public AirPlace() {
-        super("AirPlace", "Place blocks in mid-air.", Category.PLAYER);
+        super("AirPlace", "Place blocks in mid-air.", Category.UTILITY);
     }
 
     public BlockPos target() {

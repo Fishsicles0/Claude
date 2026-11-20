@@ -12,7 +12,7 @@ public class FastUse extends Module {
     private final ModeSetting mode = add(new ModeSetting("Items", "Throwables", "Throwables", "XP Only", "All"));
 
     public FastUse() {
-        super("FastUse", "No right-click delay for XP bottles and throwables.", Category.PLAYER);
+        super("FastUse", "No right-click delay for XP bottles and throwables.", Category.UTILITY);
     }
 
     @Override

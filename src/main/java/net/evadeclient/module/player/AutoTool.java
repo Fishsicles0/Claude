@@ -12,7 +12,7 @@ public class AutoTool extends Module {
     private final BooleanSetting saveTools = add(new BooleanSetting("Avoid Breaking Tools", true));
     private int prev = -1;
 
-    public AutoTool() { super("AutoTool", "Picks the best tool while mining.", Category.PLAYER); }
+    public AutoTool() { super("AutoTool", "Picks the best tool while mining.", Category.UTILITY); }
 
     @Override
     public void onTick() {

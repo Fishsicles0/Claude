@@ -121,9 +121,9 @@ def page(name: str, meta: dict, body: str, ver: dict) -> str:
         body=body.strip())
 
 
-CATEGORY_ORDER = ["COMBAT", "MOVEMENT", "VISUALS", "WORLD", "PLAYER", "HUD", "MODS", "MISC"]
-CATEGORY_LABEL = {"COMBAT": "Combat", "MOVEMENT": "Movement", "VISUALS": "Visuals", "WORLD": "World",
-                  "PLAYER": "Player", "HUD": "HUD", "MODS": "Mods", "MISC": "Misc"}
+CATEGORY_ORDER = ["COMBAT", "PVP", "MOVEMENT", "SERVER", "VISUALS", "WORLD", "UTILITY", "HUD", "MODS", "MISC"]
+CATEGORY_LABEL = {"COMBAT": "Combat", "PVP": "PvP macros", "MOVEMENT": "Movement", "SERVER": "Server-facing",
+                  "VISUALS": "Visuals", "WORLD": "World", "UTILITY": "Utility", "HUD": "HUD", "MODS": "Mods", "MISC": "Misc"}
 
 SETTING_RE = re.compile(r'new (NumberSetting|BooleanSetting|ModeSetting|ColorSetting|KeySetting)\(\s*"([^"]+)"\s*(?:,\s*(.*?))?\)\);')
 TARGET_SETTINGS = [("Players", "toggle", "On"), ("Mobs", "toggle", "Off"), ("Animals", "toggle", "Off"),
@@ -211,7 +211,7 @@ def scan_mods() -> list:
         # HUD elements only draw on your screen, so they're always low risk (the HUD "Speed" readout shares a name
         # with the Movement cheat "Speed").
         risk_level = "low" if cat == "HUD" else level.get(m.group(1), "low")
-        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "risk": risk_level,
+        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "slug": cat.lower(), "risk": risk_level,
                      "settings": scan_settings(src) + inherited(src, java), "new": cls in NEW_IN_LATEST})
     mods.sort(key=lambda x: (CATEGORY_ORDER.index([k for k, v in CATEGORY_LABEL.items() if v == x["cat"]][0]), x["name"].lower()))
     return mods
@@ -220,12 +220,13 @@ def scan_mods() -> list:
 def main() -> None:
     mods = scan_mods()
     (OUT / "assets" / "mods.json").write_text(json.dumps(mods, separators=(",", ":")))
-    counts = {c: sum(1 for m in mods if m["cat"] == c) for c in CATEGORY_LABEL.values()}
+    # count by enum key (COMBAT, PVP, SERVER, UTILITY...) so site tokens are {{PVP}} etc., not label text
+    counts = {key: sum(1 for m in mods if m["cat"] == label) for key, label in CATEGORY_LABEL.items()}
     ver = json.loads((OUT / "version.json").read_text())
     risk = {r: sum(1 for m in mods if m["risk"] == r) for r in ("low", "med", "high")}
     n_settings = sum(len(m["settings"]) for m in mods)
     n_new = sum(1 for m in mods if m["new"])
-    tokens = {"{{TOTAL}}": str(len(mods))} | {"{{" + k.upper() + "}}": str(v) for k, v in counts.items()}
+    tokens = {"{{TOTAL}}": str(len(mods))} | {"{{" + k + "}}": str(v) for k, v in counts.items()}
     tokens |= {"{{RISK_" + k.upper() + "}}": str(v) for k, v in risk.items()}
     tokens |= {"{{SETTINGS}}": str(n_settings), "{{NEW}}": str(n_new), "{{CATS}}": str(len([c for c in counts.values() if c]))}
     tokens |= {

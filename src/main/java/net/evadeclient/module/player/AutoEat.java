@@ -18,7 +18,7 @@ public class AutoEat extends Module {
 
     private int eatingSlot = -1, prevSlot = -1;
 
-    public AutoEat() { super("AutoEat", "Eats food automatically when hungry.", Category.PLAYER); }
+    public AutoEat() { super("AutoEat", "Eats food automatically when hungry.", Category.UTILITY); }
 
     @Override
     public void onTick() {
