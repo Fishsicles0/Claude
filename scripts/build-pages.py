@@ -236,6 +236,16 @@ def main() -> None:
         "{{PACK_VERSION}}": ver["texturePack"]["version"], "{{SIZE_PACK}}": ver["texturePack"]["size"],
         "{{SHA_PACK}}": ver["texturePack"]["sha256"],
     }
+    printer_mods = json.loads((ROOT / "site-src" / "printer-mods.json").read_text())["mods"]
+    rows = "".join(
+        f'<a class="req-mod" href="{html.escape(m["page"])}" target="_blank" rel="noopener">'
+        f'<div class="req-top"><h4>{html.escape(m["name"])}</h4><span class="req-ver">v{html.escape(m["version"])}</span></div>'
+        f'<p>{html.escape(m["need"])}</p>'
+        f'<span class="req-get">Official download &middot; {html.escape(m["size"])} <em>&rarr;</em></span></a>'
+        for m in printer_mods)
+    tokens |= {"{{PRINTER_MODS}}": rows,
+               "{{LITEMATICA_VER}}": printer_mods[0]["version"], "{{LITEMATICA_URL}}": printer_mods[0]["page"],
+               "{{MALILIB_VER}}": printer_mods[1]["version"], "{{MALILIB_URL}}": printer_mods[1]["page"]}
     print(f"mods.json: {len(mods)} mods, {n_settings} settings, {n_new} new: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     for src in sorted(SRC.glob("*.html")):
         text = src.read_text()
