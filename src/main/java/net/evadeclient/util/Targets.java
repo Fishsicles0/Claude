@@ -35,7 +35,8 @@ public final class Targets {
         if (e instanceof ArmorStandEntity) return false;
         if (invisible.get() && e.isInvisible()) return false;
         if (teammates.get() && mc.player.isTeammate(e)) return false;
-        if (e instanceof PlayerEntity p) return players.get() && !p.isSpectator() && !p.isCreative();
+        if (e instanceof PlayerEntity p) return players.get() && !p.isSpectator() && !p.isCreative()
+                && !net.evadeclient.module.combat.AntiBot.isBot(p);
         if (e instanceof Monster) return mobs.get();
         if (e instanceof AnimalEntity) return animals.get();
         return false;

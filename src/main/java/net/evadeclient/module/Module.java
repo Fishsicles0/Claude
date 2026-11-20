@@ -45,6 +45,9 @@ public abstract class Module {
     /** Called right before the local player attacks {@code target} (any source: vanilla, TriggerBot, ...). */
     public void onAttack(Entity target) {}
 
+    /** Called before the client sends {@code packet}; return true to cancel it. */
+    public boolean onSendPacket(net.minecraft.network.packet.Packet<?> packet) { return false; }
+
     protected void onEnable() {}
     protected void onDisable() {}
 

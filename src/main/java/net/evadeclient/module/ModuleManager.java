@@ -10,6 +10,11 @@ import net.evadeclient.util.Notifications;
 import net.evadeclient.module.client.CooldownHud;
 import net.evadeclient.module.client.HudModule;
 import net.evadeclient.module.client.TargetHud;
+import net.evadeclient.module.combat.*;
+import net.evadeclient.module.movement.*;
+import net.evadeclient.module.player.*;
+import net.evadeclient.module.visuals.*;
+import net.evadeclient.module.world.*;
 import net.evadeclient.module.combat.AimAssist;
 import net.evadeclient.module.combat.AutoClicker;
 import net.evadeclient.module.combat.AutoCritical;
@@ -19,9 +24,9 @@ import net.evadeclient.module.combat.AutoTotem;
 import net.evadeclient.module.combat.Hitbox;
 import net.evadeclient.module.combat.Reach;
 import net.evadeclient.module.combat.TriggerBot;
-import net.evadeclient.module.render.ChestESP;
-import net.evadeclient.module.render.ChunkLocator;
-import net.evadeclient.module.render.PlayerTracers;
+import net.evadeclient.module.visuals.ChestESP;
+import net.evadeclient.module.visuals.ChunkLocator;
+import net.evadeclient.module.visuals.PlayerTracers;
 import net.evadeclient.render.RenderContext;
 import net.evadeclient.util.TargetTracker;
 import net.minecraft.client.MinecraftClient;
@@ -49,10 +54,61 @@ public class ModuleManager {
         register(new Reach());
         register(new TriggerBot());
         register(new Hitbox());
+        register(new KillAura());
+        register(new CrystalAura());
+        register(new AnchorAura());
+        register(new BowAimbot());
+        register(new AutoArmor());
+        register(new Surround());
+        register(new AutoTrap());
+        register(new Velocity());
+        register(new AntiBot());
+        register(new AutoLog());
+        // Movement
+        register(new Fly());
+        register(new ElytraFly());
+        register(new Speed());
+        register(new Scaffold());
+        register(new NoFall());
+        register(new Step());
+        register(new Spider());
+        register(new LongJump());
+        register(new HighJump());
+        register(new Jesus());
+        register(new Dolphin());
+        register(new Parkour());
+        register(new AntiVoid());
+        register(new SafeWalk());
+        register(new Blink());
+        register(new net.evadeclient.module.movement.Timer());
         // Visuals
+        register(new ESP());
         register(new ChestESP());
+        register(new OreESP());
         register(new ChunkLocator());
         register(new PlayerTracers());
+        register(new Nametags());
+        register(new Freecam());
+        register(new NoFog());
+        register(new Trajectories());
+        // World
+        register(new Nuker());
+        register(new AutoMine());
+        register(new VeinMiner());
+        register(new FastPlace());
+        register(new FastBreak());
+        register(new AutoFarm());
+        register(new SpawnProofer());
+        // Player
+        register(new AutoEat());
+        register(new AutoTool());
+        register(new ChestStealer());
+        register(new InventorySorter());
+        register(new AutoFish());
+        register(new AutoRespawn());
+        register(new AntiHunger());
+        register(new AntiAFK());
+        register(new AutoWalk());
         // HUD
         register(new HudModule());
         register(new ArmorHud());
@@ -71,6 +127,7 @@ public class ModuleManager {
         register(new ComboHud());
         register(new SpeedHud());
         register(new MemoryHud());
+        register(new InventoryHud());
         // Mods
         register(new ToggleSprint());
         register(new Zoom());
@@ -141,6 +198,20 @@ public class ModuleManager {
         for (Module m : modules) {
             if (m.isEnabled()) m.onAttack(target);
         }
+    }
+
+    /** @return true if any module wants the packet cancelled. */
+    public boolean onSendPacket(net.minecraft.network.packet.Packet<?> packet) {
+        boolean cancel = false;
+        for (Module m : modules) {
+            if (!m.isEnabled()) continue;
+            try {
+                if (m.onSendPacket(packet)) cancel = true;
+            } catch (Exception e) {
+                crashed(m, e);
+            }
+        }
+        return cancel;
     }
 
     private static void crashed(Module m, Exception e) {

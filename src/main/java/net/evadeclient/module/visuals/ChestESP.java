@@ -1,4 +1,4 @@
-package net.evadeclient.module.render;
+package net.evadeclient.module.visuals;
 
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;

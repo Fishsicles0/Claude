@@ -32,6 +32,8 @@ public final class Hud {
                 if (el.isEnabled()) el.renderScaled(ctx, sw, sh, false);
             }
         }
+        var tags = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
+        if (tags != null && tags.isEnabled() && !mc.options.hudHidden) tags.draw(ctx, mc.getRenderTickCounter().getTickProgress(true));
         Notifications.render(ctx);
 
         HudModule hud = EvadeClient.modules.get(HudModule.class);

@@ -29,4 +29,13 @@ public abstract class PlayerEntityMixin {
         Reach reach = EvadeClient.modules.get(Reach.class);
         return reach != null && reach.isEnabled() ? reach : null;
     }
+
+    /** SafeWalk: behave as if sneaking at ledges so you can't walk off. */
+    @Inject(method = "clipAtLedge", at = @At("HEAD"), cancellable = true)
+    private void evade$safeWalk(CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this != MinecraftClient.getInstance().player || EvadeClient.modules == null) return;
+        var sw = EvadeClient.modules.get(net.evadeclient.module.movement.SafeWalk.class);
+        var sc = EvadeClient.modules.get(net.evadeclient.module.movement.Scaffold.class);
+        if ((sw != null && sw.isEnabled()) || (sc != null && sc.isEnabled() && sc.safeWalk())) cir.setReturnValue(true);
+    }
 }

@@ -19,6 +19,7 @@ public abstract class GameRendererMixin {
         if (EvadeClient.modules == null) return;
         Zoom zoom = EvadeClient.modules.get(Zoom.class);
         if (zoom != null && zoom.isEnabled()) cir.setReturnValue((float) (cir.getReturnValue() * zoom.fovMultiplier()));
+        net.evadeclient.util.Projection.fov = cir.getReturnValue();
     }
 
     @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"), cancellable = true)

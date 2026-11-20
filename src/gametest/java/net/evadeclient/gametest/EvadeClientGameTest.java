@@ -10,8 +10,8 @@ import net.evadeclient.module.combat.AutoTotem;
 import net.evadeclient.module.combat.Hitbox;
 import net.evadeclient.module.combat.Reach;
 import net.evadeclient.module.combat.TriggerBot;
-import net.evadeclient.module.render.ChestESP;
-import net.evadeclient.module.render.ChunkLocator;
+import net.evadeclient.module.visuals.ChestESP;
+import net.evadeclient.module.visuals.ChunkLocator;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.Setting;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -42,6 +42,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testAimAssist(ctx, sp);
             testQualityOfLife(ctx, sp);
             testVisuals(ctx, sp);
+            new NewModsTest(ctx, sp).run();
             testMenu(ctx);
         }
     }

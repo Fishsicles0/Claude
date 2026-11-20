@@ -24,6 +24,11 @@ public abstract class MouseMixin {
                 dx *= s;
                 dy *= s;
             }
+            var fc = EvadeClient.modules.get(net.evadeclient.module.visuals.Freecam.class);
+            if (fc != null && fc.isEnabled()) {
+                fc.look(dx, dy);
+                return;
+            }
             Freelook fl = EvadeClient.modules.get(Freelook.class);
             if (fl != null && fl.active()) {
                 fl.look(dx, dy);
