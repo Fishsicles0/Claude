@@ -24,6 +24,7 @@ public class AntiBot extends Module {
 
     public static boolean isBot(Entity e) {
         if (!(e instanceof PlayerEntity p) || EvadeClient.modules == null) return false;
+        if (net.evadeclient.module.player.FakePlayer.isFake(e)) return false; // our own test dummy
         AntiBot ab = EvadeClient.modules.get(AntiBot.class);
         if (ab == null || !ab.isEnabled()) return false;
         var nh = MinecraftClient.getInstance().getNetworkHandler();

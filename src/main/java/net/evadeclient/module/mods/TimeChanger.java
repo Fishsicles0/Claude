@@ -13,7 +13,11 @@ public class TimeChanger extends Module {
     public TimeChanger() { super("Time Changer", "Change the time of day you see.", Category.MODS); }
 
     @Override
-    public void onTick() {
+    public void onTick() { apply(); }
+
+    /** Also called right after the server sends its own time, so the server never wins for a frame. */
+    public void apply() {
+        if (mc.world == null) return;
         long t = switch (preset.get()) {
             case "Sunset" -> 12500;
             case "Night" -> 14500;

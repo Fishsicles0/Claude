@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "0.4.0";
+    public static final String VERSION = "0.5.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
@@ -56,6 +56,19 @@ public class EvadeClient implements ClientModInitializer {
         WorldRenderEvents.END_MAIN.register(EvadeClient::onWorldRender);
         ClientSendMessageEvents.ALLOW_CHAT.register(commands::handleChat);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());
+        ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
+                net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (screen instanceof net.minecraft.client.gui.screen.DisconnectedScreen)
+                net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) ->
+                        net.evadeclient.module.misc.AutoReconnect.renderOverlay(ctx, s.width));
+        });
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!overlay) net.evadeclient.module.misc.AutoGG.onMessage(message.getString());
+        });
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, time) ->
+                net.evadeclient.module.misc.AutoGG.onMessage(message.getString()));
 
         LOG.info("{} {} loaded with {} modules", NAME, VERSION, modules.all().size());
     }

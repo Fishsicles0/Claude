@@ -23,7 +23,8 @@ OUT = ROOT / "site"
 SITE = "https://evadeclient.com"
 
 NAV = [("home", "/", "Home"), ("features", "/features", "Features"), ("download", "/download", "Download"),
-       ("showcase", "/showcase", "Showcase"), ("faq", "/faq", "FAQ")]
+       ("docs", "/docs", "Docs"), ("changelog", "/changelog", "Changelog"), ("showcase", "/showcase", "Showcase"),
+       ("faq", "/faq", "FAQ")]
 
 LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="32" height="32">'
         '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span>')
@@ -120,9 +121,73 @@ def page(name: str, meta: dict, body: str, ver: dict) -> str:
         body=body.strip())
 
 
-CATEGORY_ORDER = ["COMBAT", "MOVEMENT", "VISUALS", "WORLD", "PLAYER", "HUD", "MODS"]
+CATEGORY_ORDER = ["COMBAT", "MOVEMENT", "VISUALS", "WORLD", "PLAYER", "HUD", "MODS", "MISC"]
 CATEGORY_LABEL = {"COMBAT": "Combat", "MOVEMENT": "Movement", "VISUALS": "Visuals", "WORLD": "World",
-                  "PLAYER": "Player", "HUD": "HUD", "MODS": "Mods"}
+                  "PLAYER": "Player", "HUD": "HUD", "MODS": "Mods", "MISC": "Misc"}
+
+SETTING_RE = re.compile(r'new (NumberSetting|BooleanSetting|ModeSetting|ColorSetting|KeySetting)\(\s*"([^"]+)"\s*(?:,\s*(.*?))?\)\);')
+TARGET_SETTINGS = [("Players", "toggle", "On"), ("Mobs", "toggle", "Off"), ("Animals", "toggle", "Off"),
+                   ("Ignore Team", "toggle", "On"), ("Ignore Invis", "toggle", "Off")]
+
+
+def split_args(a: str) -> list:
+    out, cur, q = [], "", False
+    for ch in a:
+        if ch == '"':
+            q = not q
+        if ch == "," and not q:
+            out.append(cur.strip()); cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        out.append(cur.strip())
+    return [x.strip('"') for x in out]
+
+
+def fmt_num(x: str) -> str:
+    v = float(x)
+    return str(int(v)) if v == int(v) else f"{v:g}"
+
+
+def key_name(k: str) -> str:
+    k = k.replace("GLFW.GLFW_KEY_", "").replace("GLFW_KEY_", "")
+    return "None" if k == "UNKNOWN" else k.replace("_", " ").title()
+
+
+def inherited(src: str, java) -> list:
+    """Settings every HUD element gets from its base classes (scale, background, text colour...)."""
+    out = []
+    if "extends TextHudModule" in src:
+        out += scan_settings((java / "TextHudModule.java").read_text())
+        src = "extends HudElementModule"
+    if "extends HudElementModule" in src:
+        out += scan_settings((java / "HudElementModule.java").read_text())
+    return out
+
+
+def scan_settings(src: str) -> list:
+    out = []
+    for m in SETTING_RE.finditer(src):
+        kind, name, args = m.group(1), m.group(2), split_args(m.group(3) or "")
+        try:
+            if kind == "BooleanSetting":
+                out.append({"name": name, "type": "toggle", "default": "On" if args[0] == "true" else "Off"})
+            elif kind == "NumberSetting":
+                out.append({"name": name, "type": "slider", "default": fmt_num(args[0]), "min": fmt_num(args[1]), "max": fmt_num(args[2])})
+            elif kind == "ModeSetting":
+                out.append({"name": name, "type": "mode", "default": args[0], "options": args[1:]})
+            elif kind == "ColorSetting":
+                out.append({"name": name, "type": "color", "default": "#" + args[0][-6:].upper()})
+            elif kind == "KeySetting":
+                out.append({"name": name, "type": "key", "default": key_name(args[0])})
+        except (IndexError, ValueError):
+            continue
+    if "targets.addTo(" in src:
+        out += [{"name": n, "type": t, "default": d} for n, t, d in TARGET_SETTINGS]
+    return out
+
+
+NEW_IN_LATEST = set(json.loads((ROOT / "site-src" / "new.json").read_text())["classes"]) if (ROOT / "site-src" / "new.json").exists() else set()
 
 
 def scan_mods() -> list:
@@ -146,19 +211,23 @@ def scan_mods() -> list:
         # HUD elements only draw on your screen, so they're always low risk (the HUD "Speed" readout shares a name
         # with the Movement cheat "Speed").
         risk_level = "low" if cat == "HUD" else level.get(m.group(1), "low")
-        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "risk": risk_level})
+        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "risk": risk_level,
+                     "settings": scan_settings(src) + inherited(src, java), "new": cls in NEW_IN_LATEST})
     mods.sort(key=lambda x: (CATEGORY_ORDER.index([k for k, v in CATEGORY_LABEL.items() if v == x["cat"]][0]), x["name"].lower()))
     return mods
 
 
 def main() -> None:
     mods = scan_mods()
-    (OUT / "assets" / "mods.json").write_text(json.dumps(mods, indent=1))
+    (OUT / "assets" / "mods.json").write_text(json.dumps(mods, separators=(",", ":")))
     counts = {c: sum(1 for m in mods if m["cat"] == c) for c in CATEGORY_LABEL.values()}
     ver = json.loads((OUT / "version.json").read_text())
     risk = {r: sum(1 for m in mods if m["risk"] == r) for r in ("low", "med", "high")}
+    n_settings = sum(len(m["settings"]) for m in mods)
+    n_new = sum(1 for m in mods if m["new"])
     tokens = {"{{TOTAL}}": str(len(mods))} | {"{{" + k.upper() + "}}": str(v) for k, v in counts.items()}
     tokens |= {"{{RISK_" + k.upper() + "}}": str(v) for k, v in risk.items()}
+    tokens |= {"{{SETTINGS}}": str(n_settings), "{{NEW}}": str(n_new), "{{CATS}}": str(len([c for c in counts.values() if c]))}
     tokens |= {
         "{{VERSION}}": ver["version"], "{{MC}}": ver["minecraft"], "{{DATE}}": ver["date"],
         "{{SIZE_MOD}}": ver["size"], "{{SHA_MOD}}": ver["sha256"],
@@ -167,7 +236,7 @@ def main() -> None:
         "{{PACK_VERSION}}": ver["texturePack"]["version"], "{{SIZE_PACK}}": ver["texturePack"]["size"],
         "{{SHA_PACK}}": ver["texturePack"]["sha256"],
     }
-    print(f"mods.json: {len(mods)} mods " + ", ".join(f"{k} {v}" for k, v in counts.items()))
+    print(f"mods.json: {len(mods)} mods, {n_settings} settings, {n_new} new: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     for src in sorted(SRC.glob("*.html")):
         text = src.read_text()
         for k, v in tokens.items():

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evade Client</title>
-<meta name="description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 88 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
+<meta name="description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 123 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Evade Client">
-<meta property="og:description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 88 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
+<meta property="og:description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 123 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
 <meta property="og:url" content="https://evadeclient.com/">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=0.4.0">
+<link rel="stylesheet" href="/assets/site.css?v=0.5.0">
 </head>
 <body data-page="home">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -34,11 +34,13 @@
       <a href="/" class="on" aria-current="page">Home</a>
       <a href="/features">Features</a>
       <a href="/download">Download</a>
+      <a href="/docs">Docs</a>
+      <a href="/changelog">Changelog</a>
       <a href="/showcase">Showcase</a>
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v0.4.0</span>
+      <span class="nav-ver">v0.5.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -47,6 +49,8 @@
     <a href="/" class="on" aria-current="page">Home</a>
     <a href="/features">Features</a>
     <a href="/download">Download</a>
+    <a href="/docs">Docs</a>
+    <a href="/changelog">Changelog</a>
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
   </div>
@@ -56,15 +60,15 @@
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <a class="pill rv" href="/features"><b>New in v0.4.0</b> Printer, 50 new mods, Texture Pack <span class="arrow">&rarr;</span></a>
-      <h1 class="rv d1">88 mods.<br><span class="red">One client.</span></h1>
+      <a class="pill rv" href="/features"><b>New in v0.5.0</b> 35 new mods, Waypoints, FakePlayer <span class="arrow">&rarr;</span></a>
+      <h1 class="rv d1">123 mods.<br><span class="red">One client.</span></h1>
       <p class="lead rv d2">Evade is a free Fabric client for Minecraft 1.21.11. Combat, movement, visuals, world tools and a full HUD, all in one black and red menu that opens with <span class="kbd">Right Shift</span>.</p>
       <div class="cta rv d3">
         <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
           <span class="js-primary-label">Download for Windows</span>
         </a>
-        <a class="btn btn-ghost btn-lg" href="/features">Browse all 88 mods</a>
+        <a class="btn btn-ghost btn-lg" href="/features">Browse all 123 mods</a>
       </div>
       <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></p>
       <div class="trust rv d3">
@@ -84,9 +88,9 @@
   </div>
   <div class="wrap">
     <div class="spec rv">
-      <div><b>88</b><span>mods in v0.4.0</span></div>
-      <div><b>7</b><span>categories</span></div>
-      <div><b>18</b><span>HUD elements</span></div>
+      <div><b>123</b><span>mods in v0.5.0</span></div>
+      <div><b>409</b><span>settings to tune</span></div>
+      <div><b>8</b><span>categories</span></div>
       <div><b><em>1.21.11</em></b><span>Minecraft, Fabric</span></div>
       <div><b>$0</b><span>free, no key</span></div>
     </div>
@@ -96,40 +100,44 @@
 <section class="wrap" id="inside">
   <div class="sec-head rv">
     <div class="eyebrow">What's inside</div>
-    <h2>Seven kits. One menu.</h2>
+    <h2>Eight kits. One menu.</h2>
     <p>Every mod has its own settings, keybind and on/off switch. Type anywhere in the menu to search.</p>
   </div>
   <div class="bento">
     <a class="card tile big rv" href="/features#combat">
-      <div class="num"><em>19</em></div>
+      <div class="num"><em>25</em></div>
       <h3>Combat</h3>
-      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem and more, with AntiBot to ignore fake players.</p>
+      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem, Offhand and more, with AntiBot to ignore fake players.</p>
       <div class="chips"><span>KillAura</span><span>CrystalAura</span><span>AnchorAura</span><span>AimAssist</span><span>TriggerBot</span><span>Velocity</span><span>AutoTotem</span><span>Surround</span></div>
       <span class="go">See combat</span>
     </a>
     <a class="card tile rv d1" href="/features#movement">
-      <div class="num">16</div><h3>Movement</h3>
-      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoFall</span></div>
+      <div class="num">22</div><h3>Movement</h3>
+      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoSlow</span></div>
     </a>
     <a class="card tile rv d2" href="/features#visuals">
-      <div class="num">9</div><h3>Visuals</h3>
-      <div class="chips"><span>ESP</span><span>Nametags</span><span>Freecam</span><span>Trajectories</span></div>
+      <div class="num">17</div><h3>Visuals</h3>
+      <div class="chips"><span>ESP</span><span>Waypoints</span><span>Freecam</span><span>HoleESP</span></div>
     </a>
     <a class="card tile rv d1" href="/features#world">
-      <div class="num">8</div><h3>World</h3>
+      <div class="num">12</div><h3>World</h3>
       <div class="chips"><span>Printer</span><span>Nuker</span><span>AutoFarm</span><span>VeinMiner</span></div>
     </a>
     <a class="card tile rv d2" href="/features#player">
-      <div class="num">9</div><h3>Player</h3>
-      <div class="chips"><span>AutoEat</span><span>AutoTool</span><span>ChestStealer</span></div>
+      <div class="num">16</div><h3>Player</h3>
+      <div class="chips"><span>FakePlayer</span><span>AutoReplenish</span><span>AutoGap</span></div>
     </a>
     <a class="card tile wide rv" href="/features#hud">
       <div class="num">18</div><h3>HUD</h3>
       <p>TargetHUD, Cooldowns, ArmorHUD, Keystrokes, Inventory Viewer and more. Drag, snap and resize each one.</p>
     </a>
-    <a class="card tile wide rv d1" href="/features#mods">
+    <a class="card tile rv d1" href="/features#mods">
       <div class="num">9</div><h3>Quality of life</h3>
-      <p>Zoom, Freelook, ToggleSprint, Fullbright, a custom crosshair and block outline, time and weather changers.</p>
+      <div class="chips"><span>Zoom</span><span>Freelook</span><span>ToggleSprint</span></div>
+    </a>
+    <a class="card tile rv d2" href="/features#misc">
+      <div class="num">4</div><h3>Misc</h3>
+      <div class="chips"><span>AutoReconnect</span><span>BetterChat</span><span>Notifier</span></div>
     </a>
   </div>
 </section>
@@ -138,7 +146,7 @@
   <div class="sec-head rv">
     <div class="eyebrow">Highlights</div>
     <h2>Built in. Tested in game.</h2>
-    <p>Real screenshots from the client. New features in v0.4.0 are covered by an automated in-game test suite.</p>
+    <p>Real screenshots from the client. New features in v0.5.0 are covered by an automated in-game test suite.</p>
   </div>
   <div class="shots">
     <a class="card shot-card w3 rv" href="/showcase">
@@ -176,7 +184,7 @@
     <div class="card step rv d2"><h4>Pick the profile</h4><p>Choose <b>Evade Client</b> in the Minecraft Launcher.</p></div>
     <div class="card step rv d3"><h4>Play</h4><p>Press <span class="kbd">Right Shift</span> in game to open the menu.</p></div>
   </div>
-  <p class="note rv">Most servers ban cheat clients. Every mod on the <a href="/features">features page</a> shows its ban risk: 21 high, 19 medium, 48 low. <a href="/faq#ban">Read more</a></p>
+  <p class="note rv">Most servers ban cheat clients. Every mod on the <a href="/features">features page</a> shows its ban risk: 23 high, 30 medium, 70 low. <a href="/faq#ban">Read more</a></p>
 </section>
 
 <div class="wrap">
@@ -206,10 +214,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=0.4.0" defer></script>
+<script src="/assets/site.js?v=0.5.0" defer></script>
 </body>
 </html>

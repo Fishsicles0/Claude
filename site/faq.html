@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=0.4.0">
+<link rel="stylesheet" href="/assets/site.css?v=0.5.0">
 </head>
 <body data-page="faq">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -34,11 +34,13 @@
       <a href="/">Home</a>
       <a href="/features">Features</a>
       <a href="/download">Download</a>
+      <a href="/docs">Docs</a>
+      <a href="/changelog">Changelog</a>
       <a href="/showcase">Showcase</a>
       <a href="/faq" class="on" aria-current="page">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v0.4.0</span>
+      <span class="nav-ver">v0.5.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -47,6 +49,8 @@
     <a href="/">Home</a>
     <a href="/features">Features</a>
     <a href="/download">Download</a>
+    <a href="/docs">Docs</a>
+    <a href="/changelog">Changelog</a>
     <a href="/showcase">Showcase</a>
     <a href="/faq" class="on" aria-current="page">FAQ</a>
   </div>
@@ -72,10 +76,11 @@
       <div class="faq-group rv" id="general">
         <h2>General</h2>
         <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
-        <details id="ban"><summary>Can I get banned?</summary><p>Yes. Most multiplayer servers ban cheat clients, and Evade does not hide itself from anti-cheats or staff. Every mod on the <a href="/features">features page</a> shows a ban risk: <b>high</b> (21 mods, such as KillAura, Fly, Speed, Velocity, Nuker and the Printer) are obvious to anti-cheats, <b>medium</b> (19, such as AimAssist, TriggerBot and AutoTotem) can be caught, and <b>low</b> (48, such as the HUD, Zoom and ESP) only change what you see. Low doesn't mean allowed: some servers ban any modified client. Use cheats in singleplayer, on your own server, or where the rules allow them.</p></details>
+        <details id="ban"><summary>Can I get banned?</summary><p>Yes. Most multiplayer servers ban cheat clients, and Evade does not hide itself from anti-cheats or staff. Every mod on the <a href="/features">features page</a> shows a ban risk: <b>high</b> (23 mods, such as KillAura, Fly, Speed, Velocity, Nuker and the Printer) are obvious to anti-cheats, <b>medium</b> (30, such as AimAssist, TriggerBot and AutoTotem) can be caught, and <b>low</b> (70, such as the HUD, Zoom and ESP) only change what you see. Low doesn't mean allowed: some servers ban any modified client. Use cheats in singleplayer, on your own server, or where the rules allow them.</p></details>
         <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11 with Fabric. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
-        <details><summary>What's new in v0.4.0?</summary><p>50 new mods, including KillAura, CrystalAura, Fly, Scaffold, Velocity, ESP, Freecam, Nuker and AutoFarm, bringing the total to 88. Also new: the Printer for Litematica schematics, a <span class="mono">schematics</span> folder, the Inventory Viewer HUD, Movement, World and Player categories in the menu, and the optional Evade Texture Pack.</p></details>
+        <details><summary>What's new in v0.5.0?</summary><p>35 new mods, bringing the total to 123: AutoWeapon, Offhand, SelfTrap, HoleFiller, NoSlow, InventoryMove, FakePlayer, AutoReplenish, Waypoints, HoleESP, LogoutSpots, BetterTooltips, AutoSmelter, AutoReconnect, BetterChat and more, plus a new Misc category. See the <a href="/changelog">changelog</a> for the full list and the <a href="/docs">docs</a> for how to use them.</p></details>
         <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it should run alongside most others, but compatibility with Sodium, Iris and Lithium hasn't been tested yet. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
+        <details><summary>How does Evade compare to other clients?</summary><p>Evade puts cheat modules and the PvP HUD of clients like Lunar or Badlion in one free Fabric mod. Some cheat clients have more modules (Meteor lists over 160) and some sell features meant to hide from anti-cheats or screen-shares. Evade doesn't include those and never claims to be undetected. Every mod here is listed with its settings and an honest ban risk.</p></details>
         <details><summary>Why isn't there an FPS boost or shaders?</summary><p>Those need a different renderer. Install Sodium (FPS) or Iris (shaders) alongside Evade instead. Evade doesn't bundle other people's mods, including OptiFine.</p></details>
       </div>
 
@@ -131,10 +136,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=0.4.0" defer></script>
+<script src="/assets/site.js?v=0.5.0" defer></script>
 </body>
 </html>

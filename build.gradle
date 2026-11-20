@@ -42,6 +42,14 @@ fabricApi {
     }
 }
 
+// Evade cancels, holds back and sends packets itself at the connection level (Blink, NoFall, rotations). Fabric's
+// gametest network synchroniser can't account for that and stalls for 10 s at random, as its own error message
+// says ("Detected interfacing with packets at a lower level ... disable network synchronization"). Client and
+// server still advance tick by tick; only the per-tick wait for in-flight packets is skipped.
+loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
+    vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
+}
+
 // Litematica + MaLiLib for the in-game Printer test only (scripts/fetch-test-mods.py downloads them).
 // Fabric Loader loads them at launch for the test run; they are never part of the Evade jar.
 afterEvaluate {

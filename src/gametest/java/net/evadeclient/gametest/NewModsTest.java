@@ -493,5 +493,14 @@ final class NewModsTest {
         }
         check(ok == blocks.size() && "Litematica".equals(suffix),
                 "Printer builds Litematica's placement (" + ok + "/" + blocks.size() + " correct, source: " + suffix + ")");
+        // Clean up: remove the placement so Litematica stops tracking it for the rest of the run.
+        int left;
+        try { left = ctx.computeOnClient(c -> {
+            Object mgr = Class.forName("fi.dy.masa.litematica.data.DataManager").getMethod("getSchematicPlacementManager").invoke(null);
+            mgr.getClass().getMethod("clear").invoke(mgr);
+            return ((java.util.List<?>) mgr.getClass().getMethod("getAllSchematicsPlacements").invoke(mgr)).size();
+        }); } catch (ReflectiveOperationException e) { throw new AssertionError("could not remove the Litematica placement", e); }
+        if (left != 0) throw new AssertionError("Litematica placement still loaded after cleanup (" + left + ")");
+        ctx.waitTicks(10);
     }
 }

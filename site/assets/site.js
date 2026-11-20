@@ -43,7 +43,7 @@ if (grid) {
     const term = (q.value || "").trim().toLowerCase();
     let shown = 0;
     all(".mod", grid).forEach(m => {
-      const ok = (filter === "all" || m.dataset.c === filter) && (!term || m.dataset.s.includes(term));
+      const ok = (filter === "all" || m.dataset.c === filter || (filter === "new" && m.dataset.new === "1")) && (!term || m.dataset.s.includes(term));
       m.classList.toggle("hide", !ok);
       if (ok) shown++;
     });
@@ -54,16 +54,34 @@ if (grid) {
     all(".tab").forEach(x => x.classList.toggle("on", x.dataset.f === f));
     apply();
   };
+  const setting = st => {
+    let v = esc(st.default);
+    if (st.type === "slider") v += `<small>${esc(st.min)}–${esc(st.max)}</small>`;
+    if (st.type === "mode") v += `<small>${st.options.map(esc).join(" · ")}</small>`;
+    if (st.type === "color") v = `<i class="sw" style="background:${esc(st.default)}"></i>${v}`;
+    return `<li><span>${esc(st.name)}</span><b>${v}</b></li>`;
+  };
   fetch("/assets/mods.json").then(r => r.json()).then(mods => {
-    grid.innerHTML = mods.map(m => {
+    grid.innerHTML = mods.map((m, i) => {
       const c = m.cat.toLowerCase();
-      return `<article class="card mod" data-c="${c}" data-s="${esc((m.name + " " + m.desc + " " + m.cat).toLowerCase())}">
-        <div class="mod-top"><span class="cat">${esc(m.cat)}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
-        <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p></article>`;
+      const n = m.settings.length;
+      return `<article class="card mod" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
+        <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
+        <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>
+        ${n ? `<button class="more" aria-expanded="false" aria-controls="set${i}">${n} setting${n > 1 ? "s" : ""}</button>
+        <ul class="sets" id="set${i}" hidden>${m.settings.map(setting).join("")}</ul>` : `<span class="more none">No settings: just switch it on</span>`}</article>`;
     }).join("");
     const fromHash = location.hash.slice(1);
     if (all(".tab").some(t => t.dataset.f === fromHash)) select(fromHash); else apply();
   }).catch(() => { grid.innerHTML = "<p>Couldn't load the list of mods. Refresh to try again.</p>"; });
+  grid.addEventListener("click", e => {
+    const b = e.target.closest(".more"); if (!b || b.classList.contains("none")) return;
+    const list = document.getElementById(b.getAttribute("aria-controls"));
+    const open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", open);
+    list.hidden = !open;
+    b.closest(".mod").classList.toggle("open", open);
+  });
   one("#tabs").addEventListener("click", e => {
     const t = e.target.closest(".tab"); if (!t) return;
     select(t.dataset.f);

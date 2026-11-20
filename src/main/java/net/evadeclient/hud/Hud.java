@@ -34,6 +34,13 @@ public final class Hud {
         }
         var tags = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
         if (tags != null && tags.isEnabled() && !mc.options.hudHidden) tags.draw(ctx, mc.getRenderTickCounter().getTickProgress(true));
+        if (!mc.options.hudHidden) {
+            float td = mc.getRenderTickCounter().getTickProgress(true);
+            for (var m : EvadeClient.modules.all()) {
+                if (!m.isEnabled()) continue;
+                try { m.onHud(ctx, td); } catch (Exception e) { EvadeClient.LOG.error("{} HUD error", m.getName(), e); }
+            }
+        }
         Notifications.render(ctx);
 
         HudModule hud = EvadeClient.modules.get(HudModule.class);

@@ -34,6 +34,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             server.runCommand("tp @a 0 -60 0 0 0");
             ctx.waitTicks(20);
 
+            // EVADE_ONLY_V05=1 runs just the v0.5.0 checks (for quick iteration; releases run everything).
+            if (System.getenv("EVADE_ONLY_V05") != null) { new V05ModsTest(ctx, sp).run(); return; }
             testAutoTotem(ctx, sp);
             testAutoPot(ctx, sp);
             testAutoMend(ctx, sp);
@@ -43,6 +45,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testQualityOfLife(ctx, sp);
             testVisuals(ctx, sp);
             try { new NewModsTest(ctx, sp).run(); } catch (java.io.IOException e) { throw new AssertionError(e); }
+            new V05ModsTest(ctx, sp).run();
             testMenu(ctx);
             testTexturePack(ctx, sp);
         }

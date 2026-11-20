@@ -15,6 +15,7 @@ import net.evadeclient.module.movement.*;
 import net.evadeclient.module.player.*;
 import net.evadeclient.module.visuals.*;
 import net.evadeclient.module.world.*;
+import net.evadeclient.module.misc.*;
 import net.evadeclient.module.combat.AimAssist;
 import net.evadeclient.module.combat.AutoClicker;
 import net.evadeclient.module.combat.AutoCritical;
@@ -64,6 +65,12 @@ public class ModuleManager {
         register(new Velocity());
         register(new AntiBot());
         register(new AutoLog());
+        register(new AutoWeapon());
+        register(new Offhand());
+        register(new SelfTrap());
+        register(new HoleFiller());
+        register(new AutoWeb());
+        register(new BowSpam());
         // Movement
         register(new Fly());
         register(new ElytraFly());
@@ -81,6 +88,12 @@ public class ModuleManager {
         register(new SafeWalk());
         register(new Blink());
         register(new net.evadeclient.module.movement.Timer());
+        register(new NoSlow());
+        register(new InventoryMove());
+        register(new AirJump());
+        register(new ReverseStep());
+        register(new FastClimb());
+        register(new AutoJump());
         // Visuals
         register(new ESP());
         register(new ChestESP());
@@ -91,6 +104,14 @@ public class ModuleManager {
         register(new Freecam());
         register(new NoFog());
         register(new Trajectories());
+        register(new HoleESP());
+        register(new Breadcrumbs());
+        register(new LogoutSpots());
+        register(new Waypoints());
+        register(new LightOverlay());
+        register(new NoRender());
+        register(new BetterTooltips());
+        register(new CameraClip());
         // World
         register(new Nuker());
         register(new AutoMine());
@@ -100,6 +121,10 @@ public class ModuleManager {
         register(new AutoFarm());
         register(new SpawnProofer());
         register(new Printer());
+        register(new AutoBreed());
+        register(new AutoShearer());
+        register(new AutoSmelter());
+        register(new LiquidFiller());
         // Player
         register(new AutoEat());
         register(new AutoTool());
@@ -110,6 +135,17 @@ public class ModuleManager {
         register(new AntiHunger());
         register(new AntiAFK());
         register(new AutoWalk());
+        register(new FakePlayer());
+        register(new AutoReplenish());
+        register(new FastUse());
+        register(new MiddleClickExtra());
+        register(new AirPlace());
+        register(new AutoGap());
+        register(new ChestSwap());
+        register(new AutoReconnect());
+        register(new BetterChat());
+        register(new Notifier());
+        register(new AutoGG());
         // HUD
         register(new HudModule());
         register(new ArmorHud());
@@ -207,7 +243,10 @@ public class ModuleManager {
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
-                if (m.onSendPacket(packet)) cancel = true;
+                if (m.onSendPacket(packet)) {
+                    cancel = true;
+                    EvadeClient.LOG.debug("{} held back {}", m.getName(), packet.getClass().getSimpleName());
+                }
             } catch (Exception e) {
                 crashed(m, e);
             }

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs · Evade Client</title>
+<meta name="description" content="How to use Evade Client 0.5.0: the menu, keybinds, chat commands, the HUD editor, the Printer, waypoints and FakePlayer.">
+<meta name="theme-color" content="#050506">
+<link rel="canonical" href="https://evadeclient.com/docs">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Evade Client">
+<meta property="og:title" content="Docs · Evade Client">
+<meta property="og:description" content="How to use Evade Client 0.5.0: the menu, keybinds, chat commands, the HUD editor, the Printer, waypoints and FakePlayer.">
+<meta property="og:url" content="https://evadeclient.com/docs">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=0.5.0">
+</head>
+<body data-page="docs">
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="bg-fx" aria-hidden="true"></div>
+
+<nav class="top" id="top">
+  <div class="wrap nav-in">
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/features">Features</a>
+      <a href="/download">Download</a>
+      <a href="/docs" class="on" aria-current="page">Docs</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/showcase">Showcase</a>
+      <a href="/faq">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <span class="nav-ver">v0.5.0</span>
+      <a href="/download" class="btn btn-red btn-sm">Download</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/">Home</a>
+    <a href="/features">Features</a>
+    <a href="/download">Download</a>
+    <a href="/docs" class="on" aria-current="page">Docs</a>
+    <a href="/changelog">Changelog</a>
+    <a href="/showcase">Showcase</a>
+    <a href="/faq">FAQ</a>
+  </div>
+</nav>
+
+<main id="main">
+<header class="page-hero wrap">
+  <div class="eyebrow rv">Docs</div>
+  <h1 class="rv d1">How to use <span class="red">Evade</span>.</h1>
+  <p class="rv d2">Everything you need after installing: the menu, keybinds, chat commands and the tools that need a little explaining.</p>
+</header>
+
+<section class="wrap page-body">
+  <div class="faq-layout">
+    <aside class="faq-nav" aria-label="Docs sections">
+      <a href="#menu">The menu</a>
+      <a href="#keys">Default keys</a>
+      <a href="#commands">Chat commands</a>
+      <a href="#hud">HUD editor</a>
+      <a href="#printer">Printer</a>
+      <a href="#waypoints">Waypoints</a>
+      <a href="#fakeplayer">Testing with FakePlayer</a>
+      <a href="#config">Config files</a>
+    </aside>
+    <div class="doc">
+      <div class="doc-sec rv" id="menu">
+        <h2>The menu</h2>
+        <p>Press <span class="kbd">Right Shift</span> in game. The sidebar has 8 categories plus <b>All Mods</b>, <b>Edit HUD Layout</b> and <b>Settings</b>.</p>
+        <ul>
+          <li><b>Left-click</b> a card to turn the mod on or off.</li>
+          <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
+          <li><b>Start typing</b> anywhere to search all 123 mods.</li>
+          <li>On a settings page, click <b>Keybind</b> and press a key to bind it. Right-click, <span class="kbd">Esc</span>, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears it.</li>
+        </ul>
+        <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
+      </div>
+
+      <div class="doc-sec rv" id="keys">
+        <h2>Default keys</h2>
+        <div class="table">
+          <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
+          <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
+          <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
+          <div><span class="kbd">Middle mouse</span><span>Throw a pearl, with MiddleClickExtra on</span></div>
+        </div>
+        <p>Every other mod starts unbound. Bind the ones you use most from their settings page or with <span class="mono">.bind</span>.</p>
+      </div>
+
+      <div class="doc-sec rv" id="commands">
+        <h2>Chat commands</h2>
+        <p>Commands start with a dot and are never sent to the server.</p>
+        <div class="table code">
+          <div><code>.help</code><span>List commands</span></div>
+          <div><code>.toggle &lt;mod&gt;</code><span>Turn a mod on or off (short: <code>.t</code>)</span></div>
+          <div><code>.bind &lt;mod&gt; &lt;key|none&gt;</code><span>Set or clear a keybind</span></div>
+          <div><code>.set &lt;mod&gt; &lt;setting&gt; &lt;value&gt;</code><span>Change a setting, e.g. <code>.set KillAura Range 4</code></span></div>
+          <div><code>.modules</code><span>List every mod, enabled ones in green</span></div>
+          <div><code>.printer list | load &lt;name&gt; | here | unload | materials | folder | info</code><span>Schematic printer</span></div>
+          <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
+          <div><code>.save</code> / <code>.load</code><span>Save or reload your config</span></div>
+        </div>
+      </div>
+
+      <div class="doc-sec rv" id="hud">
+        <h2>HUD editor</h2>
+        <p>Open the menu and click <b>Edit HUD Layout</b>. Drag elements to move them; they snap to edges and to each other. Scroll over an element to resize it. Each of the 18 HUD elements also has its own scale, background and colour settings.</p>
+      </div>
+
+      <div class="doc-sec rv" id="printer">
+        <h2>Printer</h2>
+        <p>The Printer places the blocks of a schematic for you, bottom to top, with the right rotation, using blocks from your hotbar.</p>
+        <ol>
+          <li><b>With Litematica:</b> place a schematic in Litematica as usual, then turn on the Printer.</li>
+          <li><b>Without Litematica:</b> put <span class="mono">.litematic</span> files in <span class="mono">.minecraft/evade/schematics</span> (or <span class="mono">.minecraft/schematics</span>). Type <span class="mono">.printer list</span>, then <span class="mono">.printer load &lt;name&gt;</span>. It's placed at your feet; <span class="mono">.printer here</span> moves it.</li>
+          <li>Type <span class="mono">.printer materials</span> to see which blocks you still need.</li>
+        </ol>
+      </div>
+
+      <div class="doc-sec rv" id="waypoints">
+        <h2>Waypoints</h2>
+        <p>Waypoints are on by default. <span class="mono">.waypoint add Base</span> saves where you stand; it shows as a red beam with its name and distance. They're saved per server (or singleplayer world) and per dimension. When you die, a <b>Death</b> waypoint is added automatically; turn that off in the Waypoints settings.</p>
+      </div>
+
+      <div class="doc-sec rv" id="fakeplayer">
+        <h2>Testing with FakePlayer</h2>
+        <p>Turn on <b>FakePlayer</b> to spawn a copy of yourself that only you can see. KillAura, CrystalAura, ESP, Nametags and the other player modules treat it like a real player, so you can set them up in singleplayer. The server doesn't know it exists, so hits on it do nothing. Turning FakePlayer off removes it.</p>
+      </div>
+
+      <div class="doc-sec rv" id="config">
+        <h2>Config files</h2>
+        <div class="table code">
+          <div><code>.minecraft/evade/config/evade/config.json</code><span>Mods, settings, keybinds, HUD layout</span></div>
+          <div><code>.minecraft/evade/config/evade/waypoints.json</code><span>Waypoints</span></div>
+          <div><code>.minecraft/evade/schematics/</code><span>Schematics for the Printer</span></div>
+        </div>
+        <p>Paths are for an installer setup. If you dropped the jar into your own Fabric install, they're inside that instance's folder instead.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="foot-big" aria-hidden="true">EVADE</div>
+  <div class="wrap foot">
+    <div>
+      <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>A free Fabric client for Minecraft 1.21.11. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
+    </div>
+    <div class="foot-cols">
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
+    </div>
+  </div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js?v=0.5.0" defer></script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog · Evade Client</title>
+<meta name="description" content="What changed in each Evade Client release, from the first PvP build to v0.5.0.">
+<meta name="theme-color" content="#050506">
+<link rel="canonical" href="https://evadeclient.com/changelog">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Evade Client">
+<meta property="og:title" content="Changelog · Evade Client">
+<meta property="og:description" content="What changed in each Evade Client release, from the first PvP build to v0.5.0.">
+<meta property="og:url" content="https://evadeclient.com/changelog">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=0.5.0">
+</head>
+<body data-page="changelog">
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="bg-fx" aria-hidden="true"></div>
+
+<nav class="top" id="top">
+  <div class="wrap nav-in">
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/features">Features</a>
+      <a href="/download">Download</a>
+      <a href="/docs">Docs</a>
+      <a href="/changelog" class="on" aria-current="page">Changelog</a>
+      <a href="/showcase">Showcase</a>
+      <a href="/faq">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <span class="nav-ver">v0.5.0</span>
+      <a href="/download" class="btn btn-red btn-sm">Download</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/">Home</a>
+    <a href="/features">Features</a>
+    <a href="/download">Download</a>
+    <a href="/docs">Docs</a>
+    <a href="/changelog" class="on" aria-current="page">Changelog</a>
+    <a href="/showcase">Showcase</a>
+    <a href="/faq">FAQ</a>
+  </div>
+</nav>
+
+<main id="main">
+<header class="page-hero wrap">
+  <div class="eyebrow rv">Changelog</div>
+  <h1 class="rv d1">What's <span class="red">new</span>.</h1>
+  <p class="rv d2">Every release, newest first. Each new mod ships with an automated in-game test where one is possible.</p>
+</header>
+
+<section class="wrap page-body">
+  <div class="log">
+    <article class="card rel rv" id="v0.5.0">
+      <div class="rel-head"><h2>v0.5.0</h2><span class="pill-sm">Latest</span><time>2026-11-20</time></div>
+      <p class="rel-sum">35 new mods, a Misc category, waypoints and a test dummy. 123 mods in total.</p>
+      <div class="rel-cols">
+        <div><h4>Combat</h4><p>AutoWeapon, Offhand, SelfTrap, HoleFiller, AutoWeb, BowSpam</p></div>
+        <div><h4>Movement</h4><p>NoSlow, InventoryMove, AirJump, ReverseStep, FastClimb, AutoJump</p></div>
+        <div><h4>Player</h4><p>FakePlayer, AutoReplenish, FastUse, MiddleClickExtra, AirPlace, AutoGap, ChestSwap</p></div>
+        <div><h4>Visuals</h4><p>Waypoints, HoleESP, Breadcrumbs, LogoutSpots, LightOverlay, NoRender, BetterTooltips, CameraClip</p></div>
+        <div><h4>World</h4><p>AutoBreed, AutoShearer, AutoSmelter, LiquidFiller</p></div>
+        <div><h4>Misc (new category)</h4><p>AutoReconnect, BetterChat, Notifier, AutoGG</p></div>
+      </div>
+      <ul>
+        <li>New <span class="mono">.waypoint</span> command.</li>
+        <li>AntiBot leaves the FakePlayer dummy alone, so combat mods can be tried on it.</li>
+        <li>Fix: Time Changer no longer flickers back to the server's time for a moment when the server sends a time update.</li>
+        <li>Website: every mod's settings and defaults on the features page, plus these Docs and Changelog pages.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v0.4.0">
+      <div class="rel-head"><h2>v0.4.0</h2><time>2026-11-20</time></div>
+      <p class="rel-sum">50 new mods, the Printer, and the optional Evade Texture Pack. 88 mods in total.</p>
+      <ul>
+        <li>New mods include KillAura, CrystalAura, AnchorAura, Velocity, Fly, Speed, Scaffold, NoFall, ESP, Freecam, Nametags, Nuker, AutoFarm and the Inventory Viewer HUD.</li>
+        <li>Printer: builds Litematica placements, or loads <span class="mono">.litematic</span> files itself. New <span class="mono">schematics</span> folder.</li>
+        <li>Movement, World and Player categories in the menu.</li>
+        <li>Evade Texture Pack 1.0, a separate optional download.</li>
+        <li>Installer 1.0.1 creates the schematics folder.</li>
+        <li>Website redesign.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v0.3.1">
+      <div class="rel-head"><h2>v0.3.1</h2><time>2026-11-20</time></div>
+      <p class="rel-sum">New logo and wordmark, the Evade Installer, and evadeclient.com.</p>
+      <ul>
+        <li>One-click installer for Windows (.exe) and macOS/Linux (.jar), with checksums for every download.</li>
+        <li>New Evade logo across the client and the website.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="early">
+      <div class="rel-head"><h2>Earlier builds</h2></div>
+      <p class="rel-sum">The first PvP release on Minecraft 1.21.11: 38 mods.</p>
+      <ul>
+        <li>Combat: AutoPot, AutoTotem, AutoMend, AimAssist, AutoCritical, AutoClicker, Reach, TriggerBot, Hitbox.</li>
+        <li>Visuals: ChestESP, ChunkLocator, PlayerTracers.</li>
+        <li>HUD: ArmorHUD for you and your target, cooldown timers for pearls, wind charges, spears and gapples, and 15 more elements.</li>
+        <li>The black and red menu, the HUD editor and quality-of-life mods such as Zoom, Freelook and ToggleSprint.</li>
+      </ul>
+    </article>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="foot-big" aria-hidden="true">EVADE</div>
+  <div class="wrap foot">
+    <div>
+      <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>A free Fabric client for Minecraft 1.21.11. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
+    </div>
+    <div class="foot-cols">
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
+    </div>
+  </div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js?v=0.5.0" defer></script>
+</body>
+</html>

@@ -5,7 +5,7 @@ nav: home
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <a class="pill rv" href="/features"><b>New in v{{VERSION}}</b> Printer, 50 new mods, Texture Pack <span class="arrow">&rarr;</span></a>
+      <a class="pill rv" href="/features"><b>New in v{{VERSION}}</b> {{NEW}} new mods, Waypoints, FakePlayer <span class="arrow">&rarr;</span></a>
       <h1 class="rv d1">{{TOTAL}} mods.<br><span class="red">One client.</span></h1>
       <p class="lead rv d2">Evade is a free Fabric client for Minecraft {{MC}}. Combat, movement, visuals, world tools and a full HUD, all in one black and red menu that opens with <span class="kbd">Right Shift</span>.</p>
       <div class="cta rv d3">
@@ -34,8 +34,8 @@ nav: home
   <div class="wrap">
     <div class="spec rv">
       <div><b>{{TOTAL}}</b><span>mods in v{{VERSION}}</span></div>
-      <div><b>7</b><span>categories</span></div>
-      <div><b>{{HUD}}</b><span>HUD elements</span></div>
+      <div><b>{{SETTINGS}}</b><span>settings to tune</span></div>
+      <div><b>{{CATS}}</b><span>categories</span></div>
       <div><b><em>{{MC}}</em></b><span>Minecraft, Fabric</span></div>
       <div><b>$0</b><span>free, no key</span></div>
     </div>
@@ -45,24 +45,24 @@ nav: home
 <section class="wrap" id="inside">
   <div class="sec-head rv">
     <div class="eyebrow">What's inside</div>
-    <h2>Seven kits. One menu.</h2>
+    <h2>Eight kits. One menu.</h2>
     <p>Every mod has its own settings, keybind and on/off switch. Type anywhere in the menu to search.</p>
   </div>
   <div class="bento">
     <a class="card tile big rv" href="/features#combat">
       <div class="num"><em>{{COMBAT}}</em></div>
       <h3>Combat</h3>
-      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem and more, with AntiBot to ignore fake players.</p>
+      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem, Offhand and more, with AntiBot to ignore fake players.</p>
       <div class="chips"><span>KillAura</span><span>CrystalAura</span><span>AnchorAura</span><span>AimAssist</span><span>TriggerBot</span><span>Velocity</span><span>AutoTotem</span><span>Surround</span></div>
       <span class="go">See combat</span>
     </a>
     <a class="card tile rv d1" href="/features#movement">
       <div class="num">{{MOVEMENT}}</div><h3>Movement</h3>
-      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoFall</span></div>
+      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoSlow</span></div>
     </a>
     <a class="card tile rv d2" href="/features#visuals">
       <div class="num">{{VISUALS}}</div><h3>Visuals</h3>
-      <div class="chips"><span>ESP</span><span>Nametags</span><span>Freecam</span><span>Trajectories</span></div>
+      <div class="chips"><span>ESP</span><span>Waypoints</span><span>Freecam</span><span>HoleESP</span></div>
     </a>
     <a class="card tile rv d1" href="/features#world">
       <div class="num">{{WORLD}}</div><h3>World</h3>
@@ -70,15 +70,19 @@ nav: home
     </a>
     <a class="card tile rv d2" href="/features#player">
       <div class="num">{{PLAYER}}</div><h3>Player</h3>
-      <div class="chips"><span>AutoEat</span><span>AutoTool</span><span>ChestStealer</span></div>
+      <div class="chips"><span>FakePlayer</span><span>AutoReplenish</span><span>AutoGap</span></div>
     </a>
     <a class="card tile wide rv" href="/features#hud">
       <div class="num">{{HUD}}</div><h3>HUD</h3>
       <p>TargetHUD, Cooldowns, ArmorHUD, Keystrokes, Inventory Viewer and more. Drag, snap and resize each one.</p>
     </a>
-    <a class="card tile wide rv d1" href="/features#mods">
+    <a class="card tile rv d1" href="/features#mods">
       <div class="num">{{MODS}}</div><h3>Quality of life</h3>
-      <p>Zoom, Freelook, ToggleSprint, Fullbright, a custom crosshair and block outline, time and weather changers.</p>
+      <div class="chips"><span>Zoom</span><span>Freelook</span><span>ToggleSprint</span></div>
+    </a>
+    <a class="card tile rv d2" href="/features#misc">
+      <div class="num">{{MISC}}</div><h3>Misc</h3>
+      <div class="chips"><span>AutoReconnect</span><span>BetterChat</span><span>Notifier</span></div>
     </a>
   </div>
 </section>

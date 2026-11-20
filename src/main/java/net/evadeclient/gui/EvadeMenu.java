@@ -34,7 +34,7 @@ public class EvadeMenu extends Screen {
     private enum Page {
         ALL("All Mods", null), COMBAT("Combat", Category.COMBAT), MOVEMENT("Movement", Category.MOVEMENT),
         VISUALS("Visuals", Category.VISUALS), WORLD("World", Category.WORLD), PLAYER("Player", Category.PLAYER),
-        HUD("HUD", Category.HUD), MODS("Mods", Category.MODS), SETTINGS("Settings", Category.CLIENT);
+        HUD("HUD", Category.HUD), MODS("Mods", Category.MODS), MISC("Misc", Category.MISC), SETTINGS("Settings", Category.CLIENT);
 
         final String label;
         final Category category;

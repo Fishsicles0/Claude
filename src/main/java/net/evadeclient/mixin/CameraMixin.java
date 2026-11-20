@@ -37,4 +37,11 @@ public abstract class CameraMixin {
         ((CameraInvoker) self).evade$setRotation(fc.yaw(), fc.pitch());
         ((CameraAccessor) self).evade$setThirdPerson(true); // render our own player body
     }
+
+    /** CameraClip: skip vanilla's wall check and use our own distance. */
+    @org.spongepowered.asm.mixin.injection.Inject(method = "clipToSpace", at = @At("HEAD"), cancellable = true)
+    private void evade$cameraClip(float desired, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+        float d = net.evadeclient.module.visuals.CameraClip.distance();
+        if (d > 0) cir.setReturnValue(d);
+    }
 }

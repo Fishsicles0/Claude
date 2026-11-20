@@ -28,4 +28,10 @@ public abstract class GameRendererMixin {
         NoHurtCam m = EvadeClient.modules.get(NoHurtCam.class);
         if (m != null && m.isEnabled()) ci.cancel();
     }
+
+    /** NoRender: skip the big totem-pop animation. */
+    @org.spongepowered.asm.mixin.injection.Inject(method = "showFloatingItem", at = @At("HEAD"), cancellable = true)
+    private void evade$noTotem(net.minecraft.item.ItemStack stack, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (net.evadeclient.module.visuals.NoRender.hide(n -> n.totem)) ci.cancel();
+    }
 }

@@ -42,6 +42,9 @@ public abstract class Module {
     /** Called every frame while enabled and in a world, after the world is drawn. */
     public void onRender(RenderContext ctx) {}
 
+    /** Called every frame while enabled, on the 2D HUD layer (labels that follow world positions, etc.). */
+    public void onHud(net.minecraft.client.gui.DrawContext ctx, float tickDelta) {}
+
     /** Called right before the local player attacks {@code target} (any source: vanilla, TriggerBot, ...). */
     public void onAttack(Entity target) {}
 

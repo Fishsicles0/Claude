@@ -145,3 +145,71 @@ Compatibility of Evade with Sodium/Iris/Lithium hasn't been tested yet.
 - By category: Combat 19, Movement 16, Visuals 9, World 8, Player 9, HUD 18, Mods 9.
 - In-game test suite: 44 checks, all passing (27 of them new in v0.4.0, including the Printer with real
   Litematica 0.26.16 and the texture pack loading as compatible).
+
+---
+
+# v0.5.0: compared with other clients
+
+Researched: Meteor Client (its public source lists 165 modules), Onyx (hotbar/pearl restock), Lunar, Badlion,
+Feather and Prism Launcher (launcher and PvP-HUD features), and Vape, Drip and Doomsday (paid or injectable
+"ghost" clients). The Lunar, Badlion, Feather, Onyx, Prism, Vape, Drip and Doomsday sites couldn't be opened from
+the build machine (network policy), so their feature lists come from web search results.
+
+## Added in v0.5.0 (35 mods, all in Evade's own code)
+
+| Mod | Category | Ban risk | In-game test |
+|---|---|---|---|
+| AutoWeapon | Combat | low | Yes: picks the netherite sword on attack (checked on the server) |
+| Offhand | Combat | med | Yes: crystals, then a totem at low health |
+| SelfTrap | Combat | med | Yes: 4/4 head blocks and roof |
+| HoleFiller | Combat | med | Yes |
+| AutoWeb | Combat | med | Yes |
+| BowSpam | Combat | med | No (needs a held right click with a bow) |
+| NoSlow | Movement | high | Yes: 3.9 vs 0.6 blocks while eating |
+| InventoryMove | Movement | med | Yes |
+| AirJump | Movement | high | Yes |
+| ReverseStep | Movement | med | Yes: 2 vs 6 ticks |
+| FastClimb | Movement | med | Yes: 5.7 vs 2.2 blocks/s |
+| AutoJump | Movement | low | Yes |
+| FakePlayer | Player | low | Yes: KillAura targets it |
+| AutoReplenish | Player | low | Yes (Onyx's "HotbarRestock") |
+| FastUse | Player | med | Yes: 20 vs 5 XP bottles in 1 s |
+| MiddleClickExtra | Player | low | Yes |
+| AirPlace | Player | med | Yes |
+| AutoGap | Player | low | Yes |
+| ChestSwap | Player | low | Yes |
+| Waypoints | Visuals | low | Yes (`.waypoint add/del`) |
+| HoleESP | Visuals | low | Yes |
+| Breadcrumbs | Visuals | low | Yes |
+| LogoutSpots | Visuals | low | No (needs a second player) |
+| LightOverlay | Visuals | low | Yes |
+| NoRender | Visuals | low | No (visual only) |
+| BetterTooltips | Visuals | low | Yes |
+| CameraClip | Visuals | low | No (visual only) |
+| AutoBreed | World | low | Yes |
+| AutoShearer | World | low | Yes |
+| AutoSmelter | World | low | Yes |
+| LiquidFiller | World | med | Yes |
+| AutoReconnect | Misc | low | No (the test can't disconnect itself) |
+| BetterChat | Misc | low | Yes |
+| Notifier | Misc | low | Yes: counts a real totem pop |
+| AutoGG | Misc | low | Pattern check only |
+
+## Not built, and why
+
+- **Hiding from anti-cheats or staff** (Vape/Drip/Doomsday-style "self-destruct", string cleaning, injection,
+  screen-share bypass, anti-cheat "disablers"): not built. These exist to deceive server staff and anti-cheat
+  checks. The site keeps saying Evade is not undetected.
+- **Chat spam / MessageAura / BookBot**: spam tools for other players' servers, left out.
+- **Larger Meteor modules not done yet**: AutoCity, BedAura, Burrow, AutoAnvil, Quiver, PacketMine, Excavator,
+  HighwayBuilder, Notebot, Chams, Xray, NoRotate, ElytraBoost, ClickTP, EntityControl, Swarm. Each is a bigger
+  project; none was started, so none is claimed.
+- **Launcher features** (Prism instances, Lunar cosmetics, mod store): Evade uses a Minecraft Launcher profile
+  from its installer. A separate launcher wasn't attempted.
+
+## Totals
+
+- Evade v0.5.0: 123 mods (Combat 25, Movement 22, Visuals 17, World 12, Player 16, HUD 18, Mods 9, Misc 4) with
+  409 settings.
+- Meteor still has more modules (165). Evade's count is lower; what it adds is the one-click installer, the
+  per-mod ban-risk labels and an in-game test for most mods.
