@@ -68,7 +68,7 @@ public class ChunkLocator extends Module {
                     || s.isIn(BlockTags.BEDS) || s.isIn(BlockTags.SHULKER_BOXES) || s.isOf(Blocks.NETHER_PORTAL);
 
     public ChunkLocator() {
-        super("ChunkLocator", "Finds chunks with signs of player bases.", Category.RENDER);
+        super("ChunkLocator", "Finds chunks with signs of player bases.", Category.VISUALS);
     }
 
     @Override

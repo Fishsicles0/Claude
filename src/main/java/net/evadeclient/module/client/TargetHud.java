@@ -23,7 +23,7 @@ public class TargetHud extends HudElementModule {
     private float shownHealth = -1;
 
     public TargetHud() {
-        super("TargetHUD", "Shows the armour and health of your opponent.", -1, -52);
+        super("TargetHUD", "Shows the armour and health of your opponent.", -1, -56);
         width = 160;
         height = 64;
         setEnabled(true);
@@ -38,7 +38,7 @@ public class TargetHud extends HudElementModule {
         var tr = mc.textRenderer;
         width = 160;
         height = held.get() ? 64 : 46;
-        HudDraw.panel(ctx, left, top, width, height);
+        if (background.get()) HudDraw.panel(ctx, left, top, width, height);
 
         int textX = left + 4;
         if (t instanceof AbstractClientPlayerEntity player) {

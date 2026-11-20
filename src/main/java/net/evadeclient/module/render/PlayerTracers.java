@@ -28,7 +28,7 @@ public class PlayerTracers extends Module {
     private int count;
 
     public PlayerTracers() {
-        super("PlayerTracers", "Lines pointing to every player.", Category.RENDER);
+        super("PlayerTracers", "Lines pointing to every player.", Category.VISUALS);
     }
 
     @Override

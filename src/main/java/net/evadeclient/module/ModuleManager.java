@@ -2,7 +2,11 @@ package net.evadeclient.module;
 
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.client.ArmorHud;
-import net.evadeclient.module.client.ClickGuiModule;
+import net.evadeclient.module.client.ClientSettings;
+import net.evadeclient.module.hud.*;
+import net.evadeclient.module.mods.*;
+import net.evadeclient.gui.EvadeMenu;
+import net.evadeclient.util.Notifications;
 import net.evadeclient.module.client.CooldownHud;
 import net.evadeclient.module.client.HudModule;
 import net.evadeclient.module.client.TargetHud;
@@ -45,16 +49,40 @@ public class ModuleManager {
         register(new Reach());
         register(new TriggerBot());
         register(new Hitbox());
-        // Render
+        // Visuals
         register(new ChestESP());
         register(new ChunkLocator());
         register(new PlayerTracers());
-        // Client
+        // HUD
         register(new HudModule());
         register(new ArmorHud());
         register(new TargetHud());
         register(new CooldownHud());
-        register(new ClickGuiModule());
+        register(new KeystrokesHud());
+        register(new CpsHud());
+        register(new FpsHud());
+        register(new PingHud());
+        register(new CoordsHud());
+        register(new PotionHud());
+        register(new CompassHud());
+        register(new ClockHud());
+        register(new ServerHud());
+        register(new ReachHud());
+        register(new ComboHud());
+        register(new SpeedHud());
+        register(new MemoryHud());
+        // Mods
+        register(new ToggleSprint());
+        register(new Zoom());
+        register(new Freelook());
+        register(new Fullbright());
+        register(new Crosshair());
+        register(new NoHurtCam());
+        register(new BlockOutline());
+        register(new TimeChanger());
+        register(new WeatherChanger());
+        // Client
+        register(new ClientSettings());
     }
 
     private void register(Module module) { modules.add(module); }
@@ -120,12 +148,24 @@ public class ModuleManager {
         m.setEnabled(false);
     }
 
+    private boolean menuKeyHeld;
+
     /** Edge-triggered key polling so binds work without registering vanilla KeyBindings. */
     private void pollKeybinds(MinecraftClient mc) {
         if (mc.currentScreen != null) {
             heldKeys.clear();
+            menuKeyHeld = true; // don't reopen the menu on the same press that closed it
             return;
         }
+        ClientSettings cs = get(ClientSettings.class);
+        int menuKey = cs.menuKey.get();
+        boolean menuDown = menuKey != GLFW.GLFW_KEY_UNKNOWN && InputUtil.isKeyPressed(mc.getWindow(), menuKey);
+        if (menuDown && !menuKeyHeld) {
+            menuKeyHeld = true;
+            mc.setScreen(new EvadeMenu());
+            return;
+        }
+        menuKeyHeld = menuDown;
         Set<Integer> pressedNow = new HashSet<>();
         for (Module m : modules) {
             int key = m.getKey();
@@ -133,7 +173,10 @@ public class ModuleManager {
         }
         for (Module m : modules) {
             int key = m.getKey();
-            if (pressedNow.contains(key) && !heldKeys.contains(key)) m.toggle();
+            if (pressedNow.contains(key) && !heldKeys.contains(key)) {
+                m.toggle();
+                if (cs.toggleMessages.get()) Notifications.push(m.getName(), m.isEnabled() ? "Enabled" : "Disabled", m.isEnabled());
+            }
         }
         heldKeys.clear();
         heldKeys.addAll(pressedNow);

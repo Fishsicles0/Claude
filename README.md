@@ -22,22 +22,24 @@ xvfb-run ./gradlew runClientGameTest
 ```
 
 Launches the real game, builds a test world and checks each module works: AutoTotem equips, AutoPot heals,
-AutoMend repairs, Reach/Hitbox extend, TriggerBot kills, AimAssist locks on. Screenshots land in
+AutoMend repairs, Reach/Hitbox extend, TriggerBot kills, AimAssist locks on, Zoom/Freelook/Fullbright/
+ToggleSprint/Time Changer work, and clicking a card in the menu toggles it. Screenshots land in
 `build/run/clientGameTest/screenshots/`.
 
 ## Using it
 
+![Menu](docs/menu.png)
+
 | Action | How |
 |---|---|
-| Open ClickGUI | **Right Shift** |
-| Toggle module | Left-click it |
-| Show settings / keybind | Right-click it |
-| Set keybind | Click **Bind**, press a key (Esc/Delete clears) |
-| Move a panel | Drag its header |
-| Move a HUD element | Open the ClickGUI and drag the box |
+| Open the menu | **Right Shift** (change it under *Settings*) |
+| Toggle a mod | Click its card |
+| Mod settings + keybind | Click the gear, or right-click the card |
+| Search | Just start typing |
+| Move / resize HUD | *Edit HUD Layout*: drag (snaps to edges, centre and other elements), scroll to resize, right-click for settings |
 
-Chat commands (never sent to the server): `.help`, `.toggle <module>`, `.bind <module> <key|none>`,
-`.set <module> <setting> <value>`, `.modules`, `.save`, `.load`. Config: `config/evade/config.json`.
+Keybind toggles show a slide-in notification. Chat commands (never sent to the server): `.help`, `.toggle`,
+`.bind`, `.set`, `.modules`, `.save`, `.load`. Config: `config/evade/config.json`.
 
 ## Modules
 
@@ -63,22 +65,44 @@ All targeting modules share filters: players / mobs / animals, ignore teammates,
 | **ChunkLocator** | Flags chunks that show signs of a base: stashes of storage, shulker boxes, rotated deepslate (natural deepslate is always vertical) and player-made blocks below y=0. Highlights the chunk, pings and posts the coordinates in chat. Uses palette checks, so scanning is cheap. |
 | **PlayerTracers** | Lines from your crosshair to every player, coloured by distance or team. Optional boxes; your current fight target is highlighted. |
 
-### HUD (drag in the ClickGUI)
+### HUD (drag and resize in *Edit HUD Layout*)
 | Element | What it shows |
 |---|---|
 | **ArmorHUD** | Your armour and held items with durability %, a flashing warning at low durability, and counts of totems, gapples, pearls, wind charges, XP, pots, crystals, obsidian. |
 | **TargetHUD** | Whoever you're fighting (last hit) or looking at (up to 64 blocks): face, name, animated health + absorption bar, distance, their armour with durability, held items, blocking/using status, and Winning/Losing. |
 | **Cooldowns** | Timers for every item cooldown: ender pearl, wind charge, spear, chorus fruit, shield disabled by an axe, goat horn, and gapple cooldowns on servers that add them. Also shows weapon charge and effect timers (gapple absorption, regen, strength, speed, fire res, resistance). Flashes READY and pings when something comes off cooldown. |
-| **HUD** | Watermark, active-module list, coords, FPS. |
+| **Module List** | EVADE watermark and active cheats list (red wave, rainbow, static or white). |
+| **Keystrokes** | WASD, LMB/RMB with CPS, space bar; keys flash red when pressed. |
+| **CPS / FPS / Ping** | Clicks per second (left and right), frame rate, server latency. |
+| **Coordinates** | XYZ, facing with axis, biome, optional Nether/Overworld conversion. |
+| **Potion Effects** | Icons, levels and time left; blinks when about to expire; can hide the vanilla one. |
+| **Direction HUD** | Compass strip with heading. |
+| **Clock / Server Address / Memory / Speed** | Real time (12h/24h), server IP, RAM use, blocks per second. |
+| **Reach Display / Combo Counter** | Distance of your last hit; hits in a row without being hit. |
+
+Every HUD element has Scale and Background settings; text elements also have text colour and brackets.
+
+### Mods (quality of life)
+| Mod | What it does |
+|---|---|
+| **ToggleSprint** | Tap sprint (and optionally sneak) to toggle; shows the state on screen. |
+| **Zoom** | Hold **C**; scroll to change the level; smooth zoom, lower sensitivity while zoomed, optional cinematic camera. |
+| **Freelook** | Hold **Left Alt** to look around your player without turning. |
+| **Fullbright** | See in the dark without touching your gamma setting. |
+| **Crosshair** | Cross, dot, circle, cross + dot or T; size, gap, thickness, outline, colour; turns red on targets. |
+| **No Hurt Cam** | Removes the screen shake when you're hit. |
+| **Block Outline** | Colour, thickness and translucent fill for the block you're looking at. |
+| **Time / Weather Changer** | Client-side time of day and weather. |
 
 ## Layout
 
 ```
 net.evadeclient
 ├── EvadeClient          entrypoint: tick, HUD and world-render hooks
-├── module/              Module, HudElementModule, ModuleManager, combat/ render/ client/
+├── module/              Module, HudElementModule, TextHudModule, ModuleManager,
+│                        combat/ render/ hud/ mods/ client/
 ├── setting/             Boolean / Number / Mode settings
-├── gui/                 ClickGUI (panels + HUD dragging)
+├── gui/                 EvadeMenu (sidebar, search, cards, settings) and HudEditorScreen
 ├── hud/                 HUD rendering helpers
 ├── render/              through-wall line/box drawing (custom no-depth pipelines)
 ├── util/                inventory, rotations, targets, cooldowns, target tracking

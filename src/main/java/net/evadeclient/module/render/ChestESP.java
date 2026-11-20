@@ -52,7 +52,7 @@ public class ChestESP extends Module {
     private int refresh;
 
     public ChestESP() {
-        super("ChestESP", "Shows chests and other storage through walls.", Category.RENDER);
+        super("ChestESP", "Shows chests and other storage through walls.", Category.VISUALS);
     }
 
     @Override

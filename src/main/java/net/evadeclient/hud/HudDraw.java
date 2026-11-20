@@ -1,6 +1,7 @@
 package net.evadeclient.hud;
 
 import net.evadeclient.util.ColorUtil;
+import net.evadeclient.util.Theme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.EquipmentSlot;
@@ -14,8 +15,7 @@ public final class HudDraw {
     private HudDraw() {}
 
     public static void panel(DrawContext ctx, int x, int y, int w, int h) {
-        ctx.fill(x, y, x + w, y + h, ColorUtil.HUD_BG);
-        ctx.fill(x, y, x + w, y + 1, ColorUtil.ACCENT);
+        Theme.hudBox(ctx, x, y, w, h);
     }
 
     /** Item icon with vanilla durability bar and count, plus a durability % label underneath. */

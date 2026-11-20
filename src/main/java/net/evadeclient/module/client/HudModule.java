@@ -3,16 +3,17 @@ package net.evadeclient.module.client;
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;
 import net.evadeclient.setting.BooleanSetting;
+import net.evadeclient.setting.ModeSetting;
 
+/** Watermark and the list of active modules (top-right). */
 public class HudModule extends Module {
     public final BooleanSetting watermark = add(new BooleanSetting("Watermark", true));
-    public final BooleanSetting arrayList = add(new BooleanSetting("ArrayList", true));
-    public final BooleanSetting coords = add(new BooleanSetting("Coords", true));
-    public final BooleanSetting fps = add(new BooleanSetting("FPS", true));
-    public final BooleanSetting rainbow = add(new BooleanSetting("Rainbow", true));
+    public final BooleanSetting arrayList = add(new BooleanSetting("Module List", true));
+    public final ModeSetting colorMode = add(new ModeSetting("List Color", "Red Wave", "Red Wave", "Rainbow", "Static Red", "White"));
+    public final BooleanSetting cheatsOnly = add(new BooleanSetting("Combat/Visuals Only", true));
 
     public HudModule() {
-        super("HUD", "Watermark, module list, coords and FPS.", Category.CLIENT);
+        super("Module List", "Watermark and active module list.", Category.HUD);
         setVisible(false);
         setEnabled(true);
     }

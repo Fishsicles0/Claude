@@ -4,11 +4,18 @@
   "package": "net.evadeclient.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "CameraInvoker",
+    "CameraMixin",
     "ClientPlayerInteractionManagerMixin",
     "EntityMixin",
+    "GameRendererMixin",
     "ItemCooldownManagerAccessor",
     "MinecraftClientAccessor",
-    "PlayerEntityMixin"
+    "MouseMixin",
+    "PlayerEntityMixin",
+    "SimpleOptionMixin"
   ],
-  "injectors": { "defaultRequire": 1 }
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

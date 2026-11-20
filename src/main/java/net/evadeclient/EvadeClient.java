@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
@@ -39,6 +39,19 @@ public class EvadeClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> modules.onTick());
         HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));
+        // Custom crosshair and potion HUD replace the vanilla ones while enabled.
+        HudElementRegistry.replaceElement(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CROSSHAIR, vanilla -> (ctx, tc) -> {
+            var ch = modules.get(net.evadeclient.module.mods.Crosshair.class);
+            if (ch != null && ch.isEnabled()) ch.draw(ctx); else vanilla.render(ctx, tc);
+        });
+        HudElementRegistry.replaceElement(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.STATUS_EFFECTS, vanilla -> (ctx, tc) -> {
+            var ph = modules.get(net.evadeclient.module.hud.PotionHud.class);
+            if (ph == null || !ph.hidesVanilla()) vanilla.render(ctx, tc);
+        });
+        WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((ctx, state) -> {
+            var bo = modules.get(net.evadeclient.module.mods.BlockOutline.class);
+            return bo == null || !bo.isEnabled() || bo.draw(ctx, state);
+        });
         WorldRenderEvents.END_MAIN.register(EvadeClient::onWorldRender);
         ClientSendMessageEvents.ALLOW_CHAT.register(commands::handleChat);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());

@@ -1,41 +1,66 @@
 package net.evadeclient.module;
 
+import net.evadeclient.setting.BooleanSetting;
+import net.evadeclient.setting.NumberSetting;
 import net.minecraft.client.gui.DrawContext;
 
 /**
- * A module that draws a box on screen. Its position can be dragged while the ClickGUI is open
- * and is saved with the config.
+ * A module that draws a box on screen. It can be dragged and scaled in the HUD editor,
+ * and its position and scale are saved with the config.
  */
 public abstract class HudElementModule extends Module {
     /** Position in scaled GUI pixels. Negative values are anchored to the right/bottom edge. */
     public int x, y;
+    /** Unscaled size of the content, set by {@link #render}. */
     protected int width = 20, height = 10;
 
+    public final NumberSetting scale = add(new NumberSetting("Scale", 1.0, 0.5, 2.5, 0.05));
+    public final BooleanSetting background = add(new BooleanSetting("Background", true));
+
     protected HudElementModule(String name, String description, int defaultX, int defaultY) {
-        super(name, description, Category.CLIENT);
+        this(name, description, Category.HUD, defaultX, defaultY);
+    }
+
+    protected HudElementModule(String name, String description, Category category, int defaultX, int defaultY) {
+        super(name, description, category);
         this.x = defaultX;
         this.y = defaultY;
         setVisible(false);
     }
 
     /**
-     * Draw the element with its top-left corner at (left, top).
+     * Draw the element with its top-left corner at (left, top), in unscaled units.
      * Set {@link #width}/{@link #height} so dragging and anchoring work.
      *
-     * @param preview true while the ClickGUI is open: draw sample content if there's nothing to show.
+     * @param preview true in the HUD editor: draw sample content if there's nothing to show.
      */
     public abstract void render(DrawContext ctx, int left, int top, boolean preview);
 
-    public int resolveX(int screenW) { return x < 0 ? screenW + x + 1 - width : x; }
-    public int resolveY(int screenH) { return y < 0 ? screenH + y + 1 - height : y; }
+    /** Renders at the stored position with this element's scale applied. */
+    public void renderScaled(DrawContext ctx, int screenW, int screenH, boolean preview) {
+        float s = scale.getFloat();
+        int left = resolveX(screenW), top = resolveY(screenH);
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().translate(left, top);
+        ctx.getMatrices().scale(s, s);
+        render(ctx, 0, 0, preview);
+        ctx.getMatrices().popMatrix();
+    }
+
+    public int scaledWidth() { return Math.round(width * scale.getFloat()); }
+    public int scaledHeight() { return Math.round(height * scale.getFloat()); }
+
+    public int resolveX(int screenW) { return x < 0 ? screenW + x + 1 - scaledWidth() : x; }
+    public int resolveY(int screenH) { return y < 0 ? screenH + y + 1 - scaledHeight() : y; }
 
     /** Store the position anchored to whichever screen edge it is closest to. */
     public void moveTo(int left, int top, int screenW, int screenH) {
-        left = Math.max(0, Math.min(screenW - width, left));
-        top = Math.max(0, Math.min(screenH - height, top));
+        int w = scaledWidth(), h = scaledHeight();
+        left = Math.max(0, Math.min(screenW - w, left));
+        top = Math.max(0, Math.min(screenH - h, top));
         // Right/bottom anchoring is stored as -(gap + 1) so a flush edge (gap 0) is -1, never 0.
-        x = left + width / 2 > screenW / 2 ? -(screenW - left - width) - 1 : left;
-        y = top + height / 2 > screenH / 2 ? -(screenH - top - height) - 1 : top;
+        x = left + w / 2 > screenW / 2 ? -(screenW - left - w) - 1 : left;
+        y = top + h / 2 > screenH / 2 ? -(screenH - top - h) - 1 : top;
     }
 
     public int getWidth() { return width; }

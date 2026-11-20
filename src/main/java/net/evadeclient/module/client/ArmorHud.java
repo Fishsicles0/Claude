@@ -69,7 +69,7 @@ public class ArmorHud extends HudElementModule {
 
         width = vertical ? 22 + (icons.isEmpty() ? 0 : 40) : Math.max(mainLen, icons.size() * 30) + 4;
         height = vertical ? Math.max(mainLen, icons.size() * 18) + 4 : (icons.isEmpty() ? 28 : 46);
-        HudDraw.panel(ctx, left, top, width, height);
+        if (background.get()) HudDraw.panel(ctx, left, top, width, height);
 
         for (int i = 0; i < items.size(); i++) {
             ItemStack s = items.get(i);

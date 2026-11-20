@@ -4,6 +4,7 @@ import net.evadeclient.hud.HudDraw;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.util.ColorUtil;
+import net.evadeclient.util.Theme;
 import net.evadeclient.util.Cooldowns;
 import net.evadeclient.util.Targets;
 import net.minecraft.client.gui.DrawContext;
@@ -54,7 +55,7 @@ public class CooldownHud extends HudElementModule {
     private final Map<Identifier, ItemStack> iconCache = new LinkedHashMap<>();
 
     public CooldownHud() {
-        super("Cooldowns", "Timers for pearls, wind charges, spears, gapples and more.", 4, 16);
+        super("Cooldowns", "Timers for pearls, wind charges, spears, gapples and more.", 4, 4);
         width = 130;
         setEnabled(true);
     }
@@ -78,7 +79,7 @@ public class CooldownHud extends HudElementModule {
 
         for (Cooldowns.Cooldown cd : Cooldowns.active().values()) {
             ItemStack icon = iconFor(cd.group());
-            rows.add(new Row(icon, icon.getName().getString(), cd.remaining(), cd.total(), ColorUtil.ACCENT));
+            rows.add(new Row(icon, icon.getName().getString(), cd.remaining(), cd.total(), Theme.RED));
         }
         if (readyFlash.get()) {
             for (Identifier id : justReady.keySet()) {
@@ -109,14 +110,14 @@ public class CooldownHud extends HudElementModule {
 
         if (rows.isEmpty()) {
             if (!preview) return;
-            rows.add(new Row(new ItemStack(Items.ENDER_PEARL), "Ender Pearl", 14, 20, ColorUtil.ACCENT));
-            rows.add(new Row(new ItemStack(Items.WIND_CHARGE), "Wind Charge", 6, 10, ColorUtil.ACCENT));
+            rows.add(new Row(new ItemStack(Items.ENDER_PEARL), "Ender Pearl", 14, 20, Theme.RED));
+            rows.add(new Row(new ItemStack(Items.WIND_CHARGE), "Wind Charge", 6, 10, Theme.RED));
         }
 
         var tr = mc.textRenderer;
         width = 130;
         height = rows.size() * 20 + 3;
-        HudDraw.panel(ctx, left, top, width, height);
+        if (background.get()) HudDraw.panel(ctx, left, top, width, height);
         int y = top + 3;
         for (Row r : rows) {
             ctx.drawItem(r.icon, left + 3, y);

@@ -1,7 +1,7 @@
 package net.evadeclient.gametest;
 
 import net.evadeclient.EvadeClient;
-import net.evadeclient.gui.ClickGuiScreen;
+import net.evadeclient.gui.EvadeMenu;
 import net.evadeclient.module.Module;
 import net.evadeclient.module.combat.AimAssist;
 import net.evadeclient.module.combat.AutoMend;
@@ -40,7 +40,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testReach(ctx);
             testTriggerBotAndHitbox(ctx, sp);
             testAimAssist(ctx, sp);
+            testQualityOfLife(ctx, sp);
             testVisuals(ctx, sp);
+            testMenu(ctx);
         }
     }
 
@@ -174,6 +176,85 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(onTarget, "AimAssist ends with the crosshair on the target");
     }
 
+    private void testQualityOfLife(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        sp.getServer().runCommand("kill @e[type=!player]");
+        sp.getServer().runCommand("tp @a 0 -60 0 0 0");
+        ctx.waitTicks(5);
+
+        enable(ctx, net.evadeclient.module.mods.Fullbright.class);
+        double gamma = ctx.computeOnClient(c -> c.options.getGamma().getValue());
+        check(gamma > 5, "Fullbright raises gamma (" + gamma + ")");
+        disable(ctx, net.evadeclient.module.mods.Fullbright.class);
+
+        ctx.waitTicks(2);
+        check(ctx.computeOnClient(c -> c.options.sprintKey.isPressed()), "ToggleSprint holds sprint");
+
+        enable(ctx, net.evadeclient.module.mods.TimeChanger.class);
+        ctx.waitTicks(3);
+        long time = ctx.computeOnClient(c -> c.world.getTimeOfDay() % 24000);
+        check(time == 6000, "Time Changer sets client time (" + time + ")");
+        disable(ctx, net.evadeclient.module.mods.TimeChanger.class);
+
+        ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+        ctx.waitTicks(15);
+        double zoomMult = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).fovMultiplier());
+        ctx.takeScreenshot("evade-zoom");
+        ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+        check(zoomMult < 0.5, "Zoom narrows the FOV while the key is held (x" + zoomMult + ")");
+
+        ctx.runOnClient(c -> c.mouse.lockCursor());
+        ctx.waitTicks(2);
+        // Sanity check: without freelook, mouse movement turns the player.
+        float y0 = ctx.computeOnClient(c -> c.player.getYaw());
+        ctx.getInput().moveCursor(100, 0);
+        ctx.waitTicks(3);
+        float y1 = ctx.computeOnClient(c -> c.player.getYaw());
+        EvadeClient.LOG.info("[gametest] mouse sanity: yaw {} -> {}", y0, y1);
+        float yawBefore = ctx.computeOnClient(c -> c.player.getYaw());
+        ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+        ctx.waitTicks(3);
+        ctx.getInput().moveCursor(300, 0);
+        ctx.waitTicks(3);
+        float yawAfter = ctx.computeOnClient(c -> c.player.getYaw());
+        float camYaw = ctx.computeOnClient(c -> c.gameRenderer.getCamera().getYaw());
+        ctx.takeScreenshot("evade-freelook");
+        ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+        ctx.waitTicks(3);
+        check(Math.abs(yawAfter - yawBefore) < 0.01 && Math.abs(camYaw - yawBefore) > 5,
+                "Freelook turns the camera but not the player (player " + yawBefore + "->" + yawAfter + ", camera " + camYaw + ")");
+    }
+
+    private void testMenu(ClientGameTestContext ctx) {
+        // Typical 1080p monitor at GUI scale 2 (960x540 GUI pixels).
+        ctx.getInput().resizeWindow(1920, 1080);
+        ctx.runOnClient(c -> {
+            c.options.getGuiScale().setValue(2);
+            c.onResolutionChanged();
+        });
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-hud-1080p");
+        ctx.setScreen(EvadeMenu::new);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-menu");
+        // Click the first card (AutoPot) and check it toggles. Layout at 960x540 GUI: card 0 centre ~(373,152).
+        boolean before = ctx.computeOnClient(c -> EvadeClient.modules.get(AutoPot.class).isEnabled());
+        ctx.getInput().setCursorPos(373 * 2, 152 * 2);
+        ctx.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(5);
+        boolean after = ctx.computeOnClient(c -> EvadeClient.modules.get(AutoPot.class).isEnabled());
+        check(before != after, "Clicking a mod card in the menu toggles it");
+        ctx.getInput().typeChars("zoom");
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-menu-search");
+        ctx.setScreen(() -> EvadeMenu.open(EvadeClient.modules.get(AimAssist.class)));
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-menu-settings");
+        ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-hud-editor");
+        ctx.setScreen(() -> null);
+    }
+
     private void testVisuals(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var server = sp.getServer();
         server.runCommand("kill @e[type=!player]");
@@ -215,10 +296,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(30);
         ctx.takeScreenshot("evade-world");
 
-        ctx.setScreen(ClickGuiScreen::get);
-        ctx.waitTicks(5);
-        ctx.takeScreenshot("evade-clickgui");
-        ctx.setScreen(() -> null);
-        check(true, "visual screenshots taken");
+        check(true, "world screenshot taken");
     }
 }
