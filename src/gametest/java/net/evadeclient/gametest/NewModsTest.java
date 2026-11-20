@@ -43,7 +43,7 @@ final class NewModsTest {
 
     NewModsTest(ClientGameTestContext ctx, TestSingleplayerContext sp) { this.ctx = ctx; this.sp = sp; }
 
-    void run() {
+    void run() throws java.io.IOException {
         reset();
         killAura();
         velocity();
@@ -64,6 +64,7 @@ final class NewModsTest {
         autoRespawn();
         freecam();
         timer();
+        printer();
     }
 
     // ------------------------------------------------------------------ helpers
@@ -394,5 +395,105 @@ final class NewModsTest {
         double fast = (System.nanoTime() - t1) / 1e6;
         off(Timer.class);
         check(fast < base * 0.75, String.format("Timer x2 makes 100 ticks take less real time (%.0f ms -> %.0f ms)", base, fast));
+    }
+
+    // ------------------------------------------------------------------ printer
+
+    private void printer() throws java.io.IOException {
+        reset();
+        // A small build with several block states: floor, a log lying east-west, a furnace facing south,
+        // an upper slab, and enough block types that the packed data spans across longs.
+        java.util.Map<BlockPos, net.minecraft.block.BlockState> blocks = new java.util.LinkedHashMap<>();
+        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) blocks.put(new BlockPos(x, 0, z), Blocks.STONE_BRICKS.getDefaultState());
+        blocks.put(new BlockPos(0, 1, 0), Blocks.OAK_LOG.getDefaultState().with(net.minecraft.state.property.Properties.AXIS, Direction.Axis.X));
+        blocks.put(new BlockPos(2, 1, 0), Blocks.FURNACE.getDefaultState().with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.SOUTH));
+        blocks.put(new BlockPos(0, 1, 2), Blocks.OAK_PLANKS.getDefaultState());
+        blocks.put(new BlockPos(2, 1, 2), Blocks.GLASS.getDefaultState());
+        blocks.put(new BlockPos(1, 2, 0), Blocks.SMOOTH_STONE_SLAB.getDefaultState().with(net.minecraft.block.SlabBlock.TYPE, net.minecraft.block.enums.SlabType.TOP));
+        java.nio.file.Path file = ctx.computeOnClient(c -> {
+            java.nio.file.Path dir = net.evadeclient.module.world.Printer.folder();
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path f = dir.resolve("evadetest.litematic");
+            try (var out = java.nio.file.Files.newOutputStream(f)) {
+                net.minecraft.nbt.NbtIo.writeCompressed(net.evadeclient.util.LitematicReader.write("evadetest", blocks, new BlockPos(3, 3, 3)), out);
+            }
+            return f;
+        });
+        // the reader must give back exactly what was written
+        var read = ctx.computeOnClient(c -> net.evadeclient.util.LitematicReader.read(file));
+        check(read.blocks().equals(blocks), "Printer reads .litematic files exactly (" + read.size() + " blocks round-trip)");
+
+        cmd("item replace entity @a hotbar.0 with stone_bricks 64");
+        cmd("item replace entity @a hotbar.1 with oak_log 8");
+        cmd("item replace entity @a inventory.0 with furnace 4"); // must be pulled in from the inventory
+        cmd("item replace entity @a hotbar.3 with oak_planks 8");
+        cmd("item replace entity @a hotbar.4 with glass 8");
+        cmd("item replace entity @a hotbar.5 with smooth_stone_slab 8");
+        cmd("tp @a 1.5 -60 4.5 180 20");
+        ctx.waitTicks(10);
+        // place the schematic 2 blocks in front of the player, as ".printer here" would at that spot
+        ctx.runOnClient(c -> {
+            net.evadeclient.EvadeClient.commands.handleChat(".printer load evadetest");
+            EvadeClient.modules.get(net.evadeclient.module.world.Printer.class).load(read, new BlockPos(0, -60, 0));
+        });
+        on(net.evadeclient.module.world.Printer.class);
+        ctx.waitTicks(80);
+        ctx.takeScreenshot("evade-printer");
+        off(net.evadeclient.module.world.Printer.class);
+        java.util.List<String> bad = new java.util.ArrayList<>();
+        for (var e : blocks.entrySet()) {
+            BlockPos w = e.getKey().add(0, -60, 0);
+            var have = sp.getServer().computeOnServer(sv -> sv.getOverworld().getBlockState(w));
+            if (!have.equals(e.getValue())) bad.add(w.toShortString() + " wanted " + e.getValue() + " got " + have);
+        }
+        bad.forEach(b -> EvadeClient.LOG.info("[gametest] printer mismatch: {}", b));
+        check(bad.isEmpty(), "Printer builds the schematic with the right block states (" + (blocks.size() - bad.size()) + "/" + blocks.size() + " correct on the server)");
+        printerWithLitematica(file, blocks);
+    }
+
+    /** If Litematica is installed in the test game, check the Printer follows Litematica's own placement. */
+    private void printerWithLitematica(java.nio.file.Path file, java.util.Map<BlockPos, net.minecraft.block.BlockState> blocks) throws java.io.IOException {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("litematica")) {
+            EvadeClient.LOG.info("[gametest] Litematica not installed in the test game; skipping the Litematica check");
+            return;
+        }
+        BlockPos origin = new BlockPos(-6, -60, 0);
+        cmd("item replace entity @a hotbar.0 with stone_bricks 64");
+        cmd("item replace entity @a hotbar.1 with oak_log 8");
+        cmd("item replace entity @a inventory.0 with furnace 4");
+        cmd("item replace entity @a hotbar.3 with oak_planks 8");
+        cmd("item replace entity @a hotbar.4 with glass 8");
+        cmd("item replace entity @a hotbar.5 with smooth_stone_slab 8");
+        cmd("tp @a -4.5 -60 4.5 180 20");
+        ctx.waitTicks(10);
+        String placed;
+        try { placed = ctx.computeOnClient(c -> {
+            EvadeClient.commands.handleChat(".printer unload"); // so only Litematica drives the Printer
+            Class<?> schem = Class.forName("fi.dy.masa.litematica.schematic.LitematicaSchematic");
+            Object schematic = schem.getMethod("createFromFile", java.nio.file.Path.class, String.class)
+                    .invoke(null, file.getParent(), file.getFileName().toString());
+            if (schematic == null) return "Litematica could not read Evade's file";
+            Object placement = Class.forName("fi.dy.masa.litematica.schematic.placement.SchematicPlacement")
+                    .getMethod("createFor", schem, BlockPos.class, String.class, boolean.class, boolean.class)
+                    .invoke(null, schematic, origin, "evadetest", true, true);
+            Object mgr = Class.forName("fi.dy.masa.litematica.data.DataManager").getMethod("getSchematicPlacementManager").invoke(null);
+            mgr.getClass().getMethod("addSchematicPlacement", placement.getClass(), boolean.class).invoke(mgr, placement, false);
+            return "ok";
+        }); } catch (ReflectiveOperationException e) { placed = "reflection failed: " + e; }
+        check("ok".equals(placed), "Litematica reads Evade's .litematic file and places it (" + placed + ")");
+        ctx.waitTicks(40); // Litematica fills its schematic world per chunk
+        on(net.evadeclient.module.world.Printer.class);
+        ctx.waitTicks(100);
+        String suffix = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.world.Printer.class).getSuffix());
+        off(net.evadeclient.module.world.Printer.class);
+        int ok = 0;
+        for (var e : blocks.entrySet()) {
+            BlockPos w = e.getKey().add(origin);
+            var have = sp.getServer().computeOnServer(sv -> sv.getOverworld().getBlockState(w));
+            if (have.equals(e.getValue())) ok++;
+            else EvadeClient.LOG.info("[gametest] litematica printer mismatch {} wanted {} got {}", w.toShortString(), e.getValue(), have);
+        }
+        check(ok == blocks.size() && "Litematica".equals(suffix),
+                "Printer builds Litematica's placement (" + ok + "/" + blocks.size() + " correct, source: " + suffix + ")");
     }
 }

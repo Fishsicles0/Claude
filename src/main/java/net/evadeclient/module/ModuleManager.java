@@ -99,6 +99,7 @@ public class ModuleManager {
         register(new FastBreak());
         register(new AutoFarm());
         register(new SpawnProofer());
+        register(new Printer());
         // Player
         register(new AutoEat());
         register(new AutoTool());

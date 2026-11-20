@@ -131,6 +131,7 @@ public final class InstallerCore {
         Path game = o.gameDir();
         Files.createDirectories(mc);
         Files.createDirectories(game.resolve("mods"));
+        Files.createDirectories(game.resolve("schematics")); // for the Printer (.litematic files)
 
         // 1. Version file for the launcher (Fabric's profile JSON, renamed to our id).
         p.update(0.05, "Setting up Fabric Loader " + r.loaderVersion());

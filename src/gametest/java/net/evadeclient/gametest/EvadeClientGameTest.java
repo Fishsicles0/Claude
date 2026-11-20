@@ -42,7 +42,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testAimAssist(ctx, sp);
             testQualityOfLife(ctx, sp);
             testVisuals(ctx, sp);
-            new NewModsTest(ctx, sp).run();
+            try { new NewModsTest(ctx, sp).run(); } catch (java.io.IOException e) { throw new AssertionError(e); }
             testMenu(ctx);
         }
     }

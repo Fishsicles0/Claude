@@ -38,6 +38,7 @@ public class CommandManager {
                 print("§d.bind <module> <key|none>§7 - set a keybind");
                 print("§d.set <module> <setting> <value>§7 - change a setting");
                 print("§d.modules§7 - list modules");
+                print("§d.printer§7 - schematic printer (list, load, here, materials, folder)");
                 print("§d.save§7 / §d.load§7 - config");
             }
             case "t", "toggle" -> {
@@ -65,6 +66,7 @@ public class CommandManager {
                 print(m.getName() + " " + s.getName() + " = §d" + s.display());
                 EvadeClient.config.save();
             }
+            case "printer", "p" -> EvadeClient.modules.get(net.evadeclient.module.world.Printer.class).command(a);
             case "modules", "list" -> print(EvadeClient.modules.all().stream()
                     .map(m -> (m.isEnabled() ? "§a" : "§7") + m.getName())
                     .collect(Collectors.joining("§8, ")));

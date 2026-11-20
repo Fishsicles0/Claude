@@ -41,3 +41,14 @@ fabricApi {
         eula = true
     }
 }
+
+// Litematica + MaLiLib for the in-game Printer test only (scripts/fetch-test-mods.py downloads them).
+// Fabric Loader loads them at launch for the test run; they are never part of the Evade jar.
+afterEvaluate {
+    def testMods = fileTree(dir: 'libs/test-mods', include: '*.jar').files
+    if (!testMods.isEmpty()) {
+        loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
+            vmArg "-Dfabric.addMods=${testMods.collect { it.absolutePath }.join(File.pathSeparator)}"
+        }
+    }
+}

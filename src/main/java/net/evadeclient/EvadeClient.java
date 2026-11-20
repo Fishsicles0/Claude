@@ -36,6 +36,7 @@ public class EvadeClient implements ClientModInitializer {
         commands = new CommandManager();
         config = new ConfigManager();
         config.load();
+        net.evadeclient.module.world.Printer.ensureFolder();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> modules.onTick());
         HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));
