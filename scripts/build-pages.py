@@ -20,8 +20,8 @@ SRC = ROOT / "site-src" / "pages"
 OUT = ROOT / "site"
 SITE = "https://evadeclient.com"
 
-NAV = [("features", "/features", "Features"), ("showcase", "/showcase", "Showcase"),
-       ("download", "/download", "Download"), ("faq", "/faq", "FAQ")]
+NAV = [("home", "/", "Home"), ("features", "/features", "Features"), ("download", "/download", "Download"),
+       ("showcase", "/showcase", "Showcase"), ("faq", "/faq", "FAQ")]
 
 LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="34" height="34">'
         '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span>')
@@ -66,7 +66,6 @@ LAYOUT = """<!doctype html>
     </div>
   </div>
   <div class="mobile-menu" id="mobileMenu">
-    <a href="/"{home_active}>Home</a>
 {mobile_links}
   </div>
 </nav>
@@ -101,7 +100,7 @@ ACTIVE = ' class="on" aria-current="page"'
 
 
 def page(name: str, meta: dict, body: str) -> str:
-    nav = meta.get("nav", "")
+    nav = meta.get("nav", "home")
     links = "\n".join(
         f'      <a href="{href}"{ACTIVE if key == nav else ""}>{label}</a>'
         for key, href, label in NAV)
@@ -112,8 +111,8 @@ def page(name: str, meta: dict, body: str) -> str:
     title = meta["title"] if name == "index" else f'{meta["title"]} · Evade Client'
     return LAYOUT.format(
         title=html.escape(title), description=html.escape(meta["description"]), url=SITE + path, site=SITE,
-        nav=nav or "home", logo=LOGO, links=links, mobile_links=mobile,
-        home_active=ACTIVE if name == "index" else "", body=body.strip())
+        nav=nav, logo=LOGO, links=links, mobile_links=mobile,
+        body=body.strip())
 
 
 def main() -> None:
