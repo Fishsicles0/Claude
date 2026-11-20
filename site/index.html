@@ -85,6 +85,33 @@ nav {
 .logo-tag { display: block; font: 600 8.5px/1 "Sora", sans-serif; letter-spacing: .5em; color: var(--faint); margin-top: 5px; }
 .nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--dim); }
 .nav-links a:hover { color: var(--text); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+.burger {
+  display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
+  background: rgba(255,255,255,.04); cursor: pointer; place-items: center; padding: 0;
+}
+.burger span, .burger span::before, .burger span::after {
+  display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--text); position: relative;
+  transition: transform .3s ease, background .2s;
+}
+.burger span::before, .burger span::after { content: ""; position: absolute; left: 0; }
+.burger span::before { top: -6px; }
+.burger span::after { top: 6px; }
+nav.open .burger span { background: transparent; }
+nav.open .burger span::before { transform: translateY(6px) rotate(45deg); }
+nav.open .burger span::after { transform: translateY(-6px) rotate(-45deg); }
+.mobile-menu {
+  display: none; flex-direction: column; padding: 0 16px; max-height: 0; overflow: hidden;
+  transition: max-height .35s ease, padding .35s ease; border-top: 1px solid transparent;
+}
+.mobile-menu a {
+  padding: 15px 4px; font-size: 18px; font-weight: 600; color: var(--dim); border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.mobile-menu a::after { content: "\203A"; color: var(--red); font-size: 22px; }
+.mobile-menu a:last-child { border-bottom: 0; }
+.mobile-menu a:active, .mobile-menu a:hover { color: var(--text); }
+nav.open .mobile-menu { max-height: 320px; padding: 4px 16px 12px; border-top-color: var(--border); }
 .btn {
   display: inline-flex; align-items: center; gap: 10px; justify-content: center;
   padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px;
@@ -247,6 +274,8 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
 }
 @media (max-width: 640px) {
   .nav-links { display: none; }
+  .burger { display: grid; }
+  .mobile-menu { display: flex; }
   .hero { padding-top: 56px; }
   h1 br { display: none; }
   h1 .red { display: block; }
@@ -274,7 +303,16 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
     </div>
-    <a href="#download" class="btn btn-red btn-sm js-dl">Download</a>
+    <div class="nav-right">
+      <a href="#download" class="btn btn-red btn-sm js-dl">Download</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#features">Features</a>
+    <a href="#showcase">Showcase</a>
+    <a href="#install">Install</a>
+    <a href="#faq">FAQ</a>
   </div>
 </nav>
 
@@ -470,6 +508,17 @@ fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
   document.querySelectorAll(".js-mc").forEach(e => e.textContent = v.minecraft);
 
 }).catch(() => {});
+
+// Mobile menu
+const navEl = document.querySelector("nav"), burger = document.getElementById("burger");
+burger.addEventListener("click", () => {
+  const open = navEl.classList.toggle("open");
+  burger.setAttribute("aria-expanded", open);
+  burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+});
+document.querySelectorAll("#mobileMenu a").forEach(a => a.addEventListener("click", () => {
+  navEl.classList.remove("open"); burger.setAttribute("aria-expanded", "false");
+}));
 
 // Offer the right installer for the visitor's OS.
 const ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
