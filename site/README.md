@@ -1,7 +1,12 @@
 # evadeclient.com
 
-Static download site for Evade Client. No build step: everything is in `index.html`, `assets/`,
-`downloads/` and `version.json`.
+Multi-page static site for Evade Client: `/` (home), `/features`, `/showcase`, `/download` and `/faq`.
+
+- Page content lives in `site-src/pages/*.html` (a small header block, then the page body).
+- `scripts/build-pages.py` wraps each page in the shared layout (nav, footer, meta tags) and writes `site/<page>.html`.
+  Edit the nav/footer there, once, for every page.
+- Shared styles and script: `site/assets/site.css` and `site/assets/site.js`.
+- `scripts/build-site.sh` builds the mod + installer, refreshes `downloads/` and `version.json`, then rebuilds the pages.
 
 ## Releasing a new version
 
@@ -9,7 +14,8 @@ Static download site for Evade Client. No build step: everything is in `index.ht
 2. Run `scripts/build-site.sh`. It builds the mod, copies the jar to `site/downloads/` (as
    `evade-client-latest.jar` and a versioned copy) and updates `site/version.json`, which the page
    reads for its version, file name and size.
-3. Commit and push. If the site is connected to Cloudflare Pages, it redeploys automatically.
+3. If you only changed page text, run `python3 scripts/build-pages.py` instead.
+4. Commit and push. If the site is connected to Cloudflare Pages, it redeploys automatically.
 
 ## Preview locally
 

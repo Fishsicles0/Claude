@@ -4,333 +4,66 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evade Client</title>
-<meta name="description" content="Evade Client: a free Fabric PvP client for Minecraft 1.21.11 with combat modules, visuals, 17 HUD elements and a black and red menu.">
+<meta name="description" content="Evade Client is a free Fabric PvP client for Minecraft 1.21.11 with combat modules, visuals, 17 HUD elements and a black and red menu.">
 <meta name="theme-color" content="#0a0a0c">
+<link rel="canonical" href="https://evadeclient.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Evade Client">
-<meta property="og:description" content="Free Fabric PvP client for Minecraft 1.21.11.">
-<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta property="og:description" content="Evade Client is a free Fabric PvP client for Minecraft 1.21.11 with combat modules, visuals, 17 HUD elements and a black and red menu.">
 <meta property="og:url" content="https://evadeclient.com/">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #08080a;
-  --bg-2: #0e0e12;
-  --card: #121216;
-  --card-2: #17171c;
-  --border: #23232b;
-  --red: #e11d2e;
-  --red-hi: #ff3b4c;
-  --red-lo: #7a0d18;
-  --text: #f2f2f5;
-  --dim: #9a9aa6;
-  --faint: #5c5c68;
-  --radius: 14px;
-  --max: 1160px;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Sora", system-ui, -apple-system, Segoe UI, sans-serif;
-  line-height: 1.6;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-a { color: inherit; text-decoration: none; }
-img { max-width: 100%; height: auto; display: block; }
-.wrap { max-width: var(--max); margin: 0 auto; padding: 0 16px; }
-.mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
-
-/* background grid + glow */
-.bg-fx { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-.bg-fx::before {
-  content: ""; position: absolute; inset: 0;
-  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
-}
-.bg-fx::after {
-  content: ""; position: absolute; left: 50%; top: -280px; width: 1100px; height: 700px;
-  transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgba(225,29,46,.28), transparent);
-  filter: blur(20px);
-}
-
-/* nav */
-nav {
-  position: sticky; top: 0; z-index: 50;
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  background: rgba(8,8,10,.72);
-  border-bottom: 1px solid rgba(255,255,255,.05);
-}
-.nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
-.logo { display: flex; align-items: center; gap: 10px; line-height: 1; }
-.logo img { width: 34px; height: 34px; filter: drop-shadow(0 0 14px rgba(225,29,46,.45)); transition: transform .3s cubic-bezier(.2,.9,.3,1.4); }
-.logo:hover img { transform: translateX(2px) skewX(-4deg); }
-.wordmark {
-  font: italic 700 23px/1 "Chakra Petch", "Sora", sans-serif; letter-spacing: .16em; padding-right: .05em;
-  background: linear-gradient(180deg, #fff 0%, #fff 55%, #c4c4ce 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
-  -webkit-mask-image: linear-gradient(175deg, #000 0, #000 50%, transparent 50%, transparent 53.5%, #000 53.5%);
-  mask-image: linear-gradient(175deg, #000 0, #000 50%, transparent 50%, transparent 53.5%, #000 53.5%);
-}
-.logo-tag { display: block; font: 600 8.5px/1 "Sora", sans-serif; letter-spacing: .5em; color: var(--faint); margin-top: 5px; }
-.nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--dim); }
-.nav-links a:hover { color: var(--text); }
-.nav-right { display: flex; align-items: center; gap: 10px; }
-.burger {
-  display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
-  background: rgba(255,255,255,.04); cursor: pointer; place-items: center; padding: 0;
-}
-.burger span, .burger span::before, .burger span::after {
-  display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--text); position: relative;
-  transition: transform .3s ease, background .2s;
-}
-.burger span::before, .burger span::after { content: ""; position: absolute; left: 0; }
-.burger span::before { top: -6px; }
-.burger span::after { top: 6px; }
-nav.open .burger span { background: transparent; }
-nav.open .burger span::before { transform: translateY(6px) rotate(45deg); }
-nav.open .burger span::after { transform: translateY(-6px) rotate(-45deg); }
-.mobile-menu {
-  display: none; flex-direction: column; padding: 0 16px; max-height: 0; overflow: hidden;
-  transition: max-height .35s ease, padding .35s ease; border-top: 1px solid transparent;
-}
-.mobile-menu a {
-  padding: 15px 4px; font-size: 18px; font-weight: 600; color: var(--dim); border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center;
-}
-.mobile-menu a::after { content: "\203A"; color: var(--red); font-size: 22px; }
-.mobile-menu a:last-child { border-bottom: 0; }
-.mobile-menu a:active, .mobile-menu a:hover { color: var(--text); }
-nav.open .mobile-menu { max-height: 320px; padding: 4px 16px 12px; border-top-color: var(--border); }
-.btn {
-  display: inline-flex; align-items: center; gap: 10px; justify-content: center;
-  padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px;
-  transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
-  cursor: pointer; border: 0; font-family: inherit; white-space: nowrap;
-}
-.btn-red { background: var(--red); color: #fff; box-shadow: 0 8px 30px rgba(225,29,46,.35); }
-.btn-red:hover { background: var(--red-hi); transform: translateY(-2px); box-shadow: 0 12px 40px rgba(225,29,46,.5); }
-.btn-ghost { background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--text); }
-.btn-ghost:hover { border-color: #3a3a46; background: rgba(255,255,255,.07); }
-.btn-sm { padding: 9px 16px; font-size: 14px; }
-.btn svg { width: 18px; height: 18px; }
-
-/* hero */
-.hero { padding-top: 88px; padding-bottom: 40px; text-align: center; }
-.pill {
-  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
-  border: 1px solid rgba(225,29,46,.35); background: rgba(225,29,46,.08);
-  font-size: 13px; color: #ffb3ba;
-}
-.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--red-hi); box-shadow: 0 0 10px var(--red-hi); animation: pulse 2s infinite; }
-@keyframes pulse { 50% { opacity: .35; } }
-h1 {
-  font-size: clamp(42px, 7.4vw, 88px); line-height: 1.02; font-weight: 800; letter-spacing: -.035em;
-  margin: 22px auto 18px; max-width: 900px;
-}
-h1 .red { color: var(--red); text-shadow: 0 0 40px rgba(225,29,46,.45); }
-.lead { color: var(--dim); font-size: clamp(16px, 2vw, 19px); max-width: 620px; margin: 0 auto; }
-.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
-.meta { margin-top: 16px; font-size: 13px; color: var(--faint); }
-.meta b { color: var(--dim); font-weight: 500; }
-.meta.alts { margin-top: 8px; }
-.meta.alts a { color: var(--dim); border-bottom: 1px solid var(--border); transition: color .2s, border-color .2s; }
-.meta.alts a:hover { color: var(--text); border-color: var(--red); }
-.meta.alts span { margin: 0 6px; }
-.manual { color: var(--dim); font-size: 14px; margin-top: 18px; }
-.manual a { color: var(--red-hi); border-bottom: 1px solid rgba(255,59,76,.35); }
-
-.shot-hero {
-  margin: 64px auto 0; max-width: 1040px; border-radius: 18px; overflow: hidden; position: relative;
-  border: 1px solid rgba(225,29,46,.35);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 40px 120px rgba(225,29,46,.18), 0 30px 60px rgba(0,0,0,.6);
-  transform: perspective(1400px) rotateX(8deg); transform-origin: top center;
-  transition: transform .6s cubic-bezier(.2,.8,.2,1);
-}
-.shot-hero.flat { transform: perspective(1400px) rotateX(0); }
-
-/* stats */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 72px 0 0;
-  background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.stat { background: var(--bg-2); padding: 26px 20px; text-align: center; }
-.stat b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
-.stat b em { color: var(--red); font-style: normal; }
-.stat span { color: var(--dim); font-size: 13px; }
-
-/* sections */
-section { padding: 110px 0 0; }
-.eyebrow { color: var(--red); font-size: 13px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
-h2 { font-size: clamp(30px, 4.4vw, 48px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; margin: 10px 0 14px; }
-.sub { color: var(--dim); max-width: 560px; }
-.head { margin-bottom: 44px; }
-
-/* feature categories */
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
-.tab {
-  padding: 9px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
-  color: var(--dim); font-size: 14px; cursor: pointer; font-family: inherit; transition: all .2s;
-}
-.tab:hover { color: var(--text); }
-.tab.on { background: var(--red); border-color: var(--red); color: #fff; }
-.tab small { opacity: .7; margin-left: 4px; }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.mod {
-  background: linear-gradient(180deg, var(--card-2), var(--card)); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px; transition: border-color .2s, transform .2s;
-  position: relative; overflow: hidden;
-}
-.mod::before {
-  content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity .3s;
-  background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 0%), rgba(225,29,46,.14), transparent 60%);
-}
-.mod:hover { border-color: rgba(225,29,46,.55); transform: translateY(-3px); }
-.mod:hover::before { opacity: 1; }
-.mod .cat { font-size: 11px; letter-spacing: .14em; color: var(--red); font-weight: 600; text-transform: uppercase; }
-.mod h3 { font-size: 17px; margin: 6px 0 6px; font-weight: 700; }
-.mod p { color: var(--dim); font-size: 14px; line-height: 1.55; }
-.mod.hide { display: none; }
-
-/* showcase */
-.show { display: grid; grid-template-columns: 1fr 1.6fr; gap: 28px; align-items: center; }
-.show-list { display: flex; flex-direction: column; gap: 10px; }
-.show-item {
-  text-align: left; padding: 18px 20px; border-radius: var(--radius); border: 1px solid var(--border);
-  background: var(--card); cursor: pointer; font-family: inherit; color: var(--text); transition: all .2s;
-}
-.show-item h4 { font-size: 16px; margin-bottom: 4px; }
-.show-item p { color: var(--dim); font-size: 14px; }
-.show-item.on { border-color: var(--red); background: linear-gradient(90deg, rgba(225,29,46,.12), var(--card)); }
-.show-img { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.6); aspect-ratio: 16/9; background: var(--card); }
-.show-img img { width: 100%; height: 100%; object-fit: cover; transition: opacity .35s; }
-
-/* install */
-.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: s; }
-.step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; position: relative; }
-.step::before {
-  counter-increment: s; content: counter(s, decimal-leading-zero);
-  font-family: "JetBrains Mono", monospace; color: var(--red); font-size: 13px; font-weight: 500;
-}
-.step h4 { margin: 10px 0 6px; font-size: 16px; }
-.step p { color: var(--dim); font-size: 14px; }
-.step a { color: var(--red-hi); border-bottom: 1px solid rgba(255,59,76,.35); }
-.keys { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
-.key { font-family: "JetBrains Mono", monospace; font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--dim); }
-.key kbd { color: var(--text); background: #1d1d24; border: 1px solid #2c2c36; border-bottom-width: 3px; border-radius: 5px; padding: 1px 7px; margin-right: 6px; font-family: inherit; }
-
-/* faq */
-.faq { max-width: 780px; }
-details { border-bottom: 1px solid var(--border); padding: 20px 0; }
-summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
-summary::-webkit-details-marker { display: none; }
-summary::after { content: "+"; color: var(--red); font-size: 22px; line-height: 1; transition: transform .2s; }
-details[open] summary::after { transform: rotate(45deg); }
-details p { color: var(--dim); margin-top: 10px; font-size: 15px; }
-
-/* final cta */
-.final {
-  margin: 120px 0 0; padding: 64px 24px; text-align: center; border-radius: 22px; position: relative; overflow: hidden;
-  border: 1px solid rgba(225,29,46,.4);
-  background: radial-gradient(600px 300px at 50% 0%, rgba(225,29,46,.25), transparent), var(--bg-2);
-}
-.final h2 { margin-top: 0; }
-.final .sub { margin: 0 auto; }
-
-footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 48px; color: var(--faint); font-size: 13px; }
-.foot { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.foot p { max-width: 520px; }
-.foot-links { display: flex; gap: 22px; }
-.foot-links a:hover { color: var(--text); }
-
-/* reveal */
-.rv { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
-.rv.in { opacity: 1; transform: none; }
-
-/* toast */
-.toast {
-  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, calc(100% + 48px)); z-index: 99; visibility: hidden;
-  background: #111114; border: 1px solid rgba(225,29,46,.5); border-radius: 12px; padding: 14px 18px;
-  display: flex; gap: 12px; align-items: center; box-shadow: 0 20px 60px rgba(0,0,0,.6);
-  transition: transform .4s cubic-bezier(.2,.8,.2,1); font-size: 14px; max-width: calc(100% - 32px);
-}
-.toast.show { transform: translate(-50%, 0); visibility: visible; }
-.toast b { color: var(--red-hi); }
-
-@media (max-width: 960px) {
-  .grid { grid-template-columns: repeat(2, 1fr); }
-  .steps { grid-template-columns: repeat(2, 1fr); }
-  .show { grid-template-columns: 1fr; }
-  .show-list { flex-direction: row; overflow-x: auto; }
-  .show-item { min-width: 220px; }
-}
-@media (max-width: 640px) {
-  .nav-links { display: none; }
-  .burger { display: grid; }
-  .mobile-menu { display: flex; }
-  .hero { padding-top: 56px; }
-  h1 br { display: none; }
-  h1 .red { display: block; }
-  .grid, .steps { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  section { padding-top: 80px; }
-  .shot-hero { transform: none; margin-top: 44px; }
-  .cta .btn { width: 100%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
-  .rv { opacity: 1; transform: none; }
-}
-</style>
+<link rel="stylesheet" href="/assets/site.css">
 </head>
-<body>
+<body data-page="home">
 <div class="bg-fx"></div>
 
 <nav>
   <div class="wrap nav-in">
-    <a href="#" class="logo" aria-label="Evade Client home"><img src="assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
     <div class="nav-links">
-      <a href="#features">Features</a>
-      <a href="#showcase">Showcase</a>
-      <a href="#install">Install</a>
-      <a href="#faq">FAQ</a>
+      <a href="/features">Features</a>
+      <a href="/showcase">Showcase</a>
+      <a href="/download">Download</a>
+      <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <a href="#download" class="btn btn-red btn-sm js-dl">Download</a>
+      <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
   </div>
   <div class="mobile-menu" id="mobileMenu">
-    <a href="#features">Features</a>
-    <a href="#showcase">Showcase</a>
-    <a href="#install">Install</a>
-    <a href="#faq">FAQ</a>
+    <a href="/" class="on" aria-current="page">Home</a>
+    <a href="/features">Features</a>
+    <a href="/showcase">Showcase</a>
+    <a href="/download">Download</a>
+    <a href="/faq">FAQ</a>
   </div>
 </nav>
 
-<header class="hero wrap" id="download">
+<main>
+<header class="hero wrap">
   <div class="pill"><i></i> <span class="js-version">v0.3.1</span> &middot; now on Minecraft <span class="js-mc">1.21.11</span></div>
   <h1>Out-play everyone.<br><span class="red">Never get caught.</span></h1>
   <p class="lead">Evade is a free Fabric PvP client: combat modules, visuals and 17 HUD elements, all in one black and red menu.</p>
   <div class="cta">
-    <a class="btn btn-red js-dl js-primary" href="downloads/Evade-Installer.exe" download>
+    <a class="btn btn-red js-primary" href="/downloads/Evade-Installer.exe" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
       <span class="js-primary-label">Download for Windows</span>
     </a>
-    <a class="btn btn-ghost" href="#install">How to install</a>
+    <a class="btn btn-ghost" href="/features">Explore features</a>
   </div>
-  <p class="meta"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; Evade <span class="js-version">v0.3.1</span> &middot; Minecraft <span class="js-mc">1.21.11</span></p>
-  <p class="meta alts"><a class="js-dl js-alt" href="downloads/EvadeInstaller.jar" download>Mac &amp; Linux installer (.jar)</a> <span>&middot;</span> <a class="js-dl" href="downloads/evade-client-latest.jar" download>Mod only (.jar)</a></p>
+  <p class="meta"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">Other systems</a></p>
 
-  <div class="shot-hero rv" id="heroShot"><img src="assets/menu.png" alt="The Evade Client menu: a sidebar of categories and a grid of mod cards" width="1920" height="1080"></div>
+  <div class="shot-hero rv" id="heroShot"><img src="/assets/menu.png" alt="The Evade Client menu: a sidebar of categories and a grid of mod cards" width="1920" height="1080"></div>
 
   <div class="stats rv">
     <div class="stat"><b>38</b><span>mods</span></div>
@@ -340,73 +73,68 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
   </div>
 </header>
 
-<section id="features" class="wrap">
+<section class="wrap">
   <div class="head rv">
-    <div class="eyebrow">Features</div>
-    <h2>Everything you need in a fight.</h2>
-    <p class="sub">Every module has its own settings, keybind and on/off switch. Pick a category below.</p>
+    <div class="eyebrow">What's inside</div>
+    <h2>Three kits. One client.</h2>
+    <p class="sub">Every mod has its own settings, keybind and on/off switch.</p>
   </div>
-  <div class="tabs rv" id="tabs">
-    <button class="tab on" data-f="all">All <small>38</small></button>
-    <button class="tab" data-f="combat">Combat <small>9</small></button>
-    <button class="tab" data-f="visuals">Visuals <small>3</small></button>
-    <button class="tab" data-f="hud">HUD <small>17</small></button>
-    <button class="tab" data-f="mods">Mods <small>9</small></button>
+  <div class="cats rv">
+    <a class="cat-card" href="/features#combat">
+      <div class="num"><em>9</em></div>
+      <h3>Combat</h3>
+      <p>Aim, timing and supplies handled for you, so you can focus on the fight.</p>
+      <div class="chips"><span>AimAssist</span><span>TriggerBot</span><span>AutoTotem</span><span>AutoPot</span></div>
+      <span class="go">See combat mods</span>
+    </a>
+    <a class="cat-card" href="/features#hud">
+      <div class="num">17</div>
+      <h3>HUD</h3>
+      <p>Everything you need to read a fight at a glance, placed exactly where you want it.</p>
+      <div class="chips"><span>TargetHUD</span><span>Cooldowns</span><span>Keystrokes</span><span>ArmorHUD</span></div>
+      <span class="go">See HUD elements</span>
+    </a>
+    <a class="cat-card" href="/features#mods">
+      <div class="num">12</div>
+      <h3>Visuals &amp; Mods</h3>
+      <p>See more of the world and tune the game to feel exactly how you like it.</p>
+      <div class="chips"><span>ChestESP</span><span>Zoom</span><span>Freelook</span><span>Crosshair</span></div>
+      <span class="go">See visuals &amp; mods</span>
+    </a>
   </div>
-  <div class="grid" id="grid"></div>
 </section>
 
-<section id="showcase" class="wrap">
-  <div class="head rv">
-    <div class="eyebrow">Showcase</div>
-    <h2>Built to look clean.</h2>
-    <p class="sub">These are real screenshots from the game. Nothing here is a mockup.</p>
-  </div>
-  <div class="show rv">
-    <div class="show-list" id="showList">
-      <button class="show-item on" data-img="assets/menu.png"><h4>The menu</h4><p>Search, categories and animated switches. Opens with Right Shift.</p></button>
-      <button class="show-item" data-img="assets/menu-settings.png"><h4>Per-mod settings</h4><p>Sliders, modes, keybinds and colours for every module.</p></button>
-      <button class="show-item" data-img="assets/hud.png"><h4>In-game HUD</h4><p>Cooldowns, target and armor info, keystrokes, ESP.</p></button>
-      <button class="show-item" data-img="assets/hud-editor.png"><h4>HUD editor</h4><p>Drag, snap and resize every element.</p></button>
+<section class="wrap">
+  <div class="split rv">
+    <div>
+      <div class="eyebrow">Showcase</div>
+      <h2>Built to look clean.</h2>
+      <p class="sub">A menu that's quick to use and a HUD you can arrange in seconds.</p>
+      <ul>
+        <li>Search any mod by typing, from anywhere in the menu</li>
+        <li>Drag, snap and resize every HUD element</li>
+        <li>Black and red from the menu to the watermark</li>
+      </ul>
+      <a class="btn btn-ghost" href="/showcase">View screenshots</a>
     </div>
-    <div class="show-img"><img id="showImg" src="assets/menu.png" alt="Evade Client screenshot"></div>
+    <div class="shot"><img src="/assets/hud.png" alt="Evade's in-game HUD with cooldowns, target info and keystrokes" width="1920" height="1080" loading="lazy"></div>
   </div>
 </section>
 
-<section id="install" class="wrap">
-  <div class="head rv">
-    <div class="eyebrow">Install</div>
-    <h2>Up and running in two minutes.</h2>
-  </div>
-  <div class="steps rv">
-    <div class="step"><h4>Download the installer</h4><p>The <b>.exe</b> on Windows. On Mac and Linux, use the <b>.jar</b> installer (needs <a href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Java 17+</a>).</p></div>
-    <div class="step"><h4>Click Install</h4><p>It sets up Fabric, Fabric API and Evade in their own folder, so your normal mods and worlds aren't touched.</p></div>
-    <div class="step"><h4>Open the launcher</h4><p>In the Minecraft Launcher, pick <b>Evade Client</b> next to the Play button.</p></div>
-    <div class="step"><h4>Play</h4><p>Join a world and press Right Shift to open the menu. Run the installer again any time to update.</p></div>
-  </div>
-  <p class="manual rv">Prefer doing it by hand? Put the <a href="downloads/evade-client-latest.jar" download>mod jar</a> and <a href="https://modrinth.com/mod/fabric-api" target="_blank" rel="noopener">Fabric API</a> in your <span class="mono">mods</span> folder with Fabric Loader for 1.21.11.</p>
-  <div class="keys rv">
-    <div class="key"><kbd>Right Shift</kbd>Menu</div>
-    <div class="key"><kbd>C</kbd>Zoom</div>
-    <div class="key"><kbd>Left Alt</kbd>Freelook</div>
-    <div class="key"><kbd>type</kbd>Search mods</div>
-  </div>
-</section>
-
-<section id="faq" class="wrap">
-  <div class="head rv">
-    <div class="eyebrow">FAQ</div>
-    <h2>Questions.</h2>
-  </div>
-  <div class="faq rv">
-    <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
-    <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
-    <details><summary>Can I get banned?</summary><p>Yes, on most servers. Combat modules like Reach, TriggerBot and AutoClicker break the rules of most multiplayer servers and anti-cheats look for them. Use those in singleplayer, on your own server, or on servers that allow clients. The HUD and quality-of-life mods (Keystrokes, Zoom, ToggleSprint and so on) are the same kind of thing other PvP clients offer.</p></details>
-    <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it runs alongside most others. If something conflicts, remove mods one at a time to find which one.</p></details>
-    <details><summary>Windows says "Windows protected your PC"</summary><p>That appears for new apps that aren't code-signed yet. Click <b>More info</b>, then <b>Run anyway</b>. The installer only writes to your <span class="mono">.minecraft</span> folder.</p></details>
-    <details><summary>How do I update?</summary><p>Run the installer again. It shows <b>Update Evade Client</b> when a new version is out and replaces the old files.</p></details>
-    <details><summary>Where are my settings saved?</summary><p>In <span class="mono">.minecraft/evade/config/evade/config.json</span> if you used the installer. Back up that file to keep your layout and keybinds.</p></details>
-    <details><summary>Is it safe?</summary><p>The installer only touches your <span class="mono">.minecraft</span> folder: it adds an <span class="mono">evade</span> folder, one version file and one launcher profile, and backs up your launcher settings first. Every download is checked against a SHA-256 or SHA-512 checksum before it's used.</p></details>
+<section class="wrap">
+  <div class="split flip rv">
+    <div class="shot"><img src="/assets/menu-settings.png" alt="A mod's settings page in the Evade menu" width="1920" height="1080" loading="lazy"></div>
+    <div>
+      <div class="eyebrow">Install</div>
+      <h2>Two minutes to set up.</h2>
+      <p class="sub">The installer does the work and keeps your normal Minecraft untouched.</p>
+      <ul>
+        <li>Sets up Fabric and Fabric API for you</li>
+        <li>Adds an Evade Client profile to the Minecraft Launcher</li>
+        <li>Run it again any time to update</li>
+      </ul>
+      <a class="btn btn-ghost" href="/download#install">See how it works</a>
+    </div>
   </div>
 </section>
 
@@ -414,130 +142,30 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
   <div class="final rv">
     <h2>Ready to <span style="color:var(--red)">evade</span>?</h2>
     <p class="sub">Free. Run the installer, click Install, play.</p>
-    <div class="cta"><a class="btn btn-red js-dl js-primary" href="downloads/Evade-Installer.exe" download>
+    <div class="cta"><a class="btn btn-red js-primary" href="/downloads/Evade-Installer.exe" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      <span class="js-primary-label">Download for Windows</span></a></div>
+      <span class="js-primary-label">Download for Windows</span></a>
+      <a class="btn btn-ghost" href="/download">All downloads</a></div>
   </div>
 </div>
+</main>
 
 <footer>
   <div class="wrap foot">
     <div>
-      <a href="#" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <a href="/" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
       <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
     </div>
-    <div class="foot-links">
-      <a href="#features">Features</a><a href="#install">Install</a><a href="#faq">FAQ</a>
+    <div class="foot-cols">
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a></div>
+      <div><h5>Get started</h5><a href="/download">Download</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a></div>
     </div>
   </div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span class="js-version-line">v0.3.1 &middot; Minecraft 1.21.11</span></div>
 </footer>
 
 <div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-
-<script>
-const MODS = [
-  ["combat","AutoPot","Throws healing splash potions when you're low and re-buffs Strength, Speed and Fire Resistance when they wear off."],
-  ["combat","AutoTotem","Puts a totem back in your offhand straight after a pop. Smart mode only does it when you're in danger."],
-  ["combat","AutoMend","Throws XP bottles to repair Mending armor, and takes off finished pieces so the XP goes where it's needed."],
-  ["combat","AimAssist","Smoothly eases your aim onto the nearest edge of a target's hitbox, rounded to your mouse sensitivity."],
-  ["combat","AutoCritical","Times jumps so your hits land as real critical hits. Also has a Packet mode."],
-  ["combat","AutoClicker","Accurate clicks per second with randomised timing. Leaves mining alone."],
-  ["combat","Reach","Hit from further away, with slight random variance so the distance isn't fixed."],
-  ["combat","TriggerBot","Attacks the moment your crosshair is on a target and your weapon is charged. Skips shields unless you hold an axe."],
-  ["combat","Hitbox","Makes enemy hitboxes bigger for your crosshair."],
-  ["visuals","ChestESP","Shows chests, shulkers, ender chests, barrels and spawners through walls."],
-  ["visuals","ChunkLocator","Flags chunks with stashes, shulkers, rotated deepslate or player-made blocks underground, and posts the coordinates."],
-  ["visuals","PlayerTracers","Lines to every player, coloured by distance, with your current target highlighted."],
-  ["hud","TargetHUD","Your opponent's face, health, armor durability, held items and whether you're winning."],
-  ["hud","ArmorHUD","Your armor durability plus counts of totems, gapples, pearls and potions."],
-  ["hud","Cooldowns","Timers for pearls, wind charges, spears, shields and gapples, with a READY ping."],
-  ["hud","Keystrokes","WASD, mouse buttons with CPS and the space bar. Keys flash red when pressed."],
-  ["hud","Potion Effects","Effect icons with time left. Blinks when an effect is about to run out."],
-  ["hud","CPS · FPS · Ping","Clicks per second, frame rate and server latency."],
-  ["hud","Coordinates","XYZ, facing direction, biome and nether conversion."],
-  ["hud","Direction HUD","A compass strip with your heading."],
-  ["hud","Reach Display · Combo","Distance of your last hit and your current combo."],
-  ["hud","Clock · Server · Speed · Memory","Real time, server address, blocks per second and RAM use."],
-  ["hud","Module List","Active modules in a red wave down the side of the screen."],
-  ["mods","ToggleSprint","Tap sprint or sneak to toggle them instead of holding."],
-  ["mods","Zoom","Hold C to zoom, scroll to change how far, with smooth zoom in and out."],
-  ["mods","Freelook","Hold Left Alt to look around without turning your player."],
-  ["mods","Custom Crosshair","Five styles, any colour, and it turns red when it's on a target."],
-  ["mods","Fullbright","See in the dark without changing your brightness setting."],
-  ["mods","Block Outline","Pick the colour, thickness and fill of the block outline."],
-  ["mods","No Hurt Cam","Removes the screen shake when you take damage."],
-  ["mods","Time & Weather","Choose the time of day and weather you see."],
-];
-const grid = document.getElementById("grid");
-grid.innerHTML = MODS.map(([c, n, d]) =>
-  `<div class="mod" data-c="${c}"><div class="cat">${c}</div><h3>${n}</h3><p>${d}</p></div>`).join("");
-
-document.getElementById("tabs").addEventListener("click", e => {
-  const t = e.target.closest(".tab"); if (!t) return;
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  const f = t.dataset.f;
-  grid.querySelectorAll(".mod").forEach(m => m.classList.toggle("hide", f !== "all" && m.dataset.c !== f));
-});
-
-grid.addEventListener("pointermove", e => {
-  const m = e.target.closest(".mod"); if (!m) return;
-  const r = m.getBoundingClientRect();
-  m.style.setProperty("--mx", (e.clientX - r.left) + "px");
-  m.style.setProperty("--my", (e.clientY - r.top) + "px");
-});
-
-const showImg = document.getElementById("showImg");
-document.getElementById("showList").addEventListener("click", e => {
-  const b = e.target.closest(".show-item"); if (!b) return;
-  document.querySelectorAll(".show-item").forEach(x => x.classList.toggle("on", x === b));
-  showImg.style.opacity = 0;
-  setTimeout(() => { showImg.src = b.dataset.img; showImg.onload = () => showImg.style.opacity = 1; }, 180);
-});
-
-const io = new IntersectionObserver(es => es.forEach(en => {
-  if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-}), { threshold: .12 });
-document.querySelectorAll(".rv").forEach(el => io.observe(el));
-const hero = document.getElementById("heroShot");
-addEventListener("scroll", () => hero.classList.toggle("flat", scrollY > 80), { passive: true });
-
-// Keep version info in one place: version.json is written by scripts/build-site.sh.
-fetch("version.json").then(r => r.ok ? r.json() : null).then(v => {
-  if (!v) return;
-  document.querySelectorAll(".js-version").forEach(e => e.textContent = "v" + v.version);
-  document.querySelectorAll(".js-mc").forEach(e => e.textContent = v.minecraft);
-
-}).catch(() => {});
-
-// Mobile menu
-const navEl = document.querySelector("nav"), burger = document.getElementById("burger");
-burger.addEventListener("click", () => {
-  const open = navEl.classList.toggle("open");
-  burger.setAttribute("aria-expanded", open);
-  burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-});
-document.querySelectorAll("#mobileMenu a").forEach(a => a.addEventListener("click", () => {
-  navEl.classList.remove("open"); burger.setAttribute("aria-expanded", "false");
-}));
-
-// Offer the right installer for the visitor's OS.
-const ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
-const isMac = /Mac/i.test(plat) || /Macintosh/.test(ua), isLinux = !isMac && /Linux|X11/i.test(plat + ua) && !/Android/i.test(ua);
-if (isMac || isLinux) {
-  document.querySelectorAll(".js-primary").forEach(a => a.setAttribute("href", "downloads/EvadeInstaller.jar"));
-  document.querySelectorAll(".js-primary-label").forEach(e => e.textContent = isMac ? "Download for macOS" : "Download for Linux");
-  document.querySelectorAll(".js-primary-meta").forEach(e => e.textContent = "One-click installer \u00b7 needs Java 17+");
-  document.querySelectorAll(".js-alt").forEach(a => { a.setAttribute("href", "downloads/Evade-Installer.exe"); a.textContent = "Windows installer (.exe)"; });
-}
-
-const toast = document.getElementById("toast"), toastText = document.getElementById("toastText");
-document.querySelectorAll("a.js-dl[download]").forEach(a => a.addEventListener("click", () => {
-  toastText.innerHTML = /evade-client/.test(a.getAttribute("href"))
-    ? "Mod downloaded. Put it in your <b>mods</b> folder with Fabric API."
-    : "Download started. Open it and click <b>Install</b>.";
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 4500);
-}));
-</script>
+<script src="/assets/site.js" defer></script>
 </body>
 </html>

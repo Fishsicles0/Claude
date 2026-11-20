@@ -32,4 +32,5 @@ cat > site/version.json <<JSON
   "date": "$(date +%F)"
 }
 JSON
+python3 scripts/build-pages.py
 echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR")"

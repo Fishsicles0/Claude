@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · Evade Client</title>
+<meta name="description" content="Answers about Evade Client: supported versions, installing, updating, safety and using it with other mods.">
+<meta name="theme-color" content="#0a0a0c">
+<link rel="canonical" href="https://evadeclient.com/faq">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Evade Client">
+<meta property="og:title" content="FAQ · Evade Client">
+<meta property="og:description" content="Answers about Evade Client: supported versions, installing, updating, safety and using it with other mods.">
+<meta property="og:url" content="https://evadeclient.com/faq">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body data-page="faq">
+<div class="bg-fx"></div>
+
+<nav>
+  <div class="wrap nav-in">
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <div class="nav-links">
+      <a href="/features">Features</a>
+      <a href="/showcase">Showcase</a>
+      <a href="/download">Download</a>
+      <a href="/faq" class="on" aria-current="page">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <a href="/download" class="btn btn-red btn-sm">Download</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="/">Home</a>
+    <a href="/features">Features</a>
+    <a href="/showcase">Showcase</a>
+    <a href="/download">Download</a>
+    <a href="/faq" class="on" aria-current="page">FAQ</a>
+  </div>
+</nav>
+
+<main>
+<header class="page-head wrap">
+  <div class="eyebrow">FAQ</div>
+  <h1>Questions, <span class="red">answered</span>.</h1>
+  <p>Everything about installing, updating and using Evade.</p>
+</header>
+
+<section class="wrap page-body">
+  <div class="faq-wrap">
+    <div class="faq-group rv">
+      <h2>General</h2>
+      <div class="faq">
+        <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
+        <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
+        <details><summary>Can I get banned?</summary><p>Yes, on most servers. Combat modules like Reach, TriggerBot and AutoClicker break the rules of most multiplayer servers and anti-cheats look for them. Use those in singleplayer, on your own server, or on servers that allow clients. The HUD and quality-of-life mods (Keystrokes, Zoom, ToggleSprint and so on) are the same kind of thing other PvP clients offer.</p></details>
+        <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it runs alongside most others. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
+      </div>
+    </div>
+    <div class="faq-group rv">
+      <h2>Installing &amp; updating</h2>
+      <div class="faq">
+        <details id="windows"><summary>Windows says "Windows protected your PC"</summary><p>That appears for new apps that aren't code-signed yet. Click <b>More info</b>, then <b>Run anyway</b>. The installer only writes to your <span class="mono">.minecraft</span> folder.</p></details>
+        <details><summary>The Mac or Linux installer won't open</summary><p>The <span class="mono">.jar</span> installer needs Java 17 or newer. Install it from <a href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">adoptium.net</a>, then double-click the jar, or run <span class="mono">java -jar EvadeInstaller.jar</span>.</p></details>
+        <details id="update"><summary>How do I update?</summary><p>Run the installer again. It shows <b>Update Evade Client</b> when a new version is out and replaces the old files.</p></details>
+        <details><summary>I don't see "Evade Client" in the launcher</summary><p>Close and reopen the Minecraft Launcher after installing. If you picked a different Minecraft folder in the installer, make sure it's the one your launcher uses.</p></details>
+        <details><summary>How do I uninstall it?</summary><p>Delete the <span class="mono">evade</span> folder and <span class="mono">versions/evade-client-1.21.11</span> inside <span class="mono">.minecraft</span>, then remove the Evade Client installation in the launcher.</p></details>
+      </div>
+    </div>
+    <div class="faq-group rv">
+      <h2>Safety &amp; settings</h2>
+      <div class="faq">
+        <details><summary>Is it safe?</summary><p>The installer only touches your <span class="mono">.minecraft</span> folder: it adds an <span class="mono">evade</span> folder, one version file and one launcher profile, and backs up your launcher settings first. Every download is checked against a SHA-256 or SHA-512 checksum before it's used. The checksums are listed on the <a href="/download">download page</a>.</p></details>
+        <details><summary>Where are my settings saved?</summary><p>In <span class="mono">.minecraft/evade/config/evade/config.json</span> if you used the installer. Back up that file to keep your layout and keybinds.</p></details>
+      </div>
+    </div>
+
+    <div class="help-card rv">
+      <p>Still stuck? Reinstalling with the latest installer fixes most problems.</p>
+      <a class="btn btn-red" href="/download">Get the installer</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <a href="/" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
+    </div>
+    <div class="foot-cols">
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a></div>
+      <div><h5>Get started</h5><a href="/download">Download</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a></div>
+    </div>
+  </div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span class="js-version-line">v0.3.1 &middot; Minecraft 1.21.11</span></div>
+</footer>
+
+<div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>
