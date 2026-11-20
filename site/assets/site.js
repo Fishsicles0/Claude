@@ -54,34 +54,90 @@ if (grid) {
     all(".tab").forEach(x => x.classList.toggle("on", x.dataset.f === f));
     apply();
   };
-  const setting = st => {
-    let v = esc(st.default);
-    if (st.type === "slider") v += `<small>${esc(st.min)}–${esc(st.max)}</small>`;
-    if (st.type === "mode") v += `<small>${st.options.map(esc).join(" · ")}</small>`;
-    if (st.type === "color") v = `<i class="sw" style="background:${esc(st.default)}"></i>${v}`;
-    return `<li><span>${esc(st.name)}</span><b>${v}</b></li>`;
+  // A representative screenshot for each category, used on a module's detail hero.
+  const CAT_IMG = { combat: "/assets/hud.webp", movement: "/assets/menu.webp", visuals: "/assets/hud.webp",
+    world: "/assets/printer.webp", player: "/assets/menu-settings.webp", hud: "/assets/hud-editor.webp",
+    mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
+  const TYPE = { slider: "Number", toggle: "Toggle", mode: "Mode", color: "Colour", key: "Key" };
+  const RANGE = st => st.type === "slider" ? `${esc(st.min)} to ${esc(st.max)}`
+    : st.type === "mode" ? st.options.map(esc).join(", ")
+    : st.type === "toggle" ? "On or off" : st.type === "color" ? "Any colour" : st.type === "key" ? "Any key" : "—";
+  const RISKWORD = { low: "Low — only changes what you see, or minor.", med: "Medium — anti-cheats can catch it.", high: "High — obvious to anti-cheats." };
+  let MODS = [];
+  const detail = one("#detail"), listView = one("#listView");
+
+  const openDetail = (name, push) => {
+    const m = MODS.find(x => x.name === name);
+    if (!m) return;
+    const c = m.cat.toLowerCase();
+    const rows = m.settings.map(st => `<tr><th scope="row">${esc(st.name)}</th><td>${TYPE[st.type] || st.type}</td>`
+      + `<td class="def">${st.type === "color" ? `<i class="sw" style="background:${esc(st.default)}"></i>` : ""}${esc(st.default)}</td>`
+      + `<td>${RANGE(st)}</td></tr>`).join("");
+    detail.innerHTML = `
+      <button class="detail-back" id="detailBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> All ${MODS.length} mods</button>
+      <div class="detail-hero">
+        <img src="${CAT_IMG[c] || "/assets/menu.webp"}" alt="" loading="lazy">
+        <div class="detail-hero-in">
+          <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}">${RISK[m.risk]}</span></div>
+          <h1>${esc(m.name)}</h1>
+          <p>${esc(m.desc)}</p>
+        </div>
+      </div>
+      <div class="detail-body">
+        <section class="card detail-sec">
+          <h2>What does ${esc(m.name)} do?</h2>
+          <p>${esc(m.desc)} It's in the <b>${esc(m.cat)}</b> category. Ban risk: <span class="risk ${m.risk}">${RISK[m.risk]}</span> &mdash; ${RISKWORD[m.risk]}</p>
+        </section>
+        <section class="card detail-sec">
+          <h2>How do I turn ${esc(m.name)} on?</h2>
+          <ol class="steps-num">
+            <li><b>Install Evade</b> with the <a href="/download">one-click installer</a>, then start Minecraft on the Evade Client profile.</li>
+            <li><b>Open the menu</b> with <span class="kbd">Right Shift</span> in game.</li>
+            <li><b>Find ${esc(m.name)}</b> under <b>${esc(m.cat)}</b> (or type to search), click the card to turn it on, and open the gear for its settings &mdash; or type <span class="mono">.toggle ${esc(m.name.replace(/ /g, ""))}</span> in chat.</li>
+          </ol>
+        </section>
+        ${m.settings.length ? `<section class="card detail-sec">
+          <h2>What can you change in ${esc(m.name)}?</h2>
+          <p>${esc(m.name)} has ${m.settings.length} setting${m.settings.length > 1 ? "s" : ""}. Each is adjustable in the menu; the defaults below are what a fresh install uses.</p>
+          <div class="settable-wrap"><table class="settable">
+            <thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Range or options</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </section>` : `<section class="card detail-sec"><h2>Settings</h2><p>${esc(m.name)} has no settings &mdash; just switch it on.</p></section>`}
+      </div>`;
+    listView.hidden = true;
+    detail.hidden = false;
+    document.title = m.name + " · Evade Client";
+    scrollTo(0, 0);
+    one("#detailBack").addEventListener("click", () => history.back());
+    if (push) history.pushState({ m: name }, "", "#m=" + encodeURIComponent(name));
   };
+
+  const closeDetail = () => { detail.hidden = true; listView.hidden = false; document.title = "Features · Evade Client"; };
+
+  const route = push => {
+    const h = decodeURIComponent(location.hash.slice(1));
+    if (h.startsWith("m=")) openDetail(h.slice(2), false);
+    else { closeDetail(); if (all(".tab").some(t => t.dataset.f === h)) select(h); else apply(); }
+  };
+
   fetch("/assets/mods.json").then(r => r.json()).then(mods => {
-    grid.innerHTML = mods.map((m, i) => {
-      const c = m.cat.toLowerCase();
-      const n = m.settings.length;
-      return `<article class="card mod" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
+    MODS = mods;
+    grid.innerHTML = mods.map(m => {
+      const c = m.cat.toLowerCase(), n = m.settings.length;
+      return `<button class="card mod" data-m="${esc(m.name)}" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
         <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
         <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>
-        ${n ? `<button class="more" aria-expanded="false" aria-controls="set${i}">${n} setting${n > 1 ? "s" : ""}</button>
-        <ul class="sets" id="set${i}" hidden>${m.settings.map(setting).join("")}</ul>` : `<span class="more none">No settings: just switch it on</span>`}</article>`;
+        <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></button>`;
     }).join("");
-    const fromHash = location.hash.slice(1);
-    if (all(".tab").some(t => t.dataset.f === fromHash)) select(fromHash); else apply();
+    route(false);
   }).catch(() => { grid.innerHTML = "<p>Couldn't load the list of mods. Refresh to try again.</p>"; });
+
   grid.addEventListener("click", e => {
-    const b = e.target.closest(".more"); if (!b || b.classList.contains("none")) return;
-    const list = document.getElementById(b.getAttribute("aria-controls"));
-    const open = b.getAttribute("aria-expanded") !== "true";
-    b.setAttribute("aria-expanded", open);
-    list.hidden = !open;
-    b.closest(".mod").classList.toggle("open", open);
+    const card = e.target.closest(".mod"); if (!card) return;
+    openDetail(card.dataset.m, true);
   });
+  addEventListener("popstate", () => route(false));
   one("#tabs").addEventListener("click", e => {
     const t = e.target.closest(".tab"); if (!t) return;
     select(t.dataset.f);
@@ -89,7 +145,8 @@ if (grid) {
   });
   q.addEventListener("input", apply);
   addEventListener("keydown", e => {
-    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+    if (e.key === "/" && document.activeElement !== q && detail.hidden) { e.preventDefault(); q.focus(); }
+    if (e.key === "Escape" && !detail.hidden) history.back();
   });
   grid.addEventListener("pointermove", e => {
     const m = e.target.closest(".mod"); if (!m) return;
