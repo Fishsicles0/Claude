@@ -17,16 +17,14 @@ Static download site for Evade Client. No build step: everything is in `index.ht
 cd site && python3 -m http.server 8000   # open http://localhost:8000
 ```
 
-## Putting it online
+## Hosting (live)
 
-**Quickest (no account setup):** drag the `site` folder onto https://app.netlify.com/drop.
-You get a live URL in seconds and can attach a domain later.
+The site is live at **https://evadeclient.com** (and **www.evadeclient.com**), served by the Cloudflare
+Worker `evade-client` using static assets:
 
-**Recommended: Cloudflare Pages** (free, works with private GitHub repos, auto-deploys on push):
-1. dash.cloudflare.com → Workers & Pages → Create → Pages → Connect to Git → pick this repo.
-2. Framework preset: None. Build command: leave empty. Build output directory: `site`.
-3. Choose the branch to deploy, then Save and Deploy.
-
-**Domain:** search evadeclient.com at Cloudflare Registrar (Domain Registration → Register),
-Namecheap or Porkbun. Registering it through Cloudflare makes step 4 automatic.
-4. In the Pages project → Custom domains → add `evadeclient.com` (and `www.evadeclient.com`).
+- `wrangler.jsonc` (repo root) points Wrangler at `./site`. `site/.assetsignore` keeps this README private,
+  and `site/404.html` is the not-found page.
+- Cloudflare **Workers Builds** is connected to GitHub (`fishsicles0/claude`, branch
+  `claude/evade-client-minecraft-yt571w`) and runs `npx wrangler deploy` on every push, so pushing is deploying.
+- Domains: `evadeclient.com` is a Worker custom domain; `www.evadeclient.com` is a Worker route
+  (`www.evadeclient.com/*`) with a proxied `AAAA 100::` DNS record.
