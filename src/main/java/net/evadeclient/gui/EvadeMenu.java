@@ -64,12 +64,14 @@ public class EvadeMenu extends Screen {
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
+        selected = null; // opening the menu always starts on the grid, not wherever it was last
     }
 
     /** Open the menu, optionally straight onto a module's settings page. */
     public static EvadeMenu open(Module select) {
+        EvadeMenu menu = new EvadeMenu();
         if (select != null) selected = select;
-        return new EvadeMenu();
+        return menu;
     }
 
     @Override
@@ -209,21 +211,30 @@ public class EvadeMenu extends Screen {
 
     private int columns() { return cw >= 420 ? 3 : 2; }
 
+    // ---- GUI style: "Cards" (big cards), "Compact" (one thin row per line), "Doomsday" (two dense columns).
+    private String style() { return settings().guiStyle.get(); }
+    private boolean cards() { return style().equals("Cards"); }
+    private int cols() { return cards() ? columns() : style().equals("Doomsday") ? 2 : 1; }
+    private int rowH() { return cards() ? CARD_H : style().equals("Doomsday") ? 16 : 22; }
+    private int rowGap() { return cards() ? GAP : 3; }
+
     private void renderGrid(DrawContext ctx, int mx, int my) {
         List<Module> mods = modulesFor(page, search);
-        int cols = columns();
-        int cardW = (cw - GAP * (cols - 1)) / cols;
+        int cols = cols();
+        int rh = rowH(), rg = rowGap();
+        int cardW = (cw - rg * (cols - 1)) / cols;
         int rows = (mods.size() + cols - 1) / cols;
-        int contentH = rows * (CARD_H + GAP);
+        int contentH = rows * (rh + rg);
         scrollTarget = Math.max(0, Math.min(scrollTarget, contentH - ch));
 
         ctx.enableScissor(cx - 2, cy, cx + cw + 2, cy + ch);
         for (int i = 0; i < mods.size(); i++) {
             Module mod = mods.get(i);
-            int x = cx + (i % cols) * (cardW + GAP);
-            int y = cy + (i / cols) * (CARD_H + GAP) - (int) Math.round(scroll);
-            if (y + CARD_H < cy || y > cy + ch) continue;
-            renderCard(ctx, mod, x, y, cardW, mx, my);
+            int x = cx + (i % cols) * (cardW + rg);
+            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
+            if (y + rh < cy || y > cy + ch) continue;
+            if (cards()) renderCard(ctx, mod, x, y, cardW, mx, my);
+            else renderRow(ctx, mod, x, y, cardW, rh, mx, my);
         }
         if (mods.isEmpty()) {
             String msg = "No mods match \"" + search + "\"";
@@ -265,6 +276,37 @@ public class EvadeMenu extends Screen {
             boolean hg = inView && mx >= gx - 3 && mx < gx + 12 && my >= gy - 2 && my < gy + 12;
             Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : 0xFF202027);
             ctx.drawText(textRenderer, "⚙", gx + 1, gy + 1, Theme.TEXT, false);
+        }
+    }
+
+    /** A thin module row for the Compact and Doomsday styles. */
+    private void renderRow(DrawContext ctx, Module mod, int x, int y, int w, int h, int mx, int my) {
+        boolean doom = style().equals("Doomsday");
+        boolean inView = my >= cy && my < cy + ch;
+        boolean hover = inView && mx >= x && mx < x + w && my >= y && my < y + h;
+        float hv = animate("hover:" + mod.getName(), hover ? 1 : 0, 14);
+        float on = animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14);
+
+        if (doom) {
+            // terminal style: full-width row highlight, red left bar, a ">" prefix when on
+            if (hv > 0.01f || on > 0.01f) ctx.fill(x, y, x + w, y + h, Theme.alpha(0xFF24070C, Math.max(hv * 0.8f, on * 0.5f)));
+            ctx.fill(x, y, x + 1, y + h, Theme.lerpColor(Theme.BORDER, Theme.RED, Math.max(on, hv)));
+            int tc = Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, Math.max(on, hv * 0.7f));
+            small(ctx, (on > 0.5f ? "> " : "  ") + mod.getName(), x + 5, y + 4, on > 0.5f ? Theme.RED_BRIGHT : tc, 0.9f);
+        } else {
+            // compact style: rounded row, name left, soft on-tint
+            int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, hv), 0xFF24090E, on * 0.7f);
+            int border = Theme.lerpColor(Theme.BORDER, Theme.RED, hv * 0.7f);
+            Theme.roundBordered(ctx, x, y, x + w, y + h, fill, border);
+            if (on > 0.01f) ctx.fill(x + 1, y + 2, x + 2, y + h - 2, Theme.alpha(Theme.RED, on));
+            ctx.drawText(textRenderer, textRenderer.trimToWidth(mod.getName(), w - 46), x + 8, y + (h - 8) / 2, Theme.TEXT, false);
+        }
+        // toggle on the right, gear just left of it when the mod has settings
+        Theme.toggle(ctx, x + w - 24, y + (h - 10) / 2, on);
+        if (!mod.getSettings().isEmpty()) {
+            int gx = x + w - 40, gy = y + (h - 10) / 2;
+            boolean hg = inView && mx >= gx - 2 && mx < gx + 11 && my >= gy - 1 && my < gy + 11;
+            small(ctx, "⚙", gx, gy + 1, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.9f);
         }
     }
 
@@ -379,14 +421,18 @@ public class EvadeMenu extends Screen {
         if (selected != null || page == Page.SETTINGS) return clickSettings(mx, my, button);
 
         List<Module> mods = modulesFor(page, search);
-        int cols = columns();
-        int cardW = (cw - GAP * (cols - 1)) / cols;
+        int cols = cols();
+        int rh = rowH(), rg = rowGap();
+        int cardW = (cw - rg * (cols - 1)) / cols;
         for (int i = 0; i < mods.size(); i++) {
-            int x = cx + (i % cols) * (cardW + GAP);
-            int y = cy + (i / cols) * (CARD_H + GAP) - (int) Math.round(scroll);
-            if (mx < x || mx >= x + cardW || my < y || my >= y + CARD_H) continue;
+            int x = cx + (i % cols) * (cardW + rg);
+            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
+            if (mx < x || mx >= x + cardW || my < y || my >= y + rh) continue;
             Module mod = mods.get(i);
-            boolean gear = !mod.getSettings().isEmpty() && mx >= x + cardW - 19 && my >= y + CARD_H - 18;
+            // gear region: bottom-right for cards, a small square left of the toggle for rows
+            boolean gear = !mod.getSettings().isEmpty() && (cards()
+                    ? mx >= x + cardW - 19 && my >= y + rh - 18
+                    : mx >= x + cardW - 42 && mx < x + cardW - 26);
             if (gear || button == 1) {
                 selected = mod;
                 scroll = scrollTarget = 0;

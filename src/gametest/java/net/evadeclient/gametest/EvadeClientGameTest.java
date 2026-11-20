@@ -309,6 +309,27 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
         ctx.waitTicks(5);
         ctx.takeScreenshot("evade-hud-editor");
+
+        // GUI styles: switch each one, reopen the menu, screenshot, and confirm a row still toggles.
+        var cs = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class));
+        for (String st : new String[]{"Compact", "Doomsday", "Cards"}) {
+            ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
+                ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive(st)); });
+            ctx.setScreen(EvadeMenu::new);
+            ctx.waitTicks(6);
+            ctx.takeScreenshot("evade-gui-" + st.toLowerCase());
+        }
+        // In Compact style, click the first row and confirm it toggles.
+        ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
+            ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive("Compact")); });
+        ctx.setScreen(EvadeMenu::new);
+        ctx.waitTicks(6);
+        boolean b2 = ctx.computeOnClient(c -> EvadeClient.modules.get(AutoPot.class).isEnabled());
+        ctx.getInput().setCursorPos(300 * 2, 135 * 2);
+        ctx.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(5);
+        boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(AutoPot.class).isEnabled());
+        check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
         ctx.setScreen(() -> null);
     }
 

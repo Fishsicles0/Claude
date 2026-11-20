@@ -1,10 +1,10 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "456 KB",
-  "sha256": "98fd97465d7204be1ed94cd6d7b2611f72328fffc4b2e12e6bce1818ea46ecb0",
+  "size": "457 KB",
+  "sha256": "8965c40e5d1cf499b79fa054083b8869056cdd3fbfd308b23680a46c991bc353",
   "installer": {
     "windows": { "file": "downloads/Evade-Installer.exe", "size": "825 KB", "sha256": "f6886ef245eddf2c316f71e2b5d0829c628373733ffdee1291e867e4dd705c87" },
     "jar": { "file": "downloads/EvadeInstaller.jar", "size": "713 KB", "sha256": "f10a1a6576679370ba6fef090d71bc06816d4885785f12ef88e67181026c747c" }
