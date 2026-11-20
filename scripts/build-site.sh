@@ -10,7 +10,8 @@ mkdir -p site/downloads
 cp "$JAR" site/downloads/evade-client-latest.jar
 cp "$JAR" "site/downloads/evade-client-${VERSION}.jar"
 SIZE="$(( $(stat -c%s "$JAR") / 1024 )) KB"
+SHA=$(sha256sum "$JAR" | cut -d' ' -f1)
 cat > site/version.json <<JSON
-{ "version": "${VERSION}", "minecraft": "${MC}", "loader": "Fabric", "file": "downloads/evade-client-latest.jar", "size": "${SIZE}", "date": "$(date +%F)" }
+{ "version": "${VERSION}", "minecraft": "${MC}", "loader": "Fabric", "file": "downloads/evade-client-latest.jar", "size": "${SIZE}", "sha256": "${SHA}", "date": "$(date +%F)" }
 JSON
 echo "site/ updated with Evade ${VERSION} (${SIZE})"
