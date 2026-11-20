@@ -1,1 +1,1 @@
-{ "version": "0.3.0", "minecraft": "1.21.11", "loader": "Fabric", "file": "downloads/evade-client-latest.jar", "size": "176 KB", "sha256": "f725a084da9d2d275ce7089bf53c782cb6b38fc21adead2d3cd8182658e41d74", "date": "2026-11-20" }
+{ "version": "0.3.1", "minecraft": "1.21.11", "loader": "Fabric", "file": "downloads/evade-client-latest.jar", "size": "224 KB", "sha256": "e5b56166e612db9b52e2d315732fee729df0eead7337f456f333e134ba41bc1a", "date": "2026-11-20" }

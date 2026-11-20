@@ -99,6 +99,6 @@ public class CommandManager {
     public static void print(String msg) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.inGameHud == null) return;
-        mc.inGameHud.getChatHud().addMessage(Text.literal("§5[§dEvade§5] §r" + msg));
+        mc.inGameHud.getChatHud().addMessage(Text.literal("\u00a7c\u00a7lEVADE \u00a78\u00bb \u00a7r" + msg));
     }
 }

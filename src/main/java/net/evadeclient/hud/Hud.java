@@ -39,12 +39,8 @@ public final class Hud {
         TextRenderer tr = mc.textRenderer;
 
         if (hud.watermark.get()) {
-            var m = ctx.getMatrices();
-            m.pushMatrix();
-            m.translate(sw - 4 - tr.getWidth("EVADE") * 1.5f, 4);
-            m.scale(1.5f, 1.5f);
-            ctx.drawTextWithShadow(tr, "EVADE", 0, 0, Theme.RED);
-            m.popMatrix();
+            int mark = 17;
+            net.evadeclient.util.Logo.lockup(ctx, sw - 4 - net.evadeclient.util.Logo.lockupWidth(mark), 3, mark);
         }
 
         if (hud.arrayList.get()) {

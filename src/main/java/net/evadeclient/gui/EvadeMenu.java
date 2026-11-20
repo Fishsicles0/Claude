@@ -129,15 +129,9 @@ public class EvadeMenu extends Screen {
         ctx.fill(wx + SIDEBAR, wy + 1, wx + SIDEBAR + 1, wy + wh - 1, Theme.BORDER);
 
         // logo
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(wx + 14, wy + 12);
-        m.scale(2f, 2f);
-        ctx.drawText(tr, "EVADE", 1, 1, 0xFF3A060C, false);
-        ctx.drawText(tr, "EVADE", 0, 0, Theme.RED, false);
-        m.popMatrix();
-        small(ctx, "C L I E N T", wx + 15, wy + 31, Theme.TEXT_DIM, 0.75f);
-        ctx.fill(wx + 14, wy + 40, wx + 44, wy + 41, Theme.RED);
+        net.evadeclient.util.Logo.lockup(ctx, wx + 12, wy + 11, 22);
+        small(ctx, "C L I E N T", wx + 40, wy + 31, Theme.TEXT_FAINT, 0.65f);
+        ctx.fill(wx + 12, wy + 40, wx + 34, wy + 41, Theme.RED);
 
         int y = wy + 52;
         for (Page p : Page.values()) {

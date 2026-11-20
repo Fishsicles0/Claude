@@ -3,18 +3,28 @@
   "id": "evade",
   "version": "${version}",
   "name": "Evade Client",
-  "description": "A utility client for Minecraft.",
-  "authors": ["Evade"],
+  "description": "Evade Client: PvP modules, HUD and quality-of-life mods.",
+  "authors": [
+    "Evade"
+  ],
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["net.evadeclient.EvadeClient"]
+    "client": [
+      "net.evadeclient.EvadeClient"
+    ]
   },
-  "mixins": ["evade.mixins.json"],
+  "mixins": [
+    "evade.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "~1.21.11",
     "java": ">=21",
     "fabric-api": "*"
+  },
+  "icon": "assets/evade/icon.png",
+  "contact": {
+    "homepage": "https://evadeclient.com"
   }
 }

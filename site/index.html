@@ -8,11 +8,16 @@
 <meta name="theme-color" content="#0a0a0c">
 <meta property="og:title" content="Evade Client">
 <meta property="og:description" content="Free Fabric PvP client for Minecraft 1.21.11.">
-<meta property="og:image" content="assets/menu.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0c'/%3E%3Cpath d='M9 8h14v4H13.5v2.5H21v3.5h-7.5V20H23v4H9z' fill='%23e11d2e'/%3E%3C/svg%3E">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta property="og:url" content="https://evadeclient.com/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #08080a;
@@ -68,13 +73,16 @@ nav {
   border-bottom: 1px solid rgba(255,255,255,.05);
 }
 .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .08em; }
-.logo-mark {
-  width: 30px; height: 30px; border-radius: 8px; background: var(--red);
-  display: grid; place-items: center; font-weight: 800; color: #fff;
-  box-shadow: 0 0 24px rgba(225,29,46,.55);
+.logo { display: flex; align-items: center; gap: 10px; line-height: 1; }
+.logo img { width: 34px; height: 34px; filter: drop-shadow(0 0 14px rgba(225,29,46,.45)); transition: transform .3s cubic-bezier(.2,.9,.3,1.4); }
+.logo:hover img { transform: translateX(2px) skewX(-4deg); }
+.wordmark {
+  font: italic 700 23px/1 "Chakra Petch", "Sora", sans-serif; letter-spacing: .16em; padding-right: .05em;
+  background: linear-gradient(180deg, #fff 0%, #fff 55%, #c4c4ce 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-mask-image: linear-gradient(175deg, #000 0, #000 50%, transparent 50%, transparent 53.5%, #000 53.5%);
+  mask-image: linear-gradient(175deg, #000 0, #000 50%, transparent 50%, transparent 53.5%, #000 53.5%);
 }
-.logo span b { color: var(--red); }
+.logo-tag { display: block; font: 600 8.5px/1 "Sora", sans-serif; letter-spacing: .5em; color: var(--faint); margin-top: 5px; }
 .nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--dim); }
 .nav-links a:hover { color: var(--text); }
 .btn {
@@ -253,7 +261,7 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
 
 <nav>
   <div class="wrap nav-in">
-    <a href="#" class="logo"><div class="logo-mark">E</div><span><b>EVADE</b> CLIENT</span></a>
+    <a href="#" class="logo" aria-label="Evade Client home"><img src="assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#showcase">Showcase</a>
@@ -367,7 +375,7 @@ footer { margin-top: 90px; border-top: 1px solid var(--border); padding: 36px 0 
 <footer>
   <div class="wrap foot">
     <div>
-      <a href="#" class="logo" style="margin-bottom:12px"><div class="logo-mark">E</div><span><b>EVADE</b> CLIENT</span></a>
+      <a href="#" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
       <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
     </div>
     <div class="foot-links">
