@@ -222,9 +222,27 @@ public class EvadeMenu extends Screen {
     private record PRow(Module mod, int y) {}
     private record Panel(String title, int x, int y, int w, int h, List<PRow> rows) {}
 
-    /** Masonry layout of category panels: each panel drops into the shortest column, so short ones stack (Misc over World). */
-    private List<Panel> layoutPanels() {
-        List<Panel> out = new ArrayList<>();
+    /** Saved panel positions per category (drag a panel's header to move it). Null until first loaded. */
+    private static java.util.Map<String, int[]> PANEL_POS;
+    private String dragTitle;
+    private int dragOX, dragOY;
+
+    private static java.nio.file.Path posFile() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json");
+    }
+
+    /** Load saved positions once, then fill in a tidy masonry default for any category without one. */
+    private void ensurePositions() {
+        if (PANEL_POS == null) {
+            PANEL_POS = new java.util.LinkedHashMap<>();
+            try {
+                if (java.nio.file.Files.exists(posFile())) {
+                    var type = new com.google.gson.reflect.TypeToken<java.util.LinkedHashMap<String, int[]>>() {}.getType();
+                    java.util.Map<String, int[]> m = new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(posFile()), type);
+                    if (m != null) PANEL_POS.putAll(m);
+                }
+            } catch (Exception ignored) {}
+        }
         int margin = 30, top = 44;
         int cols = Math.max(1, Math.min((width - 2 * margin + P_GAP) / (P_W + P_GAP), 6));
         int startX = (width - (cols * P_W + (cols - 1) * P_GAP)) / 2;
@@ -232,21 +250,38 @@ public class EvadeMenu extends Screen {
         java.util.Arrays.fill(colBase, top);
         for (Page p : Page.values()) {
             if (p == Page.ALL || p == Page.SETTINGS) continue;
-            List<Module> mods = modulesFor(p, search);
+            List<Module> mods = modulesFor(p, "");
             if (mods.isEmpty()) continue;
+            int h = P_HEAD + mods.size() * P_ROW + 3;
             int col = 0;
             for (int i = 1; i < cols; i++) if (colBase[i] < colBase[col]) col = i;
-            int x = startX + col * (P_W + P_GAP);
-            int baseY = colBase[col];
-            int h = P_HEAD + mods.size() * P_ROW + 3;
-            List<PRow> rows = new ArrayList<>();
-            for (int i = 0; i < mods.size(); i++) rows.add(new PRow(mods.get(i), baseY + P_HEAD + i * P_ROW - (int) Math.round(scroll)));
-            out.add(new Panel(p.label, x, baseY - (int) Math.round(scroll), P_W, h, rows));
+            PANEL_POS.putIfAbsent(p.label, new int[]{startX + col * (P_W + P_GAP), colBase[col]});
             colBase[col] += h + P_GAP;
         }
-        int contentBottom = 0;
-        for (int c : colBase) contentBottom = Math.max(contentBottom, c);
-        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentBottom - height + 20)));
+    }
+
+    private void savePositions() {
+        try {
+            java.nio.file.Files.createDirectories(posFile().getParent());
+            java.nio.file.Files.writeString(posFile(), new com.google.gson.Gson().toJson(PANEL_POS));
+        } catch (Exception ignored) {}
+    }
+
+    /** One panel per category at its saved position; headers are drag handles. */
+    private List<Panel> layoutPanels() {
+        ensurePositions();
+        List<Panel> out = new ArrayList<>();
+        for (Page p : Page.values()) {
+            if (p == Page.ALL || p == Page.SETTINGS) continue;
+            List<Module> mods = modulesFor(p, search);
+            if (mods.isEmpty()) continue;
+            int[] pos = PANEL_POS.getOrDefault(p.label, new int[]{40, 44});
+            int x = pos[0], y = pos[1];
+            int h = P_HEAD + mods.size() * P_ROW + 3;
+            List<PRow> rows = new ArrayList<>();
+            for (int i = 0; i < mods.size(); i++) rows.add(new PRow(mods.get(i), y + P_HEAD + i * P_ROW));
+            out.add(new Panel(p.label, x, y, P_W, h, rows));
+        }
         return out;
     }
 
@@ -268,10 +303,12 @@ public class EvadeMenu extends Screen {
         for (Panel panel : layoutPanels()) {
             if (panel.y + panel.h < 40 || panel.y > height) continue;
             Theme.roundBordered(ctx, panel.x, panel.y, panel.x + panel.w, panel.y + panel.h, Theme.BG, Theme.BORDER);
-            // header
-            ctx.fill(panel.x + 1, panel.y + 1, panel.x + panel.w - 1, panel.y + P_HEAD, Theme.SIDEBAR);
+            // header (drag handle): title, a grip, and a red underline
+            boolean hHead = mx >= panel.x && mx < panel.x + panel.w && my >= panel.y && my < panel.y + P_HEAD;
+            ctx.fill(panel.x + 1, panel.y + 1, panel.x + panel.w - 1, panel.y + P_HEAD, hHead || panel.title.equals(dragTitle) ? 0xFF201013 : Theme.SIDEBAR);
             int tw = textRenderer.getWidth(panel.title);
             ctx.drawText(textRenderer, panel.title, panel.x + (panel.w - tw) / 2, panel.y + 3, Theme.TEXT, false);
+            small(ctx, "⋮⋮", panel.x + 5, panel.y + 4, Theme.TEXT_FAINT, 0.9f);
             ctx.fill(panel.x + 1, panel.y + P_HEAD, panel.x + panel.w - 1, panel.y + P_HEAD + 1, Theme.RED);
             for (PRow r : panel.rows) {
                 boolean hover = mx >= panel.x && mx < panel.x + panel.w && my >= r.y && my < r.y + P_ROW;
@@ -283,6 +320,7 @@ public class EvadeMenu extends Screen {
                         panel.x + 6, r.y + 2, on > 0.5f ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, hover ? 1 : 0), false);
             }
         }
+        small(ctx, "Drag a panel's header to move it", 8, height - 22, Theme.TEXT_FAINT, 0.8f);
         small(ctx, "Evade v" + EvadeClient.VERSION, width - 90, height - 12, Theme.TEXT_FAINT, 0.8f);
     }
 
@@ -297,6 +335,13 @@ public class EvadeMenu extends Screen {
         if (topBtnHover((int) mx, (int) my, 1)) { client.setScreen(new HudEditorScreen(this)); return true; }
         if (topBtnHover((int) mx, (int) my, 2)) { close(); return true; }
         for (Panel panel : layoutPanels()) {
+            // header → start dragging this panel
+            if (mx >= panel.x && mx < panel.x + panel.w && my >= panel.y && my < panel.y + P_HEAD) {
+                dragTitle = panel.title;
+                dragOX = (int) mx - panel.x;
+                dragOY = (int) my - panel.y;
+                return true;
+            }
             for (PRow r : panel.rows) {
                 if (mx >= panel.x && mx < panel.x + panel.w && my >= r.y && my < r.y + P_ROW) {
                     if (button == 1) { selected = r.mod; scroll = scrollTarget = 0; }
@@ -593,12 +638,19 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
         if (dragging != null) { updateSlider(click.x()); return true; }
+        if (dragTitle != null && PANEL_POS != null) {
+            int nx = (int) Math.max(0, Math.min(width - P_W, click.x() - dragOX));
+            int ny = (int) Math.max(26, Math.min(height - 20, click.y() - dragOY));
+            PANEL_POS.put(dragTitle, new int[]{nx, ny});
+            return true;
+        }
         return super.mouseDragged(click, dx, dy);
     }
 
     @Override
     public boolean mouseReleased(Click click) {
         dragging = null;
+        if (dragTitle != null) { dragTitle = null; savePositions(); }
         return super.mouseReleased(click);
     }
 

@@ -330,7 +330,44 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
         boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(AutoPot.class).isEnabled());
         check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
+
+        // Doomsday style: drag the Combat panel's header and confirm its saved position moves.
+        ctx.runOnClient(c -> {
+            try {
+                var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
+                f.setAccessible(true);
+                f.set(null, null); // force masonry defaults to be recomputed fresh
+                java.nio.file.Files.deleteIfExists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json"));
+                for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
+                    ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive("Doomsday"));
+            } catch (Exception e) { throw new AssertionError(e); }
+        });
+        ctx.setScreen(EvadeMenu::new);
+        ctx.waitTicks(6);
+        int combatY0 = panelY(ctx, "Combat");
+        ctx.getInput().setCursorPos(280, 102);   // Combat panel header (default top-left, GUI scale 2)
+        ctx.getInput().holdMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(2);
+        ctx.getInput().moveCursor(400, 500);
+        ctx.waitTicks(2);
+        ctx.getInput().releaseMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(4);
+        int combatY1 = panelY(ctx, "Combat");
+        boolean saved = ctx.computeOnClient(c -> java.nio.file.Files.exists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json")));
+        check(combatY1 > combatY0 + 100 && saved, "Doomsday panels drag independently and save (Combat y " + combatY0 + " -> " + combatY1 + ")");
         ctx.setScreen(() -> null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int panelY(ClientGameTestContext ctx, String title) {
+        return ctx.computeOnClient(c -> {
+            try {
+                var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
+                f.setAccessible(true);
+                var m = (java.util.Map<String, int[]>) f.get(null);
+                return m == null || m.get(title) == null ? -1 : m.get(title)[1];
+            } catch (Exception e) { throw new AssertionError(e); }
+        });
     }
 
     private void testVisuals(ClientGameTestContext ctx, TestSingleplayerContext sp) {

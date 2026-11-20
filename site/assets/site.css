@@ -533,3 +533,14 @@ footer { margin-top: 140px; border-top: 1px solid var(--stroke); position: relat
   .rv { opacity: 1; transform: none; }
   html { scroll-behavior: auto; }
 }
+
+/* ---------- showcase HUD gallery ---------- */
+.hud-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.hud-card { padding: 18px; display: flex; flex-direction: column; }
+.hud-card h4 { font-size: 16px; margin-bottom: 6px; }
+.hud-card p { color: var(--muted); font-size: 13.5px; line-height: 1.5; flex: 1; }
+.hud-foot { margin-top: 14px; font: 600 12px var(--body); color: var(--faint); display: flex; justify-content: space-between; align-items: center; }
+.hud-foot em { font-style: normal; color: var(--red-2); transition: transform .2s; }
+.hud-card:hover .hud-foot em { transform: translateX(4px); }
+@media (max-width: 1040px) { .hud-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px) { .hud-grid { grid-template-columns: 1fr 1fr; } }

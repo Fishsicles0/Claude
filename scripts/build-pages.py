@@ -247,6 +247,13 @@ def main() -> None:
     tokens |= {"{{PRINTER_MODS}}": rows,
                "{{LITEMATICA_VER}}": printer_mods[0]["version"], "{{LITEMATICA_URL}}": printer_mods[0]["page"],
                "{{MALILIB_VER}}": printer_mods[1]["version"], "{{MALILIB_URL}}": printer_mods[1]["page"]}
+    # One card per HUD element, for the Showcase page's HUD gallery (links to each element's detail view).
+    hud_cards = "".join(
+        f'<a class="card hud-card" href="/features#m={html.escape(m["name"].replace(" ", "%20"))}">'
+        f'<h4>{html.escape(m["name"])}</h4><p>{html.escape(m["desc"])}</p>'
+        f'<span class="hud-foot">{len(m["settings"])} setting{"s" if len(m["settings"]) != 1 else ""} <em>&rarr;</em></span></a>'
+        for m in mods if m["slug"] == "hud")
+    tokens |= {"{{HUD_LIST}}": hud_cards, "{{HUD_COUNT}}": str(sum(1 for m in mods if m["slug"] == "hud"))}
     print(f"mods.json: {len(mods)} mods, {n_settings} settings, {n_new} new: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     for src in sorted(SRC.glob("*.html")):
         text = src.read_text()
