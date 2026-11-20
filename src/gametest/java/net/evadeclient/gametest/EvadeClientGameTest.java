@@ -44,7 +44,15 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testVisuals(ctx, sp);
             try { new NewModsTest(ctx, sp).run(); } catch (java.io.IOException e) { throw new AssertionError(e); }
             testMenu(ctx);
+            testTexturePack(ctx, sp);
         }
+        titleScreenshot(ctx);
+    }
+
+    private static void titleScreenshot(ClientGameTestContext ctx) {
+        ctx.setScreen(net.minecraft.client.gui.screen.TitleScreen::new);
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("evade-pack-title");
     }
 
     private static <T extends Module> T enable(ClientGameTestContext ctx, Class<T> type) {
@@ -223,6 +231,49 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(3);
         check(Math.abs(yawAfter - yawBefore) < 0.01 && Math.abs(camYaw - yawBefore) > 5,
                 "Freelook turns the camera but not the player (player " + yawBefore + "->" + yawAfter + ", camera " + camYaw + ")");
+    }
+
+    /** Loads the optional Evade Texture Pack and screenshots it (HUD, inventory, tooltip, title screen). */
+    private void testTexturePack(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        java.nio.file.Path zip = java.nio.file.Path.of(System.getProperty("user.dir")).resolve("../../../site/downloads/Evade-Texture-Pack.zip").normalize();
+        if (!java.nio.file.Files.exists(zip)) { EvadeClient.LOG.info("[gametest] no texture pack built; skipping"); return; }
+        String compat = ctx.computeOnClient(c -> {
+            try {
+                java.nio.file.Files.copy(zip, c.getResourcePackDir().resolve("Evade-Texture-Pack.zip"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.io.IOException e) {
+                return "copy failed: " + e;
+            }
+            var mgr = c.getResourcePackManager();
+            mgr.scanPacks();
+            var profile = mgr.getProfile("file/Evade-Texture-Pack.zip");
+            if (profile == null) return "not found";
+            mgr.enable("file/Evade-Texture-Pack.zip");
+            c.options.refreshResourcePacks(mgr);
+            return profile.getCompatibility().name();
+        });
+        ctx.waitTicks(60); // resource reload
+        check("COMPATIBLE".equals(compat), "Evade Texture Pack is detected as compatible with 1.21.11 (" + compat + ")");
+        boolean enabled = ctx.computeOnClient(c -> c.getResourcePackManager().getEnabledIds().contains("file/Evade-Texture-Pack.zip"));
+        check(enabled, "Evade Texture Pack loads in game");
+        var server = sp.getServer();
+        server.runCommand("clear @a");
+        server.runCommand("item replace entity @a hotbar.0 with diamond_sword");
+        server.runCommand("item replace entity @a hotbar.1 with netherite_sword");
+        server.runCommand("item replace entity @a hotbar.2 with ender_pearl 16");
+        server.runCommand("item replace entity @a hotbar.3 with totem_of_undying");
+        server.runCommand("item replace entity @a hotbar.4 with golden_apple 8");
+        server.runCommand("setblock 0 -60 3 fire");
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-pack-hud");
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.ingame.InventoryScreen(net.minecraft.client.MinecraftClient.getInstance().player));
+        ctx.waitTicks(5);
+        ctx.getInput().setCursorPos(960 + 0, 540 + 0);
+        ctx.takeScreenshot("evade-pack-inventory");
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.option.OptionsScreen(null, net.minecraft.client.MinecraftClient.getInstance().options));
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-pack-options");
+        ctx.setScreen(() -> null);
     }
 
     private void testMenu(ClientGameTestContext ctx) {
