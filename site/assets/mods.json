@@ -1,0 +1,530 @@
+[
+ {
+  "name": "AimAssist",
+  "desc": "Smoothly helps aim at nearby targets.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AnchorAura",
+  "desc": "Blows up respawn anchors next to enemies.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "AntiBot",
+  "desc": "Ignores fake players used to catch clients.",
+  "cat": "Combat",
+  "risk": "low"
+ },
+ {
+  "name": "AutoArmor",
+  "desc": "Equips the best armour you have.",
+  "cat": "Combat",
+  "risk": "low"
+ },
+ {
+  "name": "AutoClicker",
+  "desc": "Clicks for you while holding a mouse button.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AutoCritical",
+  "desc": "Turns your hits into critical hits.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AutoLog",
+  "desc": "Disconnects you when you're about to die.",
+  "cat": "Combat",
+  "risk": "low"
+ },
+ {
+  "name": "AutoMend",
+  "desc": "Repairs Mending armour with XP bottles.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AutoPot",
+  "desc": "Throws healing and buff splash potions automatically.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AutoTotem",
+  "desc": "Keeps a totem in your offhand.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "AutoTrap",
+  "desc": "Traps the nearest enemy in obsidian.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "BowAimbot",
+  "desc": "Aims your bow with arrow drop accounted for.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "CrystalAura",
+  "desc": "Places and breaks end crystals near enemies.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "Hitbox",
+  "desc": "Expands enemy hitboxes.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "KillAura",
+  "desc": "Attacks targets around you automatically.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "Reach",
+  "desc": "Hit entities from further away.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "Surround",
+  "desc": "Surrounds your feet with obsidian.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "TriggerBot",
+  "desc": "Attacks automatically when aiming at a target.",
+  "cat": "Combat",
+  "risk": "med"
+ },
+ {
+  "name": "Velocity",
+  "desc": "Reduces the knockback you take.",
+  "cat": "Combat",
+  "risk": "high"
+ },
+ {
+  "name": "AntiVoid",
+  "desc": "Stops you falling into the void.",
+  "cat": "Movement",
+  "risk": "med"
+ },
+ {
+  "name": "Blink",
+  "desc": "Freezes your position for others until turned off.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Dolphin",
+  "desc": "Stay at the water's surface while swimming.",
+  "cat": "Movement",
+  "risk": "med"
+ },
+ {
+  "name": "ElytraFly",
+  "desc": "Fly freely while wearing an elytra.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Fly",
+  "desc": "Lets you fly in survival.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "HighJump",
+  "desc": "Jump higher.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Jesus",
+  "desc": "Walk on water and lava.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "LongJump",
+  "desc": "Jump much further.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "NoFall",
+  "desc": "Takes no fall damage.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Parkour",
+  "desc": "Jumps at the edge of blocks.",
+  "cat": "Movement",
+  "risk": "low"
+ },
+ {
+  "name": "SafeWalk",
+  "desc": "Can't walk off edges.",
+  "cat": "Movement",
+  "risk": "low"
+ },
+ {
+  "name": "Scaffold",
+  "desc": "Places blocks under you as you walk.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Speed",
+  "desc": "Move faster on the ground.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Spider",
+  "desc": "Climb up walls.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "Step",
+  "desc": "Walk up full blocks without jumping.",
+  "cat": "Movement",
+  "risk": "med"
+ },
+ {
+  "name": "Timer",
+  "desc": "Run the game faster on your side.",
+  "cat": "Movement",
+  "risk": "high"
+ },
+ {
+  "name": "ChestESP",
+  "desc": "Shows chests and other storage through walls.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "ChunkLocator",
+  "desc": "Finds chunks with signs of player bases.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "ESP",
+  "desc": "Shows players and mobs through walls.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "Freecam",
+  "desc": "Fly the camera around freely.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "Nametags",
+  "desc": "Clear player tags through walls.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "NoFog",
+  "desc": "Removes distance fog.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "OreESP",
+  "desc": "Shows ores through walls.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "PlayerTracers",
+  "desc": "Lines pointing to every player.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "Trajectories",
+  "desc": "Shows where projectiles will land.",
+  "cat": "Visuals",
+  "risk": "low"
+ },
+ {
+  "name": "AutoFarm",
+  "desc": "Harvests and replants crops.",
+  "cat": "World",
+  "risk": "med"
+ },
+ {
+  "name": "AutoMine",
+  "desc": "Keeps mining the block you look at.",
+  "cat": "World",
+  "risk": "med"
+ },
+ {
+  "name": "FastBreak",
+  "desc": "Mine blocks faster.",
+  "cat": "World",
+  "risk": "high"
+ },
+ {
+  "name": "FastPlace",
+  "desc": "No delay between placing blocks.",
+  "cat": "World",
+  "risk": "med"
+ },
+ {
+  "name": "Nuker",
+  "desc": "Breaks blocks around you.",
+  "cat": "World",
+  "risk": "high"
+ },
+ {
+  "name": "Printer",
+  "desc": "Builds a schematic for you (Litematica or .litematic).",
+  "cat": "World",
+  "risk": "high"
+ },
+ {
+  "name": "SpawnProofer",
+  "desc": "Stops mobs spawning around you.",
+  "cat": "World",
+  "risk": "low"
+ },
+ {
+  "name": "VeinMiner",
+  "desc": "Mines whole ore veins and trees.",
+  "cat": "World",
+  "risk": "high"
+ },
+ {
+  "name": "AntiAFK",
+  "desc": "Stops AFK kicks.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "AntiHunger",
+  "desc": "Lose hunger more slowly.",
+  "cat": "Player",
+  "risk": "med"
+ },
+ {
+  "name": "AutoEat",
+  "desc": "Eats food automatically when hungry.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "AutoFish",
+  "desc": "Catches fish automatically.",
+  "cat": "Player",
+  "risk": "med"
+ },
+ {
+  "name": "AutoRespawn",
+  "desc": "Respawns instantly when you die.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "AutoTool",
+  "desc": "Picks the best tool while mining.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "AutoWalk",
+  "desc": "Walks forward for you.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "ChestStealer",
+  "desc": "Empties containers into your inventory.",
+  "cat": "Player",
+  "risk": "med"
+ },
+ {
+  "name": "InventorySorter",
+  "desc": "Sorts your inventory when you open it.",
+  "cat": "Player",
+  "risk": "low"
+ },
+ {
+  "name": "ArmorHUD",
+  "desc": "Shows your armour durability and supplies.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Clock",
+  "desc": "Real-world time.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Combo Counter",
+  "desc": "Hits in a row without being hit.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Cooldowns",
+  "desc": "Timers for pearls, wind charges, spears, gapples and more.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Coordinates",
+  "desc": "Your position, facing and biome.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "CPS",
+  "desc": "Clicks per second.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Direction HUD",
+  "desc": "Compass strip with your heading.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "FPS",
+  "desc": "Frames per second.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Inventory Viewer",
+  "desc": "Your inventory on screen.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Keystrokes",
+  "desc": "Shows WASD, mouse and space presses.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Memory",
+  "desc": "Java memory usage.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Module List",
+  "desc": "Watermark and active module list.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Ping",
+  "desc": "Your latency to the server.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Potion Effects",
+  "desc": "Active effects with time remaining.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Reach Display",
+  "desc": "Distance of your last hit.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Server Address",
+  "desc": "The server you're playing on.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Speed",
+  "desc": "Horizontal speed in blocks per second.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "TargetHUD",
+  "desc": "Shows the armour and health of your opponent.",
+  "cat": "HUD",
+  "risk": "low"
+ },
+ {
+  "name": "Block Outline",
+  "desc": "Custom block selection outline.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Crosshair",
+  "desc": "Custom crosshair.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Freelook",
+  "desc": "Look around without turning.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Fullbright",
+  "desc": "See clearly in the dark.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "No Hurt Cam",
+  "desc": "Removes the screen shake when hit.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Time Changer",
+  "desc": "Change the time of day you see.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "ToggleSprint",
+  "desc": "Tap sprint or sneak to toggle them.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Weather Changer",
+  "desc": "Change the weather you see.",
+  "cat": "Mods",
+  "risk": "low"
+ },
+ {
+  "name": "Zoom",
+  "desc": "Hold a key to zoom in.",
+  "cat": "Mods",
+  "risk": "low"
+ }
+]

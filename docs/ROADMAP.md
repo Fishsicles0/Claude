@@ -17,7 +17,7 @@ client with combat or movement cheats regardless of detection.
 | AimAssist | Had | med | |
 | BowAimbot | **Added** | high | Aims bow/crossbow/trident with drop and target movement. Not tested in game. |
 | Triggerbot | Had (TriggerBot) | med | |
-| AutoTotem | Had | low | |
+| AutoTotem | Had | med | |
 | AutoArmor | **Added** | low | Listed twice (Combat and Player). Equips the best armour. Tested. |
 | Surround | **Added** | med | Obsidian around your feet. Tested. |
 | AutoTrap | **Added** | med | Obsidian box around the nearest enemy. Not tested in game (needs a second player). |
@@ -48,7 +48,7 @@ client with combat or movement cheats regardless of detection.
 | AntiVoid | **Added** | med | Bounces you out of the void. Not tested in game. |
 | SafeWalk | **Added** | low | Tested. |
 | Blink | **Added** | high | Holds movement packets, then releases. Tested on the server side. |
-| Timer | **Added** | high | Listed under Misc and Movement. Tested (x2 speed). |
+| Timer | **Added** | high | Listed under Misc and Movement. Tested (x2 doubles the game ticks counted). |
 
 ## Render / Visuals (17 asked)
 
@@ -76,7 +76,7 @@ client with combat or movement cheats regardless of detection.
 
 | Mod | Status | Ban risk | Notes |
 |---|---|---|---|
-| Schematics / Litematica Printer | **Added** as Printer | med-high | Follows Litematica's placement when Litematica is installed, otherwise reads .litematic files itself. Tested both ways (14/14 blocks correct). |
+| Schematics / Litematica Printer | **Added** as Printer | high | Follows Litematica's placement when Litematica is installed, otherwise reads .litematic files itself. Tested both ways (14/14 blocks correct). |
 | Material list | **Added** as `.printer materials` | low | |
 | Easy Place | Skipped | med | Litematica already has Easy Place built in; the Printer covers automatic placing. |
 | Nuker | **Added** | high | All / Selected / Flatten. Tested. |

@@ -384,17 +384,15 @@ final class NewModsTest {
 
     private void timer() {
         reset();
-        // The test framework advances ticks only when asked, so measure how long a fixed number of ticks takes.
-        long t0 = System.nanoTime();
-        ctx.waitTicks(100);
-        double base = (System.nanoTime() - t0) / 1e6;
+        // The test framework keeps the client in step with the integrated server (which always ticks at 20/s), so
+        // wall-clock time can't show Timer's effect here. Instead check the hook itself: the game's tick counter is
+        // given 500 ms and must count 10 ticks normally and 20 with Timer at x2.
+        int base = client(c -> new net.minecraft.client.render.RenderTickCounter.Dynamic(20f, 0L, f -> f).beginRenderTick(500L, true));
         Timer tm = on(Timer.class);
         ctx.runOnClient(c -> { for (Setting<?> st : tm.getSettings()) if (st.getName().equals("Speed")) ((net.evadeclient.setting.NumberSetting) st).set(2.0); });
-        long t1 = System.nanoTime();
-        ctx.waitTicks(100);
-        double fast = (System.nanoTime() - t1) / 1e6;
+        int fast = client(c -> new net.minecraft.client.render.RenderTickCounter.Dynamic(20f, 0L, f -> f).beginRenderTick(500L, true));
         off(Timer.class);
-        check(fast < base * 0.75, String.format("Timer x2 makes 100 ticks take less real time (%.0f ms -> %.0f ms)", base, fast));
+        check(base == 10 && fast == 20, "Timer x2 doubles the game ticks counted in 500 ms (" + base + " -> " + fast + ")");
     }
 
     // ------------------------------------------------------------------ printer

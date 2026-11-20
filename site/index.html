@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evade Client</title>
-<meta name="description" content="Evade Client is a free Fabric PvP client for Minecraft 1.21.11 with combat modules, visuals, 17 HUD elements and a black and red menu.">
-<meta name="theme-color" content="#0a0a0c">
+<meta name="description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 88 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
+<meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Evade Client">
-<meta property="og:description" content="Evade Client is a free Fabric PvP client for Minecraft 1.21.11 with combat modules, visuals, 17 HUD elements and a black and red menu.">
+<meta property="og:description" content="Evade Client is a free Fabric client for Minecraft 1.21.11: 88 mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.">
 <meta property="og:url" content="https://evadeclient.com/">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -20,15 +20,16 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=0.4.0">
 </head>
 <body data-page="home">
-<div class="bg-fx"></div>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="bg-fx" aria-hidden="true"></div>
 
-<nav>
+<nav class="top" id="top">
   <div class="wrap nav-in">
-    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
     <div class="nav-links">
       <a href="/" class="on" aria-current="page">Home</a>
       <a href="/features">Features</a>
@@ -37,6 +38,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
+      <span class="nav-ver">v0.4.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -50,123 +52,164 @@
   </div>
 </nav>
 
-<main>
-<header class="hero wrap">
-  <div class="pill"><i></i> <span class="js-version">v0.3.1</span> &middot; now on Minecraft <span class="js-mc">1.21.11</span></div>
-  <h1>Out-play everyone.<br><span class="red">Never get caught.</span></h1>
-  <p class="lead">Evade is a free Fabric PvP client: combat modules, visuals and 17 HUD elements, all in one black and red menu.</p>
-  <div class="cta">
-    <a class="btn btn-red js-primary" href="/downloads/Evade-Installer.exe" download>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      <span class="js-primary-label">Download for Windows</span>
-    </a>
-    <a class="btn btn-ghost" href="/features">Explore features</a>
+<main id="main">
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <a class="pill rv" href="/features"><b>New in v0.4.0</b> Printer, 50 new mods, Texture Pack <span class="arrow">&rarr;</span></a>
+      <h1 class="rv d1">88 mods.<br><span class="red">One client.</span></h1>
+      <p class="lead rv d2">Evade is a free Fabric client for Minecraft 1.21.11. Combat, movement, visuals, world tools and a full HUD, all in one black and red menu that opens with <span class="kbd">Right Shift</span>.</p>
+      <div class="cta rv d3">
+        <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
+          <span class="js-primary-label">Download for Windows</span>
+        </a>
+        <a class="btn btn-ghost btn-lg" href="/features">Browse all 88 mods</a>
+      </div>
+      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></p>
+      <div class="trust rv d3">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Free, no account</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>SHA-256 for every file</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Leaves your normal Minecraft alone</span>
+      </div>
+    </div>
+    <div class="stage rv d2">
+      <div class="stage-frame">
+        <div class="stage-bar"><i></i><i></i><i></i><span>Evade Client &middot; Right Shift</span></div>
+        <img src="/assets/menu-hero.webp" alt="The Evade Client menu: categories on the left and a grid of mod cards" width="1420" height="799" fetchpriority="high">
+      </div>
+      <img class="float float-a" src="/assets/crop-target.webp" alt="" width="640" height="252" loading="lazy">
+      <img class="float float-b" src="/assets/crop-cooldowns.webp" alt="" width="528" height="340" loading="lazy">
+    </div>
   </div>
-  <p class="meta"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">Other systems</a></p>
-
-  <div class="shot-hero rv" id="heroShot"><img src="/assets/menu.png" alt="The Evade Client menu: a sidebar of categories and a grid of mod cards" width="1920" height="1080"></div>
-
-  <div class="stats rv">
-    <div class="stat"><b>38</b><span>mods</span></div>
-    <div class="stat"><b><em>9</em></b><span>combat modules</span></div>
-    <div class="stat"><b>17</b><span>HUD elements</span></div>
-    <div class="stat"><b>$0</b><span>free forever</span></div>
+  <div class="wrap">
+    <div class="spec rv">
+      <div><b>88</b><span>mods in v0.4.0</span></div>
+      <div><b>7</b><span>categories</span></div>
+      <div><b>18</b><span>HUD elements</span></div>
+      <div><b><em>1.21.11</em></b><span>Minecraft, Fabric</span></div>
+      <div><b>$0</b><span>free, no key</span></div>
+    </div>
   </div>
 </header>
 
-<section class="wrap">
-  <div class="head rv">
+<section class="wrap" id="inside">
+  <div class="sec-head rv">
     <div class="eyebrow">What's inside</div>
-    <h2>Three kits. One client.</h2>
-    <p class="sub">Every mod has its own settings, keybind and on/off switch.</p>
+    <h2>Seven kits. One menu.</h2>
+    <p>Every mod has its own settings, keybind and on/off switch. Type anywhere in the menu to search.</p>
   </div>
-  <div class="cats rv">
-    <a class="cat-card" href="/features#combat">
-      <div class="num"><em>9</em></div>
+  <div class="bento">
+    <a class="card tile big rv" href="/features#combat">
+      <div class="num"><em>19</em></div>
       <h3>Combat</h3>
-      <p>Aim, timing and supplies handled for you, so you can focus on the fight.</p>
-      <div class="chips"><span>AimAssist</span><span>TriggerBot</span><span>AutoTotem</span><span>AutoPot</span></div>
-      <span class="go">See combat mods</span>
+      <p>Auras, aim, timing and supplies: KillAura, CrystalAura, AimAssist, AutoTotem and more, with AntiBot to ignore fake players.</p>
+      <div class="chips"><span>KillAura</span><span>CrystalAura</span><span>AnchorAura</span><span>AimAssist</span><span>TriggerBot</span><span>Velocity</span><span>AutoTotem</span><span>Surround</span></div>
+      <span class="go">See combat</span>
     </a>
-    <a class="cat-card" href="/features#hud">
-      <div class="num">17</div>
-      <h3>HUD</h3>
-      <p>Everything you need to read a fight at a glance, placed exactly where you want it.</p>
-      <div class="chips"><span>TargetHUD</span><span>Cooldowns</span><span>Keystrokes</span><span>ArmorHUD</span></div>
-      <span class="go">See HUD elements</span>
+    <a class="card tile rv d1" href="/features#movement">
+      <div class="num">16</div><h3>Movement</h3>
+      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoFall</span></div>
     </a>
-    <a class="cat-card" href="/features#mods">
-      <div class="num">12</div>
-      <h3>Visuals &amp; Mods</h3>
-      <p>See more of the world and tune the game to feel exactly how you like it.</p>
-      <div class="chips"><span>ChestESP</span><span>Zoom</span><span>Freelook</span><span>Crosshair</span></div>
-      <span class="go">See visuals &amp; mods</span>
+    <a class="card tile rv d2" href="/features#visuals">
+      <div class="num">9</div><h3>Visuals</h3>
+      <div class="chips"><span>ESP</span><span>Nametags</span><span>Freecam</span><span>Trajectories</span></div>
+    </a>
+    <a class="card tile rv d1" href="/features#world">
+      <div class="num">8</div><h3>World</h3>
+      <div class="chips"><span>Printer</span><span>Nuker</span><span>AutoFarm</span><span>VeinMiner</span></div>
+    </a>
+    <a class="card tile rv d2" href="/features#player">
+      <div class="num">9</div><h3>Player</h3>
+      <div class="chips"><span>AutoEat</span><span>AutoTool</span><span>ChestStealer</span></div>
+    </a>
+    <a class="card tile wide rv" href="/features#hud">
+      <div class="num">18</div><h3>HUD</h3>
+      <p>TargetHUD, Cooldowns, ArmorHUD, Keystrokes, Inventory Viewer and more. Drag, snap and resize each one.</p>
+    </a>
+    <a class="card tile wide rv d1" href="/features#mods">
+      <div class="num">9</div><h3>Quality of life</h3>
+      <p>Zoom, Freelook, ToggleSprint, Fullbright, a custom crosshair and block outline, time and weather changers.</p>
     </a>
   </div>
 </section>
 
 <section class="wrap">
-  <div class="split rv">
-    <div>
-      <div class="eyebrow">Showcase</div>
-      <h2>Built to look clean.</h2>
-      <p class="sub">A menu that's quick to use and a HUD you can arrange in seconds.</p>
-      <ul>
-        <li>Search any mod by typing, from anywhere in the menu</li>
-        <li>Drag, snap and resize every HUD element</li>
-        <li>Black and red from the menu to the watermark</li>
-      </ul>
-      <a class="btn btn-ghost" href="/showcase">View screenshots</a>
-    </div>
-    <div class="shot"><img src="/assets/hud.png" alt="Evade's in-game HUD with cooldowns, target info and keystrokes" width="1920" height="1080" loading="lazy"></div>
+  <div class="sec-head rv">
+    <div class="eyebrow">Highlights</div>
+    <h2>Built in. Tested in game.</h2>
+    <p>Real screenshots from the client. New features in v0.4.0 are covered by an automated in-game test suite.</p>
+  </div>
+  <div class="shots">
+    <a class="card shot-card w3 rv" href="/showcase">
+      <div class="img"><img src="/assets/menu.webp" alt="The Evade menu" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu</span><h3>Fast to use, easy to read</h3><p>Categories down the side, every mod one click away, and a search that starts as soon as you type.</p></div>
+    </a>
+    <a class="card shot-card w3 rv d1" href="/features#printer" id="printer-card">
+      <div class="img"><img src="/assets/printer.webp" alt="The Printer building a schematic in game" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">New &middot; World</span><h3>Printer for Litematica</h3><p>Builds the schematic Litematica has placed, or loads <span class="mono">.litematic</span> files from your schematics folder on its own.</p></div>
+    </a>
+    <a class="card shot-card w2 rv" href="/showcase">
+      <div class="img"><img src="/assets/hud.webp" alt="The in-game HUD" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">HUD</span><h3>Read a fight at a glance</h3><p>Cooldowns, target info, armor and keystrokes.</p></div>
+    </a>
+    <a class="card shot-card w2 rv d1" href="/showcase">
+      <div class="img"><img src="/assets/hud-editor.webp" alt="The HUD editor" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">HUD editor</span><h3>Put it where you want</h3><p>Drag, snap and resize every element.</p></div>
+    </a>
+    <a class="card shot-card w2 rv d2" href="/download#pack">
+      <div class="img"><img src="/assets/pack-title.webp" alt="The title screen with the Evade Texture Pack" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Optional</span><h3>Evade Texture Pack</h3><p>Black and red menus, hotbar and tooltips. A separate download.</p></div>
+    </a>
   </div>
 </section>
 
-<section class="wrap">
-  <div class="split flip rv">
-    <div class="shot"><img src="/assets/menu-settings.png" alt="A mod's settings page in the Evade menu" width="1920" height="1080" loading="lazy"></div>
-    <div>
-      <div class="eyebrow">Install</div>
-      <h2>Two minutes to set up.</h2>
-      <p class="sub">The installer does the work and keeps your normal Minecraft untouched.</p>
-      <ul>
-        <li>Sets up Fabric and Fabric API for you</li>
-        <li>Adds an Evade Client profile to the Minecraft Launcher</li>
-        <li>Run it again any time to update</li>
-      </ul>
-      <a class="btn btn-ghost" href="/download#install">See how it works</a>
-    </div>
+<section class="wrap" id="install">
+  <div class="sec-head rv">
+    <div class="eyebrow">Install</div>
+    <h2>Two minutes to set up.</h2>
+    <p>The installer does the work and keeps your normal Minecraft untouched.</p>
   </div>
+  <div class="steps">
+    <div class="card step rv"><h4>Download</h4><p>The <b>.exe</b> on Windows, the <b>.jar</b> on macOS and Linux.</p></div>
+    <div class="card step rv d1"><h4>Click Install</h4><p>Sets up Fabric, Fabric API and Evade in their own folder.</p></div>
+    <div class="card step rv d2"><h4>Pick the profile</h4><p>Choose <b>Evade Client</b> in the Minecraft Launcher.</p></div>
+    <div class="card step rv d3"><h4>Play</h4><p>Press <span class="kbd">Right Shift</span> in game to open the menu.</p></div>
+  </div>
+  <p class="note rv">Most servers ban cheat clients. Every mod on the <a href="/features">features page</a> shows its ban risk: 21 high, 19 medium, 48 low. <a href="/faq#ban">Read more</a></p>
 </section>
 
 <div class="wrap">
-  <div class="final rv">
-    <h2>Ready to <span style="color:var(--red)">evade</span>?</h2>
-    <p class="sub">Free. Run the installer, click Install, play.</p>
-    <div class="cta"><a class="btn btn-red js-primary" href="/downloads/Evade-Installer.exe" download>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      <span class="js-primary-label">Download for Windows</span></a>
-      <a class="btn btn-ghost" href="/download">All downloads</a></div>
+  <div class="band rv">
+    <h2>Ready to <span class="red">evade</span>?</h2>
+    <p>Free. Run the installer, click Install, play.</p>
+    <div class="cta">
+      <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
+        <span class="js-primary-label">Download for Windows</span></a>
+      <a class="btn btn-ghost btn-lg" href="/download">All downloads</a>
+    </div>
   </div>
 </div>
 </main>
 
 <footer>
+  <div class="foot-big" aria-hidden="true">EVADE</div>
   <div class="wrap foot">
     <div>
-      <a href="/" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
-      <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
+      <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>A free Fabric client for Minecraft 1.21.11. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a></div>
-      <div><h5>Get started</h5><a href="/download">Download</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span class="js-version-line">v0.3.1 &middot; Minecraft 1.21.11</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
-<div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js" defer></script>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js?v=0.4.0" defer></script>
 </body>
 </html>

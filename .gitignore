@@ -8,3 +8,5 @@ run/
 bin/
 remappedSrc/
 libs/test-mods/
+.wrangler/
+__pycache__/

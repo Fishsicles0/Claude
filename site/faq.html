@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FAQ · Evade Client</title>
-<meta name="description" content="Answers about Evade Client: supported versions, installing, updating, safety and using it with other mods.">
-<meta name="theme-color" content="#0a0a0c">
+<meta name="description" content="Answers about Evade Client: ban risk, supported versions, installing and updating, the Printer and schematics folder, the Evade Texture Pack and using it with other mods.">
+<meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/faq">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="FAQ · Evade Client">
-<meta property="og:description" content="Answers about Evade Client: supported versions, installing, updating, safety and using it with other mods.">
+<meta property="og:description" content="Answers about Evade Client: ban risk, supported versions, installing and updating, the Printer and schematics folder, the Evade Texture Pack and using it with other mods.">
 <meta property="og:url" content="https://evadeclient.com/faq">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -20,15 +20,16 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=0.4.0">
 </head>
 <body data-page="faq">
-<div class="bg-fx"></div>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="bg-fx" aria-hidden="true"></div>
 
-<nav>
+<nav class="top" id="top">
   <div class="wrap nav-in">
-    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
     <div class="nav-links">
       <a href="/">Home</a>
       <a href="/features">Features</a>
@@ -37,6 +38,7 @@
       <a href="/faq" class="on" aria-current="page">FAQ</a>
     </div>
     <div class="nav-right">
+      <span class="nav-ver">v0.4.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -50,66 +52,89 @@
   </div>
 </nav>
 
-<main>
-<header class="page-head wrap">
-  <div class="eyebrow">FAQ</div>
-  <h1>Questions, <span class="red">answered</span>.</h1>
-  <p>Everything about installing, updating and using Evade.</p>
+<main id="main">
+<header class="page-hero wrap">
+  <div class="eyebrow rv">FAQ</div>
+  <h1 class="rv d1">Questions, <span class="red">answered</span>.</h1>
+  <p class="rv d2">Installing, updating, the Printer, the texture pack and staying out of trouble.</p>
 </header>
 
 <section class="wrap page-body">
-  <div class="faq-wrap">
-    <div class="faq-group rv">
-      <h2>General</h2>
-      <div class="faq">
+  <div class="faq-layout">
+    <aside class="faq-nav" aria-label="FAQ sections">
+      <a href="#general">General</a>
+      <a href="#installing">Installing &amp; updating</a>
+      <a href="#printer-faq">Printer &amp; schematics</a>
+      <a href="#pack-faq">Texture Pack</a>
+      <a href="#safety">Safety &amp; settings</a>
+    </aside>
+    <div>
+      <div class="faq-group rv" id="general">
+        <h2>General</h2>
         <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
-        <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
-        <details><summary>Can I get banned?</summary><p>Yes, on most servers. Combat modules like Reach, TriggerBot and AutoClicker break the rules of most multiplayer servers and anti-cheats look for them. Use those in singleplayer, on your own server, or on servers that allow clients. The HUD and quality-of-life mods (Keystrokes, Zoom, ToggleSprint and so on) are the same kind of thing other PvP clients offer.</p></details>
-        <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it runs alongside most others. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
+        <details id="ban"><summary>Can I get banned?</summary><p>Yes. Most multiplayer servers ban cheat clients, and Evade does not hide itself from anti-cheats or staff. Every mod on the <a href="/features">features page</a> shows a ban risk: <b>high</b> (21 mods, such as KillAura, Fly, Speed, Velocity, Nuker and the Printer) are obvious to anti-cheats, <b>medium</b> (19, such as AimAssist, TriggerBot and AutoTotem) can be caught, and <b>low</b> (48, such as the HUD, Zoom and ESP) only change what you see. Low doesn't mean allowed: some servers ban any modified client. Use cheats in singleplayer, on your own server, or where the rules allow them.</p></details>
+        <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11 with Fabric. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
+        <details><summary>What's new in v0.4.0?</summary><p>50 new mods, including KillAura, CrystalAura, Fly, Scaffold, Velocity, ESP, Freecam, Nuker and AutoFarm, bringing the total to 88. Also new: the Printer for Litematica schematics, a <span class="mono">schematics</span> folder, the Inventory Viewer HUD, Movement, World and Player categories in the menu, and the optional Evade Texture Pack.</p></details>
+        <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it should run alongside most others, but compatibility with Sodium, Iris and Lithium hasn't been tested yet. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
+        <details><summary>Why isn't there an FPS boost or shaders?</summary><p>Those need a different renderer. Install Sodium (FPS) or Iris (shaders) alongside Evade instead. Evade doesn't bundle other people's mods, including OptiFine.</p></details>
       </div>
-    </div>
-    <div class="faq-group rv">
-      <h2>Installing &amp; updating</h2>
-      <div class="faq">
+
+      <div class="faq-group rv" id="installing">
+        <h2>Installing &amp; updating</h2>
         <details id="windows"><summary>Windows says "Windows protected your PC"</summary><p>That appears for new apps that aren't code-signed yet. Click <b>More info</b>, then <b>Run anyway</b>. The installer only writes to your <span class="mono">.minecraft</span> folder.</p></details>
         <details><summary>The Mac or Linux installer won't open</summary><p>The <span class="mono">.jar</span> installer needs Java 17 or newer. Install it from <a href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">adoptium.net</a>, then double-click the jar, or run <span class="mono">java -jar EvadeInstaller.jar</span>.</p></details>
-        <details id="update"><summary>How do I update?</summary><p>Run the installer again. It shows <b>Update Evade Client</b> when a new version is out and replaces the old files.</p></details>
+        <details id="update"><summary>How do I update?</summary><p>Run the installer again. It shows <b>Update Evade Client</b> when a new version is out and replaces the old files. Your settings are kept.</p></details>
         <details><summary>I don't see "Evade Client" in the launcher</summary><p>Close and reopen the Minecraft Launcher after installing. If you picked a different Minecraft folder in the installer, make sure it's the one your launcher uses.</p></details>
         <details><summary>How do I uninstall it?</summary><p>Delete the <span class="mono">evade</span> folder and <span class="mono">versions/evade-client-1.21.11</span> inside <span class="mono">.minecraft</span>, then remove the Evade Client installation in the launcher.</p></details>
       </div>
-    </div>
-    <div class="faq-group rv">
-      <h2>Safety &amp; settings</h2>
-      <div class="faq">
-        <details><summary>Is it safe?</summary><p>The installer only touches your <span class="mono">.minecraft</span> folder: it adds an <span class="mono">evade</span> folder, one version file and one launcher profile, and backs up your launcher settings first. Every download is checked against a SHA-256 or SHA-512 checksum before it's used. The checksums are listed on the <a href="/download">download page</a>.</p></details>
+
+      <div class="faq-group rv" id="printer-faq">
+        <h2>Printer &amp; schematics</h2>
+        <details id="printer"><summary>What does the Printer do?</summary><p>It places the blocks of a schematic for you, bottom to top, with the right rotation for logs, stairs, furnaces, slabs and so on, using blocks from your hotbar. It's in the World category. Like any auto-builder it's easy for servers to spot, so its ban risk is high.</p></details>
+        <details><summary>Do I need Litematica?</summary><p>No. If Litematica is installed and you've placed a schematic with it, the Printer builds that placement. Without Litematica, put <span class="mono">.litematic</span> files in your schematics folder and type <span class="mono">.printer list</span> to see them, <span class="mono">.printer load &lt;name&gt;</span> to load one, and <span class="mono">.printer here</span> to move it to your feet. A schematic loaded with <span class="mono">.printer load</span> takes priority over Litematica's.</p></details>
+        <details id="schematics"><summary>Where is the schematics folder?</summary><p>If you used the installer it's <span class="mono">.minecraft/evade/schematics</span>. Evade also reads <span class="mono">.minecraft/schematics</span>, the folder Litematica uses by default. Type <span class="mono">.printer folder</span> in game to open it.</p></details>
+        <details><summary>How do I know which blocks I need?</summary><p>Type <span class="mono">.printer materials</span>. It lists every block the schematic still needs and how many.</p></details>
+      </div>
+
+      <div class="faq-group rv" id="pack-faq">
+        <h2>Texture Pack</h2>
+        <details><summary>Does the texture pack come with the client?</summary><p>No. It's an optional, separate download on the <a href="/download#pack">download page</a>. The client and installer never add it.</p></details>
+        <details><summary>What does it change?</summary><p>Menus, buttons, sliders, tooltips, the hotbar and crosshair turn black and red. It also lowers fire on your screen, makes diamond and netherite sword blades and ender pearls red, and puts the Evade logo on the title screen. It's made from Minecraft's own textures, recoloured.</p></details>
+        <details><summary>How do I install it?</summary><p>In Minecraft go to <b>Options</b>, <b>Resource Packs</b>, <b>Open Pack Folder</b>, put the zip in that folder, then move the pack to the right-hand list. It's made for Minecraft 1.21.11 and works with or without Evade.</p></details>
+      </div>
+
+      <div class="faq-group rv" id="safety">
+        <h2>Safety &amp; settings</h2>
+        <details><summary>Is it safe to install?</summary><p>The installer only touches your <span class="mono">.minecraft</span> folder: it adds an <span class="mono">evade</span> folder, one version file and one launcher profile, and backs up your launcher settings first. Every download is checked against a SHA-256 or SHA-512 checksum before it's used. The checksums are listed on the <a href="/download">download page</a>.</p></details>
         <details><summary>Where are my settings saved?</summary><p>In <span class="mono">.minecraft/evade/config/evade/config.json</span> if you used the installer. Back up that file to keep your layout and keybinds.</p></details>
       </div>
-    </div>
 
-    <div class="help-card rv">
-      <p>Still stuck? Reinstalling with the latest installer fixes most problems.</p>
-      <a class="btn btn-red" href="/download">Get the installer</a>
+      <div class="card help rv">
+        <p>Still stuck? Reinstalling with the latest installer fixes most problems.</p>
+        <a class="btn btn-red" href="/download">Get the installer</a>
+      </div>
     </div>
   </div>
 </section>
 </main>
 
 <footer>
+  <div class="foot-big" aria-hidden="true">EVADE</div>
   <div class="wrap foot">
     <div>
-      <a href="/" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
-      <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
+      <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>A free Fabric client for Minecraft 1.21.11. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a></div>
-      <div><h5>Get started</h5><a href="/download">Download</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span class="js-version-line">v0.3.1 &middot; Minecraft 1.21.11</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
-<div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js" defer></script>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js?v=0.4.0" defer></script>
 </body>
 </html>

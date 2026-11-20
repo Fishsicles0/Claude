@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Features · Evade Client</title>
-<meta name="description" content="Every mod in Evade Client: 9 combat modules, 3 visuals, 17 HUD elements and 9 quality-of-life mods, each with its own settings and keybind.">
-<meta name="theme-color" content="#0a0a0c">
+<meta name="description" content="All 88 mods in Evade Client 0.4.0: 19 combat, 16 movement, 9 visuals, 8 world, 9 player, 18 HUD and 9 quality-of-life mods, each with its ban risk.">
+<meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/features">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Features · Evade Client">
-<meta property="og:description" content="Every mod in Evade Client: 9 combat modules, 3 visuals, 17 HUD elements and 9 quality-of-life mods, each with its own settings and keybind.">
+<meta property="og:description" content="All 88 mods in Evade Client 0.4.0: 19 combat, 16 movement, 9 visuals, 8 world, 9 player, 18 HUD and 9 quality-of-life mods, each with its ban risk.">
 <meta property="og:url" content="https://evadeclient.com/features">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -20,15 +20,16 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=0.4.0">
 </head>
 <body data-page="features">
-<div class="bg-fx"></div>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="bg-fx" aria-hidden="true"></div>
 
-<nav>
+<nav class="top" id="top">
   <div class="wrap nav-in">
-    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+    <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
     <div class="nav-links">
       <a href="/">Home</a>
       <a href="/features" class="on" aria-current="page">Features</a>
@@ -37,6 +38,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
+      <span class="nav-ver">v0.4.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -50,66 +52,78 @@
   </div>
 </nav>
 
-<main>
-<header class="page-head wrap">
-  <div class="eyebrow">Features</div>
-  <h1>Every mod in <span class="red">Evade</span>.</h1>
-  <p>38 mods across combat, visuals, HUD and quality of life. Each one has its own settings, keybind and on/off switch.</p>
+<main id="main">
+<header class="page-hero wrap">
+  <div class="eyebrow rv">Features</div>
+  <h1 class="rv d1">Every mod in <span class="red">Evade</span>.</h1>
+  <p class="rv d2">88 mods across seven categories. Each one has its own settings, keybind and on/off switch, and shows how likely it is to get you banned.</p>
 </header>
 
 <section class="wrap page-body">
-  <div class="tabs rv" id="tabs">
-    <button class="tab on" data-f="all">All <small>38</small></button>
-    <button class="tab" data-f="combat">Combat <small>9</small></button>
-    <button class="tab" data-f="visuals">Visuals <small>3</small></button>
-    <button class="tab" data-f="hud">HUD <small>17</small></button>
-    <button class="tab" data-f="mods">Mods <small>9</small></button>
-  </div>
-  <div class="grid" id="grid"></div>
-</section>
-
-<section class="wrap">
-  <div class="split rv">
-    <div>
-      <div class="eyebrow">Make it yours</div>
-      <h2>Every setting, one click away.</h2>
-      <p class="sub">Open any mod's settings for sliders, modes, colours and keybinds. Changes save automatically.</p>
-      <ul>
-        <li>Bind any mod to a key and toggle it in game</li>
-        <li>Drag and resize HUD elements in the layout editor</li>
-        <li>Your setup is kept in one config file</li>
-      </ul>
-      <a class="btn btn-ghost" href="/showcase">See it in action</a>
+  <div class="toolbar rv" role="search">
+    <label class="search"><span class="sr-only">Search mods</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search 88 mods" autocomplete="off">
+    </label>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-f="all">All <small>88</small></button>
+      <button class="tab" data-f="combat">Combat <small>19</small></button>
+      <button class="tab" data-f="movement">Movement <small>16</small></button>
+      <button class="tab" data-f="visuals">Visuals <small>9</small></button>
+      <button class="tab" data-f="world">World <small>8</small></button>
+      <button class="tab" data-f="player">Player <small>9</small></button>
+      <button class="tab" data-f="hud">HUD <small>18</small></button>
+      <button class="tab" data-f="mods">Mods <small>9</small></button>
     </div>
-    <div class="shot"><img src="/assets/menu-settings.png" alt="A mod's settings page in the Evade menu" width="1920" height="1080" loading="lazy"></div>
+  </div>
+  <div class="legend rv">
+    <span>Ban risk:</span>
+    <span><i class="risk low">Low</i> 48</span>
+    <span><i class="risk med">Medium</i> 19</span>
+    <span><i class="risk high">High</i> 21</span>
+    <a class="link-inline" href="/faq#ban">What this means</a>
+  </div>
+  <div class="grid" id="grid" aria-live="polite">
+    <noscript><p>Turn on JavaScript to see the list of mods.</p></noscript>
+  </div>
+  <p class="empty" id="empty">No mods match that search.</p>
+
+  <div class="card help rv" id="printer">
+    <div>
+      <span class="tag">New in v0.4.0 &middot; World</span>
+      <h3 style="font-size:22px;margin-bottom:6px">Printer</h3>
+      <p>Builds schematics for you. With Litematica installed it follows Litematica's placement; without it, put <span class="mono">.litematic</span> files in your <span class="mono">schematics</span> folder and use <span class="mono">.printer list</span>, <span class="mono">.printer load &lt;name&gt;</span> and <span class="mono">.printer here</span>. <span class="mono">.printer materials</span> lists the blocks you need.</p>
+    </div>
+    <a class="btn btn-ghost" href="/faq#printer">Printer FAQ</a>
   </div>
 </section>
 
 <div class="wrap">
-  <div class="final rv">
-    <h2>Try every mod, <span style="color:var(--red)">free</span>.</h2>
-    <p class="sub">One installer sets it all up.</p>
-    <div class="cta"><a class="btn btn-red" href="/download">Go to downloads</a></div>
+  <div class="band rv">
+    <h2>All 88, <span class="red">free</span>.</h2>
+    <p>One installer sets up everything.</p>
+    <div class="cta"><a class="btn btn-red btn-lg" href="/download">Go to downloads</a></div>
   </div>
 </div>
 </main>
 
 <footer>
+  <div class="foot-big" aria-hidden="true">EVADE</div>
   <div class="wrap foot">
     <div>
-      <a href="/" class="logo" style="margin-bottom:14px" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="34" height="34"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
-      <p>Evade Client is not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. You are responsible for following the rules of the servers you play on.</p>
+      <a href="/" class="logo" aria-label="Evade Client home"><img src="/assets/logo-mark.svg" alt="" width="32" height="32"><span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span></a>
+      <p>A free Fabric client for Minecraft 1.21.11. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a></div>
-      <div><h5>Get started</h5><a href="/download">Download</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span class="js-version-line">v0.3.1 &middot; Minecraft 1.21.11</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v0.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
-<div class="toast" id="toast"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js" defer></script>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
+<script src="/assets/site.js?v=0.4.0" defer></script>
 </body>
 </html>

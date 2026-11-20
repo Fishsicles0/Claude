@@ -32,7 +32,8 @@ import java.util.Map;
  */
 public class EvadeMenu extends Screen {
     private enum Page {
-        ALL("All Mods", null), COMBAT("Combat", Category.COMBAT), VISUALS("Visuals", Category.VISUALS),
+        ALL("All Mods", null), COMBAT("Combat", Category.COMBAT), MOVEMENT("Movement", Category.MOVEMENT),
+        VISUALS("Visuals", Category.VISUALS), WORLD("World", Category.WORLD), PLAYER("Player", Category.PLAYER),
         HUD("HUD", Category.HUD), MODS("Mods", Category.MODS), SETTINGS("Settings", Category.CLIENT);
 
         final String label;
@@ -59,7 +60,7 @@ public class EvadeMenu extends Screen {
 
     // layout (recomputed each frame)
     private int wx, wy, ww, wh, cx, cy, cw, ch;
-    private static final int SIDEBAR = 118, CARD_H = 56, GAP = 8, ROW_H = 24, SLIDER_W = 120;
+    private static final int SIDEBAR = 118, CARD_H = 56, GAP = 8, ROW_H = 24, SLIDER_W = 120, NAV_STEP = 18;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -137,7 +138,7 @@ public class EvadeMenu extends Screen {
         for (Page p : Page.values()) {
             if (p == Page.SETTINGS) continue;
             navItem(ctx, p.label, countLabel(p), y, mx, my, page == p && selected == null);
-            y += 20;
+            y += NAV_STEP;
         }
         y += 8;
         ctx.fill(wx + 12, y - 4, wx + SIDEBAR - 12, y - 3, Theme.BORDER);
@@ -361,7 +362,7 @@ public class EvadeMenu extends Screen {
             for (Page p : Page.values()) {
                 if (p == Page.SETTINGS) continue;
                 if (my >= y - 4 && my < y + 14) { go(p); return true; }
-                y += 20;
+                y += NAV_STEP;
             }
             y += 8;
             if (my >= y - 4 && my < y + 14) { client.setScreen(new HudEditorScreen(this)); return true; }

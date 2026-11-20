@@ -10,6 +10,9 @@ JAR="build/libs/evade-client-${VERSION}.jar"
 EXE="installer/build/launch4j/Evade-Installer.exe"
 IJAR="installer/build/libs/EvadeInstaller.jar"
 mkdir -p site/downloads
+python3 scripts/build-pack.py
+PACK="site/downloads/Evade-Texture-Pack.zip"
+PACK_VERSION=$(grep -E '^PACK_VERSION' scripts/build-pack.py | cut -d'"' -f2)
 rm -f site/downloads/evade-client-[0-9]*.jar
 cp "$JAR" site/downloads/evade-client-latest.jar
 cp "$JAR" "site/downloads/evade-client-${VERSION}.jar"
@@ -29,8 +32,9 @@ cat > site/version.json <<JSON
     "windows": { "file": "downloads/Evade-Installer.exe", "size": "$(kb "$EXE")", "sha256": "$(sha "$EXE")" },
     "jar": { "file": "downloads/EvadeInstaller.jar", "size": "$(kb "$IJAR")", "sha256": "$(sha "$IJAR")" }
   },
+  "texturePack": { "version": "${PACK_VERSION}", "file": "downloads/Evade-Texture-Pack.zip", "size": "$(kb "$PACK")", "sha256": "$(sha "$PACK")" },
   "date": "$(date +%F)"
 }
 JSON
 python3 scripts/build-pages.py
-echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR")"
+echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR"), texture pack $(kb "$PACK")"
