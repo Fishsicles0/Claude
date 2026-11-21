@@ -1,77 +1,122 @@
 # Discord server for your Minecraft client
 
-`setup_server.py` builds a full community server for a Minecraft PvP / performance client
-(roles, categories, channels, permissions, AutoMod and starter posts) in one run. The layout
-lives in `layout.py`.
+Two scripts:
 
-## 1. Fill in your client
+- **`setup_server.py`** builds the server once: roles, categories, channels, permissions,
+  AutoMod and starter posts.
+- **`bot.py`** keeps running and handles verification, tickets, logs, anti-raid, anti-nuke and staff commands.
 
-Open `layout.py` and edit the `CLIENT` block at the top: name, website, download link,
-Minecraft version, loader, menu key, current version and brand colour. Set `ICON_PATH` to
-your logo if you have one. Every post, channel topic and AutoMod rule uses these values.
+Everything is configured in `layout.py`. Fill in the `CLIENT` block (name, website, download link,
+versions, colour) and look over `SECURITY` before the first run.
 
-Do this **before the first run**. Channels are matched by name, so changing the client's name
-afterwards creates a second "Get …" category and new AutoMod rules instead of renaming the old ones.
-
-Also look at the FAQ post in `POSTS["faq"]`: the "Is it free?" answer is a placeholder.
-
-## 2. Run it (about 5 minutes)
-
-1. **Make an empty server.** In Discord: **+** > *Create My Own* > *For a club or community*.
-2. **Make a bot.** In the [Developer Portal](https://discord.com/developers/applications), click *New Application*,
-   then open *Bot* > *Reset Token* and copy the token. Copy the *Application ID* from *General Information*.
-3. **Invite it:**
-   ```bash
-   pip install -r requirements.txt
-   python setup_server.py --invite YOUR_APPLICATION_ID
-   ```
-   Open the link and add the bot to your server. It asks for Administrator, which the setup needs.
-4. **Get the server ID:** *User Settings* > *Advanced* > turn on *Developer Mode*, then right-click the server > *Copy Server ID*.
-5. **Build it:**
-   ```bash
-   export DISCORD_TOKEN='paste-token-here'     # Windows PowerShell: $env:DISCORD_TOKEN='...'
-   python setup_server.py --dry-run            # see what it will build
-   python setup_server.py YOUR_SERVER_ID --name   # --name also renames the server to your client
-   ```
-6. **Turn on Community** (*Server Settings* > *Enable Community*). Discord only allows announcement
-   channels and forums on Community servers, so before this they're plain text channels. Delete the text
-   `#support`, `#bug-reports` and `#suggestions`, then run again with `--update` to recreate them as forums
-   with tags and turn `#announcements`/`#changelog` into announcement channels.
-7. **Remove the setup bot** when you're done (it has Administrator). Give yourself the **Owner** role.
-
-Re-running is safe: it only creates what's missing and never deletes anything. `--update` also re-applies
-permissions and topics and edits its own starter posts in place, so after a release bump `version` in
-`layout.py` and run `python setup_server.py SERVER_ID --update`.
-
-## What you get
+## Layout
 
 | Category | Channels | Who sees it |
 |---|---|---|
-| 📌 Start Here | welcome, rules, announcements, changelog, roadmap, giveaways | everyone, staff-only posting |
-| ⬇️ Get My Client | download, install-guide, faq | everyone, staff-only posting |
-| 💬 Community | general, fps-and-performance, hud-setups, cosmetics, clips-and-media, texture-packs, looking-for-group, off-topic, bot-commands | everyone |
-| 🛠️ Support | support, bug-reports, suggestions (forums with tags) | everyone |
-| 🎥 Creators | creator-chat, creator-assets | Content Creator, Partner, staff |
-| 🧪 Beta | beta-announcements, beta-builds, beta-feedback | Beta Tester, staff |
-| 🔧 Development | dev-chat, github-feed, build-status, website | Developer |
-| 🛡️ Staff | staff-chat, mod-log | Developer, Moderator, Support Team |
-| 🔊 Voice | Lounge, PvP 1, PvP 2, Duos, Streaming, Beta Testing, Staff | mixed |
+| ✅ Start Here | 📖︱rules, ✅︱verify | Everyone (the only thing unverified users can see) |
+| 📌 Info & Announcements | announcements, changelog, giveaways, socials, faq | Members, read-only |
+| ⬇️ Download | download, install-guide, known-issues (read-only), download-help | Members |
+| 🎫 Support | create-ticket, support, bug-reports, suggestions (forums) | Members |
+| 💬 Hangout | general, media, hud-setups, cosmetics, fps-and-performance, looking-for-group, off-topic, bot-commands | Members |
+| 🧪 Beta Testing | beta-announcements, beta-downloads, beta-chat, beta-bugs, beta-feedback, voice | Beta Tester + staff |
+| 🔊 Voice Channels | Lounge, Room 1–6 (2/3/4/5/6/10 people), AFK | Members |
+| 🎫 Open Tickets | created by the bot, one private channel per ticket | ticket owner + that ticket type's staff |
+| 🛡️ Staff | staff-announcements, staff-handbook, staff-chat, staff-commands, reports, appeals, voice | Mod, Developer, Admin |
+| 🔧 Development | dev-chat, github-feed, build-status, release-planning, voice | Developer, Admin |
+| 👑 Management | admin-chat, staff-applications, voice | Admin |
+| 📜 Logs | security-alerts, mod-log, message-log, member-log, ticket-transcripts, role-log, server-log | Admin (Mods see the moderation logs) |
 
-**Roles:** Owner (admin), Developer, Moderator, Support Team, Partner, Content Creator, Beta Tester,
-Supporter, Member, plus opt-in Update Pings, Event Pings and Giveaway Pings.
+**Roles** (highest first): Founder, Owner, Admin, Bot, Developer, Mod, Beta Tester, Member.
 
-**Also set:** Medium verification, explicit-media filter for everyone, @mentions-only notifications by
-default, optional server icon and name, and two AutoMod rules (mention spam, and scam phrases such as
-"free nitro", "cracked my client" or "cape generator") that alert `#mod-log`.
+## Security
 
-**Starter posts:** welcome, rules, download, install guide, FAQ, roadmap and a beta-tester intro. The rules
-say it's a legit client, ban hacked clients and anti-cheat bypass talk, and warn that staff never DM downloads.
+- **Locked by default.** `@everyone` has no server-level permissions, so unverified users see only
+  the rules and verify channels. A channel added later stays hidden until you allow it.
+- **Verification gate.** Members press Verify, then pick the right code from five buttons. Accounts
+  younger than 7 days can't self-verify; staff can `/verify` them. Discord's own verification level is **High**.
+- **Administrator only for Founder and Owner.** Admin gets 22 specific permissions instead, so one compromised
+  Admin account can't do everything. Mods can kick and timeout. Only Admins can ban, manage roles or channels,
+  or create webhooks.
+- **Least-privilege bot.** The bot uses Administrator only while setup runs. Then you re-invite it with a
+  runtime link that has just the permissions it needs, and put its role below Admin.
+- **AutoMod.** Five rules: slurs and sexual content, spam, mention raids (with raid protection), scam and
+  token-grabber phrases, and invite links. Hits are blocked, logged to mod-log and, for the worst, timed out.
+- **Anti-raid.** 10 joins within 30 seconds turns on raid mode, which pauses verification and pings the admin roles.
+- **Anti-nuke.** If one account deletes channels or roles, or bans or kicks people, 3 times within 60 seconds,
+  the bot alerts admins, strips that account's roles and times it out, or kicks it if it's a bot. It can only
+  do that to accounts below its own role, and says so when it can't.
+- **Watchdog.** It alerts on new webhooks, bots being added, roles gaining dangerous permissions, powerful roles
+  being handed out, and the verification level or 2FA requirement being lowered.
+- **Full logs.** Deleted and edited messages, joins and leaves (with account age), role changes, channel and
+  server changes, invites, bans and timeouts, and a transcript of every ticket.
+- **Members can't create invites** (change `members_can_invite` if you want them to).
 
-## Finish by hand
+## Tickets
 
-- **Ping roles:** *Server Settings* > *Onboarding*. Add a question like "Want notifications?" with the
-  ping roles as answers so members can pick them.
-- **Member role:** give it automatically with Onboarding's default roles, or a bot such as Carl-bot.
-- **GitHub feed:** in `#github-feed`, *Edit Channel* > *Integrations* > *Webhooks* > *New Webhook*. In your
-  GitHub repo, add that URL with `/github` on the end under *Settings* > *Webhooks* (content type *application/json*).
-- **Website link:** make a never-expiring invite and put it on your site.
+`#create-ticket` has a dropdown: Download/install help, Technical support, Bug report, Account/purchase,
+Report a user, Appeal, Other. Picking one opens a short form, then a private channel that only the member
+and the right staff can see. Account tickets and appeals are Admin-only, and bug tickets also include Developers.
+Staff press **Claim**, and either side presses **Close**. The transcript goes to `#ticket-transcripts` and to the
+member's DMs. Each member gets one open ticket at a time and a 5-minute cooldown between tickets.
+
+## Staff commands
+
+| Command | Who | What |
+|---|---|---|
+| `/verify @member` | Mod+ | Verify someone manually (skips the account-age check) |
+| `/lockdown [channel]` | Mod+ | Stop members talking in one channel, or in all member channels |
+| `/unlock [channel]` | Mod+ | Undo it, restoring the exact previous permissions |
+| `/raidmode on/off` | Mod+ | Pause or resume verification |
+| `/purge count [@user]` | Mod+ | Delete up to 100 recent messages |
+| `/ticket-add` / `/ticket-remove` | ticket staff | Add or remove someone in the current ticket |
+| `/panels` | Admin+ | Re-post the verify and ticket panels |
+
+Members never see these commands.
+
+## Setup (about 15 minutes)
+
+1. **Create an empty server** in Discord (**+** > *Create My Own*).
+2. **Create the bot** in the [Developer Portal](https://discord.com/developers/applications): *New Application*,
+   then *Bot*:
+   - *Reset Token* and copy it. Treat it like a password and never commit it.
+   - Turn **off** *Public Bot*, so nobody else can add it to their servers.
+   - Turn **on** *Server Members Intent* and *Message Content Intent*.
+3. **Install and invite:**
+   ```bash
+   cd discord-server
+   pip install -r requirements.txt
+   python setup_server.py --invite YOUR_APPLICATION_ID   # prints a setup link and a runtime link
+   ```
+   Open the **setup link** and add the bot to your server.
+4. **Build the server:**
+   ```bash
+   export DISCORD_TOKEN='paste-token-here'     # PowerShell: $env:DISCORD_TOKEN='...'
+   python setup_server.py --dry-run            # preview
+   python setup_server.py YOUR_SERVER_ID --name
+   ```
+   (Server ID: *User Settings* > *Advanced* > *Developer Mode*, then right-click the server > *Copy Server ID*.)
+5. **Enable Community** (*Server Settings* > *Enable Community*). Delete the plain-text `support`, `bug-reports`,
+   `suggestions` and `beta-bugs`, then run `python setup_server.py YOUR_SERVER_ID --update` to recreate them as
+   forums and turn on the announcement channels.
+6. **Lock it down by hand** (Discord only lets the server owner do these):
+   - *Server Settings* > *Safety Setup*: turn on **Require 2FA for moderator actions**, and enable the
+     DM spam and raid filters there.
+   - *Server Settings* > *Roles*: drag the bot's own role to sit **just below Admin**.
+   - Open the **runtime link** from step 3. This replaces the bot's Administrator with just what it needs.
+   - Give yourself **Founder**, and give staff their roles (they get Member automatically).
+7. **Start the bot** and keep it running:
+   ```bash
+   python bot.py
+   ```
+   It posts the verify and ticket panels on first start. For 24/7 hosting, run it on a VPS or a small cloud host
+   with `systemd`, `pm2` or Docker. The bot needs `state.json`, which setup wrote, next to it.
+
+`setup_server.py` is safe to re-run. It matches everything by the IDs in `state.json`, and `--update`
+re-applies permissions, topics and posts. It never deletes anything.
+
+## Optional extras
+
+- **GitHub feed:** an Admin creates a webhook in `#github-feed`, then adds its URL with `/github` on the end
+  in your GitHub repo under *Settings* > *Webhooks* (content type `application/json`).
+- **Onboarding:** *Server Settings* > *Onboarding* can ask new members questions once they've verified.
+- **Beta Testers:** Admins give the Beta Tester role by hand. Keep the list short; leaks start there.
