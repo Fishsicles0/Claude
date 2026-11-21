@@ -10,7 +10,7 @@ import org.lwjgl.glfw.GLFW;
 public class ClientSettings extends Module {
     public final KeySetting menuKey = add(new KeySetting("Menu Key", GLFW.GLFW_KEY_RIGHT_SHIFT));
     public final net.evadeclient.setting.ModeSetting guiStyle =
-            add(new net.evadeclient.setting.ModeSetting("GUI Style", "Cards", "Cards", "Compact", "Doomsday"));
+            add(new net.evadeclient.setting.ModeSetting("GUI Style", "List", "List", "Cards", "Compact"));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true));
     public final BooleanSetting animations = add(new BooleanSetting("Animations", true));
     public final BooleanSetting toggleMessages = add(new BooleanSetting("Keybind Messages", true));

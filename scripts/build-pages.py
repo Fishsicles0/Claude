@@ -123,7 +123,7 @@ def page(name: str, meta: dict, body: str, ver: dict) -> str:
 
 CATEGORY_ORDER = ["COMBAT", "PVP", "MOVEMENT", "SERVER", "VISUALS", "WORLD", "UTILITY", "HUD", "MODS", "MISC"]
 CATEGORY_LABEL = {"COMBAT": "Combat", "PVP": "PvP macros", "MOVEMENT": "Movement", "SERVER": "Server-facing",
-                  "VISUALS": "Visuals", "WORLD": "World", "UTILITY": "Utility", "HUD": "HUD", "MODS": "Mods", "MISC": "Misc"}
+                  "VISUALS": "Visuals", "WORLD": "World", "UTILITY": "Utility", "HUD": "HUD", "MODS": "Controls", "MISC": "Misc"}
 
 SETTING_RE = re.compile(r'new (NumberSetting|BooleanSetting|ModeSetting|ColorSetting|KeySetting)\(\s*"([^"]+)"\s*(?:,\s*(.*?))?\)\);')
 TARGET_SETTINGS = [("Players", "toggle", "On"), ("Mobs", "toggle", "Off"), ("Animals", "toggle", "Off"),

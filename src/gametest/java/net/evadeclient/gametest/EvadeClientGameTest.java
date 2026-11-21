@@ -191,9 +191,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(10);
         ctx.takeScreenshot("evade-menu");
-        // Click the first card (NoFog) and check it toggles. Layout at 960x540 GUI: card 0 centre ~(373,152).
+        // Click the first row (NoFog) in the default List style and check it toggles. First row ~y 144 GUI.
         boolean before = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
-        ctx.getInput().setCursorPos(373 * 2, 152 * 2);
+        ctx.getInput().setCursorPos(400 * 2, 140 * 2);
         ctx.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
         boolean after = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
@@ -208,9 +208,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
         ctx.takeScreenshot("evade-hud-editor");
 
-        // GUI styles: switch each one, reopen the menu, screenshot, and confirm a row still toggles.
+        // GUI styles: switch each one, reopen the menu, screenshot.
         var cs = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class));
-        for (String st : new String[]{"Compact", "Doomsday", "Cards"}) {
+        for (String st : new String[]{"List", "Compact", "Cards"}) {
             ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
                 ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive(st)); });
             ctx.setScreen(EvadeMenu::new);
@@ -223,62 +223,36 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(6);
         boolean b2 = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
-        ctx.getInput().setCursorPos(300 * 2, 135 * 2);
+        ctx.getInput().setCursorPos(300 * 2, 125 * 2);
         ctx.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
         boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
         check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
 
-        // Doomsday style: drag the Combat panel's header and confirm its saved position moves.
-        ctx.runOnClient(c -> {
-            try {
-                var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
-                f.setAccessible(true);
-                f.set(null, null); // force masonry defaults to be recomputed fresh
-                java.nio.file.Files.deleteIfExists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json"));
-                for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
-                    ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive("Doomsday"));
-            } catch (Exception e) { throw new AssertionError(e); }
-        });
+        // The All / Enabled filter: enable one module, switch to Enabled, confirm only enabled show.
+        ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
+            ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive("List")); });
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(6);
-        int combatY0 = panelY(ctx, "Server-facing");
-        // Grab the Server-facing panel's real header position and drag it (masonry layout isn't fixed).
-        int[] head = ctx.computeOnClient(c -> {
-            double sc = c.getWindow().getScaleFactor();
-            return new int[]{ (int) ((panelXRaw("Server-facing") + 30) * sc), (int) ((combatY0 + 6) * sc) };
-        });
-        ctx.getInput().setCursorPos(head[0], head[1]);
-        ctx.getInput().holdMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
-        ctx.waitTicks(2);
-        ctx.getInput().moveCursor(head[0] + 120, head[1] + 400);
-        ctx.waitTicks(2);
-        ctx.getInput().releaseMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
-        ctx.waitTicks(4);
-        int combatY1 = panelY(ctx, "Server-facing");
-        boolean saved = ctx.computeOnClient(c -> java.nio.file.Files.exists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json")));
-        check(combatY1 > combatY0 + 100 && saved, "Doomsday panels drag independently and save (Server-facing y " + combatY0 + " -> " + combatY1 + ")");
+        // Enabled toggle sits in the header's right half (seg at x ~702..852, y ~86..108 GUI).
+        int enBefore = visibleRowCount(ctx);
+        ctx.getInput().setCursorPos(810 * 2, 97 * 2);
+        ctx.getInput().pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(5);
+        int enAfter = visibleRowCount(ctx);
+        check(enAfter < enBefore && enAfter > 0, "All/Enabled filter narrows the list (" + enBefore + " -> " + enAfter + ")");
         ctx.setScreen(() -> null);
     }
 
     @SuppressWarnings("unchecked")
-    private static int panelXRaw(String title) {
-        try {
-            var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
-            f.setAccessible(true);
-            var m = (java.util.Map<String, int[]>) f.get(null);
-            return m == null || m.get(title) == null ? -1 : m.get(title)[0];
-        } catch (Exception e) { throw new AssertionError(e); }
-    }
-
-    @SuppressWarnings("unchecked")
-    private int panelY(ClientGameTestContext ctx, String title) {
+    private int visibleRowCount(ClientGameTestContext ctx) {
         return ctx.computeOnClient(c -> {
             try {
-                var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
-                f.setAccessible(true);
-                var m = (java.util.Map<String, int[]>) f.get(null);
-                return m == null || m.get(title) == null ? -1 : m.get(title)[1];
+                var mtd = net.evadeclient.gui.EvadeMenu.class.getDeclaredMethod("visibleModules");
+                mtd.setAccessible(true);
+                var menu = c.currentScreen;
+                var list = (java.util.List<?>) mtd.invoke(menu);
+                return list.size();
             } catch (Exception e) { throw new AssertionError(e); }
         });
     }

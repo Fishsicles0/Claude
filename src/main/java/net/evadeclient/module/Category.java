@@ -9,7 +9,7 @@ public enum Category {
     WORLD("World"),
     UTILITY("Utility"),
     HUD("HUD"),
-    MODS("Mods"),
+    MODS("Controls"),
     MISC("Misc"),
     /** Hidden from the module grid; shown on the Settings page. */
     CLIENT("Client");

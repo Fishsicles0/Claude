@@ -30,7 +30,7 @@ FULL = {
     "evade-hud-editor":    "hud-editor.webp",
     "evade-gui-cards":     "gui-cards.webp",
     "evade-gui-compact":   "gui-compact.webp",
-    "evade-gui-doomsday":  "gui-doomsday.webp",
+    "evade-gui-list":      "gui-list.webp",
     "evade-zoom":          "zoom.webp",
     "evade-pack-hud":      "pack-hud.webp",
     "evade-pack-inventory":"pack-inventory.webp",
