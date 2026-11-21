@@ -99,6 +99,7 @@ function cutlist(){
   const st=S.settings,parts=[],frontsL=[],boxes=[];
   const P=(cab,part,qty,w,l,mat,eb)=>parts.push({cab,part,qty,w:r2(w),l:r2(l),mat,eb});
   const box=(label,t,w,h,d)=>{
+    if(typeof isCabinotch==='function'&&isCabinotch()){P(label,'Box from Cabinotch (ready to assemble)',1,w,h,'Cabinotch · '+st.ffSpecies+' face frame','');return}
     const tall=CAT[t]?.cls==='tall', wall=t==='W', base=!wall&&!tall;
     const hb=wall?h:h-st.toe, db=d-0.75, iw=w-1.5;
     P(label,'Side',2,db,hb,'¾" ply','F');

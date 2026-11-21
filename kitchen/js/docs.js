@@ -156,7 +156,8 @@ function renderDocs(){
     <div><div class="eyebrow">Files &amp; specs</div><h2>Choices, lists and files for this job</h2></div>
     <div class="grid2">
       <div class="card stack"><h3>Cabinet specification</h3>
-        <div class="fgrid">${sel('line',LINE,'Cabinet line')}${sel('construction',CONSTR,'Construction')}${sel('doorStyle',DOOR,'Door style')}${sel('finish',FINISH,'Cabinet finish')}
+        <div class="fgrid"><label class="f">Cabinet supplier<select class="in" id="d-supplier" data-bind="settings.supplier" data-kind="text" data-after="supplier">${Object.entries(SUPPLIER).map(([k,v])=>`<option value="${k}" ${st.supplier===k?'selected':''}>${esc(v[0])}</option>`).join('')}</select></label>
+        ${isCabinotch()?`<label class="f">Face frame wood<select class="in" id="d-ff" data-bind="settings.ffSpecies" data-kind="text">${FF_SPECIES.map(x=>`<option ${st.ffSpecies===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>`:''}${sel('line',LINE,'Cabinet line')}${sel('construction',CONSTR,'Construction')}${sel('doorStyle',DOOR,'Door style')}${sel('finish',FINISH,'Cabinet finish')}
         <label class="f">Island finish<select class="in" id="d-islandFinish" data-bind="settings.islandFinish" data-kind="text"><option value="">Same as cabinets</option>${Object.entries(FINISH).map(([k,v])=>`<option value="${k}" ${st.islandFinish===k?'selected':''}>${v[0]}</option>`).join('')}</select></label>${sel('hw',HW,'Hardware')}</div>
         <label class="row" style="font-size:13px"><input type="checkbox" id="d-glass" data-bind="settings.glassUppers" data-kind="bool" ${st.glassUppers?'checked':''}> Glass-front wall cabinets (lit interiors)</label>
         ${txt('accessories','Accessories','Roll-outs, tray dividers, spice pull-out…')}</div>

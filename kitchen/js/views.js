@@ -1,7 +1,7 @@
 /* ---------- ESTIMATE ---------- */
 function renderEstimate(){
   const B=bom(),st=S.settings;
-  const tabs=`<div class="seg" role="group" aria-label="Estimate view">${[['bom','Materials & price'],['quote','Quote for the customer'],['compare','Compare options'],['cut','Cut list & order']].map(([k,l])=>`<button data-act="est" data-v="${k}" aria-pressed="${UI.est===k}" class="${k==='compare'||k==='cut'?'pro':''}">${l}</button>`).join('')}</div>`;
+  const tabs=`<div class="seg" role="group" aria-label="Estimate view">${[['bom','Materials & price'],['quote','Quote for the customer'],['order',isCabinotch()?'Order from Cabinotch':'Cabinet order'],['compare','Compare options'],['cut','Cut list']].map(([k,l])=>`<button data-act="est" data-v="${k}" aria-pressed="${UI.est===k}" class="${k==='compare'||k==='cut'?'pro':''}">${l}</button>`).join('')}</div>`;
   let body='';
   if(UI.est==='bom'){
     let lastG='';
@@ -13,6 +13,8 @@ function renderEstimate(){
       <div class="tw"><table class="t"><thead><tr><th>SKU</th><th>Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit cost</th><th class="n">Extended</th></tr></thead><tbody>${rows}</tbody></table></div></div>
       <div class="stack" style="position:sticky;top:110px">${totalsCard(B)}
       <div class="card stack"><h3>Quantities</h3><dl class="kv"><dt>Countertop</dt><dd>${B.sq.toFixed(1)} sq ft</dd><dt>Edge profile</dt><dd>${B.edge.toFixed(1)} lin ft</dd><dt>Doors / drawers</dt><dd>${B.fc.doors} / ${B.fc.drawers}</dd><dt>Toe kick</dt><dd>${(B.toe/12).toFixed(1)} lin ft</dd><dt>Crown</dt><dd>${(B.crown/12).toFixed(1)} lin ft</dd></dl></div></div></div>`;
+  } else if(UI.est==='order'){
+    body=orderHTML();
   } else if(UI.est==='compare'){
     const cur={id:'_cur',name:'Current design',items:S.items,sel:currentSel()};const opts=[cur,...S.options];const sums=opts.map(o=>({o,r:optionSummary(o)}));const base=sums[0].r.total;
     const row=(l,f)=>`<tr><th style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--muted)">${l}</th>${sums.map(x=>`<td class="n">${f(x)}</td>`).join('')}</tr>`;
