@@ -1,0 +1,321 @@
+package net.evadeclient.clips.core;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.function.DoubleConsumer;
+
+/**
+ * Finds and runs ffmpeg / ffprobe. Every recording, thumbnail, preview frame and export goes through here, so
+ * the app works the same on Windows, macOS and Linux.
+ */
+public final class Ffmpeg {
+    public static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    public static final boolean MAC = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+
+    private static volatile String ffmpeg, ffprobe;
+    private static volatile List<String> encoders;
+
+    private Ffmpeg() {}
+
+    /** Points at a custom ffmpeg binary (from settings). Blank = auto-detect. */
+    public static synchronized void configure(String customPath) {
+        ffmpeg = ffprobe = null;
+        encoders = null;
+        if (customPath != null && !customPath.isBlank()) {
+            Path p = Path.of(customPath.trim());
+            if (Files.isDirectory(p)) p = p.resolve(exe("ffmpeg"));
+            if (Files.isRegularFile(p)) {
+                ffmpeg = p.toString();
+                Path probe = p.resolveSibling(exe("ffprobe"));
+                ffprobe = Files.isRegularFile(probe) ? probe.toString() : null;
+            }
+        }
+    }
+
+    private static String exe(String name) { return WINDOWS ? name + ".exe" : name; }
+
+    /** Path to ffmpeg, or null when none can be found. */
+    public static synchronized String ffmpeg() {
+        if (ffmpeg == null) ffmpeg = locate("ffmpeg");
+        return ffmpeg;
+    }
+
+    public static synchronized String ffprobe() {
+        if (ffprobe == null) ffprobe = locate("ffprobe");
+        return ffprobe;
+    }
+
+    public static boolean available() { return ffmpeg() != null && ffprobe() != null; }
+
+    private static String locate(String name) {
+        List<Path> candidates = new ArrayList<>();
+        // Next to a configured ffmpeg, next to the app, then in the app-data folder.
+        if (ffmpeg != null) candidates.add(Path.of(ffmpeg).resolveSibling(exe(name)));
+        try {
+            Path jar = Path.of(Ffmpeg.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+            if (jar != null) {
+                candidates.add(jar.resolve("ffmpeg").resolve(exe(name)));
+                candidates.add(jar.resolve("ffmpeg").resolve("bin").resolve(exe(name)));
+                candidates.add(jar.resolve(exe(name)));
+            }
+        } catch (Exception ignored) {}
+        candidates.add(Settings.appDir().resolve("ffmpeg").resolve(exe(name)));
+        candidates.add(Settings.appDir().resolve("ffmpeg").resolve("bin").resolve(exe(name)));
+        String path = System.getenv("PATH");
+        if (path != null) for (String dir : path.split(java.io.File.pathSeparator)) {
+            if (!dir.isBlank()) candidates.add(Path.of(dir).resolve(exe(name)));
+        }
+        if (MAC) { candidates.add(Path.of("/opt/homebrew/bin", name)); candidates.add(Path.of("/usr/local/bin", name)); }
+        for (Path c : candidates) if (Files.isRegularFile(c) && Files.isExecutable(c)) return c.toString();
+        return null;
+    }
+
+    // ------------------------------------------------------------------ running
+
+    public static ProcessBuilder builder(List<String> args) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(ffmpeg());
+        cmd.add("-hide_banner");
+        cmd.add("-nostdin");
+        cmd.addAll(args);
+        return new ProcessBuilder(cmd);
+    }
+
+    /** Like {@link #builder} but keeps stdin open so the process can be stopped cleanly by sending "q". */
+    public static ProcessBuilder interactiveBuilder(List<String> args) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(ffmpeg());
+        cmd.add("-hide_banner");
+        cmd.addAll(args);
+        return new ProcessBuilder(cmd);
+    }
+
+    /** Runs ffmpeg to completion. Throws with the tail of its log on failure. */
+    public static void run(List<String> args) throws IOException { run(args, -1, null); }
+
+    /**
+     * Runs ffmpeg, reporting progress 0..1 based on {@code durationSec} (pass -1 to skip). The callback runs on a
+     * background thread.
+     */
+    public static void run(List<String> args, double durationSec, DoubleConsumer progress) throws IOException {
+        run(args, durationSec, progress, null);
+    }
+
+    /** A cancellable long-running ffmpeg job (exports). */
+    public static final class Job {
+        private volatile Process process;
+        private volatile boolean cancelled;
+
+        public void cancel() {
+            cancelled = true;
+            Process p = process;
+            if (p != null) p.destroyForcibly();
+        }
+
+        public boolean cancelled() { return cancelled; }
+    }
+
+    public static void run(List<String> args, double durationSec, DoubleConsumer progress, Job job) throws IOException {
+        if (job != null && job.cancelled) throw new IOException("Cancelled");
+        List<String> full = new ArrayList<>(List.of("-y", "-progress", "pipe:1", "-nostats", "-loglevel", "error"));
+        full.addAll(args);
+        Process p = builder(full).start();
+        if (job != null) {
+            job.process = p;
+            if (job.cancelled) p.destroyForcibly();
+        }
+        StringBuilder err = new StringBuilder();
+        Thread errReader = drain(p.getErrorStream(), err);
+        // Watchdog: ffmpeg can hang after an encoder error instead of exiting. -progress prints every ~0.5 s,
+        // so 90 s of silence means it's stuck.
+        long[] lastOutput = {System.currentTimeMillis()};
+        Thread dog = new Thread(() -> {
+            while (p.isAlive()) {
+                if (System.currentTimeMillis() - lastOutput[0] > 90_000) { p.destroyForcibly(); break; }
+                try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+            }
+        }, "ffmpeg-watchdog");
+        dog.setDaemon(true);
+        dog.start();
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                lastOutput[0] = System.currentTimeMillis();
+                if (progress != null && durationSec > 0 && line.startsWith("out_time_us=")) {
+                    try {
+                        double t = Long.parseLong(line.substring(12).trim()) / 1e6;
+                        progress.accept(Math.max(0, Math.min(1, t / durationSec)));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        int code;
+        try { code = p.waitFor(); errReader.join(2000); } catch (InterruptedException e) {
+            p.destroyForcibly();
+            Thread.currentThread().interrupt();
+            throw new IOException("Cancelled");
+        }
+        if (job != null && job.cancelled) throw new IOException("Cancelled");
+        if (code != 0) throw new IOException("ffmpeg failed: " + tail(err.toString()));
+        if (progress != null) progress.accept(1);
+    }
+
+    /** Runs a command and returns stdout+stderr combined (for device lists and version checks). */
+    public static String capture(List<String> cmd, long timeoutSec) {
+        try {
+            Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            p.getOutputStream().close();
+            StringBuilder out = new StringBuilder();
+            Thread t = drain(p.getInputStream(), out);
+            if (!p.waitFor(timeoutSec, TimeUnit.SECONDS)) p.destroyForcibly();
+            t.join(1000);
+            return out.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    static Thread drain(java.io.InputStream in, StringBuilder into) {
+        Thread t = new Thread(() -> {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    synchronized (into) {
+                        into.append(line).append('\n');
+                        if (into.length() > 64_000) into.delete(0, into.length() - 32_000);
+                    }
+                }
+            } catch (IOException ignored) {}
+        }, "ffmpeg-log");
+        t.setDaemon(true);
+        t.start();
+        return t;
+    }
+
+    static String tail(String log) {
+        String[] lines = log.strip().split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = Math.max(0, lines.length - 6); i < lines.length; i++) sb.append(lines[i].strip()).append('\n');
+        return sb.toString().strip();
+    }
+
+    // ------------------------------------------------------------------ probing
+
+    /** What ffprobe says about a video file. */
+    public record MediaInfo(double duration, int width, int height, double fps, boolean hasAudio, boolean hasVideo) {}
+
+    public static MediaInfo probe(Path file) throws IOException {
+        String out = capture(List.of(ffprobe(), "-v", "error", "-print_format", "json", "-show_format", "-show_streams",
+                file.toString()), 20);
+        JsonObject root;
+        try { root = JsonParser.parseString(out.substring(Math.max(0, out.indexOf('{')))).getAsJsonObject(); }
+        catch (Exception e) { throw new IOException("Not a video file: " + file.getFileName()); }
+        double dur = 0;
+        int w = 0, h = 0;
+        double fps = 0;
+        boolean audio = false, video = false;
+        if (root.has("format") && root.getAsJsonObject("format").has("duration"))
+            dur = parseD(root.getAsJsonObject("format").get("duration").getAsString());
+        if (root.has("streams")) for (var el : root.getAsJsonArray("streams")) {
+            JsonObject s = el.getAsJsonObject();
+            String type = s.has("codec_type") ? s.get("codec_type").getAsString() : "";
+            if (type.equals("video") && !video) {
+                if (s.has("disposition") && s.getAsJsonObject("disposition").has("attached_pic")
+                        && s.getAsJsonObject("disposition").get("attached_pic").getAsInt() == 1) continue;
+                video = true;
+                w = s.has("width") ? s.get("width").getAsInt() : 0;
+                h = s.has("height") ? s.get("height").getAsInt() : 0;
+                fps = s.has("avg_frame_rate") ? ratio(s.get("avg_frame_rate").getAsString()) : 0;
+                if (fps <= 0 && s.has("r_frame_rate")) fps = ratio(s.get("r_frame_rate").getAsString());
+                if (dur <= 0 && s.has("duration")) dur = parseD(s.get("duration").getAsString());
+            } else if (type.equals("audio")) audio = true;
+        }
+        if (!video && !audio) throw new IOException("No video in " + file.getFileName());
+        return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video);
+    }
+
+    private static double parseD(String s) { try { return Double.parseDouble(s); } catch (Exception e) { return 0; } }
+
+    private static double ratio(String r) {
+        try {
+            String[] p = r.split("/");
+            double d = p.length > 1 ? Double.parseDouble(p[1]) : 1;
+            return d == 0 ? 0 : Double.parseDouble(p[0]) / d;
+        } catch (Exception e) { return 0; }
+    }
+
+    // ------------------------------------------------------------------ encoders
+
+    /** H.264 encoders that actually work on this machine, best first (hardware before software). */
+    public static synchronized List<String> workingEncoders() {
+        if (encoders != null) return encoders;
+        List<String> found = new ArrayList<>();
+        String list = capture(List.of(ffmpeg(), "-hide_banner", "-encoders"), 15);
+        for (String enc : List.of("h264_nvenc", "h264_amf", "h264_qsv", "h264_videotoolbox")) {
+            if (list.contains(" " + enc + " ") && testEncoder(enc)) found.add(enc);
+        }
+        if (list.contains(" libx264 ")) found.add("libx264");
+        if (found.isEmpty()) found.add("mpeg4");
+        encoders = found;
+        return found;
+    }
+
+    /** A listed hardware encoder can still fail (no GPU / driver), so encode a few frames to make sure. */
+    private static boolean testEncoder(String enc) {
+        List<String> cmd = new ArrayList<>(List.of(ffmpeg(), "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+                "-i", "color=black:s=320x240:r=30:d=0.2"));
+        cmd.addAll(List.of("-c:v", enc, "-f", "null", "-"));
+        try {
+            Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            p.getOutputStream().close();
+            p.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
+            return p.waitFor(10, TimeUnit.SECONDS) && p.exitValue() == 0;
+        } catch (Exception e) { return false; }
+    }
+
+    public static String bestEncoder() { return workingEncoders().get(0); }
+
+    public static String encoderLabel(String enc) {
+        return switch (enc) {
+            case "h264_nvenc" -> "NVIDIA NVENC (GPU)";
+            case "h264_amf" -> "AMD AMF (GPU)";
+            case "h264_qsv" -> "Intel Quick Sync (GPU)";
+            case "h264_videotoolbox" -> "Apple VideoToolbox (GPU)";
+            case "libx264" -> "x264 (CPU)";
+            default -> enc;
+        };
+    }
+
+    /**
+     * Encoder arguments for live capture at a quality level 1 (smallest) .. 3 (best). Live capture favours speed:
+     * hardware presets tuned for low latency, x264 on ultrafast/veryfast.
+     */
+    public static List<String> liveEncoderArgs(String enc, int quality, int fps) {
+        int gop = Math.max(1, fps); // one keyframe a second, so replays can be cut on any second
+        List<String> a = new ArrayList<>(List.of("-c:v", enc));
+        switch (enc) {
+            case "h264_nvenc" -> a.addAll(List.of("-preset", "p4", "-tune", "ll", "-rc", "vbr", "-cq", String.valueOf(new int[]{30, 23, 18}[quality - 1]), "-b:v", "0"));
+            case "h264_amf" -> a.addAll(List.of("-quality", "speed", "-rc", "cqp", "-qp_i", qp(quality), "-qp_p", qp(quality)));
+            case "h264_qsv" -> a.addAll(List.of("-preset", "veryfast", "-global_quality", qp(quality)));
+            case "h264_videotoolbox" -> a.addAll(List.of("-realtime", "1", "-q:v", String.valueOf(new int[]{45, 60, 75}[quality - 1])));
+            case "libx264" -> a.addAll(List.of("-preset", quality == 3 ? "veryfast" : "ultrafast", "-tune", "zerolatency", "-crf", String.valueOf(new int[]{30, 24, 20}[quality - 1])));
+            default -> a.addAll(List.of("-q:v", "4"));
+        }
+        a.addAll(List.of("-g", String.valueOf(gop), "-keyint_min", String.valueOf(gop),
+                "-force_key_frames", "expr:gte(t,n_forced*1)", "-pix_fmt", "yuv420p"));
+        return a;
+    }
+
+    private static String qp(int q) { return String.valueOf(new int[]{30, 23, 19}[q - 1]); }
+}

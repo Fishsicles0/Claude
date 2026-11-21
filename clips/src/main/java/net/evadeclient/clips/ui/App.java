@@ -1,0 +1,248 @@
+package net.evadeclient.clips.ui;
+
+import net.evadeclient.clips.core.CaptureEngine;
+import net.evadeclient.clips.core.Clip;
+import net.evadeclient.clips.core.ControlServer;
+import net.evadeclient.clips.core.EditSpec;
+import net.evadeclient.clips.core.Exporter;
+import net.evadeclient.clips.core.Ffmpeg;
+import net.evadeclient.clips.core.Hotkeys;
+import net.evadeclient.clips.core.Library;
+import net.evadeclient.clips.core.Settings;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.SourceDataLine;
+import javax.swing.SwingUtilities;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+
+/** Wires the pieces together. Every action (UI button, hotkey, tray, Evade Client) goes through here. */
+public final class App {
+    public final Settings settings;
+    public final Library library;
+    public final CaptureEngine engine;
+    public final Hotkeys hotkeys = new Hotkeys();
+    public final ControlServer server = new ControlServer();
+    public volatile CaptureEngine.Status status = new CaptureEngine.Status(CaptureEngine.State.OFF, false, 0, 0, "", "");
+
+    /** Background exports, one at a time. */
+    private final ExecutorService exports = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "export"); t.setDaemon(true); return t; });
+    private final List<ExportJob> jobs = new CopyOnWriteArrayList<>();
+    private final List<Runnable> jobListeners = new CopyOnWriteArrayList<>();
+    public Consumer<Clip> openEditor = c -> {};
+    public Toast toast;
+
+    public App(Settings settings) {
+        this.settings = settings;
+        Ffmpeg.configure(settings.ffmpegPath);
+        library = new Library(settings);
+        engine = new CaptureEngine(settings, library);
+        engine.onStatus(s -> status = s);
+    }
+
+    public void start() {
+        library.load();
+        applyHotkeys();
+        applyServer();
+        if (settings.replayEnabled && settings.replayOnLaunch && Ffmpeg.available()) {
+            try { engine.start(); } catch (Exception e) { notify("Couldn't start capture", e.getMessage(), true); }
+        }
+    }
+
+    public void shutdown() {
+        engine.shutdown();
+        hotkeys.stop();
+        server.stop();
+        library.shutdown();
+        for (ExportJob j : jobs) j.job.cancel();
+    }
+
+    public void applyHotkeys() {
+        hotkeys.clear();
+        if (!hotkeys.start()) return;
+        hotkeys.bind(settings.hotkeySaveClip, () -> saveClip(0, null, null, null));
+        hotkeys.bind(settings.hotkeyRecord, this::toggleRecording);
+        hotkeys.bind(settings.hotkeyMarker, this::marker);
+    }
+
+    public void applyServer() {
+        server.stop();
+        if (!settings.controlServer) return;
+        try {
+            server.start(settings.controlPort, new ControlServer.Handler() {
+                @Override public Map<String, Object> status() {
+                    CaptureEngine.Status s = status;
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("app", "Evade Clips");
+                    m.put("state", s.state().name().toLowerCase());
+                    m.put("recording", s.recording());
+                    m.put("buffered", Math.round(s.bufferedSeconds()));
+                    m.put("replaySeconds", settings.replaySeconds);
+                    return m;
+                }
+                @Override public Map<String, Object> clip(int seconds, String title, String game, String tag) throws Exception {
+                    Clip c = saveClipNow(seconds, title, game, tag);
+                    return Map.of("ok", true, "id", c.id, "file", c.path(library.root()).toString(), "duration", c.duration);
+                }
+                @Override public Map<String, Object> record(String action, String game) throws Exception {
+                    boolean rec = engine.isRecording();
+                    if (action.equals("start") || (action.equals("toggle") && !rec)) { startRecording(game); return Map.of("ok", true, "recording", true); }
+                    Clip c = stopRecordingNow();
+                    return c == null ? Map.of("ok", true, "recording", false) : Map.of("ok", true, "recording", false, "id", c.id);
+                }
+                @Override public void marker() { App.this.marker(); }
+            });
+        } catch (Exception e) {
+            System.err.println("[clips] control API unavailable on port " + settings.controlPort + ": " + e.getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------------ capture actions
+
+    public void toggleReplay(boolean on) {
+        settings.replayEnabled = on;
+        settings.save();
+        new Thread(() -> {
+            try {
+                if (on) engine.start();
+                else if (!engine.isRecording()) engine.stop();
+            } catch (Exception e) { notify("Couldn't start capture", e.getMessage(), true); }
+        }, "replay-toggle").start();
+    }
+
+    /** Async save from a hotkey/button; reports with a toast. */
+    public void saveClip(int seconds, String title, String game, String tag) {
+        new Thread(() -> {
+            try { saveClipNow(seconds, title, game, tag); }
+            catch (Exception e) { notify("Clip not saved", e.getMessage(), true); }
+        }, "save-clip").start();
+    }
+
+    public Clip saveClipNow(int seconds, String title, String game, String tag) throws Exception {
+        if (!engine.isLive()) throw new Exception("Instant replay is off. Turn it on in Record.");
+        Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, title, game);
+        if (tag != null && !tag.isBlank()) {
+            for (String t : tag.split(",")) if (!t.isBlank() && !c.tags.contains(t.trim())) c.tags.add(t.trim());
+            library.update(c);
+        }
+        notify("Clip saved", (c.title == null ? "" : c.title + " · ") + Theme.time(c.duration), false);
+        return c;
+    }
+
+    public void toggleRecording() {
+        new Thread(() -> {
+            try {
+                if (engine.isRecording()) stopRecordingNow();
+                else startRecording(null);
+            } catch (Exception e) { notify("Recording failed", e.getMessage(), true); }
+        }, "record-toggle").start();
+    }
+
+    public void startRecording(String game) throws Exception {
+        engine.startRecording(game);
+        notify("Recording", "Press " + settings.hotkeyRecord + " to stop", false);
+    }
+
+    public Clip stopRecordingNow() throws Exception {
+        Clip c = engine.stopRecording();
+        if (c != null) notify("Recording saved", Theme.time(c.duration) + " · " + Theme.size(c.size), false);
+        if (!settings.replayEnabled && !engine.isRecording()) engine.stop();
+        return c;
+    }
+
+    public void marker() {
+        engine.addMarker();
+        notify("Marker added", null, false);
+    }
+
+    public void notify(String title, String body, boolean error) {
+        if (error) System.err.println("[clips] " + title + ": " + body);
+        if (settings.playSound) beep(!error);
+        if (settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show(title, body, error));
+    }
+
+    /** A short two-tone chirp (no audio files to ship). */
+    static void beep(boolean ok) {
+        Thread t = new Thread(() -> {
+            try {
+                AudioFormat f = new AudioFormat(44100, 16, 1, true, false);
+                SourceDataLine line = AudioSystem.getSourceDataLine(f);
+                line.open(f);
+                line.start();
+                double[] tones = ok ? new double[]{880, 1320} : new double[]{330, 220};
+                byte[] buf = new byte[44100 * 2 * 7 / 100];
+                for (double tone : tones) {
+                    for (int i = 0; i < buf.length / 2; i++) {
+                        double env = Math.min(1, Math.min(i / 200.0, (buf.length / 2.0 - i) / 400.0));
+                        short s = (short) (Math.sin(2 * Math.PI * tone * i / 44100) * 6000 * env);
+                        buf[2 * i] = (byte) s;
+                        buf[2 * i + 1] = (byte) (s >> 8);
+                    }
+                    line.write(buf, 0, buf.length);
+                }
+                line.drain();
+                line.close();
+            } catch (Exception ignored) {}
+        }, "beep");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    // ------------------------------------------------------------------ exports
+
+    public static final class ExportJob {
+        public final Clip clip;
+        public final Exporter.Preset preset;
+        public final Path out;
+        public final net.evadeclient.clips.core.Ffmpeg.Job job = new net.evadeclient.clips.core.Ffmpeg.Job();
+        public volatile double progress;
+        public volatile String state = "Queued";
+        public volatile Clip result;
+        public volatile boolean done;
+
+        ExportJob(Clip clip, Exporter.Preset preset, Path out) { this.clip = clip; this.preset = preset; this.out = out; }
+    }
+
+    public List<ExportJob> jobs() { return new ArrayList<>(jobs); }
+    public void onJobs(Runnable r) { jobListeners.add(r); }
+    private void jobsChanged() { for (Runnable r : jobListeners) r.run(); }
+
+    public ExportJob export(Clip clip, EditSpec edit, Exporter.Options o, Consumer<ExportJob> onDone) {
+        Path out = Exporter.outputFor(library, clip, o.preset);
+        ExportJob j = new ExportJob(clip, o.preset, out);
+        jobs.add(j);
+        jobsChanged();
+        EditSpec spec = edit.copy();
+        exports.submit(() -> {
+            j.state = "Exporting";
+            jobsChanged();
+            try {
+                Exporter.export(clip.path(library.root()), clip, spec, o, out, p -> { j.progress = p; jobsChanged(); }, j.job);
+                j.result = library.addNew(out, Clip.Kind.EXPORT, (clip.title == null ? "Clip" : clip.title) + " · " + o.preset.label,
+                        clip.game, null, clip.id);
+                j.state = "Done";
+                notify("Export finished", out.getFileName().toString(), false);
+            } catch (Exception e) {
+                j.state = j.job.cancelled() ? "Cancelled" : "Failed: " + e.getMessage();
+                try { java.nio.file.Files.deleteIfExists(out); } catch (Exception ignored) {}
+                if (!j.job.cancelled()) notify("Export failed", e.getMessage(), true);
+            }
+            j.done = true;
+            jobsChanged();
+            if (onDone != null) SwingUtilities.invokeLater(() -> onDone.accept(j));
+            // Forget finished jobs after a while.
+            new java.util.Timer(true).schedule(new java.util.TimerTask() {
+                @Override public void run() { jobs.remove(j); jobsChanged(); }
+            }, 15000);
+        });
+        return j;
+    }
+}
