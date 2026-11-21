@@ -2,7 +2,6 @@ package net.evadeclient.mixin;
 
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.mods.Freelook;
-import net.evadeclient.module.visuals.Freecam;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.World;
@@ -26,17 +25,6 @@ public abstract class CameraMixin {
         ((CameraInvoker) camera).evade$setRotation(yaw, pitch);
     }
 
-    /** Freecam: after vanilla positions the camera, move it to the free camera instead. */
-    @Inject(method = "update", at = @At("TAIL"))
-    private void evade$freecam(World area, Entity focused, boolean thirdPerson, boolean inverse, float tickDelta, CallbackInfo ci) {
-        if (EvadeClient.modules == null) return;
-        Freecam fc = EvadeClient.modules.get(Freecam.class);
-        if (fc == null || !fc.isEnabled()) return;
-        Camera self = (Camera) (Object) this;
-        ((CameraAccessor) self).evade$setPos(fc.cameraPos(tickDelta));
-        ((CameraInvoker) self).evade$setRotation(fc.yaw(), fc.pitch());
-        ((CameraAccessor) self).evade$setThirdPerson(true); // render our own player body
-    }
 
     /** CameraClip: skip vanilla's wall check and use our own distance. */
     @org.spongepowered.asm.mixin.injection.Inject(method = "clipToSpace", at = @At("HEAD"), cancellable = true)

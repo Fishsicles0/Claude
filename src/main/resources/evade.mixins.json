@@ -10,27 +10,17 @@
     "ChatHudMixin",
     "ClientConnectionMixin",
     "ClientPlayNetworkHandlerMixin",
-    "ClientPlayerEntityMixin",
     "ClientPlayerInteractionManagerMixin",
-    "EntityMixin",
     "FishingBobberAccessor",
-    "FluidBlockMixin",
     "FogRendererMixin",
     "GameRendererMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
-    "InputAccessor",
     "InteractionManagerAccessor",
     "ItemCooldownManagerAccessor",
-    "KeyboardInputMixin",
-    "LivingEntityMixin",
     "MinecraftClientAccessor",
     "MinecraftClientCooldownAccessor",
-    "MinecraftClientMixin",
-    "MouseMixin",
-    "PlayerEntityMixin",
-    "RenderTickCounterMixin",
-    "SimpleOptionMixin"
+    "MouseMixin"
   ],
   "injectors": {
     "defaultRequire": 1
