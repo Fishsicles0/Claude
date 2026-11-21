@@ -55,7 +55,7 @@ if (grid) {
   };
   // A representative screenshot for each category, used on a module's detail hero.
   const CAT_IMG = { combat: "/assets/hud.webp", pvp: "/assets/hud.webp", movement: "/assets/menu.webp",
-    server: "/assets/menu-settings.webp", visuals: "/assets/hud.webp", world: "/assets/printer.webp",
+    server: "/assets/menu-settings.webp", visuals: "/assets/hud.webp", world: "/assets/menu.webp",
     utility: "/assets/menu-settings.webp", hud: "/assets/hud-editor.webp", mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
   const TYPE = { slider: "Number", toggle: "Toggle", mode: "Mode", color: "Colour", key: "Key" };
   const RANGE = st => st.type === "slider" ? `${esc(st.min)} to ${esc(st.max)}`

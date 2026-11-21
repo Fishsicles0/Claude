@@ -36,5 +36,9 @@ cat > site/version.json <<JSON
   "date": "$(date +%F)"
 }
 JSON
+# Refresh the site screenshots from the latest gametest run, if one is present.
+if ls build/run/clientGameTest/screenshots/*_evade-menu.png >/dev/null 2>&1; then
+  python3 scripts/build-shots.py
+fi
 python3 scripts/build-pages.py
 echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR"), texture pack $(kb "$PACK")"
