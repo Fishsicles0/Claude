@@ -361,6 +361,19 @@ public final class LibraryPanel extends JPanel {
         }
         m.add(item(list.stream().allMatch(x -> x.favorite) ? "Remove from favorites" : "Add to favorites", Theme.Glyph.STAR, () -> toggleFavorite(list)));
         m.add(item("Tags…", null, () -> editTags(list)));
+        if (list.size() >= 2) {
+            m.addSeparator();
+            m.add(item("Make montage from " + list.size() + " clips", Theme.Glyph.FILM, () -> {
+                List<Clip> ordered = new ArrayList<>(list);
+                ordered.sort(java.util.Comparator.comparingLong(x -> x.created));
+                String t = (String) JOptionPane.showInputDialog(this, "Montage title (clips are joined oldest first, with their edits)",
+                        "Make montage", JOptionPane.PLAIN_MESSAGE, null, null, "Montage");
+                if (t != null) app.montage(ordered, t.isBlank() ? "Montage" : t, null);
+            }));
+        }
+        if (list.size() == 1) {
+            m.add(item("Find highlights", Theme.Glyph.BOOKMARK, () -> app.findHighlights(c, false)));
+        }
         m.add(item("Set game…", null, () -> setGame(list)));
         m.addSeparator();
         m.add(item("Copy file" + (list.size() > 1 ? "s" : ""), Theme.Glyph.COPY, () -> copyFiles(list)));

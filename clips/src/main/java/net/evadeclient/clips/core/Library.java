@@ -248,6 +248,7 @@ public final class Library {
         c.height = info.height();
         c.fps = info.fps();
         c.hasAudio = info.hasAudio();
+        c.audioTracks = info.audioTracks();
         c.size = Files.size(file);
     }
 

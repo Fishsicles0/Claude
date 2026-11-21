@@ -102,7 +102,7 @@ public final class Exporter {
             for (EditSpec.Segment s : edit.segments) {
                 Path part = tmpDir.resolve("part" + (i++) + ".mp4");
                 Ffmpeg.run(List.of("-ss", Library.fmt(s.start), "-i", src.toString(), "-t", Library.fmt(s.length()),
-                        "-map", "0:v:0?", "-map", "0:a:0?", "-c", "copy", "-avoid_negative_ts", "make_zero", part.toString()), -1, null, job);
+                        "-map", "0:v:0?", "-map", "0:a?", "-c", "copy", "-avoid_negative_ts", "make_zero", part.toString()), -1, null, job);
                 parts.add(part);
                 if (progress != null) progress.accept(i / (double) (edit.segments.size() + 1));
             }
@@ -236,12 +236,24 @@ public final class Exporter {
 
         StringBuilder fc = new StringBuilder();
         int n = e.segments.size();
+        // Audio source per segment: the single track, or game + mic mixed at the mic level the user chose.
+        String[] aSrc = new String[n];
+        if (audio && clip.audioTracks >= 2) {
+            fc.append("[0:a:1]volume=").append(Library.fmt(e.micVolume)).append("[micv];[0:a:0][micv]amix=inputs=2:duration=longest:normalize=0");
+            if (n > 1) {
+                fc.append(",asplit=").append(n);
+                for (int i = 0; i < n; i++) { fc.append("[as").append(i).append("]"); aSrc[i] = "[as" + i + "]"; }
+            } else { fc.append("[as0]"); aSrc[0] = "[as0]"; }
+            fc.append(";");
+        } else {
+            java.util.Arrays.fill(aSrc, "[0:a:0]");
+        }
         for (int i = 0; i < n; i++) {
             EditSpec.Segment s = e.segments.get(i);
             fc.append("[0:v]trim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
                     .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed)).append("[v").append(i).append("];");
             if (audio) {
-                fc.append("[0:a]atrim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
+                fc.append(aSrc[i]).append("atrim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
                         .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed)).append("[a").append(i).append("];");
             }
         }
@@ -344,6 +356,75 @@ public final class Exporter {
         while (s > 100) { sb.append(",atempo=100"); s /= 100; }
         sb.append(",atempo=").append(Library.fmt(s));
         return sb.toString();
+    }
+
+    // ------------------------------------------------------------------ montage
+
+    /**
+     * Joins several clips (each with its own edits: cuts, speed, mic level) into one video. Clips of different
+     * sizes are fitted to one canvas; clips without sound get silence so the audio stays in sync. A short dip to
+     * black between clips keeps the cuts clean.
+     */
+    public static Path montage(List<Clip> clips, Path root, Options o, Path out, DoubleConsumer progress, Ffmpeg.Job job) throws IOException {
+        if (clips.size() < 1) throw new IOException("Pick at least one clip");
+        Files.createDirectories(out.getParent());
+        int maxH = 0, fps = 30;
+        for (Clip c : clips) { maxH = Math.max(maxH, c.height); fps = Math.max(fps, snapFps(c.fps)); }
+        int H = Math.min(o.maxHeight > 0 ? o.maxHeight : 1080, maxH > 0 ? maxH : 1080);
+        if (H % 2 == 1) H--;
+        int W = even(H * 16 / 9.0);
+        fps = Math.min(o.fps > 0 ? o.fps : 60, fps);
+
+        List<String> a = new ArrayList<>();
+        StringBuilder fc = new StringBuilder();
+        List<String> parts = new ArrayList<>();
+        double total = 0;
+        for (int ci = 0; ci < clips.size(); ci++) {
+            Clip c = clips.get(ci);
+            a.addAll(List.of("-i", c.path(root).toString()));
+            EditSpec e = c.edit != null ? c.edit : EditSpec.whole(c.duration);
+            boolean audio = c.hasAudio && !e.mute;
+            double clipLen = e.outputDuration();
+            int segN = e.segments.size();
+            String[] aSrc = new String[segN];
+            if (audio && c.audioTracks >= 2) {
+                fc.append("[").append(ci).append(":a:1]volume=").append(Library.fmt(e.micVolume)).append("[mv").append(ci).append("];[")
+                        .append(ci).append(":a:0][mv").append(ci).append("]amix=inputs=2:duration=longest:normalize=0,asplit=").append(segN + 1);
+                for (int k = 0; k < segN; k++) { fc.append("[am").append(ci).append("_").append(k).append("]"); aSrc[k] = "[am" + ci + "_" + k + "]"; }
+                fc.append(";");
+            } else java.util.Arrays.fill(aSrc, "[" + ci + ":a:0]");
+            for (int k = 0; k < segN; k++) {
+                EditSpec.Segment s = e.segments.get(k);
+                String v = "[v" + ci + "_" + k + "]", au = "[a" + ci + "_" + k + "]";
+                fc.append("[").append(ci).append(":v]trim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
+                        .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed))
+                        .append(",scale=").append(W).append(":").append(H).append(":force_original_aspect_ratio=decrease:flags=lanczos")
+                        .append(",pad=").append(W).append(":").append(H).append(":(ow-iw)/2:(oh-ih)/2:color=black,fps=").append(fps).append(",setsar=1,format=yuv420p");
+                // dip to black at the start and end of every clip
+                if (k == 0) fc.append(",fade=t=in:st=0:d=0.2");
+                if (k == segN - 1) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, s.outputLength() - 0.2))).append(":d=0.2");
+                fc.append(v).append(";");
+                if (audio) {
+                    fc.append(aSrc[k]).append("atrim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
+                            .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed)).append(",volume=").append(Library.fmt(e.volume))
+                            .append(",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo");
+                } else {
+                    fc.append("anullsrc=r=48000:cl=stereo,atrim=duration=").append(Library.fmt(s.outputLength())).append(",aformat=sample_fmts=fltp:channel_layouts=stereo");
+                }
+                fc.append(au).append(";");
+                parts.add(v + au);
+            }
+            total += clipLen;
+        }
+        fc.append(String.join("", parts)).append("concat=n=").append(parts.size()).append(":v=1:a=1[vout][aout]");
+        a.addAll(List.of("-filter_complex", fc.toString(), "-map", "[vout]", "-map", "[aout]"));
+        String enc = pickEncoder(o, false);
+        a.addAll(List.of("-c:v", enc));
+        if (enc.equals("libx264")) a.addAll(List.of("-preset", "medium", "-crf", "19"));
+        else if (enc.equals("h264_nvenc")) a.addAll(List.of("-preset", "p6", "-rc", "vbr", "-cq", "20", "-b:v", "0"));
+        a.addAll(List.of("-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out.toString()));
+        Ffmpeg.run(a, total, progress, job);
+        return out;
     }
 
     // ------------------------------------------------------------------ title card

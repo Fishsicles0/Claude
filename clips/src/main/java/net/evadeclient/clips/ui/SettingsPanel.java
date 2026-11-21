@@ -88,6 +88,7 @@ public final class SettingsPanel extends JPanel {
 
         heading("Behaviour");
         check("Start instant replay when the app opens", s.replayOnLaunch, v -> s.replayOnLaunch = v);
+        check("Find highlights in new recordings automatically (marks the loudest moments)", s.autoHighlights, v -> s.autoHighlights = v);
         check("Play a sound when a clip is saved", s.playSound, v -> s.playSound = v);
         check("Show a pop-up when a clip is saved", s.showToast, v -> s.showToast = v);
         check("Closing the window keeps Evade Clips running in the tray", s.minimizeToTray, v -> s.minimizeToTray = v);

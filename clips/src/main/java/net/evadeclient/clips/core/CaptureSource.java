@@ -20,7 +20,8 @@ public final class CaptureSource {
     private CaptureSource() {}
 
     /** Inputs and the filter graph that produces the final [v] and (optionally) [a] streams. */
-    public record Inputs(List<String> args, String filterComplex, boolean hasAudio) {}
+    /** {@code micTrack}: the mic is a second audio track ([m]) next to the game audio ([a]). */
+    public record Inputs(List<String> args, String filterComplex, boolean hasAudio, boolean micTrack) {}
 
     public static List<Rectangle> monitors() {
         List<Rectangle> out = new ArrayList<>();
@@ -85,34 +86,30 @@ public final class CaptureSource {
         chain.add("format=yuv420p");
         StringBuilder fc = new StringBuilder("[0:v]" + String.join(",", chain) + "[v]");
 
-        // Audio inputs.
-        List<String> audioLabels = new ArrayList<>();
+        // Audio: game/desktop audio and the mic go to separate tracks, so the mic can be turned down or muted
+        // later in the editor without losing the game sound.
+        String game = null, mic = null;
         int idx = 1;
-        if (s.source.equals("test") && s.recordSystemAudio) {
-            a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000"));
-            audioLabels.add("[" + idx++ + ":a]");
+        if (s.source.equals("test")) {
+            if (s.recordSystemAudio) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000")); game = "[" + idx++ + ":a]"; }
+            if (s.recordMic) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000")); mic = "[" + idx++ + ":a]"; }
         } else {
             if (s.recordSystemAudio) {
                 String dev = s.systemAudioDevice.isBlank() ? defaultSystemAudio() : s.systemAudioDevice;
-                if (dev != null && audioInput(a, dev)) audioLabels.add("[" + idx++ + ":a]");
+                if (dev != null && audioInput(a, dev)) game = "[" + idx++ + ":a]";
             }
             if (s.recordMic) {
                 String dev = s.micDevice.isBlank() ? defaultMic() : s.micDevice;
-                if (dev != null && audioInput(a, dev)) {
-                    fc.append(";[").append(idx).append(":a]volume=").append(Library.fmt(s.micVolume)).append("[mic]");
-                    audioLabels.add("[mic]");
-                    idx++;
-                }
+                if (dev != null && audioInput(a, dev)) mic = "[" + idx++ + ":a]";
             }
         }
-        boolean audio = !audioLabels.isEmpty();
-        if (audioLabels.size() == 1) {
-            fc.append(";").append(audioLabels.get(0)).append("aresample=48000:async=1000[a]");
-        } else if (audioLabels.size() > 1) {
-            fc.append(";").append(String.join("", audioLabels))
-                    .append("amix=inputs=").append(audioLabels.size()).append(":duration=longest:normalize=0,aresample=48000:async=1000[a]");
+        String resample = "aresample=48000:async=1000,aformat=channel_layouts=stereo";
+        if (game != null) fc.append(";").append(game).append(resample).append("[a]");
+        if (mic != null) {
+            fc.append(";").append(mic).append("volume=").append(Library.fmt(s.micVolume)).append(",").append(resample)
+                    .append(game != null ? "[m]" : "[a]");
         }
-        return new Inputs(a, fc.toString(), audio);
+        return new Inputs(a, fc.toString(), game != null || mic != null, game != null && mic != null);
     }
 
     private static void screenInput(List<String> a, Settings s, Rectangle r, int fps, Integer monitorIndex) {

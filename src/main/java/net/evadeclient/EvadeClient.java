@@ -64,7 +64,10 @@ public class EvadeClient implements ClientModInitializer {
                         net.evadeclient.module.misc.AutoReconnect.renderOverlay(ctx, s.width));
         });
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) net.evadeclient.module.misc.AutoGG.onMessage(message.getString());
+            if (!overlay) {
+                net.evadeclient.module.misc.AutoGG.onMessage(message.getString());
+                net.evadeclient.module.misc.Clips.onMessage(message.getString());
+            }
         });
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, time) ->
                 net.evadeclient.module.misc.AutoGG.onMessage(message.getString()));

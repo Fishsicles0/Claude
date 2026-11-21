@@ -32,6 +32,8 @@ public final class EditSpec {
     public double zoom = 1;
 
     public double volume = 1;
+    /** Mic level for clips with a separate mic track (0 mutes your voice, keeps the game). */
+    public double micVolume = 1;
     public boolean mute;
     public double fadeIn, fadeOut;
 
@@ -55,7 +57,7 @@ public final class EditSpec {
 
     public boolean isUntouched(double duration) {
         return segments.size() == 1 && segments.get(0).start <= 0.01 && segments.get(0).end >= duration - 0.01
-                && segments.get(0).speed == 1 && aspect.equals("original") && zoom == 1 && volume == 1 && !mute
+                && segments.get(0).speed == 1 && aspect.equals("original") && zoom == 1 && volume == 1 && micVolume == 1 && !mute
                 && fadeIn == 0 && fadeOut == 0 && titleText.isBlank();
     }
 
@@ -63,7 +65,7 @@ public final class EditSpec {
         EditSpec e = new EditSpec();
         for (Segment s : segments) e.segments.add(s.copy());
         e.aspect = aspect; e.fitMode = fitMode; e.cropX = cropX; e.zoom = zoom;
-        e.volume = volume; e.mute = mute; e.fadeIn = fadeIn; e.fadeOut = fadeOut;
+        e.volume = volume; e.micVolume = micVolume; e.mute = mute; e.fadeIn = fadeIn; e.fadeOut = fadeOut;
         e.titleText = titleText; e.titlePosition = titlePosition; e.titleSeconds = titleSeconds;
         return e;
     }

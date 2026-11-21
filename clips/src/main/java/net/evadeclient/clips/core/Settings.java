@@ -45,6 +45,10 @@ public final class Settings {
     // instant replay
     public boolean replayEnabled = true;
     public int replaySeconds = 30;
+    /** Keep capturing this many seconds after the hotkey before saving (post-roll). */
+    public int replayAfterSeconds = 0;
+    /** Scan new recordings for loud moments and mark them. */
+    public boolean autoHighlights = true;
     /** Start the replay buffer as soon as the app opens. */
     public boolean replayOnLaunch = true;
 
@@ -110,6 +114,7 @@ public final class Settings {
         fps = Math.max(10, Math.min(240, fps));
         quality = Math.max(1, Math.min(3, quality));
         replaySeconds = Math.max(5, Math.min(600, replaySeconds));
+        replayAfterSeconds = Math.max(0, Math.min(30, replayAfterSeconds));
         if (source == null) source = "screen";
         if (encoder == null) encoder = "";
         if (ffmpegPath == null) ffmpegPath = "";

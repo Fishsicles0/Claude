@@ -221,7 +221,7 @@ public final class MainWindow extends JFrame {
                 g.fill(new RoundRectangle2D.Double(12, by, w - 24, 40, 10, 10));
                 g.setFont(Theme.inter.deriveFont(11.5f));
                 g.setColor(Theme.DIM);
-                g.drawString(LibraryPanel.ellipsize(g, j.preset.label + " · " + (j.done ? j.state : Math.round(j.progress * 100) + "%"), w - 48), 24, by + 17);
+                g.drawString(LibraryPanel.ellipsize(g, j.label + " · " + (j.done ? j.state : Math.round(j.progress * 100) + "%"), w - 48), 24, by + 17);
                 g.setColor(Theme.CARD_HI);
                 g.fill(new RoundRectangle2D.Double(24, by + 26, w - 48, 5, 5, 5));
                 g.setColor(j.done && j.result == null ? Theme.GOLD : j.done ? Theme.OK : Theme.RED);

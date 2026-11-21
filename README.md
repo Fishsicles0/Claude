@@ -42,6 +42,13 @@ It reads `https://evadeclient.com/version.json` for the current Evade version an
 stable Fabric Loader from meta.fabricmc.net and Fabric API from Modrinth, and verifies every download.
 `scripts/build-site.sh` builds both and publishes them to `site/downloads/`.
 
+## Evade Clips
+
+`clips/` is **Evade Clips**, a desktop app that records, stores and edits gameplay clips for any game: free
+instant replays, recording while the replay buffer keeps running, automatic highlight detection, a timeline
+editor and Discord/Shorts/GIF exports. Evade Client's **Clips** mod saves clips through it automatically on kills,
+pops, deaths and wins. See [clips/README.md](clips/README.md).
+
 ## Using it
 
 ![Menu](docs/menu.png)
@@ -109,6 +116,7 @@ Every HUD element has Scale and Background settings; text elements also have tex
 | **No Hurt Cam** | Removes the screen shake when you're hit. |
 | **Block Outline** | Colour, thickness and translucent fill for the block you're looking at. |
 | **Time / Weather Changer** | Client-side time of day and weather. |
+| **Clips** | Saves clips in Evade Clips on a key, or automatically on kills (multi-kills become one clip), totem pops of your target, deaths and wins. |
 
 ## Layout
 

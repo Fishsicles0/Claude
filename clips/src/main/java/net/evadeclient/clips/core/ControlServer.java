@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
  * Local control API on 127.0.0.1, so Evade Client (or a stream deck, script, etc.) can save clips:
  * <pre>
  *   GET  /status
- *   POST /clip?seconds=30&title=...&game=...&tag=...
+ *   POST /clip?seconds=30&after=5&title=...&game=...&tag=...
  *   POST /record/start?game=...   POST /record/stop   POST /record/toggle
  *   POST /marker
  * </pre>
@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 public final class ControlServer {
     public interface Handler {
         Map<String, Object> status();
-        Map<String, Object> clip(int seconds, String title, String game, String tag) throws Exception;
+        Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception;
         Map<String, Object> record(String action, String game) throws Exception;
         void marker();
     }
@@ -51,7 +51,7 @@ public final class ControlServer {
                     case "/clip" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
                         int secs = parseInt(q.get("seconds"), 0);
-                        send(ex, 200, h.clip(secs, q.get("title"), q.get("game"), q.get("tag")));
+                        send(ex, 200, h.clip(secs, parseInt(q.get("after"), 0), q.get("title"), q.get("game"), q.get("tag")));
                     }
                     case "/record/start", "/record/stop", "/record/toggle" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }

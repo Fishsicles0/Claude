@@ -58,6 +58,8 @@ public final class RecordPanel extends JPanel {
     private final JSlider micVol = new JSlider(0, 200, 100);
     private final JComboBox<String> replayLen = new JComboBox<>(new String[]{"15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes"});
     private static final int[] REPLAY_LENS = {15, 30, 60, 120, 300};
+    private final JComboBox<String> postRoll = new JComboBox<>(new String[]{"+0 s after", "+3 s after", "+5 s after", "+10 s after"});
+    private static final int[] POST_ROLLS = {0, 3, 5, 10};
     private final JLabel warn = Theme.label(" ", 12f, false, Theme.GOLD);
     private final JPanel recent = new JPanel();
     private final Timer restartLater;
@@ -174,6 +176,15 @@ public final class RecordPanel extends JPanel {
         card.add(c, a);
     }
 
+    /** Pushes a card's rows to the top. */
+    private void end(JPanel card) {
+        GridBagConstraints a = gbc(row++);
+        a.gridx = 0;
+        a.gridwidth = 2;
+        a.weighty = 1;
+        card.add(Box.createVerticalGlue(), a);
+    }
+
     private JPanel videoCard() {
         row = 1;
         JPanel c = card("Video");
@@ -197,6 +208,7 @@ public final class RecordPanel extends JPanel {
         JLabel note = Theme.label("<html><body style='width:330px'>Replays cost nothing until you save: the buffer is already encoded, so saving is instant. "
                 + "A GPU encoder keeps your FPS up while you play.</body></html>", 11.5f, false, Theme.FAINT);
         full(c, note);
+        end(c);
         return c;
     }
 
@@ -211,6 +223,7 @@ public final class RecordPanel extends JPanel {
         line(c, "Device", micDevice);
         micVol.setOpaque(false);
         line(c, "Mic volume", micVol);
+        end(c);
         return c;
     }
 
@@ -220,6 +233,7 @@ public final class RecordPanel extends JPanel {
         recent.setOpaque(false);
         recent.setLayout(new BoxLayout(recent, BoxLayout.Y_AXIS));
         full(c, recent);
+        end(c);
         return c;
     }
 
@@ -341,6 +355,12 @@ public final class RecordPanel extends JPanel {
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
         window.addActionListener(e -> apply.run());
         window.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { apply.run(); } });
+        for (int i = 0; i < POST_ROLLS.length; i++) if (POST_ROLLS[i] == app.settings.replayAfterSeconds) postRoll.setSelectedIndex(i);
+        postRoll.setToolTipText("Keep capturing this long after you press the key, so the clip shows what happens next");
+        postRoll.addActionListener(e -> {
+            app.settings.replayAfterSeconds = POST_ROLLS[postRoll.getSelectedIndex()];
+            app.settings.save();
+        });
         replayLen.addActionListener(e -> {
             if (loading) return;
             app.settings.replaySeconds = REPLAY_LENS[replayLen.getSelectedIndex()];
@@ -385,13 +405,15 @@ public final class RecordPanel extends JPanel {
             add(record);
             add(marker);
             add(replayLen);
+            add(postRoll);
             new Timer(250, e -> repaint()).start();
         }
 
         @Override public void doLayout() {
             int w = getWidth();
-            replayLen.setBounds(24, 116, 140, 34);
-            replayToggle.setBounds(172, 116, 130, 34);
+            replayLen.setBounds(24, 116, 130, 34);
+            postRoll.setBounds(160, 116, 124, 34);
+            replayToggle.setBounds(290, 116, 110, 34);
             int bx = w - 24;
             marker.setBounds(bx -= 110, 112, 110, 40);
             record.setBounds(bx -= 186, 112, 176, 40);

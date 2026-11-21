@@ -86,6 +86,8 @@ public final class EditorPanel extends JPanel {
     private final JSlider zoom = new JSlider(100, 300, 100);
     private final JSlider volume = new JSlider(0, 200, 100);
     private final JCheckBox mute = new JCheckBox("Mute");
+    private final JSlider micVol = new JSlider(0, 200, 100);
+    private JComponent micRow;
     private final JSlider fadeIn = new JSlider(0, 30, 0), fadeOut = new JSlider(0, 30, 0);
     private final JTextField titleText = new JTextField();
     private final JComboBox<String> titlePos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
@@ -216,6 +218,8 @@ public final class EditorPanel extends JPanel {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         right.setOpaque(false);
+        right.add(outLabel);
+        right.add(Box.createHorizontalStrut(14));
         JToggleButton muteBtn = new JToggleButton(Theme.icon(Theme.Glyph.VOLUME, 18, Theme.TEXT));
         muteBtn.setSelectedIcon(Theme.icon(Theme.Glyph.MUTE, 18, Theme.DIM));
         muteBtn.putClientProperty("JButton.buttonType", "toolBarButton");
@@ -242,25 +246,29 @@ public final class EditorPanel extends JPanel {
         JButton split = Theme.button("Split", Theme.icon(Theme.Glyph.SPLIT, 16, Theme.TEXT), false);
         split.setToolTipText("Split at the playhead (S)");
         split.addActionListener(e -> split());
-        JButton del = Theme.button("Delete part", Theme.icon(Theme.Glyph.TRASH, 16, Theme.TEXT), false);
+        JButton del = Theme.button("Delete", Theme.icon(Theme.Glyph.TRASH, 16, Theme.TEXT), false);
         del.setToolTipText("Cut out the part under the playhead (Delete)");
         del.addActionListener(e -> deletePart());
-        JButton in = Theme.button("Trim start", null, false);
+        JButton in = Theme.button("Set start", null, false);
         in.setToolTipText("Start this part at the playhead (I)");
         in.addActionListener(e -> setIn());
-        JButton out = Theme.button("Trim end", null, false);
+        JButton out = Theme.button("Set end", null, false);
         out.setToolTipText("End this part at the playhead (O)");
         out.addActionListener(e -> setOut());
         JButton mark = Theme.iconButton(Theme.icon(Theme.Glyph.BOOKMARK, 18, Theme.GOLD), "Add marker at playhead (M)");
         mark.addActionListener(e -> addMarker());
+        JButton hl = Theme.button("Highlights", Theme.icon(Theme.Glyph.STAR, 16, Theme.GOLD), false);
+        hl.setToolTipText("Find the action and keep only it (H). Undo brings everything back.");
+        hl.addActionListener(e -> highlightReel());
+        JButton shot = Theme.iconButton(Theme.icon(Theme.Glyph.CAMERA, 18, Theme.TEXT), "Save this frame as a PNG (P)");
+        shot.addActionListener(e -> frameGrab());
         undoBtn.addActionListener(e -> undo());
         redoBtn.addActionListener(e -> redo());
-        for (Component c : new Component[]{split, del, in, out, mark, undoBtn, redoBtn}) l.add(c);
+        for (Component c : new Component[]{split, del, in, out, hl, mark, shot, undoBtn, redoBtn}) l.add(c);
         p.add(l, BorderLayout.WEST);
 
         JPanel r = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         r.setOpaque(false);
-        r.add(outLabel);
         previewEdits.setFocusable(false);
         previewEdits.setToolTipText("Skip cut parts and play speed changes while previewing");
         r.add(previewEdits);
@@ -336,6 +344,8 @@ public final class EditorPanel extends JPanel {
 
         section(p, "Audio");
         slider(p, "Volume", volume, v -> edit.volume = v / 100.0);
+        slider(p, "Your mic", micVol, v -> edit.micVolume = v / 100.0);
+        micRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
         mute.setOpaque(false);
         mute.addActionListener(e -> { if (!loading) { snapshot(); edit.mute = mute.isSelected(); edited(); } });
         add(p, mute);
@@ -463,6 +473,7 @@ public final class EditorPanel extends JPanel {
         timeline.setClip(c.duration, edit, c.markers, strip, Library.STRIP_FRAMES);
         timeline.setPlayhead(0);
         player.open(file, c.duration, c.fps, c.hasAudio, c.width, c.height);
+        player.setAudioTracks(c.audioTracks);
         updateTime(0);
         updatePlayIcon();
         loadWaveform(c, file);
@@ -508,6 +519,8 @@ public final class EditorPanel extends JPanel {
         cropX.setValue((int) Math.round(edit.cropX * 100));
         zoom.setValue((int) Math.round(edit.zoom * 100));
         volume.setValue((int) Math.round(edit.volume * 100));
+        micVol.setValue((int) Math.round(edit.micVolume * 100));
+        micRow.setVisible(clip.audioTracks >= 2);
         mute.setSelected(edit.mute);
         fadeIn.setValue((int) Math.round(edit.fadeIn * 10));
         fadeOut.setValue((int) Math.round(edit.fadeOut * 10));
@@ -617,6 +630,53 @@ public final class EditorPanel extends JPanel {
         snapshot();
         edit.segments.get(i).end = Math.max(edit.segments.get(i).start + 0.1, t);
         edited();
+    }
+
+    /** Scans the audio for the action, marks it, and cuts the clip down to just those moments. */
+    private void highlightReel() {
+        if (clip == null || !clip.hasAudio) { app.notify("No audio to scan", "Highlights are found from the sound of the action", false); return; }
+        Clip c = clip;
+        app.notify("Finding highlights…", null, false);
+        new Thread(() -> {
+            try {
+                var moments = net.evadeclient.clips.core.Highlights.detect(c.path(app.library.root()), c.duration, 0, null);
+                SwingUtilities.invokeLater(() -> {
+                    if (clip != c) return;
+                    if (moments.isEmpty()) { app.notify("No highlights found", "Nothing stood out from the background", false); return; }
+                    for (var m : moments) if (c.markers.stream().noneMatch(x -> Math.abs(x - m.time()) < 2)) c.markers.add(m.time());
+                    c.markers.sort(Double::compare);
+                    timeline.setMarkers(c.markers);
+                    snapshot();
+                    EditSpec cut = net.evadeclient.clips.core.Highlights.cut(moments, c.duration, 5, 3);
+                    cut.aspect = edit.aspect; cut.fitMode = edit.fitMode; cut.cropX = edit.cropX; cut.zoom = edit.zoom;
+                    cut.volume = edit.volume; cut.micVolume = edit.micVolume; cut.titleText = edit.titleText;
+                    cut.titlePosition = edit.titlePosition; cut.titleSeconds = edit.titleSeconds;
+                    edit = cut;
+                    loadControls();
+                    edited();
+                    seekTo(edit.segments.get(0).start);
+                    app.notify(moments.size() + " highlight" + (moments.size() == 1 ? "" : "s") + " kept",
+                            Theme.timeFine(c.duration) + " → " + Theme.timeFine(edit.outputDuration()) + " · Ctrl+Z to undo", false);
+                });
+            } catch (Exception ex) { app.notify("Highlight scan failed", ex.getMessage(), true); }
+        }, "highlights").start();
+    }
+
+    private void frameGrab() {
+        if (clip == null) return;
+        Clip c = clip;
+        double t = player.time();
+        new Thread(() -> {
+            try {
+                Path png = app.screenshot(c, t);
+                java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.Transferable() {
+                    public java.awt.datatransfer.DataFlavor[] getTransferDataFlavors() { return new java.awt.datatransfer.DataFlavor[]{java.awt.datatransfer.DataFlavor.javaFileListFlavor}; }
+                    public boolean isDataFlavorSupported(java.awt.datatransfer.DataFlavor f) { return f.equals(java.awt.datatransfer.DataFlavor.javaFileListFlavor); }
+                    public Object getTransferData(java.awt.datatransfer.DataFlavor f) { return List.of(png.toFile()); }
+                }, null);
+                app.notify("Frame saved and copied", png.getFileName().toString(), false);
+            } catch (Exception ex) { app.notify("Couldn't save the frame", ex.getMessage(), true); }
+        }, "frame-grab").start();
     }
 
     private void addMarker() {
@@ -730,6 +790,8 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_I, 0), "in", this::setIn);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_O, 0), "out", this::setOut);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_M, 0), "mark", this::addMarker);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "hl", this::highlightReel);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_P, 0), "shot", this::frameGrab);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "undo", this::undo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "redo", this::redo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "redo2", this::redo);

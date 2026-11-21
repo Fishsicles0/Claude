@@ -111,9 +111,11 @@ public final class CaptureEngine {
         args.addAll(inputArgs);
         args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));
         if (in.hasAudio()) args.addAll(List.of("-map", "[a]"));
+        if (in.micTrack()) args.addAll(List.of("-map", "[m]"));
         args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps));
         args.addAll(List.of("-r", String.valueOf(settings.fps)));
         if (in.hasAudio()) args.addAll(List.of("-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"));
+        if (in.micTrack()) args.addAll(List.of("-metadata:s:a:0", "title=Game", "-metadata:s:a:1", "title=Mic"));
         args.addAll(List.of("-f", "segment", "-segment_time", "1", "-segment_format", "mpegts",
                 "-segment_list", "segments.csv", "-segment_list_type", "csv", "-segment_list_flags", "+live",
                 "-break_non_keyframes", "0", "seg%06d.ts"));
@@ -277,10 +279,21 @@ public final class CaptureEngine {
      * segments (well under a second for a 30 s clip).
      */
     public Clip saveReplay(int seconds, String title, String game) throws IOException {
-        long pressed = System.currentTimeMillis();
+        return saveReplay(seconds, 0, title, game);
+    }
+
+    /**
+     * Saves the last {@code seconds}, plus {@code afterSeconds} more that are still to come (post-roll), so the
+     * clip includes what happens right after you press the key.
+     */
+    public Clip saveReplay(int seconds, int afterSeconds, String title, String game) throws IOException {
         synchronized (this) {
             if (process == null || segments.isEmpty())
                 throw new IOException(process == null ? "Instant replay is off" : "Replay buffer is still filling");
+        }
+        if (afterSeconds > 0) {
+            try { Thread.sleep(afterSeconds * 1000L); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            seconds += afterSeconds;
         }
         // Let ffmpeg finish the segment it's writing (at most ~1 s) so the clip runs right up to the key press
         // without a half-written frame at the end.

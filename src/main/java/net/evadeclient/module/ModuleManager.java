@@ -54,6 +54,7 @@ public class ModuleManager {
         register(new AntiAFK());
         register(new AutoReconnect());
         register(new BetterChat());
+        register(new net.evadeclient.module.misc.Clips());
         register(new AutoGG());
         register(new AutoTip());
         register(new Notifier());

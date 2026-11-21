@@ -213,7 +213,7 @@ public final class Ffmpeg {
     // ------------------------------------------------------------------ probing
 
     /** What ffprobe says about a video file. */
-    public record MediaInfo(double duration, int width, int height, double fps, boolean hasAudio, boolean hasVideo) {}
+    public record MediaInfo(double duration, int width, int height, double fps, boolean hasAudio, boolean hasVideo, int audioTracks) {}
 
     public static MediaInfo probe(Path file) throws IOException {
         String out = capture(List.of(ffprobe(), "-v", "error", "-print_format", "json", "-show_format", "-show_streams",
@@ -225,6 +225,7 @@ public final class Ffmpeg {
         int w = 0, h = 0;
         double fps = 0;
         boolean audio = false, video = false;
+        int audioTracks = 0;
         if (root.has("format") && root.getAsJsonObject("format").has("duration"))
             dur = parseD(root.getAsJsonObject("format").get("duration").getAsString());
         if (root.has("streams")) for (var el : root.getAsJsonArray("streams")) {
@@ -239,10 +240,10 @@ public final class Ffmpeg {
                 fps = s.has("avg_frame_rate") ? ratio(s.get("avg_frame_rate").getAsString()) : 0;
                 if (fps <= 0 && s.has("r_frame_rate")) fps = ratio(s.get("r_frame_rate").getAsString());
                 if (dur <= 0 && s.has("duration")) dur = parseD(s.get("duration").getAsString());
-            } else if (type.equals("audio")) audio = true;
+            } else if (type.equals("audio")) { audio = true; audioTracks++; }
         }
         if (!video && !audio) throw new IOException("No video in " + file.getFileName());
-        return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video);
+        return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video, audioTracks);
     }
 
     private static double parseD(String s) { try { return Double.parseDouble(s); } catch (Exception e) { return 0; } }

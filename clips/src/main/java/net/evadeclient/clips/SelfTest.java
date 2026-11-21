@@ -43,6 +43,7 @@ final class SelfTest {
         s.resolution = 720;
         s.replaySeconds = 10;
         s.recordSystemAudio = true;
+        s.recordMic = true;
         Ffmpeg.configure(s.ffmpegPath);
         check(Ffmpeg.available(), "ffmpeg + ffprobe found (" + Ffmpeg.ffmpeg() + ")");
         if (!Ffmpeg.available()) return finish();
@@ -60,11 +61,39 @@ final class SelfTest {
         Clip replay = engine.saveReplay(5, "Test replay", "Minecraft");
         check(replay != null && Math.abs(replay.duration - 5) < 1.6, "instant replay saved, ~5 s (got " + (replay == null ? "-" : String.format("%.2f", replay.duration)) + ")");
         check(replay != null && replay.hasAudio && replay.height == 720, "replay has audio and is 720p");
+        check(replay != null && replay.audioTracks == 2, "game and mic are separate audio tracks (" + (replay == null ? 0 : replay.audioTracks) + ")");
         check(replay != null && replay.markers.size() == 1 && Math.abs(replay.markers.get(0) - (replay.duration - 2.5)) < 1.2,
                 "marker pressed 2 s before saving lands ~2 s from the end (" + (replay == null ? "-" : replay.markers) + ")");
 
         Clip longer = engine.saveReplay(60, null, null);
         check(longer.duration >= 9 && longer.duration <= 12.5, "replay is capped at the buffer length (" + String.format("%.2f", longer.duration) + " s)");
+
+        long tp = System.currentTimeMillis();
+        Clip post = engine.saveReplay(4, 2, "Post-roll", null);
+        check(Math.abs(post.duration - 6) < 1.6 && System.currentTimeMillis() - tp >= 2000,
+                "post-roll: 4 s before + 2 s after the key = ~6 s (got " + String.format("%.2f", post.duration) + ")");
+
+        // Local API (what Evade Client calls).
+        net.evadeclient.clips.core.ControlServer api = new net.evadeclient.clips.core.ControlServer();
+        int port = 47000 + (int) (Math.random() * 900);
+        api.start(port, new net.evadeclient.clips.core.ControlServer.Handler() {
+            public java.util.Map<String, Object> status() { return java.util.Map.of("state", "live"); }
+            public java.util.Map<String, Object> clip(int sec, int after, String title, String game, String tag) throws Exception {
+                Clip c = engine.saveReplay(sec, after, title, game);
+                if (tag != null) c.tags.add(tag);
+                return java.util.Map.of("ok", true, "id", c.id);
+            }
+            public java.util.Map<String, Object> record(String a, String g) { return java.util.Map.of(); }
+            public void marker() {}
+        });
+        var http = java.net.http.HttpClient.newHttpClient();
+        var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip?seconds=3&title=Kill%20Steve&tag=kill"))
+                .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(res.statusCode() == 200 && res.body().contains("\"ok\":true"), "API /clip saves a titled clip (" + res.statusCode() + ")");
+        var blocked = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip"))
+                .header("Origin", "https://evil.example").POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(blocked.statusCode() == 403, "API refuses requests from web pages");
+        api.stop();
 
         engine.startRecording("Minecraft");
         Thread.sleep(1500);
@@ -134,6 +163,41 @@ final class SelfTest {
         Ffmpeg.MediaInfo vi = Ffmpeg.probe(vout);
         check(vi.width() == 404 && vi.height() == 720, "9:16 crop of a 720p clip is 404x720 (got " + vi.width() + "x" + vi.height() + ")");
         System.out.println("  expected edited duration " + String.format("%.2f", expected));
+
+        // Mic muted in the edit: the export keeps one mixed track.
+        EditSpec quiet = EditSpec.whole(src.duration);
+        quiet.micVolume = 0;
+        Exporter.Options so = new Exporter.Options();
+        so.preset = Exporter.Preset.SOURCE;
+        Path qout = Library.unique(lib.folder(Clip.Kind.EXPORT), "mic-muted.mp4");
+        Exporter.export(src.path(lib.root()), src, quiet, so, qout, null, null);
+        Ffmpeg.MediaInfo qi = Ffmpeg.probe(qout);
+        check(qi.audioTracks() == 1 && Math.abs(qi.duration() - src.duration) < 0.4, "export mixes game + mic (mic muted) into one track");
+
+        // Highlights: quiet noise with three loud bursts.
+        Path noisy = dir.resolve("noisy.mp4");
+        Ffmpeg.run(List.of("-f", "lavfi", "-i", "color=c=gray:s=320x180:r=15:d=60", "-f", "lavfi", "-i",
+                "anoisesrc=a=0.02:d=60:r=48000", "-af", "volume='if(between(t,10,10.8)+between(t,30,31)+between(t,47,47.6),25,1)':eval=frame",
+                "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", noisy.toString()));
+        var moments = net.evadeclient.clips.core.Highlights.detect(noisy, 60, 0, null);
+        List<Double> times = moments.stream().map(net.evadeclient.clips.core.Highlights.Moment::time).toList();
+        boolean hl = moments.size() == 3 && Math.abs(times.get(0) - 10.4) < 1.2 && Math.abs(times.get(1) - 30.5) < 1.2 && Math.abs(times.get(2) - 47.3) < 1.2;
+        check(hl, "highlight detection finds the 3 loud moments at ~10, ~30, ~47 s (got " + times + ")");
+        EditSpec reel = net.evadeclient.clips.core.Highlights.cut(moments, 60, 5, 3);
+        check(reel.segments.size() == 3 && Math.abs(reel.outputDuration() - 24) < 1, "highlight reel keeps 8 s around each (" + String.format("%.1f", reel.outputDuration()) + " s)");
+
+        // Montage of a 2-track 720p clip and a different-sized vertical clip.
+        Clip vert = lib.addNew(vout, Clip.Kind.EXPORT, "vertical", null, null, null);
+        List<Clip> mclips = List.of(replay, vert, rec);
+        double want = 0;
+        for (Clip c : mclips) want += (c.edit != null ? c.edit : EditSpec.whole(c.duration)).outputDuration();
+        Path mout = Library.unique(lib.folder(Clip.Kind.EXPORT), "montage.mp4");
+        Exporter.Options mo = new Exporter.Options();
+        mo.preset = Exporter.Preset.YOUTUBE;
+        Exporter.montage(mclips, lib.root(), mo, mout, null, null);
+        Ffmpeg.MediaInfo mi = Ffmpeg.probe(mout);
+        check(mi.width() == 1280 && mi.height() == 720 && Math.abs(mi.duration() - want) < 0.6 && mi.hasAudio(),
+                "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s (want " + String.format("%.2f", want) + ")");
         lib.shutdown();
         return finish();
     }

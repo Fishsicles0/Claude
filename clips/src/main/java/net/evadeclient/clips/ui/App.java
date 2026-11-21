@@ -6,6 +6,7 @@ import net.evadeclient.clips.core.ControlServer;
 import net.evadeclient.clips.core.EditSpec;
 import net.evadeclient.clips.core.Exporter;
 import net.evadeclient.clips.core.Ffmpeg;
+import net.evadeclient.clips.core.Highlights;
 import net.evadeclient.clips.core.Hotkeys;
 import net.evadeclient.clips.core.Library;
 import net.evadeclient.clips.core.Settings;
@@ -88,8 +89,8 @@ public final class App {
                     m.put("replaySeconds", settings.replaySeconds);
                     return m;
                 }
-                @Override public Map<String, Object> clip(int seconds, String title, String game, String tag) throws Exception {
-                    Clip c = saveClipNow(seconds, title, game, tag);
+                @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {
+                    Clip c = saveClipNow(seconds, after, title, game, tag);
                     return Map.of("ok", true, "id", c.id, "file", c.path(library.root()).toString(), "duration", c.duration);
                 }
                 @Override public Map<String, Object> record(String action, String game) throws Exception {
@@ -121,14 +122,15 @@ public final class App {
     /** Async save from a hotkey/button; reports with a toast. */
     public void saveClip(int seconds, String title, String game, String tag) {
         new Thread(() -> {
-            try { saveClipNow(seconds, title, game, tag); }
+            try { saveClipNow(seconds, settings.replayAfterSeconds, title, game, tag); }
             catch (Exception e) { notify("Clip not saved", e.getMessage(), true); }
         }, "save-clip").start();
     }
 
-    public Clip saveClipNow(int seconds, String title, String game, String tag) throws Exception {
+    public Clip saveClipNow(int seconds, int after, String title, String game, String tag) throws Exception {
         if (!engine.isLive()) throw new Exception("Instant replay is off. Turn it on in Record.");
-        Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, title, game);
+        if (after > 0 && settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show("Saving…", "Capturing " + after + " more seconds", false));
+        Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, after, title, game);
         if (tag != null && !tag.isBlank()) {
             for (String t : tag.split(",")) if (!t.isBlank() && !c.tags.contains(t.trim())) c.tags.add(t.trim());
             library.update(c);
@@ -155,7 +157,40 @@ public final class App {
         Clip c = engine.stopRecording();
         if (c != null) notify("Recording saved", Theme.time(c.duration) + " · " + Theme.size(c.size), false);
         if (!settings.replayEnabled && !engine.isRecording()) engine.stop();
+        if (c != null && settings.autoHighlights && c.duration >= 45 && c.hasAudio) findHighlights(c, true);
         return c;
+    }
+
+    /** Scans a clip for its loudest moments and adds them as markers (in the background). */
+    public void findHighlights(Clip c, boolean quiet) {
+        Thread t = new Thread(() -> {
+            try {
+                List<Highlights.Moment> m = Highlights.detect(c.path(library.root()), c.duration, 0, null);
+                for (Highlights.Moment x : m) {
+                    boolean dup = false;
+                    for (double have : c.markers) if (Math.abs(have - x.time()) < 2) dup = true;
+                    if (!dup) c.markers.add(x.time());
+                }
+                c.markers.sort(Double::compare);
+                if (!m.isEmpty() && !c.tags.contains("highlights")) c.tags.add("highlights");
+                library.update(c);
+                if (!quiet || !m.isEmpty()) notify(m.isEmpty() ? "No highlights found" : "Found " + m.size() + " highlight" + (m.size() == 1 ? "" : "s"),
+                        c.title, false);
+            } catch (Exception e) {
+                if (!quiet) notify("Highlight scan failed", e.getMessage(), true);
+            }
+        }, "highlights");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Saves the frame at {@code t} as a full-resolution PNG next to the clips and copies it. */
+    public Path screenshot(Clip c, double t) throws Exception {
+        Path dir = library.root().resolve("Screenshots");
+        java.nio.file.Files.createDirectories(dir);
+        Path out = Library.unique(dir, Library.safe(c.title == null ? "Frame" : c.title) + " " + String.format("%.2f", t).replace('.', '_') + ".png");
+        Ffmpeg.run(List.of("-ss", Library.fmt(t), "-i", c.path(library.root()).toString(), "-frames:v", "1", out.toString()));
+        return out;
     }
 
     public void marker() {
@@ -202,13 +237,14 @@ public final class App {
         public final Clip clip;
         public final Exporter.Preset preset;
         public final Path out;
+        public volatile String label;
         public final net.evadeclient.clips.core.Ffmpeg.Job job = new net.evadeclient.clips.core.Ffmpeg.Job();
         public volatile double progress;
         public volatile String state = "Queued";
         public volatile Clip result;
         public volatile boolean done;
 
-        ExportJob(Clip clip, Exporter.Preset preset, Path out) { this.clip = clip; this.preset = preset; this.out = out; }
+        ExportJob(Clip clip, Exporter.Preset preset, Path out) { this.clip = clip; this.preset = preset; this.out = out; this.label = preset.label; }
     }
 
     public List<ExportJob> jobs() { return new ArrayList<>(jobs); }
@@ -217,17 +253,41 @@ public final class App {
 
     public ExportJob export(Clip clip, EditSpec edit, Exporter.Options o, Consumer<ExportJob> onDone) {
         Path out = Exporter.outputFor(library, clip, o.preset);
-        ExportJob j = new ExportJob(clip, o.preset, out);
+        EditSpec spec = edit.copy();
+        return runJob(new ExportJob(clip, o.preset, out), (j) -> {
+            Exporter.export(clip.path(library.root()), clip, spec, o, out, p -> { j.progress = p; jobsChanged(); }, j.job);
+            return library.addNew(out, Clip.Kind.EXPORT, (clip.title == null ? "Clip" : clip.title) + " · " + o.preset.label,
+                    clip.game, null, clip.id);
+        }, onDone);
+    }
+
+    /** Joins clips (in the given order, each with its edits) into one montage video. */
+    public ExportJob montage(List<Clip> clips, String title, Consumer<ExportJob> onDone) {
+        Path out = Library.unique(library.folder(Clip.Kind.EXPORT), Library.safe(title) + ".mp4");
+        Exporter.Options o = new Exporter.Options();
+        o.preset = Exporter.Preset.YOUTUBE;
+        List<Clip> list = new ArrayList<>(clips);
+        ExportJob job = new ExportJob(list.get(0), Exporter.Preset.YOUTUBE, out);
+        job.label = "Montage";
+        return runJob(job, j -> {
+            Exporter.montage(list, library.root(), o, out, p -> { j.progress = p; jobsChanged(); }, j.job);
+            Clip c = library.addNew(out, Clip.Kind.EXPORT, title, list.get(0).game, null, null);
+            if (!c.tags.contains("montage")) { c.tags.add("montage"); library.update(c); }
+            return c;
+        }, onDone);
+    }
+
+    interface JobBody { Clip run(ExportJob j) throws Exception; }
+
+    private ExportJob runJob(ExportJob j, JobBody body, Consumer<ExportJob> onDone) {
+        Path out = j.out;
         jobs.add(j);
         jobsChanged();
-        EditSpec spec = edit.copy();
         exports.submit(() -> {
             j.state = "Exporting";
             jobsChanged();
             try {
-                Exporter.export(clip.path(library.root()), clip, spec, o, out, p -> { j.progress = p; jobsChanged(); }, j.job);
-                j.result = library.addNew(out, Clip.Kind.EXPORT, (clip.title == null ? "Clip" : clip.title) + " · " + o.preset.label,
-                        clip.game, null, clip.id);
+                j.result = body.run(j);
                 j.state = "Done";
                 notify("Export finished", out.getFileName().toString(), false);
             } catch (Exception e) {

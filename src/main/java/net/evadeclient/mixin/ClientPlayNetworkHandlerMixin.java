@@ -15,7 +15,11 @@ public abstract class ClientPlayNetworkHandlerMixin {
     @Inject(method = "onEntityStatus", at = @At("TAIL"))
     private void evade$pop(net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket packet, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (packet.getStatus() == 35 && mc.world != null && mc.isOnThread()) net.evadeclient.module.misc.Notifier.onPop(packet.getEntity(mc.world));
+        if (packet.getStatus() == 35 && mc.world != null && mc.isOnThread()) {
+            var e = packet.getEntity(mc.world);
+            net.evadeclient.module.misc.Notifier.onPop(e);
+            net.evadeclient.module.misc.Clips.onPop(e);
+        }
     }
 
     /** Time Changer: re-apply our time straight after the server's time update. */

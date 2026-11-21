@@ -31,6 +31,7 @@ public final class VideoPlayer {
     private Path file;
     private double duration, fps = 30;
     private boolean hasAudio;
+    private int audioTracks = 1;
     private int w = 960, h = 540;
     private final Listener listener;
 
@@ -68,6 +69,8 @@ public final class VideoPlayer {
     public double duration() { return duration; }
     public double speed() { return speed; }
     public void setVolume(float v) { volume = v; }
+    /** With 2 tracks (game + mic) the preview plays both mixed. */
+    public void setAudioTracks(int n) { audioTracks = Math.max(1, n); }
     public void setMuted(boolean m) { muted = m; }
 
     /** Starts playing from {@code from} at {@code speed} (0.25 .. 4). */
@@ -182,8 +185,11 @@ public final class VideoPlayer {
             double s = speed;
             while (s < 0.5) { af.append(",atempo=0.5"); s /= 0.5; }
             if (Math.abs(s - 1) > 1e-6) af.append(",atempo=").append(Library.fmt(s));
-            p = spawn(List.of("-loglevel", "error", "-ss", Library.fmt(start), "-i", file.toString(), "-vn",
-                    "-af", af.toString(), "-f", "s16le", "-ac", "2", "-ar", String.valueOf(RATE), "-"));
+            List<String> args = new ArrayList<>(List.of("-loglevel", "error", "-ss", Library.fmt(start), "-i", file.toString(), "-vn"));
+            if (audioTracks >= 2) args.addAll(List.of("-filter_complex", "[0:a:0][0:a:1]amix=inputs=2:normalize=0," + af + "[pa]", "-map", "[pa]"));
+            else args.addAll(List.of("-af", af.toString()));
+            args.addAll(List.of("-f", "s16le", "-ac", "2", "-ar", String.valueOf(RATE), "-"));
+            p = spawn(args);
             AudioFormat fmt = new AudioFormat(RATE, 16, 2, true, false);
             line = AudioSystem.getSourceDataLine(fmt);
             line.open(fmt, RATE / 5 * 4); // ~200 ms buffer
