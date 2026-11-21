@@ -544,3 +544,15 @@ footer { margin-top: 140px; border-top: 1px solid var(--stroke); position: relat
 .hud-card:hover .hud-foot em { transform: translateX(4px); }
 @media (max-width: 1040px) { .hud-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px) { .hud-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Java/Bedrock chooser ---------- */
+.edition { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+.edition-card { padding: 24px; display: flex; flex-direction: column; }
+.edition-card.on { border-color: rgba(225, 29, 46, .5); }
+.edition-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.edition-top h3 { font-size: 20px; }
+.edition-card .you { font: 600 11px var(--body); color: #fff; background: var(--red); padding: 3px 9px; border-radius: 999px; }
+.edition-card .opt { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.edition-card p { color: var(--muted); font-size: 14.5px; flex: 1; margin-bottom: 16px; }
+.edition-card .btn { align-self: flex-start; }
+@media (max-width: 760px) { .edition { grid-template-columns: 1fr; } }

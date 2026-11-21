@@ -2,7 +2,6 @@ package net.evadeclient.hud;
 
 import net.evadeclient.EvadeClient;
 import net.evadeclient.gui.HudEditorScreen;
-import net.evadeclient.module.Category;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.Module;
 import net.evadeclient.module.client.HudModule;
@@ -53,7 +52,6 @@ public final class Hud {
         if (hud.arrayList.get()) {
             List<Module> active = EvadeClient.modules.all().stream()
                     .filter(m -> m.isEnabled() && m.isVisible())
-                    .filter(m -> !hud.cheatsOnly.get() || m.getCategory() == Category.COMBAT || m.getCategory() == Category.VISUALS)
                     .sorted(Comparator.comparingInt((Module m) -> tr.getWidth(label(m))).reversed())
                     .toList();
             int y = hud.watermark.get() ? 18 : 2;

@@ -1,14 +1,14 @@
 {
-  "version": "0.10.0",
+  "version": "1.0.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "463 KB",
-  "sha256": "ca4a163090ab31ede933eb8c01f489be73533946ec0397b6e6b564fcbea1dd48",
+  "size": "246 KB",
+  "sha256": "d8c0b1066b313842a803af06a62293b6b1b3f7b9e4b439c9e66530d91328debe",
   "installer": {
     "windows": { "file": "downloads/Evade-Installer.exe", "size": "825 KB", "sha256": "f6886ef245eddf2c316f71e2b5d0829c628373733ffdee1291e867e4dd705c87" },
     "jar": { "file": "downloads/EvadeInstaller.jar", "size": "713 KB", "sha256": "f10a1a6576679370ba6fef090d71bc06816d4885785f12ef88e67181026c747c" }
   },
   "texturePack": { "version": "1.0", "file": "downloads/Evade-Texture-Pack.zip", "size": "145 KB", "sha256": "5e10082cbf18f028de9bcf62472a8200d905f6f9648e61bbd4f05f513dba6b94" },
-  "date": "2026-11-20"
+  "date": "2026-11-21"
 }

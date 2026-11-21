@@ -87,9 +87,9 @@ LAYOUT = """<!doctype html>
       <p>A free Fabric client for Minecraft {mc}. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Most servers ban cheat clients: you are responsible for following the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/features#printer">Printer</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#ban">Ban risk</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
   <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
@@ -193,8 +193,6 @@ NEW_IN_LATEST = set(json.loads((ROOT / "site-src" / "new.json").read_text())["cl
 def scan_mods() -> list:
     """Reads every module's name, description and category straight from the client source."""
     java = ROOT / "src" / "main" / "java" / "net" / "evadeclient" / "module"
-    risk = json.loads((ROOT / "site-src" / "risk.json").read_text())
-    level = {n: "high" for n in risk["high"]} | {n: "med" for n in risk["med"]}
     registered = (java / "ModuleManager.java").read_text()
     mods = []
     for f in sorted(java.rglob("*.java")):
@@ -208,10 +206,7 @@ def scan_mods() -> list:
         cat = m.group(4) or "HUD"  # HUD elements default to the HUD category
         if cat == "CLIENT":
             continue
-        # HUD elements only draw on your screen, so they're always low risk (the HUD "Speed" readout shares a name
-        # with the Movement cheat "Speed").
-        risk_level = "low" if cat == "HUD" else level.get(m.group(1), "low")
-        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "slug": cat.lower(), "risk": risk_level,
+        mods.append({"name": m.group(1), "desc": m.group(2), "cat": CATEGORY_LABEL[cat], "slug": cat.lower(),
                      "settings": scan_settings(src) + inherited(src, java), "new": cls in NEW_IN_LATEST})
     mods.sort(key=lambda x: (CATEGORY_ORDER.index([k for k, v in CATEGORY_LABEL.items() if v == x["cat"]][0]), x["name"].lower()))
     return mods
@@ -223,11 +218,9 @@ def main() -> None:
     # count by enum key (COMBAT, PVP, SERVER, UTILITY...) so site tokens are {{PVP}} etc., not label text
     counts = {key: sum(1 for m in mods if m["cat"] == label) for key, label in CATEGORY_LABEL.items()}
     ver = json.loads((OUT / "version.json").read_text())
-    risk = {r: sum(1 for m in mods if m["risk"] == r) for r in ("low", "med", "high")}
     n_settings = sum(len(m["settings"]) for m in mods)
     n_new = sum(1 for m in mods if m["new"])
     tokens = {"{{TOTAL}}": str(len(mods))} | {"{{" + k + "}}": str(v) for k, v in counts.items()}
-    tokens |= {"{{RISK_" + k.upper() + "}}": str(v) for k, v in risk.items()}
     tokens |= {"{{SETTINGS}}": str(n_settings), "{{NEW}}": str(n_new), "{{CATS}}": str(len([c for c in counts.values() if c]))}
     tokens |= {
         "{{VERSION}}": ver["version"], "{{MC}}": ver["minecraft"], "{{DATE}}": ver["date"],

@@ -1,11 +1,9 @@
 {
- "_note": "Classes added in the latest release (v0.6.0). The features page marks these as New.",
+ "_note": "Classes added in the latest release (v1.0). The features page marks these as New.",
  "classes": [
-  "AutoCity",
-  "AutoAnvil",
-  "BedAura",
-  "PacketMine",
-  "Excavator",
-  "AutoSprint"
+  "StopwatchHud",
+  "SaturationHud",
+  "ItemCounterHud",
+  "PvpInfoHud"
  ]
 }

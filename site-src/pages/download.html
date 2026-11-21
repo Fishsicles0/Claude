@@ -5,10 +5,23 @@ nav: download
 <header class="page-hero wrap">
   <div class="eyebrow rv">Download</div>
   <h1 class="rv d1">Get <span class="red">Evade</span> v{{VERSION}}.</h1>
-  <p class="rv d2">The installer sets up Fabric, Fabric API and Evade, then adds an Evade Client profile to your Minecraft Launcher. Minecraft {{MC}}.</p>
+  <p class="rv d2">The installer sets up Fabric, Fabric API and Evade, then adds an Evade Client profile to your Minecraft Launcher. Minecraft {{MC}}, Java Edition.</p>
 </header>
 
 <section class="wrap page-body">
+  <div class="edition rv">
+    <div class="card edition-card on">
+      <div class="edition-top"><h3>Java Edition</h3><span class="you">Available now</span></div>
+      <p>The full Evade client &mdash; HUD, zoom, freelook, waypoints, the three menu styles and everything else. Windows, macOS and Linux.</p>
+      <a class="btn btn-red js-primary" href="/downloads/Evade-Installer.exe" download><span class="js-primary-label">Download for Windows</span></a>
+    </div>
+    <div class="card edition-card">
+      <div class="edition-top"><h3>Bedrock / console</h3><span class="opt">Not a client</span></div>
+      <p>Bedrock (Xbox, PlayStation, Switch, mobile, Windows 10/11) is a locked platform &mdash; you can't install a custom client there, so <b>Evade is Java only</b>. We won't ship a fake Bedrock download. If you just need a console to reach a server it can't normally, that's <a href="https://github.com/Pugmatt/BedrockConnect" target="_blank" rel="noopener" class="link-inline">BedrockConnect</a>, a separate open-source connectivity tool &mdash; not a client, and nothing to do with cheating.</p>
+      <a class="btn btn-ghost" href="/faq#bedrock">Why Java only?</a>
+    </div>
+  </div>
+
   <div class="dl">
     <div class="card dl-main rv">
       <span class="tag">Recommended</span>
@@ -57,17 +70,6 @@ nav: download
   </div>
 </section>
 
-<section class="wrap" id="printer">
-  <div class="sec-head rv">
-    <div class="eyebrow">Printer add-ons</div>
-    <h2>Everything the Printer needs, in one place.</h2>
-    <p>The Printer can read <span class="mono">.litematic</span> files on its own, but to <b>place and design</b> schematics it works alongside Litematica. These are separate mods by their authors; the links below go to their official downloads for Minecraft {{MC}}. Put each jar in <span class="mono">.minecraft/evade/mods</span>, next to Evade.</p>
-  </div>
-  <div class="reqs rv">
-    {{PRINTER_MODS}}
-  </div>
-  <p class="note rv">Evade never bundles or re-hosts these: each is downloaded from its author's own page, so you always get the real, current file. Already have Litematica set up? The Printer uses it automatically. <a href="/docs#printer">How the Printer works</a></p>
-</section>
 
 <section class="wrap" id="install">
   <div class="sec-head rv">
@@ -76,7 +78,7 @@ nav: download
   </div>
   <div class="steps">
     <div class="card step rv"><h4>Download the installer</h4><p>The <b>.exe</b> on Windows. On macOS and Linux use the <b>.jar</b>, which needs <a href="https://adoptium.net/temurin/releases/?version=21" target="_blank" rel="noopener">Java 17+</a>.</p></div>
-    <div class="card step rv d1"><h4>Click Install</h4><p>It sets up Fabric, Fabric API and Evade in their own folder, plus a <span class="mono">schematics</span> folder for the Printer.</p></div>
+    <div class="card step rv d1"><h4>Click Install</h4><p>It sets up Fabric, Fabric API and Evade in their own folder.</p></div>
     <div class="card step rv d2"><h4>Open the launcher</h4><p>In the Minecraft Launcher, pick <b>Evade Client</b> next to the Play button.</p></div>
     <div class="card step rv d3"><h4>Play</h4><p>Join a world and press <span class="kbd">Right Shift</span> to open the menu.</p></div>
   </div>

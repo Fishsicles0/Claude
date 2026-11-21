@@ -10,7 +10,6 @@ public class HudModule extends Module {
     public final BooleanSetting watermark = add(new BooleanSetting("Watermark", true));
     public final BooleanSetting arrayList = add(new BooleanSetting("Module List", true));
     public final ModeSetting colorMode = add(new ModeSetting("List Color", "Red Wave", "Red Wave", "Rainbow", "Static Red", "White"));
-    public final BooleanSetting cheatsOnly = add(new BooleanSetting("Combat/Visuals Only", true));
 
     public HudModule() {
         super("Module List", "Watermark and active module list.", Category.HUD);

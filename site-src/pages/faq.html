@@ -1,11 +1,11 @@
 title: FAQ
-description: Answers about Evade Client: ban risk, supported versions, installing and updating, the Printer and schematics folder, the Evade Texture Pack and using it with other mods.
+description: Answers about Evade Client: whether it is allowed on servers, supported versions, installing and updating, the Evade Texture Pack and using it with other mods.
 nav: faq
 ---
 <header class="page-hero wrap">
   <div class="eyebrow rv">FAQ</div>
   <h1 class="rv d1">Questions, <span class="red">answered</span>.</h1>
-  <p class="rv d2">Installing, updating, the Printer, the texture pack and staying out of trouble.</p>
+  <p class="rv d2">Whether it is allowed on servers, installing, updating, the texture pack and using it with other mods.</p>
 </header>
 
 <section class="wrap page-body">
@@ -13,7 +13,6 @@ nav: faq
     <aside class="faq-nav" aria-label="FAQ sections">
       <a href="#general">General</a>
       <a href="#installing">Installing &amp; updating</a>
-      <a href="#printer-faq">Printer &amp; schematics</a>
       <a href="#pack-faq">Texture Pack</a>
       <a href="#safety">Safety &amp; settings</a>
     </aside>
@@ -21,11 +20,12 @@ nav: faq
       <div class="faq-group rv" id="general">
         <h2>General</h2>
         <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
-        <details id="ban"><summary>Can I get banned?</summary><p>Yes. Most multiplayer servers ban cheat clients, and Evade does not hide itself from anti-cheats or staff. Every mod on the <a href="/features">features page</a> shows a ban risk: <b>high</b> ({{RISK_HIGH}} mods, such as KillAura, Fly, Speed, Velocity, Nuker and the Printer) are obvious to anti-cheats, <b>medium</b> ({{RISK_MED}}, such as AimAssist, TriggerBot and AutoTotem) can be caught, and <b>low</b> ({{RISK_LOW}}, such as the HUD, Zoom and ESP) only change what you see. Low doesn't mean allowed: some servers ban any modified client. Use cheats in singleplayer, on your own server, or where the rules allow them.</p></details>
+        <details id="safe" open><summary>Is it allowed on servers?</summary><p>Yes, on the great majority. Evade is a quality-of-life client, like Lunar or Badlion: a HUD, zoom, freelook, a custom crosshair, waypoints and visual tweaks. There are no combat or movement cheats, no ESP or x-ray, and nothing that automates gameplay or hides from anti-cheats. Those are the same kinds of features big servers (Hypixel and others) allow. A few very strict servers ban any modified client at all, so always check the server's own rules &mdash; but you won't be using anything that's against the spirit of fair play.</p></details>
         <details><summary>Which versions does it support?</summary><p>Minecraft Java {{MC}} with Fabric. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
-        <details><summary>What's new in v{{VERSION}}?</summary><p>{{NEW}} new mods, bringing the total to {{TOTAL}} across {{SETTINGS}} settings: AutoCity, AutoAnvil and BedAura for crystal/anchor fights, PacketMine and Excavator for mining, and AutoSprint. KillAura can now hit several targets at once, Nuker has a shape setting, and ESP can draw tracers. See the <a href="/changelog">changelog</a> for the full history and the <a href="/docs">docs</a> for how to use everything.</p></details>
+        <details><summary>What's new in v{{VERSION}}?</summary><p>This is the first release of Evade as a server-safe quality-of-life client: every combat and movement cheat was removed, leaving {{TOTAL}} QoL mods &mdash; the full HUD (now with Stopwatch, Saturation, Item Counter and PvP Info), zoom, freelook, waypoints, the three menu styles and the Evade Texture Pack. See the <a href="/changelog">changelog</a> and the <a href="/docs">docs</a>.</p></details>
         <details><summary>Does it work with Sodium, Iris and other mods?</summary><p>It's a normal Fabric mod, so it should run alongside most others, but compatibility with Sodium, Iris and Lithium hasn't been tested yet. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
-        <details><summary>How does Evade compare to other clients?</summary><p>Evade puts cheat modules and the PvP HUD of clients like Lunar or Badlion in one free Fabric mod. Some cheat clients have more modules (Meteor lists over 160) and some sell features meant to hide from anti-cheats or screen-shares. Evade doesn't include those and never claims to be undetected. Every mod here is listed with its settings and an honest ban risk.</p></details>
+        <details id="bedrock"><summary>Is there a Bedrock or Xbox version?</summary><p>No, and it isn't possible. Evade is a Java Edition Fabric mod. Bedrock (Xbox, PlayStation, Switch, mobile, Windows&nbsp;10/11) is a closed platform &mdash; you can't install a custom client or mod on a console at all. Anything that claims to add a "client" to a console actually routes your connection through a proxy that rewrites your packets, which is both a different kind of software and squarely in cheating territory. We won't build that. If you only need a console to join a server it can't normally reach, look at <a href="https://github.com/Pugmatt/BedrockConnect" target="_blank" rel="noopener">BedrockConnect</a> &mdash; a separate, open-source connectivity tool.</p></details>
+                <details><summary>How does it compare to Lunar or Badlion?</summary><p>It's the same idea: a free, server-safe client that adds a HUD, zoom, cosmetics-style tweaks and quality-of-life mods on top of vanilla. Evade is a Fabric mod, so it runs alongside Sodium, Iris and other Fabric mods, and it's open about being just quality of life &mdash; no cheats, no "undetected" claims.</p></details>
         <details><summary>Why isn't there an FPS boost or shaders?</summary><p>Those need a different renderer. Install Sodium (FPS) or Iris (shaders) alongside Evade instead. Evade doesn't bundle other people's mods, including OptiFine.</p></details>
       </div>
 
@@ -38,13 +38,6 @@ nav: faq
         <details><summary>How do I uninstall it?</summary><p>Delete the <span class="mono">evade</span> folder and <span class="mono">versions/evade-client-{{MC}}</span> inside <span class="mono">.minecraft</span>, then remove the Evade Client installation in the launcher.</p></details>
       </div>
 
-      <div class="faq-group rv" id="printer-faq">
-        <h2>Printer &amp; schematics</h2>
-        <details id="printer"><summary>What does the Printer do?</summary><p>It places the blocks of a schematic for you, bottom to top, with the right rotation for logs, stairs, furnaces, slabs and so on, using blocks from your hotbar. It's in the World category. Like any auto-builder it's easy for servers to spot, so its ban risk is high.</p></details>
-        <details><summary>Do I need Litematica?</summary><p>No. If Litematica is installed and you've placed a schematic with it, the Printer builds that placement. Without Litematica, put <span class="mono">.litematic</span> files in your schematics folder and type <span class="mono">.printer list</span> to see them, <span class="mono">.printer load &lt;name&gt;</span> to load one, and <span class="mono">.printer here</span> to move it to your feet. A schematic loaded with <span class="mono">.printer load</span> takes priority over Litematica's. If you do want Litematica, the <a href="/download#printer">Printer add-ons</a> section links to the correct versions for Minecraft {{MC}}.</p></details>
-        <details id="schematics"><summary>Where is the schematics folder?</summary><p>If you used the installer it's <span class="mono">.minecraft/evade/schematics</span>. Evade also reads <span class="mono">.minecraft/schematics</span>, the folder Litematica uses by default. Type <span class="mono">.printer folder</span> in game to open it.</p></details>
-        <details><summary>How do I know which blocks I need?</summary><p>Type <span class="mono">.printer materials</span>. It lists every block the schematic still needs and how many.</p></details>
-      </div>
 
       <div class="faq-group rv" id="pack-faq">
         <h2>Texture Pack</h2>

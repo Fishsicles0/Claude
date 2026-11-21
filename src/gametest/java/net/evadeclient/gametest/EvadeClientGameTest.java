@@ -243,10 +243,15 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(6);
         int combatY0 = panelY(ctx, "Server-facing");
-        ctx.getInput().setCursorPos(280, 102);   // Combat panel header (default top-left, GUI scale 2)
+        // Grab the Server-facing panel's real header position and drag it (masonry layout isn't fixed).
+        int[] head = ctx.computeOnClient(c -> {
+            double sc = c.getWindow().getScaleFactor();
+            return new int[]{ (int) ((panelXRaw("Server-facing") + 30) * sc), (int) ((combatY0 + 6) * sc) };
+        });
+        ctx.getInput().setCursorPos(head[0], head[1]);
         ctx.getInput().holdMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(2);
-        ctx.getInput().moveCursor(400, 500);
+        ctx.getInput().moveCursor(head[0] + 120, head[1] + 400);
         ctx.waitTicks(2);
         ctx.getInput().releaseMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(4);
@@ -254,6 +259,16 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         boolean saved = ctx.computeOnClient(c -> java.nio.file.Files.exists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("evade").resolve("panels.json")));
         check(combatY1 > combatY0 + 100 && saved, "Doomsday panels drag independently and save (Server-facing y " + combatY0 + " -> " + combatY1 + ")");
         ctx.setScreen(() -> null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int panelXRaw(String title) {
+        try {
+            var f = net.evadeclient.gui.EvadeMenu.class.getDeclaredField("PANEL_POS");
+            f.setAccessible(true);
+            var m = (java.util.Map<String, int[]>) f.get(null);
+            return m == null || m.get(title) == null ? -1 : m.get(title)[0];
+        } catch (Exception e) { throw new AssertionError(e); }
     }
 
     @SuppressWarnings("unchecked")

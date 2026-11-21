@@ -38,7 +38,6 @@ const grid = one("#grid");
 if (grid) {
   const q = one("#q"), empty = one("#empty");
   let filter = "all";
-  const RISK = { low: "Low risk", med: "Medium risk", high: "High risk" };
   const apply = () => {
     const term = (q.value || "").trim().toLowerCase();
     let shown = 0;
@@ -62,7 +61,6 @@ if (grid) {
   const RANGE = st => st.type === "slider" ? `${esc(st.min)} to ${esc(st.max)}`
     : st.type === "mode" ? st.options.map(esc).join(", ")
     : st.type === "toggle" ? "On or off" : st.type === "color" ? "Any colour" : st.type === "key" ? "Any key" : "—";
-  const RISKWORD = { low: "Low — only changes what you see, or minor.", med: "Medium — anti-cheats can catch it.", high: "High — obvious to anti-cheats." };
   let MODS = [];
   const detail = one("#detail"), listView = one("#listView");
 
@@ -78,7 +76,7 @@ if (grid) {
       <div class="detail-hero">
         <img src="${CAT_IMG[c] || "/assets/menu.webp"}" alt="" loading="lazy">
         <div class="detail-hero-in">
-          <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}">${RISK[m.risk]}</span></div>
+          <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk low">Server-safe</span></div>
           <h1>${esc(m.name)}</h1>
           <p>${esc(m.desc)}</p>
         </div>
@@ -86,7 +84,7 @@ if (grid) {
       <div class="detail-body">
         <section class="card detail-sec">
           <h2>What does ${esc(m.name)} do?</h2>
-          <p>${esc(m.desc)} It's in the <b>${esc(m.cat)}</b> category. Ban risk: <span class="risk ${m.risk}">${RISK[m.risk]}</span> &mdash; ${RISKWORD[m.risk]}</p>
+          <p>${esc(m.desc)} It's in the <b>${esc(m.cat)}</b> category, and it's server-safe &mdash; quality of life, not a cheat.</p>
         </section>
         <section class="card detail-sec">
           <h2>How do I turn ${esc(m.name)} on?</h2>
@@ -126,7 +124,7 @@ if (grid) {
     grid.innerHTML = mods.map(m => {
       const c = m.slug, n = m.settings.length;
       return `<button class="card mod" data-m="${esc(m.name)}" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
-        <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
+        <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span></div>
         <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>
         <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></button>`;
     }).join("");

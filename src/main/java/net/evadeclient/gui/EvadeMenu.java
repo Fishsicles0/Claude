@@ -32,10 +32,9 @@ import java.util.Map;
  */
 public class EvadeMenu extends Screen {
     private enum Page {
-        ALL("All Mods", null), COMBAT("Combat", Category.COMBAT), PVP("PvP macros", Category.PVP),
-        MOVEMENT("Movement", Category.MOVEMENT), SERVER("Server-facing", Category.SERVER), VISUALS("Visuals", Category.VISUALS),
-        WORLD("World", Category.WORLD), UTILITY("Utility", Category.UTILITY), HUD("HUD", Category.HUD),
-        MODS("Mods", Category.MODS), MISC("Misc", Category.MISC), SETTINGS("Settings", Category.CLIENT);
+        ALL("All Mods", null), VISUALS("Visuals", Category.VISUALS), MODS("Mods", Category.MODS),
+        SERVER("Server-facing", Category.SERVER), MISC("Misc", Category.MISC), HUD("HUD", Category.HUD),
+        SETTINGS("Settings", Category.CLIENT);
 
         final String label;
         final Category category;
