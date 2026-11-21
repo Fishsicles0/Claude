@@ -18,8 +18,12 @@ Projects save in the browser (and to your account when opened as a Claude artifa
 ## Website
 
 Hosted free on Cloudflare Pages: https://plumb-and-square.pages.dev (project `plumb-and-square`).
-To redeploy after changes, from this folder: `npx wrangler pages deploy . --project-name plumb-and-square --branch main`
-(`.assetsignore` keeps the README and config out of the upload).
+
+The site is served by one small Pages worker that holds every file, built by `build-site.py`
+(it also adds the `<!doctype html>` skeleton a standalone page needs). To publish changes:
+
+    python3 build-site.py
+    npx wrangler pages deploy dist --project-name plumb-and-square --branch main
 
 On the public site, projects save in each visitor's browser and exports download as normal files.
 The AI features and account sync only appear when the app is opened inside Claude.
