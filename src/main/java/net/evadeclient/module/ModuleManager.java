@@ -40,6 +40,14 @@ public class ModuleManager {
         register(new Waypoints());
         register(new Fullbright());
         register(new DamageTint());
+        register(new ClearWater());
+        register(new Particles());
+        register(new PackTweaks());
+        register(new InventoryBlur());
+        register(new BossBar());
+        register(new Scoreboard());
+        register(new TntTimer());
+        register(new ChunkBorders());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());

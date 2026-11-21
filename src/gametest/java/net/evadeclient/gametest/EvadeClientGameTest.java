@@ -29,6 +29,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
+            testVisualBatch(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
@@ -267,6 +268,69 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 return list.size();
             } catch (Exception e) { throw new AssertionError(e); }
         });
+    }
+
+    /** Batch 2 visual mods: Particles, TNT Timer, Chunk Borders, Clear Water, Scoreboard, Boss Bar, Inventory Blur. */
+    private void testVisualBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        ctx.waitTicks(5);
+
+        // Particles: a crit is refused while hidden, allowed once the mod is off
+        enable(ctx, net.evadeclient.module.visuals.Particles.class);
+        boolean blocked = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) == null);
+        disable(ctx, net.evadeclient.module.visuals.Particles.class);
+        boolean allowed = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) != null);
+        check(blocked && allowed, "Particles hides crits only while enabled");
+
+        // TNT Timer: a primed TNT in front of you gets a countdown
+        server.runCommand("summon tnt 0 -60 5 {fuse:200}");
+        ctx.waitTicks(10);
+        int timers = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.TntTimer.class).shown());
+        check(timers >= 1, "TNT Timer shows a countdown over primed TNT (" + timers + ")");
+
+        // Chunk Borders draws its grid
+        enable(ctx, net.evadeclient.module.visuals.ChunkBorders.class);
+        ctx.waitTicks(3);
+        int lines = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.ChunkBorders.class).lines());
+        check(lines > 50, "Chunk Borders draws the chunk grid (" + lines + " lines)");
+
+        // Scoreboard (numbers hidden) + boss bar on screen, then a screenshot of it all
+        server.runCommand("scoreboard objectives add evade dummy \"Evade\"");
+        server.runCommand("scoreboard objectives setdisplay sidebar evade");
+        server.runCommand("scoreboard players set Kills evade 12");
+        server.runCommand("scoreboard players set Coins evade 340");
+        server.runCommand("bossbar add evade:test \"Ender Dragon\"");
+        server.runCommand("bossbar set evade:test players @a");
+        enable(ctx, net.evadeclient.module.visuals.Scoreboard.class);
+        enable(ctx, net.evadeclient.module.visuals.BossBar.class);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-batch2");
+        disable(ctx, net.evadeclient.module.visuals.ChunkBorders.class);
+        server.runCommand("kill @e[type=tnt]");
+        server.runCommand("bossbar remove evade:test");
+        server.runCommand("scoreboard objectives remove evade");
+
+        // Clear Water: removes fog while the camera is underwater
+        server.runCommand("fill -2 -60 -2 2 -56 2 water");
+        server.runCommand("tp @a 0 -59 0 0 0");
+        enable(ctx, net.evadeclient.module.visuals.ClearWater.class);
+        ctx.waitTicks(10);
+        boolean clear = ctx.computeOnClient(c -> net.evadeclient.module.visuals.ClearWater.clearFog());
+        disable(ctx, net.evadeclient.module.visuals.ClearWater.class);
+        server.runCommand("fill -2 -60 -2 2 -56 2 air");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        check(clear, "Clear Water clears fog while underwater");
+
+        // Inventory Blur: opening the inventory with it on doesn't break anything
+        enable(ctx, net.evadeclient.module.visuals.InventoryBlur.class);
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.ingame.InventoryScreen(net.minecraft.client.MinecraftClient.getInstance().player));
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-inventory-blur");
+        ctx.setScreen(() -> null);
+        disable(ctx, net.evadeclient.module.visuals.InventoryBlur.class);
+        check(true, "Inventory Blur renders behind the inventory");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

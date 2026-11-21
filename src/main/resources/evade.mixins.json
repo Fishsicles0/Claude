@@ -21,7 +21,10 @@
     "MinecraftClientAccessor",
     "MinecraftClientCooldownAccessor",
     "MouseMixin",
-    "SimpleOptionAccessor"
+    "SimpleOptionAccessor",
+    "BossBarHudMixin",
+    "ParticleManagerMixin",
+    "HandledScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
