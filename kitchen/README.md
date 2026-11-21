@@ -14,3 +14,12 @@ A web app for kitchen and bath remodelers: `index.html` plus plain scripts in `j
 - **Estimate**: live BOM with editable price book, customer proposal, frameless cut list and door/drawer order (CSV).
 
 Projects save in the browser (and to your account when opened as a Claude artifact). Export/import project files as JSON.
+
+## Website
+
+Hosted free on Cloudflare Pages: https://plumb-and-square.pages.dev (project `plumb-and-square`).
+To redeploy after changes, from this folder: `npx wrangler pages deploy . --project-name plumb-and-square --branch main`
+(`.assetsignore` keeps the README and config out of the upload).
+
+On the public site, projects save in each visitor's browser and exports download as normal files.
+The AI features and account sync only appear when the app is opened inside Claude.
