@@ -28,11 +28,40 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             ctx.waitTicks(20);
 
             testQualityOfLife(ctx, sp);
+            testQolHud(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
             testTexturePack(ctx, sp);
         }
         titleScreenshot(ctx);
+    }
+
+    /** The new Lunar-style HUD/info readouts: Item Counter, Saturation, Stopwatch. */
+    private void testQolHud(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        server.runCommand("clear @a");
+        server.runCommand("item replace entity @a hotbar.0 with cobblestone 64");
+        ctx.waitTicks(5);
+        // Saturation is tracked client-side (not synced from the server), so set it on the client.
+        ctx.runOnClient(c -> c.player.getHungerManager().setSaturationLevel(7f));
+
+        var counter = enable(ctx, net.evadeclient.module.hud.ItemCounterHud.class);
+        ctx.runOnClient(c -> { for (var st : counter.getSettings()) if (st.getName().equals("Track"))
+            ((net.evadeclient.setting.ModeSetting) st).fromJson(new com.google.gson.JsonPrimitive("Blocks")); });
+        enable(ctx, net.evadeclient.module.hud.SaturationHud.class);
+        enable(ctx, net.evadeclient.module.hud.StopwatchHud.class);
+        ctx.waitTicks(25);
+        int count = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.ItemCounterHud.class).count());
+        float sat = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.SaturationHud.class).saturation());
+        long elapsed = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.StopwatchHud.class).elapsedMs());
+        disable(ctx, net.evadeclient.module.hud.ItemCounterHud.class);
+        disable(ctx, net.evadeclient.module.hud.SaturationHud.class);
+        disable(ctx, net.evadeclient.module.hud.StopwatchHud.class);
+        check(count == 64, "Item Counter counts 64 blocks (" + count + ")");
+        check(sat > 6 && sat <= 7.5f, "Saturation reads the current value (" + sat + ")");
+        check(elapsed > 500, "Stopwatch counts up while on (" + elapsed + " ms)");
     }
 
     private static void titleScreenshot(ClientGameTestContext ctx) {

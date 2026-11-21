@@ -72,6 +72,10 @@ public class ModuleManager {
         register(new SpeedHud());
         register(new MemoryHud());
         register(new InventoryHud());
+        register(new StopwatchHud());
+        register(new SaturationHud());
+        register(new ItemCounterHud());
+        register(new PvpInfoHud());
         // Client
         register(new ClientSettings());
     }
