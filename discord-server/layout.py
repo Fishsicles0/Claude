@@ -27,6 +27,7 @@ CLIENT = {
     "version": "1.0.0",                   # bump and run setup_server.py --update after a release
     "color": 0x5865F2,                    # brand colour for embeds
 }
+BOT_NAME = "Evade Client"   # the bot/app name, used on its Terms and Privacy pages
 ICON_PATH = ""   # path to a PNG/JPG for the server icon, or leave empty
 
 # ── Security settings (used by setup_server.py and bot.py) ───────────────────

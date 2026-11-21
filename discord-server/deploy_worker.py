@@ -48,9 +48,38 @@ def config() -> dict:
     }
 
 
+PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{title} · {name}</title><style>
+:root{{color-scheme:dark;--bg:#0c0809;--card:#151012;--text:#ece4e5;--muted:#b3a3a5;--accent:#ff4552;--line:#2a1f21}}
+@media (prefers-color-scheme:light){{:root:not([data-theme=dark]){{color-scheme:light;--bg:#faf7f7;--card:#fff;--text:#1d1517;
+--muted:#6b5c5e;--accent:#d62835;--line:#eadfe0}}}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}}
+header{{border-bottom:1px solid var(--line);background:linear-gradient(115deg,rgba(255,69,82,.16),transparent 60%)}}
+header div,main{{max-width:760px;margin:0 auto;padding:20px 16px}}header b{{font:italic 900 22px/1 system-ui;letter-spacing:-.5px}}
+header b span{{color:var(--accent)}}header nav{{float:right;font-size:14px}}header nav a{{margin-left:14px}}
+a{{color:var(--accent)}}h1{{font-size:32px;margin:8px 0 4px}}h2{{font-size:20px;margin:32px 0 8px}}
+table{{width:100%;border-collapse:collapse;font-size:14px;display:block;overflow-x:auto}}th,td{{text-align:left;vertical-align:top;
+padding:8px 10px;border-bottom:1px solid var(--line)}}th{{color:var(--muted);font-weight:600}}code{{background:var(--card);
+padding:1px 5px;border-radius:4px}}li{{margin:4px 0}}footer{{color:var(--muted);font-size:13px;padding-bottom:40px}}
+</style></head><body><header><div><b>EVADE <span>CLIENT</span></b><nav><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav></div></header>
+<main>{body}<footer><p>© 2026 {name}</p></footer></main></body></html>"""
+
+
+def legal_pages() -> dict:
+    import markdown
+    pages = {}
+    for slug in ("terms", "privacy"):
+        md = (WORKER / "legal" / f"{slug}.md").read_text()
+        title = md.splitlines()[0].lstrip("# ").strip()
+        body = markdown.markdown(md, extensions=["tables"])
+        pages["/" + slug] = PAGE.format(title=title, name=layout.BOT_NAME, body=body)
+    return pages
+
+
 def build() -> Path:
     src = (WORKER / "bot.js").read_text()
     out = src.replace("/*CONFIG*/ {}", json.dumps(config(), indent=1, ensure_ascii=False), 1)
+    out = out.replace("/*PAGES*/ {}", json.dumps(legal_pages(), ensure_ascii=False), 1)
     DIST.mkdir(parents=True, exist_ok=True)
     (DIST / "_worker.js").write_text(out)
     (DIST / "index.html").write_text("<!doctype html><title>bot</title><p>Bot is running.</p>")
