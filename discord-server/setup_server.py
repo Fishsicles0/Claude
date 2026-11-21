@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the Evade Client Discord server from layout.py.
+"""Build your Minecraft client's Discord server from layout.py.
 
     export DISCORD_TOKEN=...            # your bot's token (never commit it)
     python setup_server.py GUILD_ID     # create whatever is missing
@@ -13,7 +13,6 @@ Everything is matched by name, so it is safe to run again. Nothing is ever delet
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -24,39 +23,15 @@ import discord
 import layout
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parent
-VERSION_JSON = REPO / "site" / "version.json"
-ICON = REPO / "site" / "apple-touch-icon.png"
-MARKER = "evade-setup:"  # embed footer that marks posts this script made
+REASON = f"{layout.CLIENT['name']} server setup"
+MARKER = "server-setup:"  # embed footer that marks posts this script made
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def version_info() -> dict:
-    """Placeholders for the starter posts, read from the website's version.json."""
-    v = {"version": "?", "minecraft": "1.21.11", "loader": "Fabric", "date": "?",
-         "jar": "downloads/evade-client-latest.jar", "jar_size": "", "jar_sha": "?",
-         "installer_exe": "downloads/Evade-Installer.exe", "installer_exe_size": "",
-         "installer_jar": "downloads/EvadeInstaller.jar", "installer_jar_size": "",
-         "pack": "downloads/Evade-Texture-Pack.zip", "pack_size": "", "site": layout.SITE}
-    try:
-        data = json.loads(VERSION_JSON.read_text())
-    except (OSError, ValueError):
-        print(f"! could not read {VERSION_JSON}; posts will show placeholder versions")
-        return v
-    inst = data.get("installer", {})
-    pack = data.get("texturePack", {})
-    v.update(
-        version=data.get("version", v["version"]), minecraft=data.get("minecraft", v["minecraft"]),
-        loader=data.get("loader", v["loader"]), date=data.get("date", v["date"]),
-        jar=data.get("file", v["jar"]), jar_size=data.get("size", ""), jar_sha=data.get("sha256", "?"),
-        installer_exe=inst.get("windows", {}).get("file", v["installer_exe"]),
-        installer_exe_size=inst.get("windows", {}).get("size", ""),
-        installer_jar=inst.get("jar", {}).get("file", v["installer_jar"]),
-        installer_jar_size=inst.get("jar", {}).get("size", ""),
-        pack=pack.get("file", v["pack"]), pack_size=pack.get("size", ""),
-    )
-    return v
+def placeholders() -> dict:
+    """Values for {placeholders} in the starter posts."""
+    return dict(layout.CLIENT)
 
 
 def text_name(name: str) -> str:
@@ -120,10 +95,11 @@ def dry_run() -> None:
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 class Setup:
-    def __init__(self, guild: discord.Guild, update: bool, set_icon: bool):
+    def __init__(self, guild: discord.Guild, update: bool, icon: Path | None, rename: bool = False):
         self.g = guild
         self.update = update
-        self.set_icon = set_icon
+        self.icon = icon
+        self.rename = rename
         self.community = "COMMUNITY" in guild.features
         self.roles: dict[str, discord.Role] = {}
         self.channels: dict[str, discord.abc.GuildChannel] = {}
@@ -161,11 +137,11 @@ class Setup:
                           hoist=spec.get("hoist", False), mentionable=spec.get("mentionable", False))
             role = existing.get(spec["name"])
             if role is None:
-                role = await self.g.create_role(name=spec["name"], reason="Evade setup", **kwargs)
+                role = await self.g.create_role(name=spec["name"], reason=REASON, **kwargs)
                 self.log(f"+ role @{role.name}")
                 self.made += 1
             elif self.update and not role.managed and role < self.g.me.top_role:
-                await role.edit(reason="Evade setup", **kwargs)
+                await role.edit(reason=REASON, **kwargs)
                 self.log(f"~ role @{role.name}")
                 self.made += 1
             self.roles[spec["name"]] = role
@@ -179,7 +155,7 @@ class Setup:
             self.log("! some roles sit above the bot's role; drag the bot's role to the top to fix order")
         positions = {r: top - 1 - i for i, r in enumerate(movable) if top - 1 - i > 0}
         if any(r.position != p for r, p in positions.items()):
-            await self.g.edit_role_positions(positions, reason="Evade setup")
+            await self.g.edit_role_positions(positions, reason=REASON)
             self.log("~ role order")
 
     def overwrites(self, spec: dict) -> dict:
@@ -197,11 +173,11 @@ class Setup:
             cat = discord.utils.get(self.g.categories, name=cat_spec["name"])
             if cat is None:
                 cat = await self.g.create_category(cat_spec["name"], overwrites=cat_ow,
-                                                   position=pos, reason="Evade setup")
+                                                   position=pos, reason=REASON)
                 self.log(f"+ category {cat.name}")
                 self.made += 1
             elif self.update:
-                await cat.edit(overwrites=cat_ow, position=pos, reason="Evade setup")
+                await cat.edit(overwrites=cat_ow, position=pos, reason=REASON)
 
             for ch_pos, spec in enumerate(cat_spec["channels"]):
                 await self.make_channel(cat, cat_spec, spec, ch_pos)
@@ -228,7 +204,7 @@ class Setup:
         if wants_forum:
             self.log(f"! #{name} exists as a text channel; rename or delete it and run again to get a forum")
 
-        common = dict(category=cat, overwrites=ow, position=position, reason="Evade setup")
+        common = dict(category=cat, overwrites=ow, position=position, reason=REASON)
         if ch is None:
             if kind == "voice":
                 ch = await self.g.create_voice_channel(name, user_limit=spec.get("user_limit", 0), **common)
@@ -244,7 +220,7 @@ class Setup:
             self.log(f"+ {kind} {name}")
             self.made += 1
         elif self.update:
-            edit = dict(category=cat, overwrites=ow, position=position, reason="Evade setup")
+            edit = dict(category=cat, overwrites=ow, position=position, reason=REASON)
             if isinstance(ch, discord.VoiceChannel):
                 edit["user_limit"] = spec.get("user_limit", 0)
             elif isinstance(ch, discord.ForumChannel):
@@ -269,9 +245,11 @@ class Setup:
         if self.community:
             edit["rules_channel"] = self.channels.get(layout.RULES_CHANNEL)
             edit["public_updates_channel"] = self.channels.get(layout.UPDATES_CHANNEL)
-        if self.set_icon and ICON.exists():
-            edit["icon"] = ICON.read_bytes()
-        await self.g.edit(reason="Evade setup", **{k: v for k, v in edit.items() if v is not None})
+        if self.rename:
+            edit["name"] = layout.CLIENT["name"]
+        if self.icon:
+            edit["icon"] = self.icon.read_bytes()
+        await self.g.edit(reason=REASON, **{k: v for k, v in edit.items() if v is not None})
         self.log("~ server settings (verification, content filter, notifications"
                  + (", icon" if "icon" in edit else "") + ")")
 
@@ -279,9 +257,9 @@ class Setup:
         alert = self.channels.get(layout.AUTOMOD_ALERT_CHANNEL)
         exempt = [self.roles[r] for r in layout.STAFF]
         rules = [
-            ("Evade: mention spam", discord.AutoModTrigger(
+            (f"{layout.CLIENT['short']}: mention spam", discord.AutoModTrigger(
                 type=discord.AutoModRuleTriggerType.mention_spam, mention_limit=5)),
-            ("Evade: scam links", discord.AutoModTrigger(
+            (f"{layout.CLIENT['short']}: scam links", discord.AutoModTrigger(
                 type=discord.AutoModRuleTriggerType.keyword, keyword_filter=layout.SCAM_KEYWORDS)),
         ]
         try:
@@ -298,12 +276,12 @@ class Setup:
                     await self.g.create_automod_rule(
                         name=name, event_type=discord.AutoModRuleEventType.message_send,
                         trigger=trigger, actions=actions, enabled=True, exempt_roles=exempt,
-                        reason="Evade setup")
+                        reason=REASON)
                     self.log(f"+ automod {name}")
                     self.made += 1
                 elif self.update:
                     await existing[name].edit(trigger=trigger, actions=actions, exempt_roles=exempt,
-                                              reason="Evade setup")
+                                              reason=REASON)
                     self.log(f"~ automod {name}")
             except discord.HTTPException as e:
                 self.log(f"! AutoMod rule {name!r} failed: {e}")
@@ -319,14 +297,14 @@ class Setup:
     def embed(self, key: str, i: int, spec: dict, v: dict) -> discord.Embed:
         fmt = lambda s: self.mentions(s.format(**v))
         e = discord.Embed(title=fmt(spec["title"]), description=fmt(spec["description"]),
-                          colour=layout.BRAND_RED)
+                          colour=layout.BRAND)
         for name, value, inline in spec.get("fields", []):
             e.add_field(name=fmt(name), value=fmt(value), inline=inline)
-        e.set_footer(text=f"Evade Client · {MARKER}{key}:{i}")
+        e.set_footer(text=f"{layout.CLIENT['name']} · {MARKER}{key}:{i}")
         return e
 
     async def posts(self) -> None:
-        v = version_info()
+        v = placeholders()
         for key, specs in layout.POSTS.items():
             ch = self.channels.get(key)
             if not isinstance(ch, discord.TextChannel):
@@ -356,7 +334,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("guild_id", nargs="?", type=int, help="your server's ID (right-click the server > Copy Server ID)")
     ap.add_argument("--update", action="store_true", help="also sync existing roles, channels and posts")
-    ap.add_argument("--no-icon", action="store_true", help="don't set the server icon")
+    ap.add_argument("--icon", metavar="PNG", default=layout.ICON_PATH or None,
+                    help="image for the server icon (default: ICON_PATH in layout.py)")
+    ap.add_argument("--name", action="store_true", help="also rename the server to the client's name")
     ap.add_argument("--dry-run", action="store_true", help="print the plan and exit")
     ap.add_argument("--invite", metavar="APPLICATION_ID", help="print the bot invite link and exit")
     args = ap.parse_args()
@@ -372,6 +352,9 @@ def main() -> None:
         return
     if not args.guild_id:
         ap.error("give your server ID, or use --dry-run")
+    icon = Path(args.icon).expanduser() if args.icon else None
+    if icon and not icon.is_file():
+        sys.exit(f"Icon not found: {icon}")
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
         sys.exit("Set DISCORD_TOKEN to your bot's token first (Developer Portal > Bot > Reset Token).")
@@ -385,7 +368,7 @@ def main() -> None:
             if guild is None:
                 print(f"The bot isn't in server {args.guild_id}. Invite it with --invite first.")
                 return
-            await Setup(guild, update=args.update, set_icon=not args.no_icon).run()
+            await Setup(guild, update=args.update, icon=icon, rename=args.name).run()
         except discord.Forbidden as e:
             print(f"Discord refused a change: {e}. Make sure the bot's role is at the top of the role list.")
         finally:

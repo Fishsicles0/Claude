@@ -1,14 +1,25 @@
-# Evade Client Discord server
+# Discord server for your Minecraft client
 
-`setup_server.py` builds the whole Evade community server (roles, categories, channels, permissions,
-AutoMod and starter posts) in one run. The layout lives in `layout.py`; edit that to change anything.
+`setup_server.py` builds a full community server for a Minecraft PvP / performance client
+(roles, categories, channels, permissions, AutoMod and starter posts) in one run. The layout
+lives in `layout.py`.
 
-## Setup (about 5 minutes)
+## 1. Fill in your client
+
+Open `layout.py` and edit the `CLIENT` block at the top: name, website, download link,
+Minecraft version, loader, menu key, current version and brand colour. Set `ICON_PATH` to
+your logo if you have one. Every post, channel topic and AutoMod rule uses these values.
+
+Do this **before the first run**. Channels are matched by name, so changing the client's name
+afterwards creates a second "Get …" category and new AutoMod rules instead of renaming the old ones.
+
+Also look at the FAQ post in `POSTS["faq"]`: the "Is it free?" answer is a placeholder.
+
+## 2. Run it (about 5 minutes)
 
 1. **Make an empty server.** In Discord: **+** > *Create My Own* > *For a club or community*.
-   Delete the default channels if you like (the script won't touch them).
-2. **Make a bot.** Go to the [Developer Portal](https://discord.com/developers/applications) and click *New Application*,
-   name it "Evade Setup", then open *Bot* > *Reset Token* and copy the token. Copy the *Application ID* from *General Information*.
+2. **Make a bot.** In the [Developer Portal](https://discord.com/developers/applications), click *New Application*,
+   then open *Bot* > *Reset Token* and copy the token. Copy the *Application ID* from *General Information*.
 3. **Invite it:**
    ```bash
    pip install -r requirements.txt
@@ -16,52 +27,51 @@ AutoMod and starter posts) in one run. The layout lives in `layout.py`; edit tha
    ```
    Open the link and add the bot to your server. It asks for Administrator, which the setup needs.
 4. **Get the server ID:** *User Settings* > *Advanced* > turn on *Developer Mode*, then right-click the server > *Copy Server ID*.
-5. **Run it:**
+5. **Build it:**
    ```bash
    export DISCORD_TOKEN='paste-token-here'     # Windows PowerShell: $env:DISCORD_TOKEN='...'
    python setup_server.py --dry-run            # see what it will build
-   python setup_server.py YOUR_SERVER_ID
+   python setup_server.py YOUR_SERVER_ID --name   # --name also renames the server to your client
    ```
-6. **Turn on Community** (*Server Settings* > *Enable Community*), then run it again with `--update`.
-   That converts `#announcements`/`#changelog` into announcement channels and makes `#support`,
-   `#bug-reports` and `#suggestions` into forums with tags. (Discord only allows those on Community servers.)
-   Before re-running, delete the plain-text `#support`, `#bug-reports` and `#suggestions` so they can be recreated as forums.
-7. **Kick the setup bot** when you're done, or take away its Administrator role. Give yourself the **Owner** role.
+6. **Turn on Community** (*Server Settings* > *Enable Community*). Discord only allows announcement
+   channels and forums on Community servers, so before this they're plain text channels. Delete the text
+   `#support`, `#bug-reports` and `#suggestions`, then run again with `--update` to recreate them as forums
+   with tags and turn `#announcements`/`#changelog` into announcement channels.
+7. **Remove the setup bot** when you're done (it has Administrator). Give yourself the **Owner** role.
 
-Re-running is safe: everything is matched by name, so it only creates what's missing. `--update` also
-re-applies permissions, topics and the starter posts (it edits its own posts in place). Nothing is ever deleted.
-The download post reads versions, sizes and the SHA-256 from `site/version.json`, so after a release run
-`python setup_server.py SERVER_ID --update` to refresh it.
+Re-running is safe: it only creates what's missing and never deletes anything. `--update` also re-applies
+permissions and topics and edits its own starter posts in place, so after a release bump `version` in
+`layout.py` and run `python setup_server.py SERVER_ID --update`.
 
 ## What you get
 
 | Category | Channels | Who sees it |
 |---|---|---|
-| 📌 Start Here | welcome, rules, announcements, changelog, roadmap | everyone, staff-only posting |
-| ⬇️ Get Evade | download, install-guide | everyone, staff-only posting |
-| 💬 Community | general, hud-setups, clips-and-media, texture-packs, off-topic, bot-commands | everyone |
+| 📌 Start Here | welcome, rules, announcements, changelog, roadmap, giveaways | everyone, staff-only posting |
+| ⬇️ Get My Client | download, install-guide, faq | everyone, staff-only posting |
+| 💬 Community | general, fps-and-performance, hud-setups, cosmetics, clips-and-media, texture-packs, looking-for-group, off-topic, bot-commands | everyone |
 | 🛠️ Support | support, bug-reports, suggestions (forums with tags) | everyone |
-| 🧪 Beta | beta-announcements, beta-builds, beta-feedback | Beta Tester + staff |
+| 🎥 Creators | creator-chat, creator-assets | Content Creator, Partner, staff |
+| 🧪 Beta | beta-announcements, beta-builds, beta-feedback | Beta Tester, staff |
 | 🔧 Development | dev-chat, github-feed, build-status, website | Developer |
 | 🛡️ Staff | staff-chat, mod-log | Developer, Moderator, Support Team |
-| 🔊 Voice | Lounge, PvP 1, PvP 2, Duos, Beta Testing, Staff | mixed |
+| 🔊 Voice | Lounge, PvP 1, PvP 2, Duos, Streaming, Beta Testing, Staff | mixed |
 
-**Roles:** Owner (admin), Developer, Moderator, Support Team, Beta Tester, Content Creator, Member, plus opt-in
-ping roles Update Pings and Event Pings.
+**Roles:** Owner (admin), Developer, Moderator, Support Team, Partner, Content Creator, Beta Tester,
+Supporter, Member, plus opt-in Update Pings, Event Pings and Giveaway Pings.
 
-**Also set:** server icon (the Evade logo from `site/`; skip with `--no-icon`), Medium verification,
-explicit-media filter for everyone, @mentions-only notifications by default, and two AutoMod rules
-(mention spam, and scam phrases such as "free nitro" or "cracked evade") that alert `#mod-log`.
+**Also set:** Medium verification, explicit-media filter for everyone, @mentions-only notifications by
+default, optional server icon and name, and two AutoMod rules (mention spam, and scam phrases such as
+"free nitro", "cracked my client" or "cape generator") that alert `#mod-log`.
 
-**Starter posts:** welcome, rules, download links, install guide, roadmap and a beta-tester intro.
-The rules make clear Evade is for singleplayer, your own servers, or servers that allow modified clients,
-matching the main README.
+**Starter posts:** welcome, rules, download, install guide, FAQ, roadmap and a beta-tester intro. The rules
+say it's a legit client, ban hacked clients and anti-cheat bypass talk, and warn that staff never DM downloads.
 
-## Things to finish by hand
+## Finish by hand
 
-- **Ping roles:** *Server Settings* > *Onboarding*. Add a question like "Want notifications?" with
-  Update Pings and Event Pings as answers, so members can pick them themselves.
-- **GitHub feed:** in `#github-feed`, *Edit Channel* > *Integrations* > *Webhooks* > *New Webhook*, copy the URL,
-  then in the GitHub repo go to *Settings* > *Webhooks*, paste it with `/github` on the end, and choose *application/json*.
-- **Member role:** to give it automatically, use Onboarding (default role) or a bot such as Carl-bot.
-- **Website link:** add an invite (*Invite People* > *Edit invite link* > never expire) to evadeclient.com.
+- **Ping roles:** *Server Settings* > *Onboarding*. Add a question like "Want notifications?" with the
+  ping roles as answers so members can pick them.
+- **Member role:** give it automatically with Onboarding's default roles, or a bot such as Carl-bot.
+- **GitHub feed:** in `#github-feed`, *Edit Channel* > *Integrations* > *Webhooks* > *New Webhook*. In your
+  GitHub repo, add that URL with `/github` on the end under *Settings* > *Webhooks* (content type *application/json*).
+- **Website link:** make a never-expiring invite and put it on your site.
