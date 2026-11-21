@@ -31,6 +31,7 @@ FULL = {
     "evade-gui-cards":     "gui-cards.webp",
     "evade-gui-compact":   "gui-compact.webp",
     "evade-gui-list":      "gui-list.webp",
+    "evade-profiles":      "gui-profiles.webp",
     "evade-zoom":          "zoom.webp",
     "evade-pack-hud":      "pack-hud.webp",
     "evade-pack-inventory":"pack-inventory.webp",

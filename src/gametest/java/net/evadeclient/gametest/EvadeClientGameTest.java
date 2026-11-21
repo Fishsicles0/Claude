@@ -31,6 +31,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testQolHud(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
+            testProfiles(ctx);
             testTexturePack(ctx, sp);
         }
         titleScreenshot(ctx);
@@ -266,6 +267,42 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 return list.size();
             } catch (Exception e) { throw new AssertionError(e); }
         });
+    }
+
+    /** Profiles: each one remembers its own module state, and switching restores it. */
+    private void testProfiles(ClientGameTestContext ctx) {
+        boolean ok = ctx.computeOnClient(c -> {
+            var P = EvadeClient.profiles;
+            NoFog nf = EvadeClient.modules.get(NoFog.class);
+            if (!"Default".equals(P.active())) P.switchTo("Default");
+            P.delete("GTProfile"); // clean slate if a previous run left one
+            nf.setEnabled(true);
+            EvadeClient.config.save();          // Default: NoFog ON
+            P.create("GTProfile");              // snapshot (ON), now active
+            nf.setEnabled(false);
+            EvadeClient.config.save();          // GTProfile: NoFog OFF
+            P.switchTo("Default");
+            boolean defaultOn = nf.isEnabled(); // expect true
+            P.switchTo("GTProfile");
+            boolean testOff = !nf.isEnabled();  // expect true (NoFog off)
+            // cleanup
+            P.switchTo("Default");
+            P.delete("GTProfile");
+            return defaultOn && testOff;
+        });
+        check(ok, "Profiles keep separate module state and restore on switch");
+        // create a couple of profiles so the page looks real, then screenshot it
+        ctx.runOnClient(c -> {
+            EvadeClient.profiles.create("PvP");
+            EvadeClient.profiles.create("SkyBlock");
+            EvadeClient.profiles.switchTo("Default");
+        });
+        ctx.setScreen(EvadeMenu::new);
+        ctx.runOnClient(c -> EvadeMenu.openProfilesForTest());
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-profiles");
+        ctx.runOnClient(c -> { EvadeClient.profiles.delete("PvP"); EvadeClient.profiles.delete("SkyBlock"); });
+        ctx.setScreen(() -> null);
     }
 
     private void testHud(ClientGameTestContext ctx, TestSingleplayerContext sp) {

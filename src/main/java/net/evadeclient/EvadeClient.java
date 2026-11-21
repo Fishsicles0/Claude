@@ -19,12 +19,13 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.3.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
     public static CommandManager commands;
     public static ConfigManager config;
+    public static net.evadeclient.config.ProfileManager profiles;
 
     public static MinecraftClient mc() {
         return MinecraftClient.getInstance();
@@ -36,6 +37,9 @@ public class EvadeClient implements ClientModInitializer {
         commands = new CommandManager();
         config = new ConfigManager();
         config.load();
+        profiles = new net.evadeclient.config.ProfileManager(config);
+        config.profiles = profiles;
+        profiles.init();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> modules.onTick());
         HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));

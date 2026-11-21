@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 1.2.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta name="description" content="How to use Evade Client 1.3.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 1.2.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta property="og:description" content="How to use Evade Client 1.3.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.2.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.3.0">
 </head>
 <body data-page="docs">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.2.0</span>
+      <span class="nav-ver">v1.3.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -67,6 +67,7 @@
   <div class="faq-layout">
     <aside class="faq-nav" aria-label="Docs sections">
       <a href="#menu">The menu</a>
+      <a href="#profiles">Profiles</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
       <a href="#hud">HUD editor</a>
@@ -85,6 +86,17 @@
         </ul>
         <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
         <p><b>Three menu styles.</b> Under <b>Settings &rarr; GUI Style</b> you can switch between <b>List</b> (the default: spacious full-width rows with a description, keybind chip and settings), <b>Cards</b> (a grid of cards) and <b>Compact</b> (a dense single-column list). The <b>All / Enabled</b> filter at the top right shows either every module or only the ones you have on. The controls are the same in all three.</p>
+      </div>
+
+      <div class="doc-sec rv" id="profiles">
+        <h2>Profiles</h2>
+        <p>Open <b>Profiles</b> in the menu to keep separate setups for different games. Each profile remembers its own enabled mods, every setting, your keybinds and your HUD layout.</p>
+        <ul>
+          <li>Type a name and click <b>Create</b> to save your current setup as a new profile.</li>
+          <li>Click <b>Use</b> on any profile to switch to it &mdash; your current profile is saved first, so nothing is lost.</li>
+          <li>The <b>×</b> deletes a profile (you can't delete the active one or your last one).</li>
+        </ul>
+        <p>Profiles live in <span class="mono">config/evade/profiles/</span>, one <span class="mono">.json</span> each.</p>
       </div>
 
       <div class="doc-sec rv" id="keys">
@@ -150,10 +162,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.2.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.3.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.2.0" defer></script>
+<script src="/assets/site.js?v=1.3.0" defer></script>
 </body>
 </html>
