@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective:** November 21, 2026
+**Effective:** November 21, 2026 (updated to cover warnings and reports)
 
 This policy explains what the **Evade Client** Discord bot (the "Bot") collects, why, and what you can do about it. The Bot works only inside the Evade Client Discord server.
 
@@ -13,6 +13,8 @@ This policy explains what the **Evade Client** Discord bot (the "Bot") collects,
 | A transcript of your ticket | When it's closed | Kept for staff records, and sent to you by DM |
 | Short-lived timers tied to your user ID | After a failed verification or a new ticket | To enforce cooldowns. They delete themselves within minutes |
 | Records of moderation actions | When staff use a command, or when you verify | Posted in staff-only log channels for accountability |
+| Warnings staff give you (reason, who gave it, when) | When a moderator warns you | So staff can see repeat problems. Kept until an Admin clears them |
+| A message or user you report | When you use Report message / Report user | Copied into a private report ticket for staff |
 
 We **don't** collect your email, IP address, payment details or messages outside tickets. We don't sell your data, show ads or track you across other sites.
 
@@ -22,6 +24,7 @@ We **don't** collect your email, IP address, payment details or messages outside
 
 ## How long we keep it
 - Cooldown timers: a few minutes at most.
+- Warnings: until an Admin clears them.
 - Ticket transcripts and moderation logs: until staff delete them.
 - Everything else lives in Discord for as long as the Server or the messages exist.
 

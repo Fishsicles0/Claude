@@ -34,7 +34,7 @@ RUNTIME_PERMS = [
     "view_channel", "send_messages", "send_messages_in_threads", "embed_links", "attach_files",
     "read_message_history", "add_reactions", "use_external_emojis", "manage_messages",
     "manage_threads", "manage_channels", "manage_roles", "moderate_members", "kick_members",
-    "view_audit_log", "connect",
+    "view_audit_log", "connect", "ban_members",
 ]
 # Every category gives the bot these, so it keeps working without Administrator.
 BOT_OVERWRITE = dict(view_channel=True, send_messages=True, embed_links=True, attach_files=True,

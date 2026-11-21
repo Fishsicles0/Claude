@@ -5,7 +5,7 @@
 These terms cover the **Evade Client** Discord bot (the "Bot") and the Evade Client Discord server (the "Server"). By using the Bot, for example by pressing Verify, opening a ticket or running a command, you agree to them. If you don't agree, don't use the Bot.
 
 ## 1. What the Bot does
-The Bot runs only in the Evade Client Discord server. It verifies new members, opens and closes support tickets, saves ticket transcripts, and gives staff moderation commands such as `/lockdown`, `/raidmode` and `/purge`.
+The Bot runs only in the Evade Client Discord server. It verifies new members, opens and closes support tickets, saves ticket transcripts, lets members report messages and users to staff, and gives staff moderation tools such as warnings, timeouts, kicks, bans, `/lockdown` and `/raidmode`. Moderation actions are logged, and the Bot may DM you when one is taken against you.
 
 ## 2. Who can use it
 You must follow [Discord's Terms of Service](https://discord.com/terms) and [Community Guidelines](https://discord.com/guidelines), which includes meeting Discord's minimum age in your country.

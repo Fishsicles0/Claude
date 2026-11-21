@@ -150,7 +150,12 @@ async function answerCaptcha(env, it, ctx) {
     console.log(e.message);
     return update({ content: "I couldn't give you the Member role. Please tell staff.", embeds: [], components: [] });
   }
-  ctx.waitUntil(log(env, "member-log", { title: "Verified", color: GREEN, description: `<@${uid}>` }));
+  ctx.waitUntil(Promise.all([
+    log(env, "member-log", { title: "Verified", color: GREEN, description: `<@${uid}>` }),
+    CONFIG.channels.general && discord(env, "POST", `/channels/${CONFIG.channels.general}/messages`, {
+      content: `👋 Welcome <@${uid}> to **${CONFIG.name}**! Grab the client in <#${CONFIG.channels.download}> and say hi.`,
+      allowed_mentions: { users: [uid] } }).catch(() => {}),
+  ]));
   return update({ content: "✅ You're verified. Welcome!", embeds: [], components: [] });
 }
 
@@ -171,11 +176,13 @@ async function openTicketMenu(env, it) {
   ] } });
 }
 
-async function createTicket(env, it) {
-  const kind = it.data.custom_id.split(":")[1], t = ticketType(kind);
-  const user = it.member.user;
+function ticketFromModal(env, it) {
   const field = (id) => it.data.components.flatMap((r) => r.components).find((c) => c.custom_id === id)?.value || "";
-  const subject = field("subject"), details = field("details");
+  return createTicket(env, it, it.data.custom_id.split(":")[1], field("subject"), field("details"));
+}
+
+async function createTicket(env, it, kind, subject, details) {
+  const t = ticketType(kind), user = it.member.user;
   try {
     const channels = await discord(env, "GET", `/guilds/${CONFIG.guild_id}/channels`);
     const open = channels.filter((c) => c.parent_id === CONFIG.categories.tickets && TOPIC.exec(c.topic || "")?.[1] === user.id);
@@ -347,7 +354,7 @@ async function command(env, it, ctx) {
     ctx.waitUntil(postPanels(env).then(() => followup(env, it, { content: "Panels posted." })));
     return deferred();
   }
-  return reply("Unknown command.");
+  return moreCommands(env, it, ctx);
 }
 
 async function setLock(env, it, locked, channelId) {
@@ -406,6 +413,228 @@ async function purge(env, it, count, userId) {
   }
 }
 
+// ── Moderation, member tools and reports ─────────────────────────────────────
+
+const STAFF_KEYS = ["mod", "developer", ...CONFIG.admins];
+const isAdmin = (m) => hasRole(m, CONFIG.admins);
+const fmtDur = (min) => min >= 1440 ? `${min / 1440} day(s)` : min >= 60 ? `${min / 60} hour(s)` : `${min} minute(s)`;
+
+function target(it, name = "member") {
+  const id = opt(it, name);
+  return { id, user: it.data.resolved?.users?.[id], member: it.data.resolved?.members?.[id] };
+}
+
+// Can `actor` moderate `t`? Never yourself, the bot, or staff unless you're an Admin.
+function guard(it, t) {
+  if (!t.id) return "Pick someone.";
+  if (t.id === it.member.user.id) return "You can't do that to yourself.";
+  if (t.id === CONFIG.app_id || t.user?.bot) return "You can't do that to a bot.";
+  if (t.member && hasRole({ roles: t.member.roles, permissions: t.member.permissions || "0" }, STAFF_KEYS) && !isAdmin(it.member))
+    return "Only Admins can take action against staff.";
+  return null;
+}
+
+async function dm(env, userId, embed) {
+  try {
+    const ch = await discord(env, "POST", "/users/@me/channels", { recipient_id: userId });
+    await discord(env, "POST", `/channels/${ch.id}/messages`, { embeds: [{ color: ORANGE, ...embed, footer: { text: CONFIG.name } }] });
+    return true;
+  } catch (e) { return false; }
+}
+
+async function getWarnings(env, uid) {
+  try { return JSON.parse((await kvGet(env, `warns:${uid}`)) || "[]"); } catch (e) { return []; }
+}
+
+async function modAction(env, it, kind, t, reason, extra = {}) {
+  const by = it.member.user.id;
+  const color = { Warned: ORANGE, "Timed out": ORANGE, Kicked: RED, Banned: RED, Unbanned: GREEN, "Timeout removed": GREEN }[kind] ?? ORANGE;
+  await log(env, "mod-log", { title: kind, color,
+    description: `<@${t.id}> (\`${t.id}\`)\nBy <@${by}>\nReason: ${clip(reason || "none", 500)}${extra.detail ? `\n${extra.detail}` : ""}` });
+}
+
+async function moreCommands(env, it, ctx) {
+  const name = it.data.name, m = it.member;
+  const deny = () => reply("You don't have permission to use this.");
+  const reason = opt(it, "reason") || "";
+
+  // Everyone
+  if (name === "help") {
+    const staff = hasRole(m, STAFF_KEYS);
+    const lines = [
+      "**For everyone**",
+      `\`/ticket\` open a private ticket with staff (or use <#${CONFIG.channels["create-ticket"]}>)`,
+      "**Report message / Report user**: long-press (or right-click) a message or person → Apps",
+      `Download: <#${CONFIG.channels.download}> · Install help: <#${CONFIG.channels["install-guide"]}> · Rules: <#${CONFIG.channels.rules}>`,
+    ];
+    if (staff) lines.push("", "**Staff**",
+      "`/warn` `/warnings` `/timeout` `/kick` `/userinfo` `/slowmode` `/purge` `/lockdown` `/unlock` `/raidmode` `/verify`",
+      "`/ticket-add` `/ticket-remove` in tickets · Admins also: `/ban` `/unban` `/announce` `/panels`",
+      "Every action is logged in mod-log and the member gets a DM with your reason.");
+    return reply("", { embeds: [{ title: `${CONFIG.name} bot`, color: COLOR, description: lines.join("\n"),
+      footer: { text: "Terms & privacy: fish-claude-bot.pages.dev/terms" } }] });
+  }
+
+  if (name === "ticket") {
+    const until = Number(await kvGet(env, `tcool:${m.user.id}`)) || 0;
+    if (until > Date.now()) return reply(`You can open another ticket ${relTime(until)}.`);
+    return reply("What do you need help with?", { components: panels().ticket.components });
+  }
+
+  // Context menus: Report message / Report user
+  if (name === "Report message" || name === "Report user") {
+    const tid = it.data.target_id;
+    let subject, details;
+    if (name === "Report message") {
+      const msg = it.data.resolved.messages[tid];
+      subject = `Report: message by ${msg.author.username}`;
+      details = `Reported message by <@${msg.author.id}> (\`${msg.author.id}\`) in <#${it.channel_id}>:\n` +
+        `https://discord.com/channels/${CONFIG.guild_id}/${it.channel_id}/${tid}\n\n> ${clip(msg.content || "(no text)", 1500).replace(/\n/g, "\n> ")}` +
+        ((msg.attachments || []).length ? `\n\nAttachments: ${msg.attachments.map((a) => a.url).join(" ")}` : "");
+    } else {
+      const u = it.data.resolved.users[tid];
+      subject = `Report: ${u.username}`;
+      details = `Reported user: <@${u.id}> (\`${u.id}\`), account created ${relTime(snowflakeTime(u.id))}.`;
+    }
+    if (tid === m.user.id || it.data.resolved?.users?.[tid]?.id === m.user.id) return reply("You can't report yourself.");
+    ctx.waitUntil(createTicket(env, it, "report", subject, details + "\n\nPlease add any extra context below."));
+    return deferred();
+  }
+
+  // Staff (Mod+)
+  const MODS = ["mod", ...CONFIG.admins];
+  if (name === "warn") {
+    if (!hasRole(m, MODS)) return deny();
+    const t = target(it), err = guard(it, t);
+    if (err) return reply(err);
+    const list = await getWarnings(env, t.id);
+    list.push({ reason, by: m.user.id, at: Date.now() });
+    await kvPut(env, `warns:${t.id}`, JSON.stringify(list.slice(-50)));
+    const sent = await dm(env, t.id, { title: `You were warned in ${CONFIG.name}`, description: `Reason: ${reason}\n\nPlease read the rules. Repeated warnings lead to timeouts or bans.` });
+    ctx.waitUntil(modAction(env, it, "Warned", t, reason, { detail: `Warning #${list.length}${sent ? "" : " · DMs closed"}` }));
+    return reply(`Warned <@${t.id}> (warning #${list.length})${sent ? "" : ". Their DMs are closed, so they weren't notified"}.`);
+  }
+
+  if (name === "warnings") {
+    if (!hasRole(m, MODS)) return deny();
+    const t = target(it), list = await getWarnings(env, t.id);
+    if (opt(it, "clear")) {
+      if (!isAdmin(m)) return reply("Only Admins can clear warnings.");
+      await kvDel(env, `warns:${t.id}`);
+      ctx.waitUntil(modAction(env, it, "Warnings cleared", t, `${list.length} removed`));
+      return reply(`Cleared ${list.length} warning(s) for <@${t.id}>.`);
+    }
+    if (!list.length) return reply(`<@${t.id}> has no warnings.`);
+    return reply("", { embeds: [{ title: `Warnings: ${t.user?.username || t.id}`, color: ORANGE,
+      description: list.slice(-15).map((w, i) => `**${list.length - Math.min(15, list.length) + i + 1}.** ${clip(w.reason, 200)} · by <@${w.by}> ${relTime(w.at)}`).join("\n") }] });
+  }
+
+  if (name === "timeout") {
+    if (!hasRole(m, MODS)) return deny();
+    const t = target(it), err = guard(it, t);
+    if (err) return reply(err);
+    const minutes = opt(it, "duration");
+    const until = minutes ? new Date(Date.now() + minutes * 60000).toISOString() : null;
+    await discord(env, "PATCH", `/guilds/${CONFIG.guild_id}/members/${t.id}`, { communication_disabled_until: until },
+      { reason: `${m.user.username}: ${reason || "no reason"}` });
+    if (minutes) await dm(env, t.id, { title: `You were timed out in ${CONFIG.name}`, description: `For ${fmtDur(minutes)}.\nReason: ${reason || "none given"}` });
+    ctx.waitUntil(modAction(env, it, minutes ? "Timed out" : "Timeout removed", t, reason, { detail: minutes ? `For ${fmtDur(minutes)}` : "" }));
+    return reply(minutes ? `Timed out <@${t.id}> for ${fmtDur(minutes)}.` : `Removed <@${t.id}>'s timeout.`);
+  }
+
+  if (name === "kick") {
+    if (!hasRole(m, MODS)) return deny();
+    const t = target(it), err = guard(it, t);
+    if (err) return reply(err);
+    await dm(env, t.id, { title: `You were kicked from ${CONFIG.name}`, color: RED, description: `Reason: ${reason}\n\nYou can rejoin with an invite, but please read the rules first.` });
+    await discord(env, "DELETE", `/guilds/${CONFIG.guild_id}/members/${t.id}`, undefined, { reason: `${m.user.username}: ${reason}` });
+    ctx.waitUntil(modAction(env, it, "Kicked", t, reason));
+    return reply(`Kicked <@${t.id}>.`);
+  }
+
+  if (name === "userinfo") {
+    if (!hasRole(m, STAFF_KEYS)) return deny();
+    const t = target(it), u = t.user || {}, mem = t.member;
+    const warns = await getWarnings(env, t.id);
+    const fields = [
+      { name: "Account created", value: relTime(snowflakeTime(t.id)), inline: true },
+      { name: "Joined", value: mem?.joined_at ? relTime(Date.parse(mem.joined_at)) : "not in server", inline: true },
+      { name: "Warnings", value: String(warns.length), inline: true },
+      { name: "Roles", value: mem?.roles?.length ? mem.roles.map((r) => `<@&${r}>`).join(" ") : "none", inline: false },
+    ];
+    if (mem?.communication_disabled_until && Date.parse(mem.communication_disabled_until) > Date.now())
+      fields.push({ name: "Timed out until", value: `<t:${Math.floor(Date.parse(mem.communication_disabled_until) / 1000)}:f>`, inline: false });
+    const avatar = u.avatar ? `https://cdn.discordapp.com/avatars/${t.id}/${u.avatar}.png?size=128` : undefined;
+    return reply("", { embeds: [{ title: u.global_name || u.username || t.id, color: COLOR, description: `<@${t.id}> · \`${t.id}\``,
+      thumbnail: avatar ? { url: avatar } : undefined, fields }] });
+  }
+
+  if (name === "slowmode") {
+    if (!hasRole(m, MODS)) return deny();
+    const secs = opt(it, "seconds");
+    await discord(env, "PATCH", `/channels/${it.channel_id}`, { rate_limit_per_user: secs }, { reason: `/slowmode by ${m.user.username}` });
+    ctx.waitUntil(log(env, "mod-log", { title: "Slowmode", color: GREY, description: `<#${it.channel_id}>: ${secs ? `${secs}s` : "off"}\nBy <@${m.user.id}>` }));
+    return reply(secs ? `Slowmode set to ${secs}s.` : "Slowmode off.");
+  }
+
+  // Admin+
+  if (name === "ban") {
+    if (!isAdmin(m)) return reply("Only Admins can ban. Ask in staff chat with evidence.");
+    const t = target(it), err = guard(it, t);
+    if (err) return reply(err);
+    const days = opt(it, "delete_days") ?? 0;
+    await dm(env, t.id, { title: `You were banned from ${CONFIG.name}`, color: RED,
+      description: `Reason: ${reason}\n\nIf you think this was a mistake, you can appeal by messaging a staff member you trust or rejoining after the ban is lifted.` });
+    await discord(env, "PUT", `/guilds/${CONFIG.guild_id}/bans/${t.id}`, { delete_message_seconds: days * 86400 }, { reason: `${m.user.username}: ${reason}` });
+    ctx.waitUntil(modAction(env, it, "Banned", t, reason, { detail: days ? `Deleted ${days} day(s) of messages` : "" }));
+    return reply(`Banned <@${t.id}>.`);
+  }
+
+  if (name === "unban") {
+    if (!isAdmin(m)) return deny();
+    const id = String(opt(it, "user_id") || "").replace(/\D/g, "");
+    if (!id) return reply("Give a user ID.");
+    try {
+      await discord(env, "DELETE", `/guilds/${CONFIG.guild_id}/bans/${id}`, undefined, { reason: `${m.user.username}: ${reason || "no reason"}` });
+    } catch (e) { return reply("That user isn't banned (or the ID is wrong)."); }
+    ctx.waitUntil(modAction(env, it, "Unbanned", { id }, reason));
+    return reply(`Unbanned <@${id}>.`);
+  }
+
+  if (name === "announce") {
+    if (!hasRole(m, ["developer", ...CONFIG.admins])) return deny();
+    const ch = opt(it, "channel") || CONFIG.channels.announcements;
+    return json({ type: 9, data: { custom_id: `announce:${ch}:${opt(it, "ping") || "none"}`, title: "New announcement", components: [
+      { type: 1, components: [{ type: 4, custom_id: "title", label: "Title", style: 1, max_length: 200, required: true }] },
+      { type: 1, components: [{ type: 4, custom_id: "body", label: "Message", style: 2, max_length: 3800, required: true }] },
+      { type: 1, components: [{ type: 4, custom_id: "image", label: "Image URL (optional)", style: 1, required: false, max_length: 500 }] },
+    ] } });
+  }
+
+  return reply("Unknown command.");
+}
+
+async function announceSubmit(env, it, ctx) {
+  if (!hasRole(it.member, ["developer", ...CONFIG.admins])) return reply("You don't have permission to use this.");
+  const [, ch, ping] = it.data.custom_id.split(":");
+  const field = (id) => it.data.components.flatMap((r) => r.components).find((c) => c.custom_id === id)?.value || "";
+  const image = field("image").trim();
+  const embed = { title: field("title"), description: field("body"), color: COLOR, timestamp: new Date().toISOString(),
+    footer: { text: `${CONFIG.name} · posted by ${it.member.user.username}` } };
+  if (/^https:\/\/\S+$/.test(image)) embed.image = { url: image };
+  const content = ping === "everyone" ? "@everyone" : ping === "here" ? "@here" : undefined;
+  try {
+    const msg = await discord(env, "POST", `/channels/${ch}/messages`, { content, embeds: [embed],
+      allowed_mentions: { parse: content ? ["everyone"] : [] } });
+    ctx.waitUntil(discord(env, "POST", `/channels/${ch}/messages/${msg.id}/crosspost`).catch(() => {}));
+    ctx.waitUntil(log(env, "mod-log", { title: "Announcement posted", color: GREY, description: `In <#${ch}> by <@${it.member.user.id}>` }));
+    return reply(`Posted in <#${ch}>.`);
+  } catch (e) {
+    console.log(e.message);
+    return reply("I couldn't post there. Check I can see and talk in that channel.");
+  }
+}
+
 // ── Panels ────────────────────────────────────────────────────────────────────
 
 export function panels() {
@@ -454,8 +683,9 @@ async function handle(env, it, ctx) {
       return json({ type: 4, data: { content: "🔒 Closing: saving the transcript…" } });
     }
   }
+  if (it.type === 5 && it.data.custom_id.startsWith("announce:")) return announceSubmit(env, it, ctx);
   if (it.type === 5 && it.data.custom_id.startsWith("tmodal:")) {
-    ctx.waitUntil(createTicket(env, it));
+    ctx.waitUntil(ticketFromModal(env, it));
     return deferred();
   }
   return reply("I don't know how to handle that.");

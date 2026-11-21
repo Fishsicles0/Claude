@@ -70,6 +70,15 @@ member's DMs. Each member gets one open ticket at a time and a 5-minute cooldown
 | `/purge count [@user]` | Mod+ | Delete up to 100 recent messages |
 | `/ticket-add` / `/ticket-remove` | ticket staff | Add or remove someone in the current ticket |
 | `/panels` | Admin+ | Re-post the verify and ticket panels |
+| `/warn` `/warnings` | Mod+ | Warn a member (DM + log), list warnings; Admins can clear them |
+| `/timeout` `/kick` | Mod+ | Time out (1 min to 1 week) or kick, with a DM and a log entry |
+| `/ban` `/unban` | Admin+ | Ban (optionally deleting recent messages) or unban by ID |
+| `/userinfo` `/slowmode` | Mod+ | Account age, join date, roles, warnings; set slowmode |
+| `/announce` | Developer, Admin+ | Styled announcement with optional ping and image |
+| `/help` `/ticket` | everyone | What the bot does; open a ticket from anywhere |
+| Report message / Report user | everyone | Apps menu on a message or user; opens a report ticket with the evidence |
+
+Mods can't act on staff; only Admins can. Nobody can act on themselves or on bots.
 
 Members never see these commands.
 

@@ -16,7 +16,7 @@ Security model
 
 # ── Your client ───────────────────────────────────────────────────────────────
 CLIENT = {
-    "name": "? Client",                   # shown in posts and the server name (--name)
+    "name": "Evade Client",               # shown in posts and the server name (--name)
     "short": "Client",                    # one word, used for AutoMod rule names
     "site": "",                           # website, e.g. "https://example.com" ("" = none yet)
     "download_url": "",                   # official download page ("" = none yet)
@@ -28,7 +28,7 @@ CLIENT = {
     "color": 0x5865F2,                    # brand colour for embeds
 }
 BOT_NAME = "Evade Client"   # the bot/app name, used on its Terms and Privacy pages
-ICON_PATH = ""   # path to a PNG/JPG for the server icon, or leave empty
+ICON_PATH = str(__import__("pathlib").Path(__file__).with_name("assets") / "bot-avatar.png")   # path to a PNG/JPG for the server icon, or leave empty
 
 # ── Security settings (used by setup_server.py and bot.py) ───────────────────
 SECURITY = {
@@ -244,6 +244,11 @@ SCAM_KEYWORDS = [
     "*iplogger*", f"*cracked {_n}*", f"*{_n} crack*", "*free minecraft account*",
     "*alt generator*", "*free capes*", "*cape generator*", "*token grabber*",
 ]
+# Blocks people whose username, nickname or bio pretends to be staff or advertises scams.
+PROFILE_KEYWORDS = [
+    "*evade staff*", "*evade support*", "*evade admin*", "*evade mod*", "*discord staff*",
+    "*discord support*", "*free nitro*", "*nitro giveaway*", "*steam gift*", "*dm for nitro*",
+]
 INVITE_REGEX = [r"(discord\.gg|discord(app)?\.com/invite|dsc\.gg)/\S+"]
 
 # ── Starter posts ─────────────────────────────────────────────────────────────
@@ -326,8 +331,11 @@ POSTS = {
             "**Tickets**\n"
             "• Press **Claim** before replying so two people don't answer at once.\n"
             "• Close the ticket when it's solved; the transcript is saved to #ticket-transcripts.\n\n"
-            "**Commands** (in #staff-commands)\n"
-            "`/verify` `/lockdown` `/unlock` `/raidmode` `/purge` `/ticket-add` `/ticket-remove`"
+            "**Commands** (use `/help` any time)\n"
+            "Mods: `/warn` `/warnings` `/timeout` `/kick` `/userinfo` `/slowmode` `/purge` `/lockdown` `/unlock` "
+            "`/raidmode` `/verify` `/ticket-add` `/ticket-remove`\n"
+            "Admins: `/ban` `/unban` `/announce` `/panels`, and clearing warnings\n"
+            "Members can **Report message** / **Report user** from the Apps menu; those arrive as report tickets."
         ),
     }],
 }

@@ -256,13 +256,15 @@ class Setup:
             (f"{short}: scams and grabbers", 1, {"keyword_filter": layout.SCAM_KEYWORDS},
              [block, *notify, timeout], staff),
             (f"{short}: invite links", 1, {"regex_patterns": layout.INVITE_REGEX}, [block, *notify], staff),
+            (f"{short}: impersonation and scam profiles", 6, {"keyword_filter": layout.PROFILE_KEYWORDS},
+             [{"type": 4, "metadata": {}}, *notify], staff),
         ]
         try:
             existing = {r["name"]: r for r in self.api("GET", f"/guilds/{self.gid}/auto-moderation/rules")}
         except RuntimeError as e:
             return self.warn(f"skipped AutoMod: {e}")
         for name, trigger, meta, actions, exempt in rules:
-            body = {"name": name, "event_type": 1, "trigger_type": trigger, "trigger_metadata": meta,
+            body = {"name": name, "event_type": 2 if trigger == 6 else 1, "trigger_type": trigger, "trigger_metadata": meta,
                     "actions": actions, "enabled": True, "exempt_roles": exempt}
             try:
                 if name not in existing:
