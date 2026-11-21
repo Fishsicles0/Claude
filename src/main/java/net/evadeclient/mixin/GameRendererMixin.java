@@ -17,9 +17,14 @@ public abstract class GameRendererMixin {
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void evade$zoom(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Float> cir) {
         if (EvadeClient.modules == null) return;
+        float value = cir.getReturnValue();
+        // FOV Changer: lock the base FOV so speed/sprint effects don't change it (applied before Zoom).
+        Float locked = net.evadeclient.module.mods.FovChanger.lockedFov();
+        if (locked != null && changingFov) value = locked;
         Zoom zoom = EvadeClient.modules.get(Zoom.class);
-        if (zoom != null && zoom.isEnabled()) cir.setReturnValue((float) (cir.getReturnValue() * zoom.fovMultiplier()));
-        net.evadeclient.util.Projection.fov = cir.getReturnValue();
+        if (zoom != null && zoom.isEnabled()) value *= (float) zoom.fovMultiplier();
+        cir.setReturnValue(value);
+        net.evadeclient.util.Projection.fov = value;
     }
 
     @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"), cancellable = true)

@@ -20,7 +20,8 @@
     "ItemCooldownManagerAccessor",
     "MinecraftClientAccessor",
     "MinecraftClientCooldownAccessor",
-    "MouseMixin"
+    "MouseMixin",
+    "SimpleOptionAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

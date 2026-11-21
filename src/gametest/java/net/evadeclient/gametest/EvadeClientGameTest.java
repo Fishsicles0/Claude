@@ -134,6 +134,17 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(3);
         check(Math.abs(yawAfter - yawBefore) < 0.01 && Math.abs(camYaw - yawBefore) > 5,
                 "Freelook turns the camera but not the player (player " + yawBefore + "->" + yawAfter + ", camera " + camYaw + ")");
+
+        // Fullbright pushes gamma past its normal range via the SimpleOption accessor, then restores it.
+        double g0 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
+        enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        ctx.waitTicks(3);
+        double g1 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
+        disable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        ctx.waitTicks(3);
+        double g2 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
+        check(g1 >= 10.0 && Math.abs(g2 - g0) < 0.01,
+                "Fullbright maxes gamma then restores (" + g0 + " -> " + g1 + " -> " + g2 + ")");
     }
 
     /** Loads the optional Evade Texture Pack and screenshots it (HUD, inventory, tooltip, title screen). */

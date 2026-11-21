@@ -38,6 +38,8 @@ public class ModuleManager {
         register(new CameraClip());
         register(new Breadcrumbs());
         register(new Waypoints());
+        register(new Fullbright());
+        register(new DamageTint());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
@@ -47,12 +49,15 @@ public class ModuleManager {
         register(new BlockOutline());
         register(new TimeChanger());
         register(new WeatherChanger());
+        register(new FovChanger());
         // Chat, interface & convenience
         register(new AntiAFK());
         register(new AutoReconnect());
         register(new BetterChat());
         register(new AutoGG());
+        register(new AutoTip());
         register(new Notifier());
+        register(new Protection());
         // HUD
         register(new HudModule());
         register(new ArmorHud());
@@ -76,6 +81,7 @@ public class ModuleManager {
         register(new SaturationHud());
         register(new ItemCounterHud());
         register(new PvpInfoHud());
+        register(new PackDisplayHud());
         // Client
         register(new ClientSettings());
     }
