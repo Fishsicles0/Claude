@@ -57,7 +57,7 @@ public class EvadeMenu extends Screen {
                     new Nav("Visuals", Page.VISUALS, "V", false))),
             new NavGroup("GENERAL", List.of(
                     new Nav("Edit HUD Layout", null, "E", true),
-                    new Nav("Settings", Page.SETTINGS, "G", false))));
+                    new Nav("Settings", Page.SETTINGS, "⚙", false))));
 
     private static Page page = Page.ALL;
     private static Module selected;
@@ -78,8 +78,9 @@ public class EvadeMenu extends Screen {
 
     // layout (recomputed each frame)
     private int wx, wy, ww, wh, cx, cy, cw, ch, searchY, headerY;
-    private static final int SIDEBAR = 150, ROW_H = 24, SLIDER_W = 120;
+    private static final int SIDEBAR = 158, ROW_H = 24, SLIDER_W = 120;
     private static final int LIST_H = 50, CARD_H = 58, COMPACT_H = 22, GAP = 8;
+    private static final int NAV_TOP = 58, NAV_HEADER_H = 18, NAV_ITEM_H = 27, NAV_GROUP_GAP = 6, BADGE = 20;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -159,11 +160,11 @@ public class EvadeMenu extends Screen {
     /** Lay the grouped nav out and return each item with its y, for render + click to share. */
     private List<NavHit> navLayout() {
         List<NavHit> hits = new ArrayList<>();
-        int y = wy + 54;
+        int y = wy + NAV_TOP;
         for (NavGroup g : GROUPS) {
-            if (g.header != null) y += 16;
-            for (Nav n : g.items) { hits.add(new NavHit(n, y)); y += 24; }
-            y += 6;
+            if (g.header != null) y += NAV_HEADER_H;
+            for (Nav n : g.items) { hits.add(new NavHit(n, y)); y += NAV_ITEM_H; }
+            y += NAV_GROUP_GAP;
         }
         return hits;
     }
@@ -172,49 +173,70 @@ public class EvadeMenu extends Screen {
         ctx.fill(wx + 1, wy + 1, wx + SIDEBAR, wy + wh - 1, Theme.SIDEBAR);
         ctx.fill(wx + SIDEBAR, wy + 1, wx + SIDEBAR + 1, wy + wh - 1, Theme.BORDER);
 
-        net.evadeclient.util.Logo.lockup(ctx, wx + 14, wy + 13, 22);
-        small(ctx, "C L I E N T", wx + 42, wy + 33, Theme.TEXT_FAINT, 0.65f);
+        net.evadeclient.util.Logo.lockup(ctx, wx + 16, wy + 15, 22);
+        small(ctx, "C L I E N T", wx + 44, wy + 35, Theme.TEXT_FAINT, 0.65f);
+        ctx.fill(wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, 0xFF1C1C22);
 
-        // group headers + items
-        int y = wy + 54;
+        int y = wy + NAV_TOP;
         for (NavGroup g : GROUPS) {
             if (g.header != null) {
-                small(ctx, g.header, wx + 16, y + 4, Theme.TEXT_FAINT, 0.75f);
-                y += 16;
+                small(ctx, spaced(g.header), wx + 18, y + 7, 0xFF6E6E7A, 0.78f);
+                y += NAV_HEADER_H;
             }
             for (Nav n : g.items) {
                 boolean active = !n.hud && n.page == page && selected == null;
                 navItem(ctx, n, y, mx, my, active);
-                y += 24;
+                y += NAV_ITEM_H;
             }
-            y += 6;
+            y += NAV_GROUP_GAP;
         }
 
         String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
-        small(ctx, user, wx + 16, wy + wh - 24, Theme.TEXT_DIM, 0.8f);
-        small(ctx, "Evade v" + EvadeClient.VERSION, wx + 16, wy + wh - 14, Theme.TEXT_FAINT, 0.75f);
+        ctx.fill(wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, 0xFF1C1C22);
+        small(ctx, user.isEmpty() ? "Player" : user, wx + 16, wy + wh - 25, Theme.TEXT_DIM, 0.85f);
+        small(ctx, "Evade v" + EvadeClient.VERSION, wx + 16, wy + wh - 15, Theme.TEXT_FAINT, 0.78f);
     }
 
     private void navItem(DrawContext ctx, Nav n, int y, int mx, int my, boolean active) {
-        boolean hover = mx >= wx + 8 && mx < wx + SIDEBAR - 8 && my >= y - 2 && my < y + 18;
-        float t = animate("nav:" + n.label, active ? 1 : hover ? 0.45f : 0, 16);
-        if (t > 0.01f) Theme.round(ctx, wx + 8, y - 2, wx + SIDEBAR - 8, y + 18, Theme.alpha(0xFF2A0B10, t));
-        if (active) ctx.fill(wx + 8, y, wx + 10, y + 16, Theme.RED);
+        int x1 = wx + 10, x2 = wx + SIDEBAR - 10, top = y + 1, bot = y + NAV_ITEM_H - 3;
+        boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot;
+        float t = animate("nav:" + n.label, active ? 1 : hover ? 0.4f : 0, 16);
 
-        // letter badge
-        int bx = wx + 16, bw = 16;
-        int badgeFill = active ? Theme.RED : Theme.lerpColor(0xFF1C1C22, 0xFF2A2A33, t);
-        Theme.round(ctx, bx, y, bx + bw, y + bw, badgeFill);
-        int lw = Math.round(textRenderer.getWidth(n.badge) * 0.9f);
-        small(ctx, n.badge, bx + (bw - lw) / 2, y + 4, active ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t), 0.9f);
-
-        ctx.drawText(textRenderer, n.label, bx + bw + 8, y + 4, active ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t), false);
-
-        if (n.page != null && n.page.category != null) {
-            String badge = String.valueOf(modulesFor(n.page, "").size());
-            int w = Math.round(textRenderer.getWidth(badge) * 0.75f);
-            small(ctx, badge, wx + SIDEBAR - 14 - w, y + 5, active ? Theme.RED_BRIGHT : Theme.TEXT_FAINT, 0.75f);
+        // selection pill / hover highlight
+        if (active) {
+            Theme.round(ctx, x1, top, x2, bot, 0xFF2C0D13);
+            ctx.fill(x1, top + 3, x1 + 2, bot - 3, Theme.RED);
+        } else if (t > 0.01f) {
+            Theme.round(ctx, x1, top, x2, bot, Theme.alpha(0xFF24242C, t));
         }
+
+        // rounded letter badge
+        int bx = wx + 16, by = y + (NAV_ITEM_H - BADGE) / 2;
+        int badgeFill = active ? Theme.RED : Theme.lerpColor(0xFF1B1B21, 0xFF27272F, t);
+        Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill);
+        if (active) Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill); // crisp on red
+        int letterColor = active ? 0xFFFFFFFF : Theme.lerpColor(0xFFB6B6C0, Theme.TEXT, t);
+        int lw = Math.round(textRenderer.getWidth(n.badge) * 0.95f);
+        small(ctx, n.badge, bx + (BADGE - lw) / 2, by + 6, letterColor, 0.95f);
+
+        int textColor = active ? Theme.TEXT : Theme.lerpColor(0xFF9A9AA4, Theme.TEXT, t);
+        ctx.drawText(textRenderer, n.label, bx + BADGE + 9, y + (NAV_ITEM_H - 8) / 2, textColor, false);
+
+        // count chip, right-aligned (category pages only, not Settings)
+        if (n.page != null && n.page.category != null && n.page != Page.SETTINGS) {
+            String cnt = String.valueOf(modulesFor(n.page, "").size());
+            int cw2 = Math.round(textRenderer.getWidth(cnt) * 0.8f) + 8;
+            int chipX = x2 - 6 - cw2, chipY = y + (NAV_ITEM_H - 13) / 2;
+            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 13, active ? Theme.alpha(Theme.RED, 0.28f) : 0xFF1C1C22);
+            small(ctx, cnt, chipX + 4, chipY + 3, active ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.8f);
+        }
+    }
+
+    /** Spread a header's letters so it reads as a small-caps label. */
+    private static String spaced(String s) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) { if (i > 0) b.append(' '); b.append(s.charAt(i)); }
+        return b.toString();
     }
 
     private void renderClose(DrawContext ctx, int mx, int my) {
@@ -527,7 +549,7 @@ public class EvadeMenu extends Screen {
         // sidebar
         if (mx >= wx && mx < wx + SIDEBAR && my >= wy && my < wy + wh) {
             for (NavHit hit : navLayout()) {
-                if (my >= hit.y - 2 && my < hit.y + 18) {
+                if (my >= hit.y && my < hit.y + NAV_ITEM_H) {
                     if (hit.nav.hud) client.setScreen(new HudEditorScreen(this));
                     else go(hit.nav.page);
                     return true;
