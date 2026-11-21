@@ -48,6 +48,12 @@ public class ModuleManager {
         register(new Scoreboard());
         register(new TntTimer());
         register(new ChunkBorders());
+        register(new NickHider());
+        register(new HitColor());
+        register(new OldAnimations());
+        register(new ItemPhysics());
+        register(new ShinyPots());
+        register(new EnchantGlint());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());

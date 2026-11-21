@@ -24,7 +24,15 @@
     "SimpleOptionAccessor",
     "BossBarHudMixin",
     "ParticleManagerMixin",
-    "HandledScreenMixin"
+    "HandledScreenMixin",
+    "GameRendererAccessor",
+    "OverlayTextureAccessor",
+    "TextVisitFactoryMixin",
+    "AbstractClientPlayerEntityMixin",
+    "ItemStackMixin",
+    "HeldItemRendererMixin",
+    "HeldItemRendererInvoker",
+    "ItemEntityRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

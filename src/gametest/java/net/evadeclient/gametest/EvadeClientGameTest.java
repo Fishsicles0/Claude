@@ -30,6 +30,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
             testVisualBatch(ctx, sp);
+            testRenderBatch(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
@@ -313,13 +314,13 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         server.runCommand("scoreboard objectives remove evade");
 
         // Clear Water: removes fog while the camera is underwater
-        server.runCommand("fill -2 -60 -2 2 -56 2 water");
-        server.runCommand("tp @a 0 -59 0 0 0");
+        server.runCommand("fill 98 -61 98 102 -56 102 glass");
+        server.runCommand("fill 99 -60 99 101 -56 101 water");
+        server.runCommand("tp @a 100 -59 100 0 0");
         enable(ctx, net.evadeclient.module.visuals.ClearWater.class);
         ctx.waitTicks(10);
         boolean clear = ctx.computeOnClient(c -> net.evadeclient.module.visuals.ClearWater.clearFog());
         disable(ctx, net.evadeclient.module.visuals.ClearWater.class);
-        server.runCommand("fill -2 -60 -2 2 -56 2 air");
         server.runCommand("tp @a 0 -60 0 0 0");
         check(clear, "Clear Water clears fog while underwater");
 
@@ -331,6 +332,75 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(() -> null);
         disable(ctx, net.evadeclient.module.visuals.InventoryBlur.class);
         check(true, "Inventory Blur renders behind the inventory");
+    }
+
+    /** Deeper render mods: Nick Hider, Hit Color, ShinyPots, EnchantGlint, Item Physics, 1.7 Animations. */
+    private void testRenderBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 30");
+        ctx.waitTicks(3);
+
+        // Nick Hider: your real name is swapped wherever it's drawn
+        String shown = ctx.computeOnClient(c -> {
+            var nh = EvadeClient.modules.get(net.evadeclient.module.visuals.NickHider.class);
+            nh.nick.set("Streamer");
+            nh.setEnabled(true);
+            StringBuilder b = new StringBuilder();
+            net.minecraft.text.Text.literal("<" + c.getSession().getUsername() + "> hi").asOrderedText()
+                    .accept((i, style, cp) -> { b.appendCodePoint(cp); return true; });
+            return b.toString();
+        });
+        check(shown.equals("<Streamer> hi"), "Nick Hider replaces your name on screen (" + shown + ")");
+        disable(ctx, net.evadeclient.module.visuals.NickHider.class);
+
+        // Hit Color repaints the hurt overlay, and restores red when turned off
+        enable(ctx, net.evadeclient.module.visuals.HitColor.class);
+        ctx.waitTicks(3);
+        int painted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
+        disable(ctx, net.evadeclient.module.visuals.HitColor.class);
+        int restored = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
+        check((painted & 0xFFFFFF) == 0x3B82F6 && restored == 0xB2FF0000,
+                "Hit Color repaints the hurt flash and restores it (" + Integer.toHexString(painted) + " -> " + Integer.toHexString(restored) + ")");
+
+        // ShinyPots: potions glint only while it's on
+        boolean[] glint = ctx.computeOnClient(c -> {
+            var pot = net.minecraft.item.ItemStack.EMPTY;
+            pot = net.minecraft.item.Items.POTION.getDefaultStack();
+            pot.set(net.minecraft.component.DataComponentTypes.POTION_CONTENTS,
+                    new net.minecraft.component.type.PotionContentsComponent(net.minecraft.potion.Potions.STRENGTH));
+            boolean before = pot.hasGlint();
+            var sp2 = EvadeClient.modules.get(net.evadeclient.module.visuals.ShinyPots.class);
+            sp2.setEnabled(true);
+            boolean after = pot.hasGlint();
+            sp2.setEnabled(false);
+            return new boolean[]{before, after};
+        });
+        check(!glint[0] && glint[1], "ShinyPots makes potions glint");
+
+        // EnchantGlint swaps in a recoloured glint texture, and restores the original on disable
+        enable(ctx, net.evadeclient.module.visuals.EnchantGlint.class);
+        ctx.waitTicks(3);
+        boolean tinted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.EnchantGlint.class).isApplied());
+
+        // Item Physics + 1.7 Animations + glint, all on screen at once
+        server.runCommand("summon item 0 -60 2 {Item:{id:\"minecraft:diamond_sword\",count:1},PickupDelay:32767}");
+        server.runCommand("summon item 1 -60 2.5 {Item:{id:\"minecraft:golden_apple\",count:1},PickupDelay:32767}");
+        server.runCommand("summon item -1 -60 2.5 {Item:{id:\"minecraft:stone\",count:1},PickupDelay:32767}");
+        server.runCommand("item replace entity @a weapon.mainhand with diamond_sword[enchantments={sharpness:5}]");
+        enable(ctx, net.evadeclient.module.visuals.ItemPhysics.class);
+        enable(ctx, net.evadeclient.module.visuals.OldAnimations.class);
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("evade-render-batch");
+        disable(ctx, net.evadeclient.module.visuals.EnchantGlint.class);
+        ctx.waitTicks(2);
+        boolean restoredGlint = ctx.computeOnClient(c -> !EvadeClient.modules.get(net.evadeclient.module.visuals.EnchantGlint.class).isApplied());
+        check(tinted && restoredGlint, "EnchantGlint recolours the glint and restores it");
+        disable(ctx, net.evadeclient.module.visuals.ItemPhysics.class);
+        disable(ctx, net.evadeclient.module.visuals.OldAnimations.class);
+        server.runCommand("kill @e[type=item]");
+        server.runCommand("clear @a");
+        check(true, "Item Physics and 1.7 Animations render without errors");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

@@ -650,6 +650,13 @@ public class EvadeMenu extends Screen {
             ctx.drawText(tr, "‹", right - w + 5, midY - 4, Theme.RED, false);
             ctx.drawText(tr, "›", right - 9, midY - 4, Theme.RED, false);
             ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
+        } else if (row instanceof net.evadeclient.setting.StringSetting st) {
+            String v = st.get();
+            int w = Math.max(60, tr.getWidth(v) + 16);
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, 0xFF1A1A20, Theme.BORDER);
+            ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
+            int hw = Math.round(tr.getWidth(st.hint()) * 0.75f);
+            small(ctx, st.hint(), right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);
         } else if (row instanceof ColorSetting c) {
             int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
             int sx = right - n * (sz + gap) + gap;
