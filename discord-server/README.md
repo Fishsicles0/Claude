@@ -120,3 +120,21 @@ re-applies permissions, topics and posts. It never deletes anything.
   in your GitHub repo under *Settings* > *Webhooks* (content type `application/json`).
 - **Onboarding:** *Server Settings* > *Onboarding* can ask new members questions once they've verified.
 - **Beta Testers:** Admins give the Beta Tester role by hand. Keep the list short; leaks start there.
+
+## Serverless bot (Cloudflare Pages)
+
+`worker/bot.js` runs verification, tickets and the staff commands on Cloudflare Pages, so nothing has to
+stay on. Discord sends each button press, form and slash command to `https://<project>.pages.dev/interactions`.
+
+```bash
+python deploy_worker.py build              # bakes the IDs from state.json into worker/dist/_worker.js
+# deploy worker/dist to a Pages project (advanced mode _worker.js), bind a KV namespace as KV,
+# and add DISCORD_TOKEN as an encrypted variable in the project's settings
+python deploy_worker.py endpoint https://<project>.pages.dev
+python deploy_worker.py commands
+python deploy_worker.py panels
+```
+
+It can't see live events (messages being deleted, members joining), so message logs, join-raid detection and
+anti-nuke need `bot.py` running somewhere. Discord's own AutoMod alerts, join messages (in member-log) and the
+audit log still cover a lot of that.
