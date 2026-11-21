@@ -16,10 +16,10 @@ Security model
 
 # ── Your client ───────────────────────────────────────────────────────────────
 CLIENT = {
-    "name": "My Client",                  # shown in posts and the server name (--name)
-    "short": "MyClient",                  # one word, used for AutoMod rule names
-    "site": "https://example.com",
-    "download_url": "https://example.com/download",
+    "name": "? Client",                   # shown in posts and the server name (--name)
+    "short": "Client",                    # one word, used for AutoMod rule names
+    "site": "",                           # website, e.g. "https://example.com" ("" = none yet)
+    "download_url": "",                   # official download page ("" = none yet)
     "minecraft": "1.21.11",
     "loader": "Fabric",
     "java": "21",
@@ -129,7 +129,7 @@ CATEGORIES = [
     ]},
     {"key": "download", "name": f"⬇️ Download {N}", "perms": MEMBER_RO, "channels": [
         {"key": "download", "emoji": "⬇️", "name": "download",
-         "topic": f"Official downloads only: {CLIENT['download_url']}"},
+         "topic": "Official downloads only."},
         {"key": "install-guide", "emoji": "📘", "name": "install-guide"},
         {"key": "known-issues", "emoji": "⚠️", "name": "known-issues"},
         {"key": "download-help", "emoji": "🙋", "name": "download-help", "perms": MEMBER, "slowmode": 10,
@@ -254,7 +254,7 @@ POSTS = {
             "**1. Be respectful.** No harassment, slurs, hate speech or personal attacks.\n\n"
             "**2. No cheating.** {name} is a legit client. Don't ask for, share or advertise "
             "hacked clients, cheat mods or anti-cheat bypasses, and follow the rules of every server you play on.\n\n"
-            "**3. Official downloads only.** Only download {name} from {download_url} or #download. "
+            "**3. Official downloads only.** Only download {name} from #download. "
             "No re-uploads or \"cracked\" versions.\n\n"
             "**4. Staff will never DM you first** with a download, a link or a request for your "
             "Minecraft, Microsoft or Discord login. Anyone who does is a scammer: report them in a ticket.\n\n"
@@ -280,8 +280,8 @@ POSTS = {
     "download": [{
         "title": "Download {name} {version}",
         "description": (
-            "Get the latest version from **[{download_url}]({download_url})**.\n\n"
-            "This is the only official download. If anyone sends you a file anywhere else, don't run it."
+            "{download_line}\n\n"
+            "This channel is the only official source. If anyone sends you a file anywhere else, don't run it."
         ),
         "fields": [("Version", "{version}", True), ("Minecraft", "{minecraft}", True),
                    ("Loader", "{loader}", True)],
@@ -330,3 +330,11 @@ POSTS = {
         ),
     }],
 }
+
+# Filled into posts as {download_line}.
+CLIENT["download_line"] = (
+    f"Get the latest version from **[{CLIENT['download_url']}]({CLIENT['download_url']})**."
+    if CLIENT["download_url"] else
+    f"{CLIENT['name']} isn't released yet. The first download will be posted here, "
+    "and announced in #announcements."
+)

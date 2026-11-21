@@ -139,14 +139,20 @@ class Setup:
             self.log("~ @everyone stripped (unverified users only see the gate)")
             self.changes += 1
 
-        # Order under the bot's role, highest first.
-        order = [self.roles[s["key"]] for s in layout.ROLES]
-        current = {r["id"]: r["position"] for r in self.api("GET", f"/guilds/{self.gid}/roles")}
-        if all(current[r] < self.my_top for r in order):
-            target = [{"id": rid, "position": self.my_top - 1 - i} for i, rid in enumerate(order)]
-            if all(t["position"] > 0 for t in target) and any(current[t["id"]] != t["position"] for t in target):
-                self.api("PATCH", f"/guilds/{self.gid}/roles", target)
-                self.log("~ role order")
+        # Order under the bot's role, highest first. Creating roles shifts the bot's role up,
+        # so re-read positions; roles already above the bot are left where they are.
+        roles_now = self.api("GET", f"/guilds/{self.gid}/roles")
+        current = {r["id"]: r["position"] for r in roles_now}
+        member = self.api("GET", f"/guilds/{self.gid}/members/{self.me['id']}")
+        self.my_top = max(current[r] for r in member["roles"])
+        order = [self.roles[s["key"]] for s in layout.ROLES if current[self.roles[s["key"]]] < self.my_top]
+        skipped = [s["name"] for s in layout.ROLES if current[self.roles[s["key"]]] >= self.my_top]
+        if skipped:
+            self.warn(f"{', '.join(skipped)} sit above the bot's role; drag them into place by hand if needed")
+        target = [{"id": rid, "position": self.my_top - 1 - i} for i, rid in enumerate(order)]
+        if target and all(t["position"] > 0 for t in target) and any(current[t["id"]] != t["position"] for t in target):
+            self.api("PATCH", f"/guilds/{self.gid}/roles", target)
+            self.log("~ role order")
 
     def overwrites(self, spec: dict) -> list:
         out = [ow_json(self.roles[k], 0, v) for k, v in spec.items()]
