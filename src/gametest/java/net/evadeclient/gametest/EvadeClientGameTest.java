@@ -31,6 +31,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testQolHud(ctx, sp);
             testVisualBatch(ctx, sp);
             testRenderBatch(ctx, sp);
+            testPerformance(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
@@ -401,6 +402,49 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         server.runCommand("kill @e[type=item]");
         server.runCommand("clear @a");
         check(true, "Item Physics and 1.7 Animations render without errors");
+    }
+
+    /** Performance: benchmark FPS with 400 distant mobs, culling off vs on, plus the lighter-settings preset. */
+    private void testPerformance(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        for (int x = -20; x < 20; x += 2) for (int z = 70; z < 110; z += 2)
+            server.runCommand("summon cow " + x + " -60 " + z + " {NoAI:1b,Silent:1b}");
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.waitTicks(100);
+        int fpsOff = ctx.computeOnClient(c -> c.getCurrentFps());
+
+        var perf = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.mods.Performance.class));
+        setBool(ctx, perf, "Low FPS When Tabbed Out", false); // the test window may not have focus
+        setBool(ctx, perf, "Lighter Video Settings", false);  // measure culling on its own
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.runOnClient(c -> perf.takeCulled());
+        ctx.waitTicks(100);
+        int fpsOn = ctx.computeOnClient(c -> c.getCurrentFps());
+        int culled = ctx.computeOnClient(c -> perf.takeCulled());
+        EvadeClient.LOG.info("[gametest] BENCHMARK 400 cows at 70-110 blocks: {} FPS off -> {} FPS on ({} entity draws skipped)", fpsOff, fpsOn, culled);
+        ctx.takeScreenshot("evade-performance");
+        check(culled > 0, "Performance culls distant entities (" + fpsOff + " -> " + fpsOn + " FPS)");
+
+        // far block entities are skipped, near ones aren't
+        boolean be = ctx.computeOnClient(c -> perf.cullBlockEntity(new net.minecraft.util.math.BlockPos(0, -60, 90))
+                && !perf.cullBlockEntity(new net.minecraft.util.math.BlockPos(0, -60, 5)));
+        check(be, "Performance culls far block entities only");
+
+        // lighter video settings apply on enable and restore on disable
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        setBool(ctx, perf, "Lighter Video Settings", true);
+        ctx.runOnClient(c -> c.options.getCloudRenderMode().setValue(net.minecraft.client.option.CloudRenderMode.FANCY));
+        var before = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        var during = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        var after = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        check(before == net.minecraft.client.option.CloudRenderMode.FANCY && during == net.minecraft.client.option.CloudRenderMode.OFF && after == before,
+                "Performance's lighter settings apply and restore (" + before + " -> " + during + " -> " + after + ")");
+        setBool(ctx, perf, "Low FPS When Tabbed Out", true);
+        server.runCommand("kill @e[type=cow]");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

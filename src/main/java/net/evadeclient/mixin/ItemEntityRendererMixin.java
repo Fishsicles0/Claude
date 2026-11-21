@@ -38,4 +38,12 @@ public abstract class ItemEntityRendererMixin {
         matrices.pop();
         ci.cancel();
     }
+
+    /** Performance: draw one item for a dropped stack instead of a pile of copies. */
+    @Inject(method = "updateRenderState(Lnet/minecraft/entity/ItemEntity;Lnet/minecraft/client/render/entity/state/ItemEntityRenderState;F)V",
+            at = @At("RETURN"))
+    private void evade$singleItem(net.minecraft.entity.ItemEntity entity, ItemEntityRenderState state, float tickDelta, CallbackInfo ci) {
+        var p = net.evadeclient.module.mods.Performance.active();
+        if (p != null && p.singleItems.get()) state.renderedAmount = 1;
+    }
 }

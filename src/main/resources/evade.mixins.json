@@ -32,7 +32,10 @@
     "ItemStackMixin",
     "HeldItemRendererMixin",
     "HeldItemRendererInvoker",
-    "ItemEntityRendererMixin"
+    "ItemEntityRendererMixin",
+    "EntityRenderManagerMixin",
+    "BlockEntityRenderManagerMixin",
+    "InactivityFpsLimiterMixin"
   ],
   "injectors": {
     "defaultRequire": 1

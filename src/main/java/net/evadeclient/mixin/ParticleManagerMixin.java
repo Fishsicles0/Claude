@@ -15,6 +15,8 @@ public abstract class ParticleManagerMixin {
             at = @At("HEAD"), cancellable = true)
     private void evade$hideParticles(ParticleEffect effect, double x, double y, double z, double vx, double vy, double vz,
                                      CallbackInfoReturnable<Particle> cir) {
-        if (Particles.blocks(effect)) cir.setReturnValue(null);
+        if (Particles.blocks(effect)) { cir.setReturnValue(null); return; }
+        var perf = net.evadeclient.module.mods.Performance.active();
+        if (perf != null && perf.dropParticle()) cir.setReturnValue(null);
     }
 }

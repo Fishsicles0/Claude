@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.4.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.5.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.4.0</span>
+      <span class="nav-ver">v1.5.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -65,8 +65,20 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.5.0">
+      <div class="rel-head"><h2>v1.5.0</h2><span class="pill-sm">Latest</span><time>2026-11-21</time></div>
+      <p class="rel-sum">Performance: Evade's own built-in FPS boost.</p>
+      <ul>
+        <li><b>Entity culling</b> &mdash; mobs and items past a distance you choose aren't drawn (players can always stay visible).</li>
+        <li><b>Block entity culling</b> &mdash; far chests, signs, banners and skulls are skipped.</li>
+        <li><b>One item per dropped stack</b>, a <b>particle budget</b>, and a <b>low frame rate while you're tabbed out</b> to save power and heat.</li>
+        <li><b>Lighter video settings</b> in one click (clouds off, no entity shadows, fewer particles), restored exactly when you turn it off.</li>
+        <li>In our busy test scene (900 armoured stands at 50&ndash;110 blocks) Performance took the game from about <b>17 to 29 FPS</b>, the same across three back-to-back runs. Gains depend on your PC and how busy the scene is &mdash; in light scenes the difference is small.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.4.0">
-      <div class="rel-head"><h2>v1.4.0</h2><span class="pill-sm">Latest</span><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.4.0</h2><time>2026-11-21</time></div>
       <p class="rel-sum">Fourteen new mods: a cleaner screen, better visuals and streamer tools.</p>
       <div class="rel-cols">
         <div><h4>Screen</h4><p>Scoreboard, Boss Bar, Particles, Pack Tweaks, Clear Water, Inventory Blur</p></div>
@@ -147,10 +159,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.4.0" defer></script>
+<script src="/assets/site.js?v=1.5.0" defer></script>
 </body>
 </html>

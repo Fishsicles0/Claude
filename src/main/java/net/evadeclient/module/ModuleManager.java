@@ -64,6 +64,7 @@ public class ModuleManager {
         register(new TimeChanger());
         register(new WeatherChanger());
         register(new FovChanger());
+        register(new Performance());
         // Chat, interface & convenience
         register(new AntiAFK());
         register(new AutoReconnect());
