@@ -5,7 +5,7 @@ function renderMeasure(){
   const wallRows=S.walls.map((w,i)=>{
     const last=i===n-1;const g=G.walls[i];
     return `<tr><td><b>W${i+1}</b></td><td style="min-width:130px">${L('walls.'+i+'.len',w.len,'Wall '+(i+1)+' length','data-min="12"')}</td>
-      <td class="n">${last?`<span title="Computed from the other walls">${fmt(g.len,'ft')}</span>`:'<span class="muted">—</span>'}</td>
+      <td class="n pro">${last?`<span title="Computed from the other walls">${fmt(g.len,'ft')}</span>`:'<span class="muted">—</span>'}</td>
       <td style="min-width:160px"><input class="in" id="m-note${i}" data-bind="walls.${i}.note" data-kind="text" value="${esc(w.note||'')}" placeholder="Note" aria-label="Wall ${i+1} note"></td>
       <td><button class="btn ghost sm danger" data-act="delwall" data-i="${i}" ${n<=3?'disabled':''} aria-label="Delete wall ${i+1}">✕</button></td></tr>`}).join('');
   const cornerRows=S.corners.map((c,i)=>{
@@ -35,32 +35,32 @@ function renderMeasure(){
   <div class="mgrid">
     <div class="stack">
       <div class="card stack">
-        <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Step 1 · Site capture</div><h2>Room shell</h2></div>
-          <div class="row"><button class="btn sm" data-act="tmpl" data-v="rect">Rectangle</button><button class="btn sm" data-act="tmpl" data-v="L">L-shaped room</button><button class="btn sm" data-act="addwall">+ Wall</button></div></div>
+        <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Step 1</div><h2>Walls of the room</h2></div>
+          <div class="row"><button class="btn sm" data-act="tmpl" data-v="rect">Start as a rectangle</button><button class="btn sm pro" data-act="tmpl" data-v="L">L-shaped room</button><button class="btn sm" data-act="addwall">+ Add a wall</button></div></div>
         <p class="hint">Walk the room clockwise starting from the left end of the main cabinet wall. Measure each wall at counter height, where cabinets actually land. The last wall is computed from the others, so its measured length becomes your closure check.</p>
         <div class="row">
-          <label class="f" style="width:150px">Ceiling height ${L('ceiling',S.ceiling,'Ceiling height')}</label>
+          <label class="f" style="width:170px">Ceiling height ${L('ceiling',S.ceiling,'Ceiling height')}</label>
           <label class="f" style="flex:1;min-width:160px">Client <input class="in" id="m-client" data-bind="client" data-kind="text" value="${esc(S.client||'')}"></label>
           <label class="f" style="flex:2;min-width:200px">Site address <input class="in" id="m-addr" data-bind="address" data-kind="text" value="${esc(S.address||'')}"></label>
         </div>
-        <div class="tw"><table class="t"><thead><tr><th>Wall</th><th>Measured</th><th class="n">Computed</th><th>Note</th><th></th></tr></thead><tbody>${wallRows}</tbody></table></div>
+        <div class="tw"><table class="t"><thead><tr><th>Wall</th><th>Length you measured</th><th class="n pro">Calculated</th><th>Note (optional)</th><th></th></tr></thead><tbody>${wallRows}</tbody></table></div>
         <div class="row">${clPill}<span class="hint">Room area ${(G.area/144).toFixed(1)} sq ft · perimeter ${fmt(G.walls.reduce((s,w)=>s+w.len,0),'ft')}</span></div>
       </div>
-      <div class="card stack">
-        <div><div class="eyebrow">Out-of-square detection</div><h3>Corner diagonals</h3></div>
+      <details class="card stack" ${UI.mode==='full'?'open':''}>
+        <summary><div><div class="eyebrow">Optional</div><h3>Check if the corners are square</h3></div></summary>
         <p class="hint">At each corner, mark A along the first wall and B along the second (36" each is typical), then shoot the diagonal C between the marks. A square corner at 36/36 reads ${fmt(Math.sqrt(2)*36)}. The angle feeds the room shape and the scribe allowance cabinets need at that corner.</p>
         <div class="tw"><table class="t"><thead><tr><th>Corner</th><th>Angle</th><th>Leg A</th><th>Leg B</th><th>Diagonal C</th><th class="n">From diag</th><th>Status</th><th class="n">Scribe @ 24"</th></tr></thead><tbody>${cornerRows}</tbody></table></div>
-      </div>
+      </details>
       <div class="card stack">
-        <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Obstacle &amp; utility mapping</div><h3>Rough-ins, openings, obstacles</h3></div>
-          <div class="row"><select class="in" id="addUtilType" style="width:auto" aria-label="Type to add">${Object.entries(UTIL).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}</select><button class="btn sm pri" data-act="addutil">+ Pin</button></div></div>
+        <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Step 1b</div><h3>Windows, doors, outlets &amp; pipes</h3></div>
+          <div class="row"><select class="in" id="addUtilType" style="width:auto" aria-label="Type to add">${Object.entries(UTIL).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}</select><button class="btn sm pri" data-act="addutil">+ Add it</button></div></div>
         <p class="hint">Positions run from the left end of the wall as you face it. Points (outlets, stubs, registers) are measured to their center; windows, doors and soffits use the bottom-left corner of the opening, and casing width is checked against cabinets.</p>
-        <div class="tw"><table class="t"><thead><tr><th>Type</th><th>Wall</th><th>From left</th><th>Height AFF</th><th>Width</th><th>Height</th><th>Casing</th><th>Note</th><th></th></tr></thead><tbody>${utilRows||'<tr><td colspan="9" class="muted">Nothing pinned yet. Add outlets, supply and drain stubs, gas, vents, windows and doors.</td></tr>'}</tbody></table></div>
+        <div class="tw"><table class="t"><thead><tr><th>What</th><th>Wall</th><th>From left end</th><th>Height off floor</th><th>Width</th><th>Height</th><th>Trim width</th><th>Note</th><th></th></tr></thead><tbody>${utilRows||'<tr><td colspan="9" class="muted">Nothing pinned yet. Add outlets, supply and drain stubs, gas, vents, windows and doors.</td></tr>'}</tbody></table></div>
       </div>
     </div>
     <div class="stack" style="position:sticky;top:110px">
       <div class="card stack">
-        <div class="eyebrow">Laser distance meter</div>
+        <div class="eyebrow">Laser measure (optional)</div>
         <div class="laser"><span class="dot ${LASER.dev?'on':''}"></span><div style="flex:1;min-width:160px"><b>${LASER.dev?esc(LASER.name)+' connected':'No laser connected'}</b><div class="hint">${LASER.dev?'Tap any measurement field, then fire the laser. The value lands and focus jumps to the next field.':'Bluetooth: Leica DISTO (BLE) and Bosch GLM (beta).'}</div></div>
           <button class="btn ${LASER.dev?'':'pri'}" data-act="laser">${LASER.dev?'Reconnect':'Connect laser'}</button></div>
         <p class="hint"><b>Keyboard (HID) mode</b> works on every device, including iPhone: put the DISTO in keyboard mode, tap a field, and fire. Values like 3.457 m, 136-1/8" or 11' 4" are all understood. Press Enter to jump to the next field.</p>
@@ -69,7 +69,7 @@ function renderMeasure(){
       <div class="card stack">
         <div class="row" style="justify-content:space-between"><h3>Live shell</h3><span class="hint">${n} walls · ${fmt(G.bbox.w,'ft')} × ${fmt(G.bbox.h,'ft')}</span></div>
         <svg class="mini" id="miniPlan" viewBox="0 0 10 10" aria-label="Plan preview">${planInner(true)}</svg>
-        <button class="btn" data-act="tab" data-v="design">Continue to design →</button>
+        <button class="btn pri" data-act="tab" data-v="design">Next: place cabinets →</button>
       </div>
     </div>
   </div>`;
@@ -176,9 +176,9 @@ function renderDesign(){
           <svg id="plan" aria-label="Floor plan. Drag cabinets along walls; drag islands anywhere."></svg>
           <div class="ptools">
             <select class="in" id="tgtWall" style="width:auto;min-height:32px" aria-label="Wall for new cabinets"></select>
-            <button class="btn sm" data-act="fit">Fit</button><button class="btn sm" data-act="zoom" data-v="0.8">＋</button><button class="btn sm" data-act="zoom" data-v="1.25">－</button>
-            <div class="seg" role="group" aria-label="Overlays"><button data-act="tog" data-v="showUpper" id="tgU">Uppers</button><button data-act="tog" data-v="showTri" id="tgT">Triangle</button><button data-act="tog" data-v="showClr" id="tgC">Clearances</button><button data-act="tog" data-v="showDims" id="tgD">Dims</button></div>
-            <button class="btn sm" data-act="addnote" id="bNote">+ Note</button>
+            <button class="btn sm" data-act="fit">Fit to screen</button><button class="btn sm" data-act="zoom" data-v="0.8">＋</button><button class="btn sm" data-act="zoom" data-v="1.25">－</button>
+            <div class="seg" role="group" aria-label="Overlays"><button data-act="tog" data-v="showUpper" id="tgU">Wall cabinets</button><button data-act="tog" data-v="showTri" id="tgT" class="pro">Work triangle</button><button data-act="tog" data-v="showClr" id="tgC">Walkway sizes</button><button data-act="tog" data-v="showDims" id="tgD">Measurements</button></div>
+            <button class="btn sm" data-act="addnote" id="bNote">+ Add a note</button>
           </div>
           <div class="legend"><span><i style="background:var(--cab)"></i>Base</span><span><i style="background:var(--wallcab);border-style:dashed"></i>Wall</span><span><i style="background:var(--tall)"></i>Tall</span><span><i style="background:var(--app)"></i>Appliance</span><span><i style="background:var(--hatch)"></i>Filler</span></div>
         </div>
@@ -190,10 +190,10 @@ function renderDesign(){
   }
   {
     const groups={};Object.entries(CAT).forEach(([k,c])=>{if(!c.hidden)(groups[c.grp]=groups[c.grp]||[]).push([k,c])});
-    $('#catalog').innerHTML=libraryHTML()+Object.entries(groups).map(([g,list])=>`<div class="grp"><div class="eyebrow">${g}</div>${list.map(([k,c])=>`<button class="cbtn" data-act="add" data-t="${k}"><span>${c.name}</span><small>${esc(c.sku({...c,t:k,w:c.w,h:c.h,d:c.d,lay:'base',hinge:'L'}).split(' ')[0])}</small></button>`).join('')}</div>`).join('')+
-      `<p class="hint">Tap to drop on the selected wall at the first gap that fits. Drag to slide; edges snap to neighbors and corners.</p>`;
+    $('#catalog').innerHTML='<h3 style="margin-bottom:4px">Add to the room</h3>'+`<div class="pro">${libraryHTML()}</div>`+Object.entries(groups).map(([g,list])=>`<div class="grp"><div class="eyebrow">${esc(GRP_PLAIN[g]||g)}</div>${list.map(([k,c])=>`<button class="cbtn" data-act="add" data-t="${k}" title="Add ${esc(PLAIN[k]||c.name)}"><span class="ci">${catIcon(k)}</span><span class="cn">${esc(PLAIN[k]||c.name)}</span><small class="pro">${esc(c.sku({...c,t:k,w:c.w,h:c.h,d:c.d,lay:'base',hinge:'L'}).split(' ')[0])}</small></button>`).join('')}</div>`).join('')+
+      `<p class="hint">Tap an item to add it to the wall picked above the plan. Then drag it on the plan to move it.</p>`;
   }
-  $('#tgtWall').innerHTML=S.walls.map((w,i)=>`<option value="${i}" ${i===UI.wall?'selected':''}>Add to W${i+1}${w.note?' · '+esc(w.note.slice(0,18)):''}</option>`).join('');
+  $('#tgtWall').innerHTML=S.walls.map((w,i)=>`<option value="${i}" ${i===UI.wall?'selected':''}>New items go on wall W${i+1}${w.note?' · '+esc(w.note.slice(0,18)):''}</option>`).join('');
   $('#tgU').setAttribute('aria-pressed',UI.showUpper);$('#tgT').setAttribute('aria-pressed',UI.showTri);$('#tgC').setAttribute('aria-pressed',UI.showClr);$('#tgD').setAttribute('aria-pressed',!!UI.showDims);$('#bNote').style.background=UI.addNote?'var(--accent)':'';
   drawPlan();
   renderInspector();
@@ -208,17 +208,17 @@ function renderInspector(){
     const j=UI.wall,w=geom().walls[j],st=S.settings;
     const runSVG=(z0,z1,label)=>{const occ=occupied(j,z0,z1);let s='';for(const o of occ){const c=CAT[o.it.t];s+=`<rect x="${o.u0/w.len*100}" y="0" width="${(o.u1-o.u0)/w.len*100}" height="10" fill="${o.own?(c.app?'var(--app)':c.cls==='filler'?'var(--hatch)':'var(--blue-soft)'):'var(--line2)'}" stroke="var(--cab-stroke)" stroke-width=".15"/>`}
       const gs=gaps(j,z0,z1);return `<div class="eyebrow" style="margin-top:6px">${label}</div><svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:18px;border:1px solid var(--line2);border-radius:3px;background:var(--panel2)">${s}</svg>
-      ${gs.length?`<div class="stack" style="gap:4px;margin-top:4px">${gs.map(g=>`<div class="row" style="justify-content:space-between"><span class="mono" style="font-size:12.5px">Gap ${fmt(g.a)} → ${fmt(g.b)} <b>(${fmt(g.b-g.a)})</b></span><button class="btn sm" data-act="fillgap" data-a="${g.a}" data-b="${g.b}" data-z="${z0}">Fill</button></div>`).join('')}</div>`:'<div class="hint">Run is full.</div>'}`};
+      ${gs.length?`<div class="stack" style="gap:4px;margin-top:4px">${gs.map(g=>`<div class="row" style="justify-content:space-between"><span class="mono" style="font-size:12.5px">Empty: ${fmt(g.a)} → ${fmt(g.b)} <b>(${fmt(g.b-g.a)})</b></span><button class="btn sm" data-act="fillgap" data-a="${g.a}" data-b="${g.b}" data-z="${z0}">Fill</button></div>`).join('')}</div>`:'<div class="hint">No empty spaces.</div>'}`};
     const sc=geom().corners[startCorner(j)],ec=geom().corners[j];
-    el.innerHTML=`<div class="card stack"><div><div class="eyebrow">Wall run</div><h3>W${j+1} · ${fmt(w.len,'ft')}</h3></div>
-      <div class="kv"><dt>Left corner</dt><dd>${sc.toFixed(2)}°${Math.abs(sc-90)>=0.15?' · scribe '+fmt(Math.abs(frontLoss(sc,24))):''}</dd><dt>Right corner</dt><dd>${ec.toFixed(2)}°${Math.abs(ec-90)>=0.15?' · scribe '+fmt(Math.abs(frontLoss(ec,24))):''}</dd>
+    el.innerHTML=`<div class="card stack"><div><div class="eyebrow">Selected wall</div><h3>W${j+1} · ${fmt(w.len,'ft')}</h3></div><p class="hint" style="margin:0">Tap any cabinet on the plan to change it. Tap empty floor to come back here.</p>
+      <div class="kv pro"><dt>Left corner</dt><dd>${sc.toFixed(2)}°${Math.abs(sc-90)>=0.15?' · scribe '+fmt(Math.abs(frontLoss(sc,24))):''}</dd><dt>Right corner</dt><dd>${ec.toFixed(2)}°${Math.abs(ec-90)>=0.15?' · scribe '+fmt(Math.abs(frontLoss(ec,24))):''}</dd>
       <dt>Usable at base face</dt><dd>${fmt(w.len-Math.max(0,frontLoss(sc,24))-Math.max(0,frontLoss(ec,24)))}</dd></div>
-      ${runSVG(0,st.counterH-1,'Base run (incl. returns)')}${runSVG(st.counterH+6,S.ceiling,'Upper run')}
-      <div class="row"><button class="btn" data-act="autofill">Auto-fill gaps on W${j+1}</button><button class="btn sm" data-act="libwall">Save W${j+1} run to library</button></div>
-      <p class="hint">Fill picks the largest stock width that fits and leaves a 1"–4" filler at the wall so the installer can scribe out-of-square corners.</p></div>
+      ${runSVG(0,st.counterH-1,'Lower cabinets on this wall')}${runSVG(st.counterH+6,S.ceiling,'Upper cabinets on this wall')}
+      <div class="row"><button class="btn pri" data-act="autofill">Fill the empty spaces on W${j+1}</button><button class="btn sm pro" data-act="libwall">Save W${j+1} run to library</button></div>
+      <p class="hint">This uses standard cabinet sizes and leaves a small filler strip at the wall, so everything fits even when walls are not perfectly straight.</p></div>
       ${aiCardHTML()}
-      ${optionsCardHTML()}
-      ${issuesCard(C.list.slice(0,6),'Top issues')}`;
+      <div class="pro">${optionsCardHTML()}</div>
+      ${issuesCard(C.list.filter(x=>x.sev!=='info').slice(0,5),'Problems to fix')}`;
     return;
   }
   const c=CAT[it.t];let seq=500;
@@ -227,14 +227,15 @@ function renderInspector(){
   const iss=C.list.filter(x=>x.ids.includes(it.id));
   const mdl=MODELS[it.t];
   el.innerHTML=`<div class="card stack">
-    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">${esc(c.grp)}</div><h3>${esc(c.sku(it))}</h3></div><button class="btn ghost sm" data-act="desel">Done</button></div>
+    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">${esc(c.grp)}</div><h3>${esc(c.sku(it))}</h3></div><button class="btn pri sm" data-act="desel">Done</button></div>
+    <p class="hint" style="margin:0">Change the size below, or drag it on the plan. Use the arrow buttons to nudge it ⅛".</p>
     ${mdl?`<label class="f">Model class<select class="in" id="i-model" data-bind="it.${it.id}.model" data-kind="int" data-after="model">${mdl.map((m,k)=>`<option value="${k}" ${k===it.model?'selected':''}>${esc(m[0])} — ${m[1]}×${m[2]}×${m[3]}</option>`).join('')}</select></label>`:''}
     <div class="fgrid">
-      ${c.ws.length>1?widthSel:''}${L('w','Custom width','data-min="0.5"')}
+      ${c.ws.length>1?widthSel:''}${L('w','Exact width','data-min="0.5"')}
       ${c.hs?`<label class="f">Height<select class="in" id="i-hsel" data-bind="it.${it.id}.h" data-kind="num" data-after="wallh">${[...new Set([...c.hs,it.h])].sort((a,b)=>a-b).map(h=>`<option value="${h}" ${h===it.h?'selected':''}>${fmt(h)}</option>`).join('')}</select></label>`:L('h','Height','data-min="0.5"')}
       ${L('d','Depth','data-min="0.5"')}
-      ${it.wall!=null?L('x','From left of W'+(it.wall+1)):L('cx','Center X')}
-      ${it.wall!=null?L('z','Bottom AFF'):L('cy','Center Y')}
+      ${it.wall!=null?L('x','Distance from left end of W'+(it.wall+1)):L('cx','Center X')}
+      ${it.wall!=null?L('z','Height off floor (bottom)'):L('cy','Center Y')}
       ${it.wall==null?`<label class="f">Rotation<select class="in" id="i-rot" data-bind="it.${it.id}.rot" data-kind="num">${[0,45,90,135,180,225,270,315].map(r=>`<option value="${r}" ${r===(it.rot||0)?'selected':''}>${r}°</option>`).join('')}</select></label>`:''}
       ${it.t==='ISL'?L('seat','Seating overhang')+`<label class="f">Cabinet style<select class="in" id="i-style" data-bind="it.${it.id}.style" data-kind="text"><option value="drawers" ${it.style==='drawers'?'selected':''}>Drawer bases</option><option value="doors" ${it.style==='doors'?'selected':''}>Door bases</option></select></label>`:''}
       ${it.t==='RG'?`<label class="f">Fuel<select class="in" id="i-fuel" data-bind="it.${it.id}.fuel" data-kind="text"><option value="gas" ${it.fuel==='gas'?'selected':''}>Gas</option><option value="electric" ${it.fuel!=='gas'?'selected':''}>Electric / induction</option></select></label>`:''}
@@ -246,7 +247,7 @@ function renderInspector(){
     </div>
     <div class="row">
       ${it.wall!=null?`<button class="btn sm" data-act="nudge" data-v="-0.125" title="Left ⅛ (←)">◀ ⅛"</button><button class="btn sm" data-act="nudge" data-v="0.125" title="Right ⅛ (→)">⅛" ▶</button>`:`<button class="btn sm" data-act="rot" data-v="-15">⟲ 15°</button><button class="btn sm" data-act="rot" data-v="15">⟳ 15°</button>`}
-      <button class="btn sm" data-act="dup">Duplicate</button><button class="btn sm" data-act="libitem">Save to library</button><button class="btn sm danger" data-act="del">Delete</button>
+      <button class="btn sm" data-act="dup">Duplicate</button><button class="btn sm pro" data-act="libitem">Save to library</button><button class="btn sm danger" data-act="del">Delete</button>
     </div>
     <label class="f">Spec / model number<input class="in" id="i-note" data-bind="it.${it.id}.note" data-kind="text" value="${esc(it.note||'')}" placeholder="${c.app?'e.g. manufacturer model #':'e.g. pull-out organizer'}"></label>
     <div class="kv"><dt>Price (list)</dt><dd>${c.app?(S.settings.price.app[it.t]?money(S.settings.price.app[it.t]):'Owner / allowance'):money(unitPrice(it))}</dd>${it.wall!=null?`<dt>Right edge</dt><dd>${fmt(it.x+it.w)}</dd><dt>Top</dt><dd>${fmt(it.z+it.h)} AFF</dd>`:''}</div>

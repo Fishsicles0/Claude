@@ -8,14 +8,14 @@ function renderElev(){
   const views=S.walls.map((w,i)=>[i,'W'+(i+1)]).concat(isl.flatMap((it,k)=>[[it.id+':front','Island'+(isl.length>1?' '+(k+1):'')+' front'],[it.id+':back','Island'+(isl.length>1?' '+(k+1):'')+' back']]));
   const E=typeof UI.elevWall==='string'?islandElev(isl.find(i=>UI.elevWall.startsWith(i.id)),UI.elevWall.split(':')[1]):elevData(UI.elevWall);
   $('#v-elevations').innerHTML=`<div class="stack">
-    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Technical elevations &amp; sections</div><h2>${esc(E.title)}</h2></div>
+    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Wall drawings for the installer</div><h2>${esc(E.title)}</h2></div>
       <div class="row"><div class="seg" role="group" aria-label="View" style="flex-wrap:wrap">${views.map(([k,l])=>`<button data-act="elev" data-v="${k}" aria-pressed="${String(k)===String(UI.elevWall)}">${l}</button>`).join('')}</div>
-      <button class="btn sm" data-act="dlsvg">Save drawing (.svg)</button><button class="btn sm" data-act="dxf">CAD export (.dxf)</button></div></div>
+      <button class="btn sm" data-act="dlsvg">Save this drawing</button><button class="btn sm pro" data-act="dxf">CAD export (.dxf)</button></div></div>
     <div class="elwrap"><svg class="el" id="elsvg" viewBox="${E.vb}" xmlns="http://www.w3.org/2000/svg">${E.s}</svg></div>
     <div class="grid2">
-      <div class="card stack"><h3>Rough-in schedule</h3><p class="hint">Dimensions to center of box or stub. Hand this to the electrician and plumber before drywall.</p>
-        <div class="tw"><table class="t"><thead><tr><th>#</th><th>Item</th><th class="n">From left</th><th class="n">From right</th><th class="n">AFF</th><th>Note</th></tr></thead><tbody>${E.rough||'<tr><td colspan="6" class="muted">No rough-ins on this view.</td></tr>'}</tbody></table></div></div>
-      <div class="card stack"><h3>Cabinet schedule</h3>
+      <div class="card stack"><h3>Outlets &amp; pipes on this wall</h3><p class="hint">Measured to the center of each box or pipe. Give this to the electrician and plumber.</p>
+        <div class="tw"><table class="t"><thead><tr><th>#</th><th>Item</th><th class="n">From left</th><th class="n">From right</th><th class="n">Off floor</th><th>Note</th></tr></thead><tbody>${E.rough||'<tr><td colspan="6" class="muted">No rough-ins on this view.</td></tr>'}</tbody></table></div></div>
+      <div class="card stack"><h3>Cabinets on this wall</h3>
         <div class="tw"><table class="t"><thead><tr><th>SKU</th><th>Type</th><th class="n">From left</th><th class="n">Width</th><th class="n">Bottom</th><th class="n">Top</th></tr></thead><tbody>${E.cabs||'<tr><td colspan="6" class="muted">No cabinets on this view.</td></tr>'}</tbody></table></div></div>
     </div></div>`;
 }

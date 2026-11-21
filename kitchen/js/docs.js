@@ -153,7 +153,7 @@ function renderDocs(){
     <select class="in" id="d-tag-${d.id}" data-bind="docs.${S.docs.indexOf(d)}.tag" data-kind="text" style="width:auto"><option value="">General</option>${S.walls.map((w,i)=>`<option value="W${i+1}" ${d.tag==='W'+(i+1)?'selected':''}>W${i+1}</option>`).join('')}<option value="appliance" ${d.tag==='appliance'?'selected':''}>Spec sheet</option><option value="contract" ${d.tag==='contract'?'selected':''}>Contract</option></select>
     <button class="btn sm" data-act="docopen" data-id="${d.id}">Open</button><button class="btn sm ghost danger" data-act="docdel" data-id="${d.id}" aria-label="Remove ${esc(d.name)}">✕</button></div>`).join('');
   $('#v-docs').innerHTML=`<div class="stack">
-    <div><div class="eyebrow">Specs &amp; docs organizer</div><h2>Selections, schedules and files</h2></div>
+    <div><div class="eyebrow">Files &amp; specs</div><h2>Choices, lists and files for this job</h2></div>
     <div class="grid2">
       <div class="card stack"><h3>Cabinet specification</h3>
         <div class="fgrid">${sel('line',LINE,'Cabinet line')}${sel('construction',CONSTR,'Construction')}${sel('doorStyle',DOOR,'Door style')}${sel('finish',FINISH,'Cabinet finish')}
@@ -180,7 +180,7 @@ function renderDocs(){
     </div>
     <div class="card stack"><div class="row" style="justify-content:space-between"><div><h3>Files &amp; site photos</h3><p class="hint" style="margin:0">Site photos, appliance spec sheets, contracts. ${CLOUD.assets?'Saved to your account with this project.':'Kept on this device.'}</p></div><button class="btn pri sm" data-act="docadd">+ Add files</button></div>
       ${docs||'<p class="hint">No files yet. Photograph each wall during the site visit and tag it here.</p>'}</div>
-    <div class="card stack"><div class="row" style="justify-content:space-between"><h3>Schedules</h3><button class="btn sm" data-act="csvsched">Export all schedules (CSV)</button></div>
+    <div class="card stack pro"><div class="row" style="justify-content:space-between"><h3>Schedules</h3><button class="btn sm" data-act="csvsched">Export all schedules (CSV)</button></div>
       <div class="eyebrow">Cabinet schedule</div><div class="tw"><table class="t"><thead><tr><th>SKU</th><th>Location</th><th>Type</th><th class="n">W × H × D</th><th>Finish</th><th>Spec</th></tr></thead><tbody>${cabRows||'<tr><td colspan="6" class="muted">No cabinets.</td></tr>'}</tbody></table></div>
       <div class="eyebrow">Appliance &amp; fixture schedule</div><div class="tw"><table class="t"><thead><tr><th>Tag</th><th>Location</th><th>Item</th><th class="n">W × H × D</th><th>Model / spec</th></tr></thead><tbody>${appRows||'<tr><td colspan="5" class="muted">No appliances or fixtures.</td></tr>'}</tbody></table></div>
       <div class="eyebrow">Door &amp; window schedule</div><div class="tw"><table class="t"><thead><tr><th>Tag</th><th>Wall</th><th>Type</th><th class="n">W × H</th><th class="n">From left</th><th class="n">Sill / AFF</th><th class="n">Casing</th></tr></thead><tbody>${dwRows||'<tr><td colspan="7" class="muted">No openings pinned.</td></tr>'}</tbody></table></div>
@@ -247,8 +247,8 @@ async function renderPresent(){
   await loadCaps();
   if(UI.tab!=='present')return;
   $('#v-present').innerHTML=`<div class="stack">
-    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Client presentation</div><h2>Presentation-ready story</h2></div>
-      <div class="row"><button class="btn pri" data-act="dlpres">Save presentation (.html)</button><button class="btn" data-act="tab" data-v="view3d">Capture more views in 3D</button></div></div>
+    <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Show the client</div><h2>Presentation for the homeowner</h2></div>
+      <div class="row"><button class="btn pri" data-act="dlpres">Save presentation to send</button><button class="btn" data-act="tab" data-v="view3d">📷 Add more 3D pictures</button></div></div>
     <div class="card stack"><div class="row" style="justify-content:space-between"><h3>Captured views · ${CAPS.length}</h3><span class="hint">Use “Capture for presentation” in the 3D tab. The first image is the cover.</span></div>
       <div class="caps">${CAPS.map((c,k)=>`<figure><img src="${c.url}" alt="${esc(c.label)}"><figcaption><span>${k===0?'<b>Cover</b> · ':''}${esc(c.label)}</span><span>${k?`<button class="btn sm ghost" data-act="capfirst" data-id="${c.id}">Make cover</button>`:''}<button class="btn sm ghost danger" data-act="capdel" data-id="${c.id}" aria-label="Remove">✕</button></span></figcaption></figure>`).join('')||'<p class="hint">No views captured yet. The presentation still includes the plan, elevations, selections and investment.</p>'}</div></div>
     <div class="pres" id="pres"><style>${PRESENT_CSS}</style>${presentationHTML()}</div></div>`;

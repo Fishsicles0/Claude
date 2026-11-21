@@ -66,7 +66,7 @@ const csv=rows=>rows.map(r=>r.map(v=>{const s=String(v??'');return /[",\n]/.test
 
 /* ---------- toast ---------- */
 let toastT;
-function toast(msg,kind){const t=$('#toast');t.textContent=msg;t.className='toast'+(kind==='err'?' err':'');t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,kind==='err'?5200:3000)}
+function toast(msg,kind){const t=$('#toast');t.textContent=msg;if(kind==='undo'){const b=document.createElement('button');b.className='tbtn';b.dataset.act='undo';b.textContent='↶ Undo';t.appendChild(b)}t.className='toast'+(kind==='err'?' err':'');t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,kind==='err'?6500:kind==='undo'?7000:4000)}
 
 /* ---------- history ---------- */
 function commit(){

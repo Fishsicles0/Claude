@@ -9,17 +9,17 @@ const STYLE_CSS={
 function render3DView(){
   const st=S.settings;
   $('#v3tools').innerHTML=`
-    <div class="seg" role="group" aria-label="Camera">${[['orbit','Orbit'],['walk','Walk'],['top','Top']].map(([k,l])=>`<button data-act="cam" data-v="${k}" aria-pressed="${UI.cam===k}">${l}</button>`).join('')}</div>
-    <select class="in" id="rstyle" style="width:auto;min-height:32px" aria-label="Rendering style">${RSTYLE.map(([k,l])=>`<option value="${k}" ${st.renderStyle===k?'selected':''}>${l}</option>`).join('')}</select>
+    <div class="seg" role="group" aria-label="Camera">${[['orbit','Turn around'],['walk','Walk inside'],['top','From above']].map(([k,l])=>`<button data-act="cam" data-v="${k}" aria-pressed="${UI.cam===k}">${l}</button>`).join('')}</div>
+    <select class="in pro" id="rstyle" style="width:auto;min-height:32px" aria-label="Rendering style">${RSTYLE.map(([k,l])=>`<option value="${k}" ${st.renderStyle===k?'selected':''}>${l}</option>`).join('')}</select>
     <div class="seg" role="group" aria-label="Lighting"><button data-act="light" data-v="day" aria-pressed="${st.light==='day'}">Day</button><button data-act="light" data-v="evening" aria-pressed="${st.light!=='day'}">Evening</button></div>
-    <button class="btn sm" data-act="paint" aria-pressed="${!!UI.paint}" style="${UI.paint?'background:var(--accent);color:var(--on-accent)':''}">🖌 Paint</button>
-    <button class="btn sm" data-act="capture">Capture for presentation</button>
-    <button class="btn sm" data-act="shot" data-v="1">Save image</button>
-    <button class="btn sm" data-act="shot" data-v="4k">4K render</button>
-    <button class="btn sm" data-act="pano">360° panorama</button>
-    <button class="btn sm" data-act="importModel">Import 3D model</button>`;
+    <button class="btn sm" data-act="paint" aria-pressed="${!!UI.paint}" style="${UI.paint?'background:var(--accent);color:var(--on-accent)':''}">🖌 Change cabinet color</button>
+    <button class="btn sm" data-act="capture">📷 Add to client show</button>
+    <button class="btn sm" data-act="shot" data-v="1">Save picture</button>
+    <button class="btn sm pro" data-act="shot" data-v="4k">4K render</button>
+    <button class="btn sm pro" data-act="pano">360° panorama</button>
+    <button class="btn sm pro" data-act="importModel">Import 3D model</button>`;
   $('#paintbar').hidden=!UI.paint;
-  if(UI.paint)$('#paintbar').innerHTML=`<span class="eyebrow" style="color:#fff">Tap a cabinet or island to paint it</span>${Object.entries(FINISH).map(([k,v])=>`<button class="swatch" style="background:${v[1]}" title="${esc(v[0])}" aria-label="${esc(v[0])}" aria-pressed="${UI.paint===k}" data-act="paintpick" data-v="${k}"></button>`).join('')}<button class="btn sm" data-act="paintreset">Reset all to project finish</button><button class="btn sm" data-act="paint">Done</button>`;
+  if(UI.paint)$('#paintbar').innerHTML=`<span style="color:#fff;font-weight:600">Pick a color, then tap a cabinet or the island</span>${Object.entries(FINISH).map(([k,v])=>`<button class="swatch" style="background:${v[1]}" title="${esc(v[0])}" aria-label="${esc(v[0])}" aria-pressed="${UI.paint===k}" data-act="paintpick" data-v="${k}"></button>`).join('')}<button class="btn sm" data-act="paintreset">Reset all to project finish</button><button class="btn sm" data-act="paint">Done</button>`;
   $('#joy').hidden=UI.cam!=='walk';
   const sw=(key,map,label)=>`<div><div class="eyebrow" style="margin-bottom:6px">${label}</div><div class="sw-row">${Object.entries(map).map(([k,v])=>`<button class="swatch" style="background:${v[1]}" title="${esc(v[0])}" aria-label="${esc(v[0])}" aria-pressed="${(st[key]||st.finish)===k}" data-act="finish" data-k="${key}" data-v="${k}"></button>`).join('')}</div><div class="hint" style="margin-top:4px">${esc((map[st[key]]||map[st.finish])[0])}</div></div>`;
   $('#finishes').innerHTML=sw('finish',FINISH,'Cabinets')+sw('islandFinish',FINISH,'Island')+sw('counter',COUNTER,'Countertop')+sw('hw',HW,'Hardware')+sw('floor',FLOOR,'Floor')+sw('wallc',WALLC,'Walls')+

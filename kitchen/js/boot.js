@@ -6,4 +6,5 @@
   if(window.THREE){V3.orb.t=new THREE.Vector3();setCam('orbit')}
   if(S.sample)setSave('Sample project');
   initCloud();
+  if(!LS.get('ps.welcomed'))showWelcome();
 })();

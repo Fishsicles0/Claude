@@ -1,15 +1,15 @@
 /* ---------- ESTIMATE ---------- */
 function renderEstimate(){
   const B=bom(),st=S.settings;
-  const tabs=`<div class="seg" role="group" aria-label="Estimate view">${[['bom','Bill of materials'],['compare','Compare options'],['quote','Customer proposal'],['cut','Cut list & order']].map(([k,l])=>`<button data-act="est" data-v="${k}" aria-pressed="${UI.est===k}">${l}</button>`).join('')}</div>`;
+  const tabs=`<div class="seg" role="group" aria-label="Estimate view">${[['bom','Materials & price'],['quote','Quote for the customer'],['compare','Compare options'],['cut','Cut list & order']].map(([k,l])=>`<button data-act="est" data-v="${k}" aria-pressed="${UI.est===k}" class="${k==='compare'||k==='cut'?'pro':''}">${l}</button>`).join('')}</div>`;
   let body='';
   if(UI.est==='bom'){
     let lastG='';
     const rows=B.lines.map((l,k)=>{const g=l.grp!==lastG?`<tr class="grp"><td colspan="6">${esc(l.grp)}</td></tr>`:'';lastG=l.grp;
       const priceIn=l.key?`<input class="in mono" style="width:96px;text-align:right" id="pr-${k}" data-bind="settings.${l.key.startsWith('over.')?'over.'+l.key.slice(5):l.key.replace(/^price\./,'price.')}" data-kind="num" ${l.key.startsWith('over.')?'data-null="delete"':''} value="${l.price}" aria-label="Unit cost ${esc(l.sku)}" inputmode="decimal">`:money(l.price);
       return g+`<tr><td class="mono">${esc(l.sku)}</td><td>${esc(l.desc)}</td><td class="n">${l.qty}</td><td>${esc(l.unit)}</td><td class="n">${priceIn}</td><td class="n">${money(l.qty*l.price)}</td></tr>`}).join('');
-    body=`<div class="egrid"><div class="card stack"><div class="row" style="justify-content:space-between"><h3>Live bill of materials</h3><div class="row"><button class="btn sm" data-act="csvbom">Export CSV</button></div></div>
-      <p class="hint">Updates as you change the layout. Unit costs are your price book: edit any of them and they stick to this project. Relocation lines come straight from the site-survey checks.</p>
+    body=`<div class="egrid"><div class="card stack"><div class="row" style="justify-content:space-between"><h3>Everything in this job</h3><div class="row"><button class="btn sm" data-act="csvbom">Save as spreadsheet</button></div></div>
+      <p class="hint">This list updates by itself as you change the design. To change a price, type over it in the "Unit cost" column.</p>
       <div class="tw"><table class="t"><thead><tr><th>SKU</th><th>Description</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit cost</th><th class="n">Extended</th></tr></thead><tbody>${rows}</tbody></table></div></div>
       <div class="stack" style="position:sticky;top:110px">${totalsCard(B)}
       <div class="card stack"><h3>Quantities</h3><dl class="kv"><dt>Countertop</dt><dd>${B.sq.toFixed(1)} sq ft</dd><dt>Edge profile</dt><dd>${B.edge.toFixed(1)} lin ft</dd><dt>Doors / drawers</dt><dd>${B.fc.doors} / ${B.fc.drawers}</dd><dt>Toe kick</dt><dd>${(B.toe/12).toFixed(1)} lin ft</dd><dt>Crown</dt><dd>${(B.crown/12).toFixed(1)} lin ft</dd></dl></div></div></div>`;
@@ -27,7 +27,7 @@ function renderEstimate(){
       <tr><th></th>${sums.map(x=>`<td class="n">${x.o.id==='_cur'?'':`<button class="btn sm" data-act="optload" data-id="${x.o.id}">Load</button> <button class="btn sm ghost danger" data-act="optdel" data-id="${x.o.id}" aria-label="Delete option">✕</button>`}</td>`).join('')}</tr>
       </tbody></table></div></div>`;
   } else if(UI.est==='quote'){
-    body=`<div class="egrid"><div class="stack" style="min-width:0"><div class="row"><button class="btn pri" data-act="dlquote">Save proposal (.html)</button>${IN_FRAME?'':'<button class="btn" data-act="print">Print / PDF</button>'}<button class="btn" data-act="copyquote">Copy as text</button></div>
+    body=`<div class="egrid"><div class="stack" style="min-width:0"><div class="row"><button class="btn pri" data-act="dlquote">Save quote to send</button>${IN_FRAME?'':'<button class="btn" data-act="print">Print / PDF</button>'}<button class="btn" data-act="copyquote">Copy for an email</button></div>
       <div class="doc" id="quoteDoc">${proposalHTML(B)}</div></div>
       <div class="stack">${totalsCard(B)}<div class="card stack"><h3>Terms</h3>
       <label class="f">Terms &amp; exclusions<textarea class="in" id="q-terms" rows="6" data-bind="settings.terms" data-kind="text">${esc(st.terms)}</textarea></label><p class="hint">Company name, logo and brand color are set on the Docs tab.</p></div></div></div>`;
@@ -41,7 +41,7 @@ function renderEstimate(){
       <div class="grid2"><div class="card stack"><h3>Carcass parts</h3><div class="tw"><table class="t"><thead><tr><th>Cabinet</th><th>Part</th><th class="n">Qty</th><th class="n">W</th><th class="n">L</th><th>Material</th><th>Edge</th></tr></thead><tbody>${pr}</tbody></table></div></div>
       <div class="card stack"><h3>Door &amp; drawer fronts</h3><div class="tw"><table class="t"><thead><tr><th>Cabinet</th><th>Front</th><th class="n">W</th><th class="n">H</th></tr></thead><tbody>${fr}</tbody></table></div></div></div></div>`;
   }
-  $('#v-estimate').innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><div><div class="eyebrow">Step 3 · Estimating &amp; ordering</div><h2>${esc(S.name)}</h2></div>${tabs}</div>${body}</div>`;
+  $('#v-estimate').innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><div><div class="eyebrow">Step 5 · Price &amp; quote</div><h2>${esc(S.name)}</h2></div>${tabs}</div>${body}</div>`;
 }
 function totalsCard(B){const st=S.settings;return `<div class="card tot"><h3 style="margin-bottom:6px">Totals</h3>
   <div class="l"><span>Materials</span><span>${money(B.mat)}</span></div><div class="l"><span>Labor</span><span>${money(B.lab)}</span></div>
@@ -78,8 +78,8 @@ function renderChecks(){
   const sec=(s,title)=>{const l=by(s);if(!l.length)return '';return `<div class="stack"><h3>${title} · ${l.length}</h3>${l.map(x=>`<button class="issue" data-act="goissue" data-ids="${x.ids.join(',')}"><span class="sev sev-${x.sev}"></span><span><b>${esc(x.title)}</b><span>${esc(x.detail)}</span><br><span class="eyebrow" style="font-size:10px">${esc(x.rule)}</span></span></button>`).join('')}</div>`};
   const tri=C.tri?`<dl class="kv"><dt>Sink → range</dt><dd>${fmt(C.tri.legs[0],'ft')}</dd><dt>Range → fridge</dt><dd>${fmt(C.tri.legs[1],'ft')}</dd><dt>Fridge → sink</dt><dd>${fmt(C.tri.legs[2],'ft')}</dd><dt>Total</dt><dd>${fmt(C.tri.sum,'ft')}</dd></dl>`:'<p class="hint">Add a sink base, range and refrigerator to measure the work triangle.</p>';
   $('#v-checks').innerHTML=`<div class="egrid"><div class="stack">
-    <div><div class="eyebrow">Rule-based guardrails</div><h2>${C.counts.err?C.counts.err+' must-fix, ':''}${C.counts.warn} warning${C.counts.warn===1?'':'s'}, ${C.counts.info} note${C.counts.info===1?'':'s'}</h2></div>
-    ${sec('err','Must fix')}${sec('warn','Warnings')}${sec('info','Notes for the installer')}
+    <div><div class="eyebrow">Step 4 · Problems</div><h2>${!C.counts.err&&!C.counts.warn?'No problems found':(C.counts.err?C.counts.err+' must fix'+(C.counts.warn?', ':''):'')+(C.counts.warn?C.counts.warn+' worth a look':'')}</h2><p class="hint">Tap a problem to jump to that cabinet on the plan.</p></div>
+    ${sec('err','Must fix')}${sec('warn','Warnings')}<div class="pro">${sec('info','Notes for the installer')}</div>
     ${!C.list.length?'<div class="card"><span class="pill p-ok">Everything passes</span></div>':''}
   </div><div class="stack" style="position:sticky;top:110px">
     <div class="card stack"><h3>Passing</h3>${C.passed.map(p=>`<div class="row"><span class="pill p-ok">✓</span><span>${esc(p)}</span></div>`).join('')||'<p class="hint">Nothing fully passing yet.</p>'}</div>
@@ -93,9 +93,9 @@ async function openMenu(){
   const m=$('#menu');if(!m.hidden){m.hidden=true;return}
   m.innerHTML='<div class="hint" style="padding:8px">Loading…</div>';m.hidden=false;
   const list=await listProjects();
-  m.innerHTML=`<button data-act="new">New blank project</button><button data-act="sample">Open sample kitchen</button><button data-act="dupproj">Duplicate this project</button><hr>
-    <div class="eyebrow" style="padding:6px 10px">Your projects</div><div class="pl">${list.map(p=>`<button data-act="open" data-id="${p.id}">${esc(p.name)} <span class="muted" style="font-size:11px">· ${new Date(p.updatedAt).toLocaleDateString()}</span></button>`).join('')||'<div class="hint" style="padding:6px 10px">None saved yet.</div>'}</div><hr>
-    <button data-act="export">Save project file (.json)</button><button data-act="import">Open project file…</button><hr><button data-act="delproj" style="color:var(--err)">Delete this project…</button>`;
+  m.innerHTML=`<button data-act="new">＋ Start a new job</button><button data-act="sample">Open the example kitchen</button><button data-act="dupproj">Make a copy of this job</button><hr>
+    <div class="eyebrow" style="padding:6px 10px">Your saved jobs</div><div class="pl">${list.map(p=>`<button data-act="open" data-id="${p.id}">${esc(p.name)} <span class="muted" style="font-size:11px">· ${new Date(p.updatedAt).toLocaleDateString()}</span></button>`).join('')||'<div class="hint" style="padding:6px 10px">None saved yet.</div>'}</div><hr>
+    <button data-act="export">Save a backup file of this job</button><button data-act="import">Open a backup file…</button><hr><button data-act="delproj" style="color:var(--err)">Delete this job…</button>`;
 }
 let confirmDel=0;
 const ACT={
@@ -103,7 +103,7 @@ const ACT={
   undo,redo,
   units:(el)=>{S.units=el.dataset.v;commit()},
   menu:()=>openMenu(),
-  new:()=>{$('#menu').hidden=true;setProject(blankProject());UI.tab='measure';commit();toast('New project — start by measuring the walls')},
+  new:()=>{$('#menu').hidden=true;setProject(blankProject());UI.tab='measure';commit();toast('New job started. Type in the wall lengths first.')},
   sample:()=>{$('#menu').hidden=true;setProject(sampleProject());render();toast('Sample kitchen loaded')},
   dupproj:()=>{$('#menu').hidden=true;const p=clone(S);p.id=uid();p.name=S.name+' (copy)';setProject(p);commit();toast('Duplicated')},
   open:async(el)=>{$('#menu').hidden=true;const p=await loadProject(el.dataset.id);if(p){setProject(p);toast('Opened '+p.name)}else toast('Could not open that project','err')},
