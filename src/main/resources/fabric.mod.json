@@ -3,16 +3,13 @@
   "id": "evade",
   "version": "${version}",
   "name": "Evade Client",
-  "description": "Evade Client: a server-safe quality-of-life client with a full HUD, visual mods, performance, clips and voice chat.",
+  "description": "Evade Client: a server-safe quality-of-life client with a full HUD, visual mods, performance, clips and profiles.",
   "authors": [
     "Evade"
   ],
   "license": "MIT",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "main": [
-      "net.evadeclient.voice.VoiceCommon"
-    ],
     "client": [
       "net.evadeclient.EvadeClient"
     ]

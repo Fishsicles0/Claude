@@ -83,7 +83,7 @@ public class CommandManager {
                 EvadeClient.config.save();
                 print("Nick Hider on. You now show as §c" + name);
             }
-            case "voice" -> net.evadeclient.module.misc.VoiceChat.openSvcMenu();
+            case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
             case "clip" -> {
                 var cl = EvadeClient.modules.get(net.evadeclient.module.misc.Clips.class);
                 if (!cl.isEnabled()) print("§7Turn on §cClips§7 first; it records the last seconds while it's on.");

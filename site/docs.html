@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 1.8.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta name="description" content="How to use Evade Client 1.8.1: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 1.8.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta property="og:description" content="How to use Evade Client 1.8.1: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.8.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.8.1">
 </head>
 <body data-page="docs">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.8.0</span>
+      <span class="nav-ver">v1.8.1</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -103,11 +103,10 @@
 
       <div class="doc-sec rv" id="voice">
         <h2>Voice chat</h2>
-        <p>Evade picks the right voice chat for each server automatically. Open <b>Voice Chat</b> (Misc) to see which one is active on the <b>Voice Engine</b> line.</p>
+        <p>Evade's voice chat is <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax. The Evade Installer downloads it straight from Modrinth when you leave <b>Voice chat</b> switched on.</p>
         <ul>
-          <li><b>Simple Voice Chat</b> &mdash; used on every server that runs it (a lot of servers do). The Evade Installer downloads <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax straight from Modrinth (leave <b>Voice chat</b> switched on when you install). Press <span class="kbd">V</span> for its menu, or click the <b>Voice Engine</b> line / type <span class="mono">.voice</span>. The first time, its setup guide walks you through your mic and push-to-talk key.</li>
-          <li><b>Evade voice</b> &mdash; used on servers and LAN worlds that have Evade but not Simple Voice Chat: proximity voice within 48 blocks, quieter with distance and panned by direction. It uses Simple Voice Chat's push-to-talk key if you have it, otherwise <span class="kbd">V</span>.</li>
-          <li>Singleplayer and LAN worlds you host with Evade support both, so friends can join and talk.</li>
+          <li>It works on every server that runs Simple Voice Chat, and in singleplayer and LAN worlds you host.</li>
+          <li>Press <span class="kbd">V</span> (or type <span class="mono">.voice</span>, or click <b>Voice Chat</b> in the menu) for its menu. The first time, its setup guide walks you through your mic and push-to-talk key.</li>
           <li>On macOS, allow microphone access for Minecraft / Java the first time you talk.</li>
         </ul>
       </div>
@@ -123,7 +122,7 @@
           <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
           <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
           <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
-          <div><span class="kbd">V</span><span>Voice chat menu (Simple Voice Chat) / push to talk (Evade voice)</span></div>
+          <div><span class="kbd">V</span><span>Voice chat menu</span></div>
           <div><span class="kbd">F8</span><span>Save a clip of the last seconds (with Clips on)</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
@@ -185,10 +184,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.8.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.8.0" defer></script>
+<script src="/assets/site.js?v=1.8.1" defer></script>
 </body>
 </html>
