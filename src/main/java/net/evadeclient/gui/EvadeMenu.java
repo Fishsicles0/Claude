@@ -43,22 +43,22 @@ public class EvadeMenu extends Screen {
     }
 
     /** A sidebar entry: a category page, or the special Edit-HUD action (page == null, hud == true). */
-    private record Nav(String label, Page page, String badge, boolean hud) {}
+    private record Nav(String label, Page page, String icon, boolean hud) {}
     private record NavGroup(String header, List<Nav> items) {}
 
     private static final List<NavGroup> GROUPS = List.of(
-            new NavGroup(null, List.of(new Nav("All Mods", Page.ALL, "A", false))),
+            new NavGroup(null, List.of(new Nav("All Mods", Page.ALL, "all", false))),
             new NavGroup("GAMEPLAY", List.of(
-                    new Nav("Controls", Page.MODS, "C", false),
-                    new Nav("Server-facing", Page.SERVER, "S", false),
-                    new Nav("Misc", Page.MISC, "~", false))),
+                    new Nav("Controls", Page.MODS, "controls", false),
+                    new Nav("Server-facing", Page.SERVER, "server", false),
+                    new Nav("Misc", Page.MISC, "misc", false))),
             new NavGroup("INTERFACE", List.of(
-                    new Nav("HUD", Page.HUD, "H", false),
-                    new Nav("Visuals", Page.VISUALS, "V", false))),
+                    new Nav("HUD", Page.HUD, "hud", false),
+                    new Nav("Visuals", Page.VISUALS, "visuals", false))),
             new NavGroup("GENERAL", List.of(
-                    new Nav("Edit HUD Layout", null, "E", true),
-                    new Nav("Profiles", Page.PROFILES, "P", false),
-                    new Nav("Settings", Page.SETTINGS, "⚙", false))));
+                    new Nav("Edit HUD Layout", null, "edit", true),
+                    new Nav("Profiles", Page.PROFILES, "profiles", false),
+                    new Nav("Settings", Page.SETTINGS, "settings", false))));
 
     private static Page page = Page.ALL;
     private static Module selected;
@@ -83,7 +83,7 @@ public class EvadeMenu extends Screen {
     private int wx, wy, ww, wh, cx, cy, cw, ch, searchY, headerY;
     private static final int SIDEBAR = 158, ROW_H = 24, SLIDER_W = 120;
     private static final int LIST_H = 50, CARD_H = 58, COMPACT_H = 22, GAP = 8;
-    private static final int NAV_TOP = 58, NAV_HEADER_H = 18, NAV_ITEM_H = 27, NAV_GROUP_GAP = 6, BADGE = 20;
+    private static final int NAV_TOP = 58, NAV_HEADER_H = 18, NAV_ITEM_H = 27, NAV_GROUP_GAP = 6;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -210,34 +210,38 @@ public class EvadeMenu extends Screen {
         boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot;
         float t = animate("nav:" + n.label, active ? 1 : hover ? 0.4f : 0, 16);
 
-        // selection pill / hover highlight
+        // Active: accent-tinted fill with a thin accent outline. Hover: a soft highlight.
         if (active) {
-            Theme.round(ctx, x1, top, x2, bot, Theme.tint(0.14f));
-            ctx.fill(x1, top + 3, x1 + 2, bot - 3, Theme.RED);
+            Theme.roundBordered(ctx, x1, top, x2, bot, Theme.tint(0.11f), Theme.lerpColor(Theme.BORDER, Theme.RED, 0.62f));
         } else if (t > 0.01f) {
             Theme.round(ctx, x1, top, x2, bot, Theme.alpha(Theme.CONTROL_HOVER, t));
         }
 
-        // rounded letter badge
-        int bx = wx + 16, by = y + (NAV_ITEM_H - BADGE) / 2;
-        int badgeFill = active ? Theme.RED : Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, t);
-        Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill);
-        if (active) Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill); // crisp on red
-        int letterColor = active ? 0xFFFFFFFF : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
-        int lw = Math.round(textRenderer.getWidth(n.badge) * 0.95f);
-        small(ctx, n.badge, bx + (BADGE - lw) / 2, by + 6, letterColor, 0.95f);
+        // Line icon, tinted: accent when active, dim otherwise, brightening on hover.
+        int fg = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t);
+        int ix = x1 + 8, iy = y + (NAV_ITEM_H - 2 - ICON) / 2;
+        ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, navIcon(n.icon), ix, iy, 0, 0, ICON, ICON, 24, 24, 24, 24, fg);
 
-        int textColor = active ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
-        ctx.drawText(textRenderer, n.label, bx + BADGE + 9, y + (NAV_ITEM_H - 8) / 2, textColor, false);
+        int textColor = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
+        ctx.drawText(textRenderer, n.label, ix + ICON + 9, y + (NAV_ITEM_H - 9) / 2, textColor, false);
 
-        // count chip, right-aligned (category pages only, not Settings)
+        // Count pill, right-aligned (category pages only, not Settings), tinted in the accent colour.
         if (n.page != null && n.page.category != null && n.page != Page.SETTINGS) {
             String cnt = String.valueOf(modulesFor(n.page, "").size());
-            int cw2 = Math.round(textRenderer.getWidth(cnt) * 0.8f) + 8;
-            int chipX = x2 - 6 - cw2, chipY = y + (NAV_ITEM_H - 13) / 2;
-            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 13, active ? Theme.alpha(Theme.RED, 0.28f) : Theme.DIVIDER);
-            small(ctx, cnt, chipX + 4, chipY + 3, active ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.8f);
+            int cw2 = Math.max(13, Math.round(textRenderer.getWidth(cnt) * 0.8f) + 8);
+            int chipX = x2 - 7 - cw2, chipY = y + (NAV_ITEM_H - 2 - 12) / 2;
+            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 12, Theme.alpha(Theme.RED, active ? 0.3f : 0.14f));
+            int tw = Math.round(textRenderer.getWidth(cnt) * 0.8f);
+            small(ctx, cnt, chipX + (cw2 - tw) / 2 + 1, chipY + 3,
+                    active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, 0.45f), 0.8f);
         }
+    }
+
+    private static final int ICON = 12;
+    private static final java.util.Map<String, net.minecraft.util.Identifier> NAV_ICONS = new java.util.HashMap<>();
+
+    private static net.minecraft.util.Identifier navIcon(String name) {
+        return NAV_ICONS.computeIfAbsent(name, k -> net.minecraft.util.Identifier.of("evade", "textures/gui/nav/" + k + ".png"));
     }
 
     /** Spread a header's letters so it reads as a small-caps label. */
