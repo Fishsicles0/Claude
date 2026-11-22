@@ -90,7 +90,7 @@ LAYOUT = """<!doctype html>
     </div>
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
@@ -230,8 +230,6 @@ def main() -> None:
         "{{SIZE_MOD}}": ver["size"], "{{SHA_MOD}}": ver["sha256"],
         "{{SIZE_EXE}}": ver["installer"]["windows"]["size"], "{{SHA_EXE}}": ver["installer"]["windows"]["sha256"],
         "{{SIZE_IJAR}}": ver["installer"]["jar"]["size"], "{{SHA_IJAR}}": ver["installer"]["jar"]["sha256"],
-        "{{PACK_VERSION}}": ver["texturePack"]["version"], "{{SIZE_PACK}}": ver["texturePack"]["size"],
-        "{{SHA_PACK}}": ver["texturePack"]["sha256"],
     }
     clips = ver.get("clips") or {}
     tokens |= {

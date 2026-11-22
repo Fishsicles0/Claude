@@ -222,9 +222,7 @@ const toast = one("#toast"), toastText = one("#toastText");
 let toastTimer;
 all("a[download]").forEach(a => a.addEventListener("click", () => {
   const href = a.getAttribute("href");
-  toastText.innerHTML = /Texture-Pack/.test(href)
-    ? "Pack downloaded. In Minecraft open <b>Options › Resource Packs › Open Pack Folder</b> and drop it in."
-    : /evade-client/.test(href)
+  toastText.innerHTML = /evade-client/.test(href)
     ? "Mod downloaded. Put it in your <b>mods</b> folder with Fabric API."
     : "Download started. Open it and click <b>Install</b>.";
   toast.classList.add("show");
