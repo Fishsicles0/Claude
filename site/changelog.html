@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.11.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.12.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.11.0</span>
+      <span class="nav-ver">v1.12.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -65,8 +65,19 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.12.0">
+      <div class="rel-head"><h2>v1.12.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <p class="rel-sum">A lighter HUD and a Low-End PC Mode.</p>
+      <ul>
+        <li><b>Lighter HUD:</b> text elements (FPS, coordinates, clock and the rest) now rebuild 20 times a second instead of every frame, and the module list is sorted once per tick. Measured back to back: 15&ndash;33% less time spent drawing Evade's HUD.</li>
+        <li>The <b>Frame Time Graph</b> now draws its bars as one image instead of 120 separate bars &mdash; about 4&times; cheaper (about 200 &rarr; 50 &micro;s per frame).</li>
+        <li><b>Low-End PC Mode</b> (in Performance): solid leaves, smooth lighting off, no chunk fade-in, biome blend off and a shorter entity distance, all restored exactly when you switch it off.</li>
+        <li>Disabled HUD elements and mods still cost nothing: they're skipped entirely.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.11.0">
-      <div class="rel-head"><h2>v1.11.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <div class="rel-head"><h2>v1.11.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">A bigger, benchmarked FPS stack, and low FPS when you're AFK.</p>
       <ul>
         <li><b>Evade Installer 1.4</b> adds <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a> (lighter networking), <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> (client micro-optimisations) and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a> (extra video toggles for low-end PCs), plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a snappier server list and instant world quitting.</li>
@@ -232,10 +243,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.11.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.12.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.11.0" defer></script>
+<script src="/assets/site.js?v=1.12.0" defer></script>
 </body>
 </html>

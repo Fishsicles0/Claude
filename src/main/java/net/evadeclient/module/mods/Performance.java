@@ -31,6 +31,7 @@ public class Performance extends Module {
     public final NumberSetting afkSeconds = add(new NumberSetting("AFK After (s)", 60, 15, 600, 15));
     public final NumberSetting afkFps = add(new NumberSetting("AFK FPS", 15, 5, 60, 5));
     public final BooleanSetting lighterOptions = add(new BooleanSetting("Lighter Video Settings", true));
+    public final BooleanSetting lowEnd = add(new BooleanSetting("Low-End PC Mode", false));
     public final net.evadeclient.setting.StatusSetting addons = add(new net.evadeclient.setting.StatusSetting(
             "FPS Mods Installed", Performance::installedAddons, "via installer"));
 
@@ -92,8 +93,42 @@ public class Performance extends Module {
         return keep < 100 && ThreadLocalRandom.current().nextDouble(100) >= keep;
     }
 
+    // ---- Low-End PC Mode: the video settings that cost the most on weak hardware, restored exactly afterwards.
+    private final java.util.List<Runnable> lowEndRestore = new java.util.ArrayList<>();
+    private boolean lowEndApplied;
+
+    private <T> void lowEndSet(net.minecraft.client.option.SimpleOption<T> option, T value) {
+        T old = option.getValue();
+        if (java.util.Objects.equals(old, value)) return;
+        lowEndRestore.add(() -> option.setValue(old));
+        option.setValue(value);
+    }
+
+    private void applyLowEnd(boolean on) {
+        if (on == lowEndApplied || mc.options == null) return;
+        var o = mc.options;
+        if (on) {
+            lowEndSet(o.getCutoutLeaves(), false);          // solid leaves
+            lowEndSet(o.getAo(), false);                    // smooth lighting off
+            lowEndSet(o.getImprovedTransparency(), false);
+            lowEndSet(o.getChunkFade(), 0.0);               // no chunk fade-in
+            lowEndSet(o.getBiomeBlendRadius(), 0);
+            if (o.getEntityDistanceScaling().getValue() > 0.75) lowEndSet(o.getEntityDistanceScaling(), 0.75);
+        } else {
+            for (int i = lowEndRestore.size() - 1; i >= 0; i--) lowEndRestore.get(i).run();
+            lowEndRestore.clear();
+        }
+        lowEndApplied = on;
+    }
+
+    @Override
+    public void onTick() {
+        applyLowEnd(lowEnd.get()); // follow the setting while Performance is on
+    }
+
     @Override
     protected void onEnable() {
+        applyLowEnd(lowEnd.get());
         if (!lighterOptions.get() || mc.options == null) return;
         var o = mc.options;
         savedClouds = o.getCloudRenderMode().getValue();
@@ -106,6 +141,7 @@ public class Performance extends Module {
 
     @Override
     protected void onDisable() {
+        applyLowEnd(false);
         if (mc.options == null) return;
         var o = mc.options;
         if (savedClouds != null) o.getCloudRenderMode().setValue(savedClouds);

@@ -23,6 +23,18 @@ public final class FrameStats {
 
     public static int count() { return count; }
 
+    // ---- Evade's own HUD cost per frame (so we can keep it near zero)
+    private static long hudNanos, hudFrames;
+
+    public static void addHudTime(long nanos) { hudNanos += nanos; hudFrames++; }
+
+    /** Average time Evade's HUD took per frame since the last call, in microseconds (resets). */
+    public static double takeHudMicros() {
+        double us = hudFrames == 0 ? 0 : hudNanos / 1000.0 / hudFrames;
+        hudNanos = 0; hudFrames = 0;
+        return us;
+    }
+
     /** The i-th most recent frame time in ms (0 = latest). */
     public static float recent(int i) { return MS[Math.floorMod(head - 1 - i, SIZE)]; }
 
