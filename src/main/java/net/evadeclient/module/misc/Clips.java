@@ -39,6 +39,10 @@ public class Clips extends Module {
     private final NumberSetting before = add(new NumberSetting("Seconds Before", 20, 5, 120, 5));
     private final NumberSetting after = add(new NumberSetting("Seconds After", 4, 0, 15, 1));
     private final NumberSetting port = add(new NumberSetting("App Port", 47821, 1024, 65535, 1));
+    private final KeySetting openKey = add(new KeySetting("Open Clips App", GLFW.GLFW_KEY_UNKNOWN));
+    private final BooleanSetting launchApp = add(new BooleanSetting("Start Evade Clips With Game", true));
+    private boolean openWasDown, launchChecked;
+    private long lastClipNotice;
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(800)).build();
 
@@ -69,6 +73,10 @@ public class Clips extends Module {
         boolean down = saveKey.isDown();
         if (down && !keyWasDown) send(before.getInt(), "Clip", "manual");
         keyWasDown = down;
+        boolean open = openKey.isDown();
+        if (open && !openWasDown) openApp(null);
+        openWasDown = open;
+        if (!launchChecked) { launchChecked = true; ensureAppRunning(); }
 
         // Kills: a player we hit in the last 10 s just died.
         for (PlayerEntity p : mc.world.getPlayers()) {
@@ -160,11 +168,73 @@ public class Clips extends Module {
                     Notifications.push("Clips", "Open Evade Clips to save clips", false);
                 }
             } else if (res.statusCode() == 200) {
-                Notifications.push("Clip saved", title, true);
+                Notifications.push("Clip saved", title + "  ·  .clips last to edit", true);
             } else {
                 Notifications.push("Clip not saved", res.body().replaceAll(".*\"error\":\"([^\"]*)\".*", "$1"), false);
             }
         }));
+    }
+
+    // ------------------------------------------------------------------ the Evade Clips app
+
+    /** {@code .clips} opens the app, {@code .clips last} opens your newest clip in its editor, {@code .clips save} clips now. */
+    public static void command(String[] a) {
+        Clips c = EvadeClient.modules == null ? null : EvadeClient.modules.get(Clips.class);
+        if (c == null) return;
+        String sub = a.length > 1 ? a[1].toLowerCase(java.util.Locale.ROOT) : "";
+        if (sub.equals("save")) c.send(c.before.getInt(), "Clip", "manual");
+        else c.openApp(sub.equals("last") ? "last" : null);
+    }
+
+    /** Brings Evade Clips forward (starting it if needed), optionally opening a clip in its editor. */
+    void openApp(String clip) {
+        String url = "http://127.0.0.1:" + port.getInt() + "/open" + (clip == null ? "" : "?clip=" + enc(clip));
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(3)).POST(HttpRequest.BodyPublishers.noBody()).build();
+        HTTP.sendAsync(req, HttpResponse.BodyHandlers.discarding()).whenComplete((res, err) -> mc.execute(() -> {
+            if (err == null) return;
+            if (!launch(false)) Notifications.push("Evade Clips", "Not installed: get it from evadeclient.com", false);
+        }));
+    }
+
+    /** Starts Evade Clips in the tray when the game starts, so instant replay is already running when you play. */
+    private void ensureAppRunning() {
+        if (!launchApp.get()) return;
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port.getInt() + "/status")).timeout(Duration.ofSeconds(2)).GET().build();
+        HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString()).whenComplete((res, err) -> {
+            if (err != null || res.statusCode() != 200) mc.execute(() -> launch(true));
+        });
+    }
+
+    /** Starts the installed app (location recorded by the app / installer). Returns false if it isn't installed. */
+    private static boolean launch(boolean minimized) {
+        try {
+            java.nio.file.Path loc = appDir().resolve("location.json");
+            if (!java.nio.file.Files.exists(loc)) return false;
+            com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(loc)).getAsJsonObject();
+            List<String> cmd = new ArrayList<>();
+            if (o.has("exe") && java.nio.file.Files.exists(java.nio.file.Path.of(o.get("exe").getAsString()))) {
+                cmd.add(o.get("exe").getAsString());
+            } else if (o.has("jar") && java.nio.file.Files.exists(java.nio.file.Path.of(o.get("jar").getAsString()))) {
+                String javaBin = o.has("java") && java.nio.file.Files.exists(java.nio.file.Path.of(o.get("java").getAsString()))
+                        ? o.get("java").getAsString() : java.nio.file.Path.of(System.getProperty("java.home"), "bin", "java").toString();
+                cmd.add(javaBin);
+                cmd.add("-jar");
+                cmd.add(o.get("jar").getAsString());
+            } else return false;
+            if (minimized) cmd.add("--minimized");
+            new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            if (minimized) Notifications.push("Evade Clips", "Instant replay is starting", true);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Same folder Evade Clips uses for its settings. */
+    static java.nio.file.Path appDir() {
+        String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+        if (os.contains("win") && System.getenv("APPDATA") != null) return java.nio.file.Path.of(System.getenv("APPDATA"), "EvadeClips");
+        return java.nio.file.Path.of(System.getProperty("user.home"), ".evade-clips");
     }
 
     /** Drops a named marker in Evade Clips right away (shows on the recording's timeline). */

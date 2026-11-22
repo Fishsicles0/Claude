@@ -40,7 +40,9 @@ public class CommandManager {
                 print("§d.modules§7 - list modules");
                 print("§d.waypoint§7 - waypoints (add <name>, del <name>, list, clear)");
                 print("§d.save§7 / §d.load§7 - config");
+                print("§d.clips§7 [last|save]§7 - open Evade Clips, edit your last clip, or save one now");
             }
+            case "clips", "clip" -> net.evadeclient.module.misc.Clips.command(a);
             case "t", "toggle" -> {
                 Module m = module(a, 1);
                 m.toggle();

@@ -328,6 +328,11 @@ final class SelfTest {
      */
     private void voiceTests(Path dir) throws Exception {
         boolean espeak = new java.io.File("/usr/bin/espeak-ng").canExecute();
+        // The engine libraries come from Maven Central exactly as the app downloads them.
+        if (net.evadeclient.clips.core.VoiceCommands.modelInstalled() && espeak && !net.evadeclient.clips.core.VoiceCommands.libsInstalled()) {
+            net.evadeclient.clips.core.VoiceCommands.downloadLibs(null);
+            check(net.evadeclient.clips.core.VoiceCommands.libsInstalled(), "speech engine downloads from Maven Central and passes its checksum");
+        }
         if (!net.evadeclient.clips.core.VoiceCommands.modelInstalled() || !espeak) {
             System.out.println("  SKIP  voice commands (needs the speech model via -Dclips.voskModel and espeak-ng)");
             return;

@@ -58,16 +58,16 @@ public final class SettingsPanel extends JPanel {
         voice.addActionListener(e -> {
             s.voiceCommands = voice.isSelected();
             s.save();
-            if (s.voiceCommands && !net.evadeclient.clips.core.VoiceCommands.modelInstalled()) {
-                int ok = JOptionPane.showConfirmDialog(this, "Voice commands need a one-time download of the offline speech model (about 40 MB).\n"
+            if (s.voiceCommands && !net.evadeclient.clips.core.VoiceCommands.ready()) {
+                int ok = JOptionPane.showConfirmDialog(this, "Voice commands need a one-time download of the offline speech engine and model (about 70 MB).\n"
                         + "Speech is recognised on this PC; nothing you say is sent anywhere. Download now?", "Voice commands", JOptionPane.OK_CANCEL_OPTION);
                 if (ok != JOptionPane.OK_OPTION) { voice.setSelected(false); s.voiceCommands = false; s.save(); return; }
                 voice.setEnabled(false);
-                voice.setText("Downloading the speech model…");
+                voice.setText("Downloading the speech engine…");
                 new Thread(() -> {
                     String err = null;
-                    try { net.evadeclient.clips.core.VoiceCommands.downloadModel(p -> javax.swing.SwingUtilities.invokeLater(
-                            () -> voice.setText("Downloading the speech model… " + Math.round(p * 100) + "%"))); }
+                    try { net.evadeclient.clips.core.VoiceCommands.downloadAll(p -> javax.swing.SwingUtilities.invokeLater(
+                            () -> voice.setText("Downloading the speech engine… " + Math.round(p * 100) + "%"))); }
                     catch (Exception ex) { err = ex.getMessage(); }
                     String fail = err != null ? "Download failed: " + err : app.applyVoice();
                     javax.swing.SwingUtilities.invokeLater(() -> {

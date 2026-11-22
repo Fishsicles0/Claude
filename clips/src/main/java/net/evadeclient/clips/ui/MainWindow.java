@@ -70,6 +70,14 @@ public final class MainWindow extends JFrame {
         root.add(pages, BorderLayout.CENTER);
         setContentPane(root);
 
+        app.showWindow = () -> {
+            setVisible(true);
+            if ((getExtendedState() & ICONIFIED) != 0) setExtendedState(getExtendedState() & ~ICONIFIED);
+            setAlwaysOnTop(true);
+            toFront();
+            requestFocus();
+            setAlwaysOnTop(false);
+        };
         app.openEditor = c -> SwingUtilities.invokeLater(() -> {
             if (c == null) { editor.close(); show(editor.clip() != null && page.equals("editor") ? "library" : "library"); return; }
             editor.open(c);

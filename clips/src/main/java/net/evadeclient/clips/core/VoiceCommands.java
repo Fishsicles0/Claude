@@ -3,25 +3,22 @@ package net.evadeclient.clips.core;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.vosk.LibVosk;
-import org.vosk.LogLevel;
-import org.vosk.Model;
-import org.vosk.Recognizer;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Mixer;
-import javax.sound.sampled.TargetDataLine;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -32,6 +29,9 @@ import java.util.zip.ZipInputStream;
  * Hands-free control: say "clip that" and the last moments are saved. Speech is recognised offline (Vosk, on
  * this PC; audio never leaves it) against a handful of fixed phrases only, so normal talking, callouts and game
  * sound don't trigger anything.
+ * <p>
+ * The engine (~30 MB of natives for every OS) and the model (~40 MB) are downloaded the first time voice
+ * commands are turned on, so the app itself stays small.
  */
 public final class VoiceCommands implements AutoCloseable {
     public enum Command { CLIP, RECORD_START, RECORD_STOP, MARKER }
@@ -44,27 +44,79 @@ public final class VoiceCommands implements AutoCloseable {
 
     public static final String MODEL_NAME = "vosk-model-small-en-us-0.15";
     public static final String MODEL_URL = "https://alphacephei.com/vosk/models/" + MODEL_NAME + ".zip";
-    private static final float RATE = 16000;
     /** Words below this confidence don't count. */
     static final double MIN_CONFIDENCE = 0.75;
 
-    private final Model model;
-    private volatile boolean running;
-    private Thread thread;
+    /** Vosk and JNA from Maven Central, verified against Maven's SHA-1. */
+    static final String[][] LIBS = {
+            {"https://repo1.maven.org/maven2/com/alphacephei/vosk/0.3.45/vosk-0.3.45.jar", "vosk-0.3.45.jar"},
+            {"https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.7.0/jna-5.7.0.jar", "jna-5.7.0.jar"}};
 
-    public VoiceCommands(Path modelDir) throws IOException {
-        LibVosk.setLogLevel(LogLevel.WARNINGS);
-        model = new Model(modelDir.toString());
+    /** The speech engine (voice/VoskEngine), loaded from the downloaded libraries. Hands back Vosk's result JSON. */
+    public interface Engine extends AutoCloseable {
+        void recognize(InputStream pcm16k, Consumer<String> results) throws Exception;
+        void start(String micName, Consumer<String> results) throws Exception;
+        void stop();
+        boolean listening();
+        @Override void close();
     }
 
-    /** Where the model lives (downloaded once, ~40 MB), or the folder given with -Dclips.voskModel. */
+    private final Engine engine;
+
+    public VoiceCommands(Path modelDir) throws IOException {
+        engine = loadEngine(modelDir, grammar());
+    }
+
+    // ------------------------------------------------------------------ downloads
+
+    /** Where the model lives, or the folder given with -Dclips.voskModel. */
     public static Path modelDir() {
         String override = System.getProperty("clips.voskModel");
         if (override != null) return Path.of(override);
         return Settings.appDir().resolve("voice").resolve(MODEL_NAME);
     }
 
+    public static Path libDir() {
+        String o = System.getProperty("clips.voiceLibs");
+        return o != null ? Path.of(o) : Settings.appDir().resolve("voice").resolve("lib");
+    }
+
     public static boolean modelInstalled() { return Files.isRegularFile(modelDir().resolve("am").resolve("final.mdl")); }
+
+    public static boolean libsInstalled() {
+        for (String[] l : LIBS) if (!Files.isRegularFile(libDir().resolve(l[1]))) return false;
+        return true;
+    }
+
+    /** Everything voice needs is on disk. */
+    public static boolean ready() { return libsInstalled() && modelInstalled(); }
+
+    /** Downloads whatever is missing: engine libraries, then the model. */
+    public static void downloadAll(DoubleConsumer progress) throws IOException, InterruptedException {
+        if (!libsInstalled()) downloadLibs(p -> { if (progress != null) progress.accept(p * 0.4); });
+        if (!modelInstalled()) downloadModel(p -> { if (progress != null) progress.accept(0.4 + p * 0.6); });
+    }
+
+    public static void downloadLibs(DoubleConsumer progress) throws IOException, InterruptedException {
+        Files.createDirectories(libDir());
+        HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+        for (int i = 0; i < LIBS.length; i++) {
+            Path target = libDir().resolve(LIBS[i][1]);
+            if (Files.isRegularFile(target)) continue;
+            String sha1 = http.send(HttpRequest.newBuilder(URI.create(LIBS[i][0] + ".sha1")).build(), HttpResponse.BodyHandlers.ofString())
+                    .body().trim().split("\\s+")[0];
+            HttpResponse<byte[]> r = http.send(HttpRequest.newBuilder(URI.create(LIBS[i][0])).build(), HttpResponse.BodyHandlers.ofByteArray());
+            if (r.statusCode() != 200) throw new IOException("Download failed (HTTP " + r.statusCode() + ")");
+            String got;
+            try { got = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(r.body())); }
+            catch (java.security.NoSuchAlgorithmException e) { throw new IOException(e); }
+            if (!got.equalsIgnoreCase(sha1)) throw new IOException("Checksum mismatch for " + LIBS[i][1]);
+            Path part = target.resolveSibling(LIBS[i][1] + ".part");
+            Files.write(part, r.body());
+            Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
+            if (progress != null) progress.accept((i + 1) / (double) LIBS.length);
+        }
+    }
 
     /** Downloads and unpacks the speech model (once). */
     public static void downloadModel(DoubleConsumer progress) throws IOException, InterruptedException {
@@ -99,13 +151,44 @@ public final class VoiceCommands implements AutoCloseable {
         if (!modelInstalled()) throw new IOException("Model unpacked to an unexpected place");
     }
 
-    private Recognizer recognizer() throws IOException {
-        StringBuilder grammar = new StringBuilder("[");
-        for (String[] p : PHRASES) grammar.append('"').append(p[0]).append("\",");
-        grammar.append("\"[unk]\"]");
-        Recognizer r = new Recognizer(model, RATE, grammar.toString());
-        r.setWords(true);
-        return r;
+    // ------------------------------------------------------------------ engine
+
+    static String grammar() {
+        StringBuilder g = new StringBuilder("[");
+        for (String[] p : PHRASES) g.append('"').append(p[0]).append("\",");
+        return g.append("\"[unk]\"]").toString();
+    }
+
+    private static Engine loadEngine(Path modelDir, String grammar) throws IOException {
+        if (!libsInstalled()) throw new IOException("The speech engine isn't downloaded yet.");
+        try {
+            List<URL> urls = new ArrayList<>();
+            for (String[] l : LIBS) urls.add(libDir().resolve(l[1]).toUri().toURL());
+            urls.add(VoiceCommands.class.getProtectionDomain().getCodeSource().getLocation());
+            ClassLoader loader = new ChildFirst(urls.toArray(new URL[0]), VoiceCommands.class.getClassLoader());
+            Class<?> c = Class.forName("net.evadeclient.clips.voice.VoskEngine", true, loader);
+            return (Engine) c.getConstructor(String.class, String.class).newInstance(modelDir.toString(), grammar);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw new IOException("Speech engine failed to start: " + e.getCause(), e.getCause());
+        } catch (ReflectiveOperationException | java.net.MalformedURLException e) {
+            throw new IOException("Speech engine failed to load: " + e, e);
+        }
+    }
+
+    /** Loads the engine and its libraries itself; everything else (the Engine interface, Java) from the app. */
+    private static final class ChildFirst extends URLClassLoader {
+        ChildFirst(URL[] urls, ClassLoader parent) { super(urls, parent); }
+
+        @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (!(name.startsWith("net.evadeclient.clips.voice.") || name.startsWith("org.vosk.") || name.startsWith("com.sun.jna.")))
+                return super.loadClass(name, resolve);
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> c = findLoadedClass(name);
+                if (c == null) c = findClass(name);
+                if (resolve) resolveClass(c);
+                return c;
+            }
+        }
     }
 
     /**
@@ -139,71 +222,20 @@ public final class VoiceCommands implements AutoCloseable {
         return null;
     }
 
-    /** Recognises commands in 16 kHz mono 16-bit PCM (used by the live listener and the tests). */
+    /** Recognises commands in 16 kHz mono 16-bit PCM (used by the tests). */
     public void recognize(InputStream pcm, Consumer<Command> onCommand) throws IOException {
-        try (Recognizer r = recognizer()) {
-            byte[] buf = new byte[3200]; // 100 ms
-            int n;
-            while ((n = pcm.read(buf)) > 0) {
-                if (r.acceptWaveForm(buf, n)) {
-                    Command c = parse(r.getResult());
-                    if (c != null) onCommand.accept(c);
-                }
-            }
-            Command c = parse(r.getFinalResult());
-            if (c != null) onCommand.accept(c);
-        }
+        try {
+            engine.recognize(pcm, json -> { Command c = parse(json); if (c != null) onCommand.accept(c); });
+        } catch (IOException e) { throw e; } catch (Exception e) { throw new IOException(e); }
     }
 
     /** Starts listening on the microphone (default, or the first whose name contains {@code micName}). */
-    public synchronized void start(String micName, Consumer<Command> onCommand) throws Exception {
-        if (running) return;
-        AudioFormat fmt = new AudioFormat(RATE, 16, 1, true, false);
-        TargetDataLine line = openMic(fmt, micName);
-        line.start();
-        running = true;
-        thread = new Thread(() -> {
-            try (Recognizer r = recognizer()) {
-                byte[] buf = new byte[3200];
-                while (running) {
-                    int n = line.read(buf, 0, buf.length);
-                    if (n > 0 && r.acceptWaveForm(buf, n)) {
-                        Command c = parse(r.getResult());
-                        if (c != null) onCommand.accept(c);
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("[clips] voice commands stopped: " + e.getMessage());
-            } finally {
-                line.stop();
-                line.close();
-                running = false;
-            }
-        }, "voice-commands");
-        thread.setDaemon(true);
-        thread.start();
+    public void start(String micName, Consumer<Command> onCommand) throws Exception {
+        engine.start(micName, json -> { Command c = parse(json); if (c != null) onCommand.accept(c); });
     }
 
-    private static TargetDataLine openMic(AudioFormat fmt, String micName) throws Exception {
-        DataLine.Info info = new DataLine.Info(TargetDataLine.class, fmt);
-        if (micName != null && !micName.isBlank()) {
-            for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
-                if (!mi.getName().toLowerCase(Locale.ROOT).contains(micName.toLowerCase(Locale.ROOT))) continue;
-                Mixer m = AudioSystem.getMixer(mi);
-                if (m.isLineSupported(info)) {
-                    TargetDataLine l = (TargetDataLine) m.getLine(info);
-                    l.open(fmt);
-                    return l;
-                }
-            }
-        }
-        TargetDataLine l = (TargetDataLine) AudioSystem.getLine(info);
-        l.open(fmt);
-        return l;
-    }
+    public void stop() { engine.stop(); }
+    public boolean listening() { return engine.listening(); }
 
-    public synchronized void stop() { running = false; }
-    public boolean listening() { return running; }
-
-    @Override public void close() { stop(); model.close(); }
+    @Override public void close() { engine.close(); }
 }

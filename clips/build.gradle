@@ -13,8 +13,10 @@ dependencies {
     implementation 'com.formdev:flatlaf:3.5.4'
     // Global hotkeys (save a clip while the game has focus).
     implementation 'com.github.kwhat:jnativehook:2.2.2'
-    // Offline speech recognition for voice commands ("clip that"). The model is downloaded on first use.
-    implementation 'com.alphacephei:vosk:0.3.45'
+    // Offline speech recognition for voice commands ("clip that"). Compile-only: the engine (~30 MB of natives)
+    // and the model are downloaded when the user turns voice commands on, so the app download stays small.
+    compileOnly 'com.alphacephei:vosk:0.3.45'
+    compileOnly 'net.java.dev.jna:jna:5.7.0'
     // QR code to open the phone gallery.
     implementation 'com.google.zxing:core:3.5.3'
 }
@@ -39,6 +41,7 @@ tasks.register('selfTest', JavaExec) {
     // Voice-command checks run when a speech model is available (download it once from the app's Settings).
     def model = System.getProperty('clips.voskModel') ?: System.getenv('CLIPS_VOSK_MODEL')
     if (model) systemProperty 'clips.voskModel', model
+    systemProperty 'clips.voiceLibs', "${buildDir}/voice-libs"
     // Share-link checks run against a clips-share server, e.g. `npx wrangler dev` in clips-share/.
     def share = System.getenv('CLIPS_SHARE_URL')
     if (share) systemProperty 'clips.shareUrl', share

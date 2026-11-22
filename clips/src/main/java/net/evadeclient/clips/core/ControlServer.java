@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
  *   POST /clip?seconds=30&after=5&title=...&game=...&tag=...
  *   POST /record/start?game=...   POST /record/stop   POST /record/toggle
  *   POST /marker?label=Kill
+ *   POST /open[?clip=<id>|last]   (bring the app forward / open a clip in the editor)
  * </pre>
  * Requests carrying an Origin header are refused, so web pages can't trigger it.
  */
@@ -32,6 +33,8 @@ public final class ControlServer {
         Map<String, Object> record(String action, String game) throws Exception;
         void marker();
         default void marker(String label) { marker(); }
+        /** Shows the window; with a clip id (or "last"), opens that clip in the editor. */
+        default boolean open(String clip) { return false; }
         /** A game's own state push (CS2 Game State Integration). Returns false to reject (bad token). */
         default boolean gameState(String game, String body) { return false; }
     }
@@ -59,6 +62,10 @@ public final class ControlServer {
                     case "/record/start", "/record/stop", "/record/toggle" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
                         send(ex, 200, h.record(path.substring(8), q.get("game")));
+                    }
+                    case "/open" -> {
+                        if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
+                        send(ex, 200, Map.of("ok", h.open(q.get("clip"))));
                     }
                     case "/gsi/cs2" -> {
                         String body = new String(ex.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);

@@ -35,7 +35,8 @@ import java.util.Locale;
  */
 public final class InstallerCore {
     public static final String MC_VERSION = "1.21.11";
-    public static final String SITE = "https://evadeclient.com";
+    /** Overridable with -Devade.site=... (tests point it at a local server). */
+    public static final String SITE = System.getProperty("evade.site", "https://evadeclient.com");
     public static final String PROFILE_KEY = "evade-client";
     public static final String VERSION_ID = "evade-client-" + MC_VERSION;
     private static final String FABRIC_META = "https://meta.fabricmc.net/v2/versions/loader/" + MC_VERSION;
@@ -46,11 +47,12 @@ public final class InstallerCore {
         void update(double fraction, String message);
     }
 
-    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings) {}
+    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean installClips) {}
 
     /** What's available to install (fetched before installing so the UI can show versions). */
     public record Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
-                          String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile) {}
+                          String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
+                          String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl) {}
 
     public record Installed(String evadeVersion, String loaderVersion, String fabricApiVersion) {}
 
@@ -120,11 +122,131 @@ public final class InstallerCore {
         }
         if (file == null) file = api.getAsJsonArray("files").get(0).getAsJsonObject();
 
+        // Evade Clips: the Windows .exe on Windows (it finds Java itself), the jar everywhere else.
+        String clipsVersion = null, clipsUrl = null, clipsSha = null, ffUrl = null, ffSha = null;
+        if (site.has("clips") && site.get("clips").isJsonObject()) {
+            JsonObject c = site.getAsJsonObject("clips");
+            clipsVersion = str(c, "version");
+            JsonObject pick = WINDOWS && c.has("windows") ? c.getAsJsonObject("windows") : c.getAsJsonObject("jar");
+            if (pick != null) { clipsUrl = SITE + "/" + str(pick, "file"); clipsSha = str(pick, "sha256"); }
+            if (WINDOWS && c.has("ffmpeg")) {
+                JsonObject f = c.getAsJsonObject("ffmpeg");
+                ffUrl = str(f, "url");
+                ffSha = str(f, "sha256url");
+            }
+        }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, str(api, "version_number"),
-                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"));
+                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"),
+                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha);
     }
 
     // ------------------------------------------------------------------ install
+
+    static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+
+    /** Where Evade Clips keeps its settings (and where it records its install location for Evade Client). */
+    public static Path clipsDataDir() {
+        String override = System.getProperty("evade.clipsData");
+        if (override != null) return Paths.get(override);
+        if (WINDOWS && System.getenv("APPDATA") != null) return Paths.get(System.getenv("APPDATA"), "EvadeClips");
+        return Paths.get(System.getProperty("user.home"), ".evade-clips");
+    }
+
+    /** Where the Evade Clips app itself is installed. */
+    public static Path clipsAppDir() {
+        String override = System.getProperty("evade.clipsApp");
+        if (override != null) return Paths.get(override);
+        if (WINDOWS && System.getenv("LOCALAPPDATA") != null) return Paths.get(System.getenv("LOCALAPPDATA"), "Programs", "Evade Clips");
+        return clipsDataDir().resolve("app");
+    }
+
+    /**
+     * Installs Evade Clips: the app, ffmpeg (Windows, if not already there), a Start Menu / app-menu entry, start
+     * at login (in the tray), and the location file Evade Client reads to start it with Minecraft.
+     */
+    void installClips(Release r, Progress p) throws Exception {
+        Path app = clipsAppDir();
+        Files.createDirectories(app);
+        boolean exe = r.clipsUrl().endsWith(".exe");
+        Path target = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
+        p.update(0.86, "Downloading Evade Clips " + r.clipsVersion());
+        download(r.clipsUrl(), target, r.clipsSha256(), "SHA-256", 0.86, 0.9, p);
+
+        if (r.ffmpegUrl() != null && !Files.exists(app.resolve("ffmpeg").resolve("bin").resolve("ffmpeg.exe"))) {
+            p.update(0.9, "Downloading ffmpeg (records and edits video)");
+            String expected = null;
+            if (r.ffmpegShaUrl() != null) {
+                HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
+                if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
+            }
+            Path zip = app.resolve("ffmpeg-download.zip");
+            download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.9, 0.95, p);
+            unzipFfmpeg(zip, app.resolve("ffmpeg").resolve("bin"));
+            Files.deleteIfExists(zip);
+        }
+
+        // Where Evade Client finds the app to start it with Minecraft.
+        JsonObject loc = new JsonObject();
+        if (exe) loc.addProperty("exe", target.toString());
+        else {
+            loc.addProperty("jar", target.toString());
+            loc.addProperty("java", Paths.get(System.getProperty("java.home"), "bin", "java").toString());
+        }
+        Files.createDirectories(clipsDataDir());
+        Files.writeString(clipsDataDir().resolve("location.json"), GSON.toJson(loc));
+
+        p.update(0.96, "Adding Evade Clips to your apps");
+        try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
+    }
+
+    /** Pulls ffmpeg.exe and ffprobe.exe out of an ffmpeg build zip (whatever folder they're in). */
+    static void unzipFfmpeg(Path zip, Path binDir) throws IOException {
+        Files.createDirectories(binDir);
+        int found = 0;
+        try (var z = new java.util.zip.ZipInputStream(Files.newInputStream(zip))) {
+            java.util.zip.ZipEntry e;
+            while ((e = z.getNextEntry()) != null) {
+                String name = e.getName().replace('\\', '/');
+                String file = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
+                if (!e.isDirectory() && (file.equals("ffmpeg.exe") || file.equals("ffprobe.exe"))) {
+                    Files.copy(z, binDir.resolve(file), StandardCopyOption.REPLACE_EXISTING);
+                    found++;
+                }
+            }
+        }
+        if (found < 2) throw new IOException("The ffmpeg download didn't contain ffmpeg.exe and ffprobe.exe");
+    }
+
+    /** Start Menu + login (Windows), or app menu + autostart entries (Linux). */
+    private static void shortcuts(Path target, boolean exe) throws Exception {
+        if (WINDOWS) {
+            String appData = System.getenv("APPDATA");
+            if (appData == null) return;
+            Path programs = Paths.get(appData, "Microsoft", "Windows", "Start Menu", "Programs");
+            Path startup = programs.resolve("Startup");
+            String ps = "$w=New-Object -ComObject WScript.Shell;"
+                    + lnk(programs.resolve("Evade Clips.lnk"), target, "")
+                    + lnk(startup.resolve("Evade Clips.lnk"), target, "--minimized");
+            Process pr = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", ps).redirectErrorStream(true).start();
+            pr.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
+            pr.waitFor();
+        } else if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            String java = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
+            String cmd = "\"" + java + "\" -jar \"" + target + "\"";
+            String home = System.getProperty("user.home");
+            Path apps = Paths.get(home, ".local", "share", "applications"), auto = Paths.get(home, ".config", "autostart");
+            Files.createDirectories(apps);
+            Files.createDirectories(auto);
+            String entry = "[Desktop Entry]\nType=Application\nName=Evade Clips\nComment=Record, store and edit gameplay clips\nTerminal=false\nCategories=AudioVideo;Game;\n";
+            Files.writeString(apps.resolve("evade-clips.desktop"), entry + "Exec=" + cmd + "\n");
+            Files.writeString(auto.resolve("evade-clips.desktop"), entry + "Exec=" + cmd + " --minimized\n");
+        }
+    }
+
+    private static String lnk(Path at, Path target, String args) {
+        return "$s=$w.CreateShortcut('" + at.toString().replace("'", "''") + "');$s.TargetPath='" + target.toString().replace("'", "''")
+                + "';$s.Arguments='" + args + "';$s.WorkingDirectory='" + target.getParent().toString().replace("'", "''") + "';$s.Save();";
+    }
 
     public void install(Options o, Release r, Progress p) throws Exception {
         Path mc = o.minecraftDir();
@@ -162,8 +284,11 @@ public final class InstallerCore {
             }
         }
 
-        // 4. Launcher profile.
-        p.update(0.9, "Adding the Evade Client profile");
+        // 4. Evade Clips: clipping in the client sends clips here.
+        if (o.installClips() && r.clipsUrl() != null) installClips(r, p);
+
+        // 5. Launcher profile.
+        p.update(0.97, "Adding the Evade Client profile");
         addProfile(mc.resolve("launcher_profiles.json"), true, o);
         Path store = mc.resolve("launcher_profiles_microsoft_store.json");
         if (Files.exists(store)) addProfile(store, false, o);
@@ -174,6 +299,7 @@ public final class InstallerCore {
         marker.addProperty("fabricApi", r.fabricApiVersion());
         marker.addProperty("minecraft", MC_VERSION);
         marker.addProperty("installedAt", Instant.now().toString());
+        if (o.installClips() && r.clipsVersion() != null) marker.addProperty("clips", r.clipsVersion());
         Files.writeString(game.resolve("evade-install.json"), GSON.toJson(marker));
         p.update(1.0, "Done");
     }

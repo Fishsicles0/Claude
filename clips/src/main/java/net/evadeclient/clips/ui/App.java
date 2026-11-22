@@ -39,6 +39,8 @@ public final class App {
     private final List<ExportJob> jobs = new CopyOnWriteArrayList<>();
     private final List<Runnable> jobListeners = new CopyOnWriteArrayList<>();
     public Consumer<Clip> openEditor = c -> {};
+    /** Brings the main window forward (set by the window). */
+    public Runnable showWindow = () -> {};
     /** The game running right now (null if none), checked every few seconds. */
     public volatile String currentGame;
     public final net.evadeclient.clips.events.AutoClipper autoClipper;
@@ -90,7 +92,7 @@ public final class App {
                 if (voice != null) { voice.close(); voice = null; }
                 return null;
             }
-            if (!net.evadeclient.clips.core.VoiceCommands.modelInstalled()) return "The speech model isn't downloaded yet.";
+            if (!net.evadeclient.clips.core.VoiceCommands.ready()) return "The speech engine isn't downloaded yet.";
             if (voice == null) voice = new net.evadeclient.clips.core.VoiceCommands(net.evadeclient.clips.core.VoiceCommands.modelDir());
             voice.start(settings.micDevice, cmd -> {
                 switch (cmd) {
@@ -190,7 +192,7 @@ public final class App {
                 }
                 @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {
                     Clip c = saveClipNow(seconds, after, title, game, tag);
-                    return Map.of("ok", true, "id", c.id, "file", c.path(library.root()).toString(), "duration", c.duration);
+                    return Map.of("ok", true, "id", c.id, "file", c.path(library.root()).toString(), "duration", c.duration, "title", c.title);
                 }
                 @Override public Map<String, Object> record(String action, String game) throws Exception {
                     boolean rec = engine.isRecording();
@@ -200,6 +202,13 @@ public final class App {
                 }
                 @Override public void marker() { App.this.marker(); }
                 @Override public void marker(String label) { engine.addMarker(label); }
+                @Override public boolean open(String id) {
+                    SwingUtilities.invokeLater(showWindow);
+                    if (id == null || id.isBlank()) return true;
+                    Clip c = id.equals("last") ? library.query("", "all", null, "newest").stream().findFirst().orElse(null) : library.get(id);
+                    if (c != null) openEditor.accept(c);
+                    return c != null;
+                }
                 @Override public boolean gameState(String game, String body) {
                     return !settings.cs2Events || cs2.handle(body);
                 }
