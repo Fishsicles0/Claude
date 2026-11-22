@@ -53,8 +53,11 @@ public final class InstallerCore {
             {"ferrite-core", "FerriteCore", "ferritecore"},
             {"immediatelyfast", "ImmediatelyFast", "ImmediatelyFast", "immediatelyfast"},
             {"entityculling", "EntityCulling", "entityculling"},
+            {"moreculling", "MoreCulling", "moreculling"},
     };
-    private static final String USER_AGENT = "EvadeInstaller/1.2 (+https://evadeclient.com)";
+    /** Fabric API: every mod's shared dependency, which we already install ourselves. */
+    private static final String FABRIC_API_ID = "P7dR8mSH";
+    private static final String USER_AGENT = "EvadeInstaller/1.3 (+https://evadeclient.com)";
 
     public interface Progress {
         void update(double fraction, String message);
@@ -68,8 +71,9 @@ public final class InstallerCore {
                           String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
                           ModFile voiceChat, java.util.List<ModFile> performance) {}
 
-    /** A mod file on Modrinth. */
-    public record ModFile(String name, String version, String url, String sha512, String filename) {}
+    /** A mod file on Modrinth, with the project ids of the mods it needs. */
+    public record ModFile(String name, String version, String url, String sha512, String filename,
+                          String projectId, java.util.List<String> requires) {}
 
     public record Installed(String evadeVersion, String loaderVersion, String fabricApiVersion) {}
 
@@ -149,6 +153,19 @@ public final class InstallerCore {
                 if (f != null) perf.add(f);
             } catch (Exception e) { /* optional: skip that one */ }
         }
+        // Libraries those mods need (e.g. Cloth Config for MoreCulling), resolved from Modrinth's dependency lists.
+        java.util.Set<String> have = new java.util.HashSet<>();
+        for (ModFile f : perf) have.add(f.projectId());
+        for (int i = 0; i < perf.size(); i++) {
+            for (String dep : perf.get(i).requires()) {
+                if (dep == null || dep.equals(FABRIC_API_ID) || !have.add(dep)) continue;
+                try {
+                    String title = str(getJson("https://api.modrinth.com/v2/project/" + dep).getAsJsonObject(), "title");
+                    ModFile lib = latestOnModrinth(title, "https://api.modrinth.com/v2/project/" + dep + "/version" + query);
+                    if (lib != null) perf.add(lib);
+                } catch (Exception e) { /* its mod will simply not load without it; skip */ }
+            }
+        }
 
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, str(api, "version_number"),
                 str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), voice, perf);
@@ -167,8 +184,13 @@ public final class InstallerCore {
         JsonObject file = null;
         for (JsonElement f : pick.getAsJsonArray("files")) if (f.getAsJsonObject().get("primary").getAsBoolean()) file = f.getAsJsonObject();
         if (file == null) file = pick.getAsJsonArray("files").get(0).getAsJsonObject();
+        java.util.List<String> requires = new java.util.ArrayList<>();
+        for (JsonElement d : pick.getAsJsonArray("dependencies")) {
+            JsonObject dep = d.getAsJsonObject();
+            if ("required".equals(str(dep, "dependency_type")) && str(dep, "project_id") != null) requires.add(str(dep, "project_id"));
+        }
         return new ModFile(name, str(pick, "version_number"), str(file, "url"),
-                file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"));
+                file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), str(pick, "project_id"), requires);
     }
 
     // ------------------------------------------------------------------ install
@@ -204,6 +226,17 @@ public final class InstallerCore {
         String voiceInstalled = "";
         StringBuilder perfInstalled = new StringBuilder();
         for (String[] m : PERF) for (int i = 2; i < m.length; i++) deleteMatching(mods, m[i]);
+        JsonArray managed = new JsonArray();
+        try {
+            Path old = game.resolve("evade-install.json");
+            if (Files.exists(old)) {
+                JsonObject prev = JsonParser.parseString(Files.readString(old)).getAsJsonObject();
+                if (prev.has("addedFiles")) for (JsonElement f : prev.getAsJsonArray("addedFiles")) {
+                    String name = f.getAsString();
+                    if (!name.contains("/") && !name.contains("\\") && name.endsWith(".jar")) Files.deleteIfExists(mods.resolve(name));
+                }
+            }
+        } catch (Exception ignored) {}
         if (o.performanceMods() && r.performance() != null) {
             int i = 0, n = r.performance().size();
             for (ModFile f : r.performance()) {
@@ -211,6 +244,7 @@ public final class InstallerCore {
                 p.update(a, "Downloading " + f.name() + " " + f.version());
                 try {
                     download(f.url(), mods.resolve(f.filename()), f.sha512(), "SHA-512", a, b, p);
+                    managed.add(f.filename());
                     if (perfInstalled.length() > 0) perfInstalled.append(", ");
                     perfInstalled.append(f.name()).append(' ').append(f.version());
                 } catch (Exception e) {
@@ -224,6 +258,7 @@ public final class InstallerCore {
             p.update(0.80, "Downloading voice chat (Simple Voice Chat " + v.version() + ")");
             try {
                 download(v.url(), mods.resolve(v.filename()), v.sha512(), "SHA-512", 0.80, 0.82, p);
+                managed.add(v.filename());
                 voiceInstalled = v.version();
             } catch (Exception e) {
                 p.update(0.8, "Voice chat couldn't be downloaded; run the installer again later to add it.");
@@ -251,6 +286,7 @@ public final class InstallerCore {
         marker.addProperty("fabricApi", r.fabricApiVersion());
         marker.addProperty("voiceChat", voiceInstalled);
         marker.addProperty("performanceMods", perfInstalled.toString());
+        marker.add("addedFiles", managed);
         marker.addProperty("minecraft", MC_VERSION);
         marker.addProperty("installedAt", Instant.now().toString());
         Files.writeString(game.resolve("evade-install.json"), GSON.toJson(marker));

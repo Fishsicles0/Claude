@@ -30,9 +30,19 @@ def fetch(version):
 
 os.makedirs(OUT, exist_ok=True)
 PROJECTS = ["simple-voice-chat"] + ([] if "--no-perf" in sys.argv else
-            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling"])
+            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling"])
 for old in glob.glob(os.path.join(OUT, "*.jar")):
     os.remove(old)
-for slug in PROJECTS:
+FABRIC_API = "P7dR8mSH"
+queue, seen = list(PROJECTS), set()
+while queue:
+    slug = queue.pop(0)
     versions = get(f"https://api.modrinth.com/v2/project/{slug}/version?{Q}")
-    fetch(next((v for v in versions if v["version_type"] == "release"), versions[0]))
+    v = next((x for x in versions if x["version_type"] == "release"), versions[0])
+    if v["project_id"] in seen:
+        continue
+    seen.add(v["project_id"])
+    fetch(v)
+    for d in v["dependencies"]:  # required libraries, e.g. Cloth Config for MoreCulling
+        if d["dependency_type"] == "required" and d["project_id"] not in (FABRIC_API, *seen):
+            queue.append(d["project_id"])

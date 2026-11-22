@@ -43,6 +43,7 @@ public abstract class GameRendererMixin {
     /** Clips: grab the finished frame (world, HUD and screens) for the instant-replay buffer. */
     @Inject(method = "render(Lnet/minecraft/client/render/RenderTickCounter;Z)V", at = @At("RETURN"))
     private void evade$clipFrame(net.minecraft.client.render.RenderTickCounter counter, boolean tick, CallbackInfo ci) {
+        net.evadeclient.util.FrameStats.frameEnd();
         net.evadeclient.module.misc.Clips.onFrameEnd();
     }
 }

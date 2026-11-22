@@ -99,6 +99,7 @@ public class ModuleManager {
         register(new ItemCounterHud());
         register(new PvpInfoHud());
         register(new PackDisplayHud());
+        register(new FrameTimeHud());
         // Client
         register(new ClientSettings());
     }

@@ -33,7 +33,7 @@ public class Performance extends Module {
 
     private static final String[][] ADDONS = {
             {"sodium", "Sodium"}, {"lithium", "Lithium"}, {"ferritecore", "FerriteCore"},
-            {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}};
+            {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}, {"moreculling", "MoreCulling"}};
 
     /** Which of the installer's performance mods are loaded (they stack with this module). */
     public static String installedAddons() {
@@ -41,7 +41,7 @@ public class Performance extends Module {
         java.util.List<String> on = new java.util.ArrayList<>();
         for (String[] a : ADDONS) if (loader.isModLoaded(a[0])) on.add(a[1]);
         if (on.isEmpty()) return "None (re-run the installer)";
-        return on.size() == ADDONS.length ? "All 5" : on.size() + " of 5";
+        return on.size() == ADDONS.length ? "All " + ADDONS.length : on.size() + " of " + ADDONS.length;
     }
 
     private CloudRenderMode savedClouds;

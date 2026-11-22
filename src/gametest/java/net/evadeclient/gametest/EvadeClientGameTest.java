@@ -30,13 +30,15 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             // and turn it on where they test it.
             disable(ctx, net.evadeclient.module.mods.Performance.class);
             String addons = ctx.computeOnClient(c -> net.evadeclient.module.mods.Performance.installedAddons());
-            check(!addons.startsWith("None"), "Performance mods load alongside Evade (" + addons + ")");
+            check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
+                    "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
             testVisualBatch(ctx, sp);
             testRenderBatch(ctx, sp);
             testPerformance(ctx, sp);
+            testFrameTime(ctx);
             testClips(ctx, sp);
             testVoice(ctx);
             testHud(ctx, sp);
@@ -409,6 +411,18 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         server.runCommand("kill @e[type=item]");
         server.runCommand("clear @a");
         check(true, "Item Physics and 1.7 Animations render without errors");
+    }
+
+    /** Frame Time Graph: frames are being recorded and summarised. */
+    private void testFrameTime(ClientGameTestContext ctx) {
+        enable(ctx, net.evadeclient.module.hud.FrameTimeHud.class);
+        ctx.waitTicks(60);
+        int frames = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.count());
+        float[] s = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.summary(net.evadeclient.util.FrameStats.SIZE));
+        ctx.takeScreenshot("evade-frametime");
+        disable(ctx, net.evadeclient.module.hud.FrameTimeHud.class);
+        check(frames > 60 && s[0] > 1 && s[1] > 0 && s[1] <= s[0] + 0.5f && s[2] > 0,
+                String.format(java.util.Locale.ROOT, "Frame Time Graph tracks frames (%d frames, %.0f FPS avg, %.0f 1%% low, %.1f ms worst)", frames, s[0], s[1], s[2]));
     }
 
     /** Performance: benchmark FPS with 400 distant mobs, culling off vs on, plus the lighter-settings preset. */
