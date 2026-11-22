@@ -209,6 +209,7 @@ main > section { margin-top: 136px; }
 .shot-card.w2 { grid-column: span 2; }
 .shot-card .img { aspect-ratio: 16 / 9; overflow: hidden; border-bottom: 1px solid var(--stroke); background: #000; }
 .shot-card .img img { width: 100%; height: 100%; object-fit: cover; transition: transform .7s var(--ease); }
+.shot-card .img video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .shot-card:hover .img img { transform: scale(1.04); }
 .shot-card .txt { padding: 20px 22px 24px; }
 .shot-card h3 { font-size: 19px; margin-bottom: 6px; }

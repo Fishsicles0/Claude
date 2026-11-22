@@ -61,6 +61,21 @@ if os.path.exists(p):
     os.remove(p)
     print("  removed printer.webp (unused)")
 
+# the three GUI styles fanned out, front to back: List, Cards, Compact (each cropped to the menu window)
+def menu_window(name):
+    im = Image.open(latest(name)).convert("RGB")
+    return im.crop((166, 56, 1754, 1024))  # the menu at 1080p, GUI scale 2, plus its glow
+fan = Image.new("RGB", (1920, 1080), (8, 8, 10))
+from PIL import ImageFilter, ImageDraw
+layers = [("evade-gui-compact", (700, 330)), ("evade-gui-cards", (380, 175)), ("evade-gui-list", (60, 20))]
+for name, (x, y) in layers:
+    w = menu_window(name).resize((1160, 707), Image.LANCZOS)
+    shadow = Image.new("L", fan.size, 0)
+    ImageDraw.Draw(shadow).rectangle((x + 10, y + 24, x + w.width + 10, y + w.height + 24), fill=200)
+    fan.paste((0, 0, 0), (0, 0), shadow.filter(ImageFilter.GaussianBlur(26)))
+    fan.paste(w, (x, y))
+save(fan, "gui-styles.webp")
+
 # short recordings: the gametest captures each frame on a fixed 30 fps clock; stitch them into H.264 MP4s
 def clip(name, out, poster_at):
     frames = sorted(glob.glob(f"{SHOTS}/*_{name}.png"))
