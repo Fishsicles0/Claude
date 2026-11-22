@@ -52,6 +52,16 @@ public final class RecordPanel extends JPanel {
     private final JComboBox<String> encoder = new JComboBox<>();
     private final JComboBox<String> codec = new JComboBox<>(new String[]{"Auto (smallest that's fast)", "H.264 (plays everywhere)", "HEVC (≈40% smaller)"});
     private final JLabel dataRate = Theme.label(" ", 12f, false, Theme.DIM);
+    private static final double[] REPLAY_RATES = {0, 4, 6, 8, 12, 16, 25, 40, 60};
+    private static final double[] RECORD_RATES = {0, 6, 8, 12, 16, 25, 40, 60, 80};
+    private final JComboBox<String> replayRate = new JComboBox<>(rates(REPLAY_RATES, "Automatic (from quality)"));
+    private final JComboBox<String> recordRate = new JComboBox<>(rates(RECORD_RATES, "Same as instant replay"));
+
+    private static String[] rates(double[] r, String zero) {
+        String[] out = new String[r.length];
+        for (int i = 0; i < r.length; i++) out[i] = r[i] == 0 ? zero : (int) r[i] + " Mbit/s  (≈" + Math.round(r[i] * 60 / 8) + " MB/min)";
+        return out;
+    }
     private final JCheckBox cursor = new JCheckBox("Capture mouse cursor");
     private final JCheckBox sysAudio = new JCheckBox("Record game / desktop audio");
     private final JComboBox<String> sysDevice = new JComboBox<>();
@@ -208,6 +218,9 @@ public final class RecordPanel extends JPanel {
         line(c, "Quality", quality);
         line(c, "Codec", codec);
         line(c, "Encoder", encoder);
+        line(c, "Replay bitrate", replayRate);
+        recordRate.setToolTipText("A different bitrate for full recordings runs a second encode while recording");
+        line(c, "Recording bitrate", recordRate);
         line(c, "Data use", dataRate);
         cursor.setOpaque(false);
         full(c, cursor);
@@ -286,6 +299,8 @@ public final class RecordPanel extends JPanel {
         fps.setSelectedItem(String.valueOf(s.fps));
         res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 2160 -> 1; case 1440 -> 2; case 720 -> 4; default -> 3; });
         quality.setSelectedIndex(s.quality - 1);
+        replayRate.setSelectedIndex(Math.max(0, indexOf(REPLAY_RATES, s.replayBitrateMbps)));
+        recordRate.setSelectedIndex(Math.max(0, indexOf(RECORD_RATES, s.recordBitrateMbps)));
         codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
         encoder.removeAllItems();
         encoder.addItem("Automatic (best available)");
@@ -354,6 +369,8 @@ public final class RecordPanel extends JPanel {
             s.resolution = new int[]{0, 2160, 1440, 1080, 720}[res.getSelectedIndex()];
             s.quality = quality.getSelectedIndex() + 1;
             s.codec = new String[]{"auto", "h264", "hevc"}[codec.getSelectedIndex()];
+            s.replayBitrateMbps = REPLAY_RATES[Math.max(0, replayRate.getSelectedIndex())];
+            s.recordBitrateMbps = RECORD_RATES[Math.max(0, recordRate.getSelectedIndex())];
             s.encoder = "";
             if (encoder.getSelectedIndex() > 0 && Ffmpeg.available()) {
                 for (String c2 : List.of("h264", "hevc"))
@@ -371,7 +388,7 @@ public final class RecordPanel extends JPanel {
             updateEnabled();
             if (app.engine.isLive()) restartLater.restart();
         };
-        for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, codec, encoder, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
+        for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, codec, encoder, replayRate, recordRate, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
         for (JCheckBox b : List.of(cursor, sysAudio, mic, voice)) b.addActionListener(e -> apply.run());
         for (JSpinner sp : List.of(rx, ry, rw, rh)) sp.addChangeListener(e -> apply.run());
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
@@ -397,10 +414,16 @@ public final class RecordPanel extends JPanel {
         var s = app.settings;
         String enc = net.evadeclient.clips.core.CaptureEngine.previewEncoder(s);
         var in = CaptureSource.build(s);
-        long bits = Ffmpeg.liveCapBits(enc, s.quality, s.fps, in.outW(), in.outH()) + 160_000L * in.audioTracks();
+        long video = s.replayBitrateMbps > 0 ? (long) (s.replayBitrateMbps * 1e6) : Ffmpeg.liveCapBits(enc, s.quality, s.fps, in.outW(), in.outH());
+        long bits = video + 160_000L * in.audioTracks();
         double mbMin = bits * 60 / 8e6;
         dataRate.setText(String.format("<html>up to <b>%.0f MB</b> per minute (%dx%d, %s)<br>replay buffer: at most %.0f MB on disk</html>",
                 mbMin, in.outW(), in.outH(), Ffmpeg.isHevc(enc) ? "HEVC" : "H.264", mbMin * (s.replaySeconds + 3) / 60.0));
+    }
+
+    private static int indexOf(double[] a, double v) {
+        for (int i = 0; i < a.length; i++) if (a[i] == v) return i;
+        return -1;
     }
 
     private void updateEnabled() {

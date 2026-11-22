@@ -98,6 +98,12 @@ public final class EditorPanel extends JPanel {
     private final JComboBox<String> capStyle = new JComboBox<>(new String[]{"Clean", "Subtitle", "Meme"});
     private final JComboBox<String> capPos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
     private final java.util.Map<String, BufferedImage> capPreview = new java.util.HashMap<>();
+    private final javax.swing.DefaultListModel<String> ovModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<String> ovList = new javax.swing.JList<>(ovModel);
+    private final JComboBox<String> ovPos = new JComboBox<>(new String[]{"Top right", "Top left", "Bottom right", "Bottom left", "Center"});
+    private final JSlider ovSize = new JSlider(10, 100, 30), ovOpacity = new JSlider(10, 100, 100);
+    private final JCheckBox ovAudio = new JCheckBox("Use its sound");
+    private final java.util.Map<String, BufferedImage> ovFrames = new java.util.concurrent.ConcurrentHashMap<>();
     private final JSlider fadeIn = new JSlider(0, 30, 0), fadeOut = new JSlider(0, 30, 0);
     private final JTextField titleText = new JTextField();
     private final JComboBox<String> titlePos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
@@ -105,6 +111,7 @@ public final class EditorPanel extends JPanel {
     private final JComboBox<Exporter.Preset> preset = new JComboBox<>(Exporter.Preset.values());
     private final JLabel presetInfo = Theme.label("", 12f, false, Theme.DIM);
     private final JCheckBox gpu = new JCheckBox("Use GPU encoder when possible", true);
+    private final JCheckBox watermark = new JCheckBox("Add my watermark");
     private final JButton exportBtn = Theme.button("Export", Theme.icon(Theme.Glyph.EXPORT, 16, Color.WHITE), true);
     private final JProgressBar progress = new JProgressBar(0, 1000);
     private final JLabel exportStatus = Theme.label(" ", 12f, false, Theme.DIM);
@@ -387,6 +394,50 @@ public final class EditorPanel extends JPanel {
         slider(p, "Fade in", fadeIn, v -> edit.fadeIn = v / 10.0);
         slider(p, "Fade out", fadeOut, v -> edit.fadeOut = v / 10.0);
 
+        section(p, "Video overlays");
+        add(p, hint("Put a second video on top: your facecam, a reaction, another angle. It starts at the playhead."));
+        ovList.setVisibleRowCount(3);
+        ovList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        ovList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadOverlay(); });
+        JScrollPane ovScroll = new JScrollPane(ovList);
+        ovScroll.setPreferredSize(new Dimension(200, 64));
+        add(p, ovScroll);
+        add(p, Box.createVerticalStrut(6));
+        JPanel ovBtns = new JPanel(new GridLayout(1, 3, 4, 0));
+        ovBtns.setOpaque(false);
+        JButton ovFromLib = Theme.button("From library", null, false), ovFromFile = Theme.button("From file", null, false), ovDel = Theme.button("Remove", null, false);
+        ovFromLib.addActionListener(e -> addOverlayFromLibrary());
+        ovFromFile.addActionListener(e -> {
+            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Videos", Library.VIDEO_EXT.toArray(String[]::new)));
+            if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) addOverlay(fc.getSelectedFile().toPath());
+        });
+        ovDel.addActionListener(e -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { snapshot(); edit.overlays.remove(o); edited(); refreshOverlays(); } });
+        for (JButton b : new JButton[]{ovFromLib, ovFromFile, ovDel}) { b.setFont(Theme.interBold.deriveFont(11.5f)); b.setMargin(new java.awt.Insets(4, 2, 4, 2)); ovBtns.add(b); }
+        add(p, ovBtns);
+        add(p, Box.createVerticalStrut(6));
+        ovPos.addActionListener(e -> {
+            EditSpec.Overlay o = selectedOverlay();
+            if (loading || o == null) return;
+            snapshot();
+            double m = 0.03, half = o.scale / 2;
+            double hh = o.scale / 2; // same aspect as the frame: height fraction = width fraction
+            switch (ovPos.getSelectedIndex()) {
+                case 0 -> { o.x = 1 - m - half; o.y = m + hh; }
+                case 1 -> { o.x = m + half; o.y = m + hh; }
+                case 2 -> { o.x = 1 - m - half; o.y = 1 - m - hh; }
+                case 3 -> { o.x = m + half; o.y = 1 - m - hh; }
+                default -> { o.x = 0.5; o.y = 0.5; }
+            }
+            edited();
+        });
+        field(p, "Position", ovPos);
+        slider(p, "Size", ovSize, v -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { o.scale = v / 100.0; ovPos.setSelectedIndex(ovPos.getSelectedIndex()); } });
+        slider(p, "Opacity", ovOpacity, v -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) o.opacity = v / 100.0; });
+        ovAudio.setOpaque(false);
+        ovAudio.addActionListener(e -> { EditSpec.Overlay o = selectedOverlay(); if (!loading && o != null) { snapshot(); o.audio = ovAudio.isSelected(); edited(); } });
+        add(p, ovAudio);
+
         section(p, "Captions");
         add(p, hint("Text that shows between two moments. Meme style is big and loud; Subtitle sits on a dark box."));
         capList.setVisibleRowCount(4);
@@ -453,6 +504,10 @@ public final class EditorPanel extends JPanel {
         gpu.setOpaque(false);
         gpu.setToolTipText("Much faster. Size-targeted presets always use x264 for an exact file size.");
         add(p, gpu);
+        watermark.setOpaque(false);
+        watermark.setSelected(app.settings.watermarkEnabled);
+        watermark.setToolTipText("Your own text or logo, set up in Settings. Evade Clips never adds a watermark of its own.");
+        add(p, watermark);
         add(p, Box.createVerticalStrut(10));
         exportBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         exportBtn.addActionListener(e -> exportOrCancel());
@@ -599,6 +654,8 @@ public final class EditorPanel extends JPanel {
         effect.setSelectedIndex(Math.max(0, java.util.Arrays.asList(EFFECTS).indexOf(edit.effect)));
         player.setVideoFilter(Exporter.effectFilter(edit.effect));
         refreshCaptions();
+        refreshOverlays();
+        for (EditSpec.Overlay o : edit.overlays) loadOverlayFrame(o.file);
         mute.setSelected(edit.mute);
         fadeIn.setValue((int) Math.round(edit.fadeIn * 10));
         fadeOut.setValue((int) Math.round(edit.fadeOut * 10));
@@ -722,6 +779,72 @@ public final class EditorPanel extends JPanel {
         edited();
         preset.setSelectedItem(Exporter.Preset.SHORTS);
         app.notify("Vertical 9:16", "Switch Fit to Crop to fill the screen instead · Export when ready", false);
+    }
+
+    private EditSpec.Overlay selectedOverlay() {
+        int i = ovList.getSelectedIndex();
+        return edit == null || i < 0 || i >= edit.overlays.size() ? null : edit.overlays.get(i);
+    }
+
+    private void addOverlayFromLibrary() {
+        List<Clip> clips = app.library.query("", "all", null, "newest");
+        clips.removeIf(c -> c == clip);
+        if (clips.isEmpty()) { app.notify("No other clips yet", null, false); return; }
+        Clip pick = (Clip) javax.swing.JOptionPane.showInputDialog(this, "Clip to overlay", "Video overlay", javax.swing.JOptionPane.PLAIN_MESSAGE,
+                null, clips.toArray(), clips.get(0));
+        if (pick != null) addOverlay(pick.path(app.library.root()));
+    }
+
+    private void addOverlay(Path file) {
+        if (edit == null) return;
+        snapshot();
+        EditSpec.Overlay o = new EditSpec.Overlay();
+        o.file = file.toAbsolutePath().toString();
+        o.start = player.time();
+        try { o.length = Ffmpeg.probe(file).duration(); } catch (Exception ignored) {}
+        edit.overlays.add(o);
+        edited();
+        refreshOverlays();
+        ovList.setSelectedIndex(edit.overlays.size() - 1);
+        ovPos.setSelectedIndex(0);
+        loadOverlayFrame(o.file);
+    }
+
+    /** Grabs a frame of an overlay video for the preview (once per file). */
+    private void loadOverlayFrame(String file) {
+        if (ovFrames.containsKey(file)) return;
+        new Thread(() -> {
+            try {
+                Path png = java.nio.file.Files.createTempFile("evadeclips-ov", ".png");
+                Ffmpeg.run(List.of("-ss", "0.5", "-i", file, "-frames:v", "1", "-vf", "scale=320:-2", png.toString()));
+                ovFrames.put(file, ImageIO.read(png.toFile()));
+                java.nio.file.Files.deleteIfExists(png);
+                view.repaint();
+            } catch (Exception ignored) {}
+        }, "overlay-frame").start();
+    }
+
+    private void refreshOverlays() {
+        int sel = ovList.getSelectedIndex();
+        loading = true;
+        ovModel.clear();
+        for (EditSpec.Overlay o : edit.overlays) ovModel.addElement(Theme.timeFine(o.start) + "  " + Path.of(o.file).getFileName());
+        loading = false;
+        if (sel >= 0 && sel < ovModel.size()) ovList.setSelectedIndex(sel);
+        loadOverlay();
+    }
+
+    private void loadOverlay() {
+        EditSpec.Overlay o = selectedOverlay();
+        boolean on = o != null;
+        loading = true;
+        ovPos.setEnabled(on); ovSize.setEnabled(on); ovOpacity.setEnabled(on); ovAudio.setEnabled(on);
+        if (on) {
+            ovSize.setValue((int) Math.round(o.scale * 100));
+            ovOpacity.setValue((int) Math.round(o.opacity * 100));
+            ovAudio.setSelected(o.audio);
+        }
+        loading = false;
     }
 
     private EditSpec.Caption selectedCaption() {
@@ -982,6 +1105,12 @@ public final class EditorPanel extends JPanel {
         Exporter.Options o = new Exporter.Options();
         o.preset = (Exporter.Preset) preset.getSelectedItem();
         o.gpu = gpu.isSelected();
+        if (watermark.isSelected()) {
+            boolean was = app.settings.watermarkEnabled;
+            app.settings.watermarkEnabled = true;
+            o.watermark = Exporter.Watermark.from(app.settings);
+            app.settings.watermarkEnabled = was;
+        }
         return o;
     }
 
@@ -1086,8 +1215,26 @@ public final class EditorPanel extends JPanel {
                     boolean visible = edit.titleSeconds <= 0 || outputTimeAt(t) <= edit.titleSeconds;
                     if (titlePreview != null && visible) g.drawImage(titlePreview, (int) area.getX(), (int) area.getY(), null);
                 }
-                // captions on screen right now
                 double now = player.time();
+                // video overlays (their first frame, as a stand-in, where and when they'll show)
+                for (EditSpec.Overlay ov : edit.overlays) {
+                    double end = ov.start + (ov.length > 0 ? ov.length : clip.duration);
+                    if (now < ov.start || now > end) continue;
+                    double ow2 = dw * ov.scale;
+                    BufferedImage fr = ovFrames.get(ov.file);
+                    double oh2 = fr != null ? ow2 * fr.getHeight() / fr.getWidth() : ow2 * 9 / 16;
+                    int ox = (int) (x + dw * ov.x - ow2 / 2), oy = (int) (y + dh * ov.y - oh2 / 2);
+                    Graphics2D go = (Graphics2D) g.create();
+                    go.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) ov.opacity));
+                    if (fr != null) go.drawImage(fr, ox, oy, (int) ow2, (int) oh2, null);
+                    else { go.setColor(new Color(40, 40, 50)); go.fillRect(ox, oy, (int) ow2, (int) oh2); }
+                    go.setComposite(AlphaComposite.SrcOver);
+                    go.setColor(Theme.BLUE);
+                    go.setStroke(new BasicStroke(1.5f));
+                    go.drawRect(ox, oy, (int) ow2, (int) oh2);
+                    go.dispose();
+                }
+                // captions on screen right now
                 Rectangle2D area2 = edit.fitMode.equals("blur") || edit.aspect.equals("original") ? new Rectangle2D.Double(x, y, dw, dh) : cropRect(x, y, dw, dh);
                 for (EditSpec.Caption c : edit.captions) {
                     if (c.text.isBlank() || now < c.start || now > c.end) continue;

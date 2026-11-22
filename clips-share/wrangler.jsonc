@@ -1,16 +1,18 @@
-// Evade Clips Share: instant share links and phone sync for Evade Clips.
-// Deploy your own with `npx wrangler deploy` (after `npx wrangler r2 bucket create evade-clips`).
+// Evade Clips Share: clips.evadeclient.com — the Evade Clips download page, share links and phone sync.
+// Deploy: `npx wrangler r2 bucket create evade-clips` once, then `npx wrangler deploy` (see README.md).
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "evade-clips-share",
+  "name": "evade-clips",
   "main": "src/index.js",
   "compatibility_date": "2025-06-01",
   "r2_buckets": [{ "binding": "CLIPS", "bucket_name": "evade-clips" }],
+  // Downloads (Evade-Clips.exe, EvadeClips.jar, clips.json) are copied here by scripts/build-site.sh.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "clips.evadeclient.com", "custom_domain": true }],
   "vars": {
     // Storage per account, in GB.
     "QUOTA_GB": "25",
-    // Set a REGISTER_SECRET secret (`npx wrangler secret put REGISTER_SECRET`) to make the service private:
-    // only apps that know it can create accounts. Without it, anyone can register.
     "SITE_NAME": "Evade Clips"
+    // Secrets (npx wrangler secret put ...): ADMIN_TOKEN for moderation; REGISTER_SECRET to make it invite-only.
   }
 }

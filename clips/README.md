@@ -31,7 +31,13 @@ works with any game and has extra integration with Evade Client.
   setup), League of Legends via the Live Client API (kills, double…penta, aces, dragon/baron/herald steals,
   victory), and Minecraft via Evade Client (kills, multi-kills, totem pops, deaths, wins, advancements). Events
   close together become one clip ("Triple kill").
-- **Share links and phone sync, no watermark, ads or expiry.** *Share link* uploads the clip with its edits
+- **Share links and phone sync, no watermark, ads or expiry,** at clips.evadeclient.com. Clips can be shared to
+  anyone with the link or kept **private** (only you). If a clip is ever taken down (copyright, abuse), you get a
+  notice naming the clip and the reason, and its link says why. Viewers can report clips, and autoplay is a toggle.
+- **One download with Evade Client.** The Evade Installer installs Evade Clips too (ffmpeg included on Windows),
+  Evade Clips starts with Minecraft, and the client's Clips mod sends every clip to it (`.clips` opens it,
+  `.clips last` opens your newest clip).
+- **How sharing works.** *Share link* uploads the clip with its edits
   and copies a link that plays inline in Discord. Every shared clip also lands in a private gallery you
   open on your phone by scanning a QR code; *Send to phone → Every new clip* syncs automatically. Links come
   from an [Evade Clips Share](../clips-share/README.md) server (a Cloudflare Worker + R2 anyone can deploy).
@@ -57,9 +63,20 @@ works with any game and has extra integration with Evade Client.
   and named with the server.
 - **Game, mic and voice chat on separate tracks.** You can turn your voice or your friends' voices down or
   off per clip without losing the game sound. Route your chat app to a virtual cable to give it its own track.
+- **Your clips, your rules.** Favorites are locked and can't be deleted, even in a bulk cleanup, until you
+  unfavorite them. Hover previews can be switched off. Add *your own* watermark (text or logo, any of 9
+  positions, size, opacity, margin) for free; Evade Clips never adds one of its own.
+- **Separate bitrates.** Instant replay and full recordings each have their own bitrate (recordings can run their own
+  higher-quality encode while the replay buffer stays small).
+- **Auto-clips in any game.** Games with no event API (The Finals, Valorant, Fortnite, Apex…) get live
+  loud-moment clips while you play, with adjustable sensitivity. CS2 can save each **whole round** as one clip.
+- **Console captures.** Watch folders import PS5 / Xbox / Switch captures from a USB drive, named after their game;
+  or upload them from your phone's gallery page and they sync into the library. (PlayStation has no capture API
+  for apps, so there's no account linking.)
 - **A real editor.** Trim, split, delete parts, slow-mo or speed-up any part (0.25×–4×), vertical/square
   framing with crop or blurred background (one click: *Make vertical*), zoom, timed captions (clean, subtitle or meme style), color looks
-  (vibrant, cinematic with letterbox bars, black & white, retro, warm, cool) previewed live, fades, per-track
+  (vibrant, cinematic with letterbox bars, black & white, retro, warm, cool) previewed live, **video
+  overlays** (facecam, reactions, a second angle; position, size, opacity, own sound), fades, per-track
   volume, a title card, markers, frame grabs, and undo/redo for everything. Edits are non-destructive: the original is never touched.
 - **Exports for where it's going.** Discord 10 MB and 50 MB (two-pass, guaranteed to fit), YouTube 1080p60,
   TikTok/Shorts/Reels 1080×1920, GIF, source quality, or an instant lossless trim.

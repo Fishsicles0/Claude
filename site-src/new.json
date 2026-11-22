@@ -1,9 +1,6 @@
 {
- "_note": "Classes added in the latest release (v1.0). The features page marks these as New.",
+ "_note": "Classes added in the latest release (v1.3). The features page marks these as New.",
  "classes": [
-  "StopwatchHud",
-  "SaturationHud",
-  "ItemCounterHud",
-  "PvpInfoHud"
+  "Clips"
  ]
 }

@@ -127,21 +127,7 @@ public final class CaptureEngine {
         outW = in.outW();
         outH = in.outH();
         trackTitles = new ArrayList<>(in.audioTitles());
-        List<String> args = new ArrayList<>(List.of("-loglevel", "warning", "-thread_queue_size", "1024"));
-        // -thread_queue_size applies to the next input; repeat it for every input so audio never stalls video.
-        List<String> inputArgs = new ArrayList<>();
-        for (int i = 0; i < in.args().size(); i++) {
-            String v = in.args().get(i);
-            if (v.equals("-f") && i > 0) inputArgs.addAll(List.of("-thread_queue_size", "1024"));
-            inputArgs.add(v);
-        }
-        args.addAll(inputArgs);
-        args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));
-        for (String l : in.audioLabels()) args.addAll(List.of("-map", l));
-        args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps, in.outW(), in.outH()));
-        args.addAll(List.of("-r", String.valueOf(settings.fps)));
-        if (in.hasAudio()) args.addAll(List.of("-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"));
-        for (int i = 0; i < in.audioTitles().size(); i++) args.addAll(List.of("-metadata:s:a:" + i, "title=" + in.audioTitles().get(i)));
+        List<String> args = captureArgs(in, settings.replayBitrateMbps);
         args.addAll(List.of("-f", "segment", "-segment_time", "1", "-segment_format", "mpegts",
                 "-segment_list", "segments.csv", "-segment_list_type", "csv", "-segment_list_flags", "+live",
                 "-break_non_keyframes", "0", "seg%06d.ts"));
@@ -155,6 +141,28 @@ public final class CaptureEngine {
         message = "Starting capture";
         fire();
     }
+
+    /** Inputs, filter graph, encoder (with a bitrate ceiling: {@code mbps} > 0, else from the quality level). */
+    private List<String> captureArgs(CaptureSource.Inputs in, double mbps) {
+        List<String> args = new ArrayList<>(List.of("-loglevel", "warning", "-thread_queue_size", "1024"));
+        // -thread_queue_size applies to the next input; repeat it for every input so audio never stalls video.
+        for (int i = 0; i < in.args().size(); i++) {
+            String v = in.args().get(i);
+            if (v.equals("-f") && i > 0) args.addAll(List.of("-thread_queue_size", "1024"));
+            args.add(v);
+        }
+        args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));
+        for (String l : in.audioLabels()) args.addAll(List.of("-map", l));
+        args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps, in.outW(), in.outH(), (long) (mbps * 1_000_000)));
+        args.addAll(List.of("-r", String.valueOf(settings.fps)));
+        if (in.hasAudio()) args.addAll(List.of("-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"));
+        for (int i = 0; i < in.audioTitles().size(); i++) args.addAll(List.of("-metadata:s:a:" + i, "title=" + in.audioTitles().get(i)));
+        return args;
+    }
+
+    /** Separate encode for recordings with their own bitrate (null when recordings share the replay buffer's). */
+    private Process recProcess;
+    private final StringBuilder recLog = new StringBuilder();
 
     /** Stops capture. A running recording is finished and saved first. */
     public void stop() {
@@ -221,7 +229,7 @@ public final class CaptureEngine {
                 } else if (state == State.STARTING && System.currentTimeMillis() - startedWall > 15000) {
                     message = "Waiting for the first frames... " + Ffmpeg.tail(log.toString());
                 }
-                if (recording) appendToRecording(false);
+                if (recording && recProcess == null) appendToRecording(false);
                 prune();
             }
         } catch (Exception e) {
@@ -408,7 +416,18 @@ public final class CaptureEngine {
         Path dir = library.folder(Clip.Kind.RECORDING);
         Files.createDirectories(dir);
         recordingTs = Library.unique(dir, Library.stampName(recordingGame, "ts"));
-        Files.createFile(recordingTs);
+        if (settings.recordBitrateMbps > 0 && settings.recordBitrateMbps != settings.replayBitrateMbps) {
+            // Recordings have their own bitrate: a second encode writes the recording directly (crash-safe TS).
+            CaptureSource.Inputs in = CaptureSource.build(settings);
+            List<String> args = captureArgs(in, settings.recordBitrateMbps);
+            args.addAll(List.of("-f", "mpegts", recordingTs.toString()));
+            recLog.setLength(0);
+            recProcess = Ffmpeg.interactiveBuilder(args).start();
+            Ffmpeg.drain(recProcess.getErrorStream(), recLog);
+            Ffmpeg.drain(recProcess.getInputStream(), recLog);
+        } else {
+            Files.createFile(recordingTs);
+        }
         // Start with the segment being written right now.
         recordNextIndex = segments.isEmpty() ? 0 : segments.get(segments.size() - 1).index + 1;
         recordingStartWall = System.currentTimeMillis();
@@ -441,8 +460,23 @@ public final class CaptureEngine {
         List<Double> markers;
         java.util.Map<Double, String> labels;
         String game;
+        Process own;
         synchronized (this) {
             if (!recording) return null;
+            own = recProcess;
+        }
+        if (own != null) {
+            quit(own);
+            synchronized (this) {
+                recProcess = null;
+                recording = false;
+                ts = recordingTs;
+                markers = new ArrayList<>(recordingMarkers);
+                labels = new java.util.HashMap<>(recordingLabels);
+                game = recordingGame;
+            }
+            fire();
+            return finishRecording(ts, markers, labels, game);
         }
         awaitNextSegment();
         synchronized (this) {
@@ -459,6 +493,10 @@ public final class CaptureEngine {
             game = recordingGame;
         }
         fire();
+        return finishRecording(ts, markers, labels, game);
+    }
+
+    private Clip finishRecording(Path ts, List<Double> markers, java.util.Map<Double, String> labels, String game) throws IOException {
         Path mp4 = Library.unique(ts.getParent(), ts.getFileName().toString().replaceAll("\\.ts$", ".mp4"));
         try {
             remux(ts, mp4);
@@ -469,6 +507,26 @@ public final class CaptureEngine {
             return library.addNew(ts, Clip.Kind.RECORDING, null, game, markers, labels, null);
         }
         return library.addNew(mp4, Clip.Kind.RECORDING, null, game, markers, labels, null);
+    }
+
+    /**
+     * Joins the finished segments newer than {@code afterIndex} into {@code out} (for live analysis). Returns the
+     * newest segment index included, or {@code afterIndex} when there's nothing new.
+     */
+    public synchronized int copyNewSegments(int afterIndex, Path out) throws IOException {
+        if (process == null) return afterIndex;
+        readSegmentList();
+        int last = afterIndex;
+        try (OutputStream o = Files.newOutputStream(out)) {
+            for (Segment s : segments) {
+                if (s.index <= afterIndex) continue;
+                Path f = bufferDir.resolve(s.name);
+                if (!Files.exists(f)) continue;
+                Files.copy(f, o);
+                last = s.index;
+            }
+        }
+        return last;
     }
 
     /** Drops a bookmark at "now": shows up on the recording's (and any saved replay's) timeline. */

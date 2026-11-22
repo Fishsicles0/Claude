@@ -103,19 +103,32 @@ public final class VoiceCommands implements AutoCloseable {
         for (int i = 0; i < LIBS.length; i++) {
             Path target = libDir().resolve(LIBS[i][1]);
             if (Files.isRegularFile(target)) continue;
-            String sha1 = http.send(HttpRequest.newBuilder(URI.create(LIBS[i][0] + ".sha1")).build(), HttpResponse.BodyHandlers.ofString())
-                    .body().trim().split("\\s+")[0];
-            HttpResponse<byte[]> r = http.send(HttpRequest.newBuilder(URI.create(LIBS[i][0])).build(), HttpResponse.BodyHandlers.ofByteArray());
-            if (r.statusCode() != 200) throw new IOException("Download failed (HTTP " + r.statusCode() + ")");
+            String sha1 = new String(fetch(http, LIBS[i][0] + ".sha1")).trim().split("\\s+")[0];
+            byte[] body = fetch(http, LIBS[i][0]);
             String got;
-            try { got = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(r.body())); }
+            try { got = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(body)); }
             catch (java.security.NoSuchAlgorithmException e) { throw new IOException(e); }
             if (!got.equalsIgnoreCase(sha1)) throw new IOException("Checksum mismatch for " + LIBS[i][1]);
             Path part = target.resolveSibling(LIBS[i][1] + ".part");
-            Files.write(part, r.body());
+            Files.write(part, body);
             Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
             if (progress != null) progress.accept((i + 1) / (double) LIBS.length);
         }
+    }
+
+    /** GET with retries (servers rate-limit with 429 / hiccup with 5xx): waits 2, 4, 8, 16 s between tries. */
+    private static byte[] fetch(HttpClient http, String url) throws IOException, InterruptedException {
+        IOException last = null;
+        for (int attempt = 0; attempt < 5; attempt++) {
+            if (attempt > 0) Thread.sleep(2000L << (attempt - 1));
+            try {
+                HttpResponse<byte[]> r = http.send(HttpRequest.newBuilder(URI.create(url)).build(), HttpResponse.BodyHandlers.ofByteArray());
+                if (r.statusCode() == 200) return r.body();
+                last = new IOException("Download failed (HTTP " + r.statusCode() + ")");
+                if (r.statusCode() != 429 && r.statusCode() < 500) break;
+            } catch (IOException e) { last = e; }
+        }
+        throw last;
     }
 
     /** Downloads and unpacks the speech model (once). */

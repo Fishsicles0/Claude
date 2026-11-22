@@ -18,6 +18,10 @@ public final class Settings {
     public String clipsFolder = defaultClipsFolder().toString();
     /** Oldest non-favourite clips are deleted when the library goes over this. 0 = no limit. */
     public double storageLimitGb = 50;
+    /** Favourites can't be deleted (bulk or single) until they're unfavourited. */
+    public boolean protectFavorites = true;
+    /** Hovering a clip in the library scrubs through it. */
+    public boolean hoverPreview = true;
 
     // capture
     /** "screen", "window" or "region" ("test" is the built-in pattern used by the self-test). */
@@ -33,6 +37,10 @@ public final class Settings {
     public int quality = 2;
     /** "auto" (HEVC when a GPU can do it, else H.264), "h264" (plays everywhere) or "hevc" (smallest files). */
     public String codec = "auto";
+    /** Instant replay bitrate ceiling in Mbit/s; 0 = automatic from the quality level. */
+    public double replayBitrateMbps = 0;
+    /** Full recordings: 0 = same as instant replay (no extra cost), else their own bitrate (a second encode while recording). */
+    public double recordBitrateMbps = 0;
     /** Blank = best working encoder. */
     public String encoder = "";
     public boolean captureCursor = true;
@@ -76,13 +84,32 @@ public final class Settings {
     public int controlPort = 47821;
     public String ffmpegPath = "";
 
+    // your own watermark on exports (Evade Clips never adds one of its own)
+    public boolean watermarkEnabled = false;
+    public String watermarkText = "";
+    /** A PNG logo; used instead of the text when set. */
+    public String watermarkImage = "";
+    /** "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right". */
+    public String watermarkPosition = "bottom-right";
+    /** Text: height in % of the frame; image: width in % of the frame. */
+    public double watermarkSize = 6;
+    public double watermarkOpacity = 0.8;
+    /** Distance from the edge, % of the frame. */
+    public double watermarkMargin = 3;
+
     // sharing (Evade Clips Share server, see clips-share/)
-    public String cloudUrl = "";
+    public String cloudUrl = "https://clips.evadeclient.com";
     /** Only needed if the server is private (REGISTER_SECRET set). */
     public String cloudRegisterSecret = "";
     public String cloudAccount = "", cloudKey = "", cloudViewToken = "", cloudBase = "";
     /** "off", "favorites" (favourites + exports) or "all" new clips go to the phone gallery automatically. */
     public String cloudSync = "off";
+    /** New shares are private (only you) instead of anyone-with-the-link. */
+    public boolean sharePrivateByDefault = false;
+    /** Bring clips uploaded from the phone gallery into the library automatically. */
+    public boolean pullPhoneUploads = true;
+    /** Folders to import new videos from automatically: console captures on a USB drive, a phone sync folder… */
+    public java.util.List<String> watchFolders = new java.util.ArrayList<>();
 
     // automatic clips from game events
     public int autoClipBefore = 20;
@@ -92,6 +119,12 @@ public final class Settings {
     public boolean leagueEvents = true;
     /** Deaths always get a marker on the timeline; with this they also get their own clip. */
     public boolean clipDeaths = false;
+    /** Auto-clip loud moments live in games without an event API (The Finals, Valorant, Fortnite, Apex…). */
+    public boolean liveHighlights = true;
+    /** "low", "medium", "high". */
+    public String liveSensitivity = "medium";
+    /** CS2: save each whole round as one clip: "off", "kills" (rounds you got a kill in) or "all". */
+    public String cs2FullRounds = "off";
     /** Shared secret CS2 sends with every update, so other programs can't fake events. */
     public String gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
     public String defaultGame = "Minecraft";
@@ -155,6 +188,12 @@ public final class Settings {
         if (cloudViewToken == null) cloudViewToken = "";
         if (cloudBase == null) cloudBase = "";
         if (cloudSync == null) cloudSync = "off";
+        if (watchFolders == null) watchFolders = new java.util.ArrayList<>();
+        if (liveSensitivity == null) liveSensitivity = "medium";
+        if (cs2FullRounds == null) cs2FullRounds = "off";
+        if (watermarkText == null) watermarkText = "";
+        if (watermarkImage == null) watermarkImage = "";
+        if (watermarkPosition == null) watermarkPosition = "bottom-right";
         if (gsiToken == null || gsiToken.isBlank()) gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
         if (ffmpegPath == null) ffmpegPath = "";
         return this;

@@ -23,6 +23,11 @@ public final class Cs2Integration {
     private final String token;
     public volatile boolean kills = true, headshotsOnly = false, multikills = true, mvps = true, wins = true, deaths = false;
     private int health = -1;
+    /** Save each whole round as one clip: always, or only rounds where you got a kill. */
+    public volatile String fullRounds = "off"; // "off", "kills", "all"
+    private long roundStartWall;
+    private String roundPhase = "";
+    private int killsThisRound;
 
     private int roundKills = -1, roundHs = -1, mvpCount = -1, roundNo = -1;
     private String lastMapPhase = "";
@@ -45,13 +50,32 @@ public final class Cs2Integration {
         JsonObject state = obj(player, "state"), stats = obj(player, "match_stats");
 
         if (round != roundNo) { roundNo = round; roundKills = 0; roundHs = 0; }
+        JsonObject rnd = obj(root, "round");
+        String rp = str(rnd, "phase");
+        if (rp != null && !rp.equals(roundPhase)) {
+            if (rp.equals("live")) { roundStartWall = System.currentTimeMillis(); killsThisRound = 0; }
+            if (rp.equals("over") && roundStartWall > 0 && !"off".equals(fullRounds) && (fullRounds.equals("all") || killsThisRound > 0)) {
+                int secs = (int) Math.ceil((System.currentTimeMillis() - roundStartWall) / 1000.0) + 2;
+                String team = player != null ? str(player, "team") : null;
+                String result = team != null && team.equals(str(rnd, "win_team")) ? "won" : "lost";
+                clipper.clipSpan(GAME, "Round " + Math.max(1, roundNo) + " · " + result + (killsThisRound > 0 ? " · " + killsThisRound + "K" : ""),
+                        "round", secs);
+            }
+            roundPhase = rp;
+        }
         if (state != null) {
             int k = num(state, "round_kills"), hs = num(state, "round_killhs");
+            if (roundKills >= 0 && k > roundKills) killsThisRound += k - roundKills;
             if (roundKills >= 0 && k > roundKills) {
                 boolean headshot = hs > roundHs;
-                if (k >= 5 && multikills) clipper.event(GAME, "ACE", "ace", 5);
-                else if (k >= 3 && multikills) clipper.event(GAME, k == 3 ? "3K" : "4K", k + "k", k);
-                else if (kills && (!headshotsOnly || headshot)) clipper.event(GAME, headshot ? "Headshot" : "Kill", headshot ? "headshot" : "kill", headshot ? 2 : 1);
+                // With full-round clips on, the round clip covers every kill: kills only get timeline markers.
+                boolean rounds = !"off".equals(fullRounds);
+                if (k >= 5 && multikills) { if (rounds) clipper.mark("ACE"); else clipper.event(GAME, "ACE", "ace", 5); }
+                else if (k >= 3 && multikills) { if (rounds) clipper.mark(k + "K"); else clipper.event(GAME, k == 3 ? "3K" : "4K", k + "k", k); }
+                else if (kills && (!headshotsOnly || headshot)) {
+                    if (rounds) clipper.mark(headshot ? "Headshot" : "Kill");
+                    else clipper.event(GAME, headshot ? "Headshot" : "Kill", headshot ? "headshot" : "kill", headshot ? 2 : 1);
+                }
             }
             roundKills = k;
             roundHs = hs;
@@ -65,7 +89,7 @@ public final class Cs2Integration {
         }
         if (stats != null) {
             int m = num(stats, "mvps");
-            if (mvpCount >= 0 && m > mvpCount && mvps) clipper.event(GAME, "Round MVP", "mvp", 3);
+            if (mvpCount >= 0 && m > mvpCount && mvps) { if (!"off".equals(fullRounds)) clipper.mark("Round MVP"); else clipper.event(GAME, "Round MVP", "mvp", 3); }
             mvpCount = m;
         }
         String phase = str(map, "phase");

@@ -47,6 +47,9 @@ public final class App {
     public final net.evadeclient.clips.events.Cs2Integration cs2;
     public final net.evadeclient.clips.events.LeagueIntegration league;
     public final net.evadeclient.clips.core.CloudShare cloud;
+    public final net.evadeclient.clips.events.LiveHighlights live;
+    /** Games with real event support (their own integration clips them; live audio detection stays out of the way). */
+    static final java.util.Set<String> EVENT_GAMES = java.util.Set.of("Counter-Strike 2", "League of Legends", "Minecraft");
     private volatile boolean autoStarted;
     public Toast toast;
 
@@ -63,6 +66,7 @@ public final class App {
         cs2 = new net.evadeclient.clips.events.Cs2Integration(autoClipper, settings.gsiToken);
         cloud = new net.evadeclient.clips.core.CloudShare(settings);
         autoClipper.onMarker = label -> { if (engine.isLive()) engine.addMarker(label); };
+        live = new net.evadeclient.clips.events.LiveHighlights(engine, autoClipper, () -> gameFor(null), library.metaDir().resolve("live"));
         library.onAdded(c -> {
             boolean sync = switch (settings.cloudSync) {
                 case "all" -> true;
@@ -80,6 +84,13 @@ public final class App {
         autoClipper.after = settings.autoClipAfter;
         cs2.headshotsOnly = settings.cs2HeadshotsOnly;
         cs2.deaths = settings.clipDeaths;
+        cs2.fullRounds = settings.cs2FullRounds;
+        if (live != null) live.threshold = net.evadeclient.clips.events.LiveHighlights.thresholdFor(settings.liveSensitivity);
+        // A whole CS2 round (1:55 + buffer) must fit in the replay buffer.
+        if (!"off".equals(settings.cs2FullRounds) && settings.replaySeconds < 150) {
+            settings.replaySeconds = 150;
+            settings.save();
+        }
         league.deaths = settings.clipDeaths;
     }
 
@@ -108,8 +119,36 @@ public final class App {
         }
     }
 
+    /** Every minute: watched folders; every few minutes: phone uploads and notices from the share server. */
+    private void background() {
+        int n = 0;
+        while (true) {
+            try {
+                for (Clip c : net.evadeclient.clips.core.WatchFolders.scan(settings, library))
+                    notify("Imported " + (c.game == null || c.game.isBlank() ? "a capture" : c.game + " capture"), c.title, false);
+                if (n % 3 == 0 && cloud.configured() && !settings.cloudAccount.isBlank()) {
+                    for (var note : cloud.newNotices()) {
+                        String title = note.has("title") ? note.get("title").getAsString() : "A clip";
+                        String why = note.has("reasonText") ? note.get("reasonText").getAsString() : "breaking the rules";
+                        notify("Clip removed: " + title, "Taken down for " + why + (note.has("note") && !note.get("note").getAsString().isBlank() ? ": " + note.get("note").getAsString() : ""), true);
+                        for (Clip c : library.all()) if (note.get("clip").getAsString().equals(c.shareId)) { c.shareId = null; c.shareUrl = null; library.update(c); }
+                    }
+                    if (settings.pullPhoneUploads)
+                        for (Clip c : cloud.pullPhoneUploads(library)) notify("From your phone", c.title, false);
+                }
+            } catch (Exception e) {
+                System.err.println("[clips] background sync: " + e.getMessage());
+            }
+            n++;
+            try { Thread.sleep(60_000); } catch (InterruptedException e) { return; }
+        }
+    }
+
     public void start() {
         library.load();
+        Thread bg = new Thread(this::background, "background-sync");
+        bg.setDaemon(true);
+        bg.start();
         String voiceError = applyVoice();
         if (voiceError != null && settings.voiceCommands) System.err.println("[clips] " + voiceError);
         Thread watcher = new Thread(this::watchGames, "game-watcher");
@@ -142,6 +181,10 @@ public final class App {
             } catch (Exception e) {
                 System.err.println("[clips] game watcher: " + e.getMessage());
             }
+            // Live loud-moment detection for games without their own events.
+            boolean wantLive = settings.liveHighlights && engine.isLive() && (currentGame == null || !EVENT_GAMES.contains(currentGame));
+            if (wantLive && !live.running()) live.start();
+            else if (!wantLive && live.running()) live.stop();
             // League's Live Client API is only up during a match; poll it while League is open.
             for (int i = 0; i < 3; i++) {
                 if (settings.leagueEvents && net.evadeclient.clips.events.LeagueIntegration.GAME.equals(currentGame)) league.poll();
@@ -158,6 +201,7 @@ public final class App {
     }
 
     public void shutdown() {
+        live.stop();
         autoClipper.shutdown();
         if (voice != null) voice.close();
         engine.shutdown();
@@ -413,6 +457,7 @@ public final class App {
             notify("Sharing isn't set up", "Add a share server in Settings → Sharing", true);
             return;
         }
+        if (c.shareId == null && settings.sharePrivateByDefault) c.sharePrivate = true;
         ExportJob job = new ExportJob(c, Exporter.Preset.SOURCE, library.metaDir().resolve("share-" + c.id + ".mp4"));
         job.label = "Share";
         runJob(job, j -> {

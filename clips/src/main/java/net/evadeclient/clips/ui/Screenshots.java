@@ -32,6 +32,8 @@ public final class Screenshots {
         s.showToast = false;
         s.controlServer = false;
         s.storageLimitGb = 0;
+        s.watermarkEnabled = true;
+        s.watermarkText = "@evadeclips";
         App app = new App(s);
         app.library.load();
         // Make the sample library look lived-in.
@@ -81,6 +83,11 @@ public final class Screenshots {
         e.aspect = "9:16";
         e.cropX = 0.5;
         e.titleText = "1v3 CLUTCH";
+        Path facecam = out.resolve("facecam.mp4");
+        net.evadeclient.clips.core.Ffmpeg.run(List.of("-f", "lavfi", "-i", "smptehdbars=s=640x360:d=3", "-c:v", "libx264", "-preset", "ultrafast", facecam.toString()));
+        EditSpec.Overlay ov = new EditSpec.Overlay();
+        ov.file = facecam.toAbsolutePath().toString(); ov.start = 0; ov.length = 3; ov.x = 0.82; ov.y = 0.2; ov.scale = 0.3;
+        e.overlays.add(ov);
         e.titleSeconds = 0;
         c.edit = e;
         c.markers.clear();

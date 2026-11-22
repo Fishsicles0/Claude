@@ -41,6 +41,12 @@ public final class Clip {
     public String shareId, shareUrl;
     /** Edits the shared copy was rendered with, so a changed clip gets re-uploaded. */
     public int shareEditHash;
+    /** Shared privately: only visible through your own gallery link. */
+    public boolean sharePrivate;
+    /** For clips imported from a watched folder: the original file, so it's imported once. */
+    public String importedFrom;
+
+    @Override public String toString() { return (title == null ? file : title) + (game == null || game.isBlank() ? "" : "  ·  " + game); }
 
     public Path path(Path clipsDir) { return clipsDir.resolve(file.replace('/', java.io.File.separatorChar)); }
 

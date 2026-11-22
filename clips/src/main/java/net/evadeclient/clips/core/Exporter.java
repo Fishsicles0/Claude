@@ -51,6 +51,17 @@ public final class Exporter {
         public int fps;
         public double targetMb;
         public boolean gpu = true;
+        /** Your own watermark (null = none). Evade Clips never adds one of its own. */
+        public Watermark watermark;
+    }
+
+    /** A creator's own watermark: text or an image, anywhere on the frame, at any size and opacity. */
+    public record Watermark(String text, String image, String position, double size, double opacity, double margin) {
+        public static Watermark from(Settings s) {
+            if (!s.watermarkEnabled) return null;
+            if ((s.watermarkText == null || s.watermarkText.isBlank()) && (s.watermarkImage == null || s.watermarkImage.isBlank())) return null;
+            return new Watermark(s.watermarkText, s.watermarkImage, s.watermarkPosition, s.watermarkSize, s.watermarkOpacity, s.watermarkMargin);
+        }
     }
 
     private Exporter() {}
@@ -245,6 +256,28 @@ public final class Exporter {
             a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
             capTimes.add(new double[]{os, oe});
         }
+        // Video overlays: each its own input, trimmed to the part that shows.
+        List<double[]> ovTimes = new ArrayList<>();
+        List<EditSpec.Overlay> ovs = new ArrayList<>();
+        List<Boolean> ovAudio = new ArrayList<>();
+        for (EditSpec.Overlay ov : e.overlays) {
+            if (ov.file == null || ov.file.isBlank() || !Files.exists(Path.of(ov.file))) continue;
+            double os = e.toOutput(ov.start);
+            double len = Math.min(ov.length > 0 ? ov.length : dur, dur - os);
+            if (len < 0.05) continue;
+            boolean ovHasAudio = false;
+            try { ovHasAudio = Ffmpeg.probe(Path.of(ov.file)).hasAudio(); } catch (IOException ignored) {}
+            a.addAll(List.of("-ss", Library.fmt(ov.inPoint), "-t", Library.fmt(len), "-i", ov.file));
+            ovTimes.add(new double[]{os, os + len});
+            ovs.add(ov);
+            ovAudio.add(ovHasAudio && ov.audio && audio);
+        }
+        if (o.watermark != null) {
+            Path png = Files.createTempFile("evadeclips-watermark", ".png");
+            png.toFile().deleteOnExit();
+            ImageIO.write(renderWatermark(o.watermark, ow, oh), "png", png.toFile());
+            a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
+        }
 
         StringBuilder fc = new StringBuilder();
         int n = e.segments.size();
@@ -312,6 +345,31 @@ public final class Exporter {
                     .append(")'[c").append(k).append("]");
             cur = "[c" + k + "]";
         }
+        List<String> ovAudioLabels = new ArrayList<>();
+        for (int k = 0; k < ovs.size(); k++, input++) {
+            EditSpec.Overlay ov = ovs.get(k);
+            double[] t = ovTimes.get(k);
+            int vw = even(ow * Math.max(0.05, Math.min(1, ov.scale)));
+            fc.append(";[").append(input).append(":v]scale=").append(vw).append(":-2,fps=").append(fps > 0 ? fps : srcFps)
+                    .append(",format=rgba");
+            if (ov.opacity < 0.999) fc.append(",colorchannelmixer=aa=").append(Library.fmt(Math.max(0, ov.opacity)));
+            fc.append(",setpts=PTS-STARTPTS+").append(Library.fmt(t[0])).append("/TB[ov").append(k).append("];")
+                    .append(cur).append("[ov").append(k).append("]overlay=x='(W*").append(Library.fmt(ov.x)).append(")-w/2':y='(H*")
+                    .append(Library.fmt(ov.y)).append(")-h/2':eof_action=pass:enable='between(t,").append(Library.fmt(t[0])).append(",")
+                    .append(Library.fmt(t[1])).append(")'[o").append(k).append("]");
+            cur = "[o" + k + "]";
+            if (ovAudio.get(k)) {
+                long ms = Math.round(t[0] * 1000);
+                fc.append(";[").append(input).append(":a]aresample=48000,aformat=channel_layouts=stereo,volume=").append(Library.fmt(ov.volume))
+                        .append(",adelay=").append(ms).append("|").append(ms).append("[oa").append(k).append("]");
+                ovAudioLabels.add("[oa" + k + "]");
+            }
+        }
+        if (o.watermark != null) {
+            fc.append(";[").append(input).append(":v]format=rgba[wm];").append(cur).append("[wm]overlay=0:0:eof_action=pass[wmo]");
+            cur = "[wmo]";
+            input++;
+        }
         fc.append(";").append(cur);
         if (p == Preset.GIF) {
             fc.append("split[g0][g1];[g0]palettegen=stats_mode=diff:max_colors=200[pal];[g1][pal]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle[vout]");
@@ -323,7 +381,9 @@ public final class Exporter {
             fc.append(";[ac]volume=").append(Library.fmt(e.volume));
             if (e.fadeIn > 0) fc.append(",afade=t=in:st=0:d=").append(Library.fmt(e.fadeIn));
             if (e.fadeOut > 0) fc.append(",afade=t=out:st=").append(Library.fmt(Math.max(0, dur - e.fadeOut))).append(":d=").append(Library.fmt(e.fadeOut));
-            fc.append("[aout]");
+            if (ovAudioLabels.isEmpty()) fc.append("[aout]");
+            else fc.append("[amain];[amain]").append(String.join("", ovAudioLabels)).append("amix=inputs=").append(1 + ovAudioLabels.size())
+                    .append(":duration=first:normalize=0[aout]");
         }
 
         a.addAll(List.of("-filter_complex", fc.toString(), "-map", "[vout]"));
@@ -535,6 +595,48 @@ public final class Exporter {
             }
         }
         return titleFont;
+    }
+
+    /** The watermark on a transparent frame-sized image (text in the title font, or a scaled image). */
+    public static BufferedImage renderWatermark(Watermark wm, int w, int h) {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.max(0, Math.min(1, wm.opacity()))));
+        int margin = (int) Math.round(Math.min(w, h) * wm.margin() / 100.0);
+        int bw, bh;
+        BufferedImage logo = null;
+        Font f = null;
+        if (wm.image() != null && !wm.image().isBlank()) {
+            try { logo = ImageIO.read(new java.io.File(wm.image())); } catch (IOException ignored) {}
+        }
+        if (logo != null) {
+            bw = Math.max(8, (int) Math.round(w * wm.size() / 100.0));
+            bh = (int) Math.round(bw * logo.getHeight() / (double) logo.getWidth());
+        } else {
+            f = titleFont().deriveFont((float) Math.max(8, h * wm.size() / 100.0 * 0.6));
+            FontMetrics fm = g.getFontMetrics(f);
+            bw = fm.stringWidth(wm.text() == null ? "" : wm.text());
+            bh = fm.getAscent() + fm.getDescent();
+        }
+        String pos = wm.position() == null ? "bottom-right" : wm.position();
+        int x = pos.endsWith("left") ? margin : pos.endsWith("right") ? w - bw - margin : (w - bw) / 2;
+        int y = pos.startsWith("top") ? margin : pos.startsWith("bottom") ? h - bh - margin : (h - bh) / 2;
+        if (logo != null) {
+            g.drawImage(logo, x, y, bw, bh, null);
+        } else {
+            FontMetrics fm = g.getFontMetrics(f);
+            java.awt.Shape shape = new TextLayout(wm.text(), f, g.getFontRenderContext()).getOutline(AffineTransform.getTranslateInstance(x, y + fm.getAscent()));
+            g.setStroke(new BasicStroke(f.getSize2D() * 0.12f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(new Color(0, 0, 0, 200));
+            g.draw(shape);
+            g.setColor(Color.WHITE);
+            g.fill(shape);
+        }
+        g.dispose();
+        return img;
     }
 
     /**

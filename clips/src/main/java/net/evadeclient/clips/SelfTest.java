@@ -108,8 +108,9 @@ final class SelfTest {
         engine.addMarker("ACE");
         Thread.sleep(2500);
         Clip rec = engine.stopRecording();
-        check(rec != null && rec.kind == Clip.Kind.RECORDING && Math.abs(rec.duration - 4) < 1.6,
-                "recording saved as MP4, ~4 s (got " + (rec == null ? "-" : String.format("%.2f", rec.duration)) + ")");
+        // Recordings start and end on 1 s segment boundaries (crash-safe, no re-encode): 4 s of recording is 4-6 s.
+        check(rec != null && rec.kind == Clip.Kind.RECORDING && rec.duration >= 3.8 && rec.duration <= 6.3,
+                "recording saved as MP4, 4 s pressed → 4-6 s on 1 s boundaries (got " + (rec == null ? "-" : String.format("%.2f", rec.duration)) + ")");
         check(rec != null && rec.markers.size() == 1 && "ACE".equals(rec.label(rec.markers.get(0))),
                 "recording kept its named marker (" + (rec == null ? "-" : rec.markerLabels) + ")");
         Clip afterRec = engine.saveReplay(3, null, null);
@@ -231,6 +232,7 @@ final class SelfTest {
         Ffmpeg.MediaInfo mi = Ffmpeg.probe(mout);
         check(mi.width() == 1280 && mi.height() == 720 && Math.abs(mi.duration() - want) < 0.6 && mi.hasAudio(),
                 "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s (want " + String.format("%.2f", want) + ")");
+        upgradeTests(lib, dir, src);
         shareTests(lib, dir);
         lib.shutdown();
         return finish();
@@ -263,7 +265,7 @@ final class SelfTest {
         saved.clear();
         clipper.after = 0;
         String win = "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + me + "\"},\"map\":{\"round\":24,\"phase\":\"gameover\",\"team_ct\":{\"score\":13},\"team_t\":{\"score\":10}},"
-                + "\"player\":{\"steamid\":\"" + me + "\",\"team\":\"CT\",\"state\":{\"round_kills\":0,\"round_killhs\":0},\"match_stats\":{\"mvps\":1}}}";
+                + "\"player\":{\"steamid\":\"" + me + "\",\"team\":\"CT\",\"state\":{\"round_kills\":0,\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
         cs2.handle(win);
         Thread.sleep(300);
         check(saved.size() == 1 && saved.get(0).contains("|Match win|"), "CS2: match win (13-10 on CT) is clipped (" + saved + ")");
@@ -330,7 +332,8 @@ final class SelfTest {
         boolean espeak = new java.io.File("/usr/bin/espeak-ng").canExecute();
         // The engine libraries come from Maven Central exactly as the app downloads them.
         if (net.evadeclient.clips.core.VoiceCommands.modelInstalled() && espeak && !net.evadeclient.clips.core.VoiceCommands.libsInstalled()) {
-            net.evadeclient.clips.core.VoiceCommands.downloadLibs(null);
+            try { net.evadeclient.clips.core.VoiceCommands.downloadLibs(null); }
+            catch (Exception ex) { check(false, "speech engine download: " + ex.getMessage()); return; }
             check(net.evadeclient.clips.core.VoiceCommands.libsInstalled(), "speech engine downloads from Maven Central and passes its checksum");
         }
         if (!net.evadeclient.clips.core.VoiceCommands.modelInstalled() || !espeak) {
@@ -369,6 +372,143 @@ final class SelfTest {
                 + "normal talking and noise ignored)" + (bad.isEmpty() ? "" : " wrong: " + bad));
     }
 
+    /** Favourites lock, watermark, overlays, separate bitrates, live highlights, CS2 full rounds. */
+    private void upgradeTests(Library lib, Path dir, Clip src) throws Exception {
+        // Favourites are locked against deletion (bulk delete skips them).
+        Settings fs = new Settings();
+        fs.clipsFolder = lib.root().toString();
+        Files.createDirectories(lib.folder(Clip.Kind.IMPORT));
+        Path a = Library.unique(lib.folder(Clip.Kind.IMPORT), "fav-a.mp4"), b = Library.unique(lib.folder(Clip.Kind.IMPORT), "fav-b.mp4");
+        Files.copy(src.path(lib.root()), a);
+        Files.copy(src.path(lib.root()), b);
+        Clip ca = lib.addExisting(a, Clip.Kind.IMPORT, "keep me", null), cb = lib.addExisting(b, Clip.Kind.IMPORT, "delete me", null);
+        ca.favorite = true;
+        int removed = lib.delete(List.of(ca, cb));
+        check(removed == 1 && Files.exists(a) && !Files.exists(b) && lib.get(ca.id) != null, "bulk delete keeps a locked favorite and deletes the rest");
+
+        // Watermark (text, bottom-right) and a red picture-in-picture overlay from 1 s to 3 s, top-right.
+        Path red = dir.resolve("red.mp4");
+        Ffmpeg.run(List.of("-f", "lavfi", "-i", "color=c=red:s=640x360:r=30:d=2", "-c:v", "libx264", "-preset", "ultrafast", red.toString()));
+        EditSpec e = EditSpec.whole(src.duration);
+        e.segments.get(0).end = 5;
+        EditSpec.Overlay ov = new EditSpec.Overlay();
+        ov.file = red.toString(); ov.start = 1; ov.length = 2; ov.x = 0.8; ov.y = 0.2; ov.scale = 0.3;
+        e.overlays.add(ov);
+        Exporter.Options o = new Exporter.Options();
+        o.preset = Exporter.Preset.SOURCE;
+        o.watermark = new Exporter.Watermark("@evadeclips", "", "bottom-right", 8, 1.0, 3);
+        Path out = Library.unique(lib.folder(Clip.Kind.EXPORT), "overlay-watermark.mp4");
+        Exporter.export(src.path(lib.root()), src, e, o, out, null, null);
+        var f2 = frame(out, 2.0, dir);
+        var f4 = frame(out, 4.0, dir);
+        int w = f2.getWidth(), h = f2.getHeight();
+        double redIn = share(f2, (int) (w * 0.7), (int) (h * 0.12), (int) (w * 0.9), (int) (h * 0.28), 0xff0000);
+        double redOut = share(f4, (int) (w * 0.7), (int) (h * 0.12), (int) (w * 0.9), (int) (h * 0.28), 0xff0000);
+        check(redIn > 0.8 && redOut < 0.2, String.format("video overlay shows top-right only during 1-3 s (red: %.0f%% at 2 s, %.0f%% at 4 s)", redIn * 100, redOut * 100));
+        double wmBR = whiteShareBox(f4, (int) (w * 0.6), (int) (h * 0.85), w, h), wmTL = whiteShareBox(f4, 0, 0, (int) (w * 0.4), (int) (h * 0.15));
+        check(wmBR > 0.02 && wmBR > wmTL * 3, String.format("watermark is drawn bottom-right (white: %.1f%% there, %.1f%% top-left)", wmBR * 100, wmTL * 100));
+
+        // Separate bitrates: replays at 2 Mbit/s, recordings at 10 Mbit/s, on busy footage.
+        Settings bs = new Settings();
+        bs.clipsFolder = dir.resolve("bitrate").resolve("clips").toString();
+        bs.source = "test-noise"; bs.fps = 30; bs.resolution = 720; bs.recordMic = false;
+        bs.replayBitrateMbps = 2; bs.recordBitrateMbps = 10; bs.codec = "h264";
+        Library blib = new Library(bs);
+        blib.load();
+        CaptureEngine be = new CaptureEngine(bs, blib);
+        be.start();
+        long t0 = System.currentTimeMillis();
+        while (!be.isLive() && System.currentTimeMillis() - t0 < 20000) Thread.sleep(200);
+        Thread.sleep(3000);
+        be.startRecording("Test");
+        Thread.sleep(8000);
+        Clip brec = be.stopRecording();
+        Clip brep = be.saveReplay(6, null, null);
+        be.shutdown();
+        double recMbps = brec.size * 8 / brec.duration / 1e6, repMbps = brep.size * 8 / brep.duration / 1e6;
+        check(recMbps > repMbps * 2.5 && repMbps < 2.6 && recMbps < 12,
+                String.format("recordings and replays use their own bitrates (recording %.1f Mbit/s, replay %.1f Mbit/s)", recMbps, repMbps));
+        blib.shutdown();
+
+        // Live loud-moment auto-clips (any game): bursts every 8 s become clips.
+        Settings ls = new Settings();
+        ls.clipsFolder = dir.resolve("live").resolve("clips").toString();
+        ls.source = "test-bursts"; ls.fps = 15; ls.resolution = 720; ls.recordMic = false; ls.replaySeconds = 30;
+        Library llib = new Library(ls);
+        llib.load();
+        CaptureEngine le = new CaptureEngine(ls, llib);
+        List<String> hits = new java.util.concurrent.CopyOnWriteArrayList<>();
+        var lclip = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> hits.add(title + "@" + System.currentTimeMillis()));
+        lclip.after = 1;
+        var lh = new net.evadeclient.clips.events.LiveHighlights(le, lclip, () -> "The Finals", dir.resolve("live-work"));
+        le.start();
+        long l0 = System.currentTimeMillis();
+        while (System.currentTimeMillis() - l0 < 34000) { lh.step(); Thread.sleep(1500); }
+        lh.step();
+        Thread.sleep(1500);
+        le.shutdown();
+        lclip.shutdown();
+        llib.shutdown();
+        check(hits.size() >= 2 && hits.size() <= 4 && hits.stream().allMatch(x -> x.startsWith("Highlight")),
+                "live auto-clips catch the loud bursts in a game with no event API (" + hits.size() + " clips in 34 s of play, bursts every 8 s)");
+
+        // CS2 full round: a 3 s round with a kill becomes one clip covering the round.
+        List<String> rs = new java.util.concurrent.CopyOnWriteArrayList<>();
+        var rc = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> rs.add(title + "|" + sec));
+        rc.after = 0;
+        var cs = new net.evadeclient.clips.events.Cs2Integration(rc, "tok");
+        cs.fullRounds = "kills";
+        String me = "76561198000000001";
+        java.util.function.BiFunction<String, Integer, String> st = (phase, k) -> "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + me
+                + "\"},\"map\":{\"round\":7,\"phase\":\"live\"},\"round\":{\"phase\":\"" + phase + "\",\"win_team\":\"CT\"},\"player\":{\"steamid\":\"" + me
+                + "\",\"team\":\"CT\",\"state\":{\"health\":100,\"round_kills\":" + k + ",\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
+        cs.handle(st.apply("freezetime", 0));
+        cs.handle(st.apply("live", 0));
+        Thread.sleep(1500);
+        cs.handle(st.apply("live", 1));
+        Thread.sleep(1500);
+        cs.handle(st.apply("over", 1));
+        Thread.sleep(500);
+        rc.shutdown();
+        // Console captures from a USB drive: PS5 and Xbox layouts.
+        Path usb = dir.resolve("usb");
+        Path ps5 = Files.createDirectories(usb.resolve("PS5").resolve("CREATE").resolve("Video Clips").resolve("Call of Duty® Black Ops 6"));
+        Path xbox = Files.createDirectories(usb.resolve("Xbox Captures"));
+        Files.copy(red, ps5.resolve("Call of Duty® Black Ops 6_20250131201500.mp4"));
+        Files.copy(red, xbox.resolve("Halo Infinite-2025_01_31-20_15_00.mp4"));
+        for (Path f : List.of(ps5.resolve("Call of Duty® Black Ops 6_20250131201500.mp4"), xbox.resolve("Halo Infinite-2025_01_31-20_15_00.mp4")))
+            Files.setLastModifiedTime(f, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() - 60_000));
+        Settings ws = new Settings();
+        ws.watchFolders.add(usb.toString());
+        var imported = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
+        var again = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
+        boolean psOk = imported.stream().anyMatch(x -> x.game.equals("Call of Duty® Black Ops 6") && x.tags.contains("ps5"));
+        boolean xbOk = imported.stream().anyMatch(x -> x.game.equals("Halo Infinite") && x.tags.contains("xbox"));
+        check(imported.size() == 2 && psOk && xbOk && again.isEmpty(), "console captures from a PS5 / Xbox USB drive import once, named after their game");
+
+        check(rs.size() == 1 && rs.get(0).startsWith("Round 7 · won · 1K|") && Integer.parseInt(rs.get(0).split("\\|")[1]) >= 5
+                && Integer.parseInt(rs.get(0).split("\\|")[1]) <= 6, "CS2 full-round clip covers the whole round (" + rs + ")");
+    }
+
+    private static int code(java.net.http.HttpClient http, String url) throws Exception {
+        return http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build(), java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    /** Share of pixels close to {@code rgb} in a box. */
+    private static double share(java.awt.image.BufferedImage img, int x0, int y0, int x1, int y1, int rgb) {
+        int hit = 0, total = 0;
+        for (int y = y0; y < y1; y += 2) for (int x = x0; x < x1; x += 2) {
+            int p = img.getRGB(x, y);
+            total++;
+            if (Math.abs((p >> 16 & 255) - (rgb >> 16 & 255)) < 40 && Math.abs((p >> 8 & 255) - (rgb >> 8 & 255)) < 40 && Math.abs((p & 255) - (rgb & 255)) < 40) hit++;
+        }
+        return hit / (double) Math.max(1, total);
+    }
+
+    private static double whiteShareBox(java.awt.image.BufferedImage img, int x0, int y0, int x1, int y1) {
+        return share(img, x0, y0, Math.min(x1, img.getWidth()), Math.min(y1, img.getHeight()), 0xffffff);
+    }
+
     /** Share links + phone gallery against a running Evade Clips Share server (CLIPS_SHARE_URL). */
     private void shareTests(Library lib, Path dir) throws Exception {
         String base = System.getProperty("clips.shareUrl");
@@ -392,7 +532,7 @@ final class SelfTest {
         var pageRes = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
         String pg = pageRes.body();
         String videoUrl = base + "/v/" + c.shareId + ".mp4";
-        check(pageRes.statusCode() == 200 && pg.contains("og:video:type\" content=\"video/mp4") && pg.contains("content=\"" + videoUrl + "\"")
+        check(pageRes.statusCode() == 200 && pg.contains("og:video:type\" content=\"video/mp4") && pg.contains("/v/" + c.shareId + ".mp4\"")
                 && pg.contains("og:image") && pg.contains("twitter:player:stream"), "share page has Discord/Twitter video embed tags");
         var full = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(videoUrl)).build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
         Path got = dir.resolve("downloaded.mp4");
@@ -420,7 +560,7 @@ final class SelfTest {
         var bad = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/clips")).header("Authorization", "Bearer " + s.cloudAccount + ".nope").build(),
                 java.net.http.HttpResponse.BodyHandlers.ofString());
         var over = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads")).header("Authorization", "Bearer " + s.cloudAccount + "." + s.cloudKey)
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"size\":40000000}")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"size\":60000000}")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
         check(bad.statusCode() == 401 && over.statusCode() == 413, "wrong key refused (401); upload past the storage quota refused (413)");
         // A big unedited H.264 clip is uploaded as-is, in several parts, and comes back byte-for-byte.
         Path raw = dir.resolve("raw.mp4");
@@ -435,6 +575,66 @@ final class SelfTest {
                 String.format("a %.1f MB clip uploads in %d parts and downloads byte-for-byte identical", orig.length / 1e6, cloud.lastParts));
         cloud.unshare(rc, lib);
 
+        // Privacy: a private clip's page and video need the owner's gallery token.
+        Path raw2 = rc.path(lib.root());
+        Clip pc = lib.importFiles(List.of(Files.copy(raw2, dir.resolve("private.mp4"), java.nio.file.StandardCopyOption.REPLACE_EXISTING)), false).get(0);
+        for (int i = 0; i < 100 && !Files.exists(lib.thumb(pc)); i++) Thread.sleep(100);
+        pc.sharePrivate = true;
+        String purl = cloud.share(pc, lib, null, null);
+        int anon = code(http, base + "/c/" + pc.shareId), anonV = code(http, base + "/v/" + pc.shareId + ".mp4"), owner = code(http, purl);
+        cloud.setVisibility(pc, lib, false);
+        int afterPublic = code(http, base + "/c/" + pc.shareId);
+        check(anon == 404 && anonV == 404 && owner == 200 && afterPublic == 200 && pc.shareUrl.equals(base + "/c/" + pc.shareId),
+                "private clips need the owner's link; making it public opens it (" + anon + "/" + anonV + "/" + owner + "/" + afterPublic + ")");
+
+        // Reports and takedowns: the owner is told which clip and why; the link explains it.
+        var rep = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/report")).header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"clip\":\"" + pc.shareId + "\",\"reason\":\"copyright\",\"details\":\"my song\"}")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        String adminTok = System.getProperty("clips.shareAdmin", "test-admin");
+        var reports = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/admin/reports")).header("Authorization", "Admin " + adminTok).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        var rm = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/admin/remove")).header("Authorization", "Admin " + adminTok)
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"clip\":\"" + pc.shareId + "\",\"reason\":\"copyright\",\"note\":\"Music claim by Label X\"}")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        var gonePage = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/c/" + pc.shareId)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        var notes = cloud.newNotices();
+        var notesAgain = cloud.newNotices();
+        check(rep.statusCode() == 200 && reports.body().contains("my song") && rm.statusCode() == 200 && gonePage.statusCode() == 410
+                        && gonePage.body().contains("copyright") && notes.size() == 1 && notes.get(0).get("title").getAsString().equals(pc.title)
+                        && notes.get(0).get("note").getAsString().contains("Label X") && notesAgain.isEmpty(),
+                "report → takedown: the link says why, and the owner gets one notice naming the clip and reason");
+
+        // Phone upload (gallery token) is pulled into the library.
+        String acct = s.cloudAccount;
+        String gauth = "Gallery " + acct + "." + s.cloudViewToken;
+        byte[] phoneBytes = Files.readAllBytes(raw2);
+        var st = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads")).header("Authorization", gauth)
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"title\":\"PS5 ace\",\"game\":\"Call of Duty\",\"size\":" + phoneBytes.length + "}")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        var sj = com.google.gson.JsonParser.parseString(st.body()).getAsJsonObject();
+        String pid = sj.get("clip").getAsString(), up = sj.get("uploadId").getAsString();
+        var part1 = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads/" + pid + "/1?uploadId=" + java.net.URLEncoder.encode(up, "UTF-8")))
+                .header("Authorization", gauth).PUT(java.net.http.HttpRequest.BodyPublishers.ofByteArray(phoneBytes)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        String etag = com.google.gson.JsonParser.parseString(part1.body()).getAsJsonObject().get("etag").getAsString();
+        http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads/" + pid + "/complete")).header("Authorization", gauth)
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"uploadId\":\"" + up + "\",\"parts\":[{\"partNumber\":1,\"etag\":\"" + etag + "\"}]}")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        var galleryDelete = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/clips/" + pid)).header("Authorization", gauth).DELETE().build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        List<Clip> pulled = cloud.pullPhoneUploads(lib);
+        List<Clip> pulledAgain = cloud.pullPhoneUploads(lib);
+        check(galleryDelete.statusCode() == 401 && pulled.size() == 1 && pulled.get(0).title.equals("PS5 ace") && pulled.get(0).game.equals("Call of Duty")
+                        && pulled.get(0).tags.contains("phone") && java.util.Arrays.equals(Files.readAllBytes(pulled.get(0).path(lib.root())), phoneBytes) && pulledAgain.isEmpty(),
+                "a phone upload lands in the library once, byte-for-byte; the gallery link can upload but not delete");
+
+        // The subdomain's landing page offers the downloads.
+        var home = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        String dlPath = home.body().replaceAll("(?s).*href=\"(/downloads/[^\"]+\\.exe)\".*", "$1");
+        int dl = dlPath.startsWith("/downloads/") ? code(http, base + dlPath) : -1;
+        check(home.statusCode() == 200 && home.body().contains("Download for Windows") && dl == 200, "landing page has working downloads (" + dlPath + " → " + dl + ")");
+
+        cloud.unshare(pulled.get(0), lib);
         String id = c.shareId;
         cloud.unshare(c, lib);
         var gone = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/c/" + id)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());

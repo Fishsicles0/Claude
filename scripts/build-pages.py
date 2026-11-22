@@ -230,6 +230,12 @@ def main() -> None:
         "{{PACK_VERSION}}": ver["texturePack"]["version"], "{{SIZE_PACK}}": ver["texturePack"]["size"],
         "{{SHA_PACK}}": ver["texturePack"]["sha256"],
     }
+    clips = ver.get("clips") or {}
+    tokens |= {
+        "{{CLIPS_VERSION}}": clips.get("version", ""),
+        "{{SIZE_CLIPS_EXE}}": (clips.get("windows") or {}).get("size", ""),
+        "{{SIZE_CLIPS_JAR}}": (clips.get("jar") or {}).get("size", ""),
+    }
     printer_mods = json.loads((ROOT / "site-src" / "printer-mods.json").read_text())["mods"]
     rows = "".join(
         f'<a class="req-mod" href="{html.escape(m["page"])}" target="_blank" rel="noopener">'

@@ -23,8 +23,8 @@ public final class Highlights {
     private Highlights() {}
 
     /** Loudness (dB RMS) per 0.25 s window. */
-    static double[] loudness(Path file, Ffmpeg.Job job) throws IOException {
-        List<String> cmd = List.of("-nostats", "-loglevel", "error", "-i", file.toString(), "-vn",
+    public static double[] loudness(Path file, Ffmpeg.Job job) throws IOException {
+        List<String> cmd = List.of("-nostats", "-loglevel", "error", "-i", file.toString(), "-map", "0:a:0",
                 "-af", "aformat=channel_layouts=mono,aresample=8000,asetnsamples=n=" + (int) (8000 * WINDOW)
                         + ":p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-",
                 "-f", "null", "-");

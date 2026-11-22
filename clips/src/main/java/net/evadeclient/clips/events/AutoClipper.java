@@ -54,6 +54,22 @@ public final class AutoClipper {
         pending = timer.schedule(this::flush, Math.max(0, after) * 1000L, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * A clip of an exact length (a whole CS2 round), saved after the usual short wait. Pending merged events are
+     * folded in, since the round covers them.
+     */
+    public synchronized void clipSpan(String game, String title, String tag, int seconds) {
+        onMarker.accept(title);
+        titles.clear();
+        tags.clear();
+        priority = -1;
+        if (pending != null) pending.cancel(false);
+        pending = timer.schedule(() -> {
+            try { sink.save(Math.min(600, seconds + Math.max(0, after)), title, game, tag); }
+            catch (Exception e) { System.err.println("[clips] round clip failed: " + e.getMessage()); }
+        }, Math.max(0, after) * 1000L, TimeUnit.MILLISECONDS);
+    }
+
     /** Saves the merged clip now (used by tests and when a match ends). */
     public void flush() {
         int seconds;

@@ -52,7 +52,7 @@ public final class CaptureSource {
         int testH = s.resolution >= 1080 ? 1080 : 720, testW = testH == 1080 ? 1920 : 1280;
 
         switch (s.source) {
-            case "test", "test-noise", "test-calm" -> {
+            case "test", "test-noise", "test-calm", "test-bursts" -> {
                 // Self-test sources: a busy test pattern, the same with heavy grain (the worst case for file
                 // size), or a slow, calm scene (menus, building, walking around).
                 String size = testW + "x" + testH;
@@ -100,7 +100,11 @@ public final class CaptureSource {
         List<String[]> tracks = new ArrayList<>(); // {input label, title, volume filter}
         int idx = 1;
         if (s.source.startsWith("test")) {
-            if (s.recordSystemAudio) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""}); }
+            // "test-bursts": quiet noise with a loud 0.7 s burst every 8 s, like gunfights in a calm match.
+            String gameSrc = s.source.equals("test-bursts")
+                    ? "anoisesrc=a=0.02:c=pink:r=48000,volume='if(between(mod(t\\,8)\\,5\\,5.7)\\,20\\,1)':eval=frame"
+                    : "sine=frequency=440:sample_rate=48000";
+            if (s.recordSystemAudio) { a.addAll(List.of("-f", "lavfi", "-i", gameSrc)); tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""}); }
             if (s.recordMic) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Mic", "volume=" + Library.fmt(s.micVolume) + ","}); }
             if (s.recordVoice) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""}); }
         } else {

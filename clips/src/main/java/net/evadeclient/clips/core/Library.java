@@ -101,7 +101,8 @@ public final class Library {
 
     /** Drops entries whose file is gone and adds videos that were put in the folder by hand. */
     public synchronized void rescan() {
-        clips.removeIf(c -> !Files.exists(c.path(root())));
+        // A name this system can't represent (e.g. "®" without a UTF-8 locale) mustn't take the library down.
+        clips.removeIf(c -> { try { return !Files.exists(c.path(root())); } catch (java.nio.file.InvalidPathException e) { return false; } });
         Set<String> known = new HashSet<>();
         for (Clip c : clips) known.add(c.file);
         if (Files.isDirectory(root())) {
@@ -116,7 +117,9 @@ public final class Library {
                         });
             } catch (IOException ignored) {}
         }
-        for (Clip c : clips) if (!Files.exists(thumb(c))) queueThumbnails(c);
+        for (Clip c : clips) {
+            try { if (!Files.exists(thumb(c))) queueThumbnails(c); } catch (java.nio.file.InvalidPathException ignored) {}
+        }
         save();
         changed();
     }
@@ -303,6 +306,8 @@ public final class Library {
     public int delete(List<Clip> list) {
         int n = 0;
         for (Clip c : list) {
+            // Locked: favourites only go when unfavourited first (protects them from bulk cleanups).
+            if (c.favorite && settings.protectFavorites) continue;
             Path p = c.path(root());
             boolean gone = false;
             try {

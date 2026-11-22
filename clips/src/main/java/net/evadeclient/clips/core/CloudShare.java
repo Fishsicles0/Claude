@@ -58,6 +58,61 @@ public final class CloudShare {
         settings.save();
     }
 
+    /** Who can watch a shared clip: "link" (anyone with the link) or "private" (only you, through your gallery). */
+    public void setVisibility(Clip c, Library lib, boolean priv) throws IOException {
+        if (c.shareId == null) return;
+        ensureAccount();
+        send(authed("/api/clips/" + c.shareId).method("PATCH", json(Map.of("visibility", priv ? "private" : "link"))).build());
+        c.sharePrivate = priv;
+        c.shareUrl = base() + "/c/" + c.shareId + (priv ? "?t=" + settings.cloudViewToken : "");
+        lib.update(c);
+    }
+
+    /** New notices from the server (e.g. a clip removed by moderation, and why). Each is returned once. */
+    public List<JsonObject> newNotices() throws IOException {
+        if (!configured() || settings.cloudAccount.isBlank()) return List.of();
+        JsonObject r = send(authed("/api/notices?unread=1").GET().build());
+        List<JsonObject> out = new ArrayList<>();
+        r.getAsJsonArray("notices").forEach(e -> out.add(e.getAsJsonObject()));
+        return out;
+    }
+
+    /**
+     * Downloads clips uploaded from the phone gallery (console captures, phone recordings) that aren't in the
+     * library yet. Returns the new clips.
+     */
+    public List<Clip> pullPhoneUploads(Library lib) throws IOException {
+        List<Clip> added = new ArrayList<>();
+        if (!configured() || settings.cloudAccount.isBlank()) return added;
+        java.util.Set<String> have = new java.util.HashSet<>();
+        for (Clip c : lib.all()) if (c.shareId != null) have.add(c.shareId);
+        JsonArray clips = list().getAsJsonArray("clips");
+        for (var el : clips) {
+            JsonObject m = el.getAsJsonObject();
+            String id = m.get("id").getAsString();
+            if (!"phone".equals(m.has("origin") ? m.get("origin").getAsString() : "") || have.contains(id)) continue;
+            boolean priv = m.has("visibility") && "private".equals(m.get("visibility").getAsString());
+            String q = priv ? "?t=" + settings.cloudViewToken : "";
+            Path dir = lib.folder(Clip.Kind.IMPORT).resolve("Phone");
+            Files.createDirectories(dir);
+            String title = m.has("title") ? m.get("title").getAsString() : "Phone clip";
+            Path dest = Library.unique(dir, Library.safe(title) + ".mp4");
+            HttpResponse<Path> r;
+            try { r = http.send(HttpRequest.newBuilder(URI.create(base() + "/v/" + id + ".mp4" + q)).timeout(Duration.ofMinutes(10)).build(), HttpResponse.BodyHandlers.ofFile(dest)); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IOException("Interrupted"); }
+            if (r.statusCode() != 200) { Files.deleteIfExists(dest); continue; }
+            Clip c = lib.addNew(dest, Clip.Kind.IMPORT, title, m.has("game") ? m.get("game").getAsString() : "", null, null);
+            c.shareId = id;
+            c.shareUrl = base() + "/c/" + id + q;
+            c.sharePrivate = priv;
+            c.shareEditHash = editHash(c);
+            if (!c.tags.contains("phone")) c.tags.add("phone");
+            lib.update(c);
+            added.add(c);
+        }
+        return added;
+    }
+
     private String bearer() { return "Bearer " + settings.cloudAccount + "." + settings.cloudKey; }
 
     /** Private link to the phone gallery (show it as a QR code). */
@@ -95,7 +150,8 @@ public final class CloudShare {
         try {
             long size = Files.size(upload);
             JsonObject start = send(authed("/api/uploads").POST(json(Map.of("title", c.title == null ? "Clip" : c.title,
-                    "game", c.game == null ? "" : c.game, "duration", dur, "width", w, "height", h, "size", size))).build());
+                    "game", c.game == null ? "" : c.game, "duration", dur, "width", w, "height", h, "size", size,
+                    "visibility", c.sharePrivate ? "private" : "link"))).build());
             String clip = start.get("clip").getAsString(), uploadId = start.get("uploadId").getAsString();
             int partSize = partSizeOverride > 0 ? partSizeOverride : start.get("partSize").getAsInt();
             List<Map<String, Object>> parts = new ArrayList<>();
@@ -121,7 +177,7 @@ public final class CloudShare {
             if (Files.exists(thumb)) send(authed("/api/clips/" + clip + "/thumb").PUT(HttpRequest.BodyPublishers.ofFile(thumb)).build());
             if (c.shareId != null) { try { unshare(c, lib); } catch (Exception ignored) {} }
             c.shareId = clip;
-            c.shareUrl = base() + "/c/" + clip;
+            c.shareUrl = base() + "/c/" + clip + (c.sharePrivate ? "?t=" + settings.cloudViewToken : "");
             c.shareEditHash = editHash(c);
             lib.update(c);
             return c.shareUrl;

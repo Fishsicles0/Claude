@@ -347,8 +347,13 @@ public final class Ffmpeg {
      * runs on the GPU's video engine and doesn't take frames from the game.
      */
     public static List<String> liveEncoderArgs(String enc, int quality, int fps, int w, int h) {
+        return liveEncoderArgs(enc, quality, fps, w, h, 0);
+    }
+
+    /** Like above with a fixed bitrate ceiling ({@code capOverride} bits/s, 0 = from the quality level). */
+    public static List<String> liveEncoderArgs(String enc, int quality, int fps, int w, int h, long capOverride) {
         int gop = Math.max(1, fps); // one keyframe a second, so replays can be cut on any second
-        long cap = liveCapBits(enc, quality, fps, w, h);
+        long cap = capOverride > 0 ? capOverride : liveCapBits(enc, quality, fps, w, h);
         String maxrate = cap / 1000 + "k", bufsize = cap / 1000 + "k", avg = cap * 6 / 10 / 1000 + "k";
         int q = Math.max(1, Math.min(3, quality)) - 1;
         List<String> a = new ArrayList<>(List.of("-c:v", enc));

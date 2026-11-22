@@ -1,4 +1,4 @@
-# Evade Clips Share
+# Evade Clips Share — clips.evadeclient.com
 
 Share links and phone sync for [Evade Clips](../clips/README.md). It's a Cloudflare Worker that stores
 clips in R2, and one deployment can serve a whole community.
@@ -18,29 +18,40 @@ clips in R2, and one deployment can serve a whole community.
 - **Storage cost:** R2 has free egress, so watching and downloading clips costs nothing; you pay only for
   storage beyond R2's free tier.
 
+- **Landing page with downloads.** `/` describes Evade Clips and serves its downloads from `public/downloads/`
+  (copied there by `scripts/build-site.sh`, with `clips.json` for versions and checksums).
+- **Privacy.** Each clip is *link* (anyone with the link) or *private* (only the owner, through their gallery link).
+- **Moderation.** Viewers report clips (reason + details). A moderator removes one with
+  `POST /api/admin/remove {clip, reason, note}` (`Authorization: Admin <ADMIN_TOKEN>`): the video goes, the link
+  says why, and the owner's app shows a notice naming the clip and the reason.
+- **Phone uploads.** The gallery page uploads videos (e.g. console captures) straight from the phone; Evade Clips
+  pulls them into the library. The gallery link can list and upload, never delete.
+
 ## Deploy
 
 ```bash
 cd clips-share
 npx wrangler r2 bucket create evade-clips
-npx wrangler deploy
+npx wrangler secret put ADMIN_TOKEN      # for moderation
+npx wrangler deploy                      # serves clips.evadeclient.com (custom domain in wrangler.jsonc)
 # optional: make it invite-only
 npx wrangler secret put REGISTER_SECRET
 ```
 
-Put the worker's URL (or a custom domain you route to it) into Evade Clips → Settings → Sharing → *Share
-server*.
+Evade Clips uses https://clips.evadeclient.com by default. If you host your own, put its URL in Evade Clips →
+Settings → Sharing → *Share server*.
 
 ## Test locally
 
 ```bash
-npx wrangler dev --local --port 8787 --var QUOTA_GB:0.03
+npx wrangler dev --local --port 8787 --var QUOTA_GB:0.05 --var ADMIN_TOKEN:test-admin
 CLIPS_SHARE_URL=http://127.0.0.1:8787 ./gradlew :clips:selfTest
 ```
 
 The self-test checks link creation, embed tags, byte-range serving, thumbnails, the phone gallery (and that a
 wrong gallery link shows nothing), reusing links, wrong-key and quota refusals, a multi-part upload that comes
-back byte-for-byte identical, and that *Stop sharing* removes everything.
+back byte-for-byte identical, private clips, report → takedown → owner notice, phone uploads pulled into the
+library, the landing page's downloads, and that *Stop sharing* removes everything.
 
 ## API
 

@@ -36,7 +36,31 @@ public final class EditSpec {
         public Caption copy() { return new Caption(text, start, end, position, style); }
     }
 
+    /**
+     * A video on top of the main footage (facecam, reaction, a second angle): shown from source time
+     * {@code start}, playing the overlay file from {@code inPoint}, at a position and size relative to the frame.
+     */
+    public static final class Overlay {
+        public String file = "";
+        public double start, inPoint, length;
+        /** Centre of the overlay, 0..1 across / down the frame. */
+        public double x = 0.82, y = 0.2;
+        /** Width as a fraction of the frame width. */
+        public double scale = 0.3;
+        public double opacity = 1;
+        public boolean audio;
+        public double volume = 1;
+
+        public Overlay copy() {
+            Overlay o = new Overlay();
+            o.file = file; o.start = start; o.inPoint = inPoint; o.length = length; o.x = x; o.y = y;
+            o.scale = scale; o.opacity = opacity; o.audio = audio; o.volume = volume;
+            return o;
+        }
+    }
+
     public List<Segment> segments = new ArrayList<>();
+    public List<Overlay> overlays = new ArrayList<>();
     public List<Caption> captions = new ArrayList<>();
     /** Color look: "none", "vibrant", "cinematic", "bw", "retro", "warm", "cool". */
     public String effect = "none";
@@ -79,7 +103,7 @@ public final class EditSpec {
     public boolean isUntouched(double duration) {
         return segments.size() == 1 && segments.get(0).start <= 0.01 && segments.get(0).end >= duration - 0.01
                 && segments.get(0).speed == 1 && aspect.equals("original") && zoom == 1 && volume == 1 && micVolume == 1 && !mute
-                && fadeIn == 0 && fadeOut == 0 && titleText.isBlank() && captions.isEmpty() && "none".equals(effect) && voiceVolume == 1;
+                && fadeIn == 0 && fadeOut == 0 && titleText.isBlank() && captions.isEmpty() && overlays.isEmpty() && "none".equals(effect) && voiceVolume == 1;
     }
 
     public EditSpec copy() {
@@ -88,7 +112,8 @@ public final class EditSpec {
         e.aspect = aspect; e.fitMode = fitMode; e.cropX = cropX; e.zoom = zoom;
         e.volume = volume; e.micVolume = micVolume; e.voiceVolume = voiceVolume; e.mute = mute;
         e.effect = effect;
-        for (Caption c : captions) e.captions.add(c.copy()); e.fadeIn = fadeIn; e.fadeOut = fadeOut;
+        for (Caption c : captions) e.captions.add(c.copy());
+        for (Overlay o : overlays) e.overlays.add(o.copy()); e.fadeIn = fadeIn; e.fadeOut = fadeOut;
         e.titleText = titleText; e.titlePosition = titlePosition; e.titleSeconds = titleSeconds;
         return e;
     }

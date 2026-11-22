@@ -299,8 +299,17 @@ public final class LibraryPanel extends JPanel {
         List<Clip> list = selectedClips();
         if (list.isEmpty()) return;
         long favs = list.stream().filter(c -> c.favorite).count();
-        String msg = list.size() == 1 ? "Delete \"" + list.get(0).title + "\"?" : "Delete " + list.size() + " clips?";
-        if (favs > 0) msg += "\n" + favs + " of them " + (favs == 1 ? "is a favourite." : "are favourites.");
+        boolean locked = app.settings.protectFavorites;
+        if (locked && favs == list.size()) {
+            JOptionPane.showMessageDialog(this, (favs == 1 ? "This clip is a favorite" : "These clips are favorites")
+                    + ", so " + (favs == 1 ? "it's" : "they're") + " locked.\nUnfavorite to delete, or turn off \"Protect favorites\" in Settings.",
+                    "Favorites are locked", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        long del = locked ? list.size() - favs : list.size();
+        String msg = del == 1 && list.size() == 1 ? "Delete \"" + list.get(0).title + "\"?" : "Delete " + del + " clip" + (del == 1 ? "" : "s") + "?";
+        if (favs > 0) msg += locked ? "\n" + favs + " favorite" + (favs == 1 ? " is" : "s are") + " locked and will be kept."
+                : "\n" + favs + " of them " + (favs == 1 ? "is a favourite." : "are favourites.");
         msg += "\nThey go to the recycle bin where your system has one.";
         if (JOptionPane.showConfirmDialog(this, msg, "Delete", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
         app.library.delete(list);
@@ -379,6 +388,10 @@ public final class LibraryPanel extends JPanel {
         m.add(item("Copy file" + (list.size() > 1 ? "s" : ""), Theme.Glyph.COPY, () -> copyFiles(list)));
         if (list.size() == 1) {
             m.add(item(c.shareUrl != null ? "Copy share link" : "Share link (paste into Discord)", Theme.Glyph.EXPORT, () -> app.shareClip(c, true)));
+            if (c.shareId != null) m.add(item(c.sharePrivate ? "Make the link public (anyone with the link)" : "Make private (only you)", null, () -> new Thread(() -> {
+                try { app.cloud.setVisibility(c, app.library, !c.sharePrivate); app.notify(c.sharePrivate ? "Now private" : "Anyone with the link can watch", c.title, false); }
+                catch (Exception ex) { app.notify("Couldn't change who can see it", ex.getMessage(), true); }
+            }, "visibility").start()));
             if (c.shareUrl != null) m.add(item("Stop sharing", null, () -> new Thread(() -> {
                 try { app.cloud.unshare(c, app.library); app.notify("Link removed", c.title, false); }
                 catch (Exception ex) { app.notify("Couldn't remove the link", ex.getMessage(), true); }
@@ -392,6 +405,7 @@ public final class LibraryPanel extends JPanel {
             for (Clip x : list) {
                 Exporter.Options o = new Exporter.Options();
                 o.preset = Exporter.Preset.SHORTS;
+                o.watermark = Exporter.Watermark.from(app.settings);
                 EditSpec spec = (x.edit != null ? x.edit : EditSpec.whole(x.duration)).copy();
                 if (spec.aspect.equals("original")) { spec.aspect = "9:16"; spec.fitMode = "blur"; }
                 app.export(x, spec, o, null);
@@ -405,6 +419,7 @@ public final class LibraryPanel extends JPanel {
                     Exporter.Options o = new Exporter.Options();
                     o.preset = p;
                     o.gpu = true;
+                    o.watermark = Exporter.Watermark.from(app.settings);
                     EditSpec spec = x.edit != null ? x.edit : EditSpec.whole(x.duration);
                     app.export(x, spec, o, null);
                 }
@@ -541,7 +556,7 @@ public final class LibraryPanel extends JPanel {
                 @Override public void mouseExited(MouseEvent e) { hover = false; scrub = -1; animate(); }
                 @Override public void mouseMoved(MouseEvent e) {
                     int th = thumbH();
-                    scrub = e.getY() < th ? Math.max(0, Math.min(0.999, e.getX() / (double) getWidth())) : -1;
+                    scrub = app.settings.hoverPreview && e.getY() < th ? Math.max(0, Math.min(0.999, e.getX() / (double) getWidth())) : -1;
                     repaint();
                 }
                 @Override public void mousePressed(MouseEvent e) {
@@ -597,7 +612,8 @@ public final class LibraryPanel extends JPanel {
         boolean starHit(int x, int y) { return x > getWidth() - 40 && y < 40; }
 
         @Override public String getToolTipText(MouseEvent e) {
-            return starHit(e.getX(), e.getY()) ? (clip.favorite ? "Unfavorite" : "Favorite") : null;
+            return starHit(e.getX(), e.getY()) ? (clip.favorite ? "Unfavorite" + (app.settings.protectFavorites ? " (favorites are locked against deletion)" : "")
+                    : "Favorite (locks it against deletion)") : null;
         }
 
         @Override protected void paintComponent(Graphics g0) {
