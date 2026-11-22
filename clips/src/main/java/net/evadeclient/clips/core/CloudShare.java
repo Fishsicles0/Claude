@@ -202,6 +202,18 @@ public final class CloudShare {
         return send(authed("/api/clips").GET().build());
     }
 
+    /** GET a JSON API path as this PC's account (e.g. community presets). */
+    public JsonObject getJson(String path) throws IOException, InterruptedException {
+        ensureAccount();
+        return send(authed(path).GET().build());
+    }
+
+    /** POST JSON to an API path as this PC's account. */
+    public JsonObject postJson(String path, JsonObject body) throws IOException, InterruptedException {
+        ensureAccount();
+        return send(authed(path).header("Content-Type", "application/json").POST(json(body)).build());
+    }
+
     static int editHash(Clip c) { return c.edit == null ? 0 : GSON.toJson(c.edit).hashCode(); }
 
     static String videoCodec(Path f) {

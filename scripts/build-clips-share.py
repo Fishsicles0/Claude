@@ -18,7 +18,7 @@ css_v = json.loads((ROOT / "site" / "version.json").read_text())["version"]  # c
 
 LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="32" height="32">'
         '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIPS</span></span>')
-NAV = [("#features", "Features"), ("#how", "How it works"), ("#share", "Sharing"), ("#faq", "FAQ")]
+NAV = [("#features", "Features"), ("#editor", "Editor"), ("/presets", "Presets"), ("#share", "Sharing"), ("#faq", "FAQ")]
 
 HEAD = """<!doctype html>
 <html lang="en">
@@ -75,7 +75,7 @@ FOOT = """</main>
       <p>Record, edit and share your gameplay. Free, with no watermark and no ads.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Product</h5><a href="/#features">Features</a><a href="/#how">How it works</a><a href="/#share">Sharing</a></div>
+      <div><h5>Product</h5><a href="/#features">Features</a><a href="/#editor">Editor</a><a href="/presets">Presets</a><a href="/#share">Sharing</a></div>
       <div><h5>Download</h5><a href="/downloads/Evade-Clips.exe">Windows</a><a href="/downloads/EvadeClips.jar">macOS &amp; Linux</a><a href="/#checksums">Checksums</a></div>
       <div><h5>Help</h5><a href="/#faq">FAQ</a><a href="/#report">Report a clip</a></div>
     </div>
@@ -89,8 +89,9 @@ FOOT = """</main>
 
 
 def fill(s: str) -> str:
-    links = "\n".join(f'      <a href="/{h}">{t}</a>' for h, t in NAV)
-    mobile = "\n".join(f'    <a href="/{h}">{t}</a>' for h, t in NAV)
+    href = lambda h: h if h.startswith("/") else f"/{h}"
+    links = "\n".join(f'      <a href="{href(h)}">{t}</a>' for h, t in NAV)
+    mobile = "\n".join(f'    <a href="{href(h)}">{t}</a>' for h, t in NAV)
     return (s.replace("LOGO", LOGO).replace("LINKS", links).replace("MOBILE", mobile)
             .replace("VERSION", dl["version"]).replace("CSSV", css_v))
 

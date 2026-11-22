@@ -52,7 +52,7 @@ public final class Clip {
 
     public EditSpec editOrDefault() {
         if (edit == null) edit = EditSpec.whole(duration);
-        return edit;
+        return edit.fill();
     }
 
     public String resolution() {

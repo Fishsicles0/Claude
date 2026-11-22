@@ -33,6 +33,8 @@ public final class Timeline extends JComponent {
     private double duration = 1;
     private EditSpec edit;
     private List<Double> markers = List.of();
+    /** Extra right-click items from the editor (effects, ramps, zoom) for the time clicked. */
+    public java.util.function.BiConsumer<JPopupMenu, Double> extraMenu;
     /** Marker names ("Kill Steve", "ACE"), drawn next to the marker and shown on hover. */
     public java.util.function.Function<Double, String> labelOf = t -> null;
     private double playhead;
@@ -184,10 +186,11 @@ public final class Timeline extends JComponent {
             m.addSeparator();
             for (double sp : new double[]{0.25, 0.5, 0.75, 1, 1.5, 2, 4}) {
                 String label = (sp == 1 ? "Normal speed" : (sp < 1 ? "Slow-mo " : "Speed up ") + fmtSpeed(sp));
-                JMenuItem it = item(label, () -> { beforeEdit.run(); edit.segments.get(seg).speed = sp; afterEdit.run(); });
+                JMenuItem it = item(label, () -> { beforeEdit.run(); edit.segments.get(seg).speed = sp; edit.segments.get(seg).rampTo = 0; afterEdit.run(); });
                 if (edit.segments.get(seg).speed == sp) it.setIcon(Theme.icon(Theme.Glyph.CHECK, 14, Theme.RED));
                 m.add(it);
             }
+            if (extraMenu != null) { m.addSeparator(); extraMenu.accept(m, t); }
         } else {
             // In a cut-out gap: bring it back.
             m.add(item("Restore this part", () -> {
@@ -212,7 +215,8 @@ public final class Timeline extends JComponent {
     }
 
     static String fmtSpeed(double s) {
-        return (s == Math.floor(s) ? String.valueOf((int) s) : String.valueOf(s)) + "×";
+        double r = Math.round(s * 100) / 100.0;
+        return (r == Math.floor(r) ? String.valueOf((int) r) : String.valueOf(r)) + "×";
     }
 
     @Override
@@ -286,16 +290,40 @@ public final class Timeline extends JComponent {
                 g.draw(new RoundRectangle2D.Double(x1, y0, Math.max(2, x2 - x1), STRIP + WAVE, 8, 8));
                 handle(g, x1, y0, true);
                 handle(g, x2, y0, false);
-                if (s.speed != 1) {
-                    String lbl = fmtSpeed(s.speed);
+                if (s.speed != 1 || s.ramped()) {
+                    String lbl = s.ramped() ? fmtSpeed(s.speed) + "→" + fmtSpeed(s.rampTo) : fmtSpeed(s.speed);
                     g.setFont(Theme.interBold.deriveFont(11f));
                     int lw = g.getFontMetrics().stringWidth(lbl) + 10;
                     int lx = (int) ((x1 + x2) / 2 - lw / 2.0);
-                    g.setColor(s.speed < 1 ? new Color(0x4C8DFF) : Theme.GOLD);
+                    g.setColor(Math.min(s.speed, s.ramped() ? s.rampTo : s.speed) < 1 ? new Color(0x4C8DFF) : Theme.GOLD);
                     g.fill(new RoundRectangle2D.Double(lx, y0 + 4, lw, 17, 8, 8));
                     g.setColor(Color.BLACK);
                     g.drawString(lbl, lx + 5, y0 + 17);
                 }
+            }
+        }
+
+        // effects (pink dots along the bottom) and zoom keyframes (blue diamonds along the top)
+        if (edit != null) {
+            for (EditSpec.Effect f : edit.effects) {
+                double x = xAt(f.t);
+                if (x < PAD - 4 || x > PAD + tw + 4) continue;
+                g.setColor(new Color(0xFF4FA3));
+                g.fill(new java.awt.geom.Ellipse2D.Double(x - 4, y0 + STRIP + WAVE - 10, 8, 8));
+                g.setColor(Color.BLACK);
+                g.setStroke(new BasicStroke(1f));
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 4, y0 + STRIP + WAVE - 10, 8, 8));
+            }
+            for (EditSpec.ZoomKey k : edit.zooms) {
+                double x = xAt(k.t);
+                if (x < PAD - 4 || x > PAD + tw + 4) continue;
+                Path2D d = new Path2D.Double();
+                d.moveTo(x, y0 + 3); d.lineTo(x + 5, y0 + 8); d.lineTo(x, y0 + 13); d.lineTo(x - 5, y0 + 8); d.closePath();
+                g.setColor(new Color(0x4C8DFF));
+                g.fill(d);
+                g.setColor(Color.BLACK);
+                g.setStroke(new BasicStroke(1f));
+                g.draw(d);
             }
         }
 

@@ -172,6 +172,12 @@ public final class VoiceCommands implements AutoCloseable {
         return g.append("\"[unk]\"]").toString();
     }
 
+    /** A recognizer for free speech (auto-captions), with word timings. Needs the engine and model downloaded. */
+    public static Engine dictation() throws IOException {
+        if (!modelInstalled()) throw new IOException("The speech model isn't downloaded yet.");
+        return loadEngine(modelDir(), null);
+    }
+
     private static Engine loadEngine(Path modelDir, String grammar) throws IOException {
         if (!libsInstalled()) throw new IOException("The speech engine isn't downloaded yet.");
         try {

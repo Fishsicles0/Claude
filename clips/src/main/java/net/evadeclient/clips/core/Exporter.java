@@ -182,7 +182,7 @@ public final class Exporter {
         int w = clip.width > 0 ? clip.width : 1920, h = clip.height > 0 ? clip.height : 1080;
         Preset p = o.preset;
         double r = aspectRatio(p == Preset.SHORTS && e.aspect.equals("original") ? "9:16" : e.aspect, w, h);
-        boolean blur = e.fitMode.equals("blur") && !e.aspect.equals("original") || (p == Preset.SHORTS && e.aspect.equals("original"));
+        boolean blur = isBlur(e, p) || isSplit(e, p);
         int ow, oh;
         if (blur) {
             // Canvas: fit the aspect around the source's short side.
@@ -214,6 +214,7 @@ public final class Exporter {
     // ------------------------------------------------------------------ the ffmpeg command
 
     static List<String> buildArgs(Path src, Clip clip, EditSpec e, Options o, Path out, double vKbps, int aKbps, String[] pass) throws IOException {
+        e.fill();
         int w = clip.width > 0 ? clip.width : 1920, h = clip.height > 0 ? clip.height : 1080;
         Preset p = o.preset;
         // Both passes must see the exact same filter graph (audio included) or x264's stats won't line up.
@@ -235,31 +236,40 @@ public final class Exporter {
             }
             if (bpp < 0.045 && outFps > 30) fps = 30;
         }
+        int workFps = fps > 0 ? fps : srcFps;
 
         List<String> a = new ArrayList<>(List.of("-i", src.toString()));
+        int input = 1;
+        boolean split = isSplit(e, p);
+        int camInput = -1;
+        if (split && e.camFile != null && !e.camFile.isBlank() && Files.exists(Path.of(e.camFile))) {
+            a.addAll(List.of("-stream_loop", "-1", "-i", e.camFile));
+            camInput = input++;
+        }
         boolean hasTitle = !e.titleText.isBlank() && p != Preset.GIF;
+        int titleInput = -1;
         if (hasTitle) {
-            Path png = Files.createTempFile("evadeclips-title", ".png");
-            png.toFile().deleteOnExit();
-            ImageIO.write(renderTitle(e.titleText, e.titlePosition, ow, oh), "png", png.toFile());
-            a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
+            a.addAll(loopPng(renderTitle(e.titleText, e.titlePosition, ow, oh), dur));
+            titleInput = input++;
         }
         // Timed captions: one transparent frame each, overlaid only while it's on screen.
         List<double[]> capTimes = new ArrayList<>();
+        List<String> capStyles = new ArrayList<>();
+        int capInput = input;
         for (EditSpec.Caption c : e.captions) {
             if (c.text == null || c.text.isBlank()) continue;
             double os = e.toOutput(c.start), oe = e.toOutput(c.end);
-            if (oe - os < 0.05) continue; // entirely inside a cut part
-            Path png = Files.createTempFile("evadeclips-caption", ".png");
-            png.toFile().deleteOnExit();
-            ImageIO.write(renderCaption(c.text, c.position, c.style, ow, oh), "png", png.toFile());
-            a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
+            if (oe - os < 0.04) continue; // entirely inside a cut part
+            a.addAll(loopPng(renderCaption(c.text, c.position, c.style, ow, oh), dur));
             capTimes.add(new double[]{os, oe});
+            capStyles.add(c.style);
+            input++;
         }
         // Video overlays: each its own input, trimmed to the part that shows.
         List<double[]> ovTimes = new ArrayList<>();
         List<EditSpec.Overlay> ovs = new ArrayList<>();
         List<Boolean> ovAudio = new ArrayList<>();
+        int ovInput = input;
         for (EditSpec.Overlay ov : e.overlays) {
             if (ov.file == null || ov.file.isBlank() || !Files.exists(Path.of(ov.file))) continue;
             double os = e.toOutput(ov.start);
@@ -271,17 +281,47 @@ public final class Exporter {
             ovTimes.add(new double[]{os, os + len});
             ovs.add(ov);
             ovAudio.add(ovHasAudio && ov.audio && audio);
+            input++;
         }
+        // Effects at their output times (ones inside cut parts are dropped).
+        List<EditSpec.Effect> fx = new ArrayList<>();
+        List<Double> fxAt = new ArrayList<>();
+        for (EditSpec.Effect f : e.effects) {
+            if (e.segmentAt(f.t) < 0) continue;
+            fx.add(f);
+            fxAt.add(e.toOutput(f.t));
+        }
+        int hitInput = -1;
+        if (fx.stream().anyMatch(f -> f.type.equals("hitmarker")) && p != Preset.GIF) {
+            a.addAll(loopPng(renderHitmarker(ow, oh), dur));
+            hitInput = input++;
+        }
+        int wmInput = -1;
         if (o.watermark != null) {
-            Path png = Files.createTempFile("evadeclips-watermark", ".png");
-            png.toFile().deleteOnExit();
-            ImageIO.write(renderWatermark(o.watermark, ow, oh), "png", png.toFile());
-            a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
+            a.addAll(loopPng(renderWatermark(o.watermark, ow, oh), dur));
+            wmInput = input++;
+        }
+        // Sounds for effects.
+        List<String> sfxLabels = new ArrayList<>();
+        List<String> sfxChains = new ArrayList<>();
+        if (p != Preset.GIF) {
+            for (int k = 0; k < fx.size(); k++) {
+                EditSpec.Effect f = fx.get(k);
+                Path snd = Sounds.file(f.sound);
+                if (snd == null) continue;
+                long ms = Math.max(0, Math.round(fxAt.get(k) * 1000));
+                a.addAll(List.of("-i", snd.toString()));
+                sfxChains.add("[" + input + ":a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=" + Library.fmt(f.volume)
+                        + ",adelay=" + ms + "|" + ms + "[sfx" + k + "]");
+                sfxLabels.add("[sfx" + k + "]");
+                input++;
+            }
         }
 
         StringBuilder fc = new StringBuilder();
-        int n = e.segments.size();
-        // Audio source per segment: the single track, or game + mic mixed at the mic level the user chose.
+        List<EditSpec.Piece> pieces = e.pieces();
+        int n = pieces.size();
+        // Audio source per piece: the single track, or game + mic (+ voice chat) mixed at the chosen levels.
         String[] aSrc = new String[n];
         if (audio && clip.audioTracks >= 2) {
             fc.append(trackMix(clip, e, 0, "mixed"));
@@ -290,26 +330,62 @@ public final class Exporter {
                 for (int i = 0; i < n; i++) { fc.append("[as").append(i).append("]"); aSrc[i] = "[as" + i + "]"; }
             } else { fc.append("[as0]"); aSrc[0] = "[as0]"; }
             fc.append(";");
+        } else if (audio && n > 1) {
+            fc.append("[0:a:0]asplit=").append(n);
+            for (int i = 0; i < n; i++) { fc.append("[as").append(i).append("]"); aSrc[i] = "[as" + i + "]"; }
+            fc.append(";");
         } else {
             java.util.Arrays.fill(aSrc, "[0:a:0]");
         }
+        if (n > 1) {
+            fc.append("[0:v]split=").append(n);
+            for (int i = 0; i < n; i++) fc.append("[vs").append(i).append("]");
+            fc.append(";");
+        }
         for (int i = 0; i < n; i++) {
-            EditSpec.Segment s = e.segments.get(i);
-            fc.append("[0:v]trim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
-                    .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed)).append("[v").append(i).append("];");
+            EditSpec.Piece s = pieces.get(i);
+            fc.append(n > 1 ? "[vs" + i + "]" : "[0:v]").append("trim=start=").append(Library.fmt(s.start())).append(":end=").append(Library.fmt(s.end()))
+                    .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed()));
+            // Slow parts get in-between frames, so slow motion stays smooth instead of stuttering.
+            if (s.speed() < 0.97 && p != Preset.GIF) {
+                if ("flow".equals(e.smoothing)) fc.append(",minterpolate=fps=").append(workFps).append(":mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1");
+                else if ("blend".equals(e.smoothing)) fc.append(",framerate=fps=").append(workFps);
+            }
+            fc.append(",fps=").append(workFps).append(",setsar=1[v").append(i).append("];");
             if (audio) {
-                fc.append(aSrc[i]).append("atrim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
-                        .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed)).append("[a").append(i).append("];");
+                fc.append(aSrc[i]).append("atrim=start=").append(Library.fmt(s.start())).append(":end=").append(Library.fmt(s.end()))
+                        .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed())).append("[a").append(i).append("];");
             }
         }
         for (int i = 0; i < n; i++) fc.append("[v").append(i).append("]").append(audio ? "[a" + i + "]" : "");
         fc.append("concat=n=").append(n).append(":v=1:a=").append(audio ? 1 : 0).append("[vc]").append(audio ? "[ac]" : "").append(";");
 
+        // Zoom keyframes and zoom punches glide over the source frame (in a split layout, the gameplay only).
+        String zoomExpr = zoomFilter(e, fx, fxAt, w, h, workFps);
+
         // Framing.
-        boolean blur = (e.fitMode.equals("blur") && !e.aspect.equals("original")) || (p == Preset.SHORTS && e.aspect.equals("original"));
+        boolean blur = isBlur(e, p);
         String zoomCrop = zoomCrop(w, h, e);
-        if (blur) {
-            fc.append("[vc]").append(zoomCrop.isEmpty() ? "null" : zoomCrop).append(",split[fg0][bg0];")
+        if (split) {
+            int camOut = even(oh * Math.max(0.15, Math.min(0.7, e.camShare)));
+            int gameOut = oh - camOut;
+            fc.append("[vc]");
+            if (camInput < 0) fc.append("split[gsrc][csrc];[csrc]crop=").append(even(w * e.camW)).append(":").append(even(h * e.camH)).append(":")
+                    .append((int) Math.round(w * clamp(e.camX))).append(":").append((int) Math.round(h * clamp(e.camY))).append("[cam0];[gsrc]");
+            if (!zoomExpr.isEmpty()) fc.append(zoomExpr).append(",");
+            // gameplay: the widest slice of the frame that fills the bottom part
+            double gr = ow / (double) gameOut, sr = w / (double) h;
+            int gw = gr < sr ? even(h * gr) : w, gh = gr < sr ? h : even(w / gr);
+            fc.append("crop=").append(gw).append(":").append(gh).append(":").append((int) Math.round((w - gw) * clamp(e.cropX))).append(":").append((h - gh) / 2)
+                    .append(",scale=").append(ow).append(":").append(gameOut).append(":flags=lanczos,setsar=1[game];");
+            String cam = camInput >= 0 ? "[" + camInput + ":v]" : "[cam0]";
+            fc.append(cam).append("scale=").append(ow).append(":").append(camOut).append(":force_original_aspect_ratio=increase:flags=lanczos,crop=")
+                    .append(ow).append(":").append(camOut).append(",fps=").append(workFps).append(",setsar=1[camf];")
+                    .append("[camf][game]vstack=inputs=2:shortest=1,drawbox=x=0:y=").append(camOut - 2).append(":w=iw:h=4:color=black@0.9:t=fill");
+        } else if (blur) {
+            fc.append("[vc]");
+            if (!zoomExpr.isEmpty()) fc.append(zoomExpr).append(",");
+            fc.append(zoomCrop.isEmpty() ? "null" : zoomCrop).append(",split[fg0][bg0];")
                     .append("[bg0]scale=").append(ow).append(":").append(oh).append(":force_original_aspect_ratio=increase,crop=")
                     .append(ow).append(":").append(oh).append(",boxblur=20:2,eq=brightness=-0.08[bg];")
                     .append("[fg0]scale=").append(ow).append(":").append(oh).append(":force_original_aspect_ratio=decrease[fg];")
@@ -317,6 +393,7 @@ public final class Exporter {
         } else {
             Region r = region(w, h, e);
             fc.append("[vc]");
+            if (!zoomExpr.isEmpty()) fc.append(zoomExpr).append(",");
             if (r.w != w || r.h != h) fc.append("crop=").append(r.w).append(":").append(r.h).append(":").append(r.x).append(":").append(r.y).append(",");
             fc.append("scale=").append(ow).append(":").append(oh).append(":flags=lanczos");
         }
@@ -324,34 +401,70 @@ public final class Exporter {
         fc.append(",setsar=1");
         if (e.fadeIn > 0) fc.append(",fade=t=in:st=0:d=").append(Library.fmt(e.fadeIn));
         if (e.fadeOut > 0) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, dur - e.fadeOut))).append(":d=").append(Library.fmt(e.fadeOut));
-
-        String fx = effectFilter(e.effect);
-        if (!fx.isEmpty()) fc.append(",").append(fx);
+        String look = effectFilter(e.effect);
+        if (!look.isEmpty()) fc.append(",").append(look);
+        // Flash: a white frame that fades fast.
+        for (int k = 0; k < fx.size(); k++) {
+            EditSpec.Effect f = fx.get(k);
+            if (!f.type.equals("flash")) continue;
+            double t0 = fxAt.get(k), len = Math.max(0.08, f.length);
+            double peak = 0.35 + 0.55 * clamp(f.strength);
+            fc.append(",drawbox=x=0:y=0:w=iw:h=ih:color=white@").append(Library.fmt(peak)).append(":t=fill:enable='between(t,")
+                    .append(Library.fmt(t0)).append(",").append(Library.fmt(t0 + len * 0.35)).append(")'")
+                    .append(",drawbox=x=0:y=0:w=iw:h=ih:color=white@").append(Library.fmt(peak * 0.4)).append(":t=fill:enable='between(t,")
+                    .append(Library.fmt(t0 + len * 0.35)).append(",").append(Library.fmt(t0 + len)).append(")'");
+        }
         fc.append("[base]");
         String cur = "[base]";
-        int input = 1;
+        // Blurred / pixelated / blacked-out areas (names, chat, coordinates), in output-frame coordinates.
+        int mi = 0;
+        for (EditSpec.Mask m : e.masks) {
+            double ms = e.toOutput(m.start), me = e.toOutput(m.end);
+            if (me - ms < 0.04) continue;
+            int mw = even(ow * Math.max(0.02, Math.min(1, m.w))), mh = even(oh * Math.max(0.02, Math.min(1, m.h)));
+            int mx = Math.max(0, Math.min(ow - mw, (int) Math.round(ow * m.x))), my = Math.max(0, Math.min(oh - mh, (int) Math.round(oh * m.y)));
+            String en = "enable='between(t," + Library.fmt(ms) + "," + Library.fmt(me) + ")'";
+            if (m.kind.equals("black")) {
+                fc.append(";").append(cur).append("drawbox=x=").append(mx).append(":y=").append(my).append(":w=").append(mw).append(":h=").append(mh)
+                        .append(":color=black:t=fill:").append(en).append("[mk").append(mi).append("]");
+            } else {
+                String look2 = m.kind.equals("pixelate")
+                        ? "scale=" + Math.max(2, mw / 14) + ":" + Math.max(2, mh / 14) + ",scale=" + mw + ":" + mh + ":flags=neighbor"
+                        : "boxblur=" + Math.max(2, Math.min(mw, mh) / 5 - 1) + ":4";
+                fc.append(";").append(cur).append("split[mka").append(mi).append("][mkb").append(mi).append("];[mkb").append(mi).append("]crop=")
+                        .append(mw).append(":").append(mh).append(":").append(mx).append(":").append(my).append(",").append(look2).append("[mkc").append(mi)
+                        .append("];[mka").append(mi).append("][mkc").append(mi).append("]overlay=").append(mx).append(":").append(my).append(":").append(en)
+                        .append("[mk").append(mi).append("]");
+            }
+            cur = "[mk" + mi + "]";
+            mi++;
+        }
         if (hasTitle) {
-            fc.append(";[1:v]format=rgba");
+            fc.append(";[").append(titleInput).append(":v]format=rgba");
             double ts = e.titleSeconds > 0 ? Math.min(e.titleSeconds, dur) : dur;
             if (e.titleSeconds > 0) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, ts - 0.4))).append(":d=0.4:alpha=1");
             fc.append(",fade=t=in:st=0:d=0.3:alpha=1[title];").append(cur).append("[title]overlay=0:0:eof_action=pass[b0]");
             cur = "[b0]";
-            input++;
         }
-        for (int k = 0; k < capTimes.size(); k++, input++) {
+        for (int k = 0; k < capTimes.size(); k++) {
             double[] t = capTimes.get(k);
-            fc.append(";[").append(input).append(":v]format=rgba[cap").append(k).append("];").append(cur).append("[cap").append(k)
-                    .append("]overlay=0:0:eof_action=pass:enable='between(t,").append(Library.fmt(t[0])).append(",").append(Library.fmt(t[1]))
-                    .append(")'[c").append(k).append("]");
+            boolean pop = "pop".equals(capStyles.get(k)) || "highlight".equals(capStyles.get(k));
+            fc.append(";[").append(capInput + k).append(":v]format=rgba");
+            // pop: fades in while sliding up a little, like the caption bounces onto the screen
+            if (pop) fc.append(",fade=t=in:st=").append(Library.fmt(t[0])).append(":d=0.07:alpha=1");
+            fc.append("[cap").append(k).append("];").append(cur).append("[cap").append(k).append("]overlay=0:");
+            if (pop) fc.append("'").append(Library.fmt(oh * 0.025)).append("*max(0,1-(t-").append(Library.fmt(t[0])).append(")/0.1)'");
+            else fc.append("0");
+            fc.append(":eof_action=pass:enable='between(t,").append(Library.fmt(t[0])).append(",").append(Library.fmt(t[1])).append(")'[c").append(k).append("]");
             cur = "[c" + k + "]";
         }
         List<String> ovAudioLabels = new ArrayList<>();
-        for (int k = 0; k < ovs.size(); k++, input++) {
+        for (int k = 0; k < ovs.size(); k++) {
             EditSpec.Overlay ov = ovs.get(k);
             double[] t = ovTimes.get(k);
+            int in = ovInput + k;
             int vw = even(ow * Math.max(0.05, Math.min(1, ov.scale)));
-            fc.append(";[").append(input).append(":v]scale=").append(vw).append(":-2,fps=").append(fps > 0 ? fps : srcFps)
-                    .append(",format=rgba");
+            fc.append(";[").append(in).append(":v]scale=").append(vw).append(":-2,fps=").append(workFps).append(",format=rgba");
             if (ov.opacity < 0.999) fc.append(",colorchannelmixer=aa=").append(Library.fmt(Math.max(0, ov.opacity)));
             fc.append(",setpts=PTS-STARTPTS+").append(Library.fmt(t[0])).append("/TB[ov").append(k).append("];")
                     .append(cur).append("[ov").append(k).append("]overlay=x='(W*").append(Library.fmt(ov.x)).append(")-w/2':y='(H*")
@@ -360,15 +473,26 @@ public final class Exporter {
             cur = "[o" + k + "]";
             if (ovAudio.get(k)) {
                 long ms = Math.round(t[0] * 1000);
-                fc.append(";[").append(input).append(":a]aresample=48000,aformat=channel_layouts=stereo,volume=").append(Library.fmt(ov.volume))
+                fc.append(";[").append(in).append(":a]aresample=48000,aformat=channel_layouts=stereo,volume=").append(Library.fmt(ov.volume))
                         .append(",adelay=").append(ms).append("|").append(ms).append("[oa").append(k).append("]");
                 ovAudioLabels.add("[oa" + k + "]");
             }
         }
-        if (o.watermark != null) {
-            fc.append(";[").append(input).append(":v]format=rgba[wm];").append(cur).append("[wm]overlay=0:0:eof_action=pass[wmo]");
+        if (hitInput >= 0) {
+            StringBuilder en = new StringBuilder();
+            for (int k = 0; k < fx.size(); k++) {
+                if (!fx.get(k).type.equals("hitmarker")) continue;
+                if (en.length() > 0) en.append("+");
+                double t0 = fxAt.get(k);
+                en.append("between(t,").append(Library.fmt(t0)).append(",").append(Library.fmt(t0 + Math.max(0.08, fx.get(k).length))).append(")");
+            }
+            fc.append(";[").append(hitInput).append(":v]format=rgba[hit];").append(cur).append("[hit]overlay=0:0:eof_action=pass:enable='")
+                    .append(en).append("'[hm]");
+            cur = "[hm]";
+        }
+        if (wmInput >= 0) {
+            fc.append(";[").append(wmInput).append(":v]format=rgba[wm];").append(cur).append("[wm]overlay=0:0:eof_action=pass[wmo]");
             cur = "[wmo]";
-            input++;
         }
         fc.append(";").append(cur);
         if (p == Preset.GIF) {
@@ -377,17 +501,30 @@ public final class Exporter {
             fc.append("format=yuv420p[vout]");
         }
 
-        if (audio) {
-            fc.append(";[ac]volume=").append(Library.fmt(e.volume));
-            if (e.fadeIn > 0) fc.append(",afade=t=in:st=0:d=").append(Library.fmt(e.fadeIn));
-            if (e.fadeOut > 0) fc.append(",afade=t=out:st=").append(Library.fmt(Math.max(0, dur - e.fadeOut))).append(":d=").append(Library.fmt(e.fadeOut));
-            if (ovAudioLabels.isEmpty()) fc.append("[aout]");
-            else fc.append("[amain];[amain]").append(String.join("", ovAudioLabels)).append("amix=inputs=").append(1 + ovAudioLabels.size())
-                    .append(":duration=first:normalize=0[aout]");
+        // Audio: the clip's sound (or silence, when there are effect sounds but no clip sound), then overlays and effect sounds on top.
+        boolean anyAudio = audio || !sfxLabels.isEmpty() || !ovAudioLabels.isEmpty();
+        if (anyAudio) {
+            if (audio) {
+                fc.append(";[ac]volume=").append(Library.fmt(e.volume));
+                if (e.fadeIn > 0) fc.append(",afade=t=in:st=0:d=").append(Library.fmt(e.fadeIn));
+                if (e.fadeOut > 0) fc.append(",afade=t=out:st=").append(Library.fmt(Math.max(0, dur - e.fadeOut))).append(":d=").append(Library.fmt(e.fadeOut));
+                fc.append(",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo");
+            } else {
+                fc.append(";anullsrc=r=48000:cl=stereo,atrim=duration=").append(Library.fmt(dur)).append(",aformat=sample_fmts=fltp:channel_layouts=stereo");
+            }
+            List<String> extra = new ArrayList<>(ovAudioLabels);
+            extra.addAll(sfxLabels);
+            if (extra.isEmpty()) fc.append("[aout]");
+            else {
+                fc.append("[amain]");
+                for (String c : sfxChains) fc.append(";").append(c);
+                fc.append(";[amain]").append(String.join("", extra)).append("amix=inputs=").append(1 + extra.size())
+                        .append(":duration=first:normalize=0,alimiter=limit=0.97[aout]");
+            }
         }
 
         a.addAll(List.of("-filter_complex", fc.toString(), "-map", "[vout]"));
-        if (audio) a.addAll(List.of("-map", "[aout]"));
+        if (anyAudio) a.addAll(List.of("-map", "[aout]"));
 
         if (p == Preset.GIF) {
             a.addAll(List.of("-loop", "0", out.toString()));
@@ -403,15 +540,87 @@ public final class Exporter {
             if (pass != null) a.addAll(List.of("-pass", pass[0], "-passlogfile", pass[1]));
         } else {
             boolean high = p == Preset.SOURCE || p == Preset.YOUTUBE;
-            int outFps = fps > 0 ? fps : srcFps;
-            a.addAll(qualityArgs(enc, high ? 18 : 21, (long) (ow * (double) oh * outFps * (high ? 0.15 : 0.10))));
+            a.addAll(qualityArgs(enc, high ? 18 : 21, (long) (ow * (double) oh * workFps * (high ? 0.15 : 0.10))));
         }
         a.addAll(List.of("-pix_fmt", "yuv420p"));
         if (enc.equals("libx264") || enc.equals("h264_nvenc")) a.addAll(List.of("-profile:v", "high"));
-        if (audio) a.addAll(List.of("-c:a", "aac", "-b:a", (aKbps > 0 ? aKbps : 192) + "k", "-ar", "48000"));
+        if (anyAudio) a.addAll(List.of("-c:a", "aac", "-b:a", (aKbps > 0 ? aKbps : 192) + "k", "-ar", "48000"));
         if (pass != null && pass[0].equals("1")) a.addAll(List.of("-f", "mp4"));
         a.addAll(List.of("-movflags", "+faststart", out.toString()));
         return a;
+    }
+
+    /** A transparent frame-sized PNG as a looping input for the whole export. */
+    private static List<String> loopPng(BufferedImage img, double dur) throws IOException {
+        Path png = Files.createTempFile("evadeclips-layer", ".png");
+        png.toFile().deleteOnExit();
+        ImageIO.write(img, "png", png.toFile());
+        return List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString());
+    }
+
+    static boolean isSplit(EditSpec e, Preset p) {
+        return "split".equals(e.fitMode) && (!e.aspect.equals("original") || p == Preset.SHORTS) && !e.aspect.equals("16:9");
+    }
+
+    static boolean isBlur(EditSpec e, Preset p) {
+        return (e.fitMode.equals("blur") && !e.aspect.equals("original")) || (p == Preset.SHORTS && e.aspect.equals("original") && !"split".equals(e.fitMode));
+    }
+
+    /** Speed of the export around source time t (for effects that last a moment of output time). */
+    private static double speedAt(EditSpec e, double t) {
+        int i = e.segmentAt(t);
+        return i < 0 ? 1 : Math.max(0.1, e.segments.get(i).speedAt(t));
+    }
+
+    /**
+     * zoompan for zoom keyframes and zoom punches, or "" when there are none. Keyframes glide with an ease in and
+     * out; a punch zooms in quickly and settles back. The frame is upscaled first so slow glides don't jitter.
+     */
+    static String zoomFilter(EditSpec e, List<EditSpec.Effect> fx, List<Double> fxAt, int w, int h, int fps) {
+        List<EditSpec.ZoomKey> keys = new ArrayList<>();
+        for (EditSpec.ZoomKey k : e.sortedZooms()) if (e.segmentAt(k.t) >= 0) keys.add(k);
+        StringBuilder punch = new StringBuilder();
+        for (int k = 0; k < fx.size(); k++) {
+            EditSpec.Effect f = fx.get(k);
+            if (!f.type.equals("punch")) continue;
+            double t0 = fxAt.get(k), len = Math.max(0.15, f.length / speedAt(e, f.t));
+            punch.append("+").append(Library.fmt(0.12 + 0.3 * clamp(f.strength))).append("*sin(PI*clip((it-").append(Library.fmt(t0)).append(")/")
+                    .append(Library.fmt(len)).append(",0,1))");
+        }
+        // Screen shake: zoom in a touch (so no edges show) and jitter the view, fading out over the shake.
+        StringBuilder shakeZ = new StringBuilder(), jx = new StringBuilder(), jy = new StringBuilder();
+        for (int k = 0; k < fx.size(); k++) {
+            EditSpec.Effect f = fx.get(k);
+            if (!f.type.equals("shake") || f.length <= 0) continue;
+            double t0 = fxAt.get(k), len = Math.max(0.1, f.length / speedAt(e, f.t));
+            String env = "between(it," + Library.fmt(t0) + "," + Library.fmt(t0 + len) + ")*(1-(it-" + Library.fmt(t0) + ")/" + Library.fmt(len) + ")";
+            double st = 0.3 + 0.7 * clamp(f.strength);
+            shakeZ.append("+").append(Library.fmt(0.07 * st)).append("*").append(env);
+            jx.append("+iw*").append(Library.fmt(0.022 * st)).append("*").append(env).append("*sin(it*71)");
+            jy.append("+ih*").append(Library.fmt(0.022 * st)).append("*").append(env).append("*cos(it*53)");
+        }
+        punch.append(shakeZ);
+        if (keys.isEmpty() && punch.length() == 0) return "";
+        double[] ts = new double[keys.size()];
+        for (int i = 0; i < keys.size(); i++) ts[i] = e.toOutput(keys.get(i).t);
+        String z = keyExpr(keys, ts, k -> Math.max(1, k.zoom), 1) + punch;
+        String cx = keyExpr(keys, ts, k -> clamp(k.cx), 0.5), cy = keyExpr(keys, ts, k -> clamp(k.cy), 0.5);
+        return "scale=" + even(w * 2) + ":" + even(h * 2) + ":flags=bicubic,zoompan=z='" + z + "':x='clip(iw*(" + cx + ")-iw/zoom/2" + jx + ",0,iw-iw/zoom)':y='clip(ih*("
+                + cy + ")-ih/zoom/2" + jy + ",0,ih-ih/zoom)':d=1:s=" + w + "x" + h + ":fps=" + fps;
+    }
+
+    /** Eased piecewise curve through keyframe values, as an ffmpeg expression in output time (it). */
+    private static String keyExpr(List<EditSpec.ZoomKey> keys, double[] ts, java.util.function.ToDoubleFunction<EditSpec.ZoomKey> v, double none) {
+        if (keys.isEmpty()) return Library.fmt(none);
+        StringBuilder sb = new StringBuilder("(").append(Library.fmt(v.applyAsDouble(keys.get(0))));
+        for (int i = 1; i < keys.size(); i++) {
+            double dv = v.applyAsDouble(keys.get(i)) - v.applyAsDouble(keys.get(i - 1));
+            if (Math.abs(dv) < 1e-6) continue;
+            double t0 = ts[i - 1], d = Math.max(0.05, ts[i] - t0);
+            String u = "clip((it-" + Library.fmt(t0) + ")/" + Library.fmt(d) + ",0,1)";
+            sb.append("+").append(Library.fmt(dv)).append("*").append(u).append("*").append(u).append("*(3-2*").append(u).append(")");
+        }
+        return sb.append(")").toString();
     }
 
     /**
@@ -541,7 +750,8 @@ public final class Exporter {
             EditSpec e = c.edit != null ? c.edit : EditSpec.whole(c.duration);
             boolean audio = c.hasAudio && !e.mute;
             double clipLen = e.outputDuration();
-            int segN = e.segments.size();
+            List<EditSpec.Piece> segs = e.fill().pieces();
+            int segN = segs.size();
             String[] aSrc = new String[segN];
             if (audio && c.audioTracks >= 2) {
                 fc.append("[").append(ci).append(":a:1]volume=").append(Library.fmt(e.micVolume)).append("[mv").append(ci).append("];[")
@@ -550,10 +760,10 @@ public final class Exporter {
                 fc.append(";");
             } else java.util.Arrays.fill(aSrc, "[" + ci + ":a:0]");
             for (int k = 0; k < segN; k++) {
-                EditSpec.Segment s = e.segments.get(k);
+                EditSpec.Piece s = segs.get(k);
                 String v = "[v" + ci + "_" + k + "]", au = "[a" + ci + "_" + k + "]";
-                fc.append("[").append(ci).append(":v]trim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
-                        .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed))
+                fc.append("[").append(ci).append(":v]trim=start=").append(Library.fmt(s.start())).append(":end=").append(Library.fmt(s.end()))
+                        .append(",setpts=(PTS-STARTPTS)/").append(Library.fmt(s.speed()))
                         .append(",scale=").append(W).append(":").append(H).append(":force_original_aspect_ratio=decrease:flags=lanczos")
                         .append(",pad=").append(W).append(":").append(H).append(":(ow-iw)/2:(oh-ih)/2:color=black,fps=").append(fps).append(",setsar=1,format=yuv420p");
                 // dip to black at the start and end of every clip
@@ -561,8 +771,8 @@ public final class Exporter {
                 if (k == segN - 1) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, s.outputLength() - 0.2))).append(":d=0.2");
                 fc.append(v).append(";");
                 if (audio) {
-                    fc.append(aSrc[k]).append("atrim=start=").append(Library.fmt(s.start)).append(":end=").append(Library.fmt(s.end))
-                            .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed)).append(",volume=").append(Library.fmt(e.volume))
+                    fc.append(aSrc[k]).append("atrim=start=").append(Library.fmt(s.start())).append(":end=").append(Library.fmt(s.end()))
+                            .append(",asetpts=PTS-STARTPTS").append(atempo(s.speed())).append(",volume=").append(Library.fmt(e.volume))
                             .append(",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo");
                 } else {
                     fc.append("anullsrc=r=48000:cl=stereo,atrim=duration=").append(Library.fmt(s.outputLength())).append(",aformat=sample_fmts=fltp:channel_layouts=stereo");
@@ -645,11 +855,17 @@ public final class Exporter {
      */
     public static BufferedImage renderCaption(String text, String position, String style, int w, int h) {
         if ("meme".equals(style)) return renderText(text.toUpperCase(java.util.Locale.ROOT), position, w, h, 0.10f, 0.16f, false);
+        if ("pop".equals(style)) return renderText(text.toUpperCase(java.util.Locale.ROOT), position, w, h, 0.085f, 0.2f, false, Color.WHITE);
+        if ("highlight".equals(style)) return renderText(text.toUpperCase(java.util.Locale.ROOT), position, w, h, 0.085f, 0.2f, false, new Color(0xFFD23F));
         if ("subtitle".equals(style)) return renderText(text, position, w, h, 0.05f, 0.0f, true);
         return renderTitle(text, position, w, h);
     }
 
     private static BufferedImage renderText(String text, String position, int w, int h, float rel, float stroke, boolean box) {
+        return renderText(text, position, w, h, rel, stroke, box, Color.WHITE);
+    }
+
+    private static BufferedImage renderText(String text, String position, int w, int h, float rel, float stroke, boolean box, Color fill) {
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -677,9 +893,30 @@ public final class Exporter {
             g.setStroke(new BasicStroke(size * stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.setColor(Color.BLACK);
             g.draw(shape);
-            g.setColor(Color.WHITE);
+            g.setColor(fill);
             g.fill(shape);
         }
+        g.dispose();
+        return img;
+    }
+
+    /** A hitmarker: four short white strokes around the centre, with a dark edge, on a transparent frame. */
+    public static BufferedImage renderHitmarker(int w, int h) {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        double cx = w / 2.0, cy = h / 2.0, s = Math.min(w, h) * 0.045, gap = s * 0.45;
+        java.awt.geom.Path2D path = new java.awt.geom.Path2D.Double();
+        for (int[] d : new int[][]{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}}) {
+            path.moveTo(cx + d[0] * gap, cy + d[1] * gap);
+            path.lineTo(cx + d[0] * (gap + s), cy + d[1] * (gap + s));
+        }
+        g.setStroke(new BasicStroke((float) (s * 0.42), BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
+        g.setColor(new Color(0, 0, 0, 170));
+        g.draw(path);
+        g.setStroke(new BasicStroke((float) (s * 0.22), BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
+        g.setColor(Color.WHITE);
+        g.draw(path);
         g.dispose();
         return img;
     }
@@ -735,6 +972,7 @@ public final class Exporter {
 
     static int even(double v) { int i = (int) Math.round(v); return Math.max(2, i - (i % 2)); }
     static double clamp(double v) { return Math.max(0, Math.min(1, v)); }
+    public static double clamp01(double v) { return clamp(v); }
 
     static void deleteTree(Path dir) {
         try (var s = Files.walk(dir)) {

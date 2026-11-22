@@ -66,6 +66,10 @@ async function route(req, env) {
   if (p === "/api/report" && m === "POST") return report(req, env);
   if (p === "/api/admin/remove" && m === "POST") return adminRemove(req, env);
   if (p === "/api/admin/reports" && m === "GET") return adminReports(req, env);
+  if (p === "/api/presets" && m === "GET") return listPresets(env, url);
+  if (p === "/api/presets" && m === "POST") return publishPreset(req, await auth(req, env), env);
+  if (p === "/api/admin/remove-preset" && m === "POST") return adminRemovePreset(req, env);
+  if (p === "/presets" && (m === "GET" || m === "HEAD")) return presetsPage(env, url);
 
   let r;
   if ((r = p.match(/^\/api\/uploads\/([^/]+)\/(\d+)$/)) && m === "PUT") return uploadPart(req, await auth(req, env, true), env, r[1], +r[2], url);
@@ -74,6 +78,9 @@ async function route(req, env) {
   if ((r = p.match(/^\/api\/clips\/([^/]+)$/)) && m === "DELETE") return deleteClip(await auth(req, env), env, r[1]);
   if ((r = p.match(/^\/api\/clips\/([^/]+)$/)) && m === "PATCH") return updateClip(req, await auth(req, env), env, r[1]);
 
+  if ((r = p.match(/^\/api\/presets\/([^/]+)$/)) && m === "GET") return getPreset(env, r[1], false);
+  if ((r = p.match(/^\/api\/presets\/([^/]+)$/)) && m === "DELETE") return deletePreset(await auth(req, env), env, r[1]);
+  if ((r = p.match(/^\/p\/([^/]+)\.evadepreset$/)) && m === "GET") return getPreset(env, r[1], true);
   if ((r = p.match(/^\/c\/([^/]+)$/)) && (m === "GET" || m === "HEAD")) return sharePage(env, r[1], url);
   if ((r = p.match(/^\/v\/([^/]+)\.mp4$/)) && (m === "GET" || m === "HEAD")) return video(req, env, r[1], url);
   if ((r = p.match(/^\/t\/([^/]+)\.jpg$/)) && m === "GET") return thumb(env, r[1], url);
@@ -247,6 +254,92 @@ async function adminRemove(req, env) {
   n.unshift({ id: rid(8), clip, title: meta.title, reason, reasonText: REASONS[reason], note: meta.removed.note, at: meta.removed.at, read: false });
   await env.CLIPS.put(`n/${meta.account}.json`, JSON.stringify(n.slice(0, 200)));
   return json({ ok: true });
+}
+
+// ------------------------------------------------------------------ community presets
+
+// A preset is a small JSON of settings (a look, and what to do at each marker): no times, no files, no code.
+const PRESET_MAX = 16 * 1024;
+
+async function listPresets(env, url) {
+  const index = (await getJson(env, "presets.json")) || [];
+  const sort = url.searchParams.get("sort");
+  const list = [...index];
+  if (sort === "popular") list.sort((a, b) => b.downloads - a.downloads || b.created - a.created);
+  return json({ presets: list.slice(0, 200) });
+}
+
+async function publishPreset(req, a, env) {
+  const body = await req.text();
+  if (body.length > PRESET_MAX) return json({ error: "preset too large" }, 413);
+  let b;
+  try { b = JSON.parse(body); } catch { return json({ error: "bad preset" }, 400); }
+  const name = str(b.name, 60).trim(), preset = b.preset;
+  if (!name || !preset || typeof preset !== "object" || Array.isArray(preset)) return json({ error: "a preset needs a name" }, 400);
+  const index = (await getJson(env, "presets.json")) || [];
+  if (index.filter((x) => x.account === a.account).length >= 50) return json({ error: "you've shared the most presets one PC can (50)" }, 429);
+  const id = rid(10);
+  const entry = { id, name, description: str(b.description, 300), author: str(b.author, 40), created: Date.now(), downloads: 0, account: a.account };
+  await env.CLIPS.put(`p/${id}.json`, JSON.stringify({ ...entry, preset }));
+  index.unshift(entry);
+  await env.CLIPS.put("presets.json", JSON.stringify(index.slice(0, 2000)));
+  return json({ id, url: `/presets#${id}` });
+}
+
+async function getPreset(env, id, asFile) {
+  if (!ID.test(id)) return json({ error: "not found" }, 404);
+  const p = await getJson(env, `p/${id}.json`);
+  if (!p || p.removed) return asFile ? notFound(env, "That preset was removed or never existed.") : json({ error: "not found" }, 404);
+  // count downloads (best effort)
+  const index = (await getJson(env, "presets.json")) || [];
+  const e = index.find((x) => x.id === id);
+  if (e) { e.downloads = (e.downloads || 0) + 1; await env.CLIPS.put("presets.json", JSON.stringify(index)); }
+  const out = { format: "evade-clips-preset", version: 1, ...p.preset, name: p.name, description: p.description, author: p.author };
+  if (!asFile) return json(out);
+  return new Response(JSON.stringify(out, null, 2), { headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="${safeName(p.name)}.evadepreset"`, ...cors() } });
+}
+
+async function deletePreset(a, env, id) {
+  const p = ID.test(id) ? await getJson(env, `p/${id}.json`) : null;
+  if (!p || p.account !== a.account) return json({ error: "not found" }, 404);
+  await env.CLIPS.delete(`p/${id}.json`);
+  const index = ((await getJson(env, "presets.json")) || []).filter((x) => x.id !== id);
+  await env.CLIPS.put("presets.json", JSON.stringify(index));
+  return json({ ok: true });
+}
+
+async function adminRemovePreset(req, env) {
+  admin(req, env);
+  const b = await req.json();
+  const id = String(b.id || "");
+  const p = ID.test(id) ? await getJson(env, `p/${id}.json`) : null;
+  if (!p) return json({ error: "not found" }, 404);
+  p.removed = { at: Date.now(), note: str(b.note, 500) };
+  await env.CLIPS.put(`p/${id}.json`, JSON.stringify(p));
+  const index = ((await getJson(env, "presets.json")) || []).filter((x) => x.id !== id);
+  await env.CLIPS.put("presets.json", JSON.stringify(index));
+  return json({ ok: true });
+}
+
+/** Browse community presets; each downloads as a .evadepreset file to import in Evade Clips. */
+async function presetsPage(env, url) {
+  const index = (await getJson(env, "presets.json")) || [];
+  const popular = url.searchParams.get("sort") === "popular";
+  const list = [...index];
+  if (popular) list.sort((a, b) => b.downloads - a.downloads || b.created - a.created);
+  const cards = list.slice(0, 120).map((p) => `<div class="card preset-card" id="${esc(p.id)}">
+<h3>${esc(p.name)}</h3><p>${esc(p.description || "")}</p>
+<div class="preset-meta"><span>${p.author ? "by " + esc(p.author) + " &middot; " : ""}${p.downloads || 0} download${p.downloads === 1 ? "" : "s"}</span>
+<a class="btn btn-ghost btn-sm" href="/p/${esc(p.id)}.evadepreset">Download</a></div></div>`).join("");
+  const body = `
+<div class="sec-head"><div class="eyebrow">Community</div><h1>Edit presets.</h1>
+<p>Looks and per-kill effects made by other players. Download one, then in Evade Clips open a clip and, in the <b>Edit</b> tab under <b>Presets</b>, pick <b>Import file</b>. Or click <b>Community</b> there to browse and share right inside the app.</p>
+<div class="preset-sort"><a class="btn btn-sm ${popular ? "btn-ghost" : "btn-red"}" href="/presets">Newest</a><a class="btn btn-sm ${popular ? "btn-red" : "btn-ghost"}" href="/presets?sort=popular">Most downloaded</a></div></div>
+${cards ? `<div class="preset-grid">${cards}</div>` : `<div class="card preset-card"><p>No community presets yet. Be the first: share one from Evade Clips.</p></div>`}`;
+  const css = `<style>.preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:22px}
+.preset-card{padding:18px 20px}.preset-card h3{margin:0 0 6px;font-family:var(--display);font-size:18px}.preset-card p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.preset-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--faint);font-size:13px}.preset-sort{display:flex;gap:8px;margin-top:16px}</style>`;
+  return html(page(env, "Edit presets", body, css));
 }
 
 /** The owner's notices; ?unread=1 for new ones only, which are then marked read. */

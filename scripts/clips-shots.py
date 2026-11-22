@@ -50,7 +50,7 @@ def app_pages():
         shutil.rmtree(OUT)
     run(["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24", "java", f"-Dclips.shots.footage={FOOTAGE}",
          "-jar", str(ROOT / "clips" / "build" / "libs" / "EvadeClips.jar"), "--screenshots", str(OUT)], cwd=ROOT)
-    for n in ("library", "editor", "record", "settings"):
+    for n in ("library", "editor", "record", "settings", "editor-effects", "editor-frame", "editor-text"):
         webp(OUT / f"{n}.png", n)
 
 

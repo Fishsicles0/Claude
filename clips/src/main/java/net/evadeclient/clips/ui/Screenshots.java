@@ -86,34 +86,52 @@ public final class Screenshots {
         // Editor with a few edits applied.
         Clip c = footage != null ? app.library.query("1v3 clutch", "replays", null, "newest").get(0)
                 : app.library.query("", "replays", null, "longest").get(0);
-        EditSpec e = EditSpec.whole(c.duration);
-        e.splitAt(c.duration * 0.35);
-        e.splitAt(c.duration * 0.55);
-        e.splitAt(c.duration * 0.8);
-        e.segments.remove(1);
-        e.segments.get(1).speed = 0.5;
-        e.aspect = "9:16";
-        e.cropX = 0.5;
-        e.titleText = "1v3 CLUTCH";
-        Path facecam = out.resolve("facecam.mp4");
-        if (footage != null) // a facecam-sized clip from another scene stands in for a webcam
-            net.evadeclient.clips.core.Ffmpeg.run(List.of("-y", "-ss", "1", "-t", "3", "-i", footage.resolve("sunset.mp4").toString(), "-vf", "scale=640:360", "-an", "-c:v", "libx264", "-preset", "ultrafast", facecam.toString()));
-        else
-            net.evadeclient.clips.core.Ffmpeg.run(List.of("-f", "lavfi", "-i", "smptehdbars=s=640x360:d=3", "-c:v", "libx264", "-preset", "ultrafast", facecam.toString()));
-        EditSpec.Overlay ov = new EditSpec.Overlay();
-        ov.file = facecam.toAbsolutePath().toString(); ov.start = 0; ov.length = 3; ov.x = 0.82; ov.y = 0.2; ov.scale = 0.3;
-        e.overlays.add(ov);
-        e.titleSeconds = 0;
-        c.edit = e;
+        double d = c.duration;
         c.markers.clear();
-        c.markers.add(c.duration * 0.62);
-        c.markerLabels.put(Clip.key(c.duration * 0.62), "Triple kill");
-        c.markers.add(c.duration * 0.12);
-        c.markerLabels.put(Clip.key(c.duration * 0.12), footage != null ? "Kill Kai" : "Kill Steve");
+        c.markerLabels.clear();
+        c.markers.add(d * 0.30);
+        c.markerLabels.put(Clip.key(d * 0.30), footage != null ? "Kill Zuri" : "Kill Steve");
+        c.markers.add(d * 0.62);
+        c.markerLabels.put(Clip.key(d * 0.62), "Triple kill");
+        EditSpec e = EditSpec.whole(d);
+        e.splitAt(d * 0.08);
+        e.segments.remove(0);                                  // trim the start
+        e.rampAround(d * 0.62, 0.3, 1.0, 0.9);                 // slow-mo ramp into the triple kill
+        e.effects.add(new EditSpec.Effect("hitmarker", d * 0.30, "Hitmarker"));
+        e.effects.add(new EditSpec.Effect("punch", d * 0.62, "Boom"));
+        e.effects.add(new EditSpec.Effect("shake", d * 0.64, ""));
+        e.zooms.add(new EditSpec.ZoomKey(d * 0.40, 1, 0.5, 0.5));
+        e.zooms.add(new EditSpec.ZoomKey(d * 0.47, 1.5, 0.55, 0.45));
+        e.zooms.add(new EditSpec.ZoomKey(d * 0.55, 1, 0.5, 0.5));
+        String[] words = {"one", "more", "and", "we", "WIN", "this"};
+        for (int i = 0; i < words.length; i++) {
+            double ws = d * 0.34 + i * 0.3;
+            e.captions.add(new EditSpec.Caption(words[i], ws, ws + 0.32, "center", i % 2 == 1 ? "highlight" : "pop"));
+        }
+        e.titleText = "";
+        c.edit = e;
         app.library.save();
+        MainWindow win = w[0];
         SwingUtilities.invokeAndWait(() -> app.openEditor.accept(c));
-        Thread.sleep(3500);
-        shot(w[0], out.resolve("editor.png"));
+        Thread.sleep(2500);
+        SwingUtilities.invokeAndWait(() -> { win.editor.showTab("Edit"); win.editor.seek(d * 0.34 + 4 * 0.3 + 0.08); });
+        Thread.sleep(2500);
+        shot(win, out.resolve("editor.png"));
+        SwingUtilities.invokeAndWait(() -> { win.editor.showTab("Effects"); win.editor.seek(d * 0.30 + 0.05); });
+        Thread.sleep(2000);
+        shot(win, out.resolve("editor-effects.png"));
+        SwingUtilities.invokeAndWait(() -> { win.editor.showTab("Text"); win.editor.seek(d * 0.34 + 0.08); });
+        Thread.sleep(2000);
+        shot(win, out.resolve("editor-text.png"));
+        // facecam split: the gameplay's facecam corner goes on top
+        e.aspect = "9:16";
+        e.fitMode = "split";
+        SwingUtilities.invokeAndWait(() -> { c.edit = e; app.library.save(); win.editor.reload(); win.editor.showTab("Frame"); win.editor.seek(d * 0.2); });
+        Thread.sleep(2000);
+        shot(win, out.resolve("editor-frame.png"));
+        SwingUtilities.invokeAndWait(() -> win.editor.showTab("Export"));
+        Thread.sleep(800);
+        shot(win, out.resolve("editor-export.png"));
 
         SwingUtilities.invokeAndWait(() -> w[0].show("settings"));
         Thread.sleep(800);
