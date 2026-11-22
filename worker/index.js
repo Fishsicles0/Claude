@@ -144,7 +144,11 @@ export class EvadeIcons extends DurableObject {
   seen(uuid) {
     const now = Date.now();
     this.sql.exec("INSERT INTO presence (uuid, last_seen) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET last_seen = excluded.last_seen", uuid, now);
-    if (Math.random() < 0.01) this.sql.exec("DELETE FROM presence WHERE last_seen < ?", now - 7 * 24 * 3600 * 1000);
+    // Forget players who haven't used Evade for 7 days (checked at most once an hour). See /privacy.
+    if (!(this._cleaned > now - 3600 * 1000)) {
+      this._cleaned = now;
+      this.sql.exec("DELETE FROM presence WHERE last_seen < ?", now - 7 * 24 * 3600 * 1000);
+    }
   }
 
   lookup(uuids) {

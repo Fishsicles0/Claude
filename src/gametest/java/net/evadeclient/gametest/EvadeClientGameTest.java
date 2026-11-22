@@ -205,6 +205,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
         boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
         check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
+        testThemesAndClips(ctx, cs);
 
         // The All / Enabled filter: enable one module, switch to Enabled, confirm only enabled show.
         ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
@@ -548,6 +549,102 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.runOnClient(c -> net.evadeclient.module.misc.EvadeIcons.putForTest(c.player.getUuid(), false));
         check(!names[0].startsWith("\ue000") && names[1].equals("\ue000 " + names[0]),
                 "Evade Icons puts the Evade logo before Evade users' tab names (\"" + names[0] + "\" -> logo + name)");
+    }
+
+    private static void setMode(net.evadeclient.module.Module m, String name, String value) {
+        for (var s : m.getSettings()) if (s.getName().equals(name))
+            ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive(value));
+    }
+
+    /**
+     * Theme presets and accent colours (screenshots for the site), then two short clips for the website: the menu
+     * opening, hovering, toggling and changing theme/style, and the HUD editor dragging an element. Animations run
+     * on a fixed 30 fps clock here so the recordings are smooth whatever the test machine's speed.
+     */
+    private void testThemesAndClips(ClientGameTestContext ctx, net.evadeclient.module.client.ClientSettings cs) {
+        ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
+        String[][] looks = {{"Midnight", "Red"}, {"OLED", "Purple"}, {"Classic", "Green"}, {"Modern", "Blue"}};
+        for (String[] l : looks) {
+            ctx.runOnClient(c -> { setMode(cs, "Theme", l[0]); setMode(cs, "Accent Color", l[1]); });
+            ctx.setScreen(EvadeMenu::new);
+            ctx.waitTicks(6);
+            ctx.takeScreenshot("evade-theme-" + l[0].toLowerCase());
+        }
+        int[] seen = ctx.computeOnClient(c -> {
+            setMode(cs, "Theme", "Classic"); setMode(cs, "Accent Color", "Blue"); cs.applyTheme();
+            int classicRed = net.evadeclient.util.Theme.RED, classicSq = net.evadeclient.util.Theme.square ? 1 : 0, classicCard = net.evadeclient.util.Theme.CARD;
+            setMode(cs, "Theme", "Modern"); setMode(cs, "Accent Color", "Red"); cs.applyTheme();
+            return new int[]{classicRed, classicSq, classicCard, net.evadeclient.util.Theme.RED, net.evadeclient.util.Theme.square ? 1 : 0, net.evadeclient.util.Theme.CARD};
+        });
+        check(seen[0] == 0xFF2F7BFF && seen[1] == 1 && seen[3] == 0xFFE11D2E && seen[4] == 0 && seen[2] != seen[5],
+                "Theme presets and accent colours restyle the client (Classic + Blue -> square corners, blue accent; back to Modern + Red)");
+
+        // --- clip 1: the menu
+        java.util.concurrent.atomic.AtomicLong t = new java.util.concurrent.atomic.AtomicLong(1_000_000);
+        EvadeMenu.clock = t::get;
+        var in = ctx.getInput();
+        Runnable frame = () -> { t.addAndGet(33); ctx.takeScreenshot("clip-menu"); };
+        try {
+            in.setCursorPos(1880, 1040);
+            ctx.setScreen(EvadeMenu::new);
+            for (int i = 0; i < 14; i++) frame.run();
+            for (int i = 0; i <= 30; i++) { in.setCursorPos(800, (140 + i * 4) * 2); frame.run(); }
+            in.setCursorPos(800, 140 * 2);
+            for (int i = 0; i < 6; i++) frame.run();
+            in.pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            for (int i = 0; i < 16; i++) frame.run();
+            in.pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            for (int i = 0; i < 14; i++) frame.run();
+            in.setCursorPos(1880, 1040);
+            String[][] steps = {{"Theme", "Midnight"}, {"Accent Color", "Purple"}, {"Theme", "Classic"}, {"Accent Color", "Green"},
+                    {"Theme", "OLED"}, {"Accent Color", "Blue"}, {"GUI Style", "Cards"}, {"GUI Style", "Compact"},
+                    {"Theme", "Modern"}, {"Accent Color", "Red"}, {"GUI Style", "List"}};
+            for (String[] st : steps) {
+                ctx.runOnClient(c -> setMode(cs, st[0], st[1]));
+                for (int i = 0; i < 18; i++) frame.run();
+            }
+        } finally {
+            EvadeMenu.clock = System::currentTimeMillis;
+        }
+
+        // --- clip 2: the HUD editor (drag an element, watch it snap, resize it, put it back)
+        ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
+        ctx.waitTicks(3);
+        int[] el = ctx.computeOnClient(c -> {
+            var w = c.getWindow();
+            for (var e : EvadeClient.modules.hudElements()) if (e.isEnabled() && e.scaledWidth() > 30)
+                return new int[]{EvadeClient.modules.hudElements().indexOf(e), e.x, e.y,
+                        e.resolveX(w.getScaledWidth()) + e.scaledWidth() / 2, e.resolveY(w.getScaledHeight()) + e.scaledHeight() / 2,
+                        Math.round(e.scale.getFloat() * 100)};
+            return null;
+        });
+        Runnable shot = () -> ctx.takeScreenshot("clip-hud");
+        int sx = el[3] * 2, sy = el[4] * 2;
+        in.setCursorPos(sx, sy);
+        for (int i = 0; i < 10; i++) shot.run();
+        in.holdMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        int[][] path = {{960, 540}, {1500, 300}, {sx, sy}};
+        int px = sx, py = sy;
+        for (int[] to : path) {
+            for (int i = 1; i <= 30; i++) {
+                double k = i / 30.0, e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+                in.setCursorPos(px + (to[0] - px) * e, py + (to[1] - py) * e);
+                shot.run();
+            }
+            for (int i = 0; i < 8; i++) shot.run();
+            px = to[0]; py = to[1];
+        }
+        in.releaseMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        for (int i = 0; i < 4; i++) { in.scroll(1); shot.run(); shot.run(); }
+        for (int i = 0; i < 4; i++) { in.scroll(-1); shot.run(); shot.run(); }
+        for (int i = 0; i < 10; i++) shot.run();
+        ctx.runOnClient(c -> {
+            var e = EvadeClient.modules.hudElements().get(el[0]);
+            e.x = el[1]; e.y = el[2];
+            e.scale.fromJson(new com.google.gson.JsonPrimitive(el[5] / 100.0));
+        });
+        ctx.setScreen(() -> null);
+        ctx.runOnClient(c -> setMode(cs, "GUI Style", "Compact"));
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

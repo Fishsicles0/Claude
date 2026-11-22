@@ -53,6 +53,7 @@ LAYOUT = """<!doctype html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v={version}">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="{nav}">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -92,10 +93,10 @@ LAYOUT = """<!doctype html>
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
@@ -253,6 +254,21 @@ def main() -> None:
         f'<h4>{html.escape(m["name"])}</h4><p>{html.escape(m["desc"])}</p>'
         f'<span class="hud-foot">{len(m["settings"])} setting{"s" if len(m["settings"]) != 1 else ""} <em>&rarr;</em></span></a>'
         for m in mods if m["slug"] == "hud")
+    # The full mod list, rendered into the page so it works without JavaScript (and for search engines).
+    # site.js keeps these cards and adds search, filters and the detail view on top.
+    def esc(x):
+        return html.escape(str(x), quote=True)
+
+    def card(m):
+        n = len(m["settings"])
+        search = (m["name"] + " " + m["desc"] + " " + m["cat"] + " " + " ".join(x["name"] for x in m["settings"])).lower()
+        sets = "".join(f'<li><b>{esc(x["name"])}</b> &middot; {esc(x["default"])}</li>' for x in m["settings"])
+        more = f'<details class="mod-sets"><summary>{n} setting{"s" if n != 1 else ""}</summary><ul>{sets}</ul></details>' if n else ""
+        return (f'<article class="card mod" data-m="{esc(m["name"])}" data-c="{m["slug"]}" data-new="{1 if m["new"] else 0}" data-s="{esc(search)}">'
+                f'<div class="mod-top"><span class="cat">{esc(m["cat"])}{" <em class=\"new\">New</em>" if m["new"] else ""}</span></div>'
+                f'<h3>{esc(m["name"])}</h3><p>{esc(m["desc"])}</p>'
+                f'<span class="mod-foot">{f"{n} setting" + ("s" if n > 1 else "") if n else "No settings"} <em>View &rarr;</em></span>{more}</article>')
+    tokens |= {"{{MOD_GRID}}": "".join(card(m) for m in mods)}
     tokens |= {"{{HUD_LIST}}": hud_cards, "{{HUD_COUNT}}": str(sum(1 for m in mods if m["slug"] == "hud"))}
     print(f"mods.json: {len(mods)} mods, {n_settings} settings, {n_new} new: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     for src in sorted(SRC.glob("*.html")):

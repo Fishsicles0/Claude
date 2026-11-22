@@ -11,13 +11,25 @@ public class ClientSettings extends Module {
     public final KeySetting menuKey = add(new KeySetting("Menu Key", GLFW.GLFW_KEY_RIGHT_SHIFT));
     public final net.evadeclient.setting.ModeSetting guiStyle =
             add(new net.evadeclient.setting.ModeSetting("GUI Style", "List", "List", "Cards", "Compact"));
+    public final net.evadeclient.setting.ModeSetting theme =
+            add(new net.evadeclient.setting.ModeSetting("Theme", "Modern", net.evadeclient.util.Theme.PRESETS));
+    public final net.evadeclient.setting.ModeSetting accent =
+            add(new net.evadeclient.setting.ModeSetting("Accent Color", "Red", net.evadeclient.util.Theme.ACCENTS));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true));
     public final BooleanSetting animations = add(new BooleanSetting("Animations", true));
     public final BooleanSetting toggleMessages = add(new BooleanSetting("Keybind Messages", true));
 
     public ClientSettings() {
-        super("Client Settings", "Menu key, blur, animations.", Category.CLIENT);
+        super("Client Settings", "Menu key, theme, accent colour, blur, animations.", Category.CLIENT);
         setVisible(false);
         setEnabled(true);
     }
+
+    /** Called every tick and by the menu each frame so a new theme shows up immediately. */
+    public void applyTheme() {
+        net.evadeclient.util.Theme.apply(theme.get(), accent.get());
+    }
+
+    @Override
+    public void onTick() { applyTheme(); }
 }

@@ -5,7 +5,7 @@ The in-game tests (runClientGameTest) drop PNGs in build/run/clientGameTest/scre
 This turns the current ones into site/assets/*.webp so the website always shows the
 build that is actually shipping. Run it after a gametest run, before build-pages.
 """
-import glob, os, sys
+import glob, os, shutil, subprocess, sys, tempfile
 from PIL import Image
 
 SHOTS = "build/run/clientGameTest/screenshots"
@@ -33,6 +33,10 @@ FULL = {
     "evade-gui-list":      "gui-list.webp",
     "evade-profiles":      "gui-profiles.webp",
     "evade-zoom":          "zoom.webp",
+    "evade-theme-modern":   "theme-modern.webp",
+    "evade-theme-midnight": "theme-midnight.webp",
+    "evade-theme-oled":     "theme-oled.webp",
+    "evade-theme-classic":  "theme-classic.webp",
 }
 
 print("screenshots -> webp:")
@@ -56,5 +60,27 @@ p = f"{OUT}/printer.webp"
 if os.path.exists(p):
     os.remove(p)
     print("  removed printer.webp (unused)")
+
+# short recordings: the gametest captures each frame on a fixed 30 fps clock; stitch them into H.264 MP4s
+def clip(name, out, poster_at):
+    frames = sorted(glob.glob(f"{SHOTS}/*_{name}.png"))
+    if not frames:
+        sys.exit(f"missing clip frames: {name}")
+    tmp = tempfile.mkdtemp()
+    try:
+        for i, f in enumerate(frames):
+            os.symlink(os.path.abspath(f), f"{tmp}/f{i:04d}.png")
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", "30", "-i", f"{tmp}/f%04d.png",
+                        "-vf", "scale=1280:720:flags=lanczos", "-c:v", "libx264", "-preset", "slow", "-crf", "27",
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", f"{OUT}/{out}.mp4"], check=True)
+    finally:
+        shutil.rmtree(tmp)
+    poster = Image.open(frames[min(poster_at, len(frames) - 1)]).convert("RGB").resize((1280, 720), Image.LANCZOS)
+    save(poster, f"{out}.webp", q=80)
+    print(f"  {out + '.mp4':24} {len(frames)} frames, {len(frames) / 30:.1f}s  {os.path.getsize(f'{OUT}/{out}.mp4') // 1024} KB")
+
+print("recordings -> mp4:")
+clip("clip-menu", "menu-clip", 40)
+clip("clip-hud", "hud-clip", 50)
 
 print("done")
