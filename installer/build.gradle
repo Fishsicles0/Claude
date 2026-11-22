@@ -15,10 +15,16 @@ dependencies {
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
 tasks.withType(JavaCompile).configureEach { options.release = 17; options.encoding = 'UTF-8' }
 
+// The jar's entry point (Boot) is built for Java 8 so that opening the jar with an old Java shows a clear
+// "needs Java 17" message instead of failing silently. Everything else stays Java 17.
+sourceSets { boot { java { srcDir 'src/boot/java' } } }
+tasks.named('compileBootJava') { options.release = 8; options.compilerArgs += ['-Xlint:-options'] }
+
 // Single self-contained jar: Gson is bundled so it runs with just `java -jar`.
 tasks.named('jar') {
     archiveFileName = 'EvadeInstaller.jar'
-    manifest { attributes 'Main-Class': 'net.evadeclient.installer.EvadeInstaller', 'Implementation-Version': project.version }
+    from sourceSets.boot.output
+    manifest { attributes 'Main-Class': 'net.evadeclient.installer.Boot', 'Implementation-Version': project.version }
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/9/module-info.class', 'module-info.class'
