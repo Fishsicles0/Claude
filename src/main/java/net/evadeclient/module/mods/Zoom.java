@@ -29,7 +29,7 @@ public class Zoom extends Module {
     /** Called from the FOV mixin every frame. */
     public double fovMultiplier() {
         long now = net.evadeclient.gui.EvadeMenu.clock.getAsLong(); // ms; tests swap in a fixed-step clock
-        double dt = Math.min(0.1, (now - lastFrame) / 1000.0);
+        double dt = Math.max(0, Math.min(0.1, (now - lastFrame) / 1000.0)); // never negative if the clock jumps back
         lastFrame = now;
         boolean z = zooming();
         if (z != wasZooming) {
@@ -42,6 +42,7 @@ public class Zoom extends Module {
         }
         double target = z ? 1.0 / Math.max(1, level.get() * scrollMult) : 1;
         current = smooth.get() ? current + (target - current) * (1 - Math.exp(-14 * dt)) : target;
+        if (!Double.isFinite(current)) current = target;
         return current;
     }
 

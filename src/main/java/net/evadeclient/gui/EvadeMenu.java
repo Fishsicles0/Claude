@@ -120,7 +120,7 @@ public class EvadeMenu extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         long now = clock.getAsLong();
-        dt = Math.min(0.1f, (now - lastFrame) / 1000f);
+        dt = Math.max(0f, Math.min(0.1f, (now - lastFrame) / 1000f));
         lastFrame = now;
         scroll += (scrollTarget - scroll) * (1 - Math.exp(-18 * dt));
 
