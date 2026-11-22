@@ -6,12 +6,12 @@
   "size": "2198 KB",
   "sha256": "d530f8c92c1d18c317de6e37695a1afddcb426d922d1465c66682726627bdc9a",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "834 KB", "sha256": "d1f1c5ae2f853e4acd279810bf440ef6a02e18cc2b4a4fdc45be541947ba54dc" },
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "834 KB", "sha256": "989566d1d1656b827a470d0ade003382138e3bb2867314f66021712f06d80f06" },
     "jar": { "file": "downloads/EvadeInstaller.jar", "size": "722 KB", "sha256": "6e6822b05d904054a83d554943c57985a8b27cd829bf7b2688f69572444165dd" }
   },
   "clips": {
     "version": "1.1.0",
-    "windows": { "file": "downloads/Evade-Clips.exe", "size": "3395 KB", "sha256": "2d6f31c3e54ae706a8d2a99f75cb9c06d17ba6653a95759ad6f1b08b4b417234" },
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "3395 KB", "sha256": "d7b2520504c92342e40dd3cd0f2383b4b1646cb779e04220656d8b86646d0396" },
     "jar": { "file": "downloads/EvadeClips.jar", "size": "3283 KB", "sha256": "dfa9c404cffe412c7ddaa56027cd200d76fd30222e69241230c7e26a74a2d72c" },
     "ffmpeg": {
       "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
