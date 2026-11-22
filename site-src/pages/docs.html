@@ -13,6 +13,8 @@ nav: docs
     <aside class="faq-nav" aria-label="Docs sections">
       <a href="#menu">The menu</a>
       <a href="#profiles">Profiles</a>
+      <a href="#voice">Voice chat</a>
+      <a href="#clips">Clips</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
       <a href="#hud">HUD editor</a>
@@ -44,12 +46,29 @@ nav: docs
         <p>Profiles live in <span class="mono">config/evade/profiles/</span>, one <span class="mono">.json</span> each.</p>
       </div>
 
+      <div class="doc-sec rv" id="voice">
+        <h2>Voice chat</h2>
+        <p>Turn on <b>Voice Chat</b> (Misc) and hold <span class="kbd">V</span> to talk. Players running Evade within 48 blocks hear you, quieter the further away they are, and from the direction you're standing.</p>
+        <ul>
+          <li><b>Where it works:</b> singleplayer and LAN worlds hosted with Evade, and any Fabric server whose owner drops the Evade jar into the server's <span class="mono">mods</span> folder (with Fabric API). On servers without it, the talk indicator tells you voice isn't available there.</li>
+          <li><b>Mic test:</b> turn on <b>Hear Yourself</b> and hold <span class="kbd">V</span> &mdash; the server sends your voice straight back.</li>
+          <li>Prefer hands-free? Turn off <b>Push To Talk</b> and set the <b>Voice Activation Level</b>.</li>
+          <li>On macOS the first time you talk, allow microphone access for Minecraft / Java when asked.</li>
+        </ul>
+      </div>
+
+      <div class="doc-sec rv" id="clips">
+        <h2>Clips</h2>
+        <p>Turn on <b>Clips</b> (Misc). While it's on, Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> to save them as an MP4 in <span class="mono">.minecraft/evade/clips</span>; <span class="mono">.clips</span> opens that folder. Pick 480p, 720p or 1080p and 15&ndash;60 FPS in its settings. Video only, no audio.</p>
+      </div>
+
       <div class="doc-sec rv" id="keys">
         <h2>Default keys</h2>
         <div class="table">
           <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
           <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
           <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
+          <div><span class="kbd">V</span><span>Push to talk (with Voice Chat on)</span></div>
           <div><span class="kbd">F8</span><span>Save a clip of the last seconds (with Clips on)</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>

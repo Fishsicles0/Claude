@@ -33,6 +33,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testRenderBatch(ctx, sp);
             testPerformance(ctx, sp);
             testClips(ctx, sp);
+            testVoice(ctx);
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
@@ -479,6 +480,42 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.runOnClient(c -> clips.setEnabled(false));
         server.runCommand("kill @e[type=tnt]");
         check(buffered > 20 && ok, "Clips saves a playable MP4 (" + buffered + " frames buffered, " + info + ")");
+    }
+
+    /**
+     * Voice: push a 440 Hz tone through the real path (Opus encode -> Minecraft connection -> server relay
+     * echo -> Opus decode) and check the same pitch comes back out.
+     */
+    private void testVoice(ClientGameTestContext ctx) {
+        var v = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.VoiceChat.class));
+        boolean supported = ctx.computeOnClient(c -> net.evadeclient.module.misc.VoiceChat.serverSupported());
+        ctx.runOnClient(c -> {
+            v.micTest.set(true);
+            v.forceTalkForTest();
+            v.setEnabled(true);
+            new Thread(() -> {
+                double phase = 0, step = 2 * Math.PI * 440 / 48000;
+                for (int f = 0; f < 50; f++) {
+                    short[] frame = new short[960];
+                    for (int i = 0; i < frame.length; i++) { frame[i] = (short) (Math.sin(phase) * 9000); phase += step; }
+                    v.processFrame(frame);
+                    try { Thread.sleep(20); } catch (InterruptedException ignored) {}
+                }
+            }, "voice-test-tone").start();
+        });
+        ctx.waitTicks(40);
+        int sent = ctx.computeOnClient(c -> v.framesSent);
+        int received = ctx.computeOnClient(c -> v.playback().framesReceived);
+        short[] last = ctx.computeOnClient(c -> v.playback().lastDecoded);
+        int crossings = 0;
+        long energy = 0;
+        if (last != null) for (int i = 1; i < last.length; i++) { if ((last[i - 1] < 0) != (last[i] < 0)) crossings++; energy += (long) last[i] * last[i]; }
+        double hz = crossings / 2.0 / 0.02;
+        double rms = last == null ? 0 : Math.sqrt(energy / (double) last.length);
+        ctx.runOnClient(c -> { v.setEnabled(false); v.micTest.set(false); v.pushToTalk.set(true); v.activation.set(20.0); });
+        check(supported && sent >= 45 && received >= 45 && Math.abs(hz - 440) < 40 && rms > 1000,
+                "Voice round-trips a 440 Hz tone through Opus and the server relay (sent " + sent + ", got " + received
+                        + ", decoded " + Math.round(hz) + " Hz, rms " + Math.round(rms) + ")");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.6.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.7.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.6.0</span>
+      <span class="nav-ver">v1.7.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -65,8 +65,19 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.7.0">
+      <div class="rel-head"><h2>v1.7.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <p class="rel-sum">Voice Chat: talk to the Evade players around you.</p>
+      <ul>
+        <li><b>Proximity voice</b> &mdash; hold <span class="kbd">V</span> to talk (or switch to voice activation). Voices get quieter with distance, fade out at 48 blocks, and pan left and right by where people stand.</li>
+        <li>Works in <b>singleplayer and LAN worlds</b> hosted with Evade, and on any <b>Fabric server</b> that adds the Evade jar to its mods folder. Voice goes over your normal Minecraft connection &mdash; no extra ports, nothing to set up.</li>
+        <li><b>Hear Yourself</b> mic test, mic and voice volume, a talking indicator with a level meter, and a list of who's speaking.</li>
+        <li>Uses Opus, the codec Discord uses, built into Evade &mdash; nothing extra to install.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.6.0">
-      <div class="rel-head"><h2>v1.6.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <div class="rel-head"><h2>v1.6.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">Clips: instant replay, saved as MP4.</p>
       <ul>
         <li>Turn on <b>Clips</b> and Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> (or type <span class="mono">.clip</span>) and those seconds are saved as an <b>MP4</b> &mdash; HUD and all.</li>
@@ -169,10 +180,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.7.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.6.0" defer></script>
+<script src="/assets/site.js?v=1.7.0" defer></script>
 </body>
 </html>

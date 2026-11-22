@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.6.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.7.0">
 </head>
 <body data-page="faq">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq" class="on" aria-current="page">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.6.0</span>
+      <span class="nav-ver">v1.7.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -77,8 +77,9 @@
         <details open><summary>Is it free?</summary><p>Yes. Evade is completely free, with no account or license key.</p></details>
         <details id="safe" open><summary>Is it allowed on servers?</summary><p>Yes, on the great majority. Evade is a quality-of-life client: a HUD, zoom, freelook, a custom crosshair, waypoints and visual tweaks. There are no combat or movement cheats, no ESP or x-ray, and nothing that automates gameplay or hides from anti-cheats. Those are the same kinds of features big servers (Hypixel and others) allow. A few very strict servers ban any modified client at all, so always check the server's own rules &mdash; but you won't be using anything that's against the spirit of fair play.</p></details>
         <details><summary>Which versions does it support?</summary><p>Minecraft Java 1.21.11 with Fabric. The installer sets up the right Fabric Loader and Fabric API for you. Other versions aren't supported yet.</p></details>
-        <details><summary>What's new in v1.6.0?</summary><p>v1.1.0 rebuilds the menu around a spacious new List style with a grouped sidebar, an All/Enabled filter and a wider search. Evade ships 63 quality-of-life mods &mdash; the full HUD (cooldowns, target info, armour, keystrokes, stopwatch, saturation, item counter and more), zoom, freelook, waypoints, three menu styles and the Evade Texture Pack. See the <a href="/changelog">changelog</a> and the <a href="/docs">docs</a>.</p></details>
+        <details><summary>What's new in v1.7.0?</summary><p>v1.1.0 rebuilds the menu around a spacious new List style with a grouped sidebar, an All/Enabled filter and a wider search. Evade ships 64 quality-of-life mods &mdash; the full HUD (cooldowns, target info, armour, keystrokes, stopwatch, saturation, item counter and more), zoom, freelook, waypoints, three menu styles and the Evade Texture Pack. See the <a href="/changelog">changelog</a> and the <a href="/docs">docs</a>.</p></details>
         <details><summary>Does it work with other Fabric mods?</summary><p>It's a normal Fabric mod, so it should run alongside most others, though every combination hasn't been tested. Put extra mods in <span class="mono">.minecraft/evade/mods</span>. If something conflicts, remove mods one at a time to find which one.</p></details>
+        <details id="voice"><summary>Does Evade have voice chat?</summary><p>Yes: proximity voice between Evade players. It works in singleplayer and LAN worlds hosted with Evade, and on Fabric servers that add the Evade jar to their mods folder. Big public servers would have to install it themselves, the same as any server-side voice mod. See the <a href="/docs#voice">docs</a>.</p></details>
         <details id="bedrock"><summary>Is there a Bedrock or Xbox version?</summary><p>No, and it isn't possible. Evade is a Java Edition Fabric mod. Bedrock (Xbox, PlayStation, Switch, mobile, Windows&nbsp;10/11) is a closed platform &mdash; you can't install a custom client or mod on a console at all. Anything that claims to add a "client" to a console actually routes your connection through a proxy that rewrites your packets, which is both a different kind of software and squarely in cheating territory. We won't build that. If you only need a console to join a server it can't normally reach, look at <a href="https://github.com/Pugmatt/BedrockConnect" target="_blank" rel="noopener">BedrockConnect</a> &mdash; a separate, open-source connectivity tool.</p></details>
                 <details><summary>Is Evade just quality of life?</summary><p>Yes. Evade adds a HUD, zoom, cosmetic-style tweaks and quality-of-life mods on top of vanilla. It's a Fabric mod, so it runs alongside your other Fabric mods, and it's open about being just quality of life &mdash; no cheats, no "undetected" claims.</p></details>
         <details><summary>What about FPS and shaders?</summary><p>Evade includes a built-in Performance module: it skips drawing far mobs and block entities, thins particles, draws one item per dropped stack and idles at a low frame rate when you tab out. In a busy test scene it took us from about 17 to 29 FPS; in light scenes the gain is smaller. For shaders, run a dedicated shader mod alongside Evade &mdash; Evade doesn't bundle other people's mods.</p></details>
@@ -129,10 +130,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.7.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.6.0" defer></script>
+<script src="/assets/site.js?v=1.7.0" defer></script>
 </body>
 </html>
