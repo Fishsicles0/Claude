@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.11.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.12.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -41,7 +41,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.11.0</span>
+      <span class="nav-ver">v1.12.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -69,8 +69,8 @@
 
 <section class="wrap page-body">
   <div class="log">
-    <article class="card rel rv" id="v1.11.0">
-      <div class="rel-head"><h2>v1.11.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+    <article class="card rel rv" id="v1.12.0">
+      <div class="rel-head"><h2>v1.12.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
       <p class="rel-sum">Evade Clips: record, edit and share your plays, installed with the client.</p>
       <ul>
         <li><b>Evade Clips</b> &mdash; a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor. The installer can now set it up alongside the client.</li>
@@ -78,6 +78,16 @@
         <li>Evade Clips starts with Minecraft, so instant replay is ready when you play. <span class="mono">.clips</span> opens it and <span class="mono">.clips last</span> opens your newest clip in the editor.</li>
         <li>Every event drops a named marker (&ldquo;Kill Steve&rdquo;, &ldquo;Totem pop&rdquo;) on your recording's timeline.</li>
         <li>Share links that play inside Discord and a private phone gallery, from <a href="https://clips.evadeclient.com">clips.evadeclient.com</a>.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v1.11.0">
+      <div class="rel-head"><h2>v1.11.0</h2><time>2026-11-22</time></div>
+      <p class="rel-sum">A bigger, benchmarked FPS stack, and low FPS when you're AFK.</p>
+      <ul>
+        <li><b>Evade Installer 1.4</b> adds <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a> (lighter networking), <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> (client micro-optimisations) and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a> (extra video toggles for low-end PCs), plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a snappier server list and instant world quitting.</li>
+        <li><b>Low FPS When AFK</b> (Performance, on by default): after 60 seconds without input the game idles at 15 FPS to save power and heat, and snaps back the instant you move.</li>
+        <li>Every mod was benchmarked with Evade before shipping. With everything on, our busy test scene runs at about 32&ndash;34 FPS against 21&ndash;25 for Evade alone. We tried and left out mods that made it worse: one lighting engine added stutter when loading chunks, one chunk mod needs a newer Java than Minecraft ships, and one clashed with Lithium.</li>
       </ul>
     </article>
 
@@ -239,10 +249,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.11.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.12.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.11.0" defer></script>
+<script src="/assets/site.js?v=1.12.0" defer></script>
 </body>
 </html>

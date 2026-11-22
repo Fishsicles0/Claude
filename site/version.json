@@ -1,13 +1,13 @@
 {
-  "version": "1.11.0",
+  "version": "1.12.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
   "size": "2187 KB",
-  "sha256": "89776329ceb3e1c2fa0bfb959231e777d5415b9f2232403fc33783d5a81ceb14",
+  "sha256": "934cd7ae461b76d9c705220d22dd15643d1885fb1a00167b5036d7357c95a23c",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "834 KB", "sha256": "dad8e9a6b517ee59bc6340aa797aea9339f56213a29829de034831c566810d0e" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "722 KB", "sha256": "b8c505a38e8054cd62d68047d9600c7bbb2df03ecb2ab5b04dbea1f54f385145" }
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "834 KB", "sha256": "d1f1c5ae2f853e4acd279810bf440ef6a02e18cc2b4a4fdc45be541947ba54dc" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "722 KB", "sha256": "6e6822b05d904054a83d554943c57985a8b27cd829bf7b2688f69572444165dd" }
   },
   "clips": {
     "version": "1.0.0",

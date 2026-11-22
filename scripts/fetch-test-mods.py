@@ -5,6 +5,9 @@ libs/test-mods, so the in-game tests run Evade alongside them.
 They're other people's mods: only used by `runClientGameTest` and never bundled into Evade or hosted by us.
 Players get them from Modrinth through the Evade Installer.
 Pass --no-perf to test with Simple Voice Chat only.
+
+Tried and left out (benchmarked in the gametest): ScalableLux (more stutter when loading chunks), C2ME (needs
+Java 22; Minecraft 1.21.11 ships Java 21), ModernFix-mVUS (overwrites the same method as Lithium).
 Checksums are verified against Modrinth.
 """
 import glob, hashlib, json, os, sys, urllib.request
@@ -30,7 +33,7 @@ def fetch(version):
 
 os.makedirs(OUT, exist_ok=True)
 PROJECTS = ["simple-voice-chat"] + ([] if "--no-perf" in sys.argv else
-            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling", "scalablelux", "krypton", "badoptimizations", "sodium-extra", "fast-ip-ping", "fastquit"])
+            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling", "krypton", "badoptimizations", "sodium-extra", "fast-ip-ping", "fastquit"])
 for old in glob.glob(os.path.join(OUT, "*.jar")):
     os.remove(old)
 FABRIC_API = "P7dR8mSH"
