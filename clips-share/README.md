@@ -42,10 +42,17 @@ Evade Clips uses https://clips.evadeclient.com by default. If you host your own,
 Settings → Sharing → *Share server*.
 
 Live at **https://clips.evadeclient.com** (Worker `evade-clips`, bucket `evade-clips`, `ADMIN_TOKEN` set).
-It was deployed with `wrangler.r2-downloads.jsonc`: the downloads live in the bucket under `dl/`. After a new
-Evade Clips build, update them with
-`npx wrangler r2 object put evade-clips/dl/<file> --file public/downloads/<file>` for `Evade-Clips.exe`,
-`EvadeClips.jar` and `clips.json`.
+It uses the main site's design: `scripts/build-clips-share.py` turns the built `site/clips.html` into the
+Worker's home page and page frame (`src/shell.js`), and the main site's stylesheet, scripts, logo and screenshots
+are served from the bucket under `site/`; the downloads under `dl/`. After `scripts/build-site.sh`:
+
+```bash
+cd clips-share
+./sync-assets.sh                                        # shell.js + site/ and dl/ files into the bucket
+npx wrangler deploy --config wrangler.r2-downloads.jsonc
+```
+
+Plain-http visits are redirected to https.
 
 ## Test locally
 

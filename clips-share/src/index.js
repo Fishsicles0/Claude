@@ -31,6 +31,8 @@ const REASONS = {
   other: "breaking the rules",
 };
 
+import { LANDING, TOP, BOTTOM } from "./shell.js";
+
 export default {
   async fetch(req, env) {
     try {
@@ -48,7 +50,14 @@ async function route(req, env) {
   const m = req.method;
 
   if (m === "OPTIONS") return new Response(null, { headers: cors() });
-  if (p === "/" && m === "GET") return home(req, env);
+  // Always the secure address (browsers say "Not secure" on http://).
+  if (url.protocol === "http:" && !env.DEV) {
+    url.protocol = "https:";
+    return Response.redirect(url.toString(), 301);
+  }
+  if (p === "/" && (m === "GET" || m === "HEAD")) return home();
+  if (p.startsWith("/assets/")) return siteFile(env, p.slice("/assets/".length));
+  if (["/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png"].includes(p)) return siteFile(env, p.slice(1));
   if (p.startsWith("/downloads/")) return download(req, env, p.slice("/downloads/".length));
   if (p === "/api/register" && m === "POST") return register(req, env);
   if (p === "/api/clips" && m === "GET") return listClips(await auth(req, env, true), env);
@@ -69,7 +78,7 @@ async function route(req, env) {
   if ((r = p.match(/^\/v\/([^/]+)\.mp4$/)) && (m === "GET" || m === "HEAD")) return video(req, env, r[1], url);
   if ((r = p.match(/^\/t\/([^/]+)\.jpg$/)) && m === "GET") return thumb(env, r[1], url);
   if ((r = p.match(/^\/g\/([^/]+)$/)) && m === "GET") return gallery(env, r[1], url);
-  return html(page(env, "Not found", "<p class=dim>Nothing here.</p>"), 404);
+  return notFound(env);
 }
 
 // ------------------------------------------------------------------ accounts
@@ -309,15 +318,16 @@ async function thumb(env, clip, url) {
 async function sharePage(env, clip, url) {
   const meta = ID.test(clip) ? await getJson(env, `m/${clip}.json`) : null;
   if (meta && meta.removed) {
-    return html(page(env, "Clip removed", `<h1>This clip was removed</h1>
-<p class=dim>It was taken down for ${esc(REASONS[meta.removed.reason] || "breaking the rules")}. Its owner has been told.</p>`), 410);
+    return html(page(env, "Clip removed", `<div class="clips-msg card"><h1>This clip was removed.</h1>
+<p>It was taken down for ${esc(REASONS[meta.removed.reason] || "breaking the rules")}. Its owner has been told which clip and why.</p>
+<a class="btn btn-ghost" href="/">About Evade Clips</a></div>`), 410);
   }
-  if (!(await visible(env, meta, url))) return html(page(env, "Clip not found", "<p class=dim>This clip is private, was deleted, or never finished uploading.</p>"), 404);
+  if (!(await visible(env, meta, url))) return notFound(env, "This clip is private, was deleted, or never finished uploading.");
   const tq = meta.visibility === "private" ? `?t=${encodeURIComponent(url.searchParams.get("t"))}` : "";
   const o = url.origin, v = `${o}/v/${clip}.mp4${tq}`, t = `${o}/t/${clip}.jpg${tq}`, w = meta.width || 1280, hgt = meta.height || 720;
   const title = esc(meta.title) + (meta.game ? " · " + esc(meta.game) : "");
   // Open Graph video tags: Discord, Twitter/X, iMessage and friends play the clip right in the chat.
-  const head = meta.visibility === "private" ? '<meta name="robots" content="noindex">' : `
+  const head = `<meta name="description" content="${title} — shared with Evade Clips.">` + (meta.visibility === "private" ? '<meta name="robots" content="noindex">' : `
 <meta property="og:type" content="video.other">
 <meta property="og:site_name" content="${esc(env.SITE_NAME || "Evade Clips")}">
 <meta property="og:title" content="${title}">
@@ -336,19 +346,36 @@ async function sharePage(env, clip, url) {
 <meta name="twitter:player:stream" content="${v}">
 <meta name="twitter:player:stream:content_type" content="video/mp4">
 <meta name="twitter:player:width" content="${w}">
-<meta name="twitter:player:height" content="${hgt}">
-<meta name="theme-color" content="#E11D2E">`;
-  const reasons = Object.entries(REASONS).map(([k, v]) => `<option value="${k}">${esc(v[0].toUpperCase() + v.slice(1))}</option>`).join("");
+<meta name="twitter:player:height" content="${hgt}">`);
+  const reasons = Object.entries(REASONS).map(([k, r]) => `<option value="${k}">${esc(r[0].toUpperCase() + r.slice(1))}</option>`).join("");
+  const facts = [esc(meta.game), dur(meta.duration), mb(meta.size), new Date(meta.created).toISOString().slice(0, 10)].filter(Boolean);
   const body = `
-<video id=v src="${v}" poster="${t}" controls muted playsinline loop style="aspect-ratio:${w}/${hgt}"></video>
-<h1>${esc(meta.title)}${meta.visibility === "private" ? ' <span class="tag">Private</span>' : ""}</h1>
-<p class=dim>${[esc(meta.game), dur(meta.duration), mb(meta.size), new Date(meta.created).toISOString().slice(0, 10)].filter(Boolean).join(" · ")}</p>
-<p class=row><a class=btn href="${v}${tq ? "&" : "?"}dl=1">Download</a>
-<button class=btn2 onclick="navigator.clipboard.writeText(location.href);this.textContent='Link copied'">Copy link</button>
-<label class=dim><input type=checkbox id=ap> Autoplay</label>
-<button class="btn2 small" onclick="document.getElementById('rep').hidden=false">Report</button></p>
-<form id=rep hidden onsubmit="return sendReport(event)"><select name=reason>${reasons}</select>
-<input name=details maxlength=500 placeholder="Details (optional)"><button class=btn2>Send report</button></form>
+<div class="clip-player"><video id=v src="${v}" poster="${t}" controls muted playsinline loop style="aspect-ratio:${w}/${hgt}"></video></div>
+<div class="clip-bar">
+  <div class="clip-info">
+    <div class="eyebrow">${meta.game ? esc(meta.game) : "Evade Clips"}${meta.visibility === "private" ? " &middot; Private" : ""}</div>
+    <h1>${esc(meta.title)}</h1>
+    <p class="clip-facts">${facts.join(" &middot; ")}</p>
+  </div>
+  <div class="cta">
+    <a class="btn btn-red" href="${v}${tq ? "&" : "?"}dl=1">Download</a>
+    <button class="btn btn-ghost" onclick="navigator.clipboard.writeText(location.href);this.textContent='Link copied'">Copy link</button>
+  </div>
+</div>
+<div class="clip-tools">
+  <label class="switch"><input type=checkbox id=ap><span></span> Autoplay</label>
+  <button class="link-inline clip-report" onclick="document.getElementById('rep').hidden=!document.getElementById('rep').hidden">Report this clip</button>
+</div>
+<form id=rep class="card clip-form" hidden onsubmit="return sendReport(event)">
+  <h3>Report this clip</h3>
+  <select name=reason>${reasons}</select>
+  <input name=details maxlength=500 placeholder="Details (optional)">
+  <button class="btn btn-ghost btn-sm">Send report</button>
+</form>
+<div class="card clip-promo">
+  <div><h3>Made with Evade Clips</h3><p>Free instant replay, auto-clips and an editor, with share links like this one. No watermark, no ads.</p></div>
+  <a class="btn btn-ghost" href="/">Get Evade Clips</a>
+</div>
 <script>
 const ap=document.getElementById('ap'),vid=document.getElementById('v');
 let on=true;try{on=localStorage.getItem('autoplay')!=='off'}catch(e){}
@@ -356,7 +383,7 @@ ap.checked=on;if(on)vid.play().catch(()=>{});
 ap.onchange=()=>{try{localStorage.setItem('autoplay',ap.checked?'on':'off')}catch(e){};if(ap.checked)vid.play().catch(()=>{});else vid.pause()};
 async function sendReport(e){e.preventDefault();const f=new FormData(e.target);
 const r=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clip:'${clip}',reason:f.get('reason'),details:f.get('details')})});
-e.target.innerHTML=r.ok?'<p class=dim>Thanks, a moderator will look at it.</p>':'<p class=dim>Could not send the report.</p>';return false}
+e.target.innerHTML=r.ok?'<p>Thanks. A moderator will look at it.</p>':'<p>Couldn\'t send the report. Try again later.</p>';return false}
 </script>`;
   return html(page(env, meta.title, body, head));
 }
@@ -364,20 +391,30 @@ e.target.innerHTML=r.ok?'<p class=dim>Thanks, a moderator will look at it.</p>':
 async function gallery(env, account, url) {
   const acc = ID.test(account) ? await getJson(env, `a/${account}.json`) : null;
   const t = url.searchParams.get("t");
-  if (!acc || t !== acc.viewToken) return html(page(env, "Not found", "<p class=dim>Nothing here.</p>"), 404);
+  if (!acc || t !== acc.viewToken) return notFound(env, "This gallery link isn't valid. Open it again from Evade Clips (Settings → Sharing → Show phone QR code).");
   const index = (await getJson(env, `i/${account}.json`)) || [];
   const q = `?t=${encodeURIComponent(t)}`;
-  const cards = index.map((c) => `
-<a class=card href="/c/${c.id}${c.visibility === "private" ? q : ""}"><img loading=lazy src="/t/${c.id}.jpg${c.visibility === "private" ? q : ""}" alt="">
-<b>${esc(c.title)}${c.visibility === "private" ? ' <span class="tag">Private</span>' : ""}${c.origin === "phone" ? ' <span class="tag">Phone</span>' : ""}</b>
-<span class=dim>${[esc(c.game), dur(c.duration), mb(c.size)].filter(Boolean).join(" · ")}</span></a>`).join("");
-  const body = `<h1>Your clips</h1><p class=dim>${index.length} clip${index.length === 1 ? "" : "s"} · ${mb(acc.used)} of ${mb(quota(env))}.
-Tap a clip to watch, download or share it. Keep this page private: anyone with the link can see your clips.</p>
-<form id=up class=row onsubmit="return upload(event)">
-<input type=file name=f accept="video/*" required><input name=title placeholder="Title" maxlength=120><input name=game placeholder="Game" maxlength=60>
-<button class=btn>Upload</button></form>
-<p class=dim id=st>Upload from your phone (console captures too): it shows up here and in Evade Clips on your PC.</p>
-<div class=grid>${cards || "<p class=dim>Nothing synced yet.</p>"}</div>
+  const cards = index.map((c) => {
+    const pq = c.visibility === "private" ? q : "";
+    const tags = (c.visibility === "private" ? '<span class="tag">Private</span>' : "") + (c.origin === "phone" ? '<span class="tag">From phone</span>' : "");
+    return `<a class="card shot-card clip-card" href="/c/${c.id}${pq}">
+<div class="img"><img loading=lazy src="/t/${c.id}.jpg${pq}" alt=""><span class="clip-dur">${dur(c.duration)}</span></div>
+<div class="txt">${tags ? `<div class="clip-tags">${tags}</div>` : ""}<h3>${esc(c.title)}</h3><p>${[esc(c.game), mb(c.size)].filter(Boolean).join(" &middot; ")}</p></div></a>`;
+  }).join("");
+  const used = acc.used > 0 ? Math.max(2, Math.min(100, Math.round((acc.used / quota(env)) * 100))) : 0;
+  const body = `
+<div class="sec-head"><div class="eyebrow">Your gallery</div><h1>Your clips.</h1>
+<p>${index.length} clip${index.length === 1 ? "" : "s"}. Tap one to watch, download or share it. Keep this link to yourself: anyone who has it can see your clips.</p></div>
+<div class="card clip-storage"><div class="clip-storage-row"><span>Storage</span><span>${mb(acc.used)} of ${mb(quota(env))}</span></div><div class="clip-meter"><i style="width:${used}%"></i></div></div>
+<form id=up class="card clip-form clip-upload" onsubmit="return upload(event)">
+  <h3>Upload from this phone</h3>
+  <p>Console captures and phone recordings land here and in Evade Clips on your PC.</p>
+  <input type=file name=f accept="video/*" required>
+  <div class="clip-upload-row"><input name=title placeholder="Title" maxlength=120><input name=game placeholder="Game" maxlength=60></div>
+  <button class="btn btn-red">Upload</button>
+  <p class="clip-status" id=st></p>
+</form>
+<div class="clip-grid">${cards || '<p class="clip-empty">Nothing here yet. Share a clip from Evade Clips, or upload one above.</p>'}</div>
 <script>
 const AUTH='Gallery ${account}.'+new URLSearchParams(location.search).get('t');
 async function api(path,opt){opt=opt||{};opt.headers=Object.assign({Authorization:AUTH},opt.headers||{});const r=await fetch(path,opt);if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status);return r.json()}
@@ -386,7 +423,7 @@ v.onloadeddata=()=>{v.currentTime=Math.min(1,v.duration/2)};v.onseeked=()=>{cons
 c.getContext('2d').drawImage(v,0,0,c.width,c.height);c.toBlob(b=>res({thumb:b,duration:v.duration,width:v.videoWidth,height:v.videoHeight}),'image/jpeg',0.8)};v.onerror=()=>res({})})}
 async function upload(e){e.preventDefault();const f=new FormData(e.target),file=f.get('f'),st=document.getElementById('st');
 try{st.textContent='Preparing…';const info=await frame(file);
-const s=await api('/api/uploads',{method:'POST',body:JSON.stringify({title:f.get('title')||file.name.replace(/\\.[^.]+$/,''),game:f.get('game'),size:file.size,duration:info.duration||0,width:info.width||0,height:info.height||0})});
+const s=await api('/api/uploads',{method:'POST',body:JSON.stringify({title:f.get('title')||file.name.replace(/\.[^.]+$/,''),game:f.get('game'),size:file.size,duration:info.duration||0,width:info.width||0,height:info.height||0})});
 const ps=10*1024*1024,parts=[];for(let i=0,n=1;i<file.size;i+=ps,n++){st.textContent='Uploading '+Math.round(i/file.size*100)+'%';
 parts.push(await api('/api/uploads/'+s.clip+'/'+n+'?uploadId='+encodeURIComponent(s.uploadId),{method:'PUT',body:file.slice(i,i+ps)}))}
 await api('/api/uploads/'+s.clip+'/complete',{method:'POST',body:JSON.stringify({uploadId:s.uploadId,parts})});
@@ -395,9 +432,14 @@ if(info.thumb)await api('/api/clips/'+s.clip+'/thumb',{method:'PUT',body:info.th
   return html(page(env, "Your clips", body, '<meta name="robots" content="noindex">'));
 }
 
+function notFound(env, why) {
+  return html(page(env, "Not found", `<div class="clips-msg card"><h1>Nothing here.</h1><p>${esc(why || "This page doesn't exist.")}</p>
+<a class="btn btn-ghost" href="/">About Evade Clips</a></div>`), 404);
+}
+
 /**
  * Downloads: from the bundled static files when the Worker was deployed with them, otherwise from the R2
- * bucket under dl/ (upload with `npx wrangler r2 object put evade-clips/dl/<file> --file ... --remote`).
+ * bucket under dl/ (upload with `npx wrangler r2 object put evade-clips/dl/<file> --file ...`).
  */
 async function download(req, env, name) {
   if (!/^[\w.-]+$/.test(name)) return new Response("not found", { status: 404 });
@@ -413,60 +455,74 @@ async function download(req, env, name) {
   return new Response(obj.body, { headers: h });
 }
 
-/** clips.evadeclient.com: what Evade Clips is, and its downloads (described by downloads/clips.json). */
-async function home(req, env) {
-  let d = null;
-  const r = await download(new Request(new URL("/downloads/clips.json", req.url)), env, "clips.json");
-  if (r.ok) d = await r.json().catch(() => null);
-  const dl = d ? `
-<p class=row><a class=btn href="/downloads/${esc(d.windows.file)}">Download for Windows</a>
-<a class=btn2 href="/downloads/${esc(d.jar.file)}">macOS / Linux (.jar)</a></p>
-<p class=dim>Evade Clips ${esc(d.version)} · Windows ${esc(d.windows.size)} · jar ${esc(d.jar.size)} · needs Java 17+ (the Minecraft Launcher's works) and ffmpeg.
-Playing Minecraft? The <a href="https://evadeclient.com/download.html">Evade Client installer</a> sets up both, ffmpeg included.</p>
-<details><summary class=dim>Checksums</summary><p class="dim mono">${esc(d.windows.file)} ${esc(d.windows.sha256)}<br>${esc(d.jar.file)} ${esc(d.jar.sha256)}</p></details>`
-    : `<p class=dim>Downloads are on <a href="https://evadeclient.com/download.html">evadeclient.com</a>.</p>`;
-  return html(page(env, "Evade Clips", `
-<h1 class=hero>Clip it. Edit it. Share it.</h1>
-<p class=lead><a href="https://evadeclient.com/clips">evadeclient.com/clips</a> · part of Evade Client.</p>
-<p class=lead>Evade Clips records your gameplay with near-zero FPS cost and keeps the last moments ready to save at a key press, a voice command, or automatically when something happens in game. Then edit and share without leaving the app.</p>
-${dl}
-<div class=features>
-<div><b>Instant replay</b><span>15 s to 10 min always ready. Saving is instant: nothing is re-encoded.</span></div>
-<div><b>Auto-clips</b><span>Kills, aces, wins, deaths and full rounds in CS2, League and Minecraft, plus loud moments in any game.</span></div>
-<div><b>Voice commands</b><span>Say "clip that". Recognised offline on your PC.</span></div>
-<div><b>Editor</b><span>Trim, slow-mo, captions, meme text, video overlays, one-click vertical, montages.</span></div>
-<div><b>Separate tracks</b><span>Game, mic and voice chat on their own tracks, balanced after the fact.</span></div>
-<div><b>Share links</b><span>Links that play inside Discord. No watermark, no ads, no expiry. Private clips too.</span></div>
-<div><b>Your phone</b><span>Every shared clip in a private gallery; upload console captures from your phone.</span></div>
-<div><b>Small files</b><span>Hard bitrate ceilings and HEVC: a busy minute of 1080p60 stays under 70 MB.</span></div>
-</div>`));
+/** The main site's stylesheet, scripts, logo and screenshots (synced into R2 under site/ by sync-assets.sh). */
+async function siteFile(env, name) {
+  if (!/^[\w.-]+$/.test(name)) return new Response("not found", { status: 404 });
+  const obj = await env.CLIPS.get(`site/${name}`);
+  if (!obj) return new Response("not found", { status: 404 });
+  const types = { css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", svg: "image/svg+xml", png: "image/png", webp: "image/webp" };
+  return new Response(obj.body, { headers: { "Content-Type": types[name.split(".").pop()] || "application/octet-stream", "Cache-Control": "public, max-age=3600" } });
 }
 
-function page(env, title, body, head = "") {
-  return `<!doctype html><html lang=en><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title>${head}
-<style>
-:root{color-scheme:dark;--bg:#0A0A0C;--card:#15151A;--text:#F4F4F6;--dim:#9B9BA6;--red:#E11D2E}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
-video{width:100%;max-height:78vh;background:#000;border-radius:14px;display:block}
-h1{font-size:22px;margin:16px 0 4px}.hero{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:36px 0 12px}
-.lead{font-size:17px;color:var(--dim);max-width:720px}.dim{color:var(--dim)}a{color:var(--text)}.mono{font:12px ui-monospace,monospace;word-break:break-all}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.btn,.btn2{display:inline-block;padding:9px 16px;border-radius:10px;border:0;font:600 14px system-ui,sans-serif;cursor:pointer;text-decoration:none}
-.btn{background:var(--red);color:#fff}.btn2{background:var(--card);color:var(--text)}.small{padding:6px 10px;font-size:12px}
-input,select{background:var(--card);color:var(--text);border:1px solid #26262E;border-radius:8px;padding:8px;font:14px system-ui,sans-serif;max-width:100%}
-.tag{font-size:11px;background:var(--card);border:1px solid #26262E;border-radius:6px;padding:1px 6px;vertical-align:middle;color:var(--dim)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px}
-.card{display:flex;flex-direction:column;gap:2px;background:var(--card);border-radius:14px;overflow:hidden;text-decoration:none;padding-bottom:12px}
-.card img{width:100%;aspect-ratio:16/9;object-fit:cover;background:#000;margin-bottom:8px}.card b,.card span{padding:0 12px}
-.features{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:28px}
-.features div{background:var(--card);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}.features span{color:var(--dim);font-size:14px}
-header{display:flex;align-items:center;gap:8px;font:italic 800 18px system-ui,sans-serif;letter-spacing:.5px}
-header a{text-decoration:none}header i{color:var(--red);font-style:italic}
-</style></head><body><main><header><a href="/">EVADE <i>CLIPS</i></a></header>${body}</main></body></html>`;
+/** clips.evadeclient.com: the same page as evadeclient.com/clips, in the main site's design. */
+function home() {
+  return html(LANDING);
 }
+
+/** Any other page: the main site's header and footer around {@code body}, plus the clip-page styles. */
+function page(env, title, body, head = "") {
+  return TOP.replace("{{TITLE}}", `${esc(title)} · Evade Clips`).replace("{{HEAD}}", head + CLIP_CSS)
+    + `<section class="wrap page-body clips">${body}</section>` + BOTTOM;
+}
+
+/** Styles for the clip page and gallery, built on the main site's colours and components. */
+const CLIP_CSS = `<style>
+.clips{max-width:1100px}
+.clips .eyebrow{margin-bottom:10px}
+.clip-player{border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--stroke);box-shadow:0 30px 80px -30px rgba(225,29,46,.35)}
+.clip-player video{display:block;width:100%;max-height:76vh;background:#000}
+.clip-bar{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;margin-top:28px}
+.clip-bar .cta{margin-top:0}
+.clip-info h1{font-family:var(--display);font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.08;margin:0}
+.clip-facts{color:var(--muted);margin:10px 0 0}
+.clip-tools{display:flex;flex-wrap:wrap;gap:22px;align-items:center;margin-top:22px;color:var(--muted);font-size:14px}
+.clip-report{background:none;border:0;color:var(--muted);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch span{width:38px;height:22px;border-radius:99px;background:#2a2a31;position:relative;transition:background .2s var(--ease)}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s var(--ease)}
+.switch input:checked+span{background:var(--red)}
+.switch input:checked+span::after{transform:translateX(16px)}
+.clip-form[hidden]{display:none}
+.clip-form{padding:22px;margin-top:18px;display:flex;flex-direction:column;gap:12px;max-width:560px}
+.clip-form h3{margin:0;font-family:var(--display)}
+.clip-form p{margin:0;color:var(--muted);font-size:14px}
+.clip-form input,.clip-form select{background:var(--elev-2);color:var(--text);border:1px solid var(--stroke-2);border-radius:var(--r-sm);padding:11px 12px;font:15px var(--body);width:100%}
+.clip-form input[type=file]{padding:9px}
+.clip-form .btn{align-self:flex-start}
+.clip-upload{max-width:none}
+.clip-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.clip-status{min-height:1em}
+.clip-promo{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:22px 24px;margin-top:40px}
+.clip-promo h3{margin:0 0 4px;font-family:var(--display)}
+.clip-promo p{margin:0;color:var(--muted)}
+.clip-storage{padding:18px 22px;margin-top:6px}
+.clip-storage-row{display:flex;justify-content:space-between;color:var(--muted);font-size:14px;margin-bottom:10px}
+.clip-meter{height:6px;border-radius:99px;background:#1c1c22;overflow:hidden}
+.clip-meter i{display:block;height:100%;background:linear-gradient(90deg,#9b0d1a,var(--red-2))}
+.clip-grid{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.clip-grid .clip-card{grid-column:auto}
+.clip-card .img{position:relative}
+.clip-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
+.clip-dur{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.75);border-radius:6px;padding:2px 7px;font:600 12px var(--mono)}
+.clip-tags{display:flex;gap:6px;margin-bottom:6px}
+.clip-tags .tag{margin:0}
+.clip-empty{color:var(--muted)}
+.clips-msg{padding:40px 28px;text-align:center;max-width:640px;margin:20px auto 0}
+.clips-msg h1{font-family:var(--display);font-size:clamp(28px,4vw,40px);letter-spacing:-.03em;margin:0 0 10px}
+.clips-msg p{color:var(--muted);margin:0 0 22px}
+@media (max-width:640px){.clip-upload-row{grid-template-columns:1fr}.clip-bar .cta .btn{flex:1 1 auto}}
+</style>`;
 
 // ------------------------------------------------------------------ helpers
 
