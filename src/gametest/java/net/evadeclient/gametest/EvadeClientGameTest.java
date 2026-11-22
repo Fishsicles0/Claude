@@ -44,7 +44,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testClips(ctx, sp);
             testVoice(ctx);
             testHud(ctx, sp);
-            testMenu(ctx);
+            testMenu(ctx, sp);
             testProfiles(ctx);
             testIcons(ctx, sp);
         }
@@ -157,7 +157,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     }
 
 
-    private void testMenu(ClientGameTestContext ctx) {
+    private void testMenu(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         // Typical 1080p monitor at GUI scale 2 (960x540 GUI pixels).
         ctx.getInput().resizeWindow(1920, 1080);
         ctx.runOnClient(c -> {
@@ -206,6 +206,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
         boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
         check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
+        testThemesAndClips(ctx, sp, cs);
 
         // The All / Enabled filter: enable one module, switch to Enabled, confirm only enabled show.
         ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
@@ -466,6 +467,43 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 "Low-End PC Mode applies and restores video settings (" + java.util.Arrays.toString(before2) + " -> "
                         + java.util.Arrays.toString(during2) + " -> " + java.util.Arrays.toString(after2) + ")");
 
+        // Effects: ambient particles and far particles are skipped, normal near ones kept; block dust is cut to ~a quarter.
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.runOnClient(c -> perf.particlePercent.set(100.0)); // no random budget, so the counts are exact
+        boolean[] filt = ctx.computeOnClient(c -> {
+            var p = c.player.getEntityPos();
+            return new boolean[]{
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.CAMPFIRE_COSY_SMOKE, p.x + 2, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.FLAME, p.x + 2, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.FLAME, p.x + 200, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.RAIN, p.x + 2, p.y, p.z)};
+        });
+        check(filt[0] && !filt[1] && filt[2] && filt[3],
+                "Performance skips ambient, far and rain-splash particles but keeps nearby ones (" + java.util.Arrays.toString(filt) + ")");
+        java.util.function.Function<Boolean, Integer> dust = less -> {
+            setBool(ctx, perf, "Less Block Break Dust", less);
+            ctx.runOnClient(c -> {
+                c.particleManager.clearParticles();
+                var pos = c.player.getBlockPos().add(2, 0, 0);
+                for (int i = 0; i < 4; i++) c.world.addBlockBreakParticles(pos, net.minecraft.block.Blocks.STONE.getDefaultState());
+            });
+            ctx.waitTicks(1);
+            return ctx.computeOnClient(c -> {
+                var m = java.util.regex.Pattern.compile("\\d+").matcher(c.particleManager.getDebugString());
+                return m.find() ? Integer.parseInt(m.group()) : -1;
+            });
+        };
+        int dustFull = dust.apply(false), dustLess = dust.apply(true);
+        check(dustFull > 200 && dustLess > 0 && dustLess < dustFull / 2,
+                "Less Block Break Dust cuts breaking particles (" + dustFull + " -> " + dustLess + " for 4 broken blocks)");
+        // Burning mobs: their fire layer is skipped (screenshot), and rain/snow can be hidden.
+        server.runCommand("summon zombie 0 -60 4 {NoAI:1b,Silent:1b,Fire:2000s,Rotation:[180f,0f]}");
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-perf-mobfire");
+        ctx.runOnClient(c -> perf.particlePercent.set(60.0));
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        server.runCommand("kill @e[type=zombie]");
+
         // AFK cap: two minutes without input drops to the AFK frame rate; any input lifts it straight away.
         enable(ctx, net.evadeclient.module.mods.Performance.class);
         int[] afk = ctx.computeOnClient(c -> {
@@ -551,6 +589,153 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 "Evade Icons puts the Evade logo before Evade users' tab names (\"" + names[0] + "\" -> logo + name)");
     }
 
+    private static void setMode(net.evadeclient.module.Module m, String name, String value) {
+        for (var s : m.getSettings()) if (s.getName().equals(name))
+            ((net.evadeclient.setting.ModeSetting) s).fromJson(new com.google.gson.JsonPrimitive(value));
+    }
+
+    /**
+     * Theme presets and accent colours (screenshots for the site), then two short clips for the website: the menu
+     * opening, hovering, toggling and changing theme/style, and the HUD editor dragging an element. Animations run
+     * on a fixed 30 fps clock here so the recordings are smooth whatever the test machine's speed.
+     */
+    private void testThemesAndClips(ClientGameTestContext ctx, TestSingleplayerContext sp, net.evadeclient.module.client.ClientSettings cs) {
+        ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
+        String[][] looks = {{"Midnight", "Red"}, {"OLED", "Purple"}, {"Classic", "Green"}, {"Modern", "Blue"}};
+        for (String[] l : looks) {
+            ctx.runOnClient(c -> { setMode(cs, "Theme", l[0]); setMode(cs, "Accent Color", l[1]); });
+            ctx.setScreen(EvadeMenu::new);
+            ctx.waitTicks(6);
+            ctx.takeScreenshot("evade-theme-" + l[0].toLowerCase());
+        }
+        int[] seen = ctx.computeOnClient(c -> {
+            setMode(cs, "Theme", "Classic"); setMode(cs, "Accent Color", "Blue"); cs.applyTheme();
+            int classicRed = net.evadeclient.util.Theme.RED, classicSq = net.evadeclient.util.Theme.square ? 1 : 0, classicCard = net.evadeclient.util.Theme.CARD;
+            setMode(cs, "Theme", "Modern"); setMode(cs, "Accent Color", "Red"); cs.applyTheme();
+            return new int[]{classicRed, classicSq, classicCard, net.evadeclient.util.Theme.RED, net.evadeclient.util.Theme.square ? 1 : 0, net.evadeclient.util.Theme.CARD};
+        });
+        check(seen[0] == 0xFF2F7BFF && seen[1] == 1 && seen[3] == 0xFFE11D2E && seen[4] == 0 && seen[2] != seen[5],
+                "Theme presets and accent colours restyle the client (Classic + Blue -> square corners, blue accent; back to Modern + Red)");
+
+        // Keep the camera on the scene: cursor moves during the menu clip would otherwise turn the player.
+        float[] look = ctx.computeOnClient(c -> new float[]{c.player.getYaw(), 0f}); // level, like the HUD shot
+        Runnable faceScene = () -> ctx.runOnClient(c -> { c.player.setYaw(look[0]); c.player.setPitch(look[1]);
+            c.player.lastYaw = look[0]; c.player.lastPitch = look[1]; });
+
+        // --- clip 1: the menu
+        java.util.concurrent.atomic.AtomicLong t = new java.util.concurrent.atomic.AtomicLong(1_000_000);
+        EvadeMenu.clock = t::get;
+        var in = ctx.getInput();
+        Runnable frame = () -> { t.addAndGet(33); ctx.takeScreenshot("clip-menu"); };
+        try {
+            in.setCursorPos(1880, 1040);
+            ctx.setScreen(EvadeMenu::new);
+            for (int i = 0; i < 14; i++) frame.run();
+            for (int i = 0; i <= 30; i++) { in.setCursorPos(800, (140 + i * 4) * 2); frame.run(); }
+            in.setCursorPos(800, 140 * 2);
+            for (int i = 0; i < 6; i++) frame.run();
+            in.pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            for (int i = 0; i < 16; i++) frame.run();
+            in.pressMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            for (int i = 0; i < 14; i++) frame.run();
+            in.setCursorPos(1880, 1040);
+            String[][] steps = {{"Theme", "Midnight"}, {"Accent Color", "Purple"}, {"Theme", "Classic"}, {"Accent Color", "Green"},
+                    {"Theme", "OLED"}, {"Accent Color", "Blue"}, {"GUI Style", "Cards"}, {"GUI Style", "Compact"},
+                    {"Theme", "Modern"}, {"Accent Color", "Red"}, {"GUI Style", "List"}};
+            for (String[] st : steps) {
+                ctx.runOnClient(c -> setMode(cs, st[0], st[1]));
+                for (int i = 0; i < 18; i++) frame.run();
+            }
+        } finally {
+            EvadeMenu.clock = System::currentTimeMillis;
+        }
+
+        // --- clip 2: the HUD editor (drag an element, watch it snap, resize it, put it back)
+        // Recording renders one frame at a time, so hide the FPS counter (it would read ~5) and re-apply the
+        // absorption effect without particles (its blue swirls fly right past the camera between frames).
+        sp.getServer().runCommand("effect give @a absorption 120 1 true");
+        boolean fpsWasOn = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).isEnabled());
+        ctx.runOnClient(c -> { EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(false); c.particleManager.clearParticles(); });
+        ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
+        ctx.waitTicks(3);
+        faceScene.run();
+        int[] el = ctx.computeOnClient(c -> {
+            var w = c.getWindow();
+            var coords = EvadeClient.modules.get(net.evadeclient.module.hud.CoordsHud.class);
+            for (var e : EvadeClient.modules.hudElements()) if (e == coords && e.isEnabled())
+                return new int[]{EvadeClient.modules.hudElements().indexOf(e), e.x, e.y,
+                        e.resolveX(w.getScaledWidth()) + e.scaledWidth() / 2, e.resolveY(w.getScaledHeight()) + e.scaledHeight() / 2,
+                        Math.round(e.scale.getFloat() * 100)};
+            return null;
+        });
+        Runnable shot = () -> ctx.takeScreenshot("clip-hud");
+        int sx = el[3] * 2, sy = el[4] * 2;
+        in.setCursorPos(sx, sy);
+        for (int i = 0; i < 10; i++) shot.run();
+        in.holdMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        int[][] path = {{960, 540}, {1500, 300}, {sx, sy}};
+        int px = sx, py = sy;
+        for (int[] to : path) {
+            for (int i = 1; i <= 30; i++) {
+                double k = i / 30.0, e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+                in.setCursorPos(px + (to[0] - px) * e, py + (to[1] - py) * e);
+                shot.run();
+            }
+            for (int i = 0; i < 8; i++) shot.run();
+            px = to[0]; py = to[1];
+        }
+        in.releaseMouse(org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        for (int i = 0; i < 4; i++) { in.scroll(1); shot.run(); shot.run(); }
+        for (int i = 0; i < 4; i++) { in.scroll(-1); shot.run(); shot.run(); }
+        for (int i = 0; i < 10; i++) shot.run();
+        ctx.runOnClient(c -> {
+            var e = EvadeClient.modules.hudElements().get(el[0]);
+            e.x = el[1]; e.y = el[2];
+            e.scale.fromJson(new com.google.gson.JsonPrimitive(el[5] / 100.0));
+        });
+        ctx.setScreen(() -> null);
+
+        // --- clip 3: in game. Zoom in on the scene, scroll to zoom further, let go, then look around with Freelook.
+        boolean[] camWas = ctx.computeOnClient(c -> new boolean[]{
+                EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).isEnabled(),
+                EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).isEnabled()});
+        ctx.runOnClient(c -> {
+            EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).setEnabled(true);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).setEnabled(true);
+            c.particleManager.clearParticles();
+        });
+        ctx.waitTicks(2);
+        faceScene.run();
+        ctx.waitTicks(2);
+        t.set(2_000_000);
+        EvadeMenu.clock = t::get;
+        Runnable play = () -> { t.addAndGet(33); ctx.takeScreenshot("clip-play"); };
+        try {
+            for (int i = 0; i < 15; i++) play.run();
+            in.holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+            for (int i = 0; i < 30; i++) play.run();
+            in.scroll(1);
+            for (int i = 0; i < 12; i++) play.run();
+            in.scroll(1);
+            for (int i = 0; i < 24; i++) play.run();
+            in.releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+            for (int i = 0; i < 18; i++) play.run();
+            in.holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+            for (int i = 0; i < 4; i++) play.run();
+            for (int i = 0; i < 60; i++) { in.moveCursor(i < 30 ? 14 : -14, i % 30 < 15 ? -2 : 2); play.run(); }
+            in.releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+            for (int i = 0; i < 15; i++) play.run();
+        } finally {
+            EvadeMenu.clock = System::currentTimeMillis;
+        }
+        ctx.runOnClient(c -> {
+            setMode(cs, "GUI Style", "Compact");
+            EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(fpsWasOn);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).setEnabled(camWas[0]);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).setEnabled(camWas[1]);
+        });
+    }
+
     /** Profiles: each one remembers its own module state, and switching restores it. */
     private void testProfiles(ClientGameTestContext ctx) {
         boolean ok = ctx.computeOnClient(c -> {
@@ -615,14 +800,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             c.player.getItemCooldownManager().set(new ItemStack(Items.WIND_CHARGE), 200);
         });
         ctx.waitTicks(10);
-        // Hit the zombie once so TargetHUD shows it as the fight target.
-        ctx.runOnClient(c -> {
-            var z = c.world.getEntitiesByClass(net.minecraft.entity.mob.ZombieEntity.class, c.player.getBoundingBox().expand(16), e -> true).getFirst();
-            net.evadeclient.util.TargetTracker.onAttack(z);
-        });
         ctx.waitTicks(30);
         ctx.takeScreenshot("evade-hud");
 
-        check(true, "HUD screenshot taken (armor, target, cooldowns, keystrokes)");
+        check(true, "HUD screenshot taken (armor, cooldowns, keystrokes)");
     }
 }

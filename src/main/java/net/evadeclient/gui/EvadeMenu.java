@@ -69,7 +69,9 @@ public class EvadeMenu extends Screen {
     private double scroll, scrollTarget;
     private long openedAt;
     private final Map<Object, Float> anim = new HashMap<>();
-    private long lastFrame = System.nanoTime();
+    /** Milliseconds for animations. Tests swap in a fixed-step clock to record smooth clips for the website. */
+    public static java.util.function.LongSupplier clock = System::currentTimeMillis;
+    private long lastFrame = clock.getAsLong();
     private float dt;
 
     /** The module (keybind) or KeySetting waiting for a key press. */
@@ -100,7 +102,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     protected void init() {
-        openedAt = System.currentTimeMillis();
+        openedAt = clock.getAsLong();
     }
 
     private ClientSettings settings() { return EvadeClient.modules.get(ClientSettings.class); }
@@ -109,15 +111,16 @@ public class EvadeMenu extends Screen {
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        settings().applyTheme();
         if (settings().blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0140005);
+        ctx.fillGradient(0, 0, width, height, 0xB0000000, (0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF)));
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        long now = System.nanoTime();
-        dt = Math.min(0.1f, (now - lastFrame) / 1e9f);
+        long now = clock.getAsLong();
+        dt = Math.max(0f, Math.min(0.1f, (now - lastFrame) / 1000f));
         lastFrame = now;
         scroll += (scrollTarget - scroll) * (1 - Math.exp(-18 * dt));
 
@@ -132,7 +135,7 @@ public class EvadeMenu extends Screen {
         cy = headerY + 30;
         ch = wy + wh - 16 - cy;
 
-        float open = settings().animations.get() ? ease(Math.min(1, (System.currentTimeMillis() - openedAt) / 220f)) : 1;
+        float open = settings().animations.get() ? ease(Math.min(1, (clock.getAsLong() - openedAt) / 220f)) : 1;
         var m = ctx.getMatrices();
         m.pushMatrix();
         float s = 0.95f + 0.05f * open;
@@ -141,7 +144,7 @@ public class EvadeMenu extends Screen {
         m.translate(-width / 2f, -height / 2f);
 
         // window with a soft red glow
-        Theme.round(ctx, wx - 3, wy - 3, wx + ww + 3, wy + wh + 3, 0x30E11D2E);
+        Theme.round(ctx, wx - 3, wy - 3, wx + ww + 3, wy + wh + 3, Theme.alpha(Theme.RED, 0.19f));
         Theme.roundBordered(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.BORDER);
         renderSidebar(ctx, mouseX, mouseY);
         renderClose(ctx, mouseX, mouseY);
@@ -180,12 +183,12 @@ public class EvadeMenu extends Screen {
 
         net.evadeclient.util.Logo.lockup(ctx, wx + 16, wy + 15, 22);
         small(ctx, "C L I E N T", wx + 44, wy + 35, Theme.TEXT_FAINT, 0.65f);
-        ctx.fill(wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, 0xFF1C1C22);
+        ctx.fill(wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, Theme.DIVIDER);
 
         int y = wy + NAV_TOP;
         for (NavGroup g : GROUPS) {
             if (g.header != null) {
-                small(ctx, spaced(g.header), wx + 18, y + 7, 0xFF6E6E7A, 0.78f);
+                small(ctx, spaced(g.header), wx + 18, y + 7, Theme.TEXT_HEADER, 0.78f);
                 y += NAV_HEADER_H;
             }
             for (Nav n : g.items) {
@@ -197,7 +200,7 @@ public class EvadeMenu extends Screen {
         }
 
         String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
-        ctx.fill(wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, 0xFF1C1C22);
+        ctx.fill(wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, Theme.DIVIDER);
         small(ctx, user.isEmpty() ? "Player" : user, wx + 16, wy + wh - 25, Theme.TEXT_DIM, 0.85f);
         small(ctx, "Evade v" + EvadeClient.VERSION, wx + 16, wy + wh - 15, Theme.TEXT_FAINT, 0.78f);
     }
@@ -209,22 +212,22 @@ public class EvadeMenu extends Screen {
 
         // selection pill / hover highlight
         if (active) {
-            Theme.round(ctx, x1, top, x2, bot, 0xFF2C0D13);
+            Theme.round(ctx, x1, top, x2, bot, Theme.tint(0.14f));
             ctx.fill(x1, top + 3, x1 + 2, bot - 3, Theme.RED);
         } else if (t > 0.01f) {
-            Theme.round(ctx, x1, top, x2, bot, Theme.alpha(0xFF24242C, t));
+            Theme.round(ctx, x1, top, x2, bot, Theme.alpha(Theme.CONTROL_HOVER, t));
         }
 
         // rounded letter badge
         int bx = wx + 16, by = y + (NAV_ITEM_H - BADGE) / 2;
-        int badgeFill = active ? Theme.RED : Theme.lerpColor(0xFF1B1B21, 0xFF27272F, t);
+        int badgeFill = active ? Theme.RED : Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, t);
         Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill);
         if (active) Theme.round(ctx, bx, by, bx + BADGE, by + BADGE, badgeFill); // crisp on red
-        int letterColor = active ? 0xFFFFFFFF : Theme.lerpColor(0xFFB6B6C0, Theme.TEXT, t);
+        int letterColor = active ? 0xFFFFFFFF : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
         int lw = Math.round(textRenderer.getWidth(n.badge) * 0.95f);
         small(ctx, n.badge, bx + (BADGE - lw) / 2, by + 6, letterColor, 0.95f);
 
-        int textColor = active ? Theme.TEXT : Theme.lerpColor(0xFF9A9AA4, Theme.TEXT, t);
+        int textColor = active ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
         ctx.drawText(textRenderer, n.label, bx + BADGE + 9, y + (NAV_ITEM_H - 8) / 2, textColor, false);
 
         // count chip, right-aligned (category pages only, not Settings)
@@ -232,7 +235,7 @@ public class EvadeMenu extends Screen {
             String cnt = String.valueOf(modulesFor(n.page, "").size());
             int cw2 = Math.round(textRenderer.getWidth(cnt) * 0.8f) + 8;
             int chipX = x2 - 6 - cw2, chipY = y + (NAV_ITEM_H - 13) / 2;
-            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 13, active ? Theme.alpha(Theme.RED, 0.28f) : 0xFF1C1C22);
+            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 13, active ? Theme.alpha(Theme.RED, 0.28f) : Theme.DIVIDER);
             small(ctx, cnt, chipX + 4, chipY + 3, active ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.8f);
         }
     }
@@ -247,7 +250,7 @@ public class EvadeMenu extends Screen {
     private void renderClose(DrawContext ctx, int mx, int my) {
         int bx = wx + ww - 24, by = wy + 12;
         boolean hc = mx >= bx && mx < bx + 14 && my >= by && my < by + 14;
-        Theme.round(ctx, bx, by, bx + 14, by + 14, hc ? Theme.RED : 0xFF1A1A1F);
+        Theme.round(ctx, bx, by, bx + 14, by + 14, hc ? Theme.RED : Theme.CONTROL);
         ctx.drawText(textRenderer, "x", bx + 4, by + 3, Theme.TEXT, false);
     }
 
@@ -258,7 +261,7 @@ public class EvadeMenu extends Screen {
     private void renderSearch(DrawContext ctx, int mx, int my) {
         int sx = cx, sw = searchW();
         boolean hs = mx >= sx && mx < sx + sw && my >= searchY && my < searchY + 24;
-        Theme.roundBordered(ctx, sx, searchY, sx + sw, searchY + 24, 0xFF101013, searchFocused ? Theme.RED : hs ? 0xFF3A3A44 : Theme.BORDER);
+        Theme.roundBordered(ctx, sx, searchY, sx + sw, searchY + 24, Theme.INPUT, searchFocused ? Theme.RED : hs ? Theme.BORDER_HOVER : Theme.BORDER);
         // magnifier
         int gx = sx + 10, gy = searchY + 12;
         ctx.fill(gx - 3, gy - 3, gx + 2, gy - 2, Theme.TEXT_DIM);
@@ -267,7 +270,7 @@ public class EvadeMenu extends Screen {
         ctx.fill(gx + 2, gy - 2, gx + 3, gy + 2, Theme.TEXT_DIM);
         ctx.fill(gx + 3, gy + 3, gx + 6, gy + 6, Theme.TEXT_DIM);
 
-        boolean caret = searchFocused && (System.currentTimeMillis() / 500) % 2 == 0;
+        boolean caret = searchFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (search.isEmpty() && !searchFocused) {
             ctx.drawText(textRenderer, "Search modules", sx + 22, searchY + 8, Theme.TEXT_FAINT, false);
             small(ctx, "fav:   recent:", sx + 22 + textRenderer.getWidth("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
@@ -290,7 +293,7 @@ public class EvadeMenu extends Screen {
 
         // All / Enabled segmented toggle, right-aligned
         int segW = 150, segX = cx + cw - segW, segY = headerY - 3, half = segW / 2;
-        Theme.roundBordered(ctx, segX, segY, segX + segW, segY + 22, 0xFF101013, Theme.BORDER);
+        Theme.roundBordered(ctx, segX, segY, segX + segW, segY + 22, Theme.INPUT, Theme.BORDER);
         float sel = animate("seg", enabledOnly ? 1 : 0, 18);
         int knobX = segX + 2 + Math.round((half - 2) * sel);
         Theme.round(ctx, knobX, segY + 2, knobX + half - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f));
@@ -317,8 +320,8 @@ public class EvadeMenu extends Screen {
         // new-profile input + Create button
         int inW = cw - 104;
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
-        Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, 0xFF101013, profileFocused ? Theme.RED : hin ? 0xFF3A3A44 : Theme.BORDER);
-        boolean caret = profileFocused && (System.currentTimeMillis() / 500) % 2 == 0;
+        Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
+        boolean caret = profileFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (profileInput.isEmpty() && !profileFocused) {
             ctx.drawText(textRenderer, "New profile name…", cx + 8, searchY + 8, Theme.TEXT_FAINT, false);
         } else {
@@ -360,7 +363,7 @@ public class EvadeMenu extends Screen {
         float h = animate("ph:" + name, hover ? 1 : 0, 14);
         int fill = Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h);
         int border = active ? Theme.RED : Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f);
-        Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? 0xFF220A0E : fill, border);
+        Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? Theme.tint(0.09f) : fill, border);
         if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED);
 
         ctx.drawText(textRenderer, name, cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
@@ -374,13 +377,13 @@ public class EvadeMenu extends Screen {
             // Use button
             int uw = 46, uy = y + (PROFILE_H - 18) / 2;
             boolean hu = inView && mx >= right - uw && mx < right && my >= uy && my < uy + 18;
-            Theme.roundBordered(ctx, right - uw, uy, right, uy + 18, hu ? Theme.RED : 0xFF17171C, hu ? Theme.RED : Theme.BORDER);
+            Theme.roundBordered(ctx, right - uw, uy, right, uy + 18, hu ? Theme.RED : Theme.CONTROL, hu ? Theme.RED : Theme.BORDER);
             drawCentered(ctx, "Use", right - uw, right, uy + 5, Theme.TEXT);
             right -= uw + 8;
             // delete button (not when it's the last profile)
             if (total > 1) {
                 boolean hd = inView && mx >= right - 18 && mx < right && my >= uy && my < uy + 18;
-                Theme.roundBordered(ctx, right - 18, uy, right, uy + 18, hd ? 0xFF3A1014 : 0xFF17171C, hd ? Theme.RED : Theme.BORDER);
+                Theme.roundBordered(ctx, right - 18, uy, right, uy + 18, hd ? Theme.tint(0.17f) : Theme.CONTROL, hd ? Theme.RED : Theme.BORDER);
                 ctx.drawText(textRenderer, "×", right - 12, uy + 5, hd ? Theme.RED_BRIGHT : Theme.TEXT_DIM, false);
             }
         }
@@ -481,7 +484,7 @@ public class EvadeMenu extends Screen {
         if (contentH > ch) {
             int barH = Math.max(24, ch * ch / contentH);
             int barY = cy + (int) ((ch - barH) * (scroll / (contentH - ch)));
-            ctx.fill(cx + cw + 8, cy, cx + cw + 10, cy + ch, 0xFF16161A);
+            ctx.fill(cx + cw + 8, cy, cx + cw + 10, cy + ch, Theme.DIVIDER);
             Theme.round(ctx, cx + cw + 8, barY, cx + cw + 10, barY + barH, Theme.RED);
         }
     }
@@ -493,8 +496,8 @@ public class EvadeMenu extends Screen {
         float h = animate("hover:" + mod.getName(), hover ? 1 : 0, 14);
         float on = animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14);
 
-        int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), 0xFF220A0E, on * 0.55f);
-        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, 0xFF4A1016, on), Theme.RED, h * 0.7f);
+        int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), Theme.tint(0.09f), on * 0.55f);
+        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.tint(0.25f), on), Theme.RED, h * 0.7f);
         Theme.roundBordered(ctx, x, y, x + w, y + LIST_H, fill, border);
         if (on > 0.01f) Theme.round(ctx, x + 1, y + 6, x + 3, y + LIST_H - 6, Theme.alpha(Theme.RED, on));
 
@@ -510,7 +513,7 @@ public class EvadeMenu extends Screen {
         if (!mod.getSettings().isEmpty()) {
             int gy = y + (LIST_H - 16) / 2;
             boolean hg = inView && mx >= right - 16 && mx < right + 2 && my >= gy - 1 && my < gy + 17;
-            Theme.roundBordered(ctx, right - 16, gy, right + 2, gy + 16, hg ? 0xFF2A1014 : 0xFF17171C, hg ? Theme.RED : Theme.BORDER);
+            Theme.roundBordered(ctx, right - 16, gy, right + 2, gy + 16, hg ? Theme.tint(0.12f) : Theme.CONTROL, hg ? Theme.RED : Theme.BORDER);
             small(ctx, "⚙", right - 12, gy + 4, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM, 0.95f);
             right -= 24;
         }
@@ -519,7 +522,7 @@ public class EvadeMenu extends Screen {
             String k = KeySetting.keyName(mod.getKey());
             int kw = Math.max(34, textRenderer.getWidth(k) + 12);
             int ky = y + (LIST_H - 16) / 2;
-            Theme.roundBordered(ctx, right - kw, ky, right, ky + 16, 0xFF17171C, Theme.BORDER);
+            Theme.roundBordered(ctx, right - kw, ky, right, ky + 16, Theme.CONTROL, Theme.BORDER);
             drawCentered(ctx, k, right - kw, right, ky + 4, Theme.TEXT_DIM);
         }
     }
@@ -530,7 +533,7 @@ public class EvadeMenu extends Screen {
         float h = animate("hover:" + mod.getName(), hover ? 1 : 0, 14);
         float on = animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14);
 
-        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, 0xFF5A1018, on), Theme.RED, h * 0.8f);
+        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.tint(0.32f), on), Theme.RED, h * 0.8f);
         Theme.roundBordered(ctx, x, y, x + w, y + CARD_H, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), border);
         if (on > 0.01f) ctx.fill(x + 1, y + 3, x + 2, y + CARD_H - 3, Theme.alpha(Theme.RED, on));
 
@@ -538,7 +541,7 @@ public class EvadeMenu extends Screen {
         if (mod.getKey() != GLFW.GLFW_KEY_UNKNOWN) {
             String k = KeySetting.keyName(mod.getKey());
             int kw = Math.round(textRenderer.getWidth(k) * 0.65f);
-            Theme.round(ctx, x + w - kw - 12, y + 5, x + w - 5, y + 14, 0xFF22222A);
+            Theme.round(ctx, x + w - kw - 12, y + 5, x + w - 5, y + 14, Theme.CONTROL_HOVER);
             small(ctx, k, x + w - kw - 9, y + 7, Theme.TEXT_DIM, 0.65f);
         }
         ctx.drawText(textRenderer, textRenderer.trimToWidth(mod.getName(), w - 14), x + 8, y + 16, Theme.TEXT, false);
@@ -548,7 +551,7 @@ public class EvadeMenu extends Screen {
         if (!mod.getSettings().isEmpty()) {
             int gx = x + w - 16, gy = y + CARD_H - 16;
             boolean hg = inView && mx >= gx - 3 && mx < gx + 12 && my >= gy - 2 && my < gy + 12;
-            Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : 0xFF202027);
+            Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : Theme.CONTROL);
             small(ctx, "⚙", gx, gy + 1, Theme.TEXT, 0.95f);
         }
     }
@@ -559,7 +562,7 @@ public class EvadeMenu extends Screen {
         float hv = animate("hover:" + mod.getName(), hover ? 1 : 0, 14);
         float on = animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14);
 
-        int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, hv), 0xFF24090E, on * 0.7f);
+        int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, hv), Theme.tint(0.1f), on * 0.7f);
         int border = Theme.lerpColor(Theme.BORDER, Theme.RED, hv * 0.7f);
         Theme.roundBordered(ctx, x, y, x + w, y + COMPACT_H, fill, border);
         if (on > 0.01f) ctx.fill(x + 1, y + 2, x + 2, y + COMPACT_H - 2, Theme.alpha(Theme.RED, on));
@@ -589,7 +592,7 @@ public class EvadeMenu extends Screen {
         // header: Back + title + description + master toggle
         if (selected != null) {
             boolean hb = mx >= cx && mx < cx + 52 && my >= searchY && my < searchY + 18;
-            Theme.roundBordered(ctx, cx, searchY, cx + 52, searchY + 18, hb ? Theme.RED : 0xFF17171C, hb ? Theme.RED : Theme.BORDER);
+            Theme.roundBordered(ctx, cx, searchY, cx + 52, searchY + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
             ctx.drawText(tr, "‹ Back", cx + 8, searchY + 5, Theme.TEXT, false);
         }
         var m = ctx.getMatrices();
@@ -611,7 +614,7 @@ public class EvadeMenu extends Screen {
         int y = top - (int) Math.round(scroll);
         for (Object row : rows) {
             boolean hover = mx >= cx && mx < cx + cw && my >= y && my < y + ROW_H - 2 && my >= top;
-            Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, hover ? 0xFF18181D : 0xFF121216);
+            Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, hover ? Theme.ROW_HOVER : Theme.ROW);
             String label = row instanceof Setting<?> st ? st.getName() : "Keybind";
             ctx.drawText(tr, label, cx + 10, y + 7, Theme.TEXT, false);
             renderControl(ctx, row, mod, cx + cw - 10, y);
@@ -629,7 +632,7 @@ public class EvadeMenu extends Screen {
             boolean l = isKeybind ? listening == mod : listening == row;
             String text = l ? "Press a key..." : isKeybind ? KeySetting.keyName(mod.getKey()) : ((KeySetting) row).display();
             int w = Math.max(50, tr.getWidth(text) + 14);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, 0xFF1A1A20, l ? Theme.RED : Theme.BORDER);
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, l ? Theme.RED : Theme.BORDER);
             ctx.drawText(tr, text, right - w + (w - tr.getWidth(text)) / 2, midY - 4, l ? Theme.RED_BRIGHT : Theme.TEXT, false);
         } else if (row instanceof BooleanSetting b) {
             Theme.toggle(ctx, right - 20, midY - 5, animate(b, b.get() ? 1 : 0, 14));
@@ -637,7 +640,7 @@ public class EvadeMenu extends Screen {
             int sx = right - SLIDER_W;
             float pct = (float) ((n.get() - n.getMin()) / (n.getMax() - n.getMin()));
             float shown = animate(n, pct, 20);
-            Theme.round(ctx, sx, midY - 2, sx + SLIDER_W, midY + 2, 0xFF2A2A31);
+            Theme.round(ctx, sx, midY - 2, sx + SLIDER_W, midY + 2, Theme.TRACK);
             Theme.round(ctx, sx, midY - 2, sx + Math.max(4, Math.round(SLIDER_W * shown)), midY + 2, Theme.RED);
             int kx = sx + Math.round(SLIDER_W * shown);
             Theme.round(ctx, kx - 4, midY - 4, kx + 4, midY + 4, 0xFFFFFFFF);
@@ -646,14 +649,14 @@ public class EvadeMenu extends Screen {
         } else if (row instanceof ModeSetting md) {
             String v = md.get();
             int w = Math.max(70, tr.getWidth(v) + 30);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, 0xFF1A1A20, Theme.BORDER);
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, Theme.BORDER);
             ctx.drawText(tr, "‹", right - w + 5, midY - 4, Theme.RED, false);
             ctx.drawText(tr, "›", right - 9, midY - 4, Theme.RED, false);
             ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
         } else if (row instanceof net.evadeclient.setting.StringSetting st) {
             String v = st.get();
             int w = Math.max(60, tr.getWidth(v) + 16);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, 0xFF1A1A20, Theme.BORDER);
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, Theme.BORDER);
             ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
             int hw = Math.round(tr.getWidth(st.hint()) * 0.75f);
             small(ctx, st.hint(), right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);

@@ -121,19 +121,27 @@ if (grid) {
 
   fetch("/assets/mods.json").then(r => r.json()).then(mods => {
     MODS = mods;
-    grid.innerHTML = mods.map(m => {
-      const c = m.slug, n = m.settings.length;
-      return `<button class="card mod" data-m="${esc(m.name)}" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
+    // The cards are normally already in the page (built from the client source); build them if not.
+    if (!one(".mod", grid)) grid.innerHTML = mods.map(m => {
+      const n = m.settings.length;
+      return `<article class="card mod" data-m="${esc(m.name)}" data-c="${m.slug}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
         <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span></div>
         <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>
-        <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></button>`;
+        <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></article>`;
     }).join("");
+    // Make the cards keyboard-friendly.
+    all(".mod", grid).forEach(card => { card.tabIndex = 0; card.setAttribute("role", "button"); });
     route(false);
-  }).catch(() => { grid.innerHTML = "<p>Couldn't load the list of mods. Refresh to try again.</p>"; });
+  }).catch(() => {});
 
   grid.addEventListener("click", e => {
-    const card = e.target.closest(".mod"); if (!card) return;
+    if (e.target.closest(".mod-sets")) return;
+    const card = e.target.closest(".mod"); if (!card || !MODS.length) return;
     openDetail(card.dataset.m, true);
+  });
+  grid.addEventListener("keydown", e => {
+    const card = e.target.closest(".mod");
+    if (card && (e.key === "Enter" || e.key === " ") && MODS.length) { e.preventDefault(); openDetail(card.dataset.m, true); }
   });
   addEventListener("popstate", () => route(false));
   one("#tabs").addEventListener("click", e => {
@@ -213,9 +221,42 @@ if (os === "mac" || os === "linux") {
   setText(".js-primary-label", os === "mac" ? "Download for macOS" : "Download for Linux");
   setText(".js-primary-meta", "One-click installer · needs Java 17+");
 } else if (os === "phone") {
-  setText(".js-primary-meta", "Evade runs on a computer · Windows, macOS, Linux");
+  setText(".js-primary-meta", "Evade runs on a computer: Windows, macOS or Linux");
+  all(".js-meta-more").forEach(e => e.remove());
 }
 all(".os[data-os]").forEach(c => c.classList.toggle("yours", c.dataset.os === os));
+
+// ---------- hero player: the three window dots switch between recordings; each plays through, then the next
+const stageVid = one("#stageVid");
+if (stageVid) {
+  const dots = all(".stage-dot"), label = one("#stageLabel"), bar = one("#stageProgress");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let cur = 0, raf = 0;
+  const tick = () => {
+    if (stageVid.duration) bar.style.transform = `scaleX(${stageVid.currentTime / stageVid.duration})`;
+    raf = requestAnimationFrame(tick);
+  };
+  const show = (i, play) => {
+    cur = (i + dots.length) % dots.length;
+    const d = dots[cur];
+    dots.forEach(x => { const on = x === d; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
+    label.textContent = d.dataset.label;
+    stageVid.poster = d.dataset.poster;
+    stageVid.src = d.dataset.src;
+    bar.style.transform = "scaleX(0)";
+    if (play) stageVid.play().catch(() => {});
+  };
+  if (still) { stageVid.removeAttribute("autoplay"); stageVid.pause(); }
+  dots.forEach((d, i) => d.addEventListener("click", () => show(i, true)));
+  stageVid.addEventListener("ended", () => show(cur + 1, true));
+  stageVid.addEventListener("play", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); });
+  stageVid.addEventListener("pause", () => cancelAnimationFrame(raf));
+  // Don't download or play clips while the hero is off screen.
+  new IntersectionObserver(([e]) => {
+    if (still) return;
+    if (e.isIntersecting) stageVid.play().catch(() => {}); else stageVid.pause();
+  }).observe(stageVid);
+}
 
 // ---------- download toast
 const toast = one("#toast"), toastText = one("#toastText");

@@ -17,4 +17,16 @@ public abstract class EntityRenderManagerMixin {
         Performance p = Performance.active();
         if (p != null && p.cullEntity(entity, x, y, z)) cir.setReturnValue(false);
     }
+
+    /** Performance "Hide Fire On Mobs": burning mobs skip their fire layer (players still show theirs). */
+    @Inject(method = "render", at = @At("HEAD"))
+    private void evade$mobFire(net.minecraft.client.render.entity.state.EntityRenderState state,
+                               net.minecraft.client.render.state.CameraRenderState camera, double x, double y, double z,
+                               net.minecraft.client.util.math.MatrixStack matrices,
+                               net.minecraft.client.render.command.OrderedRenderCommandQueue queue,
+                               org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (!state.onFire || state instanceof net.minecraft.client.render.entity.state.PlayerEntityRenderState) return;
+        Performance p = Performance.active();
+        if (p != null && p.hideMobFire()) state.onFire = false;
+    }
 }

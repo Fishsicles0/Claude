@@ -9,12 +9,9 @@ import net.evadeclient.gui.EvadeMenu;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.module.client.CooldownHud;
 import net.evadeclient.module.client.HudModule;
-import net.evadeclient.module.client.TargetHud;
-import net.evadeclient.module.player.AntiAFK;
 import net.evadeclient.module.visuals.*;
 import net.evadeclient.module.misc.*;
 import net.evadeclient.render.RenderContext;
-import net.evadeclient.util.TargetTracker;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.Entity;
@@ -36,7 +33,6 @@ public class ModuleManager {
         register(new NoRender());
         register(new BetterTooltips());
         register(new CameraClip());
-        register(new Breadcrumbs());
         register(new Waypoints());
         register(new Fullbright());
         register(new DamageTint());
@@ -66,7 +62,6 @@ public class ModuleManager {
         register(new FovChanger());
         register(new Performance());
         // Chat, interface & convenience
-        register(new AntiAFK());
         register(new AutoReconnect());
         register(new BetterChat());
         register(new AutoGG());
@@ -79,7 +74,6 @@ public class ModuleManager {
         // HUD
         register(new HudModule());
         register(new ArmorHud());
-        register(new TargetHud());
         register(new CooldownHud());
         register(new KeystrokesHud());
         register(new CpsHud());
@@ -98,7 +92,6 @@ public class ModuleManager {
         register(new StopwatchHud());
         register(new SaturationHud());
         register(new ItemCounterHud());
-        register(new PvpInfoHud());
         register(new PackDisplayHud());
         register(new FrameTimeHud());
         // Client
@@ -137,7 +130,6 @@ public class ModuleManager {
         MinecraftClient mc = MinecraftClient.getInstance();
         pollKeybinds(mc);
         if (mc.player == null || mc.world == null) return;
-        TargetTracker.tick();
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
@@ -162,7 +154,6 @@ public class ModuleManager {
     }
 
     public void onAttack(Entity target) {
-        TargetTracker.onAttack(target);
         for (Module m : modules) {
             if (m.isEnabled()) m.onAttack(target);
         }

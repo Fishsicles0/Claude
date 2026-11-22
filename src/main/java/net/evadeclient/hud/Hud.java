@@ -99,7 +99,7 @@ public final class Hud {
     /** Red that pulses between bright and deep red down the list. */
     private static int redWave(int index) {
         double t = (Math.sin((System.currentTimeMillis() / 600.0) - index * 0.45) + 1) / 2;
-        return Theme.lerpColor(0xFF8E0F1C, 0xFFFF3B4C, (float) t);
+        return Theme.lerpColor(Theme.lerpColor(Theme.RED, 0xFF000000, 0.37f), Theme.RED_BRIGHT, (float) t);
     }
 
     private static String label(Module m) {

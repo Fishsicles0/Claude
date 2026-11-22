@@ -15,7 +15,7 @@ nav: home
         </a>
         <a class="btn btn-ghost btn-lg" href="/features">Browse all {{TOTAL}} mods</a>
       </div>
-      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></p>
+      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span><span class="js-meta-more"> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></span></p>
       <div class="trust rv d3">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Free, no account</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>SHA-256 for every file</span>
@@ -24,10 +24,18 @@ nav: home
     </div>
     <div class="stage rv d2">
       <div class="stage-frame">
-        <div class="stage-bar"><i></i><i></i><i></i><span>Evade Client &middot; Right Shift</span></div>
-        <img src="/assets/menu-hero.webp" alt="The Evade Client menu: categories on the left and a grid of mod cards" width="1420" height="799" fetchpriority="high">
+        <div class="stage-bar" role="tablist" aria-label="Evade in action">
+          <button class="stage-dot on" role="tab" aria-selected="true" aria-label="The menu" data-label="The menu" data-src="/assets/menu-clip.mp4" data-poster="/assets/menu-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="HUD editor" data-label="HUD editor" data-src="/assets/hud-clip.mp4" data-poster="/assets/hud-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="Zoom and Freelook" data-label="Zoom &amp; Freelook" data-src="/assets/play-clip.mp4" data-poster="/assets/play-clip.webp"></button>
+          <span class="stage-label" id="stageLabel">The menu</span>
+        </div>
+        <div class="stage-screen">
+          <video id="stageVid" src="/assets/menu-clip.mp4" poster="/assets/menu-clip.webp" muted playsinline autoplay preload="auto" width="1280" height="720" aria-label="Recording of Evade in game"></video>
+          <i class="stage-progress" id="stageProgress"></i>
+        </div>
       </div>
-      <img class="float float-a" src="/assets/crop-target.webp" alt="" width="640" height="252" loading="lazy">
+      <img class="float float-a" src="/assets/crop-keys.webp" alt="" width="432" height="516" loading="lazy">
       <img class="float float-b" src="/assets/crop-cooldowns.webp" alt="" width="528" height="340" loading="lazy">
     </div>
   </div>
@@ -52,8 +60,8 @@ nav: home
     <a class="card tile big rv" href="/features#hud">
       <div class="num"><em>{{HUD}}</em></div>
       <h3>HUD</h3>
-      <p>Everything you want on screen: TargetHUD, Cooldowns, ArmorHUD, Keystrokes, FPS/CPS/Ping, Coordinates, Stopwatch and more. Drag, snap and resize each one in the HUD editor.</p>
-      <div class="chips"><span>TargetHUD</span><span>Cooldowns</span><span>ArmorHUD</span><span>Keystrokes</span><span>FPS</span><span>CPS</span><span>Coordinates</span><span>Stopwatch</span></div>
+      <p>Everything you want on screen: Cooldowns, ArmorHUD, Keystrokes, FPS/CPS/Ping, Coordinates, Stopwatch and more. Drag, snap and resize each one in the HUD editor.</p>
+      <div class="chips"><span>Cooldowns</span><span>ArmorHUD</span><span>Keystrokes</span><span>FPS</span><span>CPS</span><span>Coordinates</span><span>Stopwatch</span></div>
       <span class="go">See HUD elements</span>
     </a>
     <a class="card tile rv d1" href="/features#mods">
@@ -62,11 +70,11 @@ nav: home
     </a>
     <a class="card tile rv d2" href="/features#visuals">
       <div class="num">{{VISUALS}}</div><h3>Visuals</h3>
-      <div class="chips"><span>Waypoints</span><span>Better Tooltips</span><span>NoFog</span><span>Breadcrumbs</span></div>
+      <div class="chips"><span>Waypoints</span><span>Better Tooltips</span><span>NoFog</span><span>Enchant Glint</span></div>
     </a>
     <a class="card tile rv d1" href="/features#server">
       <div class="num">{{SERVER}}</div><h3>Server-facing</h3>
-      <div class="chips"><span>AutoReconnect</span><span>AntiAFK</span><span>AutoGG</span></div>
+      <div class="chips"><span>AutoReconnect</span><span>AutoGG</span></div>
     </a>
     <a class="card tile rv d2" href="/features#misc">
       <div class="num">{{MISC}}</div><h3>Misc</h3>
@@ -83,16 +91,16 @@ nav: home
   </div>
   <div class="shots">
     <a class="card shot-card w3 rv" href="/showcase">
-      <div class="img"><img src="/assets/menu.webp" alt="The Evade menu" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">Menu</span><h3>Fast to use, easy to read</h3><p>Categories down the side, every mod one click away, and a search that starts as soon as you type.</p></div>
+      <div class="img"><img src="/assets/menu-settings.webp" alt="A mod's settings in the Evade menu: sliders, switches and a keybind" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu</span><h3>Every setting, one click away</h3><p>Categories down the side, a search that starts as soon as you type, and sliders, modes, colours and keybinds for every mod.</p></div>
     </a>
     <a class="card shot-card w3 rv d1" href="/showcase">
-      <div class="img"><img src="/assets/gui-list.webp" alt="The Evade module list" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">Menu styles</span><h3>Three GUI styles</h3><p>A spacious list, dense cards, or a compact view &mdash; with an All/Enabled filter. Switch any time under Settings.</p></div>
+      <div class="img"><img src="/assets/gui-styles.webp" alt="The three Evade GUI styles stacked: List, Cards and Compact" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu styles</span><h3>Three GUI styles, four themes</h3><p>A spacious list, a grid of cards or a compact view, in Modern, Midnight, OLED or Classic with your choice of accent colour. Switch any time under Settings.</p></div>
     </a>
     <a class="card shot-card w2 rv" href="/showcase">
       <div class="img"><img src="/assets/hud.webp" alt="The in-game HUD" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">HUD</span><h3>Read a fight at a glance</h3><p>Cooldowns, target info, armor and keystrokes.</p></div>
+      <div class="txt"><span class="tag">HUD</span><h3>Read a fight at a glance</h3><p>Cooldowns, armor and keystrokes.</p></div>
     </a>
     <a class="card shot-card w2 rv d1" href="/showcase">
       <div class="img"><img src="/assets/hud-editor.webp" alt="The HUD editor" width="1920" height="1080" loading="lazy"></div>
@@ -121,7 +129,10 @@ nav: home
       <div class="txt"><span class="tag">Editor</span><h3>Edit and share in one place</h3><p>Slow-mo, captions, facecam, vertical for Shorts, and share links with no watermark.</p></div>
     </a>
   </div>
-  <p class="note rv"><a href="/clips">See everything Evade Clips does</a> &middot; <a href="https://clips.evadeclient.com">clips.evadeclient.com</a></p>
+  <div class="cta-row rv">
+    <a class="btn btn-red" href="/clips">Explore Evade Clips <span aria-hidden="true">&rarr;</span></a>
+    <a class="btn btn-ghost" href="https://clips.evadeclient.com">Open clips.evadeclient.com <span aria-hidden="true">&#8599;</span></a>
+  </div>
 </section>
 
 <section class="wrap" id="install">

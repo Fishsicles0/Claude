@@ -25,6 +25,13 @@ public class Performance extends Module {
     public final NumberSetting blockEntityDistance = add(new NumberSetting("Block Entity Distance", 40, 16, 64, 4));
     public final BooleanSetting singleItems = add(new BooleanSetting("Render One Item Per Stack", true));
     public final NumberSetting particlePercent = add(new NumberSetting("Particles Kept %", 60, 10, 100, 10));
+    // Effects: the particles and extras that cost frames without telling you anything.
+    public final NumberSetting particleDistance = add(new NumberSetting("Particle Distance", 32, 8, 96, 4));
+    public final BooleanSetting ambientParticles = add(new BooleanSetting("Hide Ambient Particles", true));
+    public final BooleanSetting lessDust = add(new BooleanSetting("Less Block Break Dust", true));
+    public final BooleanSetting rainSplashes = add(new BooleanSetting("Hide Rain Splashes", true));
+    public final BooleanSetting mobFire = add(new BooleanSetting("Hide Fire On Mobs", true));
+    public final BooleanSetting weather = add(new BooleanSetting("Hide Rain & Snow", false));
     public final BooleanSetting unfocusedCap = add(new BooleanSetting("Low FPS When Tabbed Out", true));
     public final NumberSetting unfocusedFps = add(new NumberSetting("Tabbed Out FPS", 20, 5, 60, 5));
     public final BooleanSetting afkCap = add(new BooleanSetting("Low FPS When AFK", true));
@@ -53,6 +60,7 @@ public class Performance extends Module {
     private CloudRenderMode savedClouds;
     private Boolean savedShadows;
     private ParticlesMode savedParticles;
+    private Integer savedWeatherRadius;
 
     /** Entities skipped since the last read (for the HUD/tests). */
     private int culled;
@@ -92,6 +100,45 @@ public class Performance extends Module {
         double keep = particlePercent.get();
         return keep < 100 && ThreadLocalRandom.current().nextDouble(100) >= keep;
     }
+
+    /** Ambient particles: campfire and other smoke, ash, spores, falling leaves and drips. Pure decoration, and plentiful. */
+    private static final java.util.Set<net.minecraft.particle.ParticleType<?>> AMBIENT = java.util.Set.of(
+            net.minecraft.particle.ParticleTypes.CAMPFIRE_COSY_SMOKE, net.minecraft.particle.ParticleTypes.CAMPFIRE_SIGNAL_SMOKE,
+            net.minecraft.particle.ParticleTypes.LARGE_SMOKE, net.minecraft.particle.ParticleTypes.ASH, net.minecraft.particle.ParticleTypes.WHITE_ASH,
+            net.minecraft.particle.ParticleTypes.SPORE_BLOSSOM_AIR, net.minecraft.particle.ParticleTypes.FALLING_SPORE_BLOSSOM,
+            net.minecraft.particle.ParticleTypes.MYCELIUM, net.minecraft.particle.ParticleTypes.CRIMSON_SPORE, net.minecraft.particle.ParticleTypes.WARPED_SPORE,
+            net.minecraft.particle.ParticleTypes.CHERRY_LEAVES, net.minecraft.particle.ParticleTypes.PALE_OAK_LEAVES, net.minecraft.particle.ParticleTypes.TINTED_LEAVES,
+            net.minecraft.particle.ParticleTypes.DRIPPING_WATER, net.minecraft.particle.ParticleTypes.FALLING_WATER,
+            net.minecraft.particle.ParticleTypes.DRIPPING_LAVA, net.minecraft.particle.ParticleTypes.FALLING_LAVA, net.minecraft.particle.ParticleTypes.LANDING_LAVA,
+            net.minecraft.particle.ParticleTypes.DRIPPING_DRIPSTONE_WATER, net.minecraft.particle.ParticleTypes.FALLING_DRIPSTONE_WATER,
+            net.minecraft.particle.ParticleTypes.DRIPPING_DRIPSTONE_LAVA, net.minecraft.particle.ParticleTypes.FALLING_DRIPSTONE_LAVA,
+            net.minecraft.particle.ParticleTypes.UNDERWATER, net.minecraft.particle.ParticleTypes.FIREFLY);
+
+    /** Should a particle of this type at this spot be skipped? Checks the type filters, distance, then the budget. */
+    public boolean skipParticle(net.minecraft.particle.ParticleEffect effect, double x, double y, double z) {
+        var type = effect.getType();
+        if (ambientParticles.get() && AMBIENT.contains(type)) return true;
+        if (rainSplashes.get() && (type == net.minecraft.particle.ParticleTypes.RAIN || type == net.minecraft.particle.ParticleTypes.SPLASH)) return true;
+        return tooFar(x, y, z) || dropParticle();
+    }
+
+    /** For particles created directly (block-break dust and the like). Dust is cut to a quarter. */
+    public boolean skipParticle(net.minecraft.client.particle.Particle p) {
+        var box = p.getBoundingBox();
+        double x = (box.minX + box.maxX) / 2, y = (box.minY + box.maxY) / 2, z = (box.minZ + box.maxZ) / 2;
+        if (tooFar(x, y, z)) return true;
+        return lessDust.get() && p instanceof net.minecraft.client.particle.BlockDustParticle && ThreadLocalRandom.current().nextInt(4) != 0;
+    }
+
+    private boolean tooFar(double x, double y, double z) {
+        if (mc.gameRenderer == null) return false;
+        var cam = mc.gameRenderer.getCamera().getCameraPos();
+        double d = particleDistance.get(), dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+        return dx * dx + dy * dy + dz * dz > d * d;
+    }
+
+    public boolean hideMobFire() { return mobFire.get(); }
+    public boolean hideWeather() { return weather.get(); }
 
     // ---- Low-End PC Mode: the video settings that cost the most on weak hardware, restored exactly afterwards.
     private final java.util.List<Runnable> lowEndRestore = new java.util.ArrayList<>();
@@ -134,6 +181,8 @@ public class Performance extends Module {
         savedClouds = o.getCloudRenderMode().getValue();
         savedShadows = o.getEntityShadows().getValue();
         savedParticles = o.getParticles().getValue();
+        savedWeatherRadius = o.getWeatherRadius().getValue();
+        if (savedWeatherRadius > 5) o.getWeatherRadius().setValue(5); // the same as the game's own Fast preset
         o.getCloudRenderMode().setValue(CloudRenderMode.OFF);
         o.getEntityShadows().setValue(false);
         if (savedParticles == ParticlesMode.ALL) o.getParticles().setValue(ParticlesMode.DECREASED);
@@ -147,6 +196,8 @@ public class Performance extends Module {
         if (savedClouds != null) o.getCloudRenderMode().setValue(savedClouds);
         if (savedShadows != null) o.getEntityShadows().setValue(savedShadows);
         if (savedParticles != null) o.getParticles().setValue(savedParticles);
+        if (savedWeatherRadius != null) o.getWeatherRadius().setValue(savedWeatherRadius);
+        savedWeatherRadius = null;
         savedClouds = null; savedShadows = null; savedParticles = null;
     }
 }

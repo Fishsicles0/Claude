@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "1.14.0";
+    public static final String VERSION = "1.16.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
@@ -42,6 +42,7 @@ public class EvadeClient implements ClientModInitializer {
         profiles = new net.evadeclient.config.ProfileManager(config);
         config.profiles = profiles;
         profiles.init();
+        modules.get(net.evadeclient.module.client.ClientSettings.class).applyTheme();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> { ticks++; modules.onTick(); });
         HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));

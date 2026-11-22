@@ -21,7 +21,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.14.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.16.0">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -41,7 +42,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.14.0</span>
+      <span class="nav-ver">v1.16.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -68,197 +69,56 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.16.0">
+      <div class="rel-head"><h2>v1.16.0</h2><span class="pill-sm">Latest</span><time datetime="2026-11-22">22 Nov 2026</time></div>
+      <p class="rel-sum">Fewer particles, less fire, more FPS.</p>
+      <ul>
+        <li>New <b>Effects</b> settings in Performance, on by default: a 32-block <b>particle distance</b>, <b>hidden ambient particles</b> (campfire smoke, ash, spores, falling leaves, drips), <b>a quarter of the block-break dust</b>, <b>no rain splashes</b> and <b>no fire layer on burning mobs</b>.</li>
+        <li><b>Hide Rain &amp; Snow</b> (off by default) skips drawing weather altogether.</li>
+        <li>Lighter Video Settings now also shortens the weather radius, like the game's own Fast preset.</li>
+        <li>Particles that were created directly, like block-break dust, now count towards Performance's limits too.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v1.15.0">
+      <div class="rel-head"><h2>v1.15.0</h2><time datetime="2026-11-22">22 Nov 2026</time></div>
+      <p class="rel-sum">Themes and accent colours, and a clearer website.</p>
+      <ul>
+        <li><b>Themes:</b> choose Modern, Midnight, OLED or Classic in Settings. Classic brings back vanilla-style grey with square corners.</li>
+        <li><b>Accent colours:</b> Red, Blue, Purple, Pink, Orange, Gold, Green or Cyan, across the menu, the HUD and the HUD editor.</li>
+        <li>Themes switch instantly and are saved with each profile.</li>
+        <li>Website: a <a href="/privacy">privacy policy</a>; recordings of the menu and HUD editor; all three GUI styles side by side on the <a href="/showcase">showcase</a>; the mod list now loads without JavaScript; and real release dates in this changelog.</li>
+        <li>Evade icon records are now deleted after 7 days without use, checked every hour.</li>
+        <li><b>Removed</b> Anti-AFK, Breadcrumbs, TargetHUD and PvP Info. They gave an edge some servers don't allow, and Evade sticks to quality of life.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.14.0">
-      <div class="rel-head"><h2>v1.14.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
-      <p class="rel-sum">Evade icons in the tab list.</p>
+      <div class="rel-head"><h2>v1.6 &ndash; v1.14</h2><time datetime="2026-11-22">22 Nov 2026</time></div>
+      <p class="rel-sum">Evade Clips, voice chat, a benchmarked FPS boost and Evade icons.</p>
       <ul>
-        <li>Players using Evade now get the Evade logo in front of their name in the tab list, so you can see who else is on Evade. It's free for everyone.</li>
-        <li>Icons are verified: Evade confirms your account through Mojang's own sign-in check, the same one servers use, so nobody can fake an icon for someone else. Your password and login token never reach Evade.</li>
-        <li>Icons are cached for five minutes, so the tab list stays fast.</li>
-        <li>Don't want to show it? Switch off <b>Show That I Use Evade</b> under <b>Evade Icons</b> (Misc) and your icon is taken down straight away. <b>Show Icons</b> hides everyone else's.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.13.1">
-      <div class="rel-head"><h2>v1.13.1</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">The Evade Texture Pack has been retired.</p>
-      <ul>
-        <li>The optional Evade Texture Pack is no longer offered. Evade's look lives in the client itself, and the low-fire and pumpkin-blur tweaks the pack did are built in as <b>Pack Tweaks</b>.</li>
-        <li>If you installed the pack, it keeps working; you can remove it under <b>Options &rsaquo; Resource Packs</b>.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.13.0">
-      <div class="rel-head"><h2>v1.13.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">A lighter HUD and a Low-End PC Mode.</p>
-      <ul>
-        <li><b>Lighter HUD:</b> text elements (FPS, coordinates, clock and the rest) now rebuild 20 times a second instead of every frame, and the module list is sorted once per tick. Measured back to back: 15&ndash;33% less time spent drawing Evade's HUD.</li>
-        <li>The <b>Frame Time Graph</b> now draws its bars as one image instead of 120 separate bars &mdash; about 4&times; cheaper (about 200 &rarr; 50 &micro;s per frame).</li>
-        <li><b>Low-End PC Mode</b> (in Performance): solid leaves, smooth lighting off, no chunk fade-in, biome blend off and a shorter entity distance, all restored exactly when you switch it off.</li>
-        <li>Disabled HUD elements and mods still cost nothing: they're skipped entirely.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.12.0">
-      <div class="rel-head"><h2>v1.12.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Evade Clips: record, edit and share your plays, installed with the client.</p>
-      <ul>
-        <li><b>Evade Clips</b> &mdash; a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor. The installer can now set it up alongside the client.</li>
-        <li>The <b>Clips</b> mod sends clips to Evade Clips when it's installed (with sound, GPU encoding and the editor), and still records on its own when it isn't. It also clips automatically on kills (multi-kills become one clip), totem pops, deaths, wins and advancements.</li>
-        <li>Evade Clips starts with Minecraft, so instant replay is ready when you play. <span class="mono">.clips</span> opens it and <span class="mono">.clips last</span> opens your newest clip in the editor.</li>
-        <li>Every event drops a named marker (&ldquo;Kill Steve&rdquo;, &ldquo;Totem pop&rdquo;) on your recording's timeline.</li>
-        <li>Share links that play inside Discord and a private phone gallery, from <a href="https://clips.evadeclient.com">clips.evadeclient.com</a>.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.11.0">
-      <div class="rel-head"><h2>v1.11.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">A bigger, benchmarked FPS stack, and low FPS when you're AFK.</p>
-      <ul>
-        <li><b>Evade Installer 1.4</b> adds <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a> (lighter networking), <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> (client micro-optimisations) and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a> (extra video toggles for low-end PCs), plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a snappier server list and instant world quitting.</li>
-        <li><b>Low FPS When AFK</b> (Performance, on by default): after 60 seconds without input the game idles at 15 FPS to save power and heat, and snaps back the instant you move.</li>
-        <li>Every mod was benchmarked with Evade before shipping. With everything on, our busy test scene runs at about 32&ndash;34 FPS against 21&ndash;25 for Evade alone. We tried and left out mods that made it worse: one lighting engine added stutter when loading chunks, one chunk mod needs a newer Java than Minecraft ships, and one clashed with Lithium.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.10.0">
-      <div class="rel-head"><h2>v1.10.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">MoreCulling, and a frame-time graph that shows real smoothness.</p>
-      <ul>
-        <li><b>Frame Time Graph</b> (HUD): a live bar for every frame, colour-coded against a 60 FPS budget, with your average FPS, <b>1% low</b> and worst frame. Stutters show up as red spikes.</li>
-        <li><b>Evade Installer 1.3</b> adds <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> to the FPS mods (it skips drawing block faces you can't see), and fetches any library a mod needs automatically &mdash; here, Cloth Config.</li>
-        <li>The installer now remembers exactly which files it added, so reinstalling or switching options off removes only those and never touches mods you added yourself.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.9.0">
-      <div class="rel-head"><h2>v1.9.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Twice the FPS in busy scenes.</p>
-      <ul>
-        <li><b>Evade Installer 1.2</b> adds the best-known performance mods &mdash; <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a> and <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a> &mdash; straight from Modrinth, checked against Modrinth's checksums and tested with Evade. On by default; switch off <b>FPS mods</b> to skip them.</li>
-        <li>Smoother frame times: the installer now sets low-pause memory settings (fixed-size heap, shorter garbage-collection pauses).</li>
-        <li>Evade's own <b>Performance</b> mod is now <b>on by default</b> and shows which FPS mods are installed.</li>
-        <li>Measured in our busy test scene (900 armoured stands): <b>18 FPS &rarr; 36 FPS</b> with everything on. Results vary by PC and scene.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.8.1">
-      <div class="rel-head"><h2>v1.8.1</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">One voice chat: Simple Voice Chat.</p>
-      <ul>
-        <li>Evade's own voice chat is gone; voice is now handled entirely by Simple Voice Chat, which works on far more servers. Nothing changes if you already use it.</li>
-        <li><b>Voice Chat</b> in the menu (and <span class="mono">.voice</span>) shows whether the server you're on supports voice and opens its menu.</li>
-        <li>Evade is a lighter download again and is back to being client-only.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.8.0">
-      <div class="rel-head"><h2>v1.8.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Voice chat on every server that runs Simple Voice Chat.</p>
-      <ul>
-        <li>The <b>Evade Installer 1.1</b> can add <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax, downloaded straight from Modrinth and checked against Modrinth's checksum. It's on by default; switch off <b>Voice chat</b> to skip it.</li>
-        <li>Evade now <b>picks the voice engine per server</b>: Simple Voice Chat wherever the server runs it, Evade voice where only Evade is installed. Only one ever uses your microphone.</li>
-        <li>The Voice Chat settings show the active <b>Voice Engine</b>; click it (or type <span class="mono">.voice</span>) to open Simple Voice Chat's menu.</li>
-        <li>Evade voice uses Simple Voice Chat's push-to-talk key when it's installed, so <span class="kbd">V</span> stays its menu key.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.7.0">
-      <div class="rel-head"><h2>v1.7.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Voice Chat: talk to the Evade players around you.</p>
-      <ul>
-        <li><b>Proximity voice</b> &mdash; hold <span class="kbd">V</span> to talk (or switch to voice activation). Voices get quieter with distance, fade out at 48 blocks, and pan left and right by where people stand.</li>
-        <li>Works in <b>singleplayer and LAN worlds</b> hosted with Evade, and on any <b>Fabric server</b> that adds the Evade jar to its mods folder. Voice goes over your normal Minecraft connection &mdash; no extra ports, nothing to set up.</li>
-        <li><b>Hear Yourself</b> mic test, mic and voice volume, a talking indicator with a level meter, and a list of who's speaking.</li>
-        <li>Uses Opus, the codec Discord uses, built into Evade &mdash; nothing extra to install.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.6.0">
-      <div class="rel-head"><h2>v1.6.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Clips: instant replay, saved as MP4.</p>
-      <ul>
-        <li>Turn on <b>Clips</b> and Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> (or type <span class="mono">.clip</span>) and those seconds are saved as an <b>MP4</b> &mdash; HUD and all.</li>
-        <li>Choose 480p, 720p or 1080p at 15&ndash;60 FPS. Encoding runs in the background, so the game keeps playing while it saves.</li>
-        <li>Clips go to <span class="mono">.minecraft/evade/clips</span>; type <span class="mono">.clips</span> to open the folder. Video only for now &mdash; no audio.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.5.0">
-      <div class="rel-head"><h2>v1.5.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Performance: Evade's own built-in FPS boost.</p>
-      <ul>
-        <li><b>Entity culling</b> &mdash; mobs and items past a distance you choose aren't drawn (players can always stay visible).</li>
-        <li><b>Block entity culling</b> &mdash; far chests, signs, banners and skulls are skipped.</li>
-        <li><b>One item per dropped stack</b>, a <b>particle budget</b>, and a <b>low frame rate while you're tabbed out</b> to save power and heat.</li>
-        <li><b>Lighter video settings</b> in one click (clouds off, no entity shadows, fewer particles), restored exactly when you turn it off.</li>
-        <li>In our busy test scene (900 armoured stands at 50&ndash;110 blocks) Performance took the game from about <b>17 to 29 FPS</b>, the same across three back-to-back runs. Gains depend on your PC and how busy the scene is &mdash; in light scenes the difference is small.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.4.0">
-      <div class="rel-head"><h2>v1.4.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Fourteen new mods: a cleaner screen, better visuals and streamer tools.</p>
-      <div class="rel-cols">
-        <div><h4>Screen</h4><p>Scoreboard, Boss Bar, Particles, Pack Tweaks, Clear Water, Inventory Blur</p></div>
-        <div><h4>Visuals</h4><p>1.7 Animations, Item Physics, Hit Color, EnchantGlint, ShinyPots</p></div>
-        <div><h4>Info &amp; tools</h4><p>TNT Timer, Chunk Borders, Nick Hider</p></div>
-      </div>
-      <ul>
-        <li><b>Scoreboard</b> hides the red numbers, resizes or hides the sidebar. <b>Boss Bar</b> hides or resizes the boss bar.</li>
-        <li><b>Particles</b> hides crit, sharpness, damage-heart, sweep and explosion particles.</li>
-        <li><b>Pack Tweaks</b> lowers the fire on your screen and hides pumpkin blur. <b>Clear Water</b> removes underwater fog and the blue overlay.</li>
-        <li><b>1.7 Animations</b> brings back swinging while eating and the older held-item position. <b>Item Physics</b> lays dropped items flat.</li>
-        <li><b>Hit Color</b> and <b>EnchantGlint</b> recolour the hit flash and the enchantment shine. <b>ShinyPots</b> makes potions glint.</li>
-        <li><b>TNT Timer</b> counts down over primed TNT. <b>Chunk Borders</b> draws the chunk grid on one key.</li>
-        <li><b>Nick Hider</b> masks your name everywhere on your screen (set it with <span class="mono">.nick &lt;name&gt;</span>) and can hide your skin &mdash; handy for streaming.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.3.0">
-      <div class="rel-head"><h2>v1.3.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Profiles: switch your whole setup in one click.</p>
-      <ul>
-        <li><b>Profiles</b> &mdash; save named presets (Default, PvP, SkyBlock, whatever you like) that each remember their own enabled mods, settings, keybinds and HUD layout.</li>
-        <li>Switch profiles from the new <b>Profiles</b> page in the menu; your current one is saved automatically before the next loads.</li>
-        <li>Create, name and delete profiles in place. Your active profile stays in sync with every change you make.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.2.0">
-      <div class="rel-head"><h2>v1.2.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">Six new quality-of-life mods, with more on the way.</p>
-      <ul>
-        <li><b>FOV Changer</b> &mdash; lock your field of view so sprint and speed effects can't distort it.</li>
-        <li><b>Fullbright</b> &mdash; maximum client-side brightness for caves and night (visual only).</li>
-        <li><b>Damage Tint</b> &mdash; a coloured screen vignette that fades in as your health drops.</li>
-        <li><b>Protection</b> &mdash; warns you when armour or your held item is about to break.</li>
-        <li><b>AutoTip</b> &mdash; runs a tip command on a timer (e.g. /tip all).</li>
-        <li><b>Pack Display</b> &mdash; shows your active resource pack on the HUD.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v1.1.0">
-      <div class="rel-head"><h2>v1.1.0</h2><time>2026-11-22</time></div>
-      <p class="rel-sum">A rebuilt menu &mdash; cleaner, faster and more spacious than ever.</p>
-      <ul>
-        <li><b>New default List style</b> &mdash; spacious full-width rows with a description, keybind chip, settings gear and toggle, so you can read every module at a glance.</li>
-        <li><b>Grouped sidebar</b> with lettered category badges (Gameplay / Interface / General) and live module counts.</li>
-        <li><b>All / Enabled filter</b> at the top right, and a wider search with <span class="mono">fav:</span> / <span class="mono">recent:</span> hints.</li>
-        <li>Three menu styles to choose from: <b>List</b> (default), <b>Cards</b> and <b>Compact</b>.</li>
-        <li>Larger, cleaner window with a softer glow and smoother open animation.</li>
+        <li><b>Evade Clips:</b> a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor, set up by the installer. Evade clips kills, totem pops, deaths, wins and advancements automatically and drops a named marker on your timeline for each. Share links that play inside Discord and a private phone gallery come from clips.evadeclient.com. Without the app, the <b>Clips</b> mod still saves instant replays as MP4s.</li>
+        <li><b>Voice chat</b> through <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a>, which the installer adds from Modrinth. It works on every server that runs it; press <span class="kbd">V</span> or type <span class="mono">.voice</span>.</li>
+        <li><b>FPS mods:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against Modrinth's checksum and benchmarked with Evade. In our busy test scene the full setup roughly doubles FPS. It also sets low-pause memory settings and removes only the files it added when you reinstall.</li>
+        <li><b>Performance:</b> Low FPS When AFK, a Low-End PC Mode, and a lighter HUD that spends 15&ndash;33% less time drawing.</li>
+        <li><b>Frame Time Graph</b> (HUD): a live bar per frame with average FPS, 1% low and worst frame, so stutters show up as red spikes.</li>
+        <li><b>Evade icons:</b> the Evade logo next to Evade players in the tab list, free for everyone and verified through Mojang's sign-in check. Switch off <b>Show That I Use Evade</b> to hide yours.</li>
+        <li>Low fire and no pumpkin blur are built in as <b>Pack Tweaks</b>.</li>
       </ul>
     </article>
 
     <article class="card rel rv" id="v1.0.0">
-      <div class="rel-head"><h2>v1.0.0</h2><time>2026-11-22</time></div>
+      <div class="rel-head"><h2>v1.0 &ndash; v1.5</h2><time datetime="2026-11-21">21 Nov 2026</time></div>
       <p class="rel-sum">The first release of Evade: a server-safe, quality-of-life client for Minecraft 1.21.11.</p>
       <ul>
-        <li><b>A full HUD</b> (24 elements): cooldowns, target info, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more &mdash; each one draggable and resizable in the HUD editor.</li>
-        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, a custom crosshair, block outline, no hurt-cam, and time / weather preview.</li>
-        <li><b>Visual tweaks:</b> NoFog, NoRender, better tooltips, breadcrumbs, waypoints and a through-wall third-person camera.</li>
-        <li><b>Quality of life:</b> auto-reconnect, better chat, totem-pop and other notifiers, AntiAFK and AutoGG.</li>
-        <li>One-click installer for Windows, macOS and Linux, SHA-256 on every file, and the optional Evade Texture Pack. Runs on Fabric, keeps to its own folder, and leaves your normal Minecraft untouched.</li>
+        <li><b>A full HUD:</b> cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.</li>
+        <li><b>The menu:</b> List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.</li>
+        <li><b>Profiles:</b> named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.</li>
+        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and a through-wall third-person camera.</li>
+        <li><b>Visuals:</b> NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.</li>
+        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, notifiers, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
+        <li><b>Performance:</b> Evade's own FPS boost culls far mobs and block entities, limits particles and idles while you're tabbed out.</li>
+        <li>A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched.</li>
       </ul>
     </article>
   </div>
@@ -276,13 +136,13 @@
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.14.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v1.16.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.14.0" defer></script>
+<script src="/assets/site.js?v=1.16.0" defer></script>
 </body>
 </html>
