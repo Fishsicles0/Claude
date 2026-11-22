@@ -10,8 +10,19 @@ nav: changelog
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.8.0">
+      <div class="rel-head"><h2>v1.8.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <p class="rel-sum">Voice chat on every server that runs Simple Voice Chat.</p>
+      <ul>
+        <li>The <b>Evade Installer 1.1</b> can add <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax, downloaded straight from Modrinth and checked against Modrinth's checksum. It's on by default; switch off <b>Voice chat</b> to skip it.</li>
+        <li>Evade now <b>picks the voice engine per server</b>: Simple Voice Chat wherever the server runs it, Evade voice where only Evade is installed. Only one ever uses your microphone.</li>
+        <li>The Voice Chat settings show the active <b>Voice Engine</b>; click it (or type <span class="mono">.voice</span>) to open Simple Voice Chat's menu.</li>
+        <li>Evade voice uses Simple Voice Chat's push-to-talk key when it's installed, so <span class="kbd">V</span> stays its menu key.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.7.0">
-      <div class="rel-head"><h2>v1.7.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <div class="rel-head"><h2>v1.7.0</h2><time>{{DATE}}</time></div>
       <p class="rel-sum">Voice Chat: talk to the Evade players around you.</p>
       <ul>
         <li><b>Proximity voice</b> &mdash; hold <span class="kbd">V</span> to talk (or switch to voice activation). Voices get quieter with distance, fade out at 48 blocks, and pan left and right by where people stand.</li>

@@ -48,12 +48,12 @@ nav: docs
 
       <div class="doc-sec rv" id="voice">
         <h2>Voice chat</h2>
-        <p>Turn on <b>Voice Chat</b> (Misc) and hold <span class="kbd">V</span> to talk. Players running Evade within 48 blocks hear you, quieter the further away they are, and from the direction you're standing.</p>
+        <p>Evade picks the right voice chat for each server automatically. Open <b>Voice Chat</b> (Misc) to see which one is active on the <b>Voice Engine</b> line.</p>
         <ul>
-          <li><b>Where it works:</b> singleplayer and LAN worlds hosted with Evade, and any Fabric server whose owner drops the Evade jar into the server's <span class="mono">mods</span> folder (with Fabric API). On servers without it, the talk indicator tells you voice isn't available there.</li>
-          <li><b>Mic test:</b> turn on <b>Hear Yourself</b> and hold <span class="kbd">V</span> &mdash; the server sends your voice straight back.</li>
-          <li>Prefer hands-free? Turn off <b>Push To Talk</b> and set the <b>Voice Activation Level</b>.</li>
-          <li>On macOS the first time you talk, allow microphone access for Minecraft / Java when asked.</li>
+          <li><b>Simple Voice Chat</b> &mdash; used on every server that runs it (a lot of servers do). The Evade Installer downloads <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax straight from Modrinth (leave <b>Voice chat</b> switched on when you install). Press <span class="kbd">V</span> for its menu, or click the <b>Voice Engine</b> line / type <span class="mono">.voice</span>. The first time, its setup guide walks you through your mic and push-to-talk key.</li>
+          <li><b>Evade voice</b> &mdash; used on servers and LAN worlds that have Evade but not Simple Voice Chat: proximity voice within 48 blocks, quieter with distance and panned by direction. It uses Simple Voice Chat's push-to-talk key if you have it, otherwise <span class="kbd">V</span>.</li>
+          <li>Singleplayer and LAN worlds you host with Evade support both, so friends can join and talk.</li>
+          <li>On macOS, allow microphone access for Minecraft / Java the first time you talk.</li>
         </ul>
       </div>
 
@@ -68,7 +68,7 @@ nav: docs
           <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
           <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
           <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
-          <div><span class="kbd">V</span><span>Push to talk (with Voice Chat on)</span></div>
+          <div><span class="kbd">V</span><span>Voice chat menu (Simple Voice Chat) / push to talk (Evade voice)</span></div>
           <div><span class="kbd">F8</span><span>Save a clip of the last seconds (with Clips on)</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
@@ -84,6 +84,7 @@ nav: docs
           <div><code>.bind &lt;mod&gt; &lt;key|none&gt;</code><span>Set or clear a keybind</span></div>
           <div><code>.set &lt;mod&gt; &lt;setting&gt; &lt;value&gt;</code><span>Change a setting, e.g. <code>.set Zoom Level 4</code></span></div>
           <div><code>.modules</code><span>List every mod, enabled ones in green</span></div>
+          <div><code>.voice</code><span>Open the voice chat menu</span></div>
           <div><code>.clip</code> / <code>.clips</code><span>Save an instant-replay clip / open the clips folder</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
           <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>

@@ -53,6 +53,7 @@ public final class InstallerView extends JPanel {
     Path minecraftDir = InstallerCore.defaultMinecraftDir();
     int memoryGb = 4;
     boolean copySettings = true;
+    boolean voiceChat = true;
     InstallerCore.Release release;
     String releaseError;
     InstallerCore.Installed installed;
@@ -138,6 +139,7 @@ public final class InstallerView extends JPanel {
                 }
             }
             case "copy" -> copySettings = !copySettings;
+            case "voice" -> voiceChat = !voiceChat;
             case "install", "retry" -> { if (release != null) onInstall.run(); }
             case "open" -> onOpenLauncher.run();
             case "done-close" -> System.exit(0);
@@ -324,6 +326,17 @@ public final class InstallerView extends JPanel {
         g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ty + 3, 14, 14));
         hits.put("copy", new Rectangle(x, y + 174, w, 28));
 
+        g.setFont(inter.deriveFont(13f));
+        g.setColor(TEXT);
+        g.drawString("Voice chat (Simple Voice Chat)", x, y + 227);
+        float von = anim("voice-on", voiceChat);
+        int vy = y + 214;
+        g.setColor(mix(new Color(0x2A2A31), RED, von));
+        g.fill(new RoundRectangle2D.Double(tx, vy, 38, 20, 20, 20));
+        g.setColor(Color.WHITE);
+        g.fill(new Ellipse2D.Double(tx + 3 + von * 18, vy + 3, 14, 14));
+        hits.put("voice", new Rectangle(x, y + 209, w, 28));
+
         // status line
         g.setFont(inter.deriveFont(12f));
         String info;
@@ -334,8 +347,8 @@ public final class InstallerView extends JPanel {
         else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " → v" + release.evadeVersion(); infoColor = RED_HI; }
         else info = "v" + installed.evadeVersion() + " is installed and up to date.";
         g.setColor(infoColor);
-        g.fill(new Ellipse2D.Double(x, y + 228, 6, 6));
-        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 235);
+        g.fill(new Ellipse2D.Double(x, y + 259, 6, 6));
+        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 266);
 
         String label = installed == null ? "Install Evade Client"
                 : release != null && !release.evadeVersion().equals(installed.evadeVersion()) ? "Update Evade Client" : "Reinstall";

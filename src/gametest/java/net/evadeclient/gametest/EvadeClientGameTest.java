@@ -489,6 +489,32 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     private void testVoice(ClientGameTestContext ctx) {
         var v = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.VoiceChat.class));
         boolean supported = ctx.computeOnClient(c -> net.evadeclient.module.misc.VoiceChat.serverSupported());
+
+        // Simple Voice Chat is loaded in the test game, so this world's server runs it: Evade must hand voice to it.
+        boolean svcLoaded = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("voicechat");
+        var auto = ctx.computeOnClient(c -> net.evadeclient.module.misc.VoiceChat.engine());
+        int sentWhileSvc = ctx.computeOnClient(c -> {
+            v.forceTalkForTest();
+            v.takeSent();
+            short[] loud = new short[960];
+            for (int i = 0; i < loud.length; i++) loud[i] = (short) (Math.sin(i * 0.0576) * 9000);
+            for (int i = 0; i < 10; i++) v.processFrame(loud);
+            return v.takeSent();
+        });
+        String label = ctx.computeOnClient(c -> v.engineStatus.get());
+        check(svcLoaded && auto == net.evadeclient.module.misc.VoiceChat.Engine.SIMPLE_VOICE_CHAT && sentWhileSvc == 0,
+                "Voice hands off to Simple Voice Chat where the server runs it (engine " + auto + ", \"" + label + "\", Evade sent " + sentWhileSvc + ")");
+
+        // The "Voice Engine" row (and .voice) opens Simple Voice Chat's own menu.
+        ctx.runOnClient(c -> net.evadeclient.module.misc.VoiceChat.openSvcMenu());
+        ctx.waitTicks(5);
+        String screen = ctx.computeOnClient(c -> c.currentScreen == null ? "none" : c.currentScreen.getClass().getName());
+        ctx.takeScreenshot("evade-svc-menu");
+        ctx.setScreen(() -> null);
+        check(screen.startsWith("de.maxhenkel.voicechat"), "Evade opens Simple Voice Chat's menu (" + screen.substring(screen.lastIndexOf('.') + 1) + ")");
+
+        // Evade's own engine (servers with only Evade): force it and round-trip a tone.
+        ctx.runOnClient(c -> net.evadeclient.module.misc.VoiceChat.overrideEngineForTest(net.evadeclient.module.misc.VoiceChat.Engine.EVADE));
         ctx.runOnClient(c -> {
             v.micTest.set(true);
             v.forceTalkForTest();
@@ -504,7 +530,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             }, "voice-test-tone").start();
         });
         ctx.waitTicks(40);
-        int sent = ctx.computeOnClient(c -> v.framesSent);
+        int sent = ctx.computeOnClient(c -> v.takeSent());
         int received = ctx.computeOnClient(c -> v.playback().framesReceived);
         short[] last = ctx.computeOnClient(c -> v.playback().lastDecoded);
         int crossings = 0;
@@ -512,7 +538,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (last != null) for (int i = 1; i < last.length; i++) { if ((last[i - 1] < 0) != (last[i] < 0)) crossings++; energy += (long) last[i] * last[i]; }
         double hz = crossings / 2.0 / 0.02;
         double rms = last == null ? 0 : Math.sqrt(energy / (double) last.length);
-        ctx.runOnClient(c -> { v.setEnabled(false); v.micTest.set(false); v.pushToTalk.set(true); v.activation.set(20.0); });
+        ctx.runOnClient(c -> { net.evadeclient.module.misc.VoiceChat.overrideEngineForTest(null); v.micTest.set(false); v.pushToTalk.set(true); v.activation.set(20.0); });
         check(supported && sent >= 45 && received >= 45 && Math.abs(hz - 440) < 40 && rms > 1000,
                 "Voice round-trips a 440 Hz tone through Opus and the server relay (sent " + sent + ", got " + received
                         + ", decoded " + Math.round(hz) + " Hz, rms " + Math.round(rms) + ")");

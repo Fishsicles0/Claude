@@ -40,17 +40,23 @@ public final class InstallerCore {
     public static final String VERSION_ID = "evade-client-" + MC_VERSION;
     private static final String FABRIC_META = "https://meta.fabricmc.net/v2/versions/loader/" + MC_VERSION;
     private static final String MODRINTH = "https://api.modrinth.com/v2/project/fabric-api/version";
-    private static final String USER_AGENT = "EvadeInstaller/1.0 (+https://evadeclient.com)";
+    /** Simple Voice Chat by henkelmax. All Rights Reserved, so we never host it: players get it straight from Modrinth. */
+    private static final String SVC = "https://api.modrinth.com/v2/project/simple-voice-chat/version";
+    private static final String USER_AGENT = "EvadeInstaller/1.1 (+https://evadeclient.com)";
 
     public interface Progress {
         void update(double fraction, String message);
     }
 
-    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings) {}
+    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat) {}
 
     /** What's available to install (fetched before installing so the UI can show versions). */
     public record Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
-                          String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile) {}
+                          String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
+                          ModFile voiceChat) {}
+
+    /** A mod file on Modrinth (null fields if it isn't available for this Minecraft version). */
+    public record ModFile(String version, String url, String sha512, String filename) {}
 
     public record Installed(String evadeVersion, String loaderVersion, String fabricApiVersion) {}
 
@@ -120,8 +126,28 @@ public final class InstallerCore {
         }
         if (file == null) file = api.getAsJsonArray("files").get(0).getAsJsonObject();
 
+        ModFile voice = null;
+        try { voice = latestOnModrinth(SVC + query); } catch (Exception e) { /* optional: install without voice chat */ }
+
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, str(api, "version_number"),
-                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"));
+                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), voice);
+    }
+
+    /** Newest release for this Minecraft version (falling back to the newest beta), or null if there's none. */
+    private ModFile latestOnModrinth(String url) throws IOException, InterruptedException {
+        JsonArray versions = getJson(url).getAsJsonArray();
+        JsonObject pick = null;
+        for (JsonElement e : versions) {
+            JsonObject v = e.getAsJsonObject();
+            if ("release".equals(str(v, "version_type"))) { pick = v; break; }
+        }
+        if (pick == null && !versions.isEmpty()) pick = versions.get(0).getAsJsonObject();
+        if (pick == null) return null;
+        JsonObject file = null;
+        for (JsonElement f : pick.getAsJsonArray("files")) if (f.getAsJsonObject().get("primary").getAsBoolean()) file = f.getAsJsonObject();
+        if (file == null) file = pick.getAsJsonArray("files").get(0).getAsJsonObject();
+        return new ModFile(str(pick, "version_number"), str(file, "url"),
+                file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"));
     }
 
     // ------------------------------------------------------------------ install
@@ -131,7 +157,6 @@ public final class InstallerCore {
         Path game = o.gameDir();
         Files.createDirectories(mc);
         Files.createDirectories(game.resolve("mods"));
-        Files.createDirectories(game.resolve("schematics")); // for the Printer (.litematic files)
 
         // 1. Version file for the launcher (Fabric's profile JSON, renamed to our id).
         p.update(0.05, "Setting up Fabric Loader " + r.loaderVersion());
@@ -151,7 +176,21 @@ public final class InstallerCore {
         p.update(0.15, "Downloading Fabric API " + r.fabricApiVersion());
         download(r.fabricApiUrl(), mods.resolve(r.fabricApiFile()), r.fabricApiSha512(), "SHA-512", 0.15, 0.55, p);
         p.update(0.55, "Downloading Evade Client v" + r.evadeVersion());
-        download(r.evadeUrl(), mods.resolve("evade-client-" + r.evadeVersion() + ".jar"), r.evadeSha256(), "SHA-256", 0.55, 0.8, p);
+        download(r.evadeUrl(), mods.resolve("evade-client-" + r.evadeVersion() + ".jar"), r.evadeSha256(), "SHA-256", 0.55, 0.75, p);
+
+        // Voice chat: Simple Voice Chat, fetched from Modrinth (optional; a failure here doesn't stop the install).
+        deleteMatching(mods, "voicechat");
+        String voiceInstalled = "";
+        if (o.voiceChat() && r.voiceChat() != null) {
+            ModFile v = r.voiceChat();
+            p.update(0.75, "Downloading voice chat (Simple Voice Chat " + v.version() + ")");
+            try {
+                download(v.url(), mods.resolve(v.filename()), v.sha512(), "SHA-512", 0.75, 0.8, p);
+                voiceInstalled = v.version();
+            } catch (Exception e) {
+                p.update(0.8, "Voice chat couldn't be downloaded; run the installer again later to add it.");
+            }
+        }
 
         // 3. Carry over the player's settings and server list the first time.
         if (o.copySettings()) {
@@ -172,6 +211,7 @@ public final class InstallerCore {
         marker.addProperty("evade", r.evadeVersion());
         marker.addProperty("loader", r.loaderVersion());
         marker.addProperty("fabricApi", r.fabricApiVersion());
+        marker.addProperty("voiceChat", voiceInstalled);
         marker.addProperty("minecraft", MC_VERSION);
         marker.addProperty("installedAt", Instant.now().toString());
         Files.writeString(game.resolve("evade-install.json"), GSON.toJson(marker));

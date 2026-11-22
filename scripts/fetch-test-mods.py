@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Downloads Litematica + MaLiLib (1.21.11) into libs/test-mods for the in-game Printer test.
+"""Downloads Simple Voice Chat (1.21.11, Fabric) into libs/test-mods so the in-game tests run Evade alongside it.
 
-These are other people's mods: they're only used by `runClientGameTest` (via modLocalRuntime) and are never
-bundled into Evade. Checksums are verified against Modrinth.
+It's someone else's mod (All Rights Reserved): it's only used by `runClientGameTest` (via modLocalRuntime) and is
+never bundled into Evade or hosted by us. Players get it from Modrinth through the Evade Installer.
+Checksums are verified against Modrinth.
 """
-import hashlib, json, os, urllib.request
+import glob, hashlib, json, os, urllib.request
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "libs", "test-mods")
 Q = "game_versions=%5B%221.21.11%22%5D&loaders=%5B%22fabric%22%5D"
@@ -26,9 +27,9 @@ def fetch(version):
 
 
 os.makedirs(OUT, exist_ok=True)
-lit = [v for v in get(f"https://api.modrinth.com/v2/project/litematica/version?{Q}") if v["version_type"] == "release"][0]
-dep = [d for d in lit["dependencies"] if d["dependency_type"] == "required"][0]
-mal = get(f"https://api.modrinth.com/v2/version/{dep['version_id']}") if dep.get("version_id") else \
-    [v for v in get(f"https://api.modrinth.com/v2/project/{dep['project_id']}/version?{Q}") if v["version_type"] == "release"][0]
-fetch(lit)
-fetch(mal)
+for old in glob.glob(os.path.join(OUT, "*.jar")):  # drop leftovers (e.g. the old Printer test mods)
+    if "voicechat" not in os.path.basename(old):
+        os.remove(old)
+versions = get(f"https://api.modrinth.com/v2/project/simple-voice-chat/version?{Q}")
+svc = next((v for v in versions if v["version_type"] == "release"), versions[0])
+fetch(svc)

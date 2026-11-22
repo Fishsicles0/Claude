@@ -756,6 +756,8 @@ public class EvadeMenu extends Screen {
                     if (button == 1) mod.setKey(GLFW.GLFW_KEY_UNKNOWN); else listening = mod;
                 } else if (row instanceof KeySetting k) {
                     if (button == 1) k.set(GLFW.GLFW_KEY_UNKNOWN); else listening = k;
+                } else if (row instanceof net.evadeclient.setting.StringSetting st && st.clickAction() != null) {
+                    st.clickAction().run();
                 } else if (row instanceof BooleanSetting b) {
                     b.toggle();
                 } else if (row instanceof NumberSetting n) {
