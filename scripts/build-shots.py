@@ -51,9 +51,12 @@ save(menu.resize((1420, 799), Image.LANCZOS), "menu-hero.webp")
 hud = Image.open(latest("evade-hud-1080p")).convert("RGB")
 # cooldown stack, top-left
 save(hud.crop((6, 6, 6 + 528, 6 + 340)), "crop-cooldowns.webp")
-# target HUD, lower-right
-tx, ty = 1920 - 640 - 24, 1080 - 252 - 48
-save(hud.crop((tx, ty, tx + 640, ty + 252)), "crop-target.webp")
+# keystrokes, right edge (scaled up with hard pixels so it stays crisp)
+keys = hud.crop((1776, 236, 1920, 408))
+save(keys.resize((keys.width * 3, keys.height * 3), Image.NEAREST), "crop-keys.webp")
+p = f"{OUT}/crop-target.webp"
+if os.path.exists(p):
+    os.remove(p)
 
 # printer.webp is no longer used; drop it if present
 p = f"{OUT}/printer.webp"

@@ -44,7 +44,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testClips(ctx, sp);
             testVoice(ctx);
             testHud(ctx, sp);
-            testMenu(ctx);
+            testMenu(ctx, sp);
             testProfiles(ctx);
             testIcons(ctx, sp);
         }
@@ -157,7 +157,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     }
 
 
-    private void testMenu(ClientGameTestContext ctx) {
+    private void testMenu(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         // Typical 1080p monitor at GUI scale 2 (960x540 GUI pixels).
         ctx.getInput().resizeWindow(1920, 1080);
         ctx.runOnClient(c -> {
@@ -206,7 +206,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
         boolean a2 = ctx.computeOnClient(c -> EvadeClient.modules.get(NoFog.class).isEnabled());
         check(b2 != a2, "Clicking a row in the Compact GUI style toggles a mod");
-        testThemesAndClips(ctx, cs);
+        testThemesAndClips(ctx, sp, cs);
 
         // The All / Enabled filter: enable one module, switch to Enabled, confirm only enabled show.
         ctx.runOnClient(c -> { for (var s : cs.getSettings()) if (s.getName().equals("GUI Style"))
@@ -562,7 +562,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
      * opening, hovering, toggling and changing theme/style, and the HUD editor dragging an element. Animations run
      * on a fixed 30 fps clock here so the recordings are smooth whatever the test machine's speed.
      */
-    private void testThemesAndClips(ClientGameTestContext ctx, net.evadeclient.module.client.ClientSettings cs) {
+    private void testThemesAndClips(ClientGameTestContext ctx, TestSingleplayerContext sp, net.evadeclient.module.client.ClientSettings cs) {
         ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
         String[][] looks = {{"Midnight", "Red"}, {"OLED", "Purple"}, {"Classic", "Green"}, {"Modern", "Blue"}};
         for (String[] l : looks) {
@@ -609,11 +609,17 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         }
 
         // --- clip 2: the HUD editor (drag an element, watch it snap, resize it, put it back)
+        // Recording renders one frame at a time, so hide the FPS counter (it would read ~5) and re-apply the
+        // absorption effect without particles (its blue swirls fly right past the camera between frames).
+        sp.getServer().runCommand("effect give @a absorption 120 1 true");
+        boolean fpsWasOn = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).isEnabled());
+        ctx.runOnClient(c -> { EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(false); c.particleManager.clearParticles(); });
         ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
         ctx.waitTicks(3);
         int[] el = ctx.computeOnClient(c -> {
             var w = c.getWindow();
-            for (var e : EvadeClient.modules.hudElements()) if (e.isEnabled() && e.scaledWidth() > 30)
+            var coords = EvadeClient.modules.get(net.evadeclient.module.hud.CoordsHud.class);
+            for (var e : EvadeClient.modules.hudElements()) if (e == coords && e.isEnabled())
                 return new int[]{EvadeClient.modules.hudElements().indexOf(e), e.x, e.y,
                         e.resolveX(w.getScaledWidth()) + e.scaledWidth() / 2, e.resolveY(w.getScaledHeight()) + e.scaledHeight() / 2,
                         Math.round(e.scale.getFloat() * 100)};
@@ -645,7 +651,10 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             e.scale.fromJson(new com.google.gson.JsonPrimitive(el[5] / 100.0));
         });
         ctx.setScreen(() -> null);
-        ctx.runOnClient(c -> setMode(cs, "GUI Style", "Compact"));
+        ctx.runOnClient(c -> {
+            setMode(cs, "GUI Style", "Compact");
+            EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(fpsWasOn);
+        });
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */
