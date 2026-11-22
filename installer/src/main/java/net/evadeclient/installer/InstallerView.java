@@ -55,6 +55,8 @@ public final class InstallerView extends JPanel {
     boolean copySettings = true;
     boolean voiceChat = true;
     boolean performanceMods = true;
+    /** Also install Evade Clips (instant replay, clip library and editor). */
+    boolean installClips = true;
     InstallerCore.Release release;
     String releaseError;
     InstallerCore.Installed installed;
@@ -142,6 +144,7 @@ public final class InstallerView extends JPanel {
             case "copy" -> copySettings = !copySettings;
             case "voice" -> voiceChat = !voiceChat;
             case "perf" -> performanceMods = !performanceMods;
+            case "clips" -> installClips = !installClips;
             case "install", "retry" -> { if (release != null) onInstall.run(); }
             case "open" -> onOpenLauncher.run();
             case "done-close" -> System.exit(0);
@@ -350,6 +353,17 @@ public final class InstallerView extends JPanel {
         g.fill(new Ellipse2D.Double(tx + 3 + pon * 18, py + 3, 14, 14));
         hits.put("perf", new Rectangle(x, y + 232, w, 28));
 
+        g.setFont(inter.deriveFont(13f));
+        g.setColor(TEXT);
+        g.drawString("Evade Clips (record & edit clips)", x, y + 279);
+        float con = anim("clips-on", installClips);
+        int cy = y + 266;
+        g.setColor(mix(new Color(0x2A2A31), RED, con));
+        g.fill(new RoundRectangle2D.Double(tx, cy, 38, 20, 20, 20));
+        g.setColor(Color.WHITE);
+        g.fill(new Ellipse2D.Double(tx + 3 + con * 18, cy + 3, 14, 14));
+        hits.put("clips", new Rectangle(x, y + 262, w, 28));
+
         // status line
         g.setFont(inter.deriveFont(12f));
         String info;
@@ -360,8 +374,8 @@ public final class InstallerView extends JPanel {
         else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " → v" + release.evadeVersion(); infoColor = RED_HI; }
         else info = "v" + installed.evadeVersion() + " is installed and up to date.";
         g.setColor(infoColor);
-        g.fill(new Ellipse2D.Double(x, y + 268, 6, 6));
-        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 275);
+        g.fill(new Ellipse2D.Double(x, y + 298, 6, 6));
+        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 305);
 
         String label = installed == null ? "Install Evade Client"
                 : release != null && !release.evadeVersion().equals(installed.evadeVersion()) ? "Update Evade Client" : "Reinstall";
@@ -393,14 +407,16 @@ public final class InstallerView extends JPanel {
         g.setColor(DIM);
         g.drawString(ellipsize(g, status, w), x, y + 146);
 
-        String[] steps = {"Fabric Loader", "Fabric API", "Evade Client", "Launcher profile"};
-        double[] at = {0.15, 0.55, 0.8, 1.0};
-        int sy = y + 182;
+        boolean clips = installClips && release != null && release.clipsUrl() != null;
+        String[] steps = clips ? new String[]{"Fabric Loader", "Fabric API", "Evade Client", "Evade Clips", "Launcher profile"}
+                : new String[]{"Fabric Loader", "Fabric API", "Evade Client", "Launcher profile"};
+        double[] at = clips ? new double[]{0.15, 0.55, 0.8, 0.96, 1.0} : new double[]{0.15, 0.55, 0.8, 1.0};
+        int sy = y + 176;
         for (int i = 0; i < steps.length; i++) {
             boolean done = progress >= at[i];
             boolean active = !done && (i == 0 || progress >= at[i - 1]);
             stepRow(g, x, sy, steps[i], done, active);
-            sy += 34;
+            sy += clips ? 30 : 34;
         }
     }
 

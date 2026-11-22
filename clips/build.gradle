@@ -1,0 +1,86 @@
+plugins {
+    id 'java'
+    id 'edu.sc.seis.launch4j' version '4.0.0'
+}
+
+// Evade Clips: records, stores and edits gameplay clips. Standalone desktop app, no Minecraft dependencies.
+version = '1.0.0'
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'com.formdev:flatlaf:3.5.4'
+    // Global hotkeys (save a clip while the game has focus).
+    implementation 'com.github.kwhat:jnativehook:2.2.2'
+    // Offline speech recognition for voice commands ("clip that"). Compile-only: the engine (~30 MB of natives)
+    // and the model are downloaded when the user turns voice commands on, so the app download stays small.
+    compileOnly 'com.alphacephei:vosk:0.3.45'
+    compileOnly 'net.java.dev.jna:jna:5.7.0'
+    // QR code to open the phone gallery.
+    implementation 'com.google.zxing:core:3.5.3'
+}
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.release = 17; options.encoding = 'UTF-8' }
+
+tasks.named('jar') {
+    archiveFileName = 'EvadeClips.jar'
+    manifest { attributes 'Main-Class': 'net.evadeclient.clips.ClipsApp', 'Implementation-Version': project.version }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/9/module-info.class', 'module-info.class'
+}
+
+// `./gradlew :clips:selfTest` records a test pattern, saves replays, exports every preset and checks the results.
+tasks.register('selfTest', JavaExec) {
+    dependsOn 'jar'
+    classpath = files(tasks.named('jar').get().archiveFile)
+    mainClass = 'net.evadeclient.clips.ClipsApp'
+    args '--selftest', "${buildDir}/selftest"
+    // Voice-command checks run when a speech model is available (download it once from the app's Settings).
+    def model = System.getProperty('clips.voskModel') ?: System.getenv('CLIPS_VOSK_MODEL')
+    if (model) systemProperty 'clips.voskModel', model
+    systemProperty 'clips.voiceLibs', "${buildDir}/voice-libs"
+    // Unicode file names (e.g. PS5 game folders with ®) need a UTF-8 locale on Linux.
+    environment 'LC_ALL', 'C.UTF-8'
+    environment 'LANG', 'C.UTF-8'
+    jvmArgs '-Dsun.jnu.encoding=UTF-8', '-Dfile.encoding=UTF-8'
+    def admin = System.getenv('CLIPS_SHARE_ADMIN')
+    if (admin) systemProperty 'clips.shareAdmin', admin
+    // Share-link checks run against a clips-share server, e.g. `npx wrangler dev` in clips-share/.
+    def share = System.getenv('CLIPS_SHARE_URL')
+    if (share) systemProperty 'clips.shareUrl', share
+}
+
+// `./gradlew :clips:sizeTest` records worst-case footage and checks clips and exports stay under their size ceilings.
+tasks.register('sizeTest', JavaExec) {
+    dependsOn 'jar'
+    classpath = files(tasks.named('jar').get().archiveFile)
+    mainClass = 'net.evadeclient.clips.ClipsApp'
+    args '--sizetest', "${buildDir}/sizetest"
+}
+
+launch4j {
+    mainClassName = 'net.evadeclient.clips.ClipsApp'
+    jarTask = tasks.named('jar').get()
+    outfile = 'Evade-Clips.exe'
+    icon = "${projectDir}/evade.ico"
+    headerType = 'gui'
+    productName = 'Evade Clips'
+    fileDescription = 'Evade Clips - record, store and edit gameplay clips'
+    companyName = 'Evade Client'
+    copyright = 'Evade Client'
+    version = project.version
+    textVersion = project.version
+    internalName = 'EvadeClips'
+    jreMinVersion = '17'
+    requires64Bit = true
+    bundledJrePath = [
+        '%LOCALAPPDATA%\\Packages\\Microsoft.4297127D64EC6_8wekyb3d8bbwe\\LocalCache\\Local\\runtime\\java-runtime-delta\\windows-x64\\java-runtime-delta',
+        '%APPDATA%\\.minecraft\\runtime\\java-runtime-delta\\windows-x64\\java-runtime-delta',
+        '%JAVA_HOME%'
+    ].join(';')
+    downloadUrl = 'https://adoptium.net/temurin/releases/?version=21'
+    messagesJreNotFoundError = 'Evade Clips needs Java 17 or newer. Open the Minecraft Launcher once (it installs Java), or install Java from adoptium.net.'
+}

@@ -40,10 +40,12 @@ public class CommandManager {
                 print("§d.modules§7 - list modules");
                 print("§d.waypoint§7 - waypoints (add <name>, del <name>, list, clear)");
                 print("§d.nick <name>§7 - set your Nick Hider name");
-                print("§d.clip§7 - save the last seconds as a clip; §d.clips§7 - open the clips folder");
+                print("§d.clip§7 - save the last seconds as a clip");
                 print("§d.voice§7 - open the voice chat menu");
                 print("§d.save§7 / §d.load§7 - config");
+                print("§d.clips§7 [last|save]§7 - open Evade Clips (or the clips folder), edit your last clip, or save one now");
             }
+            case "clips", "clip" -> net.evadeclient.module.misc.Clips.command(a);
             case "t", "toggle" -> {
                 Module m = module(a, 1);
                 m.toggle();
@@ -84,17 +86,6 @@ public class CommandManager {
                 print("Nick Hider on. You now show as §c" + name);
             }
             case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
-            case "clip" -> {
-                var cl = EvadeClient.modules.get(net.evadeclient.module.misc.Clips.class);
-                if (!cl.isEnabled()) print("§7Turn on §cClips§7 first; it records the last seconds while it's on.");
-                else cl.save();
-            }
-            case "clips" -> {
-                var dir = EvadeClient.modules.get(net.evadeclient.module.misc.Clips.class).folder();
-                dir.mkdirs();
-                net.minecraft.util.Util.getOperatingSystem().open(dir);
-                print("§7Opening " + dir.getAbsolutePath());
-            }
             case "save" -> { EvadeClient.config.save(); print("Config saved."); }
             case "load" -> { EvadeClient.config.load(); print("Config loaded."); }
             default -> print("§cUnknown command. Try .help");

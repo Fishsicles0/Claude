@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.12.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.13.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -33,6 +33,7 @@
     <div class="nav-links">
       <a href="/">Home</a>
       <a href="/features">Features</a>
+      <a href="/clips">Clips</a>
       <a href="/download">Download</a>
       <a href="/docs">Docs</a>
       <a href="/changelog" class="on" aria-current="page">Changelog</a>
@@ -40,7 +41,8 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.12.0</span>
+      <span class="nav-ver">v1.13.0</span>
+      <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -48,11 +50,13 @@
   <div class="mobile-menu" id="mobileMenu">
     <a href="/">Home</a>
     <a href="/features">Features</a>
+    <a href="/clips">Clips</a>
     <a href="/download">Download</a>
     <a href="/docs">Docs</a>
     <a href="/changelog" class="on" aria-current="page">Changelog</a>
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
+    <a href="https://clips.evadeclient.com">Evade Clips &#8599;</a>
   </div>
 </nav>
 
@@ -65,14 +69,26 @@
 
 <section class="wrap page-body">
   <div class="log">
-    <article class="card rel rv" id="v1.12.0">
-      <div class="rel-head"><h2>v1.12.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+    <article class="card rel rv" id="v1.13.0">
+      <div class="rel-head"><h2>v1.13.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
       <p class="rel-sum">A lighter HUD and a Low-End PC Mode.</p>
       <ul>
         <li><b>Lighter HUD:</b> text elements (FPS, coordinates, clock and the rest) now rebuild 20 times a second instead of every frame, and the module list is sorted once per tick. Measured back to back: 15&ndash;33% less time spent drawing Evade's HUD.</li>
         <li>The <b>Frame Time Graph</b> now draws its bars as one image instead of 120 separate bars &mdash; about 4&times; cheaper (about 200 &rarr; 50 &micro;s per frame).</li>
         <li><b>Low-End PC Mode</b> (in Performance): solid leaves, smooth lighting off, no chunk fade-in, biome blend off and a shorter entity distance, all restored exactly when you switch it off.</li>
         <li>Disabled HUD elements and mods still cost nothing: they're skipped entirely.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v1.12.0">
+      <div class="rel-head"><h2>v1.12.0</h2><time>2026-11-22</time></div>
+      <p class="rel-sum">Evade Clips: record, edit and share your plays, installed with the client.</p>
+      <ul>
+        <li><b>Evade Clips</b> &mdash; a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor. The installer can now set it up alongside the client.</li>
+        <li>The <b>Clips</b> mod sends clips to Evade Clips when it's installed (with sound, GPU encoding and the editor), and still records on its own when it isn't. It also clips automatically on kills (multi-kills become one clip), totem pops, deaths, wins and advancements.</li>
+        <li>Evade Clips starts with Minecraft, so instant replay is ready when you play. <span class="mono">.clips</span> opens it and <span class="mono">.clips last</span> opens your newest clip in the editor.</li>
+        <li>Every event drops a named marker (&ldquo;Kill Steve&rdquo;, &ldquo;Totem pop&rdquo;) on your recording's timeline.</li>
+        <li>Share links that play inside Discord and a private phone gallery, from <a href="https://clips.evadeclient.com">clips.evadeclient.com</a>.</li>
       </ul>
     </article>
 
@@ -240,13 +256,14 @@
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.12.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.13.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.12.0" defer></script>
+<script src="/assets/site.js?v=1.13.0" defer></script>
 </body>
 </html>
