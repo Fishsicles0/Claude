@@ -241,6 +241,9 @@ main > section { margin-top: 136px; }
 .page-hero { padding: 88px 0 0; text-align: center; }
 .page-hero h1 { font-size: clamp(40px, 6vw, 72px); font-weight: 800; letter-spacing: -.045em; margin: 16px auto 16px; max-width: 900px; }
 .page-hero p { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); max-width: 640px; margin: 0 auto; }
+.page-hero .cta { justify-content: center; }
+.page-hero p.cta-meta { margin-top: 16px; font-size: 13px; color: var(--faint); max-width: 720px; }
+.page-hero + section { margin-top: 56px; }
 
 main > section.page-body { margin-top: 56px; }
 

@@ -411,6 +411,7 @@ Playing Minecraft? The <a href="https://evadeclient.com/download.html">Evade Cli
     : `<p class=dim>Downloads are on <a href="https://evadeclient.com/download.html">evadeclient.com</a>.</p>`;
   return html(page(env, "Evade Clips", `
 <h1 class=hero>Clip it. Edit it. Share it.</h1>
+<p class=lead><a href="https://evadeclient.com/clips">evadeclient.com/clips</a> · part of Evade Client.</p>
 <p class=lead>Evade Clips records your gameplay with near-zero FPS cost and keeps the last moments ready to save at a key press, a voice command, or automatically when something happens in game. Then edit and share without leaving the app.</p>
 ${dl}
 <div class=features>

@@ -22,7 +22,7 @@ SRC = ROOT / "site-src" / "pages"
 OUT = ROOT / "site"
 SITE = "https://evadeclient.com"
 
-NAV = [("home", "/", "Home"), ("features", "/features", "Features"), ("download", "/download", "Download"),
+NAV = [("home", "/", "Home"), ("features", "/features", "Features"), ("clips", "/clips", "Clips"), ("download", "/download", "Download"),
        ("docs", "/docs", "Docs"), ("changelog", "/changelog", "Changelog"), ("showcase", "/showcase", "Showcase"),
        ("faq", "/faq", "FAQ")]
 
@@ -89,6 +89,7 @@ LAYOUT = """<!doctype html>
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
