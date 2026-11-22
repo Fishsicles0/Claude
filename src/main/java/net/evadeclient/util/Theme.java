@@ -98,10 +98,42 @@ public final class Theme {
         round(ctx, x1 + 1, y1 + 1, x2 - 1, y2 - 1, fill);
     }
 
-    /** Standard HUD element background: dark glass with a thin red top edge. */
+    /** The background style of the HUD element being drawn (set around each element's render). */
+    public static String hudStyle = "Evade";
+    /** Background opacity of the HUD element being drawn, 0..1. */
+    public static float hudOpacity = 1f;
+
+    /** Fill colour for HUD backgrounds in the current style and opacity. */
+    public static int hudFill() {
+        return switch (hudStyle) {
+            case "Solid" -> alpha(CARD | 0xFF000000, 0.94f * hudOpacity);
+            case "Glass" -> alpha(lerpColor(HUD_BG | 0xFF000000, 0xFFFFFFFF, 0.1f), 0.5f * hudOpacity);
+            case "Outline" -> 0;
+            default -> alpha(HUD_BG, hudOpacity);
+        };
+    }
+
+    /** HUD element background in the element's chosen style: Evade (dark glass with an accent top edge),
+     *  Solid, Glass (light frosted panel with a thin border) or Outline (accent border only). */
     public static void hudBox(DrawContext ctx, int x, int y, int w, int h) {
-        round(ctx, x, y, x + w, y + h, HUD_BG);
-        ctx.fill(x + 2, y, x + w - 2, y + 1, RED);
+        switch (hudStyle) {
+            case "Solid" -> round(ctx, x, y, x + w, y + h, hudFill());
+            case "Glass" -> {
+                round(ctx, x, y, x + w, y + h, alpha(0x30FFFFFF, hudOpacity));
+                round(ctx, x + 1, y + 1, x + w - 1, y + h - 1, hudFill());
+            }
+            case "Outline" -> {
+                int c = alpha(RED | 0xFF000000, 0.85f * hudOpacity);
+                ctx.fill(x + 1, y, x + w - 1, y + 1, c);
+                ctx.fill(x + 1, y + h - 1, x + w - 1, y + h, c);
+                ctx.fill(x, y + 1, x + 1, y + h - 1, c);
+                ctx.fill(x + w - 1, y + 1, x + w, y + h - 1, c);
+            }
+            default -> {
+                round(ctx, x, y, x + w, y + h, hudFill());
+                ctx.fill(x + 2, y, x + w - 2, y + 1, alpha(RED | 0xFF000000, Math.max(0.35f, hudOpacity)));
+            }
+        }
     }
 
     /** Pill-shaped on/off switch. {@code t} is the animation progress 0..1. */

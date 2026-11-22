@@ -63,24 +63,43 @@ public final class InstallerCore {
     };
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
     private static final String FABRIC_API_ID = "P7dR8mSH";
+    /** Sodium's Modrinth project id (Iris pins an exact Sodium build) and the shader pack the Shaders option adds. */
+    private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "complementary-reimagined";
     private static final String USER_AGENT = "EvadeInstaller/1.4 (+https://evadeclient.com)";
 
     public interface Progress {
         void update(double fraction, String message);
     }
 
+    /** Memory to give Minecraft on this PC: enough for Evade plus the FPS mods, without the long GC pauses
+     *  that an oversized heap causes. 2 GB under 6 GB of RAM, 3 GB under 10, 4 GB under 20, else 6 GB. */
+    public static int recommendedMemory() {
+        long gb = 8;
+        try {
+            var os = (com.sun.management.OperatingSystemMXBean) java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+            gb = os.getTotalMemorySize() >> 30;
+        } catch (Throwable ignored) {}
+        return gb < 6 ? 2 : gb < 10 ? 3 : gb < 20 ? 4 : 6;
+    }
+
     public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
-                          boolean performanceMods, boolean installClips) {}
+                          boolean performanceMods, boolean installClips, boolean shaders) {
+        public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                       boolean performanceMods, boolean installClips) {
+            this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, false);
+        }
+    }
 
     /** What's available to install (fetched before installing so the UI can show versions). */
     public record Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
                           String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
                           ModFile voiceChat, java.util.List<ModFile> performance,
-                          String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl) {}
+                          String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
+                          ModFile iris, ModFile irisSodium, ModFile shaderPack) {}
 
     /** A mod file on Modrinth, with the project ids of the mods it needs. */
     public record ModFile(String name, String version, String url, String sha512, String filename,
-                          String projectId, java.util.List<String> requires) {}
+                          String projectId, java.util.List<String> requires, java.util.Map<String, String> requiredVersions) {}
 
     public record Installed(String evadeVersion, String loaderVersion, String fabricApiVersion) {}
 
@@ -174,6 +193,16 @@ public final class InstallerCore {
             }
         }
 
+        // Shaders (optional): Iris, the exact Sodium build it asks for, and Complementary Reimagined.
+        ModFile iris = null, irisSodium = null, pack = null;
+        try {
+            iris = latestOnModrinth("Iris", "https://api.modrinth.com/v2/project/iris/version" + query);
+            String sodiumVersion = iris == null ? null : iris.requiredVersions().get(SODIUM_ID);
+            if (sodiumVersion != null) irisSodium = modFileFromVersion("Sodium", getJson("https://api.modrinth.com/v2/version/" + sodiumVersion).getAsJsonObject());
+            pack = latestOnModrinth("Complementary Reimagined", "https://api.modrinth.com/v2/project/" + SHADER_PACK
+                    + "/version?loaders=" + java.net.URLEncoder.encode("[\"iris\"]", java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) { /* optional: shaders just won't be offered */ }
+
         // Evade Clips: the Windows .exe on Windows (it finds Java itself), the jar everywhere else.
         String clipsVersion = null, clipsUrl = null, clipsSha = null, ffUrl = null, ffSha = null;
         if (site.has("clips") && site.get("clips").isJsonObject()) {
@@ -189,7 +218,7 @@ public final class InstallerCore {
         }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, str(api, "version_number"),
                 str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), voice, perf,
-                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha);
+                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack);
     }
 
     /** Newest release for this Minecraft version (falling back to the newest beta), or null if there's none. */
@@ -202,16 +231,24 @@ public final class InstallerCore {
         }
         if (pick == null && !versions.isEmpty()) pick = versions.get(0).getAsJsonObject();
         if (pick == null) return null;
+        return modFileFromVersion(name, pick);
+    }
+
+    /** A Modrinth version object as a ModFile: primary file, hash, and the projects (and exact versions) it requires. */
+    private static ModFile modFileFromVersion(String name, JsonObject pick) {
         JsonObject file = null;
         for (JsonElement f : pick.getAsJsonArray("files")) if (f.getAsJsonObject().get("primary").getAsBoolean()) file = f.getAsJsonObject();
         if (file == null) file = pick.getAsJsonArray("files").get(0).getAsJsonObject();
         java.util.List<String> requires = new java.util.ArrayList<>();
+        java.util.Map<String, String> versions = new java.util.HashMap<>();
         for (JsonElement d : pick.getAsJsonArray("dependencies")) {
             JsonObject dep = d.getAsJsonObject();
-            if ("required".equals(str(dep, "dependency_type")) && str(dep, "project_id") != null) requires.add(str(dep, "project_id"));
+            if (!"required".equals(str(dep, "dependency_type")) || str(dep, "project_id") == null) continue;
+            requires.add(str(dep, "project_id"));
+            if (str(dep, "version_id") != null) versions.put(str(dep, "project_id"), str(dep, "version_id"));
         }
         return new ModFile(name, str(pick, "version_number"), str(file, "url"),
-                file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), str(pick, "project_id"), requires);
+                file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), str(pick, "project_id"), requires, versions);
     }
 
     // ------------------------------------------------------------------ install
@@ -364,9 +401,17 @@ public final class InstallerCore {
                 }
             }
         } catch (Exception ignored) {}
-        if (o.performanceMods() && r.performance() != null) {
-            int i = 0, n = r.performance().size();
-            for (ModFile f : r.performance()) {
+        java.util.List<ModFile> toInstall = new java.util.ArrayList<>(o.performanceMods() && r.performance() != null ? r.performance() : java.util.List.of());
+        boolean shaders = o.shaders() && r.iris() != null;
+        if (shaders) {
+            // Iris needs one exact Sodium build: use it in place of (or in addition to) the latest Sodium.
+            if (r.irisSodium() != null) { toInstall.removeIf(f -> SODIUM_ID.equals(f.projectId())); toInstall.add(r.irisSodium()); }
+            toInstall.add(r.iris());
+        }
+        deleteMatching(mods, "iris");
+        if (!toInstall.isEmpty()) {
+            int i = 0, n = toInstall.size();
+            for (ModFile f : toInstall) {
                 double a = 0.75 + 0.05 * i / Math.max(1, n), b = 0.75 + 0.05 * (i + 1) / Math.max(1, n);
                 p.update(a, "Downloading " + f.name() + " " + f.version());
                 try {
@@ -389,6 +434,24 @@ public final class InstallerCore {
                 voiceInstalled = v.version();
             } catch (Exception e) {
                 p.update(0.8, "Voice chat couldn't be downloaded; run the installer again later to add it.");
+            }
+        }
+
+        // Shader pack: into shaderpacks/, and switched on in Iris the first time (later choices are left alone).
+        if (shaders && r.shaderPack() != null) {
+            ModFile pk = r.shaderPack();
+            p.update(0.82, "Downloading " + pk.name() + " " + pk.version());
+            try {
+                Path packs = game.resolve("shaderpacks");
+                Files.createDirectories(packs);
+                download(pk.url(), packs.resolve(pk.filename()), pk.sha512(), "SHA-512", 0.82, 0.83, p);
+                Path irisCfg = game.resolve("config").resolve("iris.properties");
+                if (!Files.exists(irisCfg)) {
+                    Files.createDirectories(irisCfg.getParent());
+                    Files.writeString(irisCfg, "enableShaders=true\nshaderPack=" + pk.filename() + "\n");
+                }
+            } catch (Exception e) {
+                p.update(0.83, "The shader pack couldn't be downloaded; run the installer again later to add it.");
             }
         }
 
@@ -416,6 +479,7 @@ public final class InstallerCore {
         marker.addProperty("fabricApi", r.fabricApiVersion());
         marker.addProperty("voiceChat", voiceInstalled);
         marker.addProperty("performanceMods", perfInstalled.toString());
+        marker.addProperty("shaders", shaders && r.shaderPack() != null ? r.shaderPack().version() : "");
         marker.add("addedFiles", managed);
         marker.addProperty("minecraft", MC_VERSION);
         marker.addProperty("installedAt", Instant.now().toString());

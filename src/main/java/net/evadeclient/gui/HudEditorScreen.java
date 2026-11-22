@@ -15,7 +15,7 @@ import org.lwjgl.glfw.GLFW;
  * Scroll over an element to resize it; right-click to open its settings.
  */
 public class HudEditorScreen extends Screen {
-    private static final int SNAP = 4;
+    private static final int SNAP = 4, GRID = 8;
     private final Screen parent;
     private HudElementModule dragging;
     private double offX, offY;
@@ -34,7 +34,11 @@ public class HudEditorScreen extends Screen {
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        // centre guides
+        // grid (when snapping to it) and centre guides
+        if (grid()) {
+            for (int gx = GRID; gx < width; gx += GRID) ctx.fill(gx, 0, gx + 1, height, gx % (GRID * 4) == 0 ? 0x14FFFFFF : 0x08FFFFFF);
+            for (int gy = GRID; gy < height; gy += GRID) ctx.fill(0, gy, width, gy + 1, gy % (GRID * 4) == 0 ? 0x14FFFFFF : 0x08FFFFFF);
+        }
         ctx.fill(width / 2, 0, width / 2 + 1, height, 0x18FFFFFF);
         ctx.fill(0, height / 2, width, height / 2 + 1, 0x18FFFFFF);
 
@@ -63,7 +67,7 @@ public class HudEditorScreen extends Screen {
         Theme.round(ctx, bx, by, bx + bw, by + 18, hb ? Theme.RED_BRIGHT : Theme.RED);
         String t = "Back to Mods";
         ctx.drawText(textRenderer, t, bx + (bw - textRenderer.getWidth(t)) / 2, by + 5, 0xFFFFFFFF, false);
-        String hint = "Drag to move  •  Scroll to resize  •  Right-click for settings";
+        String hint = "Drag to move  •  Scroll to resize  •  Right-click for settings  •  G: grid " + (grid() ? "on" : "off");
         ctx.drawText(textRenderer, hint, (width - textRenderer.getWidth(hint)) / 2, by - 12, Theme.TEXT_DIM, false);
     }
 
@@ -104,6 +108,10 @@ public class HudEditorScreen extends Screen {
         int x = (int) Math.round(click.x() - offX), y = (int) Math.round(click.y() - offY);
         int w = dragging.scaledWidth(), h = dragging.scaledHeight();
         guideX = guideY = null;
+        if (grid()) { // snap to the grid; the edge and element guides below still win when close
+            x = Math.round(x / (float) GRID) * GRID;
+            y = Math.round(y / (float) GRID) * GRID;
+        }
         // Snap edges/centre to screen edges and centre.
         int[] xs = {0, width / 2, width}, ys = {0, height / 2, height};
         for (int target : xs) {
@@ -151,6 +159,7 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) { close(); return true; }
+        if (input.key() == GLFW.GLFW_KEY_G) { settings().hudGrid.set(!grid()); return true; }
         return super.keyPressed(input);
     }
 
@@ -162,4 +171,10 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean shouldPause() { return false; }
+
+    private static net.evadeclient.module.client.ClientSettings settings() {
+        return EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
+    }
+
+    private static boolean grid() { return settings().hudGrid.get(); }
 }

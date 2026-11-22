@@ -45,6 +45,7 @@ nav: docs
           <li><b>Accent Color</b> &mdash; Red, Blue, Purple, Pink, Orange, Gold, Green or Cyan. It colours switches, highlights, the HUD's top edges and the HUD editor's guides.</li>
           <li><b>GUI Style</b> &mdash; List, Cards or Compact. See all three on the <a href="/showcase">showcase</a>.</li>
           <li><b>Smooth Font</b> &mdash; the menu's clean Inter typeface (on), or the game's own pixel font (off).</li>
+          <li>Press <span class="kbd">Ctrl</span>+<span class="kbd">F</span> anywhere in the menu to search. Search matches mod names, descriptions and setting names.</li>
         </ul>
         <p>Your theme is saved with your settings, so each <a href="#profiles">profile</a> can have its own look.</p>
       </div>
@@ -56,6 +57,8 @@ nav: docs
           <li>Type a name and click <b>Create</b> to save your current setup as a new profile.</li>
           <li>Click <b>Use</b> on any profile to switch to it &mdash; your current profile is saved first, so nothing is lost.</li>
           <li>The <b>×</b> deletes a profile (you can't delete the active one or your last one).</li>
+          <li><b>Copy code</b> puts a share code for that profile on your clipboard. A friend clicks <b>Import</b> to add it as a new profile.</li>
+          <li>On a server, <b>Use on this server</b> links the profile to it: Evade switches to it automatically every time you join.</li>
         </ul>
         <p>Profiles live in <span class="mono">config/evade/profiles/</span>, one <span class="mono">.json</span> each.</p>
       </div>
@@ -73,6 +76,8 @@ nav: docs
           <li><b>Hide Rain &amp; Snow</b> (off): skips drawing precipitation completely, for the weakest PCs.</li>
         </ul>
         <p>For the fire on your own screen, <b>Pack Tweaks</b> lowers it and <b>NoRender</b> hides it.</p>
+        <p><b>Shaders:</b> switch on <b>Shaders</b> in the installer to add <a href="https://modrinth.com/mod/iris" target="_blank" rel="noopener">Iris</a> and the <a href="https://modrinth.com/shader/complementary-reimagined" target="_blank" rel="noopener">Complementary Reimagined</a> shader pack from Modrinth: real-time shadows, volumetric light, reflective water and more. Shaders cost a lot of FPS, so they're off by default. Press <span class="kbd">K</span> in game to turn them on or off, or pick another pack under <b>Options &rsaquo; Video Settings &rsaquo; Shader Packs</b>.</p>
+        <p><b>Memory:</b> the installer recommends how much memory to give Minecraft based on your PC. More isn't faster: an oversized heap makes garbage-collection pauses longer.</p>
         <p>The installer also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. The installer also sets low-pause memory settings for smoother frame times.</p>
         <p>Turn on the <b>Frame Time Graph</b> (HUD) to see how smooth your game really is: one bar per frame (green inside a 60 FPS budget, yellow slower, red for stutters), plus your average FPS, your <b>1% low</b> (the FPS of your slowest frames, which is what you feel) and your worst frame.</p>
       </div>
@@ -134,7 +139,14 @@ nav: docs
 
       <div class="doc-sec rv" id="hud">
         <h2>HUD editor</h2>
-        <p>Open the menu and click <b>Edit HUD Layout</b>. Drag elements to move them; they snap to edges and to each other. Scroll over an element to resize it. Each of the {{HUD}} HUD elements also has its own scale, background and colour settings.</p>
+        <p>Open the menu and click <b>Edit HUD Layout</b>. Drag elements to move them; they snap to edges and to each other. Scroll over an element to resize it, and right-click it for its settings. Press <span class="kbd">G</span> to snap to a grid instead.</p>
+        <p>Every HUD element can be styled on its own:</p>
+        <ul>
+          <li><b>Background Style</b> &mdash; Evade (dark glass with an accent edge), Solid, Glass or Outline, plus <b>Background Opacity</b>. Switch <b>Background</b> off for none.</li>
+          <li>Text elements: <b>Text Color</b>, <b>Text Shadow</b>, <b>Chroma</b> (a flowing rainbow), <b>Smooth Font</b> and <b>Brackets</b>.</li>
+          <li><b>Hide In Menus</b> hides it while a menu is open; <b>Only In Combat</b> shows it only for a few seconds after you hit something or take damage.</li>
+        </ul>
+        <p>The <b>Frame Profiler</b> element shows where your frame time goes: FPS and 1% low, average and worst frame time, how long Evade's HUD takes, and garbage-collection pauses (the usual cause of micro-stutter).</p>
       </div>
 
 

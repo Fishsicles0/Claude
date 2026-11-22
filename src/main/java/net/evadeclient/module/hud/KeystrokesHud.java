@@ -79,7 +79,7 @@ public class KeystrokesHud extends HudElementModule {
     }
 
     private void box(DrawContext ctx, int x, int y, int w, int h, float t) {
-        int bg = background.get() ? Theme.HUD_BG : 0x00000000;
+        int bg = background.get() ? Theme.hudFill() : 0x00000000;
         Theme.round(ctx, x, y, x + w, y + h, Theme.lerpColor(bg, Theme.alpha(Theme.RED, 0.85f), t));
     }
 

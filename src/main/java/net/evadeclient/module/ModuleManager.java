@@ -94,6 +94,7 @@ public class ModuleManager {
         register(new ItemCounterHud());
         register(new PackDisplayHud());
         register(new FrameTimeHud());
+        register(new net.evadeclient.module.hud.ProfilerHud());
         // Client
         register(new ClientSettings());
     }
@@ -130,6 +131,7 @@ public class ModuleManager {
         MinecraftClient mc = MinecraftClient.getInstance();
         pollKeybinds(mc);
         if (mc.player == null || mc.world == null) return;
+        net.evadeclient.util.Combat.tick(mc);
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
@@ -154,6 +156,7 @@ public class ModuleManager {
     }
 
     public void onAttack(Entity target) {
+        net.evadeclient.util.Combat.hit();
         for (Module m : modules) {
             if (m.isEnabled()) m.onAttack(target);
         }

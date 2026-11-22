@@ -36,7 +36,7 @@ import java.util.function.Consumer;
 
 /** The whole installer UI, painted by hand so it matches the client's black and red look. */
 public final class InstallerView extends JPanel {
-    public static final int W = 780, H = 480;
+    public static final int W = 780, H = 560;
 
     enum State { IDLE, INSTALLING, DONE, ERROR }
 
@@ -51,10 +51,13 @@ public final class InstallerView extends JPanel {
     // state (touched on the EDT only)
     State state = State.IDLE;
     Path minecraftDir = InstallerCore.defaultMinecraftDir();
-    int memoryGb = 4;
+    int memoryGb = InstallerCore.recommendedMemory();
+
     boolean copySettings = true;
     boolean voiceChat = true;
     boolean performanceMods = true;
+    /** Iris + a shader pack. Off by default: shaders look great but cost a lot of FPS. */
+    boolean shaders = false;
     /** Also install Evade Clips (instant replay, clip library and editor). */
     boolean installClips = true;
     InstallerCore.Release release;
@@ -144,6 +147,7 @@ public final class InstallerView extends JPanel {
             case "copy" -> copySettings = !copySettings;
             case "voice" -> voiceChat = !voiceChat;
             case "perf" -> performanceMods = !performanceMods;
+            case "shaders" -> shaders = !shaders;
             case "clips" -> installClips = !installClips;
             case "install", "retry" -> { if (release != null) onInstall.run(); }
             case "open" -> onOpenLauncher.run();
@@ -263,7 +267,7 @@ public final class InstallerView extends JPanel {
     }
 
     private void paintCard(Graphics2D g) {
-        int x = 420, y = 60, w = 316, h = 376;
+        int x = 420, y = 60, w = 316, h = H - 104;
         // shadow + card
         for (int i = 0; i < 6; i++) {
             g.setColor(new Color(0, 0, 0, 22));
@@ -300,7 +304,8 @@ public final class InstallerView extends JPanel {
         hits.put("change", new Rectangle(x + w - 72, y + 50, 64, 26));
 
         label(g, "MEMORY", x, y + 112);
-        int[] opts = {2, 4, 6, 8};
+        int rec = InstallerCore.recommendedMemory();
+        int[] opts = rec == 3 ? new int[]{2, 3, 4, 6} : new int[]{2, 4, 6, 8};
         int sw = (w - 3 * 6) / 4;
         for (int i = 0; i < opts.length; i++) {
             int sx = x + i * (sw + 6);
@@ -318,51 +323,32 @@ public final class InstallerView extends JPanel {
             center(g, opts[i] + " GB", sx, y + 122, sw, 34);
             hits.put(id, new Rectangle(sx, y + 122, sw, 34));
         }
+        g.setFont(inter.deriveFont(11f));
+        g.setColor(DIM);
+        g.drawString("Recommended for this PC: " + rec + " GB", x, y + 173);
 
         // settings toggle row
-        g.setFont(inter.deriveFont(13f));
-        g.setColor(TEXT);
-        g.drawString("Copy my settings & servers", x, y + 189);
-        float on = anim("copy-on", copySettings);
-        int tx = x + w - 38, ty = y + 176;
-        g.setColor(mix(new Color(0x2A2A31), RED, on));
-        g.fill(new RoundRectangle2D.Double(tx, ty, 38, 20, 20, 20));
-        g.setColor(Color.WHITE);
-        g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ty + 3, 14, 14));
-        hits.put("copy", new Rectangle(x, y + 172, w, 28));
-
-        g.setFont(inter.deriveFont(13f));
-        g.setColor(TEXT);
-        g.drawString("Voice chat (Simple Voice Chat)", x, y + 219);
-        float von = anim("voice-on", voiceChat);
-        int vy = y + 206;
-        g.setColor(mix(new Color(0x2A2A31), RED, von));
-        g.fill(new RoundRectangle2D.Double(tx, vy, 38, 20, 20, 20));
-        g.setColor(Color.WHITE);
-        g.fill(new Ellipse2D.Double(tx + 3 + von * 18, vy + 3, 14, 14));
-        hits.put("voice", new Rectangle(x, y + 202, w, 28));
-
-        g.setFont(inter.deriveFont(13f));
-        g.setColor(TEXT);
-        g.drawString("FPS mods (Sodium & more)", x, y + 249);
-        float pon = anim("perf-on", performanceMods);
-        int py = y + 236;
-        g.setColor(mix(new Color(0x2A2A31), RED, pon));
-        g.fill(new RoundRectangle2D.Double(tx, py, 38, 20, 20, 20));
-        g.setColor(Color.WHITE);
-        g.fill(new Ellipse2D.Double(tx + 3 + pon * 18, py + 3, 14, 14));
-        hits.put("perf", new Rectangle(x, y + 232, w, 28));
-
-        g.setFont(inter.deriveFont(13f));
-        g.setColor(TEXT);
-        g.drawString("Evade Clips (record & edit clips)", x, y + 279);
-        float con = anim("clips-on", installClips);
-        int cy = y + 266;
-        g.setColor(mix(new Color(0x2A2A31), RED, con));
-        g.fill(new RoundRectangle2D.Double(tx, cy, 38, 20, 20, 20));
-        g.setColor(Color.WHITE);
-        g.fill(new Ellipse2D.Double(tx + 3 + con * 18, cy + 3, 14, 14));
-        hits.put("clips", new Rectangle(x, y + 262, w, 28));
+        // option switches
+        String[][] rows = {
+                {"copy", "Copy my settings & servers"},
+                {"voice", "Voice chat (Simple Voice Chat)"},
+                {"perf", "FPS mods (Sodium & more)"},
+                {"shaders", "Shaders (Iris + Complementary)"},
+                {"clips", "Evade Clips (record & edit clips)"}};
+        boolean[] values = {copySettings, voiceChat, performanceMods, shaders, installClips};
+        int tx = x + w - 38;
+        for (int i = 0; i < rows.length; i++) {
+            int ry = y + 186 + i * 30;
+            g.setFont(inter.deriveFont(13f));
+            g.setColor(TEXT);
+            g.drawString(rows[i][1], x, ry + 13);
+            float on = anim(rows[i][0] + "-on", values[i]);
+            g.setColor(mix(new Color(0x2A2A31), RED, on));
+            g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
+            g.setColor(Color.WHITE);
+            g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
+            hits.put(rows[i][0], new Rectangle(x, ry - 4, w, 28));
+        }
 
         // status line
         g.setFont(inter.deriveFont(12f));
@@ -374,8 +360,8 @@ public final class InstallerView extends JPanel {
         else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " → v" + release.evadeVersion(); infoColor = RED_HI; }
         else info = "v" + installed.evadeVersion() + " is installed and up to date.";
         g.setColor(infoColor);
-        g.fill(new Ellipse2D.Double(x, y + 298, 6, 6));
-        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 305);
+        g.fill(new Ellipse2D.Double(x, y + 346, 6, 6));
+        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 353);
 
         String label = installed == null ? "Install Evade Client"
                 : release != null && !release.evadeVersion().equals(installed.evadeVersion()) ? "Update Evade Client" : "Reinstall";

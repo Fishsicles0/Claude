@@ -16,6 +16,11 @@ public abstract class HudElementModule extends Module {
 
     public final NumberSetting scale = add(new NumberSetting("Scale", 1.0, 0.5, 2.5, 0.05));
     public final BooleanSetting background = add(new BooleanSetting("Background", true));
+    public final net.evadeclient.setting.ModeSetting backgroundStyle =
+            add(new net.evadeclient.setting.ModeSetting("Background Style", "Evade", "Evade", "Solid", "Glass", "Outline"));
+    public final NumberSetting opacity = add(new NumberSetting("Background Opacity", 100, 10, 100, 5));
+    public final BooleanSetting hideInMenus = add(new BooleanSetting("Hide In Menus", false));
+    public final BooleanSetting combatOnly = add(new BooleanSetting("Only In Combat", false));
 
     protected HudElementModule(String name, String description, int defaultX, int defaultY) {
         this(name, description, Category.HUD, defaultX, defaultY);
@@ -36,15 +41,29 @@ public abstract class HudElementModule extends Module {
      */
     public abstract void render(DrawContext ctx, int left, int top, boolean preview);
 
-    /** Renders at the stored position with this element's scale applied. */
+    /** Renders at the stored position with this element's scale and background style applied. */
     public void renderScaled(DrawContext ctx, int screenW, int screenH, boolean preview) {
         float s = scale.getFloat();
         int left = resolveX(screenW), top = resolveY(screenH);
         ctx.getMatrices().pushMatrix();
         ctx.getMatrices().translate(left, top);
         ctx.getMatrices().scale(s, s);
-        render(ctx, 0, 0, preview);
-        ctx.getMatrices().popMatrix();
+        net.evadeclient.util.Theme.hudStyle = backgroundStyle.get();
+        net.evadeclient.util.Theme.hudOpacity = opacity.getFloat() / 100f;
+        try {
+            render(ctx, 0, 0, preview);
+        } finally {
+            net.evadeclient.util.Theme.hudStyle = "Evade";
+            net.evadeclient.util.Theme.hudOpacity = 1f;
+            ctx.getMatrices().popMatrix();
+        }
+    }
+
+    /** Visibility rules: hidden while a menu is open (chat excepted), or shown only around a fight. */
+    public boolean shouldShow() {
+        var screen = mc.currentScreen;
+        if (hideInMenus.get() && screen != null && !(screen instanceof net.minecraft.client.gui.screen.ChatScreen)) return false;
+        return !combatOnly.get() || net.evadeclient.util.Combat.active();
     }
 
     public int scaledWidth() { return Math.round(width * scale.getFloat()); }

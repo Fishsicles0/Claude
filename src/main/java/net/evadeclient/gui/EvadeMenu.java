@@ -272,7 +272,7 @@ public class EvadeMenu extends Screen {
         boolean caret = searchFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (search.isEmpty() && !searchFocused) {
             text(ctx, "Search modules", sx + 22, searchY + 8, Theme.TEXT_FAINT, false);
-            small(ctx, "fav:   recent:", sx + 22 + width("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
+            small(ctx, "Ctrl+F  ·  searches settings too", sx + 22 + width("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
         } else {
             text(ctx, trim(search, sw - 30) + (caret ? "_" : ""), sx + 22, searchY + 8, Theme.TEXT, false);
         }
@@ -311,13 +311,14 @@ public class EvadeMenu extends Screen {
     private static final int PROFILE_H = 44;
 
     private int createButtonX() { return cx + cw - 96; }
+    private int importButtonX() { return createButtonX() - 78; }
 
     private void renderProfilesPage(DrawContext ctx, int mx, int my) {
         var profiles = EvadeClient.profiles;
         if (profiles == null) return;
 
         // new-profile input + Create button
-        int inW = cw - 104;
+        int inW = cw - 104 - 78;
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
         boolean caret = profileFocused && (clock.getAsLong() / 500) % 2 == 0;
@@ -330,6 +331,10 @@ public class EvadeMenu extends Screen {
         boolean hc = mx >= bx && mx < cx + cw && my >= searchY && my < searchY + 24;
         Theme.round(ctx, bx, searchY, cx + cw, searchY + 24, hc ? Theme.RED : Theme.RED_DARK);
         drawCentered(ctx, "Create", bx, cx + cw, searchY + 8, Theme.TEXT);
+        int ix = importButtonX();
+        boolean hi = mx >= ix && mx < ix + 70 && my >= searchY && my < searchY + 24;
+        Theme.roundBordered(ctx, ix, searchY, ix + 70, searchY + 24, hi ? Theme.CONTROL_HOVER : Theme.CONTROL, hi ? Theme.RED : Theme.BORDER);
+        drawCentered(ctx, "Import", ix, ix + 70, searchY + 8, Theme.TEXT);
 
         // header
         var m = ctx.getMatrices();
@@ -353,7 +358,36 @@ public class EvadeMenu extends Screen {
         }
         ctx.disableScissor();
 
-        small(ctx, "Each profile remembers its own mods, settings, keybinds and HUD layout.", cx, cy + ch + 2, Theme.TEXT_FAINT, 0.8f);
+        small(ctx, "Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.",
+                cx, cy + ch + 2, Theme.TEXT_FAINT, 0.8f);
+    }
+
+    private record ProfileButton(String id, String label, int x1, int x2) {}
+
+    /** The buttons on a profile row, right to left: Use (or the ACTIVE chip), delete, copy code, link to this server. */
+    private List<ProfileButton> profileButtons(String name, boolean active, int total) {
+        List<ProfileButton> out = new ArrayList<>();
+        int right = cx + cw - 12;
+        if (!active) {
+            out.add(new ProfileButton("use", "Use", right - 46, right)); right -= 46 + 6;
+            if (total > 1) { out.add(new ProfileButton("delete", "×", right - 18, right)); right -= 18 + 6; }
+        } else {
+            right -= Math.round(width("ACTIVE") * 0.8f) + 12 + 6;
+        }
+        out.add(new ProfileButton("copy", "Copy code", right - 64, right)); right -= 64 + 6;
+        String srv = currentServer();
+        if (srv != null) {
+            boolean linked = EvadeClient.profiles.serversFor(name).contains(srv.toLowerCase(Locale.ROOT));
+            String label = linked ? "Linked here" : "Use on this server";
+            int w = width(label) * 85 / 100 + 14;
+            out.add(new ProfileButton("server", label, right - w, right));
+        }
+        return out;
+    }
+
+    private String currentServer() {
+        if (client == null || client.isInSingleplayer() || client.getCurrentServerEntry() == null) return null;
+        return client.getCurrentServerEntry().address;
     }
 
     private void renderProfileRow(DrawContext ctx, String name, boolean active, int total, int y, int mx, int my) {
@@ -365,25 +399,32 @@ public class EvadeMenu extends Screen {
         Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? Theme.tint(0.09f) : fill, border);
         if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED);
 
-        text(ctx, name, cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
+        List<String> servers = EvadeClient.profiles.serversFor(name);
+        if (servers.isEmpty()) {
+            text(ctx, name, cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
+        } else {
+            text(ctx, name, cx + 16, y + 11, Theme.TEXT, false);
+            small(ctx, "Auto on " + String.join(", ", servers), cx + 16, y + 25, Theme.TEXT_DIM, 0.8f);
+        }
 
-        int right = cx + cw - 12;
+        int by = y + (PROFILE_H - 18) / 2;
         if (active) {
-            int w = Math.round(width("ACTIVE") * 0.8f) + 12, chipY = y + (PROFILE_H - 15) / 2;
+            int right = cx + cw - 12, w = Math.round(width("ACTIVE") * 0.8f) + 12, chipY = y + (PROFILE_H - 15) / 2;
             Theme.round(ctx, right - w, chipY, right, chipY + 15, Theme.alpha(Theme.RED, 0.3f));
             small(ctx, "ACTIVE", right - w + 6, chipY + 4, Theme.RED_BRIGHT, 0.8f);
-        } else {
-            // Use button
-            int uw = 46, uy = y + (PROFILE_H - 18) / 2;
-            boolean hu = inView && mx >= right - uw && mx < right && my >= uy && my < uy + 18;
-            Theme.roundBordered(ctx, right - uw, uy, right, uy + 18, hu ? Theme.RED : Theme.CONTROL, hu ? Theme.RED : Theme.BORDER);
-            drawCentered(ctx, "Use", right - uw, right, uy + 5, Theme.TEXT);
-            right -= uw + 8;
-            // delete button (not when it's the last profile)
-            if (total > 1) {
-                boolean hd = inView && mx >= right - 18 && mx < right && my >= uy && my < uy + 18;
-                Theme.roundBordered(ctx, right - 18, uy, right, uy + 18, hd ? Theme.tint(0.17f) : Theme.CONTROL, hd ? Theme.RED : Theme.BORDER);
-                text(ctx, "×", right - 12, uy + 5, hd ? Theme.RED_BRIGHT : Theme.TEXT_DIM, false);
+        }
+        for (ProfileButton b : profileButtons(name, active, total)) {
+            boolean hb = inView && mx >= b.x1() && mx < b.x2() && my >= by && my < by + 18;
+            boolean primary = b.id().equals("use");
+            boolean linked = b.id().equals("server") && b.label().startsWith("Linked");
+            int bg = hb ? (b.id().equals("delete") ? Theme.tint(0.17f) : primary ? Theme.RED : Theme.CONTROL_HOVER)
+                    : linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL;
+            Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, hb || linked ? Theme.RED : Theme.BORDER);
+            if (b.id().equals("use")) drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, Theme.TEXT);
+            else if (b.id().equals("delete")) text(ctx, "×", b.x1() + 6, by + 5, hb ? Theme.RED_BRIGHT : Theme.TEXT_DIM, false);
+            else {
+                int tw = Math.round(width(b.label()) * 0.85f);
+                small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, 0.85f);
             }
         }
     }
@@ -392,9 +433,15 @@ public class EvadeMenu extends Screen {
         var profiles = EvadeClient.profiles;
         if (profiles == null) return true;
         // input box / create button
-        int inW = cw - 104;
+        int inW = cw - 104 - 78;
         profileFocused = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         if (profileFocused) return true;
+        if (mx >= importButtonX() && mx < importButtonX() + 70 && my >= searchY && my < searchY + 24) {
+            String imported = profiles.importCode(client.keyboard.getClipboard());
+            if (imported != null) net.evadeclient.util.Notifications.push("Profile imported", imported + " is ready to use", true);
+            else net.evadeclient.util.Notifications.push("Nothing to import", "Copy an Evade profile code first", false);
+            return true;
+        }
         if (mx >= createButtonX() && mx < cx + cw && my >= searchY && my < searchY + 24) {
             String name = ProfileManagerName(profileInput);
             if (profiles.create(name)) { profileInput = ""; profileFocused = false; }
@@ -406,11 +453,27 @@ public class EvadeMenu extends Screen {
             int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
             if (my < y || my >= y + PROFILE_H || my < cy || my > cy + ch) continue;
             String name = list.get(i);
-            if (name.equals(active)) return true;
-            int right = cx + cw - 12, uw = 46;
-            if (mx >= right - uw && mx < right) { profiles.switchTo(name); return true; }
-            right -= uw + 8;
-            if (list.size() > 1 && mx >= right - 18 && mx < right) { profiles.delete(name); return true; }
+            int by = y + (PROFILE_H - 18) / 2;
+            if (my < by || my >= by + 18) return true;
+            for (ProfileButton b : profileButtons(name, name.equals(active), list.size())) {
+                if (mx < b.x1() || mx >= b.x2()) continue;
+                switch (b.id()) {
+                    case "use" -> profiles.switchTo(name);
+                    case "delete" -> profiles.delete(name);
+                    case "copy" -> {
+                        String code = profiles.shareCode(name);
+                        if (code != null) {
+                            client.keyboard.setClipboard(code);
+                            net.evadeclient.util.Notifications.push("Code copied", "Share it; anyone can paste it into Import", true);
+                        }
+                    }
+                    case "server" -> {
+                        boolean on = profiles.toggleServer(name, currentServer());
+                        net.evadeclient.util.Notifications.push("Profile", on ? name + " will load on this server" : "Unlinked from this server", true);
+                    }
+                }
+                return true;
+            }
             return true;
         }
         return true;
@@ -434,11 +497,20 @@ public class EvadeMenu extends Screen {
         for (Module mod : EvadeClient.modules.all()) {
             if (mod.getCategory() == Category.CLIENT) continue;
             if (p.category != null && mod.getCategory() != p.category) continue;
-            if (!f.isEmpty() && !mod.getName().toLowerCase(Locale.ROOT).contains(f)
-                    && !mod.getDescription().toLowerCase(Locale.ROOT).contains(f)) continue;
+            if (!f.isEmpty() && !matches(mod, f)) continue;
             out.add(mod);
         }
         return out;
+    }
+
+    /** Search matches a mod's name, description or any of its settings' names (all words must match). */
+    private static boolean matches(Module mod, String f) {
+        StringBuilder hay = new StringBuilder(mod.getName()).append(' ').append(mod.getDescription()).append(' ')
+                .append(mod.getCategory().displayName);
+        for (Setting<?> st : mod.getSettings()) hay.append(' ').append(st.getName());
+        String h = hay.toString().toLowerCase(Locale.ROOT);
+        for (String word : f.trim().split("\\s+")) if (!h.contains(word)) return false;
+        return true;
     }
 
     /** Modules to show, after the search box and the All/Enabled filter. */
@@ -829,6 +901,13 @@ public class EvadeMenu extends Screen {
             if (listening instanceof Module m) m.setKey(value);
             else if (listening instanceof KeySetting k) k.set(value);
             listening = null;
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_F && (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0) {
+            // Ctrl+F: jump to the search box from anywhere in the menu.
+            if (selected != null) back();
+            if (page == Page.SETTINGS || page == Page.PROFILES) page = Page.ALL;
+            searchFocused = true;
             return true;
         }
         if (key == GLFW.GLFW_KEY_ESCAPE) {

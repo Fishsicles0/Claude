@@ -48,6 +48,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testMenu(ctx, sp);
             testProfiles(ctx);
             testIcons(ctx, sp);
+            testCustomization(ctx);
         }
     }
 
@@ -610,6 +611,48 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
             ctx.runOnClient(c -> { setMode(cs, "Theme", "Modern"); setMode(cs, "Accent Color", "Red"); });
         }
+    }
+
+    /** Customization: profile share codes, HUD visibility rules, per-widget background styles, Iris loaded. */
+    private void testCustomization(ClientGameTestContext ctx) {
+        // Share code round trip: copy Default's code, import it, and the copy has the same settings file.
+        String[] r = ctx.computeOnClient(c -> {
+            var pm = EvadeClient.profiles;
+            String code = pm.shareCode(pm.active());
+            String name = pm.importCode(code);
+            String same = "?";
+            try {
+                same = String.valueOf(com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(pm.file(name)))
+                        .equals(com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(pm.file(pm.active())))));
+            } catch (Exception e) { same = e.toString(); }
+            String junk = String.valueOf(pm.importCode("not a code"));
+            pm.delete(name);
+            return new String[]{code == null ? "null" : code.substring(0, Math.min(12, code.length())), name, same, junk, String.valueOf(pm.exists(name))};
+        });
+        check(r[0].startsWith("EVADE1:") && "true".equals(r[2]) && "null".equals(r[3]) && "false".equals(r[4]),
+                "Profile share codes round-trip and junk is rejected (" + r[0] + "… -> \"" + r[1] + "\", same=" + r[2] + ")");
+
+        // Visibility rules and background styles on a HUD element.
+        boolean[] v = ctx.computeOnClient(c -> {
+            var fps = EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class);
+            fps.combatOnly.set(true);
+            net.evadeclient.util.Combat.reset();
+            boolean hiddenIdle = !fps.shouldShow();
+            net.evadeclient.util.Combat.hit();
+            boolean shownInCombat = fps.shouldShow();
+            return new boolean[]{hiddenIdle, shownInCombat};
+        });
+        var fpsMod = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class));
+        setBool(ctx, fpsMod, "Only In Combat", false);
+        setMode(fpsMod, "Background Style", "Glass");
+        ctx.waitTicks(3);
+        String styleAfter = ctx.computeOnClient(c -> net.evadeclient.util.Theme.hudStyle);
+        setMode(fpsMod, "Background Style", "Evade");
+        check(v[0] && v[1] && "Evade".equals(styleAfter),
+                "HUD visibility rules (combat-only hides when idle, shows in a fight) and per-widget styles reset after drawing");
+
+        boolean iris = ctx.computeOnClient(c -> net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("iris"));
+        check(iris, "Iris (the Shaders install option) loads alongside Evade and the FPS mods");
     }
 
     private static void setMode(net.evadeclient.module.Module m, String name, String value) {

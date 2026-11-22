@@ -41,7 +41,7 @@ public final class Hud {
         if (PROFILE != null) PROFILE.merge("__frames", 1L, Long::sum);
         if (!(mc.currentScreen instanceof HudEditorScreen)) {
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (!el.isEnabled()) continue;
+                if (!el.isEnabled() || !el.shouldShow()) continue;
                 if (PROFILE != null) {
                     long t = System.nanoTime();
                     el.renderScaled(ctx, sw, sh, false);

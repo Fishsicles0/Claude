@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "1.17.0";
+    public static final String VERSION = "1.18.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
@@ -62,6 +62,13 @@ public class EvadeClient implements ClientModInitializer {
         WorldRenderEvents.END_MAIN.register(EvadeClient::onWorldRender);
         ClientSendMessageEvents.ALLOW_CHAT.register(commands::handleChat);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());
+        // Profiles linked to a server switch in automatically when you join it.
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+            var entry = client.getCurrentServerEntry();
+            if (entry == null || client.isInSingleplayer()) return;
+            String switched = profiles.onJoinServer(entry.address);
+            if (switched != null) net.evadeclient.util.Notifications.push("Profile", "Switched to " + switched + " for this server", true);
+        }));
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
                 net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));

@@ -33,7 +33,7 @@ def fetch(version):
 
 os.makedirs(OUT, exist_ok=True)
 PROJECTS = ["simple-voice-chat"] + ([] if "--no-perf" in sys.argv else
-            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling", "krypton", "badoptimizations", "sodium-extra", "fast-ip-ping", "fastquit"])
+            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling", "krypton", "badoptimizations", "sodium-extra", "fast-ip-ping", "fastquit", "iris"])
 for old in glob.glob(os.path.join(OUT, "*.jar")):
     os.remove(old)
 FABRIC_API = "P7dR8mSH"
