@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 1.5.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta name="description" content="How to use Evade Client 1.6.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 1.5.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta property="og:description" content="How to use Evade Client 1.6.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.5.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.6.0">
 </head>
 <body data-page="docs">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.5.0</span>
+      <span class="nav-ver">v1.6.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -81,7 +81,7 @@
         <ul>
           <li><b>Left-click</b> a card to turn the mod on or off.</li>
           <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
-          <li><b>Start typing</b> anywhere to search all 62 mods.</li>
+          <li><b>Start typing</b> anywhere to search all 63 mods.</li>
           <li>On a settings page, click <b>Keybind</b> and press a key to bind it. Right-click, <span class="kbd">Esc</span>, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears it.</li>
         </ul>
         <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
@@ -105,6 +105,7 @@
           <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
           <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
           <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
+          <div><span class="kbd">F8</span><span>Save a clip of the last seconds (with Clips on)</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
         <p>Every other mod starts unbound. Bind the ones you use most from their settings page or with <span class="mono">.bind</span>.</p>
@@ -119,6 +120,7 @@
           <div><code>.bind &lt;mod&gt; &lt;key|none&gt;</code><span>Set or clear a keybind</span></div>
           <div><code>.set &lt;mod&gt; &lt;setting&gt; &lt;value&gt;</code><span>Change a setting, e.g. <code>.set Zoom Level 4</code></span></div>
           <div><code>.modules</code><span>List every mod, enabled ones in green</span></div>
+          <div><code>.clip</code> / <code>.clips</code><span>Save an instant-replay clip / open the clips folder</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
           <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
           <div><code>.save</code> / <code>.load</code><span>Save or reload your config</span></div>
@@ -163,10 +165,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.5.0" defer></script>
+<script src="/assets/site.js?v=1.6.0" defer></script>
 </body>
 </html>

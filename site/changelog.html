@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.5.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.6.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.5.0</span>
+      <span class="nav-ver">v1.6.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -65,8 +65,18 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.6.0">
+      <div class="rel-head"><h2>v1.6.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <p class="rel-sum">Clips: instant replay, saved as MP4.</p>
+      <ul>
+        <li>Turn on <b>Clips</b> and Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> (or type <span class="mono">.clip</span>) and those seconds are saved as an <b>MP4</b> &mdash; HUD and all.</li>
+        <li>Choose 480p, 720p or 1080p at 15&ndash;60 FPS. Encoding runs in the background, so the game keeps playing while it saves.</li>
+        <li>Clips go to <span class="mono">.minecraft/evade/clips</span>; type <span class="mono">.clips</span> to open the folder. Video only for now &mdash; no audio.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.5.0">
-      <div class="rel-head"><h2>v1.5.0</h2><span class="pill-sm">Latest</span><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.5.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">Performance: Evade's own built-in FPS boost.</p>
       <ul>
         <li><b>Entity culling</b> &mdash; mobs and items past a distance you choose aren't drawn (players can always stay visible).</li>
@@ -78,7 +88,7 @@
     </article>
 
     <article class="card rel rv" id="v1.4.0">
-      <div class="rel-head"><h2>v1.4.0</h2><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.4.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">Fourteen new mods: a cleaner screen, better visuals and streamer tools.</p>
       <div class="rel-cols">
         <div><h4>Screen</h4><p>Scoreboard, Boss Bar, Particles, Pack Tweaks, Clear Water, Inventory Blur</p></div>
@@ -97,7 +107,7 @@
     </article>
 
     <article class="card rel rv" id="v1.3.0">
-      <div class="rel-head"><h2>v1.3.0</h2><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.3.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">Profiles: switch your whole setup in one click.</p>
       <ul>
         <li><b>Profiles</b> &mdash; save named presets (Default, PvP, SkyBlock, whatever you like) that each remember their own enabled mods, settings, keybinds and HUD layout.</li>
@@ -107,7 +117,7 @@
     </article>
 
     <article class="card rel rv" id="v1.2.0">
-      <div class="rel-head"><h2>v1.2.0</h2><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.2.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">Six new quality-of-life mods, with more on the way.</p>
       <ul>
         <li><b>FOV Changer</b> &mdash; lock your field of view so sprint and speed effects can't distort it.</li>
@@ -120,7 +130,7 @@
     </article>
 
     <article class="card rel rv" id="v1.1.0">
-      <div class="rel-head"><h2>v1.1.0</h2><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.1.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">A rebuilt menu &mdash; cleaner, faster and more spacious than ever.</p>
       <ul>
         <li><b>New default List style</b> &mdash; spacious full-width rows with a description, keybind chip, settings gear and toggle, so you can read every module at a glance.</li>
@@ -132,7 +142,7 @@
     </article>
 
     <article class="card rel rv" id="v1.0.0">
-      <div class="rel-head"><h2>v1.0.0</h2><time>2026-11-21</time></div>
+      <div class="rel-head"><h2>v1.0.0</h2><time>2026-11-22</time></div>
       <p class="rel-sum">The first release of Evade: a server-safe, quality-of-life client for Minecraft 1.21.11.</p>
       <ul>
         <li><b>A full HUD</b> (23 elements): cooldowns, target info, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more &mdash; each one draggable and resizable in the HUD editor.</li>
@@ -159,10 +169,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.5.0" defer></script>
+<script src="/assets/site.js?v=1.6.0" defer></script>
 </body>
 </html>

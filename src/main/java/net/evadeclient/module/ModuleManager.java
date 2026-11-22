@@ -73,6 +73,7 @@ public class ModuleManager {
         register(new AutoTip());
         register(new Notifier());
         register(new Protection());
+        register(new Clips());
         // HUD
         register(new HudModule());
         register(new ArmorHud());

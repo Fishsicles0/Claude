@@ -10,8 +10,18 @@ nav: changelog
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.6.0">
+      <div class="rel-head"><h2>v1.6.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <p class="rel-sum">Clips: instant replay, saved as MP4.</p>
+      <ul>
+        <li>Turn on <b>Clips</b> and Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> (or type <span class="mono">.clip</span>) and those seconds are saved as an <b>MP4</b> &mdash; HUD and all.</li>
+        <li>Choose 480p, 720p or 1080p at 15&ndash;60 FPS. Encoding runs in the background, so the game keeps playing while it saves.</li>
+        <li>Clips go to <span class="mono">.minecraft/evade/clips</span>; type <span class="mono">.clips</span> to open the folder. Video only for now &mdash; no audio.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.5.0">
-      <div class="rel-head"><h2>v1.5.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <div class="rel-head"><h2>v1.5.0</h2><time>{{DATE}}</time></div>
       <p class="rel-sum">Performance: Evade's own built-in FPS boost.</p>
       <ul>
         <li><b>Entity culling</b> &mdash; mobs and items past a distance you choose aren't drawn (players can always stay visible).</li>

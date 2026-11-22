@@ -8,7 +8,13 @@ group = project.maven_group
 
 base { archivesName = project.archives_base_name }
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
+    // Pure-Java H.264/MP4 encoder for Clips, bundled inside the mod jar.
+    include(implementation("org.jcodec:jcodec:0.2.5"))
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"

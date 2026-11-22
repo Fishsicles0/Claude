@@ -32,6 +32,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testVisualBatch(ctx, sp);
             testRenderBatch(ctx, sp);
             testPerformance(ctx, sp);
+            testClips(ctx, sp);
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
@@ -445,6 +446,39 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 "Performance's lighter settings apply and restore (" + before + " -> " + during + " -> " + after + ")");
         setBool(ctx, perf, "Low FPS When Tabbed Out", true);
         server.runCommand("kill @e[type=cow]");
+    }
+
+    /** Clips: record a few seconds, save to MP4, then decode the file back to prove it's real video. */
+    private void testClips(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        server.runCommand("summon tnt 0 -60 6 {fuse:400}");
+        var clips = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.Clips.class));
+        ctx.runOnClient(c -> {
+            for (var st : clips.getSettings()) {
+                if (st.getName().equals("Quality")) ((net.evadeclient.setting.ModeSetting) st).fromJson(new com.google.gson.JsonPrimitive("480p"));
+                if (st.getName().equals("Clip FPS")) ((net.evadeclient.setting.NumberSetting) st).set(15.0);
+            }
+            clips.setEnabled(true);
+        });
+        ctx.waitTicks(100); // ~5 seconds of footage
+        int buffered = ctx.computeOnClient(c -> clips.bufferedFrames());
+        var future = ctx.computeOnClient(c -> clips.save());
+        for (int i = 0; i < 120 && !future.isDone(); i++) ctx.waitTicks(20);
+        java.io.File file = future.isDone() && !future.isCompletedExceptionally() ? future.join() : null;
+        String info = "none";
+        boolean ok = false;
+        if (file != null && file.length() > 10_000) {
+            try {
+                var frame = org.jcodec.api.FrameGrab.getFrameFromFile(file, 10);
+                info = file.length() / 1024 + " KB, frame " + frame.getWidth() + "x" + frame.getHeight();
+                ok = frame.getHeight() == 480;
+            } catch (Exception e) { info = "decode failed: " + e; }
+        }
+        ctx.runOnClient(c -> clips.setEnabled(false));
+        server.runCommand("kill @e[type=tnt]");
+        check(buffered > 20 && ok, "Clips saves a playable MP4 (" + buffered + " frames buffered, " + info + ")");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */
