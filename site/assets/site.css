@@ -559,3 +559,6 @@ footer { margin-top: 140px; border-top: 1px solid var(--stroke); position: relat
 .edition-card p { color: var(--muted); font-size: 14.5px; flex: 1; margin-bottom: 16px; }
 .edition-card .btn { align-self: flex-start; }
 @media (max-width: 760px) { .edition { grid-template-columns: 1fr; } }
+
+/* Evade Clips shortcut in the header; on small screens it lives in the menu instead. */
+@media (max-width: 900px) { .nav-clips { display: none; } }

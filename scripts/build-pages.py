@@ -66,12 +66,14 @@ LAYOUT = """<!doctype html>
     </div>
     <div class="nav-right">
       <span class="nav-ver">v{version}</span>
+      <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
   </div>
   <div class="mobile-menu" id="mobileMenu">
 {mobile_links}
+    <a href="https://clips.evadeclient.com">Evade Clips &#8599;</a>
   </div>
 </nav>
 
