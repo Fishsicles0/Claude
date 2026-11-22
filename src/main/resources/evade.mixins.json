@@ -36,7 +36,8 @@
     "EntityRenderManagerMixin",
     "BlockEntityRenderManagerMixin",
     "InactivityFpsLimiterMixin",
-    "PlayerListHudMixin"
+    "PlayerListHudMixin",
+    "WeatherRenderingMixin"
   ],
   "injectors": {
     "defaultRequire": 1

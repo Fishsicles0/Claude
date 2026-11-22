@@ -467,6 +467,43 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 "Low-End PC Mode applies and restores video settings (" + java.util.Arrays.toString(before2) + " -> "
                         + java.util.Arrays.toString(during2) + " -> " + java.util.Arrays.toString(after2) + ")");
 
+        // Effects: ambient particles and far particles are skipped, normal near ones kept; block dust is cut to ~a quarter.
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.runOnClient(c -> perf.particlePercent.set(100.0)); // no random budget, so the counts are exact
+        boolean[] filt = ctx.computeOnClient(c -> {
+            var p = c.player.getEntityPos();
+            return new boolean[]{
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.CAMPFIRE_COSY_SMOKE, p.x + 2, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.FLAME, p.x + 2, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.FLAME, p.x + 200, p.y, p.z),
+                    perf.skipParticle(net.minecraft.particle.ParticleTypes.RAIN, p.x + 2, p.y, p.z)};
+        });
+        check(filt[0] && !filt[1] && filt[2] && filt[3],
+                "Performance skips ambient, far and rain-splash particles but keeps nearby ones (" + java.util.Arrays.toString(filt) + ")");
+        java.util.function.Function<Boolean, Integer> dust = less -> {
+            setBool(ctx, perf, "Less Block Break Dust", less);
+            ctx.runOnClient(c -> {
+                c.particleManager.clearParticles();
+                var pos = c.player.getBlockPos().add(2, 0, 0);
+                for (int i = 0; i < 4; i++) c.world.addBlockBreakParticles(pos, net.minecraft.block.Blocks.STONE.getDefaultState());
+            });
+            ctx.waitTicks(1);
+            return ctx.computeOnClient(c -> {
+                var m = java.util.regex.Pattern.compile("\\d+").matcher(c.particleManager.getDebugString());
+                return m.find() ? Integer.parseInt(m.group()) : -1;
+            });
+        };
+        int dustFull = dust.apply(false), dustLess = dust.apply(true);
+        check(dustFull > 200 && dustLess > 0 && dustLess < dustFull / 2,
+                "Less Block Break Dust cuts breaking particles (" + dustFull + " -> " + dustLess + " for 4 broken blocks)");
+        // Burning mobs: their fire layer is skipped (screenshot), and rain/snow can be hidden.
+        server.runCommand("summon zombie 0 -60 4 {NoAI:1b,Silent:1b,Fire:2000s,Rotation:[180f,0f]}");
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-perf-mobfire");
+        ctx.runOnClient(c -> perf.particlePercent.set(60.0));
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        server.runCommand("kill @e[type=zombie]");
+
         // AFK cap: two minutes without input drops to the AFK frame rate; any input lifts it straight away.
         enable(ctx, net.evadeclient.module.mods.Performance.class);
         int[] afk = ctx.computeOnClient(c -> {
