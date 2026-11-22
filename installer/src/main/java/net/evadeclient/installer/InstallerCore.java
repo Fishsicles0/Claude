@@ -42,21 +42,34 @@ public final class InstallerCore {
     private static final String MODRINTH = "https://api.modrinth.com/v2/project/fabric-api/version";
     /** Simple Voice Chat by henkelmax. All Rights Reserved, so we never host it: players get it straight from Modrinth. */
     private static final String SVC = "https://api.modrinth.com/v2/project/simple-voice-chat/version";
-    private static final String USER_AGENT = "EvadeInstaller/1.1 (+https://evadeclient.com)";
+
+    /**
+     * Performance mods added from Modrinth (never hosted by us): Modrinth slug, display name, and the filename
+     * prefixes to clear out on reinstall. All are tested alongside Evade in its in-game test suite.
+     */
+    private static final String[][] PERF = {
+            {"sodium", "Sodium", "sodium"},
+            {"lithium", "Lithium", "lithium"},
+            {"ferrite-core", "FerriteCore", "ferritecore"},
+            {"immediatelyfast", "ImmediatelyFast", "ImmediatelyFast", "immediatelyfast"},
+            {"entityculling", "EntityCulling", "entityculling"},
+    };
+    private static final String USER_AGENT = "EvadeInstaller/1.2 (+https://evadeclient.com)";
 
     public interface Progress {
         void update(double fraction, String message);
     }
 
-    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat) {}
+    public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                          boolean performanceMods) {}
 
     /** What's available to install (fetched before installing so the UI can show versions). */
     public record Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
                           String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
-                          ModFile voiceChat) {}
+                          ModFile voiceChat, java.util.List<ModFile> performance) {}
 
-    /** A mod file on Modrinth (null fields if it isn't available for this Minecraft version). */
-    public record ModFile(String version, String url, String sha512, String filename) {}
+    /** A mod file on Modrinth. */
+    public record ModFile(String name, String version, String url, String sha512, String filename) {}
 
     public record Installed(String evadeVersion, String loaderVersion, String fabricApiVersion) {}
 
@@ -127,14 +140,22 @@ public final class InstallerCore {
         if (file == null) file = api.getAsJsonArray("files").get(0).getAsJsonObject();
 
         ModFile voice = null;
-        try { voice = latestOnModrinth(SVC + query); } catch (Exception e) { /* optional: install without voice chat */ }
+        try { voice = latestOnModrinth("Simple Voice Chat", SVC + query); } catch (Exception e) { /* optional: install without voice chat */ }
+
+        java.util.List<ModFile> perf = new java.util.ArrayList<>();
+        for (String[] m : PERF) {
+            try {
+                ModFile f = latestOnModrinth(m[1], "https://api.modrinth.com/v2/project/" + m[0] + "/version" + query);
+                if (f != null) perf.add(f);
+            } catch (Exception e) { /* optional: skip that one */ }
+        }
 
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, str(api, "version_number"),
-                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), voice);
+                str(file, "url"), file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"), voice, perf);
     }
 
     /** Newest release for this Minecraft version (falling back to the newest beta), or null if there's none. */
-    private ModFile latestOnModrinth(String url) throws IOException, InterruptedException {
+    private ModFile latestOnModrinth(String name, String url) throws IOException, InterruptedException {
         JsonArray versions = getJson(url).getAsJsonArray();
         JsonObject pick = null;
         for (JsonElement e : versions) {
@@ -146,7 +167,7 @@ public final class InstallerCore {
         JsonObject file = null;
         for (JsonElement f : pick.getAsJsonArray("files")) if (f.getAsJsonObject().get("primary").getAsBoolean()) file = f.getAsJsonObject();
         if (file == null) file = pick.getAsJsonArray("files").get(0).getAsJsonObject();
-        return new ModFile(str(pick, "version_number"), str(file, "url"),
+        return new ModFile(name, str(pick, "version_number"), str(file, "url"),
                 file.getAsJsonObject("hashes").get("sha512").getAsString(), str(file, "filename"));
     }
 
@@ -181,11 +202,28 @@ public final class InstallerCore {
         // Voice chat: Simple Voice Chat, fetched from Modrinth (optional; a failure here doesn't stop the install).
         deleteMatching(mods, "voicechat");
         String voiceInstalled = "";
+        StringBuilder perfInstalled = new StringBuilder();
+        for (String[] m : PERF) for (int i = 2; i < m.length; i++) deleteMatching(mods, m[i]);
+        if (o.performanceMods() && r.performance() != null) {
+            int i = 0, n = r.performance().size();
+            for (ModFile f : r.performance()) {
+                double a = 0.75 + 0.05 * i / Math.max(1, n), b = 0.75 + 0.05 * (i + 1) / Math.max(1, n);
+                p.update(a, "Downloading " + f.name() + " " + f.version());
+                try {
+                    download(f.url(), mods.resolve(f.filename()), f.sha512(), "SHA-512", a, b, p);
+                    if (perfInstalled.length() > 0) perfInstalled.append(", ");
+                    perfInstalled.append(f.name()).append(' ').append(f.version());
+                } catch (Exception e) {
+                    p.update(b, f.name() + " couldn't be downloaded; run the installer again later to add it.");
+                }
+                i++;
+            }
+        }
         if (o.voiceChat() && r.voiceChat() != null) {
             ModFile v = r.voiceChat();
-            p.update(0.75, "Downloading voice chat (Simple Voice Chat " + v.version() + ")");
+            p.update(0.80, "Downloading voice chat (Simple Voice Chat " + v.version() + ")");
             try {
-                download(v.url(), mods.resolve(v.filename()), v.sha512(), "SHA-512", 0.75, 0.8, p);
+                download(v.url(), mods.resolve(v.filename()), v.sha512(), "SHA-512", 0.80, 0.82, p);
                 voiceInstalled = v.version();
             } catch (Exception e) {
                 p.update(0.8, "Voice chat couldn't be downloaded; run the installer again later to add it.");
@@ -212,6 +250,7 @@ public final class InstallerCore {
         marker.addProperty("loader", r.loaderVersion());
         marker.addProperty("fabricApi", r.fabricApiVersion());
         marker.addProperty("voiceChat", voiceInstalled);
+        marker.addProperty("performanceMods", perfInstalled.toString());
         marker.addProperty("minecraft", MC_VERSION);
         marker.addProperty("installedAt", Instant.now().toString());
         Files.writeString(game.resolve("evade-install.json"), GSON.toJson(marker));
@@ -245,8 +284,12 @@ public final class InstallerCore {
         prof.addProperty("lastVersionId", VERSION_ID);
         prof.addProperty("icon", iconDataUri());
         prof.addProperty("gameDir", o.gameDir().toAbsolutePath().toString());
-        prof.addProperty("javaArgs", "-Xmx" + o.memoryGb() + "G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC "
-                + "-XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M");
+        // Low-pause G1 settings: a fixed-size heap (no resize hitches), short GC pauses, no forced full GCs.
+        prof.addProperty("javaArgs", "-Xms" + o.memoryGb() + "G -Xmx" + o.memoryGb() + "G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC "
+                + "-XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=37 -XX:+DisableExplicitGC -XX:G1NewSizePercent=20 "
+                + "-XX:G1MaxNewSizePercent=40 -XX:G1ReservePercent=20 -XX:G1HeapRegionSize=16M -XX:G1MixedGCCountTarget=4 "
+                + "-XX:InitiatingHeapOccupancyPercent=15 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:MaxTenuringThreshold=1 "
+                + "-XX:+PerfDisableSharedMem");
         profiles.add(PROFILE_KEY, prof);
 
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");

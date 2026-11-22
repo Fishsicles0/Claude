@@ -26,6 +26,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             server.runCommand("difficulty easy");
             server.runCommand("tp @a 0 -60 0 0 0");
             ctx.waitTicks(20);
+            // Performance is on by default; tests start without it (its particle budget would make them random)
+            // and turn it on where they test it.
+            disable(ctx, net.evadeclient.module.mods.Performance.class);
+            String addons = ctx.computeOnClient(c -> net.evadeclient.module.mods.Performance.installedAddons());
+            check(!addons.startsWith("None"), "Performance mods load alongside Evade (" + addons + ")");
 
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);

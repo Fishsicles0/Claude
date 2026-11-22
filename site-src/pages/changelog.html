@@ -10,8 +10,19 @@ nav: changelog
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.9.0">
+      <div class="rel-head"><h2>v1.9.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <p class="rel-sum">Twice the FPS in busy scenes.</p>
+      <ul>
+        <li><b>Evade Installer 1.2</b> adds the best-known performance mods &mdash; <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a> and <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a> &mdash; straight from Modrinth, checked against Modrinth's checksums and tested with Evade. On by default; switch off <b>FPS mods</b> to skip them.</li>
+        <li>Smoother frame times: the installer now sets low-pause memory settings (fixed-size heap, shorter garbage-collection pauses).</li>
+        <li>Evade's own <b>Performance</b> mod is now <b>on by default</b> and shows which FPS mods are installed.</li>
+        <li>Measured in our busy test scene (900 armoured stands): <b>18 FPS &rarr; 36 FPS</b> with everything on. Results vary by PC and scene.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.8.1">
-      <div class="rel-head"><h2>v1.8.1</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
+      <div class="rel-head"><h2>v1.8.1</h2><time>{{DATE}}</time></div>
       <p class="rel-sum">One voice chat: Simple Voice Chat.</p>
       <ul>
         <li>Evade's own voice chat is gone; voice is now handled entirely by Simple Voice Chat, which works on far more servers. Nothing changes if you already use it.</li>

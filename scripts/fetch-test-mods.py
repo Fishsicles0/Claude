@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Downloads Simple Voice Chat (1.21.11, Fabric) into libs/test-mods so the in-game tests run Evade alongside it.
+"""Downloads the mods the Evade Installer can add (Simple Voice Chat + the performance mods, 1.21.11 Fabric) into
+libs/test-mods, so the in-game tests run Evade alongside them.
 
-It's someone else's mod (All Rights Reserved): it's only used by `runClientGameTest` (via modLocalRuntime) and is
-never bundled into Evade or hosted by us. Players get it from Modrinth through the Evade Installer.
+They're other people's mods: only used by `runClientGameTest` and never bundled into Evade or hosted by us.
+Players get them from Modrinth through the Evade Installer.
+Pass --no-perf to test with Simple Voice Chat only.
 Checksums are verified against Modrinth.
 """
-import glob, hashlib, json, os, urllib.request
+import glob, hashlib, json, os, sys, urllib.request
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "libs", "test-mods")
 Q = "game_versions=%5B%221.21.11%22%5D&loaders=%5B%22fabric%22%5D"
@@ -27,9 +29,10 @@ def fetch(version):
 
 
 os.makedirs(OUT, exist_ok=True)
-for old in glob.glob(os.path.join(OUT, "*.jar")):  # drop leftovers (e.g. the old Printer test mods)
-    if "voicechat" not in os.path.basename(old):
-        os.remove(old)
-versions = get(f"https://api.modrinth.com/v2/project/simple-voice-chat/version?{Q}")
-svc = next((v for v in versions if v["version_type"] == "release"), versions[0])
-fetch(svc)
+PROJECTS = ["simple-voice-chat"] + ([] if "--no-perf" in sys.argv else
+            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling"])
+for old in glob.glob(os.path.join(OUT, "*.jar")):
+    os.remove(old)
+for slug in PROJECTS:
+    versions = get(f"https://api.modrinth.com/v2/project/{slug}/version?{Q}")
+    fetch(next((v for v in versions if v["version_type"] == "release"), versions[0]))

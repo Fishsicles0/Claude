@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.8.1">
+<link rel="stylesheet" href="/assets/site.css?v=1.9.0">
 </head>
 <body data-page="changelog">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -40,7 +40,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.8.1</span>
+      <span class="nav-ver">v1.9.0</span>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
     </div>
@@ -65,8 +65,19 @@
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.9.0">
+      <div class="rel-head"><h2>v1.9.0</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <p class="rel-sum">Twice the FPS in busy scenes.</p>
+      <ul>
+        <li><b>Evade Installer 1.2</b> adds the best-known performance mods &mdash; <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a> and <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a> &mdash; straight from Modrinth, checked against Modrinth's checksums and tested with Evade. On by default; switch off <b>FPS mods</b> to skip them.</li>
+        <li>Smoother frame times: the installer now sets low-pause memory settings (fixed-size heap, shorter garbage-collection pauses).</li>
+        <li>Evade's own <b>Performance</b> mod is now <b>on by default</b> and shows which FPS mods are installed.</li>
+        <li>Measured in our busy test scene (900 armoured stands): <b>18 FPS &rarr; 36 FPS</b> with everything on. Results vary by PC and scene.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.8.1">
-      <div class="rel-head"><h2>v1.8.1</h2><span class="pill-sm">Latest</span><time>2026-11-22</time></div>
+      <div class="rel-head"><h2>v1.8.1</h2><time>2026-11-22</time></div>
       <p class="rel-sum">One voice chat: Simple Voice Chat.</p>
       <ul>
         <li>Evade's own voice chat is gone; voice is now handled entirely by Simple Voice Chat, which works on far more servers. Nothing changes if you already use it.</li>
@@ -201,10 +212,10 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.8.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.9.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.8.1" defer></script>
+<script src="/assets/site.js?v=1.9.0" defer></script>
 </body>
 </html>

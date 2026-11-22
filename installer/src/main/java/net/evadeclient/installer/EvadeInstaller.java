@@ -17,7 +17,7 @@ import java.util.Locale;
  * Evade Installer.
  * <pre>
  *   java -jar EvadeInstaller.jar                      open the installer window
- *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings]
+ *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods]
  *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every screen to PNG (no display needed)
  * </pre>
  */
@@ -65,7 +65,7 @@ public final class EvadeInstaller {
             view.progress = 0;
             view.shownProgress = 0;
             Path mc = view.minecraftDir;
-            InstallerCore.Options opts = new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), view.memoryGb, view.copySettings, view.voiceChat);
+            InstallerCore.Options opts = new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), view.memoryGb, view.copySettings, view.voiceChat, view.performanceMods);
             new SwingWorker<Void, Object[]>() {
                 @Override protected Void doInBackground() throws Exception {
                     core.install(opts, view.release, (f, msg) -> publish(new Object[]{f, msg}));
@@ -129,14 +129,17 @@ public final class EvadeInstaller {
         int mem = Integer.parseInt(arg(a, "--memory", "4"));
         boolean copy = !a.contains("--no-copy-settings");
         boolean voice = !a.contains("--no-voice-chat");
+        boolean perf = !a.contains("--no-performance-mods");
         InstallerCore core = new InstallerCore();
         System.out.println("Evade Installer");
         System.out.println("Minecraft folder: " + mc);
         InstallerCore.Release r = core.fetchRelease();
         System.out.printf("Installing Evade v%s, Fabric Loader %s, Fabric API %s%s%n", r.evadeVersion(), r.loaderVersion(), r.fabricApiVersion(),
                 voice && r.voiceChat() != null ? ", Simple Voice Chat " + r.voiceChat().version() + " (from Modrinth)" : "");
+        if (perf && !r.performance().isEmpty())
+            System.out.println("Performance mods (from Modrinth): " + String.join(", ", r.performance().stream().map(m -> m.name() + " " + m.version()).toList()));
         int[] last = {-1};
-        core.install(new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), mem, copy, voice), r, (f, msg) -> {
+        core.install(new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), mem, copy, voice, perf), r, (f, msg) -> {
             int pct = (int) Math.round(f * 100);
             if (msg != null || pct / 10 != last[0] / 10) {
                 System.out.printf("[%3d%%] %s%n", pct, msg != null ? msg : "");
@@ -153,7 +156,7 @@ public final class EvadeInstaller {
         Files.createDirectories(out);
         InstallerView v = new InstallerView();
         v.minecraftDir = Paths.get(System.getProperty("user.home"), "AppData", "Roaming", ".minecraft");
-        v.release = new InstallerCore.Release("1.8.0", "", "", "0.18.6", "0.141.6+1.21.11", "", "", "", null);
+        v.release = new InstallerCore.Release("1.8.0", "", "", "0.18.6", "0.141.6+1.21.11", "", "", "", null, java.util.List.of());
         v.installed = null;
         save(v, out, "1-ready");
         v.installed = new InstallerCore.Installed("0.3.0", "0.20.1", "0.141.6+1.21.11");
