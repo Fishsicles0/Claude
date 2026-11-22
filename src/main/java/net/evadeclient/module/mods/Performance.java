@@ -27,13 +27,18 @@ public class Performance extends Module {
     public final NumberSetting particlePercent = add(new NumberSetting("Particles Kept %", 60, 10, 100, 10));
     public final BooleanSetting unfocusedCap = add(new BooleanSetting("Low FPS When Tabbed Out", true));
     public final NumberSetting unfocusedFps = add(new NumberSetting("Tabbed Out FPS", 20, 5, 60, 5));
+    public final BooleanSetting afkCap = add(new BooleanSetting("Low FPS When AFK", true));
+    public final NumberSetting afkSeconds = add(new NumberSetting("AFK After (s)", 60, 15, 600, 15));
+    public final NumberSetting afkFps = add(new NumberSetting("AFK FPS", 15, 5, 60, 5));
     public final BooleanSetting lighterOptions = add(new BooleanSetting("Lighter Video Settings", true));
     public final net.evadeclient.setting.StatusSetting addons = add(new net.evadeclient.setting.StatusSetting(
             "FPS Mods Installed", Performance::installedAddons, "via installer"));
 
     private static final String[][] ADDONS = {
             {"sodium", "Sodium"}, {"lithium", "Lithium"}, {"ferritecore", "FerriteCore"},
-            {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}, {"moreculling", "MoreCulling"}};
+            {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}, {"moreculling", "MoreCulling"},
+            {"scalablelux", "ScalableLux"}, {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
+            {"sodium-extra", "Sodium Extra"}, {"fast-ip-ping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
 
     /** Which of the installer's performance mods are loaded (they stack with this module). */
     public static String installedAddons() {

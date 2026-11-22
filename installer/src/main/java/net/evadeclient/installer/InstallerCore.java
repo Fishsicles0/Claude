@@ -54,10 +54,16 @@ public final class InstallerCore {
             {"immediatelyfast", "ImmediatelyFast", "ImmediatelyFast", "immediatelyfast"},
             {"entityculling", "EntityCulling", "entityculling"},
             {"moreculling", "MoreCulling", "moreculling"},
+            {"scalablelux", "ScalableLux", "ScalableLux", "scalablelux"},
+            {"krypton", "Krypton", "krypton"},
+            {"badoptimizations", "BadOptimizations", "BadOptimizations", "badoptimizations"},
+            {"sodium-extra", "Sodium Extra", "sodium-extra"},
+            {"fast-ip-ping", "Fast IP Ping", "fast-ip-ping"},
+            {"fastquit", "FastQuit", "fastquit"},
     };
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
     private static final String FABRIC_API_ID = "P7dR8mSH";
-    private static final String USER_AGENT = "EvadeInstaller/1.3 (+https://evadeclient.com)";
+    private static final String USER_AGENT = "EvadeInstaller/1.4 (+https://evadeclient.com)";
 
     public interface Progress {
         void update(double fraction, String message);

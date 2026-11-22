@@ -464,6 +464,18 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         var after = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
         check(before == net.minecraft.client.option.CloudRenderMode.FANCY && during == net.minecraft.client.option.CloudRenderMode.OFF && after == before,
                 "Performance's lighter settings apply and restore (" + before + " -> " + during + " -> " + after + ")");
+        // AFK cap: two minutes without input drops to the AFK frame rate; any input lifts it straight away.
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        int[] afk = ctx.computeOnClient(c -> {
+            var lim = c.getInactivityFpsLimiter();
+            try { lim.getClass().getMethod("evade$pretendIdle", long.class).invoke(lim, 120_000L); }
+            catch (Exception e) { throw new AssertionError(e); }
+            int idle = lim.update();
+            lim.onInput();
+            return new int[]{idle, lim.update()};
+        });
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        check(afk[0] <= 15 && afk[1] > 15, "Performance idles at a low FPS when AFK and recovers on input (" + afk[0] + " -> " + afk[1] + ")");
         setBool(ctx, perf, "Low FPS When Tabbed Out", true);
         server.runCommand("kill @e[type=cow]");
     }
