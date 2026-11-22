@@ -617,6 +617,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(seen[0] == 0xFF2F7BFF && seen[1] == 1 && seen[3] == 0xFFE11D2E && seen[4] == 0 && seen[2] != seen[5],
                 "Theme presets and accent colours restyle the client (Classic + Blue -> square corners, blue accent; back to Modern + Red)");
 
+        // Keep the camera on the scene: cursor moves during the menu clip would otherwise turn the player.
+        float[] look = ctx.computeOnClient(c -> new float[]{c.player.getYaw(), 0f}); // level, like the HUD shot
+        Runnable faceScene = () -> ctx.runOnClient(c -> { c.player.setYaw(look[0]); c.player.setPitch(look[1]);
+            c.player.lastYaw = look[0]; c.player.lastPitch = look[1]; });
+
         // --- clip 1: the menu
         java.util.concurrent.atomic.AtomicLong t = new java.util.concurrent.atomic.AtomicLong(1_000_000);
         EvadeMenu.clock = t::get;
@@ -653,6 +658,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.runOnClient(c -> { EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(false); c.particleManager.clearParticles(); });
         ctx.setScreen(() -> new net.evadeclient.gui.HudEditorScreen(null));
         ctx.waitTicks(3);
+        faceScene.run();
         int[] el = ctx.computeOnClient(c -> {
             var w = c.getWindow();
             var coords = EvadeClient.modules.get(net.evadeclient.module.hud.CoordsHud.class);
@@ -698,6 +704,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).setEnabled(true);
             c.particleManager.clearParticles();
         });
+        ctx.waitTicks(2);
+        faceScene.run();
+        ctx.waitTicks(2);
         t.set(2_000_000);
         EvadeMenu.clock = t::get;
         Runnable play = () -> { t.addAndGet(33); ctx.takeScreenshot("clip-play"); };
