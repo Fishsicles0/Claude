@@ -54,7 +54,6 @@ public final class InstallerCore {
             {"immediatelyfast", "ImmediatelyFast", "ImmediatelyFast", "immediatelyfast"},
             {"entityculling", "EntityCulling", "entityculling"},
             {"moreculling", "MoreCulling", "moreculling"},
-            {"scalablelux", "ScalableLux", "ScalableLux", "scalablelux"},
             {"krypton", "Krypton", "krypton"},
             {"badoptimizations", "BadOptimizations", "BadOptimizations", "badoptimizations"},
             {"sodium-extra", "Sodium Extra", "sodium-extra"},

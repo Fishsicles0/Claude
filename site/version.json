@@ -1,13 +1,13 @@
 {
-  "version": "1.10.0",
+  "version": "1.11.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "2179 KB",
-  "sha256": "ce5de8b3551432116ab7cc1f417b67784bee6935b930a2e92dbf18498864f1cb",
+  "size": "2180 KB",
+  "sha256": "cf6fbd9e08d6745ba0e6f8e6a9aef403b12549159c52066cf836fab0d9df2c24",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "830 KB", "sha256": "6883e7a8d2ae63895f3d21edc90d3bc213d83b15745cf8319e60048486f2dd46" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "718 KB", "sha256": "c36186a2d3d347334dce08ccbf8e4b8873ab3f754f63940cda2c3d92ad83b4a8" }
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "830 KB", "sha256": "cc83d1fdbc3921fc65c2f3d3755e5858b9d88732b2ab927c0c6caed7e10acdf4" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "718 KB", "sha256": "ebd596ab94c5f405901dd779b6871eb75b6de7c03ee35f33015aac4479c6ba10" }
   },
   "texturePack": { "version": "1.0", "file": "downloads/Evade-Texture-Pack.zip", "size": "145 KB", "sha256": "5e10082cbf18f028de9bcf62472a8200d905f6f9648e61bbd4f05f513dba6b94" },
   "date": "2026-11-22"

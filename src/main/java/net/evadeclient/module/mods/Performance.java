@@ -37,7 +37,7 @@ public class Performance extends Module {
     private static final String[][] ADDONS = {
             {"sodium", "Sodium"}, {"lithium", "Lithium"}, {"ferritecore", "FerriteCore"},
             {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}, {"moreculling", "MoreCulling"},
-            {"scalablelux", "ScalableLux"}, {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
+            {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
             {"sodium-extra", "Sodium Extra"}, {"fastipping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
 
     /** Which of the installer's performance mods are loaded (they stack with this module). */
