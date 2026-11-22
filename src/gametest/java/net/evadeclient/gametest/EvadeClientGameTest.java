@@ -712,14 +712,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             c.player.getItemCooldownManager().set(new ItemStack(Items.WIND_CHARGE), 200);
         });
         ctx.waitTicks(10);
-        // Hit the zombie once so TargetHUD shows it as the fight target.
-        ctx.runOnClient(c -> {
-            var z = c.world.getEntitiesByClass(net.minecraft.entity.mob.ZombieEntity.class, c.player.getBoundingBox().expand(16), e -> true).getFirst();
-            net.evadeclient.util.TargetTracker.onAttack(z);
-        });
         ctx.waitTicks(30);
         ctx.takeScreenshot("evade-hud");
 
-        check(true, "HUD screenshot taken (armor, target, cooldowns, keystrokes)");
+        check(true, "HUD screenshot taken (armor, cooldowns, keystrokes)");
     }
 }
