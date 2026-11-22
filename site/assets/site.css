@@ -598,4 +598,4 @@ html:not(.js) .mod { cursor: default; }
 
 /* A pair of call-to-action buttons under a section */
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 56px; }
-@media (max-width: 560px) { .cta-row .btn { flex: 1 1 100%; justify-content: center; text-align: center; } }
+@media (max-width: 560px) { .cta-row .btn { flex: 1 1 100%; } }
