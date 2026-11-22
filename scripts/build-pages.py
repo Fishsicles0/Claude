@@ -73,7 +73,6 @@ LAYOUT = """<!doctype html>
   </div>
   <div class="mobile-menu" id="mobileMenu">
 {mobile_links}
-    <a href="https://clips.evadeclient.com">Evade Clips &#8599;</a>
   </div>
 </nav>
 
