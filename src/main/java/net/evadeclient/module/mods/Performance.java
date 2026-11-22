@@ -38,7 +38,7 @@ public class Performance extends Module {
             {"sodium", "Sodium"}, {"lithium", "Lithium"}, {"ferritecore", "FerriteCore"},
             {"immediatelyfast", "ImmediatelyFast"}, {"entityculling", "EntityCulling"}, {"moreculling", "MoreCulling"},
             {"scalablelux", "ScalableLux"}, {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
-            {"sodium-extra", "Sodium Extra"}, {"fast-ip-ping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
+            {"sodium-extra", "Sodium Extra"}, {"fastipping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
 
     /** Which of the installer's performance mods are loaded (they stack with this module). */
     public static String installedAddons() {
