@@ -1,0 +1,20 @@
+// Same as wrangler.jsonc but without bundled static files: the downloads are served from the R2 bucket
+// (dl/ prefix). Used when static-asset upload isn't possible:
+//   npx wrangler r2 object put evade-clips/dl/<file> --file public/downloads/<file>
+//   npx wrangler deploy --config wrangler.r2-downloads.jsonc
+// Evade Clips Share: clips.evadeclient.com — the Evade Clips download page, share links and phone sync.
+// Deploy: `npx wrangler r2 bucket create evade-clips` once, then `npx wrangler deploy` (see README.md).
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "evade-clips",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-01",
+  "r2_buckets": [{ "binding": "CLIPS", "bucket_name": "evade-clips" }],
+  "routes": [{ "pattern": "clips.evadeclient.com", "custom_domain": true }],
+  "vars": {
+    // Storage per account, in GB.
+    "QUOTA_GB": "25",
+    "SITE_NAME": "Evade Clips"
+    // Secrets (npx wrangler secret put ...): ADMIN_TOKEN for moderation; REGISTER_SECRET to make it invite-only.
+  }
+}

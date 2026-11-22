@@ -49,7 +49,7 @@ async function route(req, env) {
 
   if (m === "OPTIONS") return new Response(null, { headers: cors() });
   if (p === "/" && m === "GET") return home(req, env);
-  if (p.startsWith("/downloads/") && env.ASSETS) return env.ASSETS.fetch(req);
+  if (p.startsWith("/downloads/")) return download(req, env, p.slice("/downloads/".length));
   if (p === "/api/register" && m === "POST") return register(req, env);
   if (p === "/api/clips" && m === "GET") return listClips(await auth(req, env, true), env);
   if (p === "/api/uploads" && m === "POST") return startUpload(req, await auth(req, env, true), env);
@@ -395,13 +395,29 @@ if(info.thumb)await api('/api/clips/'+s.clip+'/thumb',{method:'PUT',body:info.th
   return html(page(env, "Your clips", body, '<meta name="robots" content="noindex">'));
 }
 
-/** clips.evadeclient.com: what Evade Clips is, and its downloads (from ./public/downloads/clips.json). */
+/**
+ * Downloads: from the bundled static files when the Worker was deployed with them, otherwise from the R2
+ * bucket under dl/ (upload with `npx wrangler r2 object put evade-clips/dl/<file> --file ... --remote`).
+ */
+async function download(req, env, name) {
+  if (!/^[\w.-]+$/.test(name)) return new Response("not found", { status: 404 });
+  if (env.ASSETS) {
+    const r = await env.ASSETS.fetch(req);
+    if (r.ok) return r;
+  }
+  const obj = await env.CLIPS.get(`dl/${name}`);
+  if (!obj) return new Response("not found", { status: 404 });
+  const type = name.endsWith(".json") ? "application/json" : "application/octet-stream";
+  const h = { "Content-Type": type, "Content-Length": String(obj.size), "Cache-Control": "public, max-age=300" };
+  if (!name.endsWith(".json")) h["Content-Disposition"] = `attachment; filename="${name}"`;
+  return new Response(obj.body, { headers: h });
+}
+
+/** clips.evadeclient.com: what Evade Clips is, and its downloads (described by downloads/clips.json). */
 async function home(req, env) {
   let d = null;
-  if (env.ASSETS) {
-    const r = await env.ASSETS.fetch(new Request(new URL("/downloads/clips.json", req.url)));
-    if (r.ok) d = await r.json().catch(() => null);
-  }
+  const r = await download(new Request(new URL("/downloads/clips.json", req.url)), env, "clips.json");
+  if (r.ok) d = await r.json().catch(() => null);
   const dl = d ? `
 <p class=row><a class=btn href="/downloads/${esc(d.windows.file)}">Download for Windows</a>
 <a class=btn2 href="/downloads/${esc(d.jar.file)}">macOS / Linux (.jar)</a></p>

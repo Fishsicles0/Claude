@@ -41,6 +41,12 @@ npx wrangler secret put REGISTER_SECRET
 Evade Clips uses https://clips.evadeclient.com by default. If you host your own, put its URL in Evade Clips →
 Settings → Sharing → *Share server*.
 
+Live at **https://clips.evadeclient.com** (Worker `evade-clips`, bucket `evade-clips`, `ADMIN_TOKEN` set).
+It was deployed with `wrangler.r2-downloads.jsonc`: the downloads live in the bucket under `dl/`. After a new
+Evade Clips build, update them with
+`npx wrangler r2 object put evade-clips/dl/<file> --file public/downloads/<file>` for `Evade-Clips.exe`,
+`EvadeClips.jar` and `clips.json`.
+
 ## Test locally
 
 ```bash
