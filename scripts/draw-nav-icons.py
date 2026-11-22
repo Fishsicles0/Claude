@@ -93,8 +93,26 @@ def settings():  # gear, drawn as an outline like the others
     d.ellipse((38, 38, 58, 58), outline=WHITE, width=W)
     save(im, "settings")
 
+def search():  # magnifier
+    im, d = canvas()
+    d.ellipse((10, 10, 66, 66), outline=WHITE, width=W)
+    d.line((60, 60, 86, 86), fill=WHITE, width=W + 2)
+    save(im, "search")
+
+def close():  # x
+    im, d = canvas()
+    d.line((22, 22, 74, 74), fill=WHITE, width=W)
+    d.line((74, 22, 22, 74), fill=WHITE, width=W)
+    save(im, "close")
+
+def reset():  # circular arrow
+    im, d = canvas()
+    d.arc((14, 14, 82, 82), 40, 330, fill=WHITE, width=W)
+    d.polygon([(80, 10), (82, 44), (50, 34)], fill=WHITE)
+    save(im, "reset")
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    for f in (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, settings):
+    for f in (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, settings, search, close, reset):
         f()
     print("icons ->", OUT)

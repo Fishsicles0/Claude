@@ -15,6 +15,7 @@ public class ClientSettings extends Module {
             add(new net.evadeclient.setting.ModeSetting("Theme", "Modern", net.evadeclient.util.Theme.PRESETS));
     public final net.evadeclient.setting.ModeSetting accent =
             add(new net.evadeclient.setting.ModeSetting("Accent Color", "Red", net.evadeclient.util.Theme.ACCENTS));
+    public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", true));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true));
     public final BooleanSetting animations = add(new BooleanSetting("Animations", true));
     public final BooleanSetting toggleMessages = add(new BooleanSetting("Keybind Messages", true));

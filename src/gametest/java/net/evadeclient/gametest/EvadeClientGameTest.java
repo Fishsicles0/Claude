@@ -597,13 +597,17 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             ctx.getInput().resizeWindow(1920, 1080);
             ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });
             var cs = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class));
-            for (String[] l : new String[][]{{"Modern", "Red"}, {"Modern", "Green"}, {"Classic", "Blue"}}) {
-                ctx.runOnClient(c -> { setMode(cs, "Theme", l[0]); setMode(cs, "Accent Color", l[1]); });
+            for (String style : new String[]{"List", "Cards", "Compact"}) {
+                ctx.runOnClient(c -> setMode(cs, "GUI Style", style));
                 ctx.setScreen(EvadeMenu::new);
                 ctx.getInput().setCursorPos(140 * 2, 200 * 2); // hover a sidebar item
                 ctx.waitTicks(8);
-                ctx.takeScreenshot("menushot-" + l[0].toLowerCase() + "-" + l[1].toLowerCase());
+                ctx.takeScreenshot("menushot-" + style.toLowerCase());
             }
+            ctx.setScreen(() -> EvadeMenu.open(EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class)));
+            ctx.waitTicks(8);
+            ctx.takeScreenshot("menushot-settings");
+            ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
             ctx.runOnClient(c -> { setMode(cs, "Theme", "Modern"); setMode(cs, "Accent Color", "Red"); });
         }
     }
