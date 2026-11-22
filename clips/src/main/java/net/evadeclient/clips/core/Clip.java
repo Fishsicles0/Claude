@@ -21,6 +21,8 @@ public final class Clip {
     public boolean hasAudio;
     /** 2 when the mic was recorded on its own track (track 0 = game, 1 = mic). */
     public int audioTracks;
+    /** Audio track titles in order ("Game", "Mic", "Voice chat"); empty for clips from elsewhere. */
+    public List<String> trackNames = new ArrayList<>();
     public boolean favorite;
     public Kind kind = Kind.IMPORT;
     /** For exports: the clip it was made from. */

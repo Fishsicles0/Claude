@@ -31,6 +31,8 @@ public final class Settings {
     public int resolution = 1080;
     /** 1 = small files, 2 = balanced, 3 = best. */
     public int quality = 2;
+    /** "auto" (HEVC when a GPU can do it, else H.264), "h264" (plays everywhere) or "hevc" (smallest files). */
+    public String codec = "auto";
     /** Blank = best working encoder. */
     public String encoder = "";
     public boolean captureCursor = true;
@@ -41,6 +43,9 @@ public final class Settings {
     public boolean recordMic = false;
     public String micDevice = "";
     public double micVolume = 1.0;
+    /** A third track for voice chat: pick the device your chat app outputs to (e.g. a VB-Cable). */
+    public boolean recordVoice = false;
+    public String voiceDevice = "";
 
     // instant replay
     public boolean replayEnabled = true;
@@ -49,8 +54,13 @@ public final class Settings {
     public int replayAfterSeconds = 0;
     /** Scan new recordings for loud moments and mark them. */
     public boolean autoHighlights = true;
-    /** Start the replay buffer as soon as the app opens. */
-    public boolean replayOnLaunch = true;
+    /** Start the replay buffer as soon as the app opens (otherwise only while a game is running). */
+    public boolean replayOnLaunch = false;
+    /** Start instant replay when a game starts and stop it when the game closes: zero cost when not playing. */
+    public boolean autoReplayForGames = true;
+
+    /** Say "clip that" / "start recording" / "mark that". Recognised offline on this PC. */
+    public boolean voiceCommands = false;
 
     // hotkeys (JNativeHook key text, e.g. "F8", "Alt+F10")
     public String hotkeySaveClip = "F8";
@@ -65,6 +75,15 @@ public final class Settings {
     public boolean controlServer = true;
     public int controlPort = 47821;
     public String ffmpegPath = "";
+
+    // automatic clips from game events
+    public int autoClipBefore = 20;
+    public int autoClipAfter = 4;
+    public boolean cs2Events = true;
+    public boolean cs2HeadshotsOnly = false;
+    public boolean leagueEvents = true;
+    /** Shared secret CS2 sends with every update, so other programs can't fake events. */
+    public String gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
     public String defaultGame = "Minecraft";
 
     public static Path appDir() {
@@ -113,10 +132,13 @@ public final class Settings {
         if (clipsFolder == null || clipsFolder.isBlank()) clipsFolder = defaultClipsFolder().toString();
         fps = Math.max(10, Math.min(240, fps));
         quality = Math.max(1, Math.min(3, quality));
-        replaySeconds = Math.max(5, Math.min(600, replaySeconds));
+        replaySeconds = Math.max(5, Math.min(600, replaySeconds)); // up to 10 minutes
         replayAfterSeconds = Math.max(0, Math.min(30, replayAfterSeconds));
         if (source == null) source = "screen";
         if (encoder == null) encoder = "";
+        if (codec == null) codec = "auto";
+        if (voiceDevice == null) voiceDevice = "";
+        if (gsiToken == null || gsiToken.isBlank()) gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
         if (ffmpegPath == null) ffmpegPath = "";
         return this;
     }

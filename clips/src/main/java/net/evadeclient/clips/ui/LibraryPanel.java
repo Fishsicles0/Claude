@@ -377,6 +377,8 @@ public final class LibraryPanel extends JPanel {
         m.add(item("Set game…", null, () -> setGame(list)));
         m.addSeparator();
         m.add(item("Copy file" + (list.size() > 1 ? "s" : ""), Theme.Glyph.COPY, () -> copyFiles(list)));
+        long total = list.stream().mapToLong(x -> x.size).sum();
+        m.add(item("Shrink to save space (" + Theme.size(total) + ")", Theme.Glyph.IMPORT, () -> app.shrink(list)));
         JMenu export = new JMenu("Quick export");
         export.setIcon(Theme.icon(Theme.Glyph.EXPORT, 16, Theme.DIM));
         for (Exporter.Preset p : Exporter.Preset.values()) {

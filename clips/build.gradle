@@ -13,6 +13,8 @@ dependencies {
     implementation 'com.formdev:flatlaf:3.5.4'
     // Global hotkeys (save a clip while the game has focus).
     implementation 'com.github.kwhat:jnativehook:2.2.2'
+    // Offline speech recognition for voice commands ("clip that"). The model is downloaded on first use.
+    implementation 'com.alphacephei:vosk:0.3.45'
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
@@ -32,6 +34,17 @@ tasks.register('selfTest', JavaExec) {
     classpath = files(tasks.named('jar').get().archiveFile)
     mainClass = 'net.evadeclient.clips.ClipsApp'
     args '--selftest', "${buildDir}/selftest"
+    // Voice-command checks run when a speech model is available (download it once from the app's Settings).
+    def model = System.getProperty('clips.voskModel') ?: System.getenv('CLIPS_VOSK_MODEL')
+    if (model) systemProperty 'clips.voskModel', model
+}
+
+// `./gradlew :clips:sizeTest` records worst-case footage and checks clips and exports stay under their size ceilings.
+tasks.register('sizeTest', JavaExec) {
+    dependsOn 'jar'
+    classpath = files(tasks.named('jar').get().archiveFile)
+    mainClass = 'net.evadeclient.clips.ClipsApp'
+    args '--sizetest', "${buildDir}/sizetest"
 }
 
 launch4j {

@@ -88,6 +88,16 @@ public final class EditorPanel extends JPanel {
     private final JCheckBox mute = new JCheckBox("Mute");
     private final JSlider micVol = new JSlider(0, 200, 100);
     private JComponent micRow;
+    private final JSlider voiceVol = new JSlider(0, 200, 100);
+    private JComponent voiceRow;
+    private static final String[] EFFECTS = {"none", "vibrant", "cinematic", "bw", "retro", "warm", "cool"};
+    private final JComboBox<String> effect = new JComboBox<>(new String[]{"None", "Vibrant", "Cinematic", "Black & white", "Retro", "Warm", "Cool"});
+    private final javax.swing.DefaultListModel<String> capModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<String> capList = new javax.swing.JList<>(capModel);
+    private final JTextField capText = new JTextField();
+    private final JComboBox<String> capStyle = new JComboBox<>(new String[]{"Clean", "Subtitle", "Meme"});
+    private final JComboBox<String> capPos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
+    private final java.util.Map<String, BufferedImage> capPreview = new java.util.HashMap<>();
     private final JSlider fadeIn = new JSlider(0, 30, 0), fadeOut = new JSlider(0, 30, 0);
     private final JTextField titleText = new JTextField();
     private final JComboBox<String> titlePos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
@@ -341,16 +351,62 @@ public final class EditorPanel extends JPanel {
         field(p, "Fit", fitMode);
         slider(p, "Position", cropX, v -> edit.cropX = v / 100.0);
         slider(p, "Zoom", zoom, v -> edit.zoom = v / 100.0);
+        effect.addActionListener(e -> {
+            if (loading || edit == null) return;
+            snapshot();
+            edit.effect = EFFECTS[effect.getSelectedIndex()];
+            edited();
+        });
+        field(p, "Look", effect);
 
         section(p, "Audio");
         slider(p, "Volume", volume, v -> edit.volume = v / 100.0);
         slider(p, "Your mic", micVol, v -> edit.micVolume = v / 100.0);
         micRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        slider(p, "Voice chat", voiceVol, v -> edit.voiceVolume = v / 100.0);
+        voiceRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
         mute.setOpaque(false);
         mute.addActionListener(e -> { if (!loading) { snapshot(); edit.mute = mute.isSelected(); edited(); } });
         add(p, mute);
         slider(p, "Fade in", fadeIn, v -> edit.fadeIn = v / 10.0);
         slider(p, "Fade out", fadeOut, v -> edit.fadeOut = v / 10.0);
+
+        section(p, "Captions");
+        add(p, hint("Text that shows between two moments. Meme style is big and loud; Subtitle sits on a dark box."));
+        capList.setVisibleRowCount(4);
+        capList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        capList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadCaption(); });
+        JScrollPane capScroll = new JScrollPane(capList);
+        capScroll.setPreferredSize(new Dimension(200, 84));
+        add(p, capScroll);
+        add(p, Box.createVerticalStrut(6));
+        JPanel capBtns = new JPanel(new GridLayout(1, 4, 4, 0));
+        capBtns.setOpaque(false);
+        JButton capAdd = Theme.button("Add", null, false), capDel = Theme.button("Remove", null, false),
+                capFrom = Theme.button("Start", null, false), capTo = Theme.button("End", null, false);
+        capAdd.setToolTipText("Add a caption at the playhead (C)");
+        capFrom.setToolTipText("Caption starts at the playhead");
+        capTo.setToolTipText("Caption ends at the playhead");
+        capAdd.addActionListener(e -> addCaption());
+        capDel.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); edit.captions.remove(c); edited(); refreshCaptions(); } });
+        capFrom.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.start = Math.min(player.time(), c.end - 0.2); edited(); refreshCaptions(); } });
+        capTo.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.end = Math.max(player.time(), c.start + 0.2); edited(); refreshCaptions(); } });
+        for (JButton b : new JButton[]{capAdd, capDel, capFrom, capTo}) { b.setFont(Theme.interBold.deriveFont(11.5f)); b.setMargin(new java.awt.Insets(4, 2, 4, 2)); capBtns.add(b); }
+        add(p, capBtns);
+        add(p, Box.createVerticalStrut(6));
+        capText.putClientProperty("JTextField.placeholderText", "Caption text");
+        capText.getDocument().addDocumentListener(new DocumentListener() {
+            void ch() { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.text = capText.getText(); edited(); updateCaptionRow(); } }
+            public void insertUpdate(DocumentEvent e) { ch(); }
+            public void removeUpdate(DocumentEvent e) { ch(); }
+            public void changedUpdate(DocumentEvent e) { ch(); }
+        });
+        add(p, capText);
+        add(p, Box.createVerticalStrut(6));
+        capStyle.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.style = ((String) capStyle.getSelectedItem()).toLowerCase(); edited(); } });
+        field(p, "Style", capStyle);
+        capPos.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.position = ((String) capPos.getSelectedItem()).toLowerCase(); edited(); } });
+        field(p, "Position", capPos);
 
         section(p, "Title");
         titleText.putClientProperty("JTextField.placeholderText", "e.g. 1v4 clutch");
@@ -521,6 +577,11 @@ public final class EditorPanel extends JPanel {
         volume.setValue((int) Math.round(edit.volume * 100));
         micVol.setValue((int) Math.round(edit.micVolume * 100));
         micRow.setVisible(clip.audioTracks >= 2);
+        voiceVol.setValue((int) Math.round(edit.voiceVolume * 100));
+        voiceRow.setVisible(clip.trackNames.contains("Voice chat"));
+        effect.setSelectedIndex(Math.max(0, java.util.Arrays.asList(EFFECTS).indexOf(edit.effect)));
+        player.setVideoFilter(Exporter.effectFilter(edit.effect));
+        refreshCaptions();
         mute.setSelected(edit.mute);
         fadeIn.setValue((int) Math.round(edit.fadeIn * 10));
         fadeOut.setValue((int) Math.round(edit.fadeOut * 10));
@@ -565,6 +626,7 @@ public final class EditorPanel extends JPanel {
 
     private void edited() {
         edit.sort();
+        player.setVideoFilter(Exporter.effectFilter(edit.effect));
         timeline.setEdit(edit);
         updateControlsEnabled();
         updatePresetInfo();
@@ -632,6 +694,56 @@ public final class EditorPanel extends JPanel {
         edited();
     }
 
+    private EditSpec.Caption selectedCaption() {
+        int i = capList.getSelectedIndex();
+        return edit == null || i < 0 || i >= edit.captions.size() ? null : edit.captions.get(i);
+    }
+
+    private void addCaption() {
+        if (edit == null) return;
+        snapshot();
+        double t = player.time();
+        EditSpec.Caption c = new EditSpec.Caption("", t, Math.min(clip.duration, t + 3), "bottom", "clean");
+        edit.captions.add(c);
+        edit.captions.sort(java.util.Comparator.comparingDouble(x -> x.start));
+        edited();
+        refreshCaptions();
+        capList.setSelectedIndex(edit.captions.indexOf(c));
+        capText.requestFocusInWindow();
+    }
+
+    private void refreshCaptions() {
+        int sel = capList.getSelectedIndex();
+        loading = true;
+        capModel.clear();
+        for (EditSpec.Caption c : edit.captions) capModel.addElement(captionRow(c));
+        loading = false;
+        if (sel >= 0 && sel < capModel.size()) capList.setSelectedIndex(sel);
+        loadCaption();
+    }
+
+    private static String captionRow(EditSpec.Caption c) {
+        return Theme.timeFine(c.start) + "–" + Theme.timeFine(c.end) + "  " + (c.text.isBlank() ? "(empty)" : c.text);
+    }
+
+    private void updateCaptionRow() {
+        int i = capList.getSelectedIndex();
+        if (i >= 0 && i < capModel.size()) capModel.set(i, captionRow(edit.captions.get(i)));
+    }
+
+    private void loadCaption() {
+        EditSpec.Caption c = selectedCaption();
+        boolean on = c != null;
+        loading = true;
+        capText.setEnabled(on); capStyle.setEnabled(on); capPos.setEnabled(on);
+        capText.setText(on ? c.text : "");
+        if (on) {
+            capStyle.setSelectedIndex(switch (c.style) { case "subtitle" -> 1; case "meme" -> 2; default -> 0; });
+            capPos.setSelectedIndex(switch (c.position) { case "center" -> 1; case "top" -> 2; default -> 0; });
+        }
+        loading = false;
+    }
+
     /** Scans the audio for the action, marks it, and cuts the clip down to just those moments. */
     private void highlightReel() {
         if (clip == null || !clip.hasAudio) { app.notify("No audio to scan", "Highlights are found from the sound of the action", false); return; }
@@ -651,6 +763,8 @@ public final class EditorPanel extends JPanel {
                     cut.aspect = edit.aspect; cut.fitMode = edit.fitMode; cut.cropX = edit.cropX; cut.zoom = edit.zoom;
                     cut.volume = edit.volume; cut.micVolume = edit.micVolume; cut.titleText = edit.titleText;
                     cut.titlePosition = edit.titlePosition; cut.titleSeconds = edit.titleSeconds;
+                    cut.effect = edit.effect; cut.voiceVolume = edit.voiceVolume;
+                    for (EditSpec.Caption cc : edit.captions) cut.captions.add(cc.copy());
                     edit = cut;
                     loadControls();
                     edited();
@@ -792,6 +906,7 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_M, 0), "mark", this::addMarker);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "hl", this::highlightReel);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_P, 0), "shot", this::frameGrab);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_C, 0), "caption", this::addCaption);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "undo", this::undo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "redo", this::redo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "redo2", this::redo);
@@ -822,8 +937,9 @@ public final class EditorPanel extends JPanel {
         String info = p.description;
         if (p == Exporter.Preset.QUICK_TRIM) {
             boolean simple = edit.segments.stream().allMatch(s -> s.speed == 1) && edit.aspect.equals("original") && edit.zoom == 1
-                    && edit.titleText.isBlank() && edit.volume == 1 && !edit.mute && edit.fadeIn == 0 && edit.fadeOut == 0;
-            if (!simple) info += " Only cuts are applied: speed, framing, audio and title need another preset.";
+                    && edit.titleText.isBlank() && edit.volume == 1 && !edit.mute && edit.fadeIn == 0 && edit.fadeOut == 0
+                    && edit.captions.isEmpty() && "none".equals(edit.effect);
+            if (!simple) info += " Only cuts are applied: speed, framing, audio, captions, effects and title need another preset.";
         } else {
             int[] sz = Exporter.outputSize(clip, edit, o);
             info += "<br><span style='color:#F4F4F6'>" + sz[0] + "×" + sz[1] + " · " + Theme.timeFine(edit.outputDuration()) + "</span>";
@@ -939,6 +1055,18 @@ public final class EditorPanel extends JPanel {
                     double t = player.time();
                     boolean visible = edit.titleSeconds <= 0 || outputTimeAt(t) <= edit.titleSeconds;
                     if (titlePreview != null && visible) g.drawImage(titlePreview, (int) area.getX(), (int) area.getY(), null);
+                }
+                // captions on screen right now
+                double now = player.time();
+                Rectangle2D area2 = edit.fitMode.equals("blur") || edit.aspect.equals("original") ? new Rectangle2D.Double(x, y, dw, dh) : cropRect(x, y, dw, dh);
+                for (EditSpec.Caption c : edit.captions) {
+                    if (c.text.isBlank() || now < c.start || now > c.end) continue;
+                    int tw = (int) area2.getWidth(), th = (int) area2.getHeight();
+                    if (tw < 4 || th < 4) continue;
+                    String key = c.text + "|" + c.style + "|" + c.position + "|" + tw + "x" + th;
+                    BufferedImage im = capPreview.computeIfAbsent(key, kk -> Exporter.renderCaption(c.text, c.position, c.style, tw, th));
+                    if (capPreview.size() > 64) capPreview.clear();
+                    g.drawImage(im, (int) area2.getX(), (int) area2.getY(), null);
                 }
                 // dim when the playhead sits in a cut-out part
                 if (edit.segmentAt(player.time()) < 0) {

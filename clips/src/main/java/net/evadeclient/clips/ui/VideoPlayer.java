@@ -32,6 +32,8 @@ public final class VideoPlayer {
     private double duration, fps = 30;
     private boolean hasAudio;
     private int audioTracks = 1;
+    /** Extra video filter for the preview (the clip's color effect), so what you see is what exports. */
+    private volatile String videoFilter = "";
     private int w = 960, h = 540;
     private final Listener listener;
 
@@ -71,6 +73,13 @@ public final class VideoPlayer {
     public void setVolume(float v) { volume = v; }
     /** With 2 tracks (game + mic) the preview plays both mixed. */
     public void setAudioTracks(int n) { audioTracks = Math.max(1, n); }
+
+    public void setVideoFilter(String f) {
+        String nf = f == null ? "" : f;
+        if (nf.equals(videoFilter)) return;
+        videoFilter = nf;
+        if (playing) play(time, speed); else showFrame(time);
+    }
     public void setMuted(boolean m) { muted = m; }
 
     /** Starts playing from {@code from} at {@code speed} (0.25 .. 4). */
@@ -130,7 +139,7 @@ public final class VideoPlayer {
         Process p = null;
         try {
             p = spawn(List.of("-loglevel", "error", "-ss", Library.fmt(start), "-i", file.toString(), "-an",
-                    "-vf", "fps=" + Library.fmt(fps) + ",scale=" + w + ":" + h + ":flags=fast_bilinear",
+                    "-vf", "fps=" + Library.fmt(fps) + ",scale=" + w + ":" + h + ":flags=fast_bilinear" + (videoFilter.isEmpty() ? "" : "," + videoFilter),
                     "-f", "rawvideo", "-pix_fmt", "bgr24", "-"));
             DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(p.getInputStream(), 1 << 20));
             int frameBytes = w * h * 3;
@@ -186,7 +195,11 @@ public final class VideoPlayer {
             while (s < 0.5) { af.append(",atempo=0.5"); s /= 0.5; }
             if (Math.abs(s - 1) > 1e-6) af.append(",atempo=").append(Library.fmt(s));
             List<String> args = new ArrayList<>(List.of("-loglevel", "error", "-ss", Library.fmt(start), "-i", file.toString(), "-vn"));
-            if (audioTracks >= 2) args.addAll(List.of("-filter_complex", "[0:a:0][0:a:1]amix=inputs=2:normalize=0," + af + "[pa]", "-map", "[pa]"));
+            if (audioTracks >= 2) {
+                StringBuilder in = new StringBuilder();
+                for (int i = 0; i < audioTracks; i++) in.append("[0:a:").append(i).append("]");
+                args.addAll(List.of("-filter_complex", in + "amix=inputs=" + audioTracks + ":normalize=0," + af + "[pa]", "-map", "[pa]"));
+            }
             else args.addAll(List.of("-af", af.toString()));
             args.addAll(List.of("-f", "s16le", "-ac", "2", "-ar", String.valueOf(RATE), "-"));
             p = spawn(args);
@@ -255,7 +268,7 @@ public final class VideoPlayer {
         try {
             double at = Math.max(0, Math.min(t, duration - 0.05));
             p = Ffmpeg.builder(List.of("-loglevel", "error", "-ss", Library.fmt(at), "-i", file.toString(), "-an", "-frames:v", "1",
-                    "-vf", "scale=" + w + ":" + h + ":flags=fast_bilinear", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"))
+                    "-vf", "scale=" + w + ":" + h + ":flags=fast_bilinear" + (videoFilter.isEmpty() ? "" : "," + videoFilter), "-f", "rawvideo", "-pix_fmt", "bgr24", "-"))
                     .redirectError(ProcessBuilder.Redirect.DISCARD).start();
             BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
             byte[] dst = ((DataBufferByte) img.getRaster().getDataBuffer()).getData();

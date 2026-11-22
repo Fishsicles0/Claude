@@ -20,7 +20,28 @@ public final class EditSpec {
         public Segment copy() { return new Segment(start, end, speed); }
     }
 
+    /** Text on screen between two source times. */
+    public static final class Caption {
+        public String text = "";
+        public double start, end;
+        /** "top", "center", "bottom". */
+        public String position = "bottom";
+        /** "clean" (outlined white), "subtitle" (on a dark box), "meme" (big, uppercase, top/bottom). */
+        public String style = "clean";
+
+        public Caption() {}
+        public Caption(String text, double start, double end, String position, String style) {
+            this.text = text; this.start = start; this.end = end; this.position = position; this.style = style;
+        }
+        public Caption copy() { return new Caption(text, start, end, position, style); }
+    }
+
     public List<Segment> segments = new ArrayList<>();
+    public List<Caption> captions = new ArrayList<>();
+    /** Color look: "none", "vibrant", "cinematic", "bw", "retro", "warm", "cool". */
+    public String effect = "none";
+    /** Level of the voice-chat track (e.g. Discord), when one was recorded. */
+    public double voiceVolume = 1;
 
     /** "original", "16:9", "9:16", "1:1", "4:5". */
     public String aspect = "original";
@@ -58,14 +79,16 @@ public final class EditSpec {
     public boolean isUntouched(double duration) {
         return segments.size() == 1 && segments.get(0).start <= 0.01 && segments.get(0).end >= duration - 0.01
                 && segments.get(0).speed == 1 && aspect.equals("original") && zoom == 1 && volume == 1 && micVolume == 1 && !mute
-                && fadeIn == 0 && fadeOut == 0 && titleText.isBlank();
+                && fadeIn == 0 && fadeOut == 0 && titleText.isBlank() && captions.isEmpty() && "none".equals(effect) && voiceVolume == 1;
     }
 
     public EditSpec copy() {
         EditSpec e = new EditSpec();
         for (Segment s : segments) e.segments.add(s.copy());
         e.aspect = aspect; e.fitMode = fitMode; e.cropX = cropX; e.zoom = zoom;
-        e.volume = volume; e.micVolume = micVolume; e.mute = mute; e.fadeIn = fadeIn; e.fadeOut = fadeOut;
+        e.volume = volume; e.micVolume = micVolume; e.voiceVolume = voiceVolume; e.mute = mute;
+        e.effect = effect;
+        for (Caption c : captions) e.captions.add(c.copy()); e.fadeIn = fadeIn; e.fadeOut = fadeOut;
         e.titleText = titleText; e.titlePosition = titlePosition; e.titleSeconds = titleSeconds;
         return e;
     }
@@ -89,6 +112,17 @@ public final class EditSpec {
         s.end = t;
         segments.add(i + 1, right);
         return true;
+    }
+
+    /** Where source time t lands in the export (cut parts collapse, speed changes stretch). */
+    public double toOutput(double t) {
+        double out = 0;
+        for (Segment s : segments) {
+            if (t >= s.end) out += s.outputLength();
+            else if (t >= s.start) { out += (t - s.start) / s.speed; break; }
+            else break;
+        }
+        return out;
     }
 
     public void sort() { segments.sort((a, b) -> Double.compare(a.start, b.start)); }

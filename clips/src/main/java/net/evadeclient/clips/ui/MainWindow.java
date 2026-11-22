@@ -243,7 +243,9 @@ public final class MainWindow extends JFrame {
             g.drawString(st.recording() ? "REC " + Theme.time(st.recordingSeconds()) : live ? "Replay on" : st.state() == CaptureEngine.State.STARTING ? "Starting…" : "Replay off", 46, h - 54);
             g.setFont(Theme.inter.deriveFont(11.5f));
             g.setColor(Theme.DIM);
-            g.drawString(live ? app.settings.hotkeySaveClip + " saves " + RecordPanel.label(app.settings.replaySeconds) : "Click to set up capture", 28, h - 34);
+            String sub = app.currentGame != null ? app.currentGame : live ? app.settings.hotkeySaveClip + " saves " + RecordPanel.label(app.settings.replaySeconds)
+                    : app.settings.autoReplayForGames ? "Waiting for a game" : "Click to set up capture";
+            g.drawString(LibraryPanel.ellipsize(g, sub, w - 56), 28, h - 34);
             g.dispose();
         }
     }

@@ -39,6 +39,12 @@ public final class App {
     private final List<ExportJob> jobs = new CopyOnWriteArrayList<>();
     private final List<Runnable> jobListeners = new CopyOnWriteArrayList<>();
     public Consumer<Clip> openEditor = c -> {};
+    /** The game running right now (null if none), checked every few seconds. */
+    public volatile String currentGame;
+    public final net.evadeclient.clips.events.AutoClipper autoClipper;
+    public final net.evadeclient.clips.events.Cs2Integration cs2;
+    public final net.evadeclient.clips.events.LeagueIntegration league;
+    private volatile boolean autoStarted;
     public Toast toast;
 
     public App(Settings settings) {
@@ -47,10 +53,53 @@ public final class App {
         library = new Library(settings);
         engine = new CaptureEngine(settings, library);
         engine.onStatus(s -> status = s);
+        autoClipper = new net.evadeclient.clips.events.AutoClipper((secs, title, game, tags) -> {
+            if (!engine.isLive()) return;
+            saveClipNow(secs, 0, title, game, tags);
+        });
+        cs2 = new net.evadeclient.clips.events.Cs2Integration(autoClipper, settings.gsiToken);
+        league = new net.evadeclient.clips.events.LeagueIntegration(autoClipper);
+        applyEventSettings();
+    }
+
+    public void applyEventSettings() {
+        autoClipper.before = settings.autoClipBefore;
+        autoClipper.after = settings.autoClipAfter;
+        cs2.headshotsOnly = settings.cs2HeadshotsOnly;
+    }
+
+    private net.evadeclient.clips.core.VoiceCommands voice;
+
+    /** Starts or stops listening for voice commands to match the setting. Returns an error message or null. */
+    public synchronized String applyVoice() {
+        try {
+            if (!settings.voiceCommands) {
+                if (voice != null) { voice.close(); voice = null; }
+                return null;
+            }
+            if (!net.evadeclient.clips.core.VoiceCommands.modelInstalled()) return "The speech model isn't downloaded yet.";
+            if (voice == null) voice = new net.evadeclient.clips.core.VoiceCommands(net.evadeclient.clips.core.VoiceCommands.modelDir());
+            voice.start(settings.micDevice, cmd -> {
+                switch (cmd) {
+                    case CLIP -> saveClip(0, null, null, "voice");
+                    case RECORD_START -> { if (!engine.isRecording()) toggleRecording(); }
+                    case RECORD_STOP -> { if (engine.isRecording()) toggleRecording(); }
+                    case MARKER -> marker();
+                }
+            });
+            return null;
+        } catch (Throwable t) {
+            return "Voice commands couldn't start: " + t.getMessage();
+        }
     }
 
     public void start() {
         library.load();
+        String voiceError = applyVoice();
+        if (voiceError != null && settings.voiceCommands) System.err.println("[clips] " + voiceError);
+        Thread watcher = new Thread(this::watchGames, "game-watcher");
+        watcher.setDaemon(true);
+        watcher.start();
         applyHotkeys();
         applyServer();
         if (settings.replayEnabled && settings.replayOnLaunch && Ffmpeg.available()) {
@@ -58,7 +107,44 @@ public final class App {
         }
     }
 
+    /** Names clips after the running game and runs instant replay only while one is open. */
+    private void watchGames() {
+        while (true) {
+            try {
+                String game = net.evadeclient.clips.core.GameDetector.detect().map(net.evadeclient.clips.core.GameDetector.Game::name).orElse(null);
+                String before = currentGame;
+                currentGame = game;
+                if (game != null && !game.equals(before)) {
+                    if (settings.autoReplayForGames && settings.replayEnabled && !engine.isLive() && Ffmpeg.available()) {
+                        engine.start();
+                        autoStarted = true;
+                        notify(game + " detected", "Instant replay is on · " + settings.hotkeySaveClip + " saves a clip", false);
+                    }
+                } else if (game == null && before != null && autoStarted && !engine.isRecording() && !settings.replayOnLaunch) {
+                    engine.stop();
+                    autoStarted = false;
+                }
+            } catch (Exception e) {
+                System.err.println("[clips] game watcher: " + e.getMessage());
+            }
+            // League's Live Client API is only up during a match; poll it while League is open.
+            for (int i = 0; i < 3; i++) {
+                if (settings.leagueEvents && net.evadeclient.clips.events.LeagueIntegration.GAME.equals(currentGame)) league.poll();
+                try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+            }
+            if (!net.evadeclient.clips.events.LeagueIntegration.GAME.equals(currentGame)) league.reset();
+        }
+    }
+
+    /** Game name for a new clip: what the caller said, else the running game, else the default. */
+    String gameFor(String asked) {
+        if (asked != null && !asked.isBlank()) return asked;
+        return currentGame != null ? currentGame : settings.defaultGame;
+    }
+
     public void shutdown() {
+        autoClipper.shutdown();
+        if (voice != null) voice.close();
         engine.shutdown();
         hotkeys.stop();
         server.stop();
@@ -100,6 +186,9 @@ public final class App {
                     return c == null ? Map.of("ok", true, "recording", false) : Map.of("ok", true, "recording", false, "id", c.id);
                 }
                 @Override public void marker() { App.this.marker(); }
+                @Override public boolean gameState(String game, String body) {
+                    return !settings.cs2Events || cs2.handle(body);
+                }
             });
         } catch (Exception e) {
             System.err.println("[clips] control API unavailable on port " + settings.controlPort + ": " + e.getMessage());
@@ -130,7 +219,7 @@ public final class App {
     public Clip saveClipNow(int seconds, int after, String title, String game, String tag) throws Exception {
         if (!engine.isLive()) throw new Exception("Instant replay is off. Turn it on in Record.");
         if (after > 0 && settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show("Saving…", "Capturing " + after + " more seconds", false));
-        Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, after, title, game);
+        Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, after, title, gameFor(game));
         if (tag != null && !tag.isBlank()) {
             for (String t : tag.split(",")) if (!t.isBlank() && !c.tags.contains(t.trim())) c.tags.add(t.trim());
             library.update(c);
@@ -149,7 +238,7 @@ public final class App {
     }
 
     public void startRecording(String game) throws Exception {
-        engine.startRecording(game);
+        engine.startRecording(gameFor(game));
         notify("Recording", "Press " + settings.hotkeyRecord + " to stop", false);
     }
 
@@ -277,6 +366,22 @@ public final class App {
         }, onDone);
     }
 
+    /** Re-encodes clips to HEVC in the background, replacing each file only if it saves 15%+. */
+    public void shrink(List<Clip> clips) {
+        for (Clip c : clips) {
+            Path tmp = library.root().resolve(".evadeclips").resolve("shrink-" + c.id + ".mp4");
+            ExportJob job = new ExportJob(c, Exporter.Preset.SOURCE, tmp);
+            job.label = "Shrink";
+            runJob(job, j -> {
+                Path out = Exporter.shrink(c.path(library.root()), c, tmp, p -> { j.progress = p; jobsChanged(); }, j.job);
+                if (out == null) { notify("Already compact", c.title + " wouldn't get much smaller", false); return null; }
+                long saved = library.replaceFile(c, out);
+                notify("Saved " + Theme.size(saved), c.title + " is now " + Theme.size(c.size), false);
+                return c;
+            }, null);
+        }
+    }
+
     interface JobBody { Clip run(ExportJob j) throws Exception; }
 
     private ExportJob runJob(ExportJob j, JobBody body, Consumer<ExportJob> onDone) {
@@ -289,7 +394,7 @@ public final class App {
             try {
                 j.result = body.run(j);
                 j.state = "Done";
-                notify("Export finished", out.getFileName().toString(), false);
+                if (!"Shrink".equals(j.label)) notify("Export finished", out.getFileName().toString(), false);
             } catch (Exception e) {
                 j.state = j.job.cancelled() ? "Cancelled" : "Failed: " + e.getMessage();
                 try { java.nio.file.Files.deleteIfExists(out); } catch (Exception ignored) {}

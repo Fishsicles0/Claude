@@ -51,6 +51,41 @@ public final class SettingsPanel extends JPanel {
         row("Add marker", hotkey(s.hotkeyMarker, v -> { s.hotkeyMarker = v; }));
         note("Click a box and press the key (with Ctrl / Alt / Shift if you like). Esc cancels.");
 
+        heading("Voice commands");
+        JCheckBox voice = new JCheckBox("Listen for \"clip that\", \"save clip\", \"start recording\", \"stop recording\" and \"mark that\"", s.voiceCommands);
+        voice.setOpaque(false);
+        voice.setAlignmentX(LEFT_ALIGNMENT);
+        voice.addActionListener(e -> {
+            s.voiceCommands = voice.isSelected();
+            s.save();
+            if (s.voiceCommands && !net.evadeclient.clips.core.VoiceCommands.modelInstalled()) {
+                int ok = JOptionPane.showConfirmDialog(this, "Voice commands need a one-time download of the offline speech model (about 40 MB).\n"
+                        + "Speech is recognised on this PC; nothing you say is sent anywhere. Download now?", "Voice commands", JOptionPane.OK_CANCEL_OPTION);
+                if (ok != JOptionPane.OK_OPTION) { voice.setSelected(false); s.voiceCommands = false; s.save(); return; }
+                voice.setEnabled(false);
+                voice.setText("Downloading the speech model…");
+                new Thread(() -> {
+                    String err = null;
+                    try { net.evadeclient.clips.core.VoiceCommands.downloadModel(p -> javax.swing.SwingUtilities.invokeLater(
+                            () -> voice.setText("Downloading the speech model… " + Math.round(p * 100) + "%"))); }
+                    catch (Exception ex) { err = ex.getMessage(); }
+                    String fail = err != null ? "Download failed: " + err : app.applyVoice();
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        voice.setEnabled(true);
+                        voice.setText("Listen for \"clip that\", \"save clip\", \"start recording\", \"stop recording\" and \"mark that\"");
+                        if (fail != null) { JOptionPane.showMessageDialog(this, fail); voice.setSelected(false); s.voiceCommands = false; s.save(); }
+                        else app.notify("Voice commands on", "Say \"clip that\"", false);
+                    });
+                }, "voice-model").start();
+                return;
+            }
+            String err = app.applyVoice();
+            if (err != null) { JOptionPane.showMessageDialog(this, err); voice.setSelected(false); s.voiceCommands = false; s.save(); }
+        });
+        Theme.pad(voice, 4, 0, 4, 0);
+        body.add(voice);
+        note("Uses the microphone chosen on the Record page. Only those exact phrases count, so callouts and chatting don't trigger it.");
+
         heading("Storage");
         JTextField folder = new JTextField(s.clipsFolder);
         folder.setEditable(false);
@@ -87,11 +122,35 @@ public final class SettingsPanel extends JPanel {
         row("Default game name", game);
 
         heading("Behaviour");
-        check("Start instant replay when the app opens", s.replayOnLaunch, v -> s.replayOnLaunch = v);
+        check("Turn on instant replay when a game starts, off when it closes (no cost while you're not playing)", s.autoReplayForGames, v -> s.autoReplayForGames = v);
+        check("Keep instant replay on all the time, even with no game open", s.replayOnLaunch, v -> s.replayOnLaunch = v);
         check("Find highlights in new recordings automatically (marks the loudest moments)", s.autoHighlights, v -> s.autoHighlights = v);
         check("Play a sound when a clip is saved", s.playSound, v -> s.playSound = v);
         check("Show a pop-up when a clip is saved", s.showToast, v -> s.showToast = v);
         check("Closing the window keeps Evade Clips running in the tray", s.minimizeToTray, v -> s.minimizeToTray = v);
+
+        heading("Automatic clips from game events");
+        note("Supported games tell Evade Clips what happens through their official interfaces (nothing reads game memory, "
+                + "nothing anti-cheat cares about). Events close together become one clip.");
+        JSpinner before = new JSpinner(new SpinnerNumberModel(s.autoClipBefore, 5, 120, 5));
+        before.addChangeListener(e -> { s.autoClipBefore = (int) before.getValue(); s.save(); app.applyEventSettings(); });
+        row("Seconds before the event", small(before));
+        JSpinner after = new JSpinner(new SpinnerNumberModel(s.autoClipAfter, 0, 15, 1));
+        after.addChangeListener(e -> { s.autoClipAfter = (int) after.getValue(); s.save(); app.applyEventSettings(); });
+        row("Seconds after the event", small(after));
+        check("Counter-Strike 2: kills, headshots, 3K/4K/aces, MVPs, match wins", s.cs2Events, v -> s.cs2Events = v);
+        check("Counter-Strike 2: only clip headshot kills (multikills and aces always)", s.cs2HeadshotsOnly, v -> { s.cs2HeadshotsOnly = v; app.applyEventSettings(); });
+        JButton cs2 = Theme.button("Set up CS2", null, false);
+        cs2.addActionListener(e -> {
+            int n = net.evadeclient.clips.events.Cs2Integration.install(s.controlPort, s.gsiToken);
+            JOptionPane.showMessageDialog(this, n > 0
+                    ? "Done: CS2 will send events to Evade Clips (" + n + " install" + (n == 1 ? "" : "s") + "). Restart CS2 if it's open."
+                    : "CS2 wasn't found in your Steam libraries. Put this file in\n...\\Counter-Strike Global Offensive\\game\\csgo\\cfg\\\nas gamestate_integration_evadeclips.cfg:\n\n"
+                      + net.evadeclient.clips.events.Cs2Integration.config(s.controlPort, s.gsiToken));
+        });
+        row("CS2 Game State Integration", small(cs2));
+        check("League of Legends: kills, double … pentakills, aces, dragon/baron steals, victory", s.leagueEvents, v -> s.leagueEvents = v);
+        note("Minecraft: the Clips mod in Evade Client clips kills, totem pops, deaths, wins and advancements.");
 
         heading("Evade Client & integrations");
         check("Allow Evade Client and local tools to save clips", s.controlServer, v -> { s.controlServer = v; app.applyServer(); });

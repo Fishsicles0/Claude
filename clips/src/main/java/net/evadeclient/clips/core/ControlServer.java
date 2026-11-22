@@ -31,6 +31,8 @@ public final class ControlServer {
         Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception;
         Map<String, Object> record(String action, String game) throws Exception;
         void marker();
+        /** A game's own state push (CS2 Game State Integration). Returns false to reject (bad token). */
+        default boolean gameState(String game, String body) { return false; }
     }
 
     private static final Gson GSON = new Gson();
@@ -56,6 +58,10 @@ public final class ControlServer {
                     case "/record/start", "/record/stop", "/record/toggle" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
                         send(ex, 200, h.record(path.substring(8), q.get("game")));
+                    }
+                    case "/gsi/cs2" -> {
+                        String body = new String(ex.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                        send(ex, h.gameState("cs2", body) ? 200 : 403, Map.of());
                     }
                     case "/marker" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }

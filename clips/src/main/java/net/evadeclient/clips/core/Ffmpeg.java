@@ -213,7 +213,7 @@ public final class Ffmpeg {
     // ------------------------------------------------------------------ probing
 
     /** What ffprobe says about a video file. */
-    public record MediaInfo(double duration, int width, int height, double fps, boolean hasAudio, boolean hasVideo, int audioTracks) {}
+    public record MediaInfo(double duration, int width, int height, double fps, boolean hasAudio, boolean hasVideo, int audioTracks, List<String> trackNames) {}
 
     public static MediaInfo probe(Path file) throws IOException {
         String out = capture(List.of(ffprobe(), "-v", "error", "-print_format", "json", "-show_format", "-show_streams",
@@ -226,6 +226,7 @@ public final class Ffmpeg {
         double fps = 0;
         boolean audio = false, video = false;
         int audioTracks = 0;
+        List<String> trackNames = new ArrayList<>();
         if (root.has("format") && root.getAsJsonObject("format").has("duration"))
             dur = parseD(root.getAsJsonObject("format").get("duration").getAsString());
         if (root.has("streams")) for (var el : root.getAsJsonArray("streams")) {
@@ -240,10 +241,17 @@ public final class Ffmpeg {
                 fps = s.has("avg_frame_rate") ? ratio(s.get("avg_frame_rate").getAsString()) : 0;
                 if (fps <= 0 && s.has("r_frame_rate")) fps = ratio(s.get("r_frame_rate").getAsString());
                 if (dur <= 0 && s.has("duration")) dur = parseD(s.get("duration").getAsString());
-            } else if (type.equals("audio")) { audio = true; audioTracks++; }
+            } else if (type.equals("audio")) {
+                audio = true;
+                audioTracks++;
+                JsonObject tags = s.has("tags") ? s.getAsJsonObject("tags") : new JsonObject();
+                String title = tags.has("title") ? tags.get("title").getAsString()
+                        : tags.has("handler_name") && !tags.get("handler_name").getAsString().startsWith("Sound") ? tags.get("handler_name").getAsString() : "";
+                trackNames.add(title);
+            }
         }
         if (!video && !audio) throw new IOException("No video in " + file.getFileName());
-        return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video, audioTracks);
+        return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video, audioTracks, trackNames);
     }
 
     private static double parseD(String s) { try { return Double.parseDouble(s); } catch (Exception e) { return 0; } }
@@ -258,19 +266,39 @@ public final class Ffmpeg {
 
     // ------------------------------------------------------------------ encoders
 
+    private static final java.util.Map<String, List<String>> ENCODERS = new java.util.HashMap<>();
+
     /** H.264 encoders that actually work on this machine, best first (hardware before software). */
-    public static synchronized List<String> workingEncoders() {
-        if (encoders != null) return encoders;
+    public static List<String> workingEncoders() { return workingEncoders("h264"); }
+
+    /**
+     * Encoders for {@code codec} ("h264" or "hevc") that actually work here, hardware first. Hardware encoders
+     * (NVENC, AMF, Quick Sync, VideoToolbox) are listed only if a real test encode succeeds.
+     */
+    public static synchronized List<String> workingEncoders(String codec) {
+        List<String> cached = ENCODERS.get(codec);
+        if (cached != null) return cached;
+        String prefix = codec.equals("hevc") ? "hevc" : "h264";
         List<String> found = new ArrayList<>();
         String list = capture(List.of(ffmpeg(), "-hide_banner", "-encoders"), 15);
-        for (String enc : List.of("h264_nvenc", "h264_amf", "h264_qsv", "h264_videotoolbox")) {
+        for (String hw : List.of("_nvenc", "_amf", "_qsv", "_videotoolbox")) {
+            String enc = prefix + hw;
             if (list.contains(" " + enc + " ") && testEncoder(enc)) found.add(enc);
         }
-        if (list.contains(" libx264 ")) found.add("libx264");
-        if (found.isEmpty()) found.add("mpeg4");
-        encoders = found;
+        String sw = codec.equals("hevc") ? "libx265" : "libx264";
+        if (list.contains(" " + sw + " ")) found.add(sw);
+        if (found.isEmpty() && codec.equals("h264")) found.add("mpeg4");
+        ENCODERS.put(codec, found);
         return found;
     }
+
+    /** HEVC only pays off live when a GPU does it; x265 on the CPU would cost frames while playing. */
+    public static boolean hardwareHevc() {
+        for (String e : workingEncoders("hevc")) if (!e.startsWith("lib")) return true;
+        return false;
+    }
+
+    public static boolean isHevc(String enc) { return enc.startsWith("hevc") || enc.equals("libx265"); }
 
     /** A listed hardware encoder can still fail (no GPU / driver), so encode a few frames to make sure. */
     private static boolean testEncoder(String enc) {
@@ -288,35 +316,59 @@ public final class Ffmpeg {
     public static String bestEncoder() { return workingEncoders().get(0); }
 
     public static String encoderLabel(String enc) {
-        return switch (enc) {
-            case "h264_nvenc" -> "NVIDIA NVENC (GPU)";
-            case "h264_amf" -> "AMD AMF (GPU)";
-            case "h264_qsv" -> "Intel Quick Sync (GPU)";
-            case "h264_videotoolbox" -> "Apple VideoToolbox (GPU)";
-            case "libx264" -> "x264 (CPU)";
-            default -> enc;
+        String codec = isHevc(enc) ? " · HEVC" : "";
+        String base = enc.replaceFirst("^(h264|hevc)", "");
+        return switch (base) {
+            case "_nvenc" -> "NVIDIA NVENC (GPU)" + codec;
+            case "_amf" -> "AMD AMF (GPU)" + codec;
+            case "_qsv" -> "Intel Quick Sync (GPU)" + codec;
+            case "_videotoolbox" -> "Apple VideoToolbox (GPU)" + codec;
+            default -> enc.equals("libx264") ? "x264 (CPU)" : enc.equals("libx265") ? "x265 (CPU) · HEVC" : enc;
         };
     }
 
+    /** Bits per pixel per frame at each quality level; HEVC needs ~40% less for the same look. */
+    private static final double[] BPP = {0.04, 0.07, 0.12};
+
     /**
-     * Encoder arguments for live capture at a quality level 1 (smallest) .. 3 (best). Live capture favours speed:
-     * hardware presets tuned for low latency, x264 on ultrafast/veryfast.
+     * Hard ceiling (bits/s) for live capture. Without one, fast motion, grass, particles or smoke can make a
+     * quality-based encoder spend 200+ Mbit/s; with it a minute of 1080p60 "Balanced" stays around 65 MB
+     * (H.264) or 40 MB (HEVC) however busy the scene.
      */
-    public static List<String> liveEncoderArgs(String enc, int quality, int fps) {
+    public static long liveCapBits(String enc, int quality, int fps, int w, int h) {
+        double bits = (double) w * h * fps * BPP[Math.max(1, Math.min(3, quality)) - 1];
+        if (isHevc(enc)) bits *= 0.6;
+        return Math.max(1_000_000, Math.round(bits));
+    }
+
+    /**
+     * Encoder arguments for live capture at quality 1 (smallest) .. 3 (best). Quality-targeted (small files on
+     * calm scenes) with a peak cap (bounded files on busy ones). Hardware presets are low-latency, so encoding
+     * runs on the GPU's video engine and doesn't take frames from the game.
+     */
+    public static List<String> liveEncoderArgs(String enc, int quality, int fps, int w, int h) {
         int gop = Math.max(1, fps); // one keyframe a second, so replays can be cut on any second
+        long cap = liveCapBits(enc, quality, fps, w, h);
+        String maxrate = cap / 1000 + "k", bufsize = cap / 1000 + "k", avg = cap * 6 / 10 / 1000 + "k";
+        int q = Math.max(1, Math.min(3, quality)) - 1;
         List<String> a = new ArrayList<>(List.of("-c:v", enc));
-        switch (enc) {
-            case "h264_nvenc" -> a.addAll(List.of("-preset", "p4", "-tune", "ll", "-rc", "vbr", "-cq", String.valueOf(new int[]{30, 23, 18}[quality - 1]), "-b:v", "0"));
-            case "h264_amf" -> a.addAll(List.of("-quality", "speed", "-rc", "cqp", "-qp_i", qp(quality), "-qp_p", qp(quality)));
-            case "h264_qsv" -> a.addAll(List.of("-preset", "veryfast", "-global_quality", qp(quality)));
-            case "h264_videotoolbox" -> a.addAll(List.of("-realtime", "1", "-q:v", String.valueOf(new int[]{45, 60, 75}[quality - 1])));
-            case "libx264" -> a.addAll(List.of("-preset", quality == 3 ? "veryfast" : "ultrafast", "-tune", "zerolatency", "-crf", String.valueOf(new int[]{30, 24, 20}[quality - 1])));
-            default -> a.addAll(List.of("-q:v", "4"));
+        String base = enc.replaceFirst("^(h264|hevc)", "");
+        switch (base) {
+            case "_nvenc" -> a.addAll(List.of("-preset", "p4", "-tune", "ll", "-rc", "vbr", "-cq", String.valueOf(new int[]{30, 24, 19}[q]),
+                    "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
+            case "_amf" -> a.addAll(List.of("-quality", "speed", "-rc", "vbr_peak", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
+            case "_qsv" -> a.addAll(List.of("-preset", "veryfast", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
+            case "_videotoolbox" -> a.addAll(List.of("-realtime", "1", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
+            default -> {
+                if (enc.equals("libx264")) a.addAll(List.of("-preset", quality == 3 ? "veryfast" : "ultrafast", "-tune", "zerolatency",
+                        "-crf", String.valueOf(new int[]{30, 24, 20}[q]), "-maxrate", maxrate, "-bufsize", bufsize));
+                else if (enc.equals("libx265")) a.addAll(List.of("-preset", "ultrafast", "-tune", "zerolatency",
+                        "-crf", String.valueOf(new int[]{32, 27, 23}[q]), "-maxrate", maxrate, "-bufsize", bufsize, "-x265-params", "log-level=error"));
+                else a.addAll(List.of("-q:v", "4", "-maxrate", maxrate, "-bufsize", bufsize));
+            }
         }
         a.addAll(List.of("-g", String.valueOf(gop), "-keyint_min", String.valueOf(gop),
                 "-force_key_frames", "expr:gte(t,n_forced*1)", "-pix_fmt", "yuv420p"));
         return a;
     }
-
-    private static String qp(int q) { return String.valueOf(new int[]{30, 23, 19}[q - 1]); }
 }

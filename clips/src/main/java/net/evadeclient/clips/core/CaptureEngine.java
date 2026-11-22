@@ -53,6 +53,28 @@ public final class CaptureEngine {
     private long lastSegmentWall;
     private long startedWall;
     private String encoder = "";
+    private int outW, outH;
+    /** Audio track names of the running capture ("Game", "Mic", "Voice chat"); MPEG-TS can't store them. */
+    private List<String> trackTitles = List.of();
+
+    /**
+     * The encoder for live capture: the user's choice if it works, otherwise the best one for the chosen codec.
+     * "auto" uses HEVC (about 40% smaller files) when a GPU can encode it, else H.264.
+     */
+    public static String previewEncoder(Settings s) { return pickEncoder(s); }
+
+    static String pickEncoder(Settings s) {
+        String codec = switch (s.codec) {
+            case "hevc" -> Ffmpeg.workingEncoders("hevc").isEmpty() ? "h264" : "hevc";
+            case "h264" -> "h264";
+            default -> Ffmpeg.hardwareHevc() ? "hevc" : "h264";
+        };
+        if (!s.encoder.isBlank() && Ffmpeg.workingEncoders(codec).contains(s.encoder)) return s.encoder;
+        return Ffmpeg.workingEncoders(codec).get(0);
+    }
+
+    /** Bitrate ceiling currently in use (bits/s), or 0 when capture is off. */
+    public synchronized long capBits() { return encoder.isEmpty() ? 0 : Ffmpeg.liveCapBits(encoder, settings.quality, settings.fps, outW, outH); }
     private volatile State state = State.OFF;
     private volatile String message = "";
     private final StringBuilder log = new StringBuilder();
@@ -97,9 +119,11 @@ public final class CaptureEngine {
         log.setLength(0);
         stopping = false;
 
-        encoder = settings.encoder.isBlank() || !Ffmpeg.workingEncoders().contains(settings.encoder)
-                ? Ffmpeg.bestEncoder() : settings.encoder;
+        encoder = pickEncoder(settings);
         CaptureSource.Inputs in = CaptureSource.build(settings);
+        outW = in.outW();
+        outH = in.outH();
+        trackTitles = new ArrayList<>(in.audioTitles());
         List<String> args = new ArrayList<>(List.of("-loglevel", "warning", "-thread_queue_size", "1024"));
         // -thread_queue_size applies to the next input; repeat it for every input so audio never stalls video.
         List<String> inputArgs = new ArrayList<>();
@@ -110,12 +134,11 @@ public final class CaptureEngine {
         }
         args.addAll(inputArgs);
         args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));
-        if (in.hasAudio()) args.addAll(List.of("-map", "[a]"));
-        if (in.micTrack()) args.addAll(List.of("-map", "[m]"));
-        args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps));
+        for (String l : in.audioLabels()) args.addAll(List.of("-map", l));
+        args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps, in.outW(), in.outH()));
         args.addAll(List.of("-r", String.valueOf(settings.fps)));
         if (in.hasAudio()) args.addAll(List.of("-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"));
-        if (in.micTrack()) args.addAll(List.of("-metadata:s:a:0", "title=Game", "-metadata:s:a:1", "title=Mic"));
+        for (int i = 0; i < in.audioTitles().size(); i++) args.addAll(List.of("-metadata:s:a:" + i, "title=" + in.audioTitles().get(i)));
         args.addAll(List.of("-f", "segment", "-segment_time", "1", "-segment_format", "mpegts",
                 "-segment_list", "segments.csv", "-segment_list_type", "csv", "-segment_list_flags", "+live",
                 "-break_non_keyframes", "0", "seg%06d.ts"));
@@ -355,10 +378,16 @@ public final class CaptureEngine {
         return len == b.length ? b : java.util.Arrays.copyOf(b, len);
     }
 
-    private static void remux(Path ts, Path mp4) throws IOException {
+    private void remux(Path ts, Path mp4) throws IOException {
         Files.createDirectories(mp4.getParent());
-        Ffmpeg.run(List.of("-fflags", "+genpts+discardcorrupt", "-i", ts.toString(), "-map", "0", "-c", "copy",
-                "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", mp4.toString()));
+        List<String> a = new ArrayList<>(List.of("-fflags", "+genpts+discardcorrupt", "-i", ts.toString(), "-map", "0", "-c", "copy"));
+        if (Ffmpeg.isHevc(encoder)) a.addAll(List.of("-tag:v", "hvc1")); // plays in QuickTime / iOS / browsers
+        for (int i = 0; i < trackTitles.size(); i++) {
+            // MP4 keeps a track's name in handler_name ("title" is dropped); write both.
+            a.addAll(List.of("-metadata:s:a:" + i, "title=" + trackTitles.get(i), "-metadata:s:a:" + i, "handler_name=" + trackTitles.get(i)));
+        }
+        a.addAll(List.of("-avoid_negative_ts", "make_zero", "-movflags", "+faststart", mp4.toString()));
+        Ffmpeg.run(a);
     }
 
     // ------------------------------------------------------------------ recording

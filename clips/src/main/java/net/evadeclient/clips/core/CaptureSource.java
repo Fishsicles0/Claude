@@ -20,8 +20,11 @@ public final class CaptureSource {
     private CaptureSource() {}
 
     /** Inputs and the filter graph that produces the final [v] and (optionally) [a] streams. */
-    /** {@code micTrack}: the mic is a second audio track ([m]) next to the game audio ([a]). */
-    public record Inputs(List<String> args, String filterComplex, boolean hasAudio, boolean micTrack) {}
+    /** Inputs, the filter graph making [v] and one labelled stream per audio track, and the output size. */
+    public record Inputs(List<String> args, String filterComplex, List<String> audioLabels, List<String> audioTitles, int outW, int outH) {
+        public boolean hasAudio() { return !audioLabels.isEmpty(); }
+        public int audioTracks() { return audioLabels.size(); }
+    }
 
     public static List<Rectangle> monitors() {
         List<Rectangle> out = new ArrayList<>();
@@ -46,11 +49,17 @@ public final class CaptureSource {
         Rectangle mon = mons.get(Math.max(0, Math.min(mons.size() - 1, s.monitor)));
         String vf = null; // extra filter on the video input
         int srcH;
+        int testH = s.resolution >= 1080 ? 1080 : 720, testW = testH == 1080 ? 1920 : 1280;
 
         switch (s.source) {
-            case "test" -> {
-                a.addAll(List.of("-re", "-f", "lavfi", "-i", "testsrc2=s=1280x720:r=" + fps));
-                srcH = 720;
+            case "test", "test-noise", "test-calm" -> {
+                // Self-test sources: a busy test pattern, the same with heavy grain (the worst case for file
+                // size), or a slow, calm scene (menus, building, walking around).
+                String size = testW + "x" + testH;
+                String src = s.source.equals("test-calm") ? "gradients=s=" + size + ":r=" + fps + ":speed=0.01:n=3"
+                        : "testsrc2=s=" + size + ":r=" + fps + (s.source.equals("test-noise") ? ",noise=alls=60:allf=t+u" : "");
+                a.addAll(List.of("-re", "-f", "lavfi", "-i", src));
+                srcH = testH;
             }
             case "region" -> {
                 Rectangle r = new Rectangle(s.regionX, s.regionY, even(s.regionW), even(s.regionH));
@@ -79,37 +88,47 @@ public final class CaptureSource {
 
         // Video chain: optional crop to even size, then downscale to the chosen resolution.
         List<String> chain = new ArrayList<>();
-        if (Ffmpeg.WINDOWS && !s.source.equals("test") && !s.source.equals("window") && !s.source.equals("region") && hasDdagrab())
+        if (Ffmpeg.WINDOWS && !s.source.startsWith("test") && !s.source.equals("window") && !s.source.equals("region") && hasDdagrab())
             chain.add("hwdownload,format=bgra");
         if (vf != null) chain.add(vf);
         if (s.resolution > 0 && (srcH == 0 || srcH > s.resolution)) chain.add("scale=-2:" + s.resolution + ":flags=bilinear");
         chain.add("format=yuv420p");
         StringBuilder fc = new StringBuilder("[0:v]" + String.join(",", chain) + "[v]");
 
-        // Audio: game/desktop audio and the mic go to separate tracks, so the mic can be turned down or muted
-        // later in the editor without losing the game sound.
-        String game = null, mic = null;
+        // Audio: game, mic and voice chat each get their own track, so they can be balanced or muted later
+        // in the editor (e.g. turn your mic down, drop your friends' voices) without touching the game sound.
+        List<String[]> tracks = new ArrayList<>(); // {input label, title, volume filter}
         int idx = 1;
-        if (s.source.equals("test")) {
-            if (s.recordSystemAudio) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000")); game = "[" + idx++ + ":a]"; }
-            if (s.recordMic) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000")); mic = "[" + idx++ + ":a]"; }
+        if (s.source.startsWith("test")) {
+            if (s.recordSystemAudio) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""}); }
+            if (s.recordMic) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Mic", "volume=" + Library.fmt(s.micVolume) + ","}); }
+            if (s.recordVoice) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""}); }
         } else {
             if (s.recordSystemAudio) {
                 String dev = s.systemAudioDevice.isBlank() ? defaultSystemAudio() : s.systemAudioDevice;
-                if (dev != null && audioInput(a, dev)) game = "[" + idx++ + ":a]";
+                if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
             }
             if (s.recordMic) {
                 String dev = s.micDevice.isBlank() ? defaultMic() : s.micDevice;
-                if (dev != null && audioInput(a, dev)) mic = "[" + idx++ + ":a]";
+                if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Mic", "volume=" + Library.fmt(s.micVolume) + ","});
             }
+            if (s.recordVoice && !s.voiceDevice.isBlank() && audioInput(a, s.voiceDevice))
+                tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""});
         }
         String resample = "aresample=48000:async=1000,aformat=channel_layouts=stereo";
-        if (game != null) fc.append(";").append(game).append(resample).append("[a]");
-        if (mic != null) {
-            fc.append(";").append(mic).append("volume=").append(Library.fmt(s.micVolume)).append(",").append(resample)
-                    .append(game != null ? "[m]" : "[a]");
+        List<String> labels = new ArrayList<>(), titles = new ArrayList<>();
+        for (int i = 0; i < tracks.size(); i++) {
+            String[] t = tracks.get(i);
+            fc.append(";").append(t[0]).append(t[2]).append(resample).append("[a").append(i).append("]");
+            labels.add("[a" + i + "]");
+            titles.add(t[1]);
         }
-        return new Inputs(a, fc.toString(), game != null || mic != null, game != null && mic != null);
+        // Output size, for the bitrate ceiling (a window's size isn't known up front: assume its monitor).
+        int sw = s.source.startsWith("test") ? testW : s.source.equals("region") ? s.regionW : mon.width;
+        int sh = srcH > 0 ? srcH : mon.height;
+        int oh = s.resolution > 0 && sh > s.resolution ? s.resolution : sh;
+        int ow = (int) Math.round(sw * (oh / (double) sh));
+        return new Inputs(a, fc.toString(), labels, titles, ow, oh);
     }
 
     private static void screenInput(List<String> a, Settings s, Rectangle r, int fps, Integer monitorIndex) {

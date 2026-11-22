@@ -71,6 +71,7 @@ public final class Library {
                 if (list != null) for (Clip c : list) if (c != null && c.id != null && c.file != null) {
                     if (c.tags == null) c.tags = new ArrayList<>();
                     if (c.markers == null) c.markers = new ArrayList<>();
+                    if (c.trackNames == null) c.trackNames = new ArrayList<>();
                     if (c.kind == null) c.kind = Clip.Kind.IMPORT;
                     clips.add(c);
                 }
@@ -249,6 +250,7 @@ public final class Library {
         c.fps = info.fps();
         c.hasAudio = info.hasAudio();
         c.audioTracks = info.audioTracks();
+        c.trackNames = new ArrayList<>(info.trackNames());
         c.size = Files.size(file);
     }
 
@@ -262,6 +264,26 @@ public final class Library {
     public void rename(Clip c, String title) {
         c.title = title.isBlank() ? prettyName(c.path(root())) : title.trim();
         update(c);
+    }
+
+    /**
+     * Swaps a clip's file for a smaller re-encode (see Exporter.shrink), keeping its title, tags, markers and
+     * edits. Returns bytes saved.
+     */
+    public long replaceFile(Clip c, Path smaller) throws IOException {
+        Path old = c.path(root());
+        long before = c.size;
+        Path dest = old.resolveSibling(prettyName(old) + ".mp4");
+        if (!dest.equals(old) && Files.exists(dest)) dest = unique(old.getParent(), prettyName(old) + ".mp4");
+        Files.move(smaller, dest.equals(old) ? old : dest, StandardCopyOption.REPLACE_EXISTING);
+        if (!dest.equals(old)) Files.deleteIfExists(old);
+        Ffmpeg.MediaInfo info = Ffmpeg.probe(dest);
+        c.file = rel(dest);
+        applyInfo(c, info, dest);
+        if (!c.tags.contains("shrunk")) c.tags.add("shrunk");
+        save();
+        changed();
+        return before - c.size;
     }
 
     /** Deletes clips (to the OS recycle bin where possible). Returns how many were removed. */

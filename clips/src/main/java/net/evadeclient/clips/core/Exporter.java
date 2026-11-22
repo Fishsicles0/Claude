@@ -233,13 +233,25 @@ public final class Exporter {
             ImageIO.write(renderTitle(e.titleText, e.titlePosition, ow, oh), "png", png.toFile());
             a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
         }
+        // Timed captions: one transparent frame each, overlaid only while it's on screen.
+        List<double[]> capTimes = new ArrayList<>();
+        for (EditSpec.Caption c : e.captions) {
+            if (c.text == null || c.text.isBlank()) continue;
+            double os = e.toOutput(c.start), oe = e.toOutput(c.end);
+            if (oe - os < 0.05) continue; // entirely inside a cut part
+            Path png = Files.createTempFile("evadeclips-caption", ".png");
+            png.toFile().deleteOnExit();
+            ImageIO.write(renderCaption(c.text, c.position, c.style, ow, oh), "png", png.toFile());
+            a.addAll(List.of("-loop", "1", "-framerate", "30", "-t", Library.fmt(dur), "-i", png.toString()));
+            capTimes.add(new double[]{os, oe});
+        }
 
         StringBuilder fc = new StringBuilder();
         int n = e.segments.size();
         // Audio source per segment: the single track, or game + mic mixed at the mic level the user chose.
         String[] aSrc = new String[n];
         if (audio && clip.audioTracks >= 2) {
-            fc.append("[0:a:1]volume=").append(Library.fmt(e.micVolume)).append("[micv];[0:a:0][micv]amix=inputs=2:duration=longest:normalize=0");
+            fc.append(trackMix(clip, e, 0, "mixed"));
             if (n > 1) {
                 fc.append(",asplit=").append(n);
                 for (int i = 0; i < n; i++) { fc.append("[as").append(i).append("]"); aSrc[i] = "[as" + i + "]"; }
@@ -280,15 +292,31 @@ public final class Exporter {
         if (e.fadeIn > 0) fc.append(",fade=t=in:st=0:d=").append(Library.fmt(e.fadeIn));
         if (e.fadeOut > 0) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, dur - e.fadeOut))).append(":d=").append(Library.fmt(e.fadeOut));
 
-        if (p == Preset.GIF) {
-            fc.append(",split[g0][g1];[g0]palettegen=stats_mode=diff:max_colors=200[pal];[g1][pal]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle[vout]");
-        } else if (hasTitle) {
-            fc.append("[base];[1:v]format=rgba");
+        String fx = effectFilter(e.effect);
+        if (!fx.isEmpty()) fc.append(",").append(fx);
+        fc.append("[base]");
+        String cur = "[base]";
+        int input = 1;
+        if (hasTitle) {
+            fc.append(";[1:v]format=rgba");
             double ts = e.titleSeconds > 0 ? Math.min(e.titleSeconds, dur) : dur;
             if (e.titleSeconds > 0) fc.append(",fade=t=out:st=").append(Library.fmt(Math.max(0, ts - 0.4))).append(":d=0.4:alpha=1");
-            fc.append(",fade=t=in:st=0:d=0.3:alpha=1[title];[base][title]overlay=0:0:eof_action=pass,format=yuv420p[vout]");
+            fc.append(",fade=t=in:st=0:d=0.3:alpha=1[title];").append(cur).append("[title]overlay=0:0:eof_action=pass[b0]");
+            cur = "[b0]";
+            input++;
+        }
+        for (int k = 0; k < capTimes.size(); k++, input++) {
+            double[] t = capTimes.get(k);
+            fc.append(";[").append(input).append(":v]format=rgba[cap").append(k).append("];").append(cur).append("[cap").append(k)
+                    .append("]overlay=0:0:eof_action=pass:enable='between(t,").append(Library.fmt(t[0])).append(",").append(Library.fmt(t[1]))
+                    .append(")'[c").append(k).append("]");
+            cur = "[c" + k + "]";
+        }
+        fc.append(";").append(cur);
+        if (p == Preset.GIF) {
+            fc.append("split[g0][g1];[g0]palettegen=stats_mode=diff:max_colors=200[pal];[g1][pal]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle[vout]");
         } else {
-            fc.append(",format=yuv420p[vout]");
+            fc.append("format=yuv420p[vout]");
         }
 
         if (audio) {
@@ -315,14 +343,8 @@ public final class Exporter {
             if (pass != null) a.addAll(List.of("-pass", pass[0], "-passlogfile", pass[1]));
         } else {
             boolean high = p == Preset.SOURCE || p == Preset.YOUTUBE;
-            switch (enc) {
-                case "libx264" -> a.addAll(List.of("-preset", "medium", "-crf", high ? "18" : "21"));
-                case "h264_nvenc" -> a.addAll(List.of("-preset", "p6", "-rc", "vbr", "-cq", high ? "19" : "23", "-b:v", "0"));
-                case "h264_qsv" -> a.addAll(List.of("-preset", "slow", "-global_quality", high ? "19" : "23"));
-                case "h264_amf" -> a.addAll(List.of("-quality", "quality", "-rc", "cqp", "-qp_i", high ? "19" : "23", "-qp_p", high ? "21" : "25"));
-                case "h264_videotoolbox" -> a.addAll(List.of("-q:v", high ? "70" : "60"));
-                default -> a.addAll(List.of("-q:v", "3"));
-            }
+            int outFps = fps > 0 ? fps : srcFps;
+            a.addAll(qualityArgs(enc, high ? 18 : 21, (long) (ow * (double) oh * outFps * (high ? 0.15 : 0.10))));
         }
         a.addAll(List.of("-pix_fmt", "yuv420p"));
         if (enc.equals("libx264") || enc.equals("h264_nvenc")) a.addAll(List.of("-profile:v", "high"));
@@ -330,6 +352,48 @@ public final class Exporter {
         if (pass != null && pass[0].equals("1")) a.addAll(List.of("-f", "mp4"));
         a.addAll(List.of("-movflags", "+faststart", out.toString()));
         return a;
+    }
+
+    /**
+     * Quality-targeted encoding with a peak ceiling, so a busy clip can't balloon: 1080p60 "Source quality" tops
+     * out around 19 Mbit/s (~140 MB a minute), while calm footage comes out far smaller.
+     */
+    static List<String> qualityArgs(String enc, int crf, long capBits) {
+        String max = capBits / 1000 + "k", buf = capBits * 2 / 1000 + "k", avg = capBits * 6 / 10 / 1000 + "k";
+        String base = enc.replaceFirst("^(h264|hevc)", "");
+        return switch (base) {
+            case "_nvenc" -> List.of("-preset", "p6", "-rc", "vbr", "-cq", String.valueOf(crf + 1), "-b:v", avg, "-maxrate", max, "-bufsize", buf);
+            case "_qsv" -> List.of("-preset", "slow", "-b:v", avg, "-maxrate", max, "-bufsize", buf);
+            case "_amf" -> List.of("-quality", "quality", "-rc", "vbr_peak", "-b:v", avg, "-maxrate", max, "-bufsize", buf);
+            case "_videotoolbox" -> List.of("-b:v", avg, "-maxrate", max, "-bufsize", buf);
+            default -> enc.equals("libx264") || enc.equals("libx265")
+                    ? List.of("-preset", "medium", "-crf", String.valueOf(enc.equals("libx265") ? crf + 5 : crf), "-maxrate", max, "-bufsize", buf)
+                    : List.of("-q:v", "3", "-maxrate", max, "-bufsize", buf);
+        };
+    }
+
+    // ------------------------------------------------------------------ shrink
+
+    /**
+     * Re-encodes a clip to HEVC (GPU if possible) to free space: usually 40-60% smaller at the same look. Audio
+     * and every track are copied untouched. Returns the new file, or null if it wouldn't save at least 15%.
+     */
+    public static Path shrink(Path src, Clip clip, Path out, DoubleConsumer progress, Ffmpeg.Job job) throws IOException {
+        List<String> hevc = Ffmpeg.workingEncoders("hevc");
+        String enc = hevc.isEmpty() ? "libx264" : hevc.get(0);
+        int fps = snapFps(clip.fps);
+        long cap = (long) (Math.max(1, clip.width) * (double) Math.max(1, clip.height) * fps * (Ffmpeg.isHevc(enc) ? 0.05 : 0.08));
+        List<String> a = new ArrayList<>(List.of("-i", src.toString(), "-map", "0:v:0", "-map", "0:a?", "-c:v", enc));
+        a.addAll(qualityArgs(enc, Ffmpeg.isHevc(enc) ? 23 : 24, Math.max(1_000_000, cap)));
+        a.addAll(List.of("-pix_fmt", "yuv420p", "-c:a", "copy"));
+        if (Ffmpeg.isHevc(enc)) a.addAll(List.of("-tag:v", "hvc1"));
+        a.addAll(List.of("-movflags", "+faststart", out.toString()));
+        Ffmpeg.run(a, clip.duration, progress, job);
+        if (Files.size(out) > Files.size(src) * 0.85) {
+            Files.deleteIfExists(out);
+            return null;
+        }
+        return out;
     }
 
     private static String pickEncoder(Options o, boolean sizeTargeted) {
@@ -356,6 +420,38 @@ public final class Exporter {
         while (s > 100) { sb.append(",atempo=100"); s /= 100; }
         sb.append(",atempo=").append(Library.fmt(s));
         return sb.toString();
+    }
+
+    /**
+     * Mixes a clip's audio tracks (game, mic, voice chat) at the levels in the edit; ends with the chain open so
+     * the caller can append (",asplit=..." or a label).
+     */
+    static String trackMix(Clip clip, EditSpec e, int input, String tag) {
+        StringBuilder sb = new StringBuilder();
+        StringBuilder ins = new StringBuilder();
+        for (int i = 0; i < clip.audioTracks; i++) {
+            String name = clip.trackNames != null && i < clip.trackNames.size() ? clip.trackNames.get(i) : (i == 0 ? "Game" : i == 1 ? "Mic" : "Voice chat");
+            double v = name.equalsIgnoreCase("Mic") ? e.micVolume : name.equalsIgnoreCase("Voice chat") ? e.voiceVolume : 1;
+            String lbl = "[" + tag + "t" + i + "]";
+            sb.append("[").append(input).append(":a:").append(i).append("]volume=").append(Library.fmt(v)).append(lbl).append(";");
+            ins.append(lbl);
+        }
+        sb.append(ins).append("amix=inputs=").append(clip.audioTracks).append(":duration=longest:normalize=0");
+        return sb.toString();
+    }
+
+    /** The ffmpeg filter for a color look ("" for none). */
+    public static String effectFilter(String effect) {
+        return switch (effect == null ? "none" : effect) {
+            case "vibrant" -> "eq=saturation=1.4:contrast=1.07:gamma=0.97";
+            case "cinematic" -> "eq=contrast=1.1:saturation=0.85,colorbalance=rs=-0.06:bs=0.08:rh=0.08:bh=-0.06,"
+                    + "drawbox=x=0:y=0:w=iw:h=ih*0.11:color=black:t=fill,drawbox=x=0:y=ih*0.89:w=iw:h=ih*0.11:color=black:t=fill";
+            case "bw" -> "hue=s=0,eq=contrast=1.15";
+            case "retro" -> "curves=preset=vintage,noise=alls=10:allf=t,vignette=PI/4";
+            case "warm" -> "colorbalance=rs=0.08:gs=0.02:bs=-0.08:rm=0.05:bm=-0.05";
+            case "cool" -> "colorbalance=rs=-0.07:bs=0.09:rm=-0.04:bm=0.06";
+            default -> "";
+        };
     }
 
     // ------------------------------------------------------------------ montage
@@ -420,8 +516,7 @@ public final class Exporter {
         a.addAll(List.of("-filter_complex", fc.toString(), "-map", "[vout]", "-map", "[aout]"));
         String enc = pickEncoder(o, false);
         a.addAll(List.of("-c:v", enc));
-        if (enc.equals("libx264")) a.addAll(List.of("-preset", "medium", "-crf", "19"));
-        else if (enc.equals("h264_nvenc")) a.addAll(List.of("-preset", "p6", "-rc", "vbr", "-cq", "20", "-b:v", "0"));
+        a.addAll(qualityArgs(enc, 19, (long) (W * (double) H * fps * 0.15)));
         a.addAll(List.of("-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out.toString()));
         Ffmpeg.run(a, total, progress, job);
         return out;
@@ -440,6 +535,51 @@ public final class Exporter {
             }
         }
         return titleFont;
+    }
+
+    /**
+     * A caption on a transparent frame-sized image. "meme": big uppercase white with a heavy black outline;
+     * "subtitle": smaller text on a rounded dark box; "clean": like the title.
+     */
+    public static BufferedImage renderCaption(String text, String position, String style, int w, int h) {
+        if ("meme".equals(style)) return renderText(text.toUpperCase(java.util.Locale.ROOT), position, w, h, 0.10f, 0.16f, false);
+        if ("subtitle".equals(style)) return renderText(text, position, w, h, 0.05f, 0.0f, true);
+        return renderTitle(text, position, w, h);
+    }
+
+    private static BufferedImage renderText(String text, String position, int w, int h, float rel, float stroke, boolean box) {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        float size = Math.min(w, h) * rel;
+        Font f = titleFont().deriveFont(size);
+        FontMetrics fm = g.getFontMetrics(f);
+        while (fm.stringWidth(text) > w * 0.92 && size > 10) { size *= 0.92f; f = titleFont().deriveFont(size); fm = g.getFontMetrics(f); }
+        int tw = fm.stringWidth(text);
+        int x = (w - tw) / 2;
+        int y = switch (position == null ? "bottom" : position) {
+            case "top" -> (int) (h * 0.07) + fm.getAscent();
+            case "center" -> (h - fm.getHeight()) / 2 + fm.getAscent();
+            default -> (int) (h * (box ? 0.9 : 0.93)) - fm.getDescent();
+        };
+        if (box) {
+            int pad = (int) (size * 0.45);
+            g.setColor(new Color(0, 0, 0, 170));
+            g.fill(new java.awt.geom.RoundRectangle2D.Double(x - pad, y - fm.getAscent() - pad * 0.6, tw + pad * 2, fm.getAscent() + fm.getDescent() + pad * 1.2, pad, pad));
+            g.setColor(Color.WHITE);
+            g.setFont(f);
+            g.drawString(text, x, y);
+        } else {
+            java.awt.Shape shape = new TextLayout(text, f, g.getFontRenderContext()).getOutline(AffineTransform.getTranslateInstance(x, y));
+            g.setStroke(new BasicStroke(size * stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(Color.BLACK);
+            g.draw(shape);
+            g.setColor(Color.WHITE);
+            g.fill(shape);
+        }
+        g.dispose();
+        return img;
     }
 
     /** Draws the title text (white, dark outline and shadow) on a transparent frame-sized image. */

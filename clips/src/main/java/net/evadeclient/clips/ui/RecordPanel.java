@@ -50,14 +50,18 @@ public final class RecordPanel extends JPanel {
     private final JComboBox<String> res = new JComboBox<>(new String[]{"Native", "1440p", "1080p", "720p"});
     private final JComboBox<String> quality = new JComboBox<>(new String[]{"Small files", "Balanced", "Best quality"});
     private final JComboBox<String> encoder = new JComboBox<>();
+    private final JComboBox<String> codec = new JComboBox<>(new String[]{"Auto (smallest that's fast)", "H.264 (plays everywhere)", "HEVC (≈40% smaller)"});
+    private final JLabel dataRate = Theme.label(" ", 12f, false, Theme.DIM);
     private final JCheckBox cursor = new JCheckBox("Capture mouse cursor");
     private final JCheckBox sysAudio = new JCheckBox("Record game / desktop audio");
     private final JComboBox<String> sysDevice = new JComboBox<>();
     private final JCheckBox mic = new JCheckBox("Record microphone");
     private final JComboBox<String> micDevice = new JComboBox<>();
     private final JSlider micVol = new JSlider(0, 200, 100);
-    private final JComboBox<String> replayLen = new JComboBox<>(new String[]{"15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes"});
-    private static final int[] REPLAY_LENS = {15, 30, 60, 120, 300};
+    private final JCheckBox voice = new JCheckBox("Record voice chat on its own track");
+    private final JComboBox<String> voiceDevice = new JComboBox<>();
+    private final JComboBox<String> replayLen = new JComboBox<>(new String[]{"15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes", "10 minutes"});
+    private static final int[] REPLAY_LENS = {15, 30, 60, 120, 300, 600};
     private final JComboBox<String> postRoll = new JComboBox<>(new String[]{"+0 s after", "+3 s after", "+5 s after", "+10 s after"});
     private static final int[] POST_ROLLS = {0, 3, 5, 10};
     private final JLabel warn = Theme.label(" ", 12f, false, Theme.GOLD);
@@ -202,7 +206,9 @@ public final class RecordPanel extends JPanel {
         line(c, "Frame rate", fps);
         line(c, "Resolution", res);
         line(c, "Quality", quality);
+        line(c, "Codec", codec);
         line(c, "Encoder", encoder);
+        line(c, "Data use", dataRate);
         cursor.setOpaque(false);
         full(c, cursor);
         JLabel note = Theme.label("<html><body style='width:330px'>Replays cost nothing until you save: the buffer is already encoded, so saving is instant. "
@@ -223,6 +229,10 @@ public final class RecordPanel extends JPanel {
         line(c, "Device", micDevice);
         micVol.setOpaque(false);
         line(c, "Mic volume", micVol);
+        voice.setOpaque(false);
+        voice.setToolTipText("Set your chat app's output to a virtual cable (e.g. VB-Cable) and pick it here, so friends' voices can be muted per clip");
+        full(c, voice);
+        line(c, "Device", voiceDevice);
         end(c);
         return c;
     }
@@ -276,14 +286,19 @@ public final class RecordPanel extends JPanel {
         fps.setSelectedItem(String.valueOf(s.fps));
         res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 1440 -> 1; case 720 -> 3; default -> 2; });
         quality.setSelectedIndex(s.quality - 1);
+        codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
         encoder.removeAllItems();
         encoder.addItem("Automatic (best available)");
-        if (Ffmpeg.available()) for (String e : Ffmpeg.workingEncoders()) encoder.addItem(Ffmpeg.encoderLabel(e));
+        if (Ffmpeg.available()) {
+            for (String e : Ffmpeg.workingEncoders("h264")) encoder.addItem(Ffmpeg.encoderLabel(e));
+            for (String e : Ffmpeg.workingEncoders("hevc")) encoder.addItem(Ffmpeg.encoderLabel(e));
+        }
         if (!s.encoder.isBlank()) encoder.setSelectedItem(Ffmpeg.encoderLabel(s.encoder));
         cursor.setSelected(s.captureCursor);
         sysAudio.setSelected(s.recordSystemAudio);
         mic.setSelected(s.recordMic);
         micVol.setValue((int) Math.round(s.micVolume * 100));
+        voice.setSelected(s.recordVoice);
         int li = 1;
         for (int i = 0; i < REPLAY_LENS.length; i++) if (REPLAY_LENS[i] == s.replaySeconds) li = i;
         replayLen.setSelectedIndex(li);
@@ -299,11 +314,14 @@ public final class RecordPanel extends JPanel {
             loading = true;
             sysDevice.removeAllItems();
             micDevice.removeAllItems();
+            voiceDevice.removeAllItems();
+            voiceDevice.addItem("Choose a device");
             sysDevice.addItem("Default" + (defSys == null ? " (none found)" : ""));
             micDevice.addItem("Default" + (defMic == null ? " (none found)" : ""));
-            for (String name : d.keySet()) { sysDevice.addItem(name); micDevice.addItem(name); }
+            for (String name : d.keySet()) { sysDevice.addItem(name); micDevice.addItem(name); voiceDevice.addItem(name); }
             selectDevice(sysDevice, app.settings.systemAudioDevice);
             selectDevice(micDevice, app.settings.micDevice);
+            selectDevice(voiceDevice, app.settings.voiceDevice);
             loading = false;
             if ((Ffmpeg.WINDOWS || Ffmpeg.MAC) && defSys == null && app.settings.systemAudioDevice.isBlank() && app.settings.recordSystemAudio)
                 warn.setText(Ffmpeg.WINDOWS
@@ -335,9 +353,11 @@ public final class RecordPanel extends JPanel {
             s.fps = Integer.parseInt((String) fps.getSelectedItem());
             s.resolution = new int[]{0, 1440, 1080, 720}[res.getSelectedIndex()];
             s.quality = quality.getSelectedIndex() + 1;
+            s.codec = new String[]{"auto", "h264", "hevc"}[codec.getSelectedIndex()];
             s.encoder = "";
             if (encoder.getSelectedIndex() > 0 && Ffmpeg.available()) {
-                for (String e : Ffmpeg.workingEncoders()) if (Ffmpeg.encoderLabel(e).equals(encoder.getSelectedItem())) s.encoder = e;
+                for (String c2 : List.of("h264", "hevc"))
+                    for (String e : Ffmpeg.workingEncoders(c2)) if (Ffmpeg.encoderLabel(e).equals(encoder.getSelectedItem())) { s.encoder = e; s.codec = c2; }
             }
             s.captureCursor = cursor.isSelected();
             s.recordSystemAudio = sysAudio.isSelected();
@@ -345,12 +365,14 @@ public final class RecordPanel extends JPanel {
             s.recordMic = mic.isSelected();
             s.micDevice = deviceId(micDevice);
             s.micVolume = micVol.getValue() / 100.0;
+            s.recordVoice = voice.isSelected();
+            s.voiceDevice = deviceId(voiceDevice);
             s.save();
             updateEnabled();
             if (app.engine.isLive()) restartLater.restart();
         };
-        for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, encoder, sysDevice, micDevice)) b.addActionListener(e -> apply.run());
-        for (JCheckBox b : List.of(cursor, sysAudio, mic)) b.addActionListener(e -> apply.run());
+        for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, codec, encoder, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
+        for (JCheckBox b : List.of(cursor, sysAudio, mic, voice)) b.addActionListener(e -> apply.run());
         for (JSpinner sp : List.of(rx, ry, rw, rh)) sp.addChangeListener(e -> apply.run());
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
         window.addActionListener(e -> apply.run());
@@ -369,7 +391,20 @@ public final class RecordPanel extends JPanel {
         });
     }
 
+    /** "Up to 65 MB per minute · 30 s buffer ≈ 33 MB": the worst case, since the bitrate is capped. */
+    private void updateDataRate() {
+        if (!Ffmpeg.available()) return;
+        var s = app.settings;
+        String enc = net.evadeclient.clips.core.CaptureEngine.previewEncoder(s);
+        var in = CaptureSource.build(s);
+        long bits = Ffmpeg.liveCapBits(enc, s.quality, s.fps, in.outW(), in.outH()) + 160_000L * in.audioTracks();
+        double mbMin = bits * 60 / 8e6;
+        dataRate.setText(String.format("<html>up to <b>%.0f MB</b> per minute (%dx%d, %s)<br>replay buffer: at most %.0f MB on disk</html>",
+                mbMin, in.outW(), in.outH(), Ffmpeg.isHevc(enc) ? "HEVC" : "H.264", mbMin * (s.replaySeconds + 3) / 60.0));
+    }
+
     private void updateEnabled() {
+        updateDataRate();
         String s = app.settings.source;
         monitor.setEnabled(s.equals("screen"));
         window.setEnabled(s.equals("window"));
@@ -378,6 +413,7 @@ public final class RecordPanel extends JPanel {
         sysDevice.setEnabled(sysAudio.isSelected());
         micDevice.setEnabled(mic.isSelected());
         micVol.setEnabled(mic.isSelected());
+        voiceDevice.setEnabled(voice.isSelected());
     }
 
     // ------------------------------------------------------------------ hero
@@ -451,9 +487,12 @@ public final class RecordPanel extends JPanel {
             String sub;
             if (!Ffmpeg.available()) sub = "ffmpeg wasn't found. Put ffmpeg next to Evade Clips, add it to PATH, or set it in Settings.";
             else if (err) sub = st.message();
+            else if (live && app.currentGame != null) sub = app.currentGame + " detected  ·  " + app.settings.hotkeySaveClip + " saves the last " + label(app.settings.replaySeconds)
+                    + "  ·  " + app.settings.hotkeyRecord + " to " + (st.recording() ? "stop" : "start") + " recording";
             else if (live) sub = "Press " + app.settings.hotkeySaveClip + " to save the last " + label(app.settings.replaySeconds) + "  ·  "
                     + app.settings.hotkeyRecord + " to " + (st.recording() ? "stop" : "start") + " recording  ·  " + app.settings.hotkeyMarker + " for a marker"
                     + (st.encoder().isEmpty() ? "" : "  ·  " + Ffmpeg.encoderLabel(st.encoder()));
+            else if (app.settings.autoReplayForGames) sub = "Waiting for a game. Instant replay turns on by itself when one starts, or turn it on now.";
             else sub = "Turn it on to keep the last " + label(app.settings.replaySeconds) + " ready to save at any moment.";
             g.drawString(LibraryPanel.ellipsize(g, sub, w - 80), 56, 64);
 

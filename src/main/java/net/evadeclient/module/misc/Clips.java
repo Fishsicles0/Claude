@@ -35,6 +35,7 @@ public class Clips extends Module {
     private final BooleanSetting pops = add(new BooleanSetting("Auto Clip Pops", true));
     private final BooleanSetting deaths = add(new BooleanSetting("Auto Clip Deaths", false));
     private final BooleanSetting wins = add(new BooleanSetting("Auto Clip Wins", true));
+    private final BooleanSetting advancements = add(new BooleanSetting("Auto Clip Advancements", true));
     private final NumberSetting before = add(new NumberSetting("Seconds Before", 20, 5, 120, 5));
     private final NumberSetting after = add(new NumberSetting("Seconds After", 4, 0, 15, 1));
     private final NumberSetting port = add(new NumberSetting("App Port", 47821, 1024, 65535, 1));
@@ -98,11 +99,19 @@ public class Clips extends Module {
         if (hit != null && System.currentTimeMillis() - hit < 10_000) c.event("Popped " + p.getName().getString());
     }
 
-    /** From chat: the end-of-game messages AutoGG already recognises. */
+    private static final java.util.regex.Pattern ADVANCEMENT = java.util.regex.Pattern.compile(
+            "^(\\S+) has (made the advancement|completed the challenge|reached the goal) \\[(.+)]$");
+
+    /** From chat: end-of-game messages (as AutoGG recognises them) and your own advancements. */
     public static void onMessage(String text) {
         Clips c = get();
-        if (c == null || !c.wins.get() || EvadeClient.mc().player == null || EvadeClient.mc().player.isDead()) return;
-        if (AutoGG.matches(text)) c.event("Win");
+        if (c == null || EvadeClient.mc().player == null) return;
+        var m = ADVANCEMENT.matcher(text.trim());
+        if (m.matches()) {
+            if (c.advancements.get() && m.group(1).equals(EvadeClient.mc().player.getName().getString())) c.event(m.group(3));
+            return;
+        }
+        if (c.wins.get() && !EvadeClient.mc().player.isDead() && AutoGG.matches(text)) c.event("Win");
     }
 
     private static Clips get() {

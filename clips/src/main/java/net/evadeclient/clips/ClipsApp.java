@@ -19,6 +19,9 @@ public final class ClipsApp {
         if (args.length > 0 && args[0].equals("--selftest")) {
             System.exit(SelfTest.run(Path.of(args.length > 1 ? args[1] : "build/selftest")));
         }
+        if (args.length > 0 && args[0].equals("--sizetest")) {
+            System.exit(SizeTest.run(Path.of(args.length > 1 ? args[1] : "build/sizetest")));
+        }
         System.setProperty("flatlaf.uiScale.allowScaleDown", "true");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
         if (args.length > 0 && args[0].equals("--screenshots")) {
