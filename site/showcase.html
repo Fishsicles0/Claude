@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Showcase · Evade Client</title>
-<meta name="description" content="Real in-game screenshots of Evade Client 1.14.0: the menu and three GUI styles, mod settings, the HUD and the HUD editor.">
+<meta name="description" content="Real in-game recordings and screenshots of Evade Client 1.15.0: the menu, all three GUI styles side by side, themes and accent colours, the HUD and the HUD editor.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/showcase">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Showcase · Evade Client">
-<meta property="og:description" content="Real in-game screenshots of Evade Client 1.14.0: the menu and three GUI styles, mod settings, the HUD and the HUD editor.">
+<meta property="og:description" content="Real in-game recordings and screenshots of Evade Client 1.15.0: the menu, all three GUI styles side by side, themes and accent colours, the HUD and the HUD editor.">
 <meta property="og:url" content="https://evadeclient.com/showcase">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.14.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.15.0">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="showcase">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -41,7 +42,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.14.0</span>
+      <span class="nav-ver">v1.15.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -63,15 +64,53 @@
 <header class="page-hero wrap">
   <div class="eyebrow rv">Showcase</div>
   <h1 class="rv d1">Built to look <span class="red">clean</span>.</h1>
-  <p class="rv d2">Every image here is a real screenshot from the game, taken by Evade's automated in-game tests. Nothing is a mockup.</p>
+  <p class="rv d2">Every clip and image here is recorded in the real game by Evade's automated in-game tests. Nothing is a mockup.</p>
 </header>
 
 <section class="wrap page-body">
+  <div class="clips-row">
+    <figure class="card vid rv">
+      <video src="/assets/menu-clip.mp4" poster="/assets/menu-clip.webp" autoplay muted loop playsinline preload="metadata" width="1280" height="720" aria-label="Recording of the Evade menu"></video>
+      <figcaption><b>The menu, live.</b> It opens with a quick fade, rows light up as you hover and switches slide when you toggle a mod. Theme, accent colour and GUI style all change instantly.</figcaption>
+    </figure>
+    <figure class="card vid rv d1">
+      <video src="/assets/hud-clip.mp4" poster="/assets/hud-clip.webp" autoplay muted loop playsinline preload="metadata" width="1280" height="720" aria-label="Recording of the Evade HUD editor"></video>
+      <figcaption><b>The HUD editor.</b> Drag any element and it snaps to the centre, the screen edges and other elements, with red guide lines. Scroll over it to resize.</figcaption>
+    </figure>
+  </div>
+
+  <div class="sec-head rv" style="margin-top:72px">
+    <div class="eyebrow">GUI styles</div>
+    <h2 style="font-size:clamp(28px,3.6vw,40px)">Three layouts. Pick yours.</h2>
+    <p>Switch between them any time in <b>Settings &rsaquo; GUI Style</b>. Every mod, setting and keybind works the same in all three.</p>
+  </div>
+  <div class="trio">
+    <figure class="card rv" data-full="/assets/gui-list.webp" data-caption="List style: one row per mod with its description, keybind and settings"><img src="/assets/gui-list.webp" alt="Evade menu in the List style" loading="lazy" width="1920" height="1080"><figcaption><b>List</b> (default). One roomy row per mod with its description, keybind, settings button and switch. The easiest to read.</figcaption></figure>
+    <figure class="card rv d1" data-full="/assets/gui-cards.webp" data-caption="Cards style: a grid of tiles, quick to scan"><img src="/assets/gui-cards.webp" alt="Evade menu in the Cards style" loading="lazy" width="1920" height="1080"><figcaption><b>Cards.</b> A grid of tiles that light up in your accent colour when a mod is on. Quick to scan at a glance.</figcaption></figure>
+    <figure class="card rv d2" data-full="/assets/gui-compact.webp" data-caption="Compact style: dense rows that fit the most mods on screen"><img src="/assets/gui-compact.webp" alt="Evade menu in the Compact style" loading="lazy" width="1920" height="1080"><figcaption><b>Compact.</b> Slim rows that fit the most mods on screen, for when you know what you're looking for.</figcaption></figure>
+  </div>
+
+  <div class="sec-head rv" style="margin-top:72px">
+    <div class="eyebrow">Themes</div>
+    <h2 style="font-size:clamp(28px,3.6vw,40px)">Four themes, eight accent colours.</h2>
+    <p>Pick a theme and an accent colour in <b>Settings</b>. They restyle the menu and the HUD together, and switch instantly. Want the old-school look? <b>Classic</b> brings back square corners and vanilla-style grey.</p>
+  </div>
+  <div class="quad">
+    <figure class="card rv" data-full="/assets/theme-modern.webp" data-caption="Modern theme with the Blue accent"><img src="/assets/theme-modern.webp" alt="Modern theme, blue accent" loading="lazy" width="1920" height="1080"><figcaption><b>Modern</b> &middot; the default dark glass, shown with the Blue accent.</figcaption></figure>
+    <figure class="card rv d1" data-full="/assets/theme-midnight.webp" data-caption="Midnight theme with the Red accent"><img src="/assets/theme-midnight.webp" alt="Midnight theme, red accent" loading="lazy" width="1920" height="1080"><figcaption><b>Midnight</b> &middot; deep navy panels, shown with Red.</figcaption></figure>
+    <figure class="card rv" data-full="/assets/theme-oled.webp" data-caption="OLED theme with the Purple accent"><img src="/assets/theme-oled.webp" alt="OLED theme, purple accent" loading="lazy" width="1920" height="1080"><figcaption><b>OLED</b> &middot; true black for OLED screens, shown with Purple.</figcaption></figure>
+    <figure class="card rv d1" data-full="/assets/theme-classic.webp" data-caption="Classic theme with the Green accent"><img src="/assets/theme-classic.webp" alt="Classic theme, green accent" loading="lazy" width="1920" height="1080"><figcaption><b>Classic</b> &middot; square corners and vanilla grey, shown with Green.</figcaption></figure>
+  </div>
+  <p class="accents rv">Accent colours: <i style="background:#E11D2E"></i>Red <i style="background:#2F7BFF"></i>Blue <i style="background:#8B5CF6"></i>Purple <i style="background:#EC4899"></i>Pink <i style="background:#F97316"></i>Orange <i style="background:#EAB308"></i>Gold <i style="background:#22C55E"></i>Green <i style="background:#06B6D4"></i>Cyan</p>
+
+  <div class="sec-head rv" style="margin-top:72px">
+    <div class="eyebrow">Tour</div>
+    <h2 style="font-size:clamp(28px,3.6vw,40px)">Click through it.</h2>
+  </div>
   <div class="switcher rv">
     <div class="sw-list" id="showList" role="tablist">
       <button class="card sw-item on" role="tab" aria-selected="true" data-img="/assets/menu.webp"><h4>The menu</h4><p>Eight categories, search, and animated switches. Opens with Right Shift.</p></button>
       <button class="card sw-item" role="tab" aria-selected="false" data-img="/assets/menu-settings.webp"><h4>Per-mod settings</h4><p>Sliders, modes, keybinds and colours for every mod.</p></button>
-      <button class="card sw-item" role="tab" aria-selected="false" data-img="/assets/gui-list.webp"><h4>List GUI style</h4><p>The default: spacious rows with description, keybind and settings.</p></button>
       <button class="card sw-item" role="tab" aria-selected="false" data-img="/assets/gui-profiles.webp"><h4>Profiles</h4><p>Switch your whole setup &mdash; mods, settings and HUD &mdash; in one click.</p></button>
       <button class="card sw-item" role="tab" aria-selected="false" data-img="/assets/hud.webp"><h4>In-game HUD</h4><p>Cooldowns, target and armor info, keystrokes and more.</p></button>
     </div>
@@ -79,20 +118,20 @@
   </div>
 
   <div class="gallery">
-    <figure class="card rv" data-full="/assets/menu.webp" data-caption="The menu, with categories and live search"><img src="/assets/menu.webp" alt="The Evade menu" loading="lazy" width="1920" height="1080"><figcaption>The menu</figcaption></figure>
-    <figure class="card rv d1" data-full="/assets/menu-settings.webp" data-caption="A mod's settings: sliders, modes and switches"><img src="/assets/menu-settings.webp" alt="A mod's settings" loading="lazy" width="1920" height="1080"><figcaption>Mod settings</figcaption></figure>
-    <figure class="card rv d2" data-full="/assets/hud.webp" data-caption="Cooldowns, TargetHUD, ArmorHUD and keystrokes in game"><img src="/assets/hud.webp" alt="The in-game HUD" loading="lazy" width="1920" height="1080"><figcaption>In-game HUD</figcaption></figure>
-    <figure class="card rv" data-full="/assets/hud-editor.webp" data-caption="The HUD editor: drag to move, scroll to resize"><img src="/assets/hud-editor.webp" alt="The HUD editor" loading="lazy" width="1920" height="1080"><figcaption>HUD editor</figcaption></figure>
-    <figure class="card rv d2" data-full="/assets/zoom.webp" data-caption="Zoom: hold C, scroll to change the level"><img src="/assets/zoom.webp" alt="Zoom" loading="lazy" width="1920" height="1080"><figcaption>Zoom</figcaption></figure>
+    <figure class="card rv" data-full="/assets/menu.webp" data-caption="The menu, with categories and live search"><img src="/assets/menu.webp" alt="The Evade menu" loading="lazy" width="1920" height="1080"><figcaption><b>The menu.</b> Grouped categories down the side, live search and an All / Enabled filter.</figcaption></figure>
+    <figure class="card rv d1" data-full="/assets/menu-settings.webp" data-caption="A mod's settings: sliders, modes and switches"><img src="/assets/menu-settings.webp" alt="A mod's settings" loading="lazy" width="1920" height="1080"><figcaption><b>Mod settings.</b> Sliders, modes, colours and keybinds for every mod.</figcaption></figure>
+    <figure class="card rv d2" data-full="/assets/hud.webp" data-caption="Cooldowns, ArmorHUD and keystrokes in game"><img src="/assets/hud.webp" alt="The in-game HUD" loading="lazy" width="1920" height="1080"><figcaption><b>In-game HUD.</b> Cooldowns, ArmorHUD and keystrokes.</figcaption></figure>
+    <figure class="card rv" data-full="/assets/hud-editor.webp" data-caption="The HUD editor: drag to move, scroll to resize"><img src="/assets/hud-editor.webp" alt="The HUD editor" loading="lazy" width="1920" height="1080"><figcaption><b>HUD editor.</b> Drag to move, scroll to resize, right-click for settings.</figcaption></figure>
+    <figure class="card rv d2" data-full="/assets/zoom.webp" data-caption="Zoom: hold C to zoom in up to 50x, scroll to change the level, with smooth zoom and an optional cinematic camera"><img src="/assets/zoom.webp" alt="Zoom in action: a distant view magnified" loading="lazy" width="1920" height="1080"><figcaption><b>Zoom.</b> Hold <span class="kbd">C</span> to zoom in up to 50&times;. Scroll while zoomed to change the level; it eases in smoothly, with an optional cinematic camera.</figcaption></figure>
   </div>
 
   <div class="sec-head rv" style="margin-top:80px">
     <div class="eyebrow">HUD</div>
-    <h2 style="font-size:clamp(28px,3.6vw,40px)">All 24 HUD elements</h2>
+    <h2 style="font-size:clamp(28px,3.6vw,40px)">All 22 HUD elements</h2>
     <p>Every element you can place on screen, each with its own scale, background and colours. Drag, snap and resize them in the HUD editor. Click one for its settings.</p>
   </div>
   <div class="hud-grid rv">
-    <a class="card hud-card" href="/features#m=ArmorHUD"><h4>ArmorHUD</h4><p>Shows your armour durability and supplies.</p><span class="hud-foot">6 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Clock"><h4>Clock</h4><p>Real-world time.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Combo%20Counter"><h4>Combo Counter</h4><p>Hits in a row without being hit.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Cooldowns"><h4>Cooldowns</h4><p>Timers for pearls, wind charges, spears, gapples and more.</p><span class="hud-foot">6 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Coordinates"><h4>Coordinates</h4><p>Your position, facing and biome.</p><span class="hud-foot">7 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=CPS"><h4>CPS</h4><p>Clicks per second.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Direction%20HUD"><h4>Direction HUD</h4><p>Compass strip with your heading.</p><span class="hud-foot">2 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=FPS"><h4>FPS</h4><p>Frames per second.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Frame%20Time%20Graph"><h4>Frame Time Graph</h4><p>Live frame times with average FPS, 1% low and worst frame.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Inventory%20Viewer"><h4>Inventory Viewer</h4><p>Your inventory on screen.</p><span class="hud-foot">2 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Item%20Counter"><h4>Item Counter</h4><p>Counts items in your inventory.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Keystrokes"><h4>Keystrokes</h4><p>Shows WASD, mouse and space presses.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Memory"><h4>Memory</h4><p>Java memory usage.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Module%20List"><h4>Module List</h4><p>Watermark and active module list.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Pack%20Display"><h4>Pack Display</h4><p>Shows your active resource pack.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Ping"><h4>Ping</h4><p>Your latency to the server.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Potion%20Effects"><h4>Potion Effects</h4><p>Active effects with time remaining.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=PvP%20Info"><h4>PvP Info</h4><p>Your combat target&#x27;s distance, health and armour.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Reach%20Display"><h4>Reach Display</h4><p>Distance of your last hit.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Saturation"><h4>Saturation</h4><p>Your hunger saturation.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Server%20Address"><h4>Server Address</h4><p>The server you&#x27;re playing on.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Speed"><h4>Speed</h4><p>Horizontal speed in blocks per second.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Stopwatch"><h4>Stopwatch</h4><p>A running stopwatch.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=TargetHUD"><h4>TargetHUD</h4><p>Shows the armour and health of your opponent.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a>
+    <a class="card hud-card" href="/features#m=ArmorHUD"><h4>ArmorHUD</h4><p>Shows your armour durability and supplies.</p><span class="hud-foot">6 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Clock"><h4>Clock</h4><p>Real-world time.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Combo%20Counter"><h4>Combo Counter</h4><p>Hits in a row without being hit.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Cooldowns"><h4>Cooldowns</h4><p>Timers for pearls, wind charges, spears, gapples and more.</p><span class="hud-foot">6 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Coordinates"><h4>Coordinates</h4><p>Your position, facing and biome.</p><span class="hud-foot">7 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=CPS"><h4>CPS</h4><p>Clicks per second.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Direction%20HUD"><h4>Direction HUD</h4><p>Compass strip with your heading.</p><span class="hud-foot">2 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=FPS"><h4>FPS</h4><p>Frames per second.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Frame%20Time%20Graph"><h4>Frame Time Graph</h4><p>Live frame times with average FPS, 1% low and worst frame.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Inventory%20Viewer"><h4>Inventory Viewer</h4><p>Your inventory on screen.</p><span class="hud-foot">2 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Item%20Counter"><h4>Item Counter</h4><p>Counts items in your inventory.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Keystrokes"><h4>Keystrokes</h4><p>Shows WASD, mouse and space presses.</p><span class="hud-foot">5 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Memory"><h4>Memory</h4><p>Java memory usage.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Module%20List"><h4>Module List</h4><p>Watermark and active module list.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Pack%20Display"><h4>Pack Display</h4><p>Shows your active resource pack.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Ping"><h4>Ping</h4><p>Your latency to the server.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Potion%20Effects"><h4>Potion Effects</h4><p>Active effects with time remaining.</p><span class="hud-foot">3 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Reach%20Display"><h4>Reach Display</h4><p>Distance of your last hit.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Saturation"><h4>Saturation</h4><p>Your hunger saturation.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Server%20Address"><h4>Server Address</h4><p>The server you&#x27;re playing on.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Speed"><h4>Speed</h4><p>Horizontal speed in blocks per second.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a><a class="card hud-card" href="/features#m=Stopwatch"><h4>Stopwatch</h4><p>A running stopwatch.</p><span class="hud-foot">4 settings <em>&rarr;</em></span></a>
   </div>
 </section>
 
@@ -118,13 +157,13 @@
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.14.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v1.15.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.14.0" defer></script>
+<script src="/assets/site.js?v=1.15.0" defer></script>
 </body>
 </html>

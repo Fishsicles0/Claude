@@ -161,7 +161,7 @@ nav.top.open .burger span::after { transform: translateY(-6px) rotate(-45deg); }
   position: absolute; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .14);
   box-shadow: 0 30px 60px -18px rgba(0, 0, 0, .9); background: #000; animation: bob 7s ease-in-out infinite;
 }
-.float-a { width: 34%; left: -7%; bottom: -9%; }
+.float-a { width: 15%; left: -4%; bottom: -9%; }
 .float-b { width: 28%; right: -5%; top: 12%; animation-delay: -3s; }
 @keyframes bob { 50% { transform: translateY(-10px); } }
 
