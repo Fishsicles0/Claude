@@ -1,5 +1,5 @@
 /* ---------- Supplier: Cabinotch custom-size face-frame boxes ---------- */
-const SUPPLIER={cabinotch:['Cabinotch (custom-size face-frame boxes)'],other:['Other / standard sizes']};
+const SUPPLIER={cabinotch:['Cabinotch'],other:['Other (standard sizes)']};
 const FF_SPECIES=['Soft maple','Hard maple','Red oak','White oak','Cherry','Walnut','Hickory','Alder','Paint grade'];
 Object.assign(DEF_SETTINGS,{supplier:'cabinotch',ffSpecies:'Soft maple',ffScribe:1.5});
 const isCabinotch=()=>S&&S.settings.supplier==='cabinotch';

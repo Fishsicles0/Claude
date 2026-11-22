@@ -40,7 +40,7 @@ function catIcon(t){
 
 const GUIDE={
   measure:['Step 1: Measure the room',['Measure each wall with a tape or laser, then type the length in the boxes. 12\' 6" or 150 both work.','Go around the room in order, clockwise. Start at the left end of the main cabinet wall.','In the second box, add windows, doors, outlets and water or gas pipes so no cabinet covers them.','Not sure where to start? Tap “Start as a rectangle” and change the numbers.']],
-  design:['Step 2: Place the cabinets',['At the top of the plan, pick the wall you are working on.','Tap a cabinet or appliance in the list to add it to that wall.','Drag it on the plan to move it. Tap it to change its size.','Tap “Fill the empty spaces” to finish a wall with standard sizes.']],
+  design:['Step 2: Place the cabinets',['At the top of the plan, pick the wall you are working on.','Tap a cabinet or appliance in the list to add it to that wall.','Drag it on the plan to move it. Tap it to change its size. Tap again to pick the cabinet underneath.','Tap “Fill the empty spaces” to finish a wall with standard sizes.']],
   view3d:['Step 3: See it in 3D',['Drag with your finger or the mouse to turn the room.','Pinch, or scroll the mouse wheel, to zoom in and out.','Tap “Walk inside” to look around from where you would stand.','Pick colors below. Tap “Add to client show” to save a picture for the homeowner.']],
   checks:['Step 4: Fix any problems',['Red means it must be fixed before ordering. Yellow is worth a second look.','Tap a problem to jump to that cabinet on the plan.','Fix it on the plan. This list updates by itself.']],
   estimate:['Step 5: Price it and make the quote',['The list adds everything up while you design.','To use your own prices, type over the numbers in the “Unit cost” column.','Set your markup and tax in the Totals box.','Tap “Quote for the customer” to see the quote, then save it or copy it into an email.','Once the job is approved, open “Order from Cabinotch” for the exact list of boxes to order.']],
@@ -66,7 +66,7 @@ function renderGuide(){
   const g=GUIDE[UI.tab],el=$('#guide');if(!el)return;
   if(!g){el.innerHTML='';return}
   if(GHIDE[UI.tab]){el.innerHTML=`<div class="guide-mini"><button class="btn ghost sm" data-act="guideshow">? Show tips for this page</button></div>`;return}
-  const open=window.innerWidth>820;
+  const open=window.innerWidth>820&&window.innerHeight>860;
   el.innerHTML=`<details class="guide" role="note" ${open?'open':''}><summary><h3>${esc(g[0])}</h3><span class="gtog">How to use this page</span></summary><div class="gbody"><ol>${g[1].map(x=>`<li>${esc(x)}</li>`).join('')}</ol><button class="btn sm x" data-act="guidehide">Hide tips</button></div></details>`;
 }
 function renderNext(){
@@ -121,4 +121,47 @@ Object.assign(ACT,{
   wsample:()=>{closeWelcome();setProject(sampleProject());UI.tab='design';location.hash='design';render();toast('This is the example kitchen. Try dragging a cabinet.')},
   wopen:()=>{closeWelcome();openMenu()}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#welcome').hidden)closeWelcome()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#welcome').hidden)closeWelcome();$('#menu').hidden=true;if(UI.addNote){UI.addNote=false;renderDesign()}}});
+
+/* ---------- Windows / desktop conveniences ---------- */
+// Ctrl+S: confirm the save instead of opening the browser's "save web page" box
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='s'){e.preventDefault();clearTimeout(saveT);doSave().then(()=>toast('Saved. Your work also saves by itself as you go.'))}
+},true);
+// Ctrl+P or the Print button: print the page that is open, not the whole app
+function printContent(){
+  const st=S.settings,doc=h=>`<div class="doc" style="border:0;max-width:none;padding:0">${h}</div>`;
+  if(UI.tab==='estimate'){
+    if(UI.est==='order')return doc(`<h1>${isCabinotch()?'Cabinotch order':'Cabinet order'} — ${esc(S.name)}</h1>`+orderHTML().replace(/<button[^>]*>.*?<\/button>/g,''));
+    return doc(proposalHTML(bom()));
+  }
+  if(UI.tab==='present')return `<div class="pres"><style>${PRESENT_CSS}</style>${presentationHTML()}</div>`;
+  if(UI.tab==='elevations'){const svg=$('#elsvg');return svg?`<h2 style="font-family:var(--f-disp)">${esc(S.name)}</h2>`+svg.outerHTML+($('#v-elevations .grid2')?.outerHTML||''):''}
+  if(UI.tab==='checks')return doc(`<h1>Problems — ${esc(S.name)}</h1>`+checks().list.map(x=>`<p><b>${x.sev==='err'?'MUST FIX':x.sev==='warn'?'CHECK':'NOTE'}: ${esc(x.title)}</b><br>${esc(x.detail)}</p>`).join('')||'<p>No problems found.</p>');
+  // plan / anything else: the floor plan with measurements
+  const keep={...UI};UI.showDims=true;UI.showClr=false;UI.showTri=false;const b=geom().bbox,m=34;
+  const svg=`<svg viewBox="${b.minx-m} ${-b.maxy-m} ${b.w+2*m} ${b.h+2*m}" style="width:100%;max-height:90vh">${planInner(false)}</svg>`;Object.assign(UI,keep);
+  return `<h2 style="font-family:var(--f-disp)">${esc(S.name)} — floor plan</h2>`+svg;
+}
+window.addEventListener('beforeprint',()=>{try{$('#printArea').innerHTML=printContent()}catch(e){}});
+window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''});
+// Print button next to the step buttons where printing makes sense (not available inside Claude's viewer)
+{
+  const baseNext=renderNext;
+  renderNext=function(){baseNext();
+    if(!IN_FRAME&&['estimate','elevations','present','checks','design'].includes(UI.tab)){const el=$('#nextbar');const b=document.createElement('button');b.className='btn';b.dataset.act='print';b.textContent='🖨 Print this page';el.insertBefore(b,el.lastChild)}};
+}
+// Install as an app (Edge/Chrome on Windows put it on the Start menu, taskbar and desktop)
+let INSTALL_EVT=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();INSTALL_EVT=e;if(!$('#welcome').hidden)showWelcome()});
+window.addEventListener('appinstalled',()=>{INSTALL_EVT=null;toast('Installed. Open Plumb & Square from the Start menu or desktop.')});
+{
+  const baseWelcome=showWelcome;
+  showWelcome=function(){baseWelcome();
+    if(IN_FRAME)return;const standalone=window.matchMedia&&matchMedia('(display-mode: standalone)').matches;if(standalone)return;
+    const box=$('#welcome .box');const p=document.createElement('div');p.className='installrow';
+    p.innerHTML=INSTALL_EVT?`<button class="btn pri" data-act="install">⬇ Install on this computer</button><span class="hint">Adds Plumb &amp; Square to the Start menu and desktop, opens in its own window, and works without internet.</span>`
+      :`<span class="hint"><b>Put it on your desktop:</b> in Microsoft Edge, open the <b>…</b> menu → <b>Apps</b> → <b>Install this site as an app</b>. In Chrome, open the <b>⋮</b> menu → <b>Cast, save and share</b> → <b>Install page as app</b>.</span>`;
+    box.appendChild(p)};
+}
+ACT.install=async()=>{if(!INSTALL_EVT)return;INSTALL_EVT.prompt();try{await INSTALL_EVT.userChoice}catch(e){}INSTALL_EVT=null;showWelcome()};

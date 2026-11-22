@@ -40,7 +40,7 @@ function bom(){
   Object.values(cab).sort((a,b)=>a.grp.localeCompare(b.grp)||a.sku.localeCompare(b.sku,undefined,{numeric:true})).forEach(c=>L.push({...c,kind:'mat'}));
   // appliances
   for(const it of S.items){const c=CAT[it.t];if(!c.app)continue;const m=MODELS[it.t]?.[it.model];
-    add(c.fix?'Plumbing fixtures':'Appliances',c.sku(it),(m?m[0]:c.name)+(it.t==='RG'?' · '+(it.fuel==='gas'?'gas':'electric'):'')+(it.note?' — '+it.note:''),1,'ea',p.app[it.t]||0,'price.app.'+it.t);}
+    add(c.fix?'Plumbing fixtures':'Appliances',c.sku(it),(m?c.name+' — '+m[0]:c.name)+(it.t==='RG'?' · '+(it.fuel==='gas'?'gas':'electric'):'')+(it.note?' — '+it.note:''),1,'ea',p.app[it.t]||0,'price.app.'+it.t);}
   // countertops
   let sq=0,edge=0,sinks=0,cooks=0;
   for(const it of S.items){

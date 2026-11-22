@@ -12,6 +12,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
 const money=v=>'$'+(Math.round(v*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const q64=v=>Math.round(v*64)/64;
 const r2=v=>Math.round(v*100)/100;
 
 /* ---------- units ---------- */

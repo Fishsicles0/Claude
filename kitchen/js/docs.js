@@ -250,7 +250,7 @@ async function renderPresent(){
   $('#v-present').innerHTML=`<div class="stack">
     <div class="row" style="justify-content:space-between"><div><div class="eyebrow">Show the client</div><h2>Presentation for the homeowner</h2></div>
       <div class="row"><button class="btn pri" data-act="dlpres">Save presentation to send</button><button class="btn" data-act="tab" data-v="view3d">📷 Add more 3D pictures</button></div></div>
-    <div class="card stack"><div class="row" style="justify-content:space-between"><h3>Captured views · ${CAPS.length}</h3><span class="hint">Use “Capture for presentation” in the 3D tab. The first image is the cover.</span></div>
+    <div class="card stack"><div class="row" style="justify-content:space-between"><h3>Captured views · ${CAPS.length}</h3><span class="hint">In “See it in 3D”, tap “📷 Add to client show”. The first picture becomes the cover.</span></div>
       <div class="caps">${CAPS.map((c,k)=>`<figure><img src="${c.url}" alt="${esc(c.label)}"><figcaption><span>${k===0?'<b>Cover</b> · ':''}${esc(c.label)}</span><span>${k?`<button class="btn sm ghost" data-act="capfirst" data-id="${c.id}">Make cover</button>`:''}<button class="btn sm ghost danger" data-act="capdel" data-id="${c.id}" aria-label="Remove">✕</button></span></figcaption></figure>`).join('')||'<p class="hint">No views captured yet. The presentation still includes the plan, elevations, selections and investment.</p>'}</div></div>
     <div class="pres" id="pres"><style>${PRESENT_CSS}</style>${presentationHTML()}</div></div>`;
 }

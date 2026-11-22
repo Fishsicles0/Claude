@@ -62,7 +62,7 @@ async function saveFile(name,data,mime){
   if(typeof data!=='string'){toast('File saving is not available in this view','err');return}
   try{await navigator.clipboard.writeText(data);toast('File saving is not available here — copied '+name+' contents to the clipboard')}catch(e){toast('File saving is not available in this view','err')}
 }
-const csv=rows=>rows.map(r=>r.map(v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}).join(',')).join('\n');
+const csv=rows=>'\uFEFF'+rows.map(r=>r.map(v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}).join(',')).join('\r\n');
 
 /* ---------- toast ---------- */
 let toastT;

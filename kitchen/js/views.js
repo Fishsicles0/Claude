@@ -84,7 +84,7 @@ function renderChecks(){
     ${sec('err','Must fix')}${sec('warn','Warnings')}<div class="pro">${sec('info','Notes for the installer')}</div>
     ${!C.list.length?'<div class="card"><span class="pill p-ok">Everything passes</span></div>':''}
   </div><div class="stack" style="position:sticky;top:110px">
-    <div class="card stack"><h3>Passing</h3>${C.passed.map(p=>`<div class="row"><span class="pill p-ok">✓</span><span>${esc(p)}</span></div>`).join('')||'<p class="hint">Nothing fully passing yet.</p>'}</div>
+    <div class="card stack"><h3>Passing</h3>${C.passed.map(p=>`<div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="pill p-ok">✓</span><span>${esc(p)}</span></div>`).join('')||'<p class="hint">Nothing fully passing yet.</p>'}</div>
     <div class="card stack"><h3>Work triangle</h3>${tri}</div>
     <div class="card stack"><h3>What is checked</h3><p class="hint">NKBA kitchen planning guidelines (aisles, landing areas, work triangle, dishwasher placement, upper cabinet height), NEC 210.52 countertop receptacle spacing and GFCI, hood clearances, physical collisions in 3D, out-of-square scribe, window and door casing, soffits and ceiling height, and utilities that a fixture needs or a cabinet would bury. Guidelines vary by jurisdiction and manufacturer; confirm with local code and install manuals.</p></div>
   </div></div>`;
@@ -128,7 +128,7 @@ const ACT={
   zoom:(el)=>{const svg=$('#plan');const v=svg.viewBox.baseVal;const k=+el.dataset.v;const cx=v.x+v.width/2,cy=v.y+v.height/2;UI.view={x:cx-v.width*k/2,y:cy-v.height*k/2,w:v.width*k,h:v.height*k};drawPlan()},
   tog:(el)=>{UI[el.dataset.v]=!UI[el.dataset.v];renderDesign()},
   desel:()=>{SEL=null;renderDesign()},
-  nudge:(el)=>{const it=selItem();if(!it)return;it.x=r2(it.x+ +el.dataset.v);commit()},
+  nudge:(el)=>{const it=selItem();if(!it)return;it.x=q64(it.x+ +el.dataset.v);commit()},
   rot:(el)=>{const it=selItem();if(!it)return;it.rot=((it.rot||0)+ +el.dataset.v+360)%360;commit()},
   dup:()=>{const it=selItem();if(!it)return;const n=clone(it);n.id=uid();if(n.wall!=null){const gs=gaps(n.wall,n.z,n.z+n.h);const g=gs.find(g=>g.b-g.a>=n.w-0.01&&g.a>=it.x)||gs.find(g=>g.b-g.a>=n.w-0.01);n.x=g?g.a:it.x+it.w}else{n.cx+=12;n.cy-=12}S.items.push(n);SEL=n.id;commit()},
   del:()=>{S.items=S.items.filter(i=>i.id!==SEL);SEL=null;commit()},
@@ -148,13 +148,14 @@ const ACT={
   copyorder:async()=>{const B=bom();const cab=B.lines.filter(l=>l.grp==='Cabinets'||l.grp==='Fillers & panels');const t=`Cabinet order — ${S.name}\nFinish: ${FINISH[S.settings.finish][0]} · Hardware: ${HW[S.settings.hw][0]}\n\n`+cab.map(l=>`${l.qty} × ${l.sku}  ${l.desc}`).join('\n')+`\n\nCountertop: ${COUNTER[S.settings.counter][0]}, ${B.sq.toFixed(1)} sq ft, ${B.lines.find(l=>l.sku==='CUT-SINK')?.qty||0} sink cutout(s)\n`;copyText(t,'Order summary copied — paste it into an email to your supplier')},
   dlquote:()=>{const B=bom();const html=`<!doctype html><html><head><meta charset="utf-8"><title>Proposal — ${esc(S.name)}</title><style>body{font-family:Helvetica,Arial,sans-serif;color:#1d2930;max-width:820px;margin:40px auto;padding:0 20px}h1{font-size:30px;margin:0 0 4px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:6px;border-bottom:1px solid #d8dcd8;text-align:left}.n{text-align:right;font-family:Menlo,monospace}.mono{font-family:Menlo,monospace}.sig{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}.sig div{border-top:1px solid #1d2930;padding-top:6px;font-size:12px}</style></head><body>${proposalHTML(B)}</body></html>`;saveFile('proposal-'+slug()+'.html',html,'text/html')},
   copyquote:()=>copyText(proposalText(bom()),'Proposal copied as text'),
-  print:()=>{$('#printArea').innerHTML='<div class="doc" style="border:0;max-width:none">'+proposalHTML(bom())+'</div>';window.print()}
+  print:()=>window.print()
 };
 const slug=()=>(S.name||'kitchen').toLowerCase().replace(/[^\w]+/g,'-').replace(/^-|-$/g,'');
 async function copyText(t,msg){try{await navigator.clipboard.writeText(t);toast(msg)}catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(msg)}catch(_){toast('Copy is blocked here — select the text manually','err')}ta.remove()}}
 
 /* ---------- wiring ---------- */
 document.addEventListener('click',e=>{
+  if(!e.target.closest('#menu')&&!e.target.closest('#bMenu'))$('#menu').hidden=true;
   const t=e.target.closest('[data-tab]');if(t){UI.tab=t.dataset.tab;location.hash=UI.tab;render();return}
   const a=e.target.closest('[data-act]');if(a&&!a.disabled){const f=ACT[a.dataset.act];if(f){e.preventDefault();f(a)}return}
   if(!e.target.closest('#menu')&&!e.target.closest('#bMenu'))$('#menu').hidden=true;
@@ -169,8 +170,8 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();ACT.del();return}
   if(e.key==='Escape'){SEL=null;renderDesign();return}
   const step=e.shiftKey?1:0.125;
-  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();if(it.wall!=null)it.x=r2(it.x+(e.key==='ArrowLeft'?-step:step));else it.cx=r2(it.cx+(e.key==='ArrowLeft'?-step:step));commit()}
-  if((e.key==='ArrowUp'||e.key==='ArrowDown')&&it.wall==null){e.preventDefault();it.cy=r2(it.cy+(e.key==='ArrowUp'?step:-step));commit()}
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();if(it.wall!=null)it.x=q64(it.x+(e.key==='ArrowLeft'?-step:step));else it.cx=q64(it.cx+(e.key==='ArrowLeft'?-step:step));commit()}
+  if((e.key==='ArrowUp'||e.key==='ArrowDown')&&it.wall==null){e.preventDefault();it.cy=q64(it.cy+(e.key==='ArrowUp'?step:-step));commit()}
 });
 $('#fileOpen').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const p=JSON.parse(await f.text());if(!p.walls||!p.items)throw 0;p.id=p.id||uid();setProject(p);commit();toast('Opened '+p.name)}catch(_){toast('That file is not a Plumb & Square project','err')}e.target.value=''});
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h&&h!==UI.tab&&$('#v-'+h)){UI.tab=h;render()}});

@@ -65,6 +65,7 @@ button{cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .save{font-size:calc(12px * var(--ts));color:var(--muted);white-space:nowrap}
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+@media (min-width:821px){.tabs{flex-wrap:wrap;overflow:visible}.tab{padding:8px 10px 9px}}
 .tabs::-webkit-scrollbar{display:none}
 .tab{border:0;background:transparent;padding:9px 12px 10px;font-family:var(--f-disp);font-weight:600;font-size:calc(17px * var(--ts));letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
@@ -224,7 +225,7 @@ tr.grp td{background:var(--panel2);font:600 calc(11px * var(--ts)) var(--f-ui);l
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media print{
-  .top,.noprint,.tabs{display:none!important}
+  .top,.noprint,.tabs,#guide,#nextbar,#welcome,#toast{display:none!important}
   body,html{background:#fff}
   .view{display:none!important}
   #printArea{display:block!important}
@@ -292,6 +293,8 @@ details.card>summary::-webkit-details-marker{display:none}
 details.card>summary::after{content:"Show ▾";font-size:calc(13px * var(--ts));color:var(--blue);font-weight:600;white-space:nowrap}
 details.card[open]>summary::after{content:"Hide ▴"}
 .helpbtn{font-weight:700}
+.installrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+@media print{#printArea svg{max-width:100%;height:auto}#printArea .el text{font-family:Consolas,monospace}#printArea .pres{border:0}}
 </style>
 
 <div id="app">

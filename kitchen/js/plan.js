@@ -259,18 +259,19 @@ function issuesCard(list,title){
 }
 function addItem(t){
   const c=CAT[t];const st=S.settings;
-  if(t==='ISL'){const b=geom().bbox;const it=mkItem('ISL',{cx:r2(b.cx),cy:r2(b.cy),rot:0});S.items.push(it);SEL=it.id;commit();return}
+  if(t==='ISL'){const b=geom().bbox;const it=mkItem('ISL',{cx:q64(b.cx),cy:q64(b.cy),rot:0});S.items.push(it);SEL=it.id;commit();return}
   const j=UI.wall;const it=mkItem(t,{wall:j});
   if(t==='W')it.z=st.wallBottom;
-  if(t==='MIR'){const v=S.items.find(i=>i.wall===j&&i.t==='VAN');if(v){it.w=Math.min(it.w,v.w);it.x=r2(v.x+(v.w-it.w)/2);S.items.push(it);SEL=it.id;commit();return}}
+  if(t==='HOOD'){const rg=S.items.find(i=>i.wall===j&&i.t==='RG');if(rg){it.w=Math.max(it.w,rg.w);it.x=q64(rg.x+(rg.w-it.w)/2);S.items.push(it);SEL=it.id;commit();return}}
+  if(t==='MIR'){const v=S.items.find(i=>i.wall===j&&i.t==='VAN');if(v){it.w=Math.min(it.w,v.w);it.x=q64(v.x+(v.w-it.w)/2);S.items.push(it);SEL=it.id;commit();return}}
   const gs=gaps(j,it.z,it.z+it.h);let g=gs.find(g=>g.b-g.a>=it.w-0.01);
-  if(g)it.x=r2(g.a);else{it.x=0;toast('No gap wide enough on W'+(j+1)+'. Placed at the left end — resolve the collision.','err')}
+  if(g)it.x=q64(g.a);else{it.x=0;toast('No gap wide enough on W'+(j+1)+'. Placed at the left end — resolve the collision.','err')}
   S.items.push(it);SEL=it.id;commit();
 }
 function fillGap(j,a,b,z){
   const st=S.settings;const len=b-a;const upper=z>st.counterH;const layer=upper?'wall':'base';
   const wlen=geom().walls[j].len;const atRightWall=Math.abs(b-wlen)<0.1;
-  const mkF=(x,w)=>mkItem('F',{wall:j,x:r2(x),w:r2(w),lay:layer,z:upper?st.wallBottom:0,h:upper?30:34.5,d:upper?12:24});
+  const mkF=(x,w)=>mkItem('F',{wall:j,x:q64(x),w:q64(w),lay:layer,z:upper?st.wallBottom:0,h:upper?30:34.5,d:upper?12:24});
   if(len<=6){S.items.push(mkF(a,len));return 1}
   const t=upper?'W':'B';const ws=CAT[t].ws.slice().reverse();
   let rem=len;const widths=[];
@@ -278,11 +279,11 @@ function fillGap(j,a,b,z){
     const fit=ws.find(w=>rem-w>=1&&rem-w<=4);if(fit){widths.push(fit);rem-=fit;break}
     const w=ws.find(w=>w<=rem-1&&rem-w>=10)||ws.find(w=>w<=rem-1);if(!w)break;widths.push(w);rem-=w;
   }
-  rem=r2(rem);
+  rem=q64(rem);
   if(!widths.length){S.items.push(mkF(a,len));return 1}
   let x=a;
   if(!atRightWall&&rem>0.0625){S.items.push(mkF(x,rem));x+=rem}
-  for(const w of widths){S.items.push(mkItem(t,{wall:j,x:r2(x),w,z:upper?st.wallBottom:0,h:upper?30:34.5}));x+=w}
+  for(const w of widths){S.items.push(mkItem(t,{wall:j,x:q64(x),w,z:upper?st.wallBottom:0,h:upper?30:34.5}));x+=w}
   if(atRightWall&&rem>0.0625)S.items.push(mkF(x,rem));
   return widths.length+(rem>0.0625?1:0);
 }
@@ -309,8 +310,9 @@ function wirePlan(){
     if(pts.size===2){drag=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),v:vb(),c:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}};return}
     const id=e.target.dataset&&e.target.dataset.id;const nid=e.target.dataset&&e.target.dataset.note;
     const p=world(e);
-    if(UI.addNote&&!id&&!nid){const n={id:uid(),x:r2(p.x),y:r2(p.y),text:'New note'};S.notes.push(n);UI.addNote=false;SEL='n:'+n.id;commit();setTimeout(()=>{const t=$('#n-text');if(t){t.focus();t.select()}},30);return}
+    if(UI.addNote&&!id&&!nid){const n={id:uid(),x:q64(p.x),y:q64(p.y),text:'New note'};S.notes.push(n);UI.addNote=false;SEL='n:'+n.id;commit();setTimeout(()=>{const t=$('#n-text');if(t){t.focus();t.select()}},30);return}
     if(nid){const n=S.notes.find(x=>x.id===nid);if(!n)return;if(SEL!=='n:'+nid){SEL='n:'+nid;renderInspector();drawPlan()}drag={note:n,start:p,moved:false,ox:n.x,oy:n.y};return}
+    if(id&&SEL===id){const hits=S.items.filter(it=>{const P=itemPoly(it);return P&&(!isUpper(it)||UI.showUpper)&&inPoly(p,P)});if(hits.length>1){const k=hits.findIndex(h=>h.id===id);const nx=hits[(k+1)%hits.length];SEL=nx.id;renderInspector();drawPlan();return}}
     if(id){const it=S.items.find(i=>i.id===id);if(!it)return;if(SEL!==id){SEL=id;if(it.wall!=null)UI.wall=it.wall;renderInspector();drawPlan()}
       const f=frame(it);
       drag={it,start:p,moved:false,grabU:(p.x-f.o.x)*f.U.x+(p.y-f.o.y)*f.U.y,grabV:(p.x-f.o.x)*f.V.x+(p.y-f.o.y)*f.V.y,ox:it.cx,oy:it.cy};
@@ -333,7 +335,7 @@ function wirePlan(){
     UI.view={x:cx-(cx-v.x)*k,y:cy-(cy-v.y)*k,w:v.w*k,h:v.h*k};svg.setAttribute('viewBox',`${UI.view.x} ${UI.view.y} ${UI.view.w} ${UI.view.h}`)},{passive:false});
 }
 function dragMove(d,p){
-  if(d.note){d.note.x=r2(d.ox+p.x-d.start.x);d.note.y=r2(d.oy+p.y-d.start.y);return}
+  if(d.note){d.note.x=q64(d.ox+p.x-d.start.x);d.note.y=q64(d.oy+p.y-d.start.y);return}
   const it=d.it;
   if(it.wall==null){const dx=p.x-d.start.x,dy=p.y-d.start.y;it.cx=Math.round((d.ox+dx)*2)/2;it.cy=Math.round((d.oy+dy)*2)/2;invalidate();return}
   const G=geom();let best=null;
@@ -346,7 +348,7 @@ function dragMove(d,p){
   const edges=[0,best.w.len];occ.forEach(o=>{edges.push(o.u0,o.u1)});
   let bd=1.6,bx=null;for(const e of edges){if(Math.abs(x-e)<bd){bd=Math.abs(x-e);bx=e}if(Math.abs(x+it.w-e)<bd){bd=Math.abs(x+it.w-e);bx=e-it.w}}
   if(bx!=null)x=bx;
-  it.x=r2(clamp(x,-it.w+2,best.w.len-2));
+  it.x=q64(clamp(x,-it.w+2,best.w.len-2));
   UI.wall=it.wall;invalidate();
 }
 
