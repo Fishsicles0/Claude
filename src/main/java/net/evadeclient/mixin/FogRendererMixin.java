@@ -12,7 +12,7 @@ public abstract class FogRendererMixin {
     private static boolean evade$noFog() {
         if (EvadeClient.modules == null) return false;
         NoFog nf = EvadeClient.modules.get(NoFog.class);
-        return nf != null && nf.isEnabled();
+        return (nf != null && nf.isEnabled()) || net.evadeclient.module.visuals.ClearWater.clearFog();
     }
 
     // applyFog(buffer, offset, color, envStart, envEnd, renderStart, renderEnd, skyEnd, cloudEnd): push every distance far away.

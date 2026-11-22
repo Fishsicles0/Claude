@@ -232,6 +232,8 @@ public final class App {
                     m.put("recording", s.recording());
                     m.put("buffered", Math.round(s.bufferedSeconds()));
                     m.put("replaySeconds", settings.replaySeconds);
+                    // so Evade Client knows this key already saved a clip and doesn't save a second one
+                    m.put("hotkey", hotkeys.active() ? settings.hotkeySaveClip : "");
                     return m;
                 }
                 @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {

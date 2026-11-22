@@ -53,6 +53,8 @@ public final class InstallerView extends JPanel {
     Path minecraftDir = InstallerCore.defaultMinecraftDir();
     int memoryGb = 4;
     boolean copySettings = true;
+    boolean voiceChat = true;
+    boolean performanceMods = true;
     /** Also install Evade Clips (instant replay, clip library and editor). */
     boolean installClips = true;
     InstallerCore.Release release;
@@ -140,6 +142,8 @@ public final class InstallerView extends JPanel {
                 }
             }
             case "copy" -> copySettings = !copySettings;
+            case "voice" -> voiceChat = !voiceChat;
+            case "perf" -> performanceMods = !performanceMods;
             case "clips" -> installClips = !installClips;
             case "install", "retry" -> { if (release != null) onInstall.run(); }
             case "open" -> onOpenLauncher.run();
@@ -318,25 +322,47 @@ public final class InstallerView extends JPanel {
         // settings toggle row
         g.setFont(inter.deriveFont(13f));
         g.setColor(TEXT);
-        g.drawString("Copy my settings & servers", x, y + 192);
+        g.drawString("Copy my settings & servers", x, y + 189);
         float on = anim("copy-on", copySettings);
-        int tx = x + w - 38, ty = y + 179;
+        int tx = x + w - 38, ty = y + 176;
         g.setColor(mix(new Color(0x2A2A31), RED, on));
         g.fill(new RoundRectangle2D.Double(tx, ty, 38, 20, 20, 20));
         g.setColor(Color.WHITE);
         g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ty + 3, 14, 14));
-        hits.put("copy", new Rectangle(x, y + 174, w, 28));
+        hits.put("copy", new Rectangle(x, y + 172, w, 28));
 
         g.setFont(inter.deriveFont(13f));
         g.setColor(TEXT);
-        g.drawString("Also install Evade Clips", x, y + 222);
+        g.drawString("Voice chat (Simple Voice Chat)", x, y + 219);
+        float von = anim("voice-on", voiceChat);
+        int vy = y + 206;
+        g.setColor(mix(new Color(0x2A2A31), RED, von));
+        g.fill(new RoundRectangle2D.Double(tx, vy, 38, 20, 20, 20));
+        g.setColor(Color.WHITE);
+        g.fill(new Ellipse2D.Double(tx + 3 + von * 18, vy + 3, 14, 14));
+        hits.put("voice", new Rectangle(x, y + 202, w, 28));
+
+        g.setFont(inter.deriveFont(13f));
+        g.setColor(TEXT);
+        g.drawString("FPS mods (Sodium & more)", x, y + 249);
+        float pon = anim("perf-on", performanceMods);
+        int py = y + 236;
+        g.setColor(mix(new Color(0x2A2A31), RED, pon));
+        g.fill(new RoundRectangle2D.Double(tx, py, 38, 20, 20, 20));
+        g.setColor(Color.WHITE);
+        g.fill(new Ellipse2D.Double(tx + 3 + pon * 18, py + 3, 14, 14));
+        hits.put("perf", new Rectangle(x, y + 232, w, 28));
+
+        g.setFont(inter.deriveFont(13f));
+        g.setColor(TEXT);
+        g.drawString("Evade Clips (record & edit clips)", x, y + 279);
         float con = anim("clips-on", installClips);
-        int cy = y + 209;
+        int cy = y + 266;
         g.setColor(mix(new Color(0x2A2A31), RED, con));
         g.fill(new RoundRectangle2D.Double(tx, cy, 38, 20, 20, 20));
         g.setColor(Color.WHITE);
         g.fill(new Ellipse2D.Double(tx + 3 + con * 18, cy + 3, 14, 14));
-        hits.put("clips", new Rectangle(x, y + 204, w, 28));
+        hits.put("clips", new Rectangle(x, y + 262, w, 28));
 
         // status line
         g.setFont(inter.deriveFont(12f));
@@ -348,8 +374,8 @@ public final class InstallerView extends JPanel {
         else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " → v" + release.evadeVersion(); infoColor = RED_HI; }
         else info = "v" + installed.evadeVersion() + " is installed and up to date.";
         g.setColor(infoColor);
-        g.fill(new Ellipse2D.Double(x, y + 252, 6, 6));
-        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 259);
+        g.fill(new Ellipse2D.Double(x, y + 298, 6, 6));
+        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 305);
 
         String label = installed == null ? "Install Evade Client"
                 : release != null && !release.evadeVersion().equals(installed.evadeVersion()) ? "Update Evade Client" : "Reinstall";

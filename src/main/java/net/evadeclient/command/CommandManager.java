@@ -39,8 +39,11 @@ public class CommandManager {
                 print("§d.set <module> <setting> <value>§7 - change a setting");
                 print("§d.modules§7 - list modules");
                 print("§d.waypoint§7 - waypoints (add <name>, del <name>, list, clear)");
+                print("§d.nick <name>§7 - set your Nick Hider name");
+                print("§d.clip§7 - save the last seconds as a clip");
+                print("§d.voice§7 - open the voice chat menu");
                 print("§d.save§7 / §d.load§7 - config");
-                print("§d.clips§7 [last|save]§7 - open Evade Clips, edit your last clip, or save one now");
+                print("§d.clips§7 [last|save]§7 - open Evade Clips (or the clips folder), edit your last clip, or save one now");
             }
             case "clips", "clip" -> net.evadeclient.module.misc.Clips.command(a);
             case "t", "toggle" -> {
@@ -72,6 +75,17 @@ public class CommandManager {
             case "modules", "list" -> print(EvadeClient.modules.all().stream()
                     .map(m -> (m.isEnabled() ? "§a" : "§7") + m.getName())
                     .collect(Collectors.joining("§8, ")));
+            case "nick" -> {
+                var nh = EvadeClient.modules.get(net.evadeclient.module.visuals.NickHider.class);
+                if (a.length < 2) { print("Nickname: §c" + nh.nick.get() + "§7. Use .nick <name>"); break; }
+                String name = String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)).trim();
+                if (name.length() > 16) name = name.substring(0, 16);
+                nh.nick.set(name);
+                if (!nh.isEnabled()) nh.setEnabled(true);
+                EvadeClient.config.save();
+                print("Nick Hider on. You now show as §c" + name);
+            }
+            case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
             case "save" -> { EvadeClient.config.save(); print("Config saved."); }
             case "load" -> { EvadeClient.config.load(); print("Config loaded."); }
             default -> print("§cUnknown command. Try .help");

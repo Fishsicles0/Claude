@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Downloads Litematica + MaLiLib (1.21.11) into libs/test-mods for the in-game Printer test.
+"""Downloads the mods the Evade Installer can add (Simple Voice Chat + the performance mods, 1.21.11 Fabric) into
+libs/test-mods, so the in-game tests run Evade alongside them.
 
-These are other people's mods: they're only used by `runClientGameTest` (via modLocalRuntime) and are never
-bundled into Evade. Checksums are verified against Modrinth.
+They're other people's mods: only used by `runClientGameTest` and never bundled into Evade or hosted by us.
+Players get them from Modrinth through the Evade Installer.
+Pass --no-perf to test with Simple Voice Chat only.
+Checksums are verified against Modrinth.
 """
-import hashlib, json, os, urllib.request
+import glob, hashlib, json, os, sys, urllib.request
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "libs", "test-mods")
 Q = "game_versions=%5B%221.21.11%22%5D&loaders=%5B%22fabric%22%5D"
@@ -26,9 +29,20 @@ def fetch(version):
 
 
 os.makedirs(OUT, exist_ok=True)
-lit = [v for v in get(f"https://api.modrinth.com/v2/project/litematica/version?{Q}") if v["version_type"] == "release"][0]
-dep = [d for d in lit["dependencies"] if d["dependency_type"] == "required"][0]
-mal = get(f"https://api.modrinth.com/v2/version/{dep['version_id']}") if dep.get("version_id") else \
-    [v for v in get(f"https://api.modrinth.com/v2/project/{dep['project_id']}/version?{Q}") if v["version_type"] == "release"][0]
-fetch(lit)
-fetch(mal)
+PROJECTS = ["simple-voice-chat"] + ([] if "--no-perf" in sys.argv else
+            ["sodium", "lithium", "ferrite-core", "immediatelyfast", "entityculling", "moreculling", "scalablelux", "krypton", "badoptimizations", "sodium-extra", "fast-ip-ping", "fastquit"])
+for old in glob.glob(os.path.join(OUT, "*.jar")):
+    os.remove(old)
+FABRIC_API = "P7dR8mSH"
+queue, seen = list(PROJECTS), set()
+while queue:
+    slug = queue.pop(0)
+    versions = get(f"https://api.modrinth.com/v2/project/{slug}/version?{Q}")
+    v = next((x for x in versions if x["version_type"] == "release"), versions[0])
+    if v["project_id"] in seen:
+        continue
+    seen.add(v["project_id"])
+    fetch(v)
+    for d in v["dependencies"]:  # required libraries, e.g. Cloth Config for MoreCulling
+        if d["dependency_type"] == "required" and d["project_id"] not in (FABRIC_API, *seen):
+            queue.append(d["project_id"])

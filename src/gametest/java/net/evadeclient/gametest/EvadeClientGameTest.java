@@ -26,11 +26,24 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             server.runCommand("difficulty easy");
             server.runCommand("tp @a 0 -60 0 0 0");
             ctx.waitTicks(20);
+            // Performance is on by default; tests start without it (its particle budget would make them random)
+            // and turn it on where they test it.
+            disable(ctx, net.evadeclient.module.mods.Performance.class);
+            String addons = ctx.computeOnClient(c -> net.evadeclient.module.mods.Performance.installedAddons());
+            check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
+                    "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
+            testVisualBatch(ctx, sp);
+            testRenderBatch(ctx, sp);
+            testPerformance(ctx, sp);
+            testFrameTime(ctx);
+            testClips(ctx, sp);
+            testVoice(ctx);
             testHud(ctx, sp);
             testMenu(ctx);
+            testProfiles(ctx);
             testTexturePack(ctx, sp);
         }
         titleScreenshot(ctx);
@@ -266,6 +279,286 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 return list.size();
             } catch (Exception e) { throw new AssertionError(e); }
         });
+    }
+
+    /** Batch 2 visual mods: Particles, TNT Timer, Chunk Borders, Clear Water, Scoreboard, Boss Bar, Inventory Blur. */
+    private void testVisualBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        ctx.waitTicks(5);
+
+        // Particles: a crit is refused while hidden, allowed once the mod is off
+        enable(ctx, net.evadeclient.module.visuals.Particles.class);
+        boolean blocked = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) == null);
+        disable(ctx, net.evadeclient.module.visuals.Particles.class);
+        boolean allowed = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) != null);
+        check(blocked && allowed, "Particles hides crits only while enabled");
+
+        // TNT Timer: a primed TNT in front of you gets a countdown
+        server.runCommand("summon tnt 0 -60 5 {fuse:200}");
+        ctx.waitTicks(10);
+        int timers = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.TntTimer.class).shown());
+        check(timers >= 1, "TNT Timer shows a countdown over primed TNT (" + timers + ")");
+
+        // Chunk Borders draws its grid
+        enable(ctx, net.evadeclient.module.visuals.ChunkBorders.class);
+        ctx.waitTicks(3);
+        int lines = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.ChunkBorders.class).lines());
+        check(lines > 50, "Chunk Borders draws the chunk grid (" + lines + " lines)");
+
+        // Scoreboard (numbers hidden) + boss bar on screen, then a screenshot of it all
+        server.runCommand("scoreboard objectives add evade dummy \"Evade\"");
+        server.runCommand("scoreboard objectives setdisplay sidebar evade");
+        server.runCommand("scoreboard players set Kills evade 12");
+        server.runCommand("scoreboard players set Coins evade 340");
+        server.runCommand("bossbar add evade:test \"Ender Dragon\"");
+        server.runCommand("bossbar set evade:test players @a");
+        enable(ctx, net.evadeclient.module.visuals.Scoreboard.class);
+        enable(ctx, net.evadeclient.module.visuals.BossBar.class);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("evade-batch2");
+        disable(ctx, net.evadeclient.module.visuals.ChunkBorders.class);
+        server.runCommand("kill @e[type=tnt]");
+        server.runCommand("bossbar remove evade:test");
+        server.runCommand("scoreboard objectives remove evade");
+
+        // Clear Water: removes fog while the camera is underwater
+        server.runCommand("fill 98 -61 98 102 -56 102 glass");
+        server.runCommand("fill 99 -60 99 101 -56 101 water");
+        server.runCommand("tp @a 100 -59 100 0 0");
+        enable(ctx, net.evadeclient.module.visuals.ClearWater.class);
+        ctx.waitTicks(10);
+        boolean clear = ctx.computeOnClient(c -> net.evadeclient.module.visuals.ClearWater.clearFog());
+        disable(ctx, net.evadeclient.module.visuals.ClearWater.class);
+        server.runCommand("tp @a 0 -60 0 0 0");
+        check(clear, "Clear Water clears fog while underwater");
+
+        // Inventory Blur: opening the inventory with it on doesn't break anything
+        enable(ctx, net.evadeclient.module.visuals.InventoryBlur.class);
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.ingame.InventoryScreen(net.minecraft.client.MinecraftClient.getInstance().player));
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-inventory-blur");
+        ctx.setScreen(() -> null);
+        disable(ctx, net.evadeclient.module.visuals.InventoryBlur.class);
+        check(true, "Inventory Blur renders behind the inventory");
+    }
+
+    /** Deeper render mods: Nick Hider, Hit Color, ShinyPots, EnchantGlint, Item Physics, 1.7 Animations. */
+    private void testRenderBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 30");
+        ctx.waitTicks(3);
+
+        // Nick Hider: your real name is swapped wherever it's drawn
+        String shown = ctx.computeOnClient(c -> {
+            var nh = EvadeClient.modules.get(net.evadeclient.module.visuals.NickHider.class);
+            nh.nick.set("Streamer");
+            nh.setEnabled(true);
+            StringBuilder b = new StringBuilder();
+            net.minecraft.text.Text.literal("<" + c.getSession().getUsername() + "> hi").asOrderedText()
+                    .accept((i, style, cp) -> { b.appendCodePoint(cp); return true; });
+            return b.toString();
+        });
+        check(shown.equals("<Streamer> hi"), "Nick Hider replaces your name on screen (" + shown + ")");
+        disable(ctx, net.evadeclient.module.visuals.NickHider.class);
+
+        // Hit Color repaints the hurt overlay, and restores red when turned off
+        enable(ctx, net.evadeclient.module.visuals.HitColor.class);
+        ctx.waitTicks(3);
+        int painted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
+        disable(ctx, net.evadeclient.module.visuals.HitColor.class);
+        int restored = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
+        check((painted & 0xFFFFFF) == 0x3B82F6 && restored == 0xB2FF0000,
+                "Hit Color repaints the hurt flash and restores it (" + Integer.toHexString(painted) + " -> " + Integer.toHexString(restored) + ")");
+
+        // ShinyPots: potions glint only while it's on
+        boolean[] glint = ctx.computeOnClient(c -> {
+            var pot = net.minecraft.item.ItemStack.EMPTY;
+            pot = net.minecraft.item.Items.POTION.getDefaultStack();
+            pot.set(net.minecraft.component.DataComponentTypes.POTION_CONTENTS,
+                    new net.minecraft.component.type.PotionContentsComponent(net.minecraft.potion.Potions.STRENGTH));
+            boolean before = pot.hasGlint();
+            var sp2 = EvadeClient.modules.get(net.evadeclient.module.visuals.ShinyPots.class);
+            sp2.setEnabled(true);
+            boolean after = pot.hasGlint();
+            sp2.setEnabled(false);
+            return new boolean[]{before, after};
+        });
+        check(!glint[0] && glint[1], "ShinyPots makes potions glint");
+
+        // EnchantGlint swaps in a recoloured glint texture, and restores the original on disable
+        enable(ctx, net.evadeclient.module.visuals.EnchantGlint.class);
+        ctx.waitTicks(3);
+        boolean tinted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.EnchantGlint.class).isApplied());
+
+        // Item Physics + 1.7 Animations + glint, all on screen at once
+        server.runCommand("summon item 0 -60 2 {Item:{id:\"minecraft:diamond_sword\",count:1},PickupDelay:32767}");
+        server.runCommand("summon item 1 -60 2.5 {Item:{id:\"minecraft:golden_apple\",count:1},PickupDelay:32767}");
+        server.runCommand("summon item -1 -60 2.5 {Item:{id:\"minecraft:stone\",count:1},PickupDelay:32767}");
+        server.runCommand("item replace entity @a weapon.mainhand with diamond_sword[enchantments={sharpness:5}]");
+        enable(ctx, net.evadeclient.module.visuals.ItemPhysics.class);
+        enable(ctx, net.evadeclient.module.visuals.OldAnimations.class);
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("evade-render-batch");
+        disable(ctx, net.evadeclient.module.visuals.EnchantGlint.class);
+        ctx.waitTicks(2);
+        boolean restoredGlint = ctx.computeOnClient(c -> !EvadeClient.modules.get(net.evadeclient.module.visuals.EnchantGlint.class).isApplied());
+        check(tinted && restoredGlint, "EnchantGlint recolours the glint and restores it");
+        disable(ctx, net.evadeclient.module.visuals.ItemPhysics.class);
+        disable(ctx, net.evadeclient.module.visuals.OldAnimations.class);
+        server.runCommand("kill @e[type=item]");
+        server.runCommand("clear @a");
+        check(true, "Item Physics and 1.7 Animations render without errors");
+    }
+
+    /** Frame Time Graph: frames are being recorded and summarised. */
+    private void testFrameTime(ClientGameTestContext ctx) {
+        enable(ctx, net.evadeclient.module.hud.FrameTimeHud.class);
+        ctx.waitTicks(60);
+        int frames = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.count());
+        float[] s = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.summary(net.evadeclient.util.FrameStats.SIZE));
+        ctx.takeScreenshot("evade-frametime");
+        disable(ctx, net.evadeclient.module.hud.FrameTimeHud.class);
+        check(frames > 60 && s[0] > 1 && s[1] > 0 && s[1] <= s[0] + 0.5f && s[2] > 0,
+                String.format(java.util.Locale.ROOT, "Frame Time Graph tracks frames (%d frames, %.0f FPS avg, %.0f 1%% low, %.1f ms worst)", frames, s[0], s[1], s[2]));
+    }
+
+    /** Performance: benchmark FPS with 400 distant mobs, culling off vs on, plus the lighter-settings preset. */
+    private void testPerformance(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        for (int x = -20; x < 20; x += 2) for (int z = 70; z < 110; z += 2)
+            server.runCommand("summon cow " + x + " -60 " + z + " {NoAI:1b,Silent:1b}");
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.waitTicks(100);
+        int fpsOff = ctx.computeOnClient(c -> c.getCurrentFps());
+
+        var perf = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.mods.Performance.class));
+        setBool(ctx, perf, "Low FPS When Tabbed Out", false); // the test window may not have focus
+        setBool(ctx, perf, "Lighter Video Settings", false);  // measure culling on its own
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        ctx.runOnClient(c -> perf.takeCulled());
+        ctx.waitTicks(100);
+        int fpsOn = ctx.computeOnClient(c -> c.getCurrentFps());
+        int culled = ctx.computeOnClient(c -> perf.takeCulled());
+        EvadeClient.LOG.info("[gametest] BENCHMARK 400 cows at 70-110 blocks: {} FPS off -> {} FPS on ({} entity draws skipped)", fpsOff, fpsOn, culled);
+        ctx.takeScreenshot("evade-performance");
+        check(culled > 0, "Performance culls distant entities (" + fpsOff + " -> " + fpsOn + " FPS)");
+
+        // far block entities are skipped, near ones aren't
+        boolean be = ctx.computeOnClient(c -> perf.cullBlockEntity(new net.minecraft.util.math.BlockPos(0, -60, 90))
+                && !perf.cullBlockEntity(new net.minecraft.util.math.BlockPos(0, -60, 5)));
+        check(be, "Performance culls far block entities only");
+
+        // lighter video settings apply on enable and restore on disable
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        setBool(ctx, perf, "Lighter Video Settings", true);
+        ctx.runOnClient(c -> c.options.getCloudRenderMode().setValue(net.minecraft.client.option.CloudRenderMode.FANCY));
+        var before = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        var during = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        var after = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
+        check(before == net.minecraft.client.option.CloudRenderMode.FANCY && during == net.minecraft.client.option.CloudRenderMode.OFF && after == before,
+                "Performance's lighter settings apply and restore (" + before + " -> " + during + " -> " + after + ")");
+        // AFK cap: two minutes without input drops to the AFK frame rate; any input lifts it straight away.
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        int[] afk = ctx.computeOnClient(c -> {
+            var lim = c.getInactivityFpsLimiter();
+            try { lim.getClass().getMethod("evade$pretendIdle", long.class).invoke(lim, 120_000L); }
+            catch (Exception e) { throw new AssertionError(e); }
+            int idle = lim.update();
+            lim.onInput();
+            return new int[]{idle, lim.update()};
+        });
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        check(afk[0] <= 15 && afk[1] > 15, "Performance idles at a low FPS when AFK and recovers on input (" + afk[0] + " -> " + afk[1] + ")");
+        setBool(ctx, perf, "Low FPS When Tabbed Out", true);
+        server.runCommand("kill @e[type=cow]");
+    }
+
+    /** Clips: record a few seconds, save to MP4, then decode the file back to prove it's real video. */
+    private void testClips(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("kill @e[type=!player]");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        server.runCommand("summon tnt 0 -60 6 {fuse:400}");
+        var clips = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.Clips.class));
+        ctx.runOnClient(c -> {
+            for (var st : clips.getSettings()) {
+                if (st.getName().equals("Quality")) ((net.evadeclient.setting.ModeSetting) st).fromJson(new com.google.gson.JsonPrimitive("480p"));
+                if (st.getName().equals("Clip FPS")) ((net.evadeclient.setting.NumberSetting) st).set(15.0);
+            }
+            clips.setEnabled(true);
+        });
+        ctx.waitTicks(100); // ~5 seconds of footage
+        int buffered = ctx.computeOnClient(c -> clips.bufferedFrames());
+        var future = ctx.computeOnClient(c -> clips.save());
+        for (int i = 0; i < 120 && !future.isDone(); i++) ctx.waitTicks(20);
+        java.io.File file = future.isDone() && !future.isCompletedExceptionally() ? future.join() : null;
+        String info = "none";
+        boolean ok = false;
+        if (file != null && file.length() > 10_000) {
+            try {
+                var frame = org.jcodec.api.FrameGrab.getFrameFromFile(file, 10);
+                info = file.length() / 1024 + " KB, frame " + frame.getWidth() + "x" + frame.getHeight();
+                ok = frame.getHeight() == 480;
+            } catch (Exception e) { info = "decode failed: " + e; }
+        }
+        ctx.runOnClient(c -> clips.setEnabled(false));
+        server.runCommand("kill @e[type=tnt]");
+        check(buffered > 20 && ok, "Clips saves a playable MP4 (" + buffered + " frames buffered, " + info + ")");
+    }
+
+    /** Voice: Simple Voice Chat is installed alongside Evade, this server runs it, and Evade's shortcut opens its menu. */
+    private void testVoice(ClientGameTestContext ctx) {
+        boolean installed = ctx.computeOnClient(c -> net.evadeclient.module.misc.VoiceChat.installed());
+        boolean onServer = ctx.computeOnClient(c -> net.evadeclient.module.misc.VoiceChat.serverHasVoice());
+        ctx.runOnClient(c -> net.evadeclient.module.misc.VoiceChat.openMenu());
+        ctx.waitTicks(5);
+        String screen = ctx.computeOnClient(c -> c.currentScreen == null ? "none" : c.currentScreen.getClass().getName());
+        ctx.setScreen(() -> null);
+        check(installed && onServer && screen.startsWith("de.maxhenkel.voicechat"),
+                "Voice chat: Simple Voice Chat runs here and Evade opens its menu (" + screen.substring(screen.lastIndexOf('.') + 1) + ")");
+    }
+
+    /** Profiles: each one remembers its own module state, and switching restores it. */
+    private void testProfiles(ClientGameTestContext ctx) {
+        boolean ok = ctx.computeOnClient(c -> {
+            var P = EvadeClient.profiles;
+            NoFog nf = EvadeClient.modules.get(NoFog.class);
+            if (!"Default".equals(P.active())) P.switchTo("Default");
+            P.delete("GTProfile"); // clean slate if a previous run left one
+            nf.setEnabled(true);
+            EvadeClient.config.save();          // Default: NoFog ON
+            P.create("GTProfile");              // snapshot (ON), now active
+            nf.setEnabled(false);
+            EvadeClient.config.save();          // GTProfile: NoFog OFF
+            P.switchTo("Default");
+            boolean defaultOn = nf.isEnabled(); // expect true
+            P.switchTo("GTProfile");
+            boolean testOff = !nf.isEnabled();  // expect true (NoFog off)
+            // cleanup
+            P.switchTo("Default");
+            P.delete("GTProfile");
+            return defaultOn && testOff;
+        });
+        check(ok, "Profiles keep separate module state and restore on switch");
+        // create a couple of profiles so the page looks real, then screenshot it
+        ctx.runOnClient(c -> {
+            EvadeClient.profiles.create("PvP");
+            EvadeClient.profiles.create("SkyBlock");
+            EvadeClient.profiles.switchTo("Default");
+        });
+        ctx.setScreen(EvadeMenu::new);
+        ctx.runOnClient(c -> EvadeMenu.openProfilesForTest());
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-profiles");
+        ctx.runOnClient(c -> { EvadeClient.profiles.delete("PvP"); EvadeClient.profiles.delete("SkyBlock"); });
+        ctx.setScreen(() -> null);
     }
 
     private void testHud(ClientGameTestContext ctx, TestSingleplayerContext sp) {

@@ -8,7 +8,13 @@ group = project.maven_group
 
 base { archivesName = project.archives_base_name }
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
+    // Pure-Java H.264/MP4 encoder for Clips, bundled inside the mod jar.
+    include(implementation("org.jcodec:jcodec:0.2.5"))
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
@@ -50,8 +56,8 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
     vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
 }
 
-// Litematica + MaLiLib for the in-game Printer test only (scripts/fetch-test-mods.py downloads them).
-// Fabric Loader loads them at launch for the test run; they are never part of the Evade jar.
+// Simple Voice Chat for the in-game integration test only (scripts/fetch-test-mods.py downloads it from Modrinth).
+// Fabric Loader loads it at launch for the test run; it is never part of the Evade jar.
 afterEvaluate {
     def testMods = fileTree(dir: 'libs/test-mods', include: '*.jar').files
     if (!testMods.isEmpty()) {

@@ -16,4 +16,29 @@ public abstract class InGameOverlayRendererMixin {
     private static void evade$noFire(MatrixStack matrices, VertexConsumerProvider consumers, Sprite sprite, CallbackInfo ci) {
         if (NoRender.hide(n -> n.fire)) ci.cancel();
     }
+
+    @org.spongepowered.asm.mixin.Unique private static boolean evade$fireLowered;
+
+    /** Pack Tweaks: draw the first-person fire overlay lower on screen. */
+    @Inject(method = "renderFireOverlay", at = @At("HEAD"))
+    private static void evade$lowFireHead(MatrixStack matrices, VertexConsumerProvider consumers, Sprite sprite, CallbackInfo ci) {
+        evade$fireLowered = false;
+        var pt = net.evadeclient.module.visuals.PackTweaks.active();
+        if (pt == null || !pt.lowFire.get() || NoRender.hide(n -> n.fire)) return;
+        matrices.push();
+        matrices.translate(0, -pt.fireHeight.get(), 0);
+        evade$fireLowered = true;
+    }
+
+    @Inject(method = "renderFireOverlay", at = @At("RETURN"))
+    private static void evade$lowFireTail(MatrixStack matrices, VertexConsumerProvider consumers, Sprite sprite, CallbackInfo ci) {
+        if (evade$fireLowered) { matrices.pop(); evade$fireLowered = false; }
+    }
+
+    /** Clear Water: skip the blue underwater screen overlay. */
+    @Inject(method = "renderUnderwaterOverlay", at = @At("HEAD"), cancellable = true)
+    private static void evade$noWaterOverlay(net.minecraft.client.MinecraftClient client, MatrixStack matrices, VertexConsumerProvider consumers, CallbackInfo ci) {
+        var cw = net.evadeclient.module.visuals.ClearWater.active();
+        if (cw != null && cw.overlay.get()) ci.cancel();
+    }
 }

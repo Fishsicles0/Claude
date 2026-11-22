@@ -21,7 +21,21 @@
     "MinecraftClientAccessor",
     "MinecraftClientCooldownAccessor",
     "MouseMixin",
-    "SimpleOptionAccessor"
+    "SimpleOptionAccessor",
+    "BossBarHudMixin",
+    "ParticleManagerMixin",
+    "HandledScreenMixin",
+    "GameRendererAccessor",
+    "OverlayTextureAccessor",
+    "TextVisitFactoryMixin",
+    "AbstractClientPlayerEntityMixin",
+    "ItemStackMixin",
+    "HeldItemRendererMixin",
+    "HeldItemRendererInvoker",
+    "ItemEntityRendererMixin",
+    "EntityRenderManagerMixin",
+    "BlockEntityRenderManagerMixin",
+    "InactivityFpsLimiterMixin"
   ],
   "injectors": {
     "defaultRequire": 1

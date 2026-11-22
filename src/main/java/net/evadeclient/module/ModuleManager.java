@@ -40,6 +40,20 @@ public class ModuleManager {
         register(new Waypoints());
         register(new Fullbright());
         register(new DamageTint());
+        register(new ClearWater());
+        register(new Particles());
+        register(new PackTweaks());
+        register(new InventoryBlur());
+        register(new BossBar());
+        register(new Scoreboard());
+        register(new TntTimer());
+        register(new ChunkBorders());
+        register(new NickHider());
+        register(new HitColor());
+        register(new OldAnimations());
+        register(new ItemPhysics());
+        register(new ShinyPots());
+        register(new EnchantGlint());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
@@ -50,15 +64,17 @@ public class ModuleManager {
         register(new TimeChanger());
         register(new WeatherChanger());
         register(new FovChanger());
+        register(new Performance());
         // Chat, interface & convenience
         register(new AntiAFK());
         register(new AutoReconnect());
         register(new BetterChat());
-        register(new net.evadeclient.module.misc.Clips());
         register(new AutoGG());
         register(new AutoTip());
         register(new Notifier());
         register(new Protection());
+        register(new Clips());
+        register(new VoiceChat());
         // HUD
         register(new HudModule());
         register(new ArmorHud());
@@ -83,6 +99,7 @@ public class ModuleManager {
         register(new ItemCounterHud());
         register(new PvpInfoHud());
         register(new PackDisplayHud());
+        register(new FrameTimeHud());
         // Client
         register(new ClientSettings());
     }

@@ -34,7 +34,7 @@ public class EvadeMenu extends Screen {
     private enum Page {
         ALL("All Mods", null), MODS("Controls", Category.MODS), SERVER("Server-facing", Category.SERVER),
         MISC("Misc", Category.MISC), HUD("HUD", Category.HUD), VISUALS("Visuals", Category.VISUALS),
-        SETTINGS("Settings", Category.CLIENT);
+        PROFILES("Profiles", null), SETTINGS("Settings", Category.CLIENT);
 
         final String label;
         final Category category;
@@ -57,6 +57,7 @@ public class EvadeMenu extends Screen {
                     new Nav("Visuals", Page.VISUALS, "V", false))),
             new NavGroup("GENERAL", List.of(
                     new Nav("Edit HUD Layout", null, "E", true),
+                    new Nav("Profiles", Page.PROFILES, "P", false),
                     new Nav("Settings", Page.SETTINGS, "⚙", false))));
 
     private static Page page = Page.ALL;
@@ -86,6 +87,9 @@ public class EvadeMenu extends Screen {
         super(Text.literal("Evade"));
         selected = null; // opening the menu always starts on the list, not wherever it was last
     }
+
+    /** Test hook: jump the menu straight to the Profiles page. */
+    public static void openProfilesForTest() { page = Page.PROFILES; selected = null; }
 
     /** Open the menu, optionally straight onto a module's settings page. */
     public static EvadeMenu open(Module select) {
@@ -144,6 +148,7 @@ public class EvadeMenu extends Screen {
 
         if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
         else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
+        else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
         else {
             renderSearch(ctx, mouseX, mouseY);
             renderHeader(ctx, mouseX, mouseY);
@@ -295,6 +300,128 @@ public class EvadeMenu extends Screen {
 
     private void drawCentered(DrawContext ctx, String s, int x1, int x2, int y, int color) {
         ctx.drawText(textRenderer, s, x1 + (x2 - x1 - textRenderer.getWidth(s)) / 2, y, color, false);
+    }
+
+    // ---- profiles page ------------------------------------------------
+
+    private String profileInput = "";
+    private boolean profileFocused;
+    private static final int PROFILE_H = 44;
+
+    private int createButtonX() { return cx + cw - 96; }
+
+    private void renderProfilesPage(DrawContext ctx, int mx, int my) {
+        var profiles = EvadeClient.profiles;
+        if (profiles == null) return;
+
+        // new-profile input + Create button
+        int inW = cw - 104;
+        boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
+        Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, 0xFF101013, profileFocused ? Theme.RED : hin ? 0xFF3A3A44 : Theme.BORDER);
+        boolean caret = profileFocused && (System.currentTimeMillis() / 500) % 2 == 0;
+        if (profileInput.isEmpty() && !profileFocused) {
+            ctx.drawText(textRenderer, "New profile name…", cx + 8, searchY + 8, Theme.TEXT_FAINT, false);
+        } else {
+            ctx.drawText(textRenderer, textRenderer.trimToWidth(profileInput, inW - 14) + (caret ? "_" : ""), cx + 8, searchY + 8, Theme.TEXT, false);
+        }
+        int bx = createButtonX();
+        boolean hc = mx >= bx && mx < cx + cw && my >= searchY && my < searchY + 24;
+        Theme.round(ctx, bx, searchY, cx + cw, searchY + 24, hc ? Theme.RED : Theme.RED_DARK);
+        drawCentered(ctx, "Create", bx, cx + cw, searchY + 8, Theme.TEXT);
+
+        // header
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(cx, headerY);
+        m.scale(1.45f, 1.45f);
+        ctx.drawText(textRenderer, "Profiles", 0, 0, Theme.TEXT, false);
+        m.popMatrix();
+        List<String> list = profiles.list();
+        String active = profiles.active();
+        int tw = Math.round(textRenderer.getWidth("Profiles") * 1.45f);
+        small(ctx, list.size() + (list.size() == 1 ? " profile" : " profiles"), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, 0.9f);
+
+        int contentH = list.size() * (PROFILE_H + GAP);
+        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - ch)));
+        ctx.enableScissor(cx - 2, cy, cx + cw + 2, cy + ch);
+        for (int i = 0; i < list.size(); i++) {
+            int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
+            if (y + PROFILE_H < cy || y > cy + ch) continue;
+            renderProfileRow(ctx, list.get(i), list.get(i).equals(active), list.size(), y, mx, my);
+        }
+        ctx.disableScissor();
+
+        small(ctx, "Each profile remembers its own mods, settings, keybinds and HUD layout.", cx, cy + ch + 2, Theme.TEXT_FAINT, 0.8f);
+    }
+
+    private void renderProfileRow(DrawContext ctx, String name, boolean active, int total, int y, int mx, int my) {
+        boolean inView = my >= cy && my < cy + ch;
+        boolean hover = inView && mx >= cx && mx < cx + cw && my >= y && my < y + PROFILE_H;
+        float h = animate("ph:" + name, hover ? 1 : 0, 14);
+        int fill = Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h);
+        int border = active ? Theme.RED : Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f);
+        Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? 0xFF220A0E : fill, border);
+        if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED);
+
+        ctx.drawText(textRenderer, name, cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
+
+        int right = cx + cw - 12;
+        if (active) {
+            int w = Math.round(textRenderer.getWidth("ACTIVE") * 0.8f) + 12, chipY = y + (PROFILE_H - 15) / 2;
+            Theme.round(ctx, right - w, chipY, right, chipY + 15, Theme.alpha(Theme.RED, 0.3f));
+            small(ctx, "ACTIVE", right - w + 6, chipY + 4, Theme.RED_BRIGHT, 0.8f);
+        } else {
+            // Use button
+            int uw = 46, uy = y + (PROFILE_H - 18) / 2;
+            boolean hu = inView && mx >= right - uw && mx < right && my >= uy && my < uy + 18;
+            Theme.roundBordered(ctx, right - uw, uy, right, uy + 18, hu ? Theme.RED : 0xFF17171C, hu ? Theme.RED : Theme.BORDER);
+            drawCentered(ctx, "Use", right - uw, right, uy + 5, Theme.TEXT);
+            right -= uw + 8;
+            // delete button (not when it's the last profile)
+            if (total > 1) {
+                boolean hd = inView && mx >= right - 18 && mx < right && my >= uy && my < uy + 18;
+                Theme.roundBordered(ctx, right - 18, uy, right, uy + 18, hd ? 0xFF3A1014 : 0xFF17171C, hd ? Theme.RED : Theme.BORDER);
+                ctx.drawText(textRenderer, "×", right - 12, uy + 5, hd ? Theme.RED_BRIGHT : Theme.TEXT_DIM, false);
+            }
+        }
+    }
+
+    private boolean clickProfiles(double mx, double my) {
+        var profiles = EvadeClient.profiles;
+        if (profiles == null) return true;
+        // input box / create button
+        int inW = cw - 104;
+        profileFocused = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
+        if (profileFocused) return true;
+        if (mx >= createButtonX() && mx < cx + cw && my >= searchY && my < searchY + 24) {
+            String name = ProfileManagerName(profileInput);
+            if (profiles.create(name)) { profileInput = ""; profileFocused = false; }
+            return true;
+        }
+        List<String> list = profiles.list();
+        String active = profiles.active();
+        for (int i = 0; i < list.size(); i++) {
+            int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
+            if (my < y || my >= y + PROFILE_H || my < cy || my > cy + ch) continue;
+            String name = list.get(i);
+            if (name.equals(active)) return true;
+            int right = cx + cw - 12, uw = 46;
+            if (mx >= right - uw && mx < right) { profiles.switchTo(name); return true; }
+            right -= uw + 8;
+            if (list.size() > 1 && mx >= right - 18 && mx < right) { profiles.delete(name); return true; }
+            return true;
+        }
+        return true;
+    }
+
+    /** Fall back to an auto name ("Profile N") when the input is blank. */
+    private String ProfileManagerName(String typed) {
+        String clean = net.evadeclient.config.ProfileManager.sanitize(typed);
+        if (!clean.isEmpty()) return clean;
+        var profiles = EvadeClient.profiles;
+        int n = profiles.list().size() + 1;
+        while (profiles.exists("Profile " + n)) n++;
+        return "Profile " + n;
     }
 
     // ---- module list --------------------------------------------------
@@ -523,6 +650,13 @@ public class EvadeMenu extends Screen {
             ctx.drawText(tr, "‹", right - w + 5, midY - 4, Theme.RED, false);
             ctx.drawText(tr, "›", right - 9, midY - 4, Theme.RED, false);
             ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
+        } else if (row instanceof net.evadeclient.setting.StringSetting st) {
+            String v = st.get();
+            int w = Math.max(60, tr.getWidth(v) + 16);
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, 0xFF1A1A20, Theme.BORDER);
+            ctx.drawText(tr, v, right - w + (w - tr.getWidth(v)) / 2, midY - 4, Theme.TEXT, false);
+            int hw = Math.round(tr.getWidth(st.hint()) * 0.75f);
+            small(ctx, st.hint(), right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);
         } else if (row instanceof ColorSetting c) {
             int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
             int sx = right - n * (sz + gap) + gap;
@@ -557,6 +691,8 @@ public class EvadeMenu extends Screen {
             }
             return true;
         }
+
+        if (page == Page.PROFILES && selected == null) return clickProfiles(mx, my);
 
         if (selected != null || page == Page.SETTINGS) {
             // back button / master toggle on settings header
@@ -620,6 +756,8 @@ public class EvadeMenu extends Screen {
                     if (button == 1) mod.setKey(GLFW.GLFW_KEY_UNKNOWN); else listening = mod;
                 } else if (row instanceof KeySetting k) {
                     if (button == 1) k.set(GLFW.GLFW_KEY_UNKNOWN); else listening = k;
+                } else if (row instanceof net.evadeclient.setting.StringSetting st && st.clickAction() != null) {
+                    st.clickAction().run();
                 } else if (row instanceof BooleanSetting b) {
                     b.toggle();
                 } else if (row instanceof NumberSetting n) {
@@ -683,6 +821,16 @@ public class EvadeMenu extends Screen {
             close();
             return true;
         }
+        if (page == Page.PROFILES && selected == null) {
+            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!profileInput.isEmpty()) profileInput = profileInput.substring(0, profileInput.length() - 1);
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+                if (EvadeClient.profiles != null && EvadeClient.profiles.create(ProfileManagerName(profileInput))) profileInput = "";
+                return true;
+            }
+        }
         if (searchFocused && key == GLFW.GLFW_KEY_BACKSPACE) {
             if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
             scrollTarget = 0;
@@ -695,6 +843,11 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean charTyped(CharInput input) {
         if (selected != null || page == Page.SETTINGS || !input.isValidChar()) return false;
+        if (page == Page.PROFILES) {
+            profileFocused = true;
+            if (profileInput.length() < 24) profileInput += input.asString();
+            return true;
+        }
         // Typing anywhere starts a search, like a launcher.
         searchFocused = true;
         if (search.length() < 32) search += input.asString();
@@ -707,6 +860,8 @@ public class EvadeMenu extends Screen {
         selected = null;
         search = "";
         searchFocused = false;
+        profileInput = "";
+        profileFocused = false;
         scroll = scrollTarget = 0;
     }
 
