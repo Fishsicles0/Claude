@@ -562,3 +562,25 @@ footer { margin-top: 140px; border-top: 1px solid var(--stroke); position: relat
 
 /* Evade Clips shortcut in the header; on small screens it lives in the menu instead. */
 @media (max-width: 900px) { .nav-clips { display: none; } }
+
+/* Mod list without JavaScript: each card lists its settings inline instead of opening a detail view. */
+.mod-sets { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.mod-sets summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.mod-sets ul { margin: 8px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+html.js .mod-sets, html:not(.js) .mod-foot em { display: none; }
+html:not(.js) .mod { cursor: default; }
+
+/* Showcase: recordings, GUI styles side by side, themes */
+.clips-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 8px; }
+.vid { margin: 0; overflow: hidden; }
+.vid video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+.vid figcaption, .trio figcaption, .quad figcaption { padding: 14px 16px; font-size: 14px; line-height: 1.55; color: var(--muted); border-top: 1px solid var(--stroke); }
+.vid figcaption b, .trio figcaption b, .quad figcaption b, .gallery figcaption b { color: var(--text); }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.quad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.trio figure, .quad figure { margin: 0; overflow: hidden; cursor: zoom-in; }
+.trio img, .quad img { display: block; width: 100%; height: auto; }
+.accents { margin-top: 18px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.accents i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: -8px; vertical-align: -1px; }
+@media (max-width: 860px) { .clips-row, .trio, .quad { grid-template-columns: 1fr; } }
+.foot-bottom a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
