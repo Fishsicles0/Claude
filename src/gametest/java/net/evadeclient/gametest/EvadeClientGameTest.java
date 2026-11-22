@@ -36,6 +36,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
+            testHudCost(ctx); // early, before anything triggers a chunk rebuild that would skew the timing
             testVisualBatch(ctx, sp);
             testRenderBatch(ctx, sp);
             testPerformance(ctx, sp);
@@ -45,9 +46,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
-            testTexturePack(ctx, sp);
+            testIcons(ctx, sp);
         }
-        titleScreenshot(ctx);
     }
 
     /** The new Lunar-style HUD/info readouts: Item Counter, Saturation, Stopwatch. */
@@ -78,11 +78,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(elapsed > 500, "Stopwatch counts up while on (" + elapsed + " ms)");
     }
 
-    private static void titleScreenshot(ClientGameTestContext ctx) {
-        ctx.setScreen(net.minecraft.client.gui.screen.TitleScreen::new);
-        ctx.waitTicks(20);
-        ctx.takeScreenshot("evade-pack-title");
-    }
 
     private static <T extends Module> T enable(ClientGameTestContext ctx, Class<T> type) {
         return ctx.computeOnClient(c -> {
@@ -161,48 +156,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 "Fullbright maxes gamma then restores (" + g0 + " -> " + g1 + " -> " + g2 + ")");
     }
 
-    /** Loads the optional Evade Texture Pack and screenshots it (HUD, inventory, tooltip, title screen). */
-    private void testTexturePack(ClientGameTestContext ctx, TestSingleplayerContext sp) {
-        java.nio.file.Path zip = java.nio.file.Path.of(System.getProperty("user.dir")).resolve("../../../site/downloads/Evade-Texture-Pack.zip").normalize();
-        if (!java.nio.file.Files.exists(zip)) { EvadeClient.LOG.info("[gametest] no texture pack built; skipping"); return; }
-        String compat = ctx.computeOnClient(c -> {
-            try {
-                java.nio.file.Files.copy(zip, c.getResourcePackDir().resolve("Evade-Texture-Pack.zip"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            } catch (java.io.IOException e) {
-                return "copy failed: " + e;
-            }
-            var mgr = c.getResourcePackManager();
-            mgr.scanPacks();
-            var profile = mgr.getProfile("file/Evade-Texture-Pack.zip");
-            if (profile == null) return "not found";
-            mgr.enable("file/Evade-Texture-Pack.zip");
-            c.options.refreshResourcePacks(mgr);
-            return profile.getCompatibility().name();
-        });
-        ctx.waitTicks(60); // resource reload
-        check("COMPATIBLE".equals(compat), "Evade Texture Pack is detected as compatible with 1.21.11 (" + compat + ")");
-        boolean enabled = ctx.computeOnClient(c -> c.getResourcePackManager().getEnabledIds().contains("file/Evade-Texture-Pack.zip"));
-        check(enabled, "Evade Texture Pack loads in game");
-        var server = sp.getServer();
-        server.runCommand("clear @a");
-        server.runCommand("item replace entity @a hotbar.0 with diamond_sword");
-        server.runCommand("item replace entity @a hotbar.1 with netherite_sword");
-        server.runCommand("item replace entity @a hotbar.2 with ender_pearl 16");
-        server.runCommand("item replace entity @a hotbar.3 with totem_of_undying");
-        server.runCommand("item replace entity @a hotbar.4 with golden_apple 8");
-        server.runCommand("setblock 0 -60 3 fire");
-        ctx.setScreen(() -> null);
-        ctx.waitTicks(10);
-        ctx.takeScreenshot("evade-pack-hud");
-        ctx.setScreen(() -> new net.minecraft.client.gui.screen.ingame.InventoryScreen(net.minecraft.client.MinecraftClient.getInstance().player));
-        ctx.waitTicks(5);
-        ctx.getInput().setCursorPos(960 + 0, 540 + 0);
-        ctx.takeScreenshot("evade-pack-inventory");
-        ctx.setScreen(() -> new net.minecraft.client.gui.screen.option.OptionsScreen(null, net.minecraft.client.MinecraftClient.getInstance().options));
-        ctx.waitTicks(5);
-        ctx.takeScreenshot("evade-pack-options");
-        ctx.setScreen(() -> null);
-    }
 
     private void testMenu(ClientGameTestContext ctx) {
         // Typical 1080p monitor at GUI scale 2 (960x540 GUI pixels).
@@ -414,6 +367,39 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(true, "Item Physics and 1.7 Animations render without errors");
     }
 
+    /** Evade's own HUD cost: with every HUD element on, it should stay a small slice of a frame. */
+    private void testHudCost(ClientGameTestContext ctx) {
+        java.util.List<String> turnedOn = ctx.computeOnClient(c -> {
+            java.util.List<String> on = new java.util.ArrayList<>();
+            for (var el : EvadeClient.modules.hudElements()) if (!el.isEnabled()) { el.setEnabled(true); on.add(el.getName()); }
+            return on;
+        });
+        int all = ctx.computeOnClient(c -> EvadeClient.modules.hudElements().size());
+        ctx.waitTicks(20);
+        ctx.runOnClient(c -> { net.evadeclient.util.FrameStats.takeHudMicros(); net.evadeclient.hud.Hud.PROFILE = new java.util.HashMap<>(); });
+        ctx.waitTicks(100);
+        double us = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.takeHudMicros());
+        String top = ctx.computeOnClient(c -> {
+            var p = net.evadeclient.hud.Hud.PROFILE; net.evadeclient.hud.Hud.PROFILE = null;
+            long total = p.values().stream().mapToLong(Long::longValue).sum();
+            return p.entrySet().stream().sorted((a, b) -> Long.compare(b.getValue(), a.getValue())).limit(8)
+                    .map(e -> e.getKey() + " " + (100 * e.getValue() / Math.max(1, total)) + "%").reduce((a, b) -> a + ", " + b).orElse("");
+        });
+        EvadeClient.LOG.info("[gametest] HUDPROFILE {}", top);
+        StringBuilder ab = new StringBuilder();
+        for (int round = 0; round < 2; round++) for (boolean noCache : new boolean[]{true, false}) {
+            ctx.runOnClient(c -> { net.evadeclient.module.TextHudModule.NO_CACHE = noCache; net.evadeclient.util.FrameStats.takeHudMicros(); });
+            ctx.waitTicks(80);
+            double t = ctx.computeOnClient(c -> net.evadeclient.util.FrameStats.takeHudMicros());
+            ab.append(noCache ? " everyFrame=" : " perTick=").append(String.format(java.util.Locale.ROOT, "%.0fus", t));
+        }
+        ctx.runOnClient(c -> net.evadeclient.module.TextHudModule.NO_CACHE = false);
+        EvadeClient.LOG.info("[gametest] CACHEAB{}", ab);
+        ctx.runOnClient(c -> { for (var el : EvadeClient.modules.hudElements()) if (turnedOn.contains(el.getName())) el.setEnabled(false); });
+        EvadeClient.LOG.info("[gametest] HUDCOST {} HUD elements on: {} us per frame", all, String.format(java.util.Locale.ROOT, "%.0f", us));
+        check(us > 0 && us < 4000, String.format(java.util.Locale.ROOT, "Evade's HUD stays light with all %d elements on (%.0f us per frame)", all, us));
+    }
+
     /** Frame Time Graph: frames are being recorded and summarised. */
     private void testFrameTime(ClientGameTestContext ctx) {
         enable(ctx, net.evadeclient.module.hud.FrameTimeHud.class);
@@ -465,6 +451,21 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         var after = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
         check(before == net.minecraft.client.option.CloudRenderMode.FANCY && during == net.minecraft.client.option.CloudRenderMode.OFF && after == before,
                 "Performance's lighter settings apply and restore (" + before + " -> " + during + " -> " + after + ")");
+        // Low-End PC Mode: applies the heavy video settings and restores them exactly.
+        Object[] before2 = ctx.computeOnClient(c -> new Object[]{c.options.getAo().getValue(), c.options.getCutoutLeaves().getValue(), c.options.getBiomeBlendRadius().getValue()});
+        enable(ctx, net.evadeclient.module.mods.Performance.class);
+        setBool(ctx, perf, "Low-End PC Mode", true);
+        ctx.waitTicks(3);
+        Object[] during2 = ctx.computeOnClient(c -> new Object[]{c.options.getAo().getValue(), c.options.getCutoutLeaves().getValue(), c.options.getBiomeBlendRadius().getValue()});
+        ctx.takeScreenshot("evade-lowend");
+        disable(ctx, net.evadeclient.module.mods.Performance.class);
+        setBool(ctx, perf, "Low-End PC Mode", false);
+        Object[] after2 = ctx.computeOnClient(c -> new Object[]{c.options.getAo().getValue(), c.options.getCutoutLeaves().getValue(), c.options.getBiomeBlendRadius().getValue()});
+        check(Boolean.FALSE.equals(during2[0]) && Boolean.FALSE.equals(during2[1]) && Integer.valueOf(0).equals(during2[2])
+                        && java.util.Arrays.equals(before2, after2),
+                "Low-End PC Mode applies and restores video settings (" + java.util.Arrays.toString(before2) + " -> "
+                        + java.util.Arrays.toString(during2) + " -> " + java.util.Arrays.toString(after2) + ")");
+
         // AFK cap: two minutes without input drops to the AFK frame rate; any input lifts it straight away.
         enable(ctx, net.evadeclient.module.mods.Performance.class);
         int[] afk = ctx.computeOnClient(c -> {
@@ -524,6 +525,30 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(() -> null);
         check(installed && onServer && screen.startsWith("de.maxhenkel.voicechat"),
                 "Voice chat: Simple Voice Chat runs here and Evade opens its menu (" + screen.substring(screen.lastIndexOf('.') + 1) + ")");
+    }
+
+    /** Evade Icons: a verified Evade user's tab-list name gets the icon glyph, and the tab list shows it. */
+    private void testIcons(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        String[] names = ctx.computeOnClient(c -> {
+            var me = c.player.getUuid();
+            var entry = c.getNetworkHandler().getPlayerListEntry(me);
+            var hud = c.inGameHud.getPlayerListHud();
+            String plain = hud.getPlayerName(entry).getString();
+            net.evadeclient.module.misc.EvadeIcons.putForTest(me, true);
+            String evade = hud.getPlayerName(entry).getString();
+            return new String[]{plain, evade};
+        });
+        var server = sp.getServer();
+        server.runCommand("scoreboard objectives add evadelist dummy");
+        server.runCommand("scoreboard objectives setdisplay list evadelist");
+        ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_TAB);
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-tab-icons");
+        ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_TAB);
+        server.runCommand("scoreboard objectives remove evadelist");
+        ctx.runOnClient(c -> net.evadeclient.module.misc.EvadeIcons.putForTest(c.player.getUuid(), false));
+        check(!names[0].startsWith("\ue000") && names[1].equals("\ue000 " + names[0]),
+                "Evade Icons puts the Evade logo before Evade users' tab names (\"" + names[0] + "\" -> logo + name)");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

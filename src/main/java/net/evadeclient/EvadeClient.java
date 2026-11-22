@@ -19,12 +19,14 @@ import org.slf4j.LoggerFactory;
 
 public class EvadeClient implements ClientModInitializer {
     public static final String NAME = "Evade";
-    public static final String VERSION = "1.11.0";
+    public static final String VERSION = "1.14.0";
     public static final Logger LOG = LoggerFactory.getLogger(NAME);
 
     public static ModuleManager modules;
     public static CommandManager commands;
     public static ConfigManager config;
+    /** Client ticks since launch (20 per second). HUD text is recomputed once per tick, not every frame. */
+    public static long ticks;
     public static net.evadeclient.config.ProfileManager profiles;
 
     public static MinecraftClient mc() {
@@ -41,7 +43,7 @@ public class EvadeClient implements ClientModInitializer {
         config.profiles = profiles;
         profiles.init();
 
-        ClientTickEvents.END_CLIENT_TICK.register(client -> modules.onTick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> { ticks++; modules.onTick(); });
         HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));
         // Custom crosshair and potion HUD replace the vanilla ones while enabled.
         HudElementRegistry.replaceElement(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CROSSHAIR, vanilla -> (ctx, tc) -> {

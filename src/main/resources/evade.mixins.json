@@ -35,7 +35,8 @@
     "ItemEntityRendererMixin",
     "EntityRenderManagerMixin",
     "BlockEntityRenderManagerMixin",
-    "InactivityFpsLimiterMixin"
+    "InactivityFpsLimiterMixin",
+    "PlayerListHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1

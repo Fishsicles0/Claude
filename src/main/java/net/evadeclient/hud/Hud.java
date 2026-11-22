@@ -19,16 +19,34 @@ import java.util.List;
 public final class Hud {
     private Hud() {}
 
+    /** Per-element render time, only collected while a test/profile turns it on (null = off, zero cost). */
+    public static java.util.Map<String, Long> PROFILE;
+
+    // The module list is re-sorted once per tick, not every frame.
+    private static List<Module> activeCache;
+    private static long activeTick = -1;
+
     public static void render(DrawContext ctx) {
+        long t0 = System.nanoTime();
+        try { renderInner(ctx); } finally { net.evadeclient.util.FrameStats.addHudTime(System.nanoTime() - t0); }
+    }
+
+    private static void renderInner(DrawContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClickTracker.update();
         if (mc.player == null || mc.getDebugHud().shouldShowDebugHud()) return;
         int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
 
         // The HUD editor draws the elements itself (with drag handles).
+        if (PROFILE != null) PROFILE.merge("__frames", 1L, Long::sum);
         if (!(mc.currentScreen instanceof HudEditorScreen)) {
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (el.isEnabled()) el.renderScaled(ctx, sw, sh, false);
+                if (!el.isEnabled()) continue;
+                if (PROFILE != null) {
+                    long t = System.nanoTime();
+                    el.renderScaled(ctx, sw, sh, false);
+                    PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
+                } else el.renderScaled(ctx, sw, sh, false);
             }
         }
         if (!mc.options.hudHidden) {
@@ -50,10 +68,15 @@ public final class Hud {
         }
 
         if (hud.arrayList.get()) {
-            List<Module> active = EvadeClient.modules.all().stream()
-                    .filter(m -> m.isEnabled() && m.isVisible())
-                    .sorted(Comparator.comparingInt((Module m) -> tr.getWidth(label(m))).reversed())
-                    .toList();
+            List<Module> active;
+            if (activeCache == null || activeTick != EvadeClient.ticks || net.evadeclient.module.TextHudModule.NO_CACHE) {
+                activeCache = EvadeClient.modules.all().stream()
+                        .filter(m -> m.isEnabled() && m.isVisible())
+                        .sorted(Comparator.comparingInt((Module m) -> tr.getWidth(label(m))).reversed())
+                        .toList();
+                activeTick = EvadeClient.ticks;
+            }
+            active = activeCache;
             int y = hud.watermark.get() ? 18 : 2;
             for (int i = 0; i < active.size(); i++) {
                 String text = label(active.get(i));

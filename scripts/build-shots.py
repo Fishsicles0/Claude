@@ -33,9 +33,6 @@ FULL = {
     "evade-gui-list":      "gui-list.webp",
     "evade-profiles":      "gui-profiles.webp",
     "evade-zoom":          "zoom.webp",
-    "evade-pack-hud":      "pack-hud.webp",
-    "evade-pack-inventory":"pack-inventory.webp",
-    "evade-pack-title":    "pack-title.webp",
 }
 
 print("screenshots -> webp:")

@@ -74,6 +74,7 @@ public class ModuleManager {
         register(new Notifier());
         register(new Protection());
         register(new Clips());
+        register(new EvadeIcons());
         register(new VoiceChat());
         // HUD
         register(new HudModule());
@@ -112,8 +113,13 @@ public class ModuleManager {
         return modules.stream().filter(m -> m.getCategory() == category).toList();
     }
 
+    private List<HudElementModule> hudElements;
+
+    /** HUD elements, computed once (modules are registered at startup and never change). */
     public List<HudElementModule> hudElements() {
-        return modules.stream().filter(m -> m instanceof HudElementModule).map(m -> (HudElementModule) m).toList();
+        if (hudElements == null)
+            hudElements = modules.stream().filter(m -> m instanceof HudElementModule).map(m -> (HudElementModule) m).toList();
+        return hudElements;
     }
 
     public Module get(String name) {

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 1.12.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta name="description" content="How to use Evade Client 1.14.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 1.12.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta property="og:description" content="How to use Evade Client 1.14.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.12.0">
+<link rel="stylesheet" href="/assets/site.css?v=1.14.0">
 </head>
 <body data-page="docs">
 <a class="sr-only" href="#main">Skip to content</a>
@@ -41,7 +41,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.12.0</span>
+      <span class="nav-ver">v1.14.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -88,7 +88,7 @@
         <ul>
           <li><b>Left-click</b> a card to turn the mod on or off.</li>
           <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
-          <li><b>Start typing</b> anywhere to search all 65 mods.</li>
+          <li><b>Start typing</b> anywhere to search all 66 mods.</li>
           <li>On a settings page, click <b>Keybind</b> and press a key to bind it. Right-click, <span class="kbd">Esc</span>, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears it.</li>
         </ul>
         <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
@@ -108,7 +108,7 @@
 
       <div class="doc-sec rv" id="performance">
         <h2>Performance</h2>
-        <p>Evade's <b>Performance</b> mod (Controls) is on by default. It skips drawing mobs and block entities past a distance you choose, draws one item per dropped stack, thins particles, idles at a low frame rate when you tab out or go AFK (back to full speed the moment you move) and can apply lighter video settings &mdash; all restored when you turn it off.</p>
+        <p>Evade's <b>Performance</b> mod (Controls) is on by default. It skips drawing mobs and block entities past a distance you choose, draws one item per dropped stack, thins particles, idles at a low frame rate when you tab out or go AFK (back to full speed the moment you move) and can apply lighter video settings &mdash; all restored when you turn it off. On a weak PC, switch on <b>Low-End PC Mode</b> too: solid leaves, smooth lighting off, no chunk fade-in, biome blend off and a shorter entity distance.</p>
         <p>The installer also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. The installer also sets low-pause memory settings for smoother frame times.</p>
         <p>Turn on the <b>Frame Time Graph</b> (HUD) to see how smooth your game really is: one bar per frame (green inside a 60 FPS budget, yellow slower, red for stutters), plus your average FPS, your <b>1% low</b> (the FPS of your slowest frames, which is what you feel) and your worst frame.</p>
       </div>
@@ -121,6 +121,16 @@
           <li>Press <span class="kbd">V</span> (or type <span class="mono">.voice</span>, or click <b>Voice Chat</b> in the menu) for its menu. The first time, its setup guide walks you through your mic and push-to-talk key.</li>
           <li>On macOS, allow microphone access for Minecraft / Java the first time you talk.</li>
         </ul>
+      </div>
+
+      <div class="doc-sec rv" id="icons">
+        <h2>Evade icons</h2>
+        <p>Players on Evade show the Evade logo before their name in the tab list. Every Evade player gets it, for free. Settings are under <b>Evade Icons</b> (Misc):</p>
+        <ul>
+          <li><b>Show Icons</b> &mdash; show icons next to other players.</li>
+          <li><b>Show That I Use Evade</b> &mdash; let others see your icon. Switch it off and your icon is taken down straight away, and Evade stops reporting that you're online.</li>
+        </ul>
+        <p>Your icon is verified through Mojang's sign-in check, the one servers already use, so it can't be faked. Evade only learns your username and player ID; your password and login token stay between you and Mojang. Icons need a Microsoft account; offline or cracked accounts don't get one.</p>
       </div>
 
       <div class="doc-sec rv" id="clips">
@@ -192,15 +202,15 @@
     </div>
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/download#pack">Texture Pack</a><a href="/download#install">Install guide</a></div>
+      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.12.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client</span><span>v1.14.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.12.0" defer></script>
+<script src="/assets/site.js?v=1.14.0" defer></script>
 </body>
 </html>

@@ -10,10 +10,7 @@ JAR="build/libs/evade-client-${VERSION}.jar"
 EXE="installer/build/launch4j/Evade-Installer.exe"
 IJAR="installer/build/libs/EvadeInstaller.jar"
 mkdir -p site/downloads
-python3 scripts/build-pack.py
-PACK="site/downloads/Evade-Texture-Pack.zip"
-PACK_VERSION=$(grep -E '^PACK_VERSION' scripts/build-pack.py | cut -d'"' -f2)
-rm -f site/downloads/evade-client-[0-9]*.jar
+rm -f site/downloads/evade-client-[0-9]*.jar site/downloads/Evade-Texture-Pack.zip
 cp "$JAR" site/downloads/evade-client-latest.jar
 cp "$JAR" "site/downloads/evade-client-${VERSION}.jar"
 cp "$EXE" site/downloads/Evade-Installer.exe
@@ -50,7 +47,6 @@ cat > site/version.json <<JSON
       "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
     }
   },
-  "texturePack": { "version": "${PACK_VERSION}", "file": "downloads/Evade-Texture-Pack.zip", "size": "$(kb "$PACK")", "sha256": "$(sha "$PACK")" },
   "date": "$(date +%F)"
 }
 JSON
@@ -66,4 +62,4 @@ cat > clips-share/public/downloads/clips.json <<JSON
 }
 JSON
 python3 scripts/build-pages.py
-echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR"), texture pack $(kb "$PACK"), Evade Clips ${CLIPS_VERSION} ($(kb "$CEXE") exe, $(kb "$CJAR") jar)"
+echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR"), Evade Clips ${CLIPS_VERSION} ($(kb "$CEXE") exe, $(kb "$CJAR") jar)"

@@ -1,5 +1,5 @@
 title: Download
-description: Download Evade Client v{{VERSION}} for Minecraft {{MC}}. One-click installers for Windows, macOS and Linux, the mod jar on its own, and the optional Evade Texture Pack.
+description: Download Evade Client v{{VERSION}} for Minecraft {{MC}}. One-click installers for Windows, macOS and Linux, and the mod jar on its own.
 nav: download
 ---
 <header class="page-hero wrap">
@@ -52,15 +52,6 @@ nav: download
   </div>
 
   <div class="extras">
-    <div class="card pack rv" id="pack">
-      <div class="img" style="background-image:url(/assets/pack-title.webp)" role="img" aria-label="The title screen with the Evade Texture Pack"></div>
-      <div class="txt">
-        <span class="opt">Optional &middot; v{{PACK_VERSION}}</span>
-        <h3>Evade Texture Pack</h3>
-        <p>Black and red menus, buttons, hotbar and tooltips, a sharp crosshair, low fire, red sword blades and pearls, and the Evade logo on the title screen. Not part of the client, and the installer never adds it.</p>
-        <a class="btn btn-ghost" href="/downloads/Evade-Texture-Pack.zip" download>Download pack &middot; {{SIZE_PACK}}</a>
-      </div>
-    </div>
     <div class="card modonly rv d1" id="clips">
       <span class="opt tag">Included &middot; v{{CLIPS_VERSION}}</span>
       <h3>Evade Clips</h3>
@@ -98,23 +89,12 @@ nav: download
   </div>
   <p class="note rv">Windows may show "Windows protected your PC" the first time: click <b>More info</b>, then <b>Run anyway</b>. <a href="/faq#windows">Why?</a></p>
 
-  <div class="sec-head rv" style="margin-top:72px;margin-bottom:24px">
-    <div class="eyebrow">Texture Pack</div>
-    <h2 style="font-size:clamp(26px,3.2vw,36px)">Adding the pack</h2>
-  </div>
-  <div class="steps">
-    <div class="card step rv"><h4>Download the zip</h4><p>Keep it zipped. It works with or without Evade Client.</p></div>
-    <div class="card step rv d1"><h4>Open the folder</h4><p>In Minecraft go to <b>Options</b>, <b>Resource Packs</b>, then <b>Open Pack Folder</b>.</p></div>
-    <div class="card step rv d2"><h4>Drop it in</h4><p>Move <span class="mono">Evade-Texture-Pack.zip</span> into that folder.</p></div>
-    <div class="card step rv d3"><h4>Turn it on</h4><p>Move it to the right-hand list and click <b>Done</b>. Made for {{MC}}.</p></div>
-  </div>
 
   <div class="card release rv">
     <div class="release-head"><h3>Release <span class="red">v{{VERSION}}</span></h3><span>Minecraft {{MC}} &middot; {{DATE}} &middot; SHA-256</span></div>
     <div class="sum"><b>Evade-Installer.exe</b><code id="sha-exe">{{SHA_EXE}}</code><button class="copy" data-copy="#sha-exe">Copy</button></div>
     <div class="sum"><b>EvadeInstaller.jar</b><code id="sha-ijar">{{SHA_IJAR}}</code><button class="copy" data-copy="#sha-ijar">Copy</button></div>
     <div class="sum"><b>evade-client.jar</b><code id="sha-mod">{{SHA_MOD}}</code><button class="copy" data-copy="#sha-mod">Copy</button></div>
-    <div class="sum"><b>Evade-Texture-Pack.zip <small class="mono" style="color:var(--faint)">v{{PACK_VERSION}}</small></b><code id="sha-pack">{{SHA_PACK}}</code><button class="copy" data-copy="#sha-pack">Copy</button></div>
   </div>
   <p class="note rv">The installer checks every file it downloads against its checksum before using it.</p>
 </section>
