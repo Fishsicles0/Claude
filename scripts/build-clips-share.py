@@ -1,54 +1,120 @@
 #!/usr/bin/env python3
-"""Gives clips.evadeclient.com the exact look of evadeclient.com.
+"""Builds the pages of clips.evadeclient.com: a standalone Evade Clips site in the same design system as the
+main site (its stylesheet, fonts and components), with its own header, menu and footer.
 
-Takes the built site/clips.html (same header, footer, fonts, stylesheet and scripts as the main site) and writes
-clips-share/src/shell.js with:
-  LANDING  the whole page, served at clips.evadeclient.com/
-  TOP/BOTTOM  the page frame around <main>, used for clip pages, the phone gallery and error pages
-Links to main-site pages are made absolute (https://evadeclient.com/...); /assets and /downloads stay local and
-are served from the R2 bucket (see clips-share/sync-assets.sh).
+Writes clips-share/src/shell.js with:
+  LANDING     the home page (clips-share/site/landing.html in the layout)
+  TOP/BOTTOM  the layout around page content, for clip pages, the phone gallery and error pages
+The stylesheet, scripts, logo and screenshots are served from the R2 bucket (see clips-share/sync-assets.sh);
+versions, sizes and checksums come from clips-share/public/downloads/clips.json.
 """
 import json
 import pathlib
-import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SITE = "https://evadeclient.com"
-src = (ROOT / "site" / "clips.html").read_text()
+SHARE = ROOT / "clips-share"
+dl = json.loads((SHARE / "public" / "downloads" / "clips.json").read_text())
+css_v = json.loads((ROOT / "site" / "version.json").read_text())["version"]  # cache-busts the shared stylesheet
+
+LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="32" height="32">'
+        '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIPS</span></span>')
+NAV = [("#features", "Features"), ("#how", "How it works"), ("#share", "Sharing"), ("#faq", "FAQ")]
+
+HEAD = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<meta name="theme-color" content="#050506">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=CSSV">
+<style>
+.clips-sums{padding:22px 24px}
+.clips-sums h3{margin:0 0 12px;font-family:var(--display)}
+.clips-sums p{margin:0 0 10px;color:var(--muted);font-size:14px}
+.clips-sums code{word-break:break-all;color:var(--faint);font-size:12px}
+#faq .faq-group{max-width:860px}
+.foot p{max-width:340px}
+</style>
+{{HEAD}}
+</head>
+<body data-page="clips">
+<a class="sr-only" href="#main">Skip to content</a>
+<nav class="top" id="top">
+  <div class="wrap nav-in">
+    <a href="/" class="logo" aria-label="Evade Clips home">LOGO</a>
+    <div class="nav-links">
+LINKS
+    </div>
+    <div class="nav-right">
+      <span class="nav-ver">vVERSION</span>
+      <a href="/#download" class="btn btn-red btn-sm">Download</a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+MOBILE
+  </div>
+</nav>
+
+<main id="main">"""
+
+FOOT = """</main>
+
+<footer>
+  <div class="foot-big" aria-hidden="true">CLIPS</div>
+  <div class="wrap foot">
+    <div>
+      <a href="/" class="logo" aria-label="Evade Clips home">LOGO</a>
+      <p>Record, edit and share your gameplay. Free, with no watermark and no ads.</p>
+    </div>
+    <div class="foot-cols">
+      <div><h5>Product</h5><a href="/#features">Features</a><a href="/#how">How it works</a><a href="/#share">Sharing</a></div>
+      <div><h5>Download</h5><a href="/downloads/Evade-Clips.exe">Windows</a><a href="/downloads/EvadeClips.jar">macOS &amp; Linux</a><a href="/#checksums">Checksums</a></div>
+      <div><h5>Help</h5><a href="/#faq">FAQ</a><a href="/#report">Report a clip</a></div>
+    </div>
+  </div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Clips</span><span>vVERSION</span></div>
+</footer>
+<script src="/assets/site.js?v=CSSV" defer></script>
+</body>
+</html>
+"""
 
 
-def absolutize(html: str) -> str:
-    # href="/x" to the main site, except files this subdomain serves itself.
-    def fix(m):
-        path = m.group(2)
-        if path.startswith(("/assets/", "/downloads/", "/favicon", "/apple-touch-icon")):
-            return m.group(0)
-        return f'{m.group(1)}="{SITE}{path}"'
-    return re.sub(r'(href)="(/[^"]*)"', fix, html)
+def fill(s: str) -> str:
+    links = "\n".join(f'      <a href="/{h}">{t}</a>' for h, t in NAV)
+    mobile = "\n".join(f'    <a href="/{h}">{t}</a>' for h, t in NAV)
+    return (s.replace("LOGO", LOGO).replace("LINKS", links).replace("MOBILE", mobile)
+            .replace("VERSION", dl["version"]).replace("CSSV", css_v))
 
 
-html = absolutize(src)
-# On the subdomain, the "Open clips.evadeclient.com" button would link to itself: point it home instead.
-html = html.replace('href="https://clips.evadeclient.com">Open clips.evadeclient.com &rarr;</a>',
-                    f'href="{SITE}/clips">More about Evade Clips &rarr;</a>')
-html = html.replace('https://evadeclient.com/clips">', 'https://clips.evadeclient.com/">', 2)  # canonical + og:url
-html = html.replace('<meta property="og:url" content="https://evadeclient.com/clips">', '<meta property="og:url" content="https://clips.evadeclient.com/">')
+top, bottom = fill(HEAD), fill(FOOT)
 
-start = html.index('<main id="main">') + len('<main id="main">')
-end = html.index("</main>")
-top = html[:start]
-bottom = html[end:]
-# The frame's <title>/<meta description> are replaced per page by the Worker.
-top = re.sub(r"<title>.*?</title>", "<title>{{TITLE}}</title>", top, count=1, flags=re.S)
-# Clip pages bring their own description / Open Graph / Twitter tags (for Discord embeds).
-top = re.sub(r'\n<meta (name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>', "", top)
-top = re.sub(r'\n<link rel="canonical"[^>]*>', "", top)
-top = top.replace("</head>", "{{HEAD}}\n</head>", 1)
+body = (SHARE / "site" / "landing.html").read_text()
+for k, v in {"{{VERSION}}": dl["version"], "{{SIZE_EXE}}": dl["windows"]["size"], "{{SHA_EXE}}": dl["windows"]["sha256"],
+             "{{SIZE_JAR}}": dl["jar"]["size"], "{{SHA_JAR}}": dl["jar"]["sha256"]}.items():
+    body = body.replace(k, v)
+desc = "Evade Clips: instant replay, auto-clips, voice commands, a full editor and share links that play in Discord. Free, no watermark, no ads."
+landing_head = (f'<meta name="description" content="{desc}">\n<link rel="canonical" href="https://clips.evadeclient.com/">\n'
+                '<meta property="og:type" content="website">\n<meta property="og:site_name" content="Evade Clips">\n'
+                '<meta property="og:title" content="Evade Clips: clip it, edit it, share it">\n'
+                f'<meta property="og:description" content="{desc}">\n<meta property="og:url" content="https://clips.evadeclient.com/">\n'
+                '<meta property="og:image" content="https://clips.evadeclient.com/assets/clips-editor.webp">\n'
+                '<meta name="twitter:card" content="summary_large_image">')
+landing = (top.replace("{{TITLE}}", "Evade Clips: clip it, edit it, share it").replace("{{HEAD}}", landing_head)
+           + "\n" + body + bottom)
 
-out = ROOT / "clips-share" / "src" / "shell.js"
+out = SHARE / "src" / "shell.js"
 out.write_text(
-    "// Generated by scripts/build-clips-share.py from site/clips.html. Do not edit by hand.\n"
-    f"export const LANDING = {json.dumps(html)};\n"
+    "// Generated by scripts/build-clips-share.py from clips-share/site/landing.html. Do not edit by hand.\n"
+    f"export const LANDING = {json.dumps(landing)};\n"
     f"export const TOP = {json.dumps(top)};\n"
     f"export const BOTTOM = {json.dumps(bottom)};\n"
 )

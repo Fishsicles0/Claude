@@ -42,9 +42,9 @@ Evade Clips uses https://clips.evadeclient.com by default. If you host your own,
 Settings → Sharing → *Share server*.
 
 Live at **https://clips.evadeclient.com** (Worker `evade-clips`, bucket `evade-clips`, `ADMIN_TOKEN` set).
-It uses the main site's design: `scripts/build-clips-share.py` turns the built `site/clips.html` into the
-Worker's home page and page frame (`src/shell.js`), and the main site's stylesheet, scripts, logo and screenshots
-are served from the bucket under `site/`; the downloads under `dl/`. After `scripts/build-site.sh`:
+It's a standalone Evade Clips site in the main site's design system: `scripts/build-clips-share.py` builds its
+home page (`site/landing.html`) and page frame (own header, menu and footer) into `src/shell.js`, and the shared
+stylesheet, scripts, logo and screenshots are served from the bucket under `site/`; the downloads under `dl/`. After `scripts/build-site.sh`:
 
 ```bash
 cd clips-share

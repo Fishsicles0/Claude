@@ -79,6 +79,27 @@ public final class ClipsApp {
             MainWindow w = new MainWindow(app);
             if (!minimized) w.setVisible(true);
         });
+        // Standalone install on Windows: offer to fetch the video engine on first launch.
+        if (net.evadeclient.clips.core.Ffmpeg.WINDOWS && !net.evadeclient.clips.core.Ffmpeg.available() && !minimized) {
+            int ok = javax.swing.JOptionPane.showConfirmDialog(null,
+                    "Evade Clips records and edits video with ffmpeg, which isn't on this PC yet.\nDownload it now? (about 90 MB, one time)",
+                    "Evade Clips", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE);
+            if (ok == javax.swing.JOptionPane.OK_OPTION) {
+                new Thread(() -> {
+                    try {
+                        app.notify("Downloading ffmpeg…", "This takes a minute", false);
+                        net.evadeclient.clips.core.Ffmpeg.downloadForWindows(null);
+                        app.notify("Ready to record", "ffmpeg is set up", false);
+                        app.start();
+                    } catch (Exception e) {
+                        app.notify("ffmpeg download failed", e.getMessage(), true);
+                        app.start();
+                    }
+                }, "ffmpeg-setup").start();
+                Runtime.getRuntime().addShutdownHook(new Thread(app::shutdown, "shutdown"));
+                return;
+            }
+        }
         new Thread(app::start, "startup").start();
         Runtime.getRuntime().addShutdownHook(new Thread(app::shutdown, "shutdown"));
     }

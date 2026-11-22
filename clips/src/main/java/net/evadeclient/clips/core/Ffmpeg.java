@@ -81,6 +81,58 @@ public final class Ffmpeg {
         return null;
     }
 
+    // ------------------------------------------------------------------ first-run download (Windows)
+
+    static final String FFMPEG_ZIP = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
+
+    /**
+     * Downloads ffmpeg + ffprobe (Windows builds from gyan.dev, checked against their published SHA-256) into the
+     * app folder, where {@link #ffmpeg()} looks for them. About 90 MB.
+     */
+    public static void downloadForWindows(DoubleConsumer progress) throws IOException, InterruptedException {
+        java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder().followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build();
+        String expected = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP + ".sha256")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString()).body().trim().split("\\s+")[0];
+        Path bin = Settings.appDir().resolve("ffmpeg").resolve("bin");
+        Files.createDirectories(bin);
+        Path zip = bin.resolveSibling("ffmpeg-download.zip");
+        var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP)).build(), java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+        if (res.statusCode() != 200) throw new IOException("Download failed (HTTP " + res.statusCode() + ")");
+        long total = res.headers().firstValueAsLong("content-length").orElse(-1);
+        java.security.MessageDigest md;
+        try { md = java.security.MessageDigest.getInstance("SHA-256"); } catch (java.security.NoSuchAlgorithmException e) { throw new IOException(e); }
+        try (var in = res.body(); var out = Files.newOutputStream(zip)) {
+            byte[] buf = new byte[1 << 16];
+            long done = 0;
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+                md.update(buf, 0, n);
+                done += n;
+                if (progress != null && total > 0) progress.accept(done / (double) total);
+            }
+        }
+        if (!java.util.HexFormat.of().formatHex(md.digest()).equalsIgnoreCase(expected)) {
+            Files.deleteIfExists(zip);
+            throw new IOException("The ffmpeg download didn't match its checksum. Try again.");
+        }
+        int found = 0;
+        try (var z = new java.util.zip.ZipInputStream(Files.newInputStream(zip))) {
+            java.util.zip.ZipEntry e;
+            while ((e = z.getNextEntry()) != null) {
+                String name = e.getName().replace('\\', '/');
+                String file = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
+                if (!e.isDirectory() && (file.equals("ffmpeg.exe") || file.equals("ffprobe.exe"))) {
+                    Files.copy(z, bin.resolve(file), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    found++;
+                }
+            }
+        }
+        Files.deleteIfExists(zip);
+        if (found < 2) throw new IOException("The ffmpeg download didn't contain ffmpeg.exe and ffprobe.exe");
+        configure("");
+    }
+
     // ------------------------------------------------------------------ running
 
     public static ProcessBuilder builder(List<String> args) {

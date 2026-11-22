@@ -11,8 +11,8 @@
   },
   "clips": {
     "version": "1.0.0",
-    "windows": { "file": "downloads/Evade-Clips.exe", "size": "3294 KB", "sha256": "63aa3ed036f5521f9c583bd5b802fba841331a77bd12e70cc8ca39bb5b4b269b" },
-    "jar": { "file": "downloads/EvadeClips.jar", "size": "3182 KB", "sha256": "1b1e8f0c66d97cb82f6ac03403dcdcad9515a6218e2d03ff2578c623a6ebcf82" },
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "3297 KB", "sha256": "aee1eed971b26c1c9e819474900000f0dc33fa20c270d011336653dd42b09ce3" },
+    "jar": { "file": "downloads/EvadeClips.jar", "size": "3185 KB", "sha256": "c4f205ef02dadfeae05663c96a8d0d06b1e6e9821acc0b39b0195a7804db8fb3" },
     "ffmpeg": {
       "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
       "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
