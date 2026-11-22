@@ -57,6 +57,9 @@ public final class ClipsApp {
         if (args.length > 0 && args[0].equals("--selftest")) {
             System.exit(SelfTest.run(Path.of(args.length > 1 ? args[1] : "build/selftest")));
         }
+        if (args.length > 0 && args[0].equals("--edittest")) {
+            System.exit(EditTests.run(Path.of(args.length > 1 ? args[1] : "build/edittest")) == 0 ? 0 : 1);
+        }
         if (args.length > 0 && args[0].equals("--sizetest")) {
             System.exit(SizeTest.run(Path.of(args.length > 1 ? args[1] : "build/sizetest")));
         }

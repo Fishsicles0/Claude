@@ -234,6 +234,10 @@ final class SelfTest {
                 "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s (want " + String.format("%.2f", want) + ")");
         upgradeTests(lib, dir, src);
         shareTests(lib, dir);
+        // the editor's creative tools (ramps, layouts, zoom, effects, captions, presets, project export)
+        System.setProperty("clips.editTestOwnAppDir", "true");
+        int editFailures = EditTests.run(dir.resolve("edit"));
+        check(editFailures == 0, "editor tools: " + (editFailures == 0 ? "all edit checks passed" : editFailures + " edit checks failed"));
         lib.shutdown();
         return finish();
     }

@@ -1,10 +1,14 @@
 package net.evadeclient.clips.ui;
 
+import net.evadeclient.clips.core.AutoCaptions;
 import net.evadeclient.clips.core.Clip;
+import net.evadeclient.clips.core.EditPresets;
 import net.evadeclient.clips.core.EditSpec;
 import net.evadeclient.clips.core.Exporter;
 import net.evadeclient.clips.core.Ffmpeg;
 import net.evadeclient.clips.core.Library;
+import net.evadeclient.clips.core.ProjectExport;
+import net.evadeclient.clips.core.Sounds;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
@@ -20,6 +24,7 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
@@ -81,7 +86,47 @@ public final class EditorPanel extends JPanel {
     private final JComboBox<String> speed = new JComboBox<>(new String[]{"0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×", "4×"});
     private final ButtonGroup aspectGroup = new ButtonGroup();
     private final java.util.Map<String, JToggleButton> aspectBtns = new java.util.LinkedHashMap<>();
-    private final JComboBox<String> fitMode = new JComboBox<>(new String[]{"Crop", "Blurred background"});
+    private final JComboBox<String> fitMode = new JComboBox<>(new String[]{"Crop to fill", "Blurred background", "Facecam on top"});
+    private static final String[] FITS = {"crop", "blur", "split"};
+    private final JTabbedPane tabs = new JTabbedPane();
+    // edit tab
+    private final javax.swing.DefaultListModel<EditPresets.Preset> presetModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<EditPresets.Preset> presetList = new javax.swing.JList<>(presetModel);
+    private final JComboBox<String> rampTo = new JComboBox<>(new String[]{"Steady speed", "Ramp to 0.25×", "Ramp to 0.5×", "Ramp to 0.75×", "Ramp to 1×", "Ramp to 1.5×", "Ramp to 2×", "Ramp to 4×"});
+    private static final double[] RAMP_TO = {0, 0.25, 0.5, 0.75, 1, 1.5, 2, 4};
+    private final JComboBox<String> smoothing = new JComboBox<>(new String[]{"Off (repeat frames)", "Frame blending", "Optical flow (smoothest)"});
+    private static final String[] SMOOTH = {"off", "blend", "flow"};
+    // frame tab
+    private final JComboBox<String> camCorner = new JComboBox<>(new String[]{"Top right", "Top left", "Bottom right", "Bottom left", "Custom (drawn on the video)"});
+    private final JSlider camShare = new JSlider(20, 60, 38);
+    private final JLabel camFileLabel = Theme.label("", 11.5f, false, Theme.FAINT);
+    private final JPanel camBox = new JPanel();
+    private final JComboBox<String> zoomTarget = new JComboBox<>(new String[]{"Centre / crosshair", "Kill feed (top right)", "Chat (bottom left)", "Minimap (top left)", "Health (bottom centre)", "Click on the video..."});
+    private static final double[][] TARGETS = {{0.5, 0.5}, {0.86, 0.12}, {0.17, 0.78}, {0.12, 0.15}, {0.5, 0.88}};
+    private final JSlider zoomAmount = new JSlider(110, 300, 160);
+    private final javax.swing.DefaultListModel<String> zkModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<String> zkList = new javax.swing.JList<>(zkModel);
+    private final javax.swing.DefaultListModel<String> maskModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<String> maskList = new javax.swing.JList<>(maskModel);
+    private final JComboBox<String> maskKind = new JComboBox<>(new String[]{"Blur", "Pixelate", "Black box"});
+    private static final String[] MASKS = {"blur", "pixelate", "black"};
+    // text tab
+    private final JComboBox<AutoCaptions.Source> acSource = new JComboBox<>(AutoCaptions.Source.values());
+    private final JComboBox<AutoCaptions.Layout> acLayout = new JComboBox<>(AutoCaptions.Layout.values());
+    private final JComboBox<String> acPos = new JComboBox<>(new String[]{"Center", "Bottom", "Top"});
+    private final JButton acBtn = Theme.button("Caption my clip", null, true);
+    private final JLabel acStatus = Theme.label(" ", 11.5f, false, Theme.DIM);
+    // effects tab
+    private final JComboBox<String> fxSound = new JComboBox<>();
+    private final javax.swing.DefaultListModel<String> fxModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<String> fxList = new javax.swing.JList<>(fxModel);
+    private final JSlider fxStrength = new JSlider(0, 100, 60), fxVolume = new JSlider(0, 200, 100);
+    private final JComboBox<String> fxSoundSel = new JComboBox<>();
+    // export tab
+    private final JCheckBox prores = new JCheckBox("Edit-friendly ProRes copy (big files, smooth scrubbing)");
+    // drawing on the video
+    private enum Pick { NONE, CAM, MASK, ZOOM }
+    private Pick pick = Pick.NONE;
     private final JSlider cropX = new JSlider(0, 100, 50);
     private final JSlider zoom = new JSlider(100, 300, 100);
     private final JSlider volume = new JSlider(0, 200, 100);
@@ -95,7 +140,8 @@ public final class EditorPanel extends JPanel {
     private final javax.swing.DefaultListModel<String> capModel = new javax.swing.DefaultListModel<>();
     private final javax.swing.JList<String> capList = new javax.swing.JList<>(capModel);
     private final JTextField capText = new JTextField();
-    private final JComboBox<String> capStyle = new JComboBox<>(new String[]{"Clean", "Subtitle", "Meme"});
+    private final JComboBox<String> capStyle = new JComboBox<>(new String[]{"Clean", "Subtitle", "Meme", "Pop", "Highlight"});
+    private static final String[] CAP_STYLES = {"clean", "subtitle", "meme", "pop", "highlight"};
     private final JComboBox<String> capPos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
     private final java.util.Map<String, BufferedImage> capPreview = new java.util.HashMap<>();
     private final javax.swing.DefaultListModel<String> ovModel = new javax.swing.DefaultListModel<>();
@@ -155,16 +201,12 @@ public final class EditorPanel extends JPanel {
         main.add(bottom, BorderLayout.SOUTH);
         add(main, BorderLayout.CENTER);
 
-        JScrollPane insp = new JScrollPane(inspector());
-        insp.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Theme.BORDER));
-        insp.setPreferredSize(new Dimension(340, 100));
-        insp.getVerticalScrollBar().setUnitIncrement(20);
-        insp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        add(insp, BorderLayout.EAST);
+        add(inspector(), BorderLayout.EAST);
 
         timeline.onSeek = t -> { player.seek(t); timeline.setPlayhead(t); updateTime(t); };
         timeline.beforeEdit = this::snapshot;
         timeline.afterEdit = this::edited;
+        timeline.extraMenu = this::timelineMenu;
 
         // Drives playhead, segment skipping during edit preview, and the clock label.
         new Timer(30, e -> tick()).start();
@@ -325,11 +367,87 @@ public final class EditorPanel extends JPanel {
         @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
+    /** The side panel: one tab per kind of edit, so each stays short. */
     private JComponent inspector() {
+        tabs.putClientProperty("JTabbedPane.tabWidthMode", "equal");
+        tabs.putClientProperty("JTabbedPane.tabAreaAlignment", "fill");
+        tabs.putClientProperty("JTabbedPane.showTabSeparators", true);
+        tabs.setFont(Theme.interBold.deriveFont(11.5f));
+        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabs.putClientProperty("JTabbedPane.tabInsets", new java.awt.Insets(4, 4, 4, 4));
+        tabs.putClientProperty("JTabbedPane.tabHeight", 36);
+        tabs.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, Theme.BORDER));
+        tabs.setPreferredSize(new Dimension(372, 100));
+        tabs.setFocusable(false);
+        tabs.addTab("Edit", tabScroll(editTab()));
+        tabs.addTab("Frame", tabScroll(frameTab()));
+        tabs.addTab("Text", tabScroll(textTab()));
+        tabs.addTab("Effects", tabScroll(effectsTab()));
+        tabs.addTab("Audio", tabScroll(audioTab()));
+        tabs.addTab("Export", tabScroll(exportTab()));
+        String[] tips = {"Presets, details, speed and speed ramps", "Shape, facecam layout, zoom & pan, blur areas", "Auto-captions, captions and the title",
+                "Shake, zoom punch, flash, hitmarker, sounds, colour, video overlays", "Volume of the game, your mic and voice chat; fades",
+                "Export for Discord, TikTok, YouTube...; After Effects / Premiere project"};
+        for (int i = 0; i < tips.length; i++) tabs.setToolTipTextAt(i, tips[i]);
+        return tabs;
+    }
+
+    private static JScrollPane tabScroll(JPanel content) {
+        JScrollPane sp = new JScrollPane(content);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getVerticalScrollBar().setUnitIncrement(20);
+        sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        return sp;
+    }
+
+    private static JPanel tabPanel() {
         JPanel p = new FitWidth();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         p.setBackground(Theme.PANEL);
         Theme.pad(p, 6, 18, 24, 18);
+        return p;
+    }
+
+    private static JPanel buttonRow(JButton... bs) {
+        JPanel row = new JPanel(new GridLayout(1, bs.length, 4, 0));
+        row.setOpaque(false);
+        for (JButton b : bs) { b.setFont(Theme.interBold.deriveFont(11.5f)); b.setMargin(new java.awt.Insets(4, 2, 4, 2)); row.add(b); }
+        return row;
+    }
+
+    private static JButton small(String text, String tip) {
+        JButton b = Theme.button(text, null, false);
+        if (tip != null) b.setToolTipText(tip);
+        return b;
+    }
+
+    // ---- Edit: presets, details, speed
+    private JPanel editTab() {
+        JPanel p = tabPanel();
+        section(p, "Presets");
+        add(p, hint("One click for a whole style. Ones with marker effects act at every marker (kills, aces, pops, or press M)."));
+        presetList.setVisibleRowCount(5);
+        presetList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        presetList.setCellRenderer(new PresetRenderer());
+        presetList.addMouseListener(new MouseAdapter() { @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 2) applySelectedPreset(); } });
+        JScrollPane ps = new JScrollPane(presetList);
+        ps.setPreferredSize(new Dimension(200, 168));
+        add(p, ps);
+        add(p, Box.createVerticalStrut(6));
+        JButton apply = Theme.button("Apply", null, true);
+        apply.addActionListener(e -> applySelectedPreset());
+        JButton save = small("Save mine", "Save this clip's look and marker effects as your own preset");
+        save.addActionListener(e -> savePreset());
+        JButton community = small("Community", "Browse presets other players shared, and share yours");
+        community.addActionListener(e -> communityDialog());
+        add(p, buttonRow(apply, save, community));
+        add(p, Box.createVerticalStrut(4));
+        JButton imp = small("Import file", "Open a .evadepreset file"), exp = small("Export file", "Save the selected preset as a file to send to a friend"),
+                del = small("Delete", "Delete one of your presets");
+        imp.addActionListener(e -> importPreset());
+        exp.addActionListener(e -> exportPreset());
+        del.addActionListener(e -> deletePreset());
+        add(p, buttonRow(imp, exp, del));
 
         section(p, "Details");
         field(p, "Game", gameField);
@@ -340,7 +458,8 @@ public final class EditorPanel extends JPanel {
             f.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { commitMeta(); } });
         }
 
-        section(p, "Speed of this part");
+        section(p, "Speed");
+        add(p, hint("Split around a kill (S), then slow that part down, or ramp: ease from one speed into another."));
         speed.setSelectedItem("1×");
         speed.addActionListener(e -> {
             if (loading || edit == null) return;
@@ -352,10 +471,37 @@ public final class EditorPanel extends JPanel {
             edit.segments.get(i).speed = v;
             edited();
         });
-        add(p, hint("Split around a kill, then slow it down. Right-click the timeline for more."));
-        add(p, speed);
+        field(p, "This part", speed);
+        rampTo.addActionListener(e -> {
+            if (loading || edit == null) return;
+            int i = edit.segmentAt(player.time());
+            if (i < 0) return;
+            snapshot();
+            edit.segments.get(i).rampTo = RAMP_TO[rampTo.getSelectedIndex()];
+            edited();
+        });
+        field(p, "Ends at", rampTo);
+        JButton rampHere = Theme.button("Slow-mo ramp at playhead", null, false);
+        rampHere.setToolTipText("Eases into 0.3× slow motion at the playhead and back out (R)");
+        rampHere.addActionListener(e -> rampAt(player.time(), 0.3));
+        add(p, rampHere);
+        add(p, Box.createVerticalStrut(8));
+        smoothing.setToolTipText("How slow parts get extra frames. Optical flow invents in-between frames from the motion: smoothest, slower to export.");
+        smoothing.addActionListener(e -> { if (!loading && edit != null) { snapshot(); edit.smoothing = SMOOTH[smoothing.getSelectedIndex()]; edited(); } });
+        field(p, "Smooth", smoothing);
 
-        section(p, "Frame");
+        JButton reset = Theme.button("Reset all edits", null, false);
+        reset.addActionListener(e -> { if (edit != null) { snapshot(); edit = EditSpec.whole(clip.duration); edited(); loadControls(); } });
+        add(p, Box.createVerticalStrut(18));
+        add(p, reset);
+        p.add(Box.createVerticalGlue());
+        return p;
+    }
+
+    // ---- Frame: shape, layout, zoom & pan, blur areas
+    private JPanel frameTab() {
+        JPanel p = tabPanel();
+        section(p, "Shape");
         JPanel aspects = new JPanel(new GridLayout(1, 5, 4, 0));
         aspects.setOpaque(false);
         for (String[] a : new String[][]{{"original", "Original"}, {"16:9", "16:9"}, {"9:16", "9:16"}, {"1:1", "1:1"}, {"4:5", "4:5"}}) {
@@ -370,10 +516,219 @@ public final class EditorPanel extends JPanel {
         }
         add(p, aspects);
         add(p, Box.createVerticalStrut(8));
-        fitMode.addActionListener(e -> { if (!loading) { snapshot(); edit.fitMode = fitMode.getSelectedIndex() == 0 ? "crop" : "blur"; edited(); } });
-        field(p, "Fit", fitMode);
+        fitMode.addActionListener(e -> {
+            if (loading) return;
+            snapshot();
+            edit.fitMode = FITS[fitMode.getSelectedIndex()];
+            if (edit.fitMode.equals("split") && (edit.aspect.equals("original") || edit.aspect.equals("16:9"))) edit.aspect = "9:16";
+            loadControls();
+            edited();
+        });
+        field(p, "Layout", fitMode);
         slider(p, "Position", cropX, v -> edit.cropX = v / 100.0);
         slider(p, "Zoom", zoom, v -> edit.zoom = v / 100.0);
+
+        // facecam (split layout only)
+        camBox.setLayout(new BoxLayout(camBox, BoxLayout.Y_AXIS));
+        camBox.setOpaque(false);
+        add(camBox, hint("Your facecam goes on top, the gameplay below: the TikTok / Shorts layout."));
+        camCorner.addActionListener(e -> {
+            if (loading || edit == null) return;
+            int i = camCorner.getSelectedIndex();
+            if (i == 4) { startPick(Pick.CAM, "Drag a box around your facecam on the video"); return; }
+            snapshot();
+            double[][] corners = {{0.72, 0.04}, {0.02, 0.04}, {0.72, 0.66}, {0.02, 0.66}};
+            edit.camX = corners[i][0]; edit.camY = corners[i][1]; edit.camW = 0.26; edit.camH = 0.3;
+            edited();
+        });
+        field(camBox, "Facecam", camCorner);
+        slider(camBox, "Cam size", camShare, v -> edit.camShare = v / 100.0);
+        JButton camFile = small("Webcam file...", "Use a separate webcam recording on top instead of a part of the gameplay");
+        camFile.addActionListener(e -> chooseCamFile());
+        JButton camClear = small("Use gameplay", "Go back to the facecam area of the gameplay");
+        camClear.addActionListener(e -> { if (edit != null) { snapshot(); edit.camFile = ""; edited(); loadControls(); } });
+        add(camBox, buttonRow(camFile, camClear));
+        add(camBox, camFileLabel);
+        add(p, camBox);
+
+        section(p, "Zoom & pan");
+        add(p, hint("Glide in on the kill feed, the crosshair or chat, and back out. Keyframes glide smoothly from one to the next."));
+        field(p, "Target", zoomTarget);
+        zoomTarget.addActionListener(e -> {
+            if (loading || edit == null) return;
+            if (zoomTarget.getSelectedIndex() == TARGETS.length) { startPick(Pick.ZOOM, "Click the spot to zoom in on"); return; }
+            EditSpec.ZoomKey k = selectedZoomKey();
+            if (k != null) { snapshot(); k.cx = TARGETS[zoomTarget.getSelectedIndex()][0]; k.cy = TARGETS[zoomTarget.getSelectedIndex()][1]; edited(); refreshZoomKeys(); }
+        });
+        slider(p, "Amount", zoomAmount, v -> { EditSpec.ZoomKey k = selectedZoomKey(); if (k != null && k.zoom > 1.001) { k.zoom = v / 100.0; refreshZoomKeys(); } });
+        JButton zoomIn = Theme.button("Zoom in at playhead", null, false);
+        zoomIn.setToolTipText("Glides in on the target, holds, and glides back out (Z)");
+        zoomIn.addActionListener(e -> zoomInAt(player.time()));
+        add(p, zoomIn);
+        add(p, Box.createVerticalStrut(6));
+        zkList.setVisibleRowCount(3);
+        zkList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        zkList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadZoomKey(); });
+        JScrollPane zs = new JScrollPane(zkList);
+        zs.setPreferredSize(new Dimension(200, 64));
+        add(p, zs);
+        add(p, Box.createVerticalStrut(4));
+        JButton zkAdd = small("Add key", "Add a keyframe at the playhead with this target and amount"), zkGo = small("Go to", null), zkDel = small("Remove", null);
+        zkAdd.addActionListener(e -> addZoomKey(player.time()));
+        zkGo.addActionListener(e -> { EditSpec.ZoomKey k = selectedZoomKey(); if (k != null) seekTo(k.t); });
+        zkDel.addActionListener(e -> { EditSpec.ZoomKey k = selectedZoomKey(); if (k != null) { snapshot(); edit.zooms.remove(k); edited(); refreshZoomKeys(); } });
+        add(p, buttonRow(zkAdd, zkGo, zkDel));
+
+        section(p, "Blur areas");
+        add(p, hint("Hide names, chat or coordinates. Add one, then drag a box over what to hide on the video."));
+        maskList.setVisibleRowCount(3);
+        maskList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        maskList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadMask(); });
+        JScrollPane ms = new JScrollPane(maskList);
+        ms.setPreferredSize(new Dimension(200, 64));
+        add(p, ms);
+        add(p, Box.createVerticalStrut(4));
+        JButton mAdd = small("Add", "Hide an area from the playhead on (drag it on the video)"), mDraw = small("Redraw", "Drag a new box on the video"),
+                mFrom = small("Start", "Starts at the playhead"), mTo = small("End", "Ends at the playhead"), mDel = small("Remove", null);
+        mAdd.addActionListener(e -> addMask());
+        mDraw.addActionListener(e -> { if (selectedMask() != null) startPick(Pick.MASK, "Drag a box over what to hide"); });
+        mFrom.addActionListener(e -> { EditSpec.Mask m = selectedMask(); if (m != null) { snapshot(); m.start = Math.min(player.time(), m.end - 0.1); edited(); refreshMasks(); } });
+        mTo.addActionListener(e -> { EditSpec.Mask m = selectedMask(); if (m != null) { snapshot(); m.end = Math.max(player.time(), m.start + 0.1); edited(); refreshMasks(); } });
+        mDel.addActionListener(e -> { EditSpec.Mask m = selectedMask(); if (m != null) { snapshot(); edit.masks.remove(m); edited(); refreshMasks(); } });
+        add(p, buttonRow(mAdd, mDraw, mFrom, mTo, mDel));
+        add(p, Box.createVerticalStrut(6));
+        maskKind.addActionListener(e -> { EditSpec.Mask m = selectedMask(); if (!loading && m != null) { snapshot(); m.kind = MASKS[maskKind.getSelectedIndex()]; edited(); refreshMasks(); } });
+        field(p, "Style", maskKind);
+        p.add(Box.createVerticalGlue());
+        return p;
+    }
+
+    // ---- Text: auto-captions, captions, title
+    private JPanel textTab() {
+        JPanel p = tabPanel();
+        section(p, "Auto-captions");
+        add(p, hint("Turns what's said into captions, on your PC. Check the words afterwards: you can fix any in the list below."));
+        field(p, "Whose", acSource);
+        field(p, "Style", acLayout);
+        field(p, "Position", acPos);
+        acBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        acBtn.addActionListener(e -> autoCaption());
+        add(p, acBtn);
+        add(p, acStatus);
+
+        section(p, "Captions");
+        add(p, hint("Text between two moments. Pop is big and bold, one word or phrase at a time; Subtitle sits on a dark box."));
+        capList.setVisibleRowCount(5);
+        capList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        capList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadCaption(); });
+        JScrollPane capScroll = new JScrollPane(capList);
+        capScroll.setPreferredSize(new Dimension(200, 104));
+        add(p, capScroll);
+        add(p, Box.createVerticalStrut(6));
+        JButton capAdd = small("Add", "Add a caption at the playhead (C)"), capDel = small("Remove", null),
+                capFrom = small("Start", "Caption starts at the playhead"), capTo = small("End", "Caption ends at the playhead"), capClear = small("Clear all", null);
+        capAdd.addActionListener(e -> addCaption());
+        capDel.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); edit.captions.remove(c); edited(); refreshCaptions(); } });
+        capFrom.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.start = Math.min(player.time(), c.end - 0.2); edited(); refreshCaptions(); } });
+        capTo.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.end = Math.max(player.time(), c.start + 0.2); edited(); refreshCaptions(); } });
+        capClear.addActionListener(e -> { if (edit != null && !edit.captions.isEmpty()) { snapshot(); edit.captions.clear(); edited(); refreshCaptions(); } });
+        add(p, buttonRow(capAdd, capDel, capFrom, capTo));
+        add(p, Box.createVerticalStrut(6));
+        capText.putClientProperty("JTextField.placeholderText", "Caption text");
+        capText.getDocument().addDocumentListener(new DocumentListener() {
+            void ch() { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.text = capText.getText(); edited(); updateCaptionRow(); } }
+            public void insertUpdate(DocumentEvent e) { ch(); }
+            public void removeUpdate(DocumentEvent e) { ch(); }
+            public void changedUpdate(DocumentEvent e) { ch(); }
+        });
+        add(p, capText);
+        add(p, Box.createVerticalStrut(6));
+        capStyle.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.style = CAP_STYLES[capStyle.getSelectedIndex()]; edited(); } });
+        field(p, "Style", capStyle);
+        capPos.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.position = ((String) capPos.getSelectedItem()).toLowerCase(); edited(); } });
+        field(p, "Position", capPos);
+        add(p, capClear);
+
+        section(p, "Title");
+        titleText.putClientProperty("JTextField.placeholderText", "e.g. 1v4 clutch");
+        titleText.getDocument().addDocumentListener(new DocumentListener() {
+            void ch() { if (!loading) { edit.titleText = titleText.getText(); edited(); } }
+            public void insertUpdate(DocumentEvent e) { ch(); }
+            public void removeUpdate(DocumentEvent e) { ch(); }
+            public void changedUpdate(DocumentEvent e) { ch(); }
+        });
+        add(p, titleText);
+        add(p, Box.createVerticalStrut(6));
+        titlePos.addActionListener(e -> { if (!loading) { edit.titlePosition = ((String) titlePos.getSelectedItem()).toLowerCase(); edited(); } });
+        field(p, "Position", titlePos);
+        titleSecs.addActionListener(e -> {
+            if (loading) return;
+            edit.titleSeconds = new double[]{2, 3, 5, 0}[titleSecs.getSelectedIndex()];
+            edited();
+        });
+        field(p, "Show", titleSecs);
+        p.add(Box.createVerticalGlue());
+        return p;
+    }
+
+    // ---- Effects: effects & sounds, look, overlays
+    private JPanel effectsTab() {
+        JPanel p = tabPanel();
+        section(p, "Add at the playhead");
+        add(p, hint("Pick a sound (optional), then an effect. Right-click the timeline to add one anywhere."));
+        refreshSoundBoxes();
+        JButton play = small("▶", "Hear this sound");
+        play.addActionListener(e -> previewSound((String) fxSound.getSelectedItem()));
+        JPanel sr = new JPanel(new BorderLayout(6, 0));
+        sr.setOpaque(false);
+        sr.add(fxSound, BorderLayout.CENTER);
+        sr.add(play, BorderLayout.EAST);
+        field(p, "Sound", sr);
+        JButton shake = small("Shake", "Screen shake (1)"), punch = small("Zoom punch", "Quick zoom in and out (2)"), flash = small("Flash", "White flash (3)"),
+                hit = small("Hitmarker", "Hitmarker in the centre (4)"), sound = small("Sound only", "Just the sound (5)");
+        shake.addActionListener(e -> addEffect("shake", player.time()));
+        punch.addActionListener(e -> addEffect("punch", player.time()));
+        flash.addActionListener(e -> addEffect("flash", player.time()));
+        hit.addActionListener(e -> addEffect("hitmarker", player.time()));
+        sound.addActionListener(e -> addEffect("sound", player.time()));
+        add(p, buttonRow(shake, punch, flash));
+        add(p, Box.createVerticalStrut(4));
+        add(p, buttonRow(hit, sound));
+        add(p, Box.createVerticalStrut(4));
+        JButton folder = small("Add your own sounds...", "Opens your sounds folder: drop WAV / MP3 / OGG files in and they show up here");
+        folder.addActionListener(e -> {
+            try { java.awt.Desktop.getDesktop().open(Sounds.ensureUserDir().toFile()); } catch (Exception ex) { app.notify("Couldn't open the sounds folder", ex.getMessage(), true); }
+            new Timer(4000, ev -> { ((Timer) ev.getSource()).stop(); refreshSoundBoxes(); }).start();
+        });
+        add(p, folder);
+
+        section(p, "Effects in this clip");
+        fxList.setVisibleRowCount(4);
+        fxList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        fxList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadEffect(); });
+        JScrollPane fs = new JScrollPane(fxList);
+        fs.setPreferredSize(new Dimension(200, 84));
+        add(p, fs);
+        add(p, Box.createVerticalStrut(4));
+        JButton fGo = small("Go to", null), fHere = small("Move here", "Move it to the playhead"), fDel = small("Remove", null);
+        fGo.addActionListener(e -> { EditSpec.Effect f = selectedEffect(); if (f != null) seekTo(f.t); });
+        fHere.addActionListener(e -> { EditSpec.Effect f = selectedEffect(); if (f != null) { snapshot(); f.t = player.time(); edited(); refreshEffects(); } });
+        fDel.addActionListener(e -> { EditSpec.Effect f = selectedEffect(); if (f != null) { snapshot(); edit.effects.remove(f); edited(); refreshEffects(); } });
+        add(p, buttonRow(fGo, fHere, fDel));
+        add(p, Box.createVerticalStrut(6));
+        slider(p, "Strength", fxStrength, v -> { EditSpec.Effect f = selectedEffect(); if (f != null) f.strength = v / 100.0; });
+        slider(p, "Sound vol", fxVolume, v -> { EditSpec.Effect f = selectedEffect(); if (f != null) f.volume = v / 100.0; });
+        fxSoundSel.addActionListener(e -> {
+            EditSpec.Effect f = selectedEffect();
+            if (loading || f == null) return;
+            snapshot();
+            f.sound = fxSoundSel.getSelectedIndex() <= 0 ? "" : (String) fxSoundSel.getSelectedItem();
+            edited();
+            refreshEffects();
+        });
+        field(p, "Sound", fxSoundSel);
+
+        section(p, "Colour");
         effect.addActionListener(e -> {
             if (loading || edit == null) return;
             snapshot();
@@ -381,18 +736,6 @@ public final class EditorPanel extends JPanel {
             edited();
         });
         field(p, "Look", effect);
-
-        section(p, "Audio");
-        slider(p, "Volume", volume, v -> edit.volume = v / 100.0);
-        slider(p, "Your mic", micVol, v -> edit.micVolume = v / 100.0);
-        micRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
-        slider(p, "Voice chat", voiceVol, v -> edit.voiceVolume = v / 100.0);
-        voiceRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
-        mute.setOpaque(false);
-        mute.addActionListener(e -> { if (!loading) { snapshot(); edit.mute = mute.isSelected(); edited(); } });
-        add(p, mute);
-        slider(p, "Fade in", fadeIn, v -> edit.fadeIn = v / 10.0);
-        slider(p, "Fade out", fadeOut, v -> edit.fadeOut = v / 10.0);
 
         section(p, "Video overlays");
         add(p, hint("Put a second video on top: your facecam, a reaction, another angle. It starts at the playhead."));
@@ -403,9 +746,7 @@ public final class EditorPanel extends JPanel {
         ovScroll.setPreferredSize(new Dimension(200, 64));
         add(p, ovScroll);
         add(p, Box.createVerticalStrut(6));
-        JPanel ovBtns = new JPanel(new GridLayout(1, 3, 4, 0));
-        ovBtns.setOpaque(false);
-        JButton ovFromLib = Theme.button("From library", null, false), ovFromFile = Theme.button("From file", null, false), ovDel = Theme.button("Remove", null, false);
+        JButton ovFromLib = small("From library", null), ovFromFile = small("From file", null), ovDel = small("Remove", null);
         ovFromLib.addActionListener(e -> addOverlayFromLibrary());
         ovFromFile.addActionListener(e -> {
             javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
@@ -413,8 +754,7 @@ public final class EditorPanel extends JPanel {
             if (fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION) addOverlay(fc.getSelectedFile().toPath());
         });
         ovDel.addActionListener(e -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { snapshot(); edit.overlays.remove(o); edited(); refreshOverlays(); } });
-        for (JButton b : new JButton[]{ovFromLib, ovFromFile, ovDel}) { b.setFont(Theme.interBold.deriveFont(11.5f)); b.setMargin(new java.awt.Insets(4, 2, 4, 2)); ovBtns.add(b); }
-        add(p, ovBtns);
+        add(p, buttonRow(ovFromLib, ovFromFile, ovDel));
         add(p, Box.createVerticalStrut(6));
         ovPos.addActionListener(e -> {
             EditSpec.Overlay o = selectedOverlay();
@@ -437,63 +777,33 @@ public final class EditorPanel extends JPanel {
         ovAudio.setOpaque(false);
         ovAudio.addActionListener(e -> { EditSpec.Overlay o = selectedOverlay(); if (!loading && o != null) { snapshot(); o.audio = ovAudio.isSelected(); edited(); } });
         add(p, ovAudio);
+        p.add(Box.createVerticalGlue());
+        return p;
+    }
 
-        section(p, "Captions");
-        add(p, hint("Text that shows between two moments. Meme style is big and loud; Subtitle sits on a dark box."));
-        capList.setVisibleRowCount(4);
-        capList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        capList.addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) loadCaption(); });
-        JScrollPane capScroll = new JScrollPane(capList);
-        capScroll.setPreferredSize(new Dimension(200, 84));
-        add(p, capScroll);
-        add(p, Box.createVerticalStrut(6));
-        JPanel capBtns = new JPanel(new GridLayout(1, 4, 4, 0));
-        capBtns.setOpaque(false);
-        JButton capAdd = Theme.button("Add", null, false), capDel = Theme.button("Remove", null, false),
-                capFrom = Theme.button("Start", null, false), capTo = Theme.button("End", null, false);
-        capAdd.setToolTipText("Add a caption at the playhead (C)");
-        capFrom.setToolTipText("Caption starts at the playhead");
-        capTo.setToolTipText("Caption ends at the playhead");
-        capAdd.addActionListener(e -> addCaption());
-        capDel.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); edit.captions.remove(c); edited(); refreshCaptions(); } });
-        capFrom.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.start = Math.min(player.time(), c.end - 0.2); edited(); refreshCaptions(); } });
-        capTo.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.end = Math.max(player.time(), c.start + 0.2); edited(); refreshCaptions(); } });
-        for (JButton b : new JButton[]{capAdd, capDel, capFrom, capTo}) { b.setFont(Theme.interBold.deriveFont(11.5f)); b.setMargin(new java.awt.Insets(4, 2, 4, 2)); capBtns.add(b); }
-        add(p, capBtns);
-        add(p, Box.createVerticalStrut(6));
-        capText.putClientProperty("JTextField.placeholderText", "Caption text");
-        capText.getDocument().addDocumentListener(new DocumentListener() {
-            void ch() { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.text = capText.getText(); edited(); updateCaptionRow(); } }
-            public void insertUpdate(DocumentEvent e) { ch(); }
-            public void removeUpdate(DocumentEvent e) { ch(); }
-            public void changedUpdate(DocumentEvent e) { ch(); }
-        });
-        add(p, capText);
-        add(p, Box.createVerticalStrut(6));
-        capStyle.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.style = ((String) capStyle.getSelectedItem()).toLowerCase(); edited(); } });
-        field(p, "Style", capStyle);
-        capPos.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.position = ((String) capPos.getSelectedItem()).toLowerCase(); edited(); } });
-        field(p, "Position", capPos);
+    // ---- Audio
+    private JPanel audioTab() {
+        JPanel p = tabPanel();
+        section(p, "Levels");
+        add(p, hint("Game, your mic and voice chat were recorded separately, so each has its own level."));
+        slider(p, "Volume", volume, v -> edit.volume = v / 100.0);
+        slider(p, "Your mic", micVol, v -> edit.micVolume = v / 100.0);
+        micRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        slider(p, "Voice chat", voiceVol, v -> edit.voiceVolume = v / 100.0);
+        voiceRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        mute.setOpaque(false);
+        mute.addActionListener(e -> { if (!loading) { snapshot(); edit.mute = mute.isSelected(); edited(); } });
+        add(p, mute);
+        section(p, "Fades");
+        slider(p, "Fade in", fadeIn, v -> edit.fadeIn = v / 10.0);
+        slider(p, "Fade out", fadeOut, v -> edit.fadeOut = v / 10.0);
+        p.add(Box.createVerticalGlue());
+        return p;
+    }
 
-        section(p, "Title");
-        titleText.putClientProperty("JTextField.placeholderText", "e.g. 1v4 clutch");
-        titleText.getDocument().addDocumentListener(new DocumentListener() {
-            void ch() { if (!loading) { edit.titleText = titleText.getText(); edited(); } }
-            public void insertUpdate(DocumentEvent e) { ch(); }
-            public void removeUpdate(DocumentEvent e) { ch(); }
-            public void changedUpdate(DocumentEvent e) { ch(); }
-        });
-        add(p, titleText);
-        add(p, Box.createVerticalStrut(6));
-        titlePos.addActionListener(e -> { if (!loading) { edit.titlePosition = ((String) titlePos.getSelectedItem()).toLowerCase(); edited(); } });
-        field(p, "Position", titlePos);
-        titleSecs.addActionListener(e -> {
-            if (loading) return;
-            edit.titleSeconds = new double[]{2, 3, 5, 0}[titleSecs.getSelectedIndex()];
-            edited();
-        });
-        field(p, "Show", titleSecs);
-
+    // ---- Export
+    private JPanel exportTab() {
+        JPanel p = tabPanel();
         section(p, "Export");
         preset.setSelectedItem(Exporter.Preset.SOURCE);
         preset.addActionListener(e -> updatePresetInfo());
@@ -520,10 +830,14 @@ public final class EditorPanel extends JPanel {
         exportDone.setVisible(false);
         add(p, exportDone);
 
-        JButton reset = Theme.button("Reset all edits", null, false);
-        reset.addActionListener(e -> { if (edit != null) { snapshot(); edit = EditSpec.whole(clip.duration); edited(); loadControls(); } });
-        add(p, Box.createVerticalStrut(18));
-        add(p, reset);
+        section(p, "After Effects & Premiere");
+        add(p, hint("For 3D camera shakes, Twixtor or your own presets: a project folder with your cuts, speed ramps, zooms, captions and markers, "
+                + "plus each audio track. Opens in After Effects, Premiere Pro and DaVinci Resolve."));
+        prores.setOpaque(false);
+        add(p, prores);
+        JButton proj = Theme.button("Export project folder", null, false);
+        proj.addActionListener(e -> exportProject());
+        add(p, proj);
         p.add(Box.createVerticalGlue());
         return p;
     }
@@ -619,6 +933,17 @@ public final class EditorPanel extends JPanel {
 
     public Clip clip() { return clip; }
 
+    /** Shows a side-panel tab by name ("Edit", "Frame", "Text", "Effects", "Audio", "Export"). */
+    public void showTab(String name) {
+        for (int i = 0; i < tabs.getTabCount(); i++) if (tabs.getTitleAt(i).equalsIgnoreCase(name)) tabs.setSelectedIndex(i);
+    }
+
+    /** Moves the playhead (for screenshots and the API). */
+    public void seek(double t) { seekTo(t); }
+
+    /** Re-reads the clip's edit into the controls (after it was changed outside the editor). */
+    public void reload() { if (clip != null) { edit = clip.editOrDefault().copy(); loadControls(); edited(); } }
+
     private void loadWaveform(Clip c, Path file) {
         if (!c.hasAudio) return;
         Path wav = app.library.thumbsDir().resolve(c.id + "-wave.png");
@@ -643,7 +968,19 @@ public final class EditorPanel extends JPanel {
         favBtn.setSelected(clip.favorite);
         JToggleButton ab = aspectBtns.get(edit.aspect);
         if (ab != null) ab.setSelected(true);
-        fitMode.setSelectedIndex(edit.fitMode.equals("blur") ? 1 : 0);
+        fitMode.setSelectedIndex(Math.max(0, java.util.Arrays.asList(FITS).indexOf(edit.fitMode)));
+        camShare.setValue((int) Math.round(edit.camShare * 100));
+        double[][] corners = {{0.72, 0.04}, {0.02, 0.04}, {0.72, 0.66}, {0.02, 0.66}};
+        int corner = 4;
+        for (int i = 0; i < corners.length; i++) if (Math.abs(corners[i][0] - edit.camX) < 0.01 && Math.abs(corners[i][1] - edit.camY) < 0.01) corner = i;
+        camCorner.setSelectedIndex(corner);
+        camFileLabel.setText(edit.camFile.isBlank() ? "Using the facecam in the gameplay" : "Webcam: " + Path.of(edit.camFile).getFileName());
+        camBox.setVisible(edit.fitMode.equals("split"));
+        smoothing.setSelectedIndex(Math.max(0, java.util.Arrays.asList(SMOOTH).indexOf(edit.smoothing)));
+        refreshZoomKeys();
+        refreshMasks();
+        refreshEffects();
+        refreshPresets();
         cropX.setValue((int) Math.round(edit.cropX * 100));
         zoom.setValue((int) Math.round(edit.zoom * 100));
         volume.setValue((int) Math.round(edit.volume * 100));
@@ -670,7 +1007,8 @@ public final class EditorPanel extends JPanel {
 
     private void updateControlsEnabled() {
         boolean framed = !edit.aspect.equals("original");
-        fitMode.setEnabled(framed);
+        fitMode.setEnabled(true);
+        camBox.setVisible(edit.fitMode.equals("split"));
         cropX.setEnabled((framed && edit.fitMode.equals("crop")) || edit.zoom > 1.001);
     }
 
@@ -891,7 +1229,7 @@ public final class EditorPanel extends JPanel {
         capText.setEnabled(on); capStyle.setEnabled(on); capPos.setEnabled(on);
         capText.setText(on ? c.text : "");
         if (on) {
-            capStyle.setSelectedIndex(switch (c.style) { case "subtitle" -> 1; case "meme" -> 2; default -> 0; });
+            capStyle.setSelectedIndex(Math.max(0, java.util.Arrays.asList(CAP_STYLES).indexOf(c.style)));
             capPos.setSelectedIndex(switch (c.position) { case "center" -> 1; case "top" -> 2; default -> 0; });
         }
         loading = false;
@@ -954,6 +1292,490 @@ public final class EditorPanel extends JPanel {
         app.library.update(clip);
     }
 
+    // ------------------------------------------------------------------ presets
+
+    private void refreshPresets() {
+        EditPresets.Preset sel = presetList.getSelectedValue();
+        presetModel.clear();
+        for (EditPresets.Preset p : EditPresets.builtIns()) presetModel.addElement(p);
+        for (EditPresets.Preset p : EditPresets.mine()) presetModel.addElement(p);
+        if (sel != null) for (int i = 0; i < presetModel.size(); i++) if (presetModel.get(i).name.equals(sel.name)) presetList.setSelectedIndex(i);
+    }
+
+    /** Preset rows: name, who made it, and what it does. */
+    private static class PresetRenderer extends javax.swing.DefaultListCellRenderer {
+        @Override public Component getListCellRendererComponent(javax.swing.JList<?> list, Object value, int index, boolean sel, boolean focus) {
+            JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, sel, focus);
+            if (value instanceof EditPresets.Preset p) {
+                String who = p.builtIn ? "" : p.communityId != null ? " · community" + (p.author.isBlank() ? "" : " · " + esc(p.author)) : " · yours";
+                String sub = p.description != null && !p.description.isBlank() ? p.description : EditPresets.summary(p);
+                l.setText("<html><b>" + esc(p.name) + "</b><span style='color:#8A8A96'>" + who + "</span><br><span style='color:#8A8A96;font-size:9px'>"
+                        + esc(sub) + "</span></html>");
+                l.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+            }
+            return l;
+        }
+    }
+
+    private static String esc(String s) { return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
+
+    private void applySelectedPreset() {
+        EditPresets.Preset p = presetList.getSelectedValue();
+        if (p == null) { app.notify("Pick a preset first", null, false); return; }
+        applyPreset(p);
+    }
+
+    private void applyPreset(EditPresets.Preset p) {
+        if (edit == null) return;
+        snapshot();
+        int used = EditPresets.apply(p, edit, clip);
+        loadControls();
+        edited();
+        if (p.atMarker != null && used == 0)
+            app.notify("\"" + p.name + "\" applied", "It also acts at markers, and this clip has none in the kept parts: press M at the big moments or use Highlights (H)", false);
+        else app.notify("\"" + p.name + "\" applied", (used > 0 ? "At " + used + " marker" + (used == 1 ? "" : "s") + " · " : "") + "Ctrl+Z to undo", false);
+    }
+
+    private void savePreset() {
+        if (edit == null) return;
+        String name = javax.swing.JOptionPane.showInputDialog(this, "Name your preset", "Save preset", javax.swing.JOptionPane.PLAIN_MESSAGE);
+        if (name == null || name.isBlank()) return;
+        try {
+            EditPresets.Preset p = EditPresets.fromEdit(name.trim(), edit, clip);
+            p.description = EditPresets.summary(p);
+            EditPresets.save(p);
+            refreshPresets();
+            app.notify("Preset saved", p.name + " · find it in Edit → Presets", false);
+        } catch (Exception ex) { app.notify("Couldn't save the preset", ex.getMessage(), true); }
+    }
+
+    private void importPreset() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Evade Clips presets", EditPresets.EXT, "json"));
+        if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+        try {
+            EditPresets.Preset p = EditPresets.read(fc.getSelectedFile().toPath());
+            EditPresets.save(p);
+            refreshPresets();
+            for (int i = 0; i < presetModel.size(); i++) if (presetModel.get(i).name.equals(p.name)) presetList.setSelectedIndex(i);
+            app.notify("Preset added", p.name + " · Apply to use it", false);
+        } catch (Exception ex) { app.notify("Couldn't import that preset", ex.getMessage(), true); }
+    }
+
+    private void exportPreset() {
+        EditPresets.Preset p = presetList.getSelectedValue();
+        if (p == null) { app.notify("Pick a preset first", null, false); return; }
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File(Library.safe(p.name) + "." + EditPresets.EXT));
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+        try {
+            Path f = fc.getSelectedFile().toPath();
+            if (!f.toString().endsWith("." + EditPresets.EXT)) f = Path.of(f + "." + EditPresets.EXT);
+            EditPresets.write(p, f);
+            app.notify("Preset saved as a file", f.getFileName() + " · send it to a friend", false);
+        } catch (Exception ex) { app.notify("Couldn't save the file", ex.getMessage(), true); }
+    }
+
+    private void deletePreset() {
+        EditPresets.Preset p = presetList.getSelectedValue();
+        if (p == null || p.builtIn) { app.notify(p == null ? "Pick one of your presets" : "Built-in presets can't be deleted", null, false); return; }
+        try { EditPresets.delete(p); refreshPresets(); } catch (Exception ex) { app.notify("Couldn't delete it", ex.getMessage(), true); }
+    }
+
+    /** Community presets: browse, apply, keep, and share yours. */
+    private void communityDialog() {
+        javax.swing.JDialog d = new javax.swing.JDialog(SwingUtilities.getWindowAncestor(this), "Community presets", java.awt.Dialog.ModalityType.MODELESS);
+        javax.swing.DefaultListModel<EditPresets.Preset> model = new javax.swing.DefaultListModel<>();
+        javax.swing.JList<EditPresets.Preset> list = new javax.swing.JList<>(model);
+        list.setCellRenderer(new PresetRenderer() {
+            @Override public Component getListCellRendererComponent(javax.swing.JList<?> l, Object v, int i, boolean s, boolean f) {
+                JLabel c = (JLabel) super.getListCellRendererComponent(l, v, i, s, f);
+                if (v instanceof EditPresets.Preset p) c.setText(c.getText().replace("</html>", "<br><span style='color:#5C5C68;font-size:9px'>" + p.downloads + " downloads</span></html>"));
+                return c;
+            }
+        });
+        JComboBox<String> sort = new JComboBox<>(new String[]{"Newest", "Most downloaded"});
+        JLabel status = Theme.label("Loading...", 12f, false, Theme.DIM);
+        Runnable load = () -> {
+            status.setText("Loading...");
+            String by = sort.getSelectedIndex() == 1 ? "popular" : "new";
+            new Thread(() -> {
+                try {
+                    var got = EditPresets.community(app.cloud, by);
+                    SwingUtilities.invokeLater(() -> {
+                        model.clear();
+                        for (var p : got) model.addElement(p);
+                        status.setText(got.isEmpty() ? "No community presets yet. Share the first one." : got.size() + " presets · also at clips.evadeclient.com/presets");
+                    });
+                } catch (Exception ex) { SwingUtilities.invokeLater(() -> status.setText("Couldn't reach the share server: " + ex.getMessage())); }
+            }, "community-presets").start();
+        };
+        sort.addActionListener(e -> load.run());
+        JButton apply = Theme.button("Apply to this clip", null, true), keep = Theme.button("Save to my presets", null, false), share = Theme.button("Share one of mine...", null, false);
+        java.util.function.Consumer<java.util.function.Consumer<EditPresets.Preset>> withFull = then -> {
+            EditPresets.Preset sel = list.getSelectedValue();
+            if (sel == null) { status.setText("Pick a preset first."); return; }
+            new Thread(() -> {
+                try {
+                    EditPresets.Preset full = EditPresets.fetch(app.cloud, sel.communityId);
+                    SwingUtilities.invokeLater(() -> then.accept(full));
+                } catch (Exception ex) { SwingUtilities.invokeLater(() -> status.setText("Download failed: " + ex.getMessage())); }
+            }, "preset-download").start();
+        };
+        apply.addActionListener(e -> withFull.accept(this::applyPreset));
+        keep.addActionListener(e -> withFull.accept(full -> {
+            try { EditPresets.save(full); refreshPresets(); status.setText("Saved to your presets: " + full.name); } catch (Exception ex) { status.setText(ex.getMessage()); }
+        }));
+        share.addActionListener(e -> {
+            List<EditPresets.Preset> mine = EditPresets.mine();
+            if (mine.isEmpty()) { status.setText("Save one of your own first (Edit → Presets → Save mine)."); return; }
+            EditPresets.Preset pick = (EditPresets.Preset) javax.swing.JOptionPane.showInputDialog(d, "Which preset?", "Share a preset", javax.swing.JOptionPane.PLAIN_MESSAGE, null, mine.toArray(), mine.get(0));
+            if (pick == null) return;
+            String author = javax.swing.JOptionPane.showInputDialog(d, "Your name or channel (shown with it, optional)", app.settings.watermarkText == null ? "" : app.settings.watermarkText);
+            if (author == null) return;
+            String desc = javax.swing.JOptionPane.showInputDialog(d, "Describe it in a few words", pick.description);
+            if (desc == null) return;
+            pick.author = author.trim();
+            pick.description = desc.trim();
+            new Thread(() -> {
+                try {
+                    EditPresets.publish(app.cloud, pick);
+                    SwingUtilities.invokeLater(() -> { status.setText("Shared! Everyone can find \"" + pick.name + "\" now."); sort.setSelectedIndex(0); load.run(); });
+                } catch (Exception ex) { SwingUtilities.invokeLater(() -> status.setText("Couldn't share it: " + ex.getMessage())); }
+            }, "preset-share").start();
+        });
+        JPanel root = new JPanel(new BorderLayout(0, 10));
+        Theme.pad(root, 16, 16, 16, 16);
+        JPanel top = new JPanel(new BorderLayout(8, 0));
+        top.setOpaque(false);
+        top.add(Theme.heading("Community presets"), BorderLayout.WEST);
+        top.add(sort, BorderLayout.EAST);
+        root.add(top, BorderLayout.NORTH);
+        JScrollPane sp = new JScrollPane(list);
+        sp.setPreferredSize(new Dimension(460, 340));
+        root.add(sp, BorderLayout.CENTER);
+        JPanel bottom = new JPanel(new BorderLayout(0, 8));
+        bottom.setOpaque(false);
+        bottom.add(status, BorderLayout.NORTH);
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        btns.setOpaque(false);
+        btns.add(share);
+        btns.add(keep);
+        btns.add(apply);
+        bottom.add(btns, BorderLayout.SOUTH);
+        root.add(bottom, BorderLayout.SOUTH);
+        d.setContentPane(root);
+        d.pack();
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+        load.run();
+    }
+
+    // ------------------------------------------------------------------ speed ramps, zoom, masks, effects
+
+    /** Right-click on the timeline: effects, ramps and zoom at the clicked time. */
+    private void timelineMenu(javax.swing.JPopupMenu m, Double t) {
+        m.add(menuItem("Slow-mo ramp here", () -> rampAt(t, 0.3)));
+        m.add(menuItem("Zoom in here", () -> zoomInAt(t)));
+        javax.swing.JMenu fx = new javax.swing.JMenu("Add effect here");
+        for (String[] f : new String[][]{{"shake", "Shake"}, {"punch", "Zoom punch"}, {"flash", "Flash"}, {"hitmarker", "Hitmarker"}, {"sound", "Sound only"}})
+            fx.add(menuItem(f[1], () -> addEffect(f[0], t)));
+        m.add(fx);
+    }
+
+    private static javax.swing.JMenuItem menuItem(String label, Runnable r) {
+        javax.swing.JMenuItem it = new javax.swing.JMenuItem(label);
+        it.addActionListener(e -> r.run());
+        return it;
+    }
+
+    private void rampAt(double t, double slow) {
+        if (edit == null) return;
+        EditSpec before = edit.copy();
+        if (edit.rampAround(t, slow, 1.2, 1.0)) {
+            undo.push(before); redo.clear();
+            edited();
+            app.notify("Slow-mo ramp added", "Eases into " + Timeline.fmtSpeed(slow) + " and back out · smoothing: " + smoothing.getSelectedItem(), false);
+        } else app.notify("Can't ramp here", "Put the playhead inside a kept part", false);
+    }
+
+    private void startPick(Pick what, String message) {
+        pick = what;
+        view.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.CROSSHAIR_CURSOR));
+        if (player.isPlaying()) { player.pause(); updatePlayIcon(); }
+        app.notify(message, "Esc to cancel", false);
+    }
+
+    private void endPick() {
+        pick = Pick.NONE;
+        view.setCursor(java.awt.Cursor.getDefaultCursor());
+        view.repaint();
+    }
+
+    private void chooseCamFile() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Videos", Library.VIDEO_EXT.toArray(String[]::new)));
+        if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION || edit == null) return;
+        snapshot();
+        edit.camFile = fc.getSelectedFile().getAbsolutePath();
+        edited();
+        loadControls();
+    }
+
+    private EditSpec.ZoomKey selectedZoomKey() {
+        int i = zkList.getSelectedIndex();
+        List<EditSpec.ZoomKey> keys = edit == null ? List.of() : edit.sortedZooms();
+        return i < 0 || i >= keys.size() ? null : keys.get(i);
+    }
+
+    private void refreshZoomKeys() {
+        int sel = zkList.getSelectedIndex();
+        loading = true;
+        zkModel.clear();
+        for (EditSpec.ZoomKey k : edit.sortedZooms())
+            zkModel.addElement(Theme.timeFine(k.t) + "   " + (k.zoom <= 1.001 ? "full frame" : Timeline.fmtSpeed(k.zoom).replace("×", "x zoom") + " · " + targetName(k)));
+        loading = false;
+        if (sel >= 0 && sel < zkModel.size()) zkList.setSelectedIndex(sel);
+    }
+
+    private static String targetName(EditSpec.ZoomKey k) {
+        String[] names = {"centre", "kill feed", "chat", "minimap", "health"};
+        for (int i = 0; i < TARGETS.length; i++) if (Math.abs(TARGETS[i][0] - k.cx) < 0.02 && Math.abs(TARGETS[i][1] - k.cy) < 0.02) return names[i];
+        return "custom spot";
+    }
+
+    private void loadZoomKey() {
+        EditSpec.ZoomKey k = selectedZoomKey();
+        if (k == null) return;
+        loading = true;
+        if (k.zoom > 1.001) zoomAmount.setValue((int) Math.round(k.zoom * 100));
+        for (int i = 0; i < TARGETS.length; i++) if (Math.abs(TARGETS[i][0] - k.cx) < 0.02 && Math.abs(TARGETS[i][1] - k.cy) < 0.02) zoomTarget.setSelectedIndex(i);
+        loading = false;
+    }
+
+    private double[] target() {
+        int i = zoomTarget.getSelectedIndex();
+        return i >= 0 && i < TARGETS.length ? TARGETS[i] : new double[]{pickedX, pickedY};
+    }
+
+    private double pickedX = 0.5, pickedY = 0.5;
+
+    private void addZoomKey(double t) {
+        if (edit == null) return;
+        snapshot();
+        double[] c = target();
+        edit.zooms.add(new EditSpec.ZoomKey(t, zoomAmount.getValue() / 100.0, c[0], c[1]));
+        edited();
+        refreshZoomKeys();
+    }
+
+    /** Glide in on the target, hold, glide back out. */
+    private void zoomInAt(double t) {
+        if (edit == null || clip == null) return;
+        snapshot();
+        double[] c = target();
+        double z = zoomAmount.getValue() / 100.0;
+        edit.zooms.add(new EditSpec.ZoomKey(Math.max(0, t - 0.5), 1, 0.5, 0.5));
+        edit.zooms.add(new EditSpec.ZoomKey(t, z, c[0], c[1]));
+        edit.zooms.add(new EditSpec.ZoomKey(Math.min(clip.duration, t + 1.0), z, c[0], c[1]));
+        edit.zooms.add(new EditSpec.ZoomKey(Math.min(clip.duration, t + 1.6), 1, 0.5, 0.5));
+        edited();
+        refreshZoomKeys();
+        app.notify("Zoom added", Timeline.fmtSpeed(z).replace("×", "x") + " on the " + targetName(edit.zooms.get(edit.zooms.size() - 3)) + " · change the target or amount in Frame", false);
+    }
+
+    private EditSpec.Mask selectedMask() {
+        int i = maskList.getSelectedIndex();
+        return edit == null || i < 0 || i >= edit.masks.size() ? null : edit.masks.get(i);
+    }
+
+    private void addMask() {
+        if (edit == null || clip == null) return;
+        snapshot();
+        EditSpec.Mask m = new EditSpec.Mask();
+        m.start = player.time();
+        m.end = clip.duration;
+        m.kind = MASKS[maskKind.getSelectedIndex()];
+        edit.masks.add(m);
+        edited();
+        refreshMasks();
+        maskList.setSelectedIndex(edit.masks.size() - 1);
+        startPick(Pick.MASK, "Drag a box over what to hide");
+    }
+
+    private void refreshMasks() {
+        int sel = maskList.getSelectedIndex();
+        loading = true;
+        maskModel.clear();
+        for (EditSpec.Mask m : edit.masks) maskModel.addElement(Theme.timeFine(m.start) + "–" + Theme.timeFine(m.end) + "   " + maskKind.getItemAt(java.util.Arrays.asList(MASKS).indexOf(m.kind)));
+        loading = false;
+        if (sel >= 0 && sel < maskModel.size()) maskList.setSelectedIndex(sel);
+    }
+
+    private void loadMask() {
+        EditSpec.Mask m = selectedMask();
+        if (m == null) return;
+        loading = true;
+        maskKind.setSelectedIndex(Math.max(0, java.util.Arrays.asList(MASKS).indexOf(m.kind)));
+        loading = false;
+    }
+
+    private void refreshSoundBoxes() {
+        Object a = fxSound.getSelectedItem(), b = fxSoundSel.getSelectedItem();
+        boolean was = loading;
+        loading = true;
+        fxSound.removeAllItems();
+        fxSoundSel.removeAllItems();
+        fxSound.addItem("No sound");
+        fxSoundSel.addItem("No sound");
+        for (String n : Sounds.list()) { fxSound.addItem(n); fxSoundSel.addItem(n); }
+        if (a != null) fxSound.setSelectedItem(a);
+        if (b != null) fxSoundSel.setSelectedItem(b);
+        loading = was;
+    }
+
+    private void previewSound(String name) {
+        if (name == null || fxSound.getSelectedIndex() <= 0) return;
+        new Thread(() -> {
+            try {
+                Path f = Sounds.file(name);
+                if (f == null) return;
+                Path wav = f;
+                if (!f.toString().toLowerCase().endsWith(".wav")) {
+                    wav = Files.createTempFile("evadeclips-sound", ".wav");
+                    Ffmpeg.run(List.of("-y", "-i", f.toString(), "-ar", "48000", "-ac", "2", "-sample_fmt", "s16", wav.toString()));
+                }
+                try (var in = javax.sound.sampled.AudioSystem.getAudioInputStream(wav.toFile())) {
+                    javax.sound.sampled.Clip c = javax.sound.sampled.AudioSystem.getClip();
+                    c.open(in);
+                    c.start();
+                    Thread.sleep(Math.min(4000, c.getMicrosecondLength() / 1000 + 100));
+                    c.close();
+                }
+            } catch (Exception ex) { app.notify("Couldn't play that sound", ex.getMessage(), true); }
+        }, "sound-preview").start();
+    }
+
+    private void addEffect(String type, double t) {
+        if (edit == null) return;
+        if (edit.segmentAt(t) < 0) { app.notify("That's in a cut part", "Effects go on kept parts", false); return; }
+        String sound = fxSound.getSelectedIndex() <= 0 ? "" : (String) fxSound.getSelectedItem();
+        if (type.equals("sound") && sound.isEmpty()) { app.notify("Pick a sound first", "Effects → Sound", false); return; }
+        snapshot();
+        EditSpec.Effect f = new EditSpec.Effect(type, t, sound);
+        edit.effects.add(f);
+        edited();
+        refreshEffects();
+        fxList.setSelectedIndex(edit.effects.indexOf(f));
+    }
+
+    private EditSpec.Effect selectedEffect() {
+        int i = fxList.getSelectedIndex();
+        return edit == null || i < 0 || i >= edit.effects.size() ? null : edit.effects.get(i);
+    }
+
+    private void refreshEffects() {
+        int sel = fxList.getSelectedIndex();
+        loading = true;
+        fxModel.clear();
+        for (EditSpec.Effect f : edit.effects) {
+            String name = switch (f.type) { case "shake" -> "Shake"; case "punch" -> "Zoom punch"; case "flash" -> "Flash"; case "hitmarker" -> "Hitmarker"; default -> "Sound"; };
+            fxModel.addElement(Theme.timeFine(f.t) + "   " + name + (f.sound.isBlank() ? "" : "  ·  sound: " + f.sound));
+        }
+        loading = false;
+        if (sel >= 0 && sel < fxModel.size()) fxList.setSelectedIndex(sel);
+        loadEffect();
+    }
+
+    private void loadEffect() {
+        EditSpec.Effect f = selectedEffect();
+        boolean on = f != null;
+        loading = true;
+        fxStrength.setEnabled(on && !f.type.equals("sound") && !f.type.equals("hitmarker"));
+        fxVolume.setEnabled(on && !f.sound.isBlank());
+        fxSoundSel.setEnabled(on);
+        if (on) {
+            fxStrength.setValue((int) Math.round(f.strength * 100));
+            fxVolume.setValue((int) Math.round(f.volume * 100));
+            fxSoundSel.setSelectedItem(f.sound.isBlank() ? "No sound" : f.sound);
+        }
+        loading = false;
+    }
+
+    // ------------------------------------------------------------------ auto-captions
+
+    private void autoCaption() {
+        if (clip == null || edit == null) return;
+        if (!clip.hasAudio) { app.notify("This clip has no sound to caption", null, false); return; }
+        if (!AutoCaptions.ready()) {
+            int ok = javax.swing.JOptionPane.showConfirmDialog(this, "Auto-captions use the offline speech engine (about 70 MB, downloaded once,\n"
+                    + "the same one as voice commands). Nothing you say leaves your PC. Download it now?", "Auto-captions", javax.swing.JOptionPane.OK_CANCEL_OPTION);
+            if (ok != javax.swing.JOptionPane.OK_OPTION) return;
+            acBtn.setEnabled(false);
+            new Thread(() -> {
+                try {
+                    net.evadeclient.clips.core.VoiceCommands.downloadAll(pr -> SwingUtilities.invokeLater(() -> acStatus.setText("Downloading the speech engine · " + Math.round(pr * 100) + "%")));
+                    SwingUtilities.invokeLater(() -> { acBtn.setEnabled(true); autoCaption(); });
+                } catch (Exception ex) {
+                    SwingUtilities.invokeLater(() -> { acBtn.setEnabled(true); acStatus.setText("Download failed: " + ex.getMessage()); });
+                }
+            }, "speech-download").start();
+            return;
+        }
+        if (!edit.captions.isEmpty()) {
+            int r = javax.swing.JOptionPane.showConfirmDialog(this, "Replace the captions this clip already has?", "Auto-captions", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
+            if (r == javax.swing.JOptionPane.CANCEL_OPTION || r == javax.swing.JOptionPane.CLOSED_OPTION) return;
+            if (r == javax.swing.JOptionPane.YES_OPTION) { snapshot(); edit.captions.clear(); }
+        }
+        Clip c = clip;
+        AutoCaptions.Source src = (AutoCaptions.Source) acSource.getSelectedItem();
+        AutoCaptions.Layout layout = (AutoCaptions.Layout) acLayout.getSelectedItem();
+        String pos = ((String) acPos.getSelectedItem()).toLowerCase();
+        double from = edit.segments.get(0).start, to = edit.segments.get(edit.segments.size() - 1).end;
+        acBtn.setEnabled(false);
+        acStatus.setText("Listening...");
+        new Thread(() -> {
+            try {
+                var words = AutoCaptions.transcribe(c.path(app.library.root()), c, src, from, to,
+                        pr -> SwingUtilities.invokeLater(() -> acStatus.setText("Listening · " + Math.round(pr * 100) + "%")));
+                var caps = AutoCaptions.build(words, layout, pos);
+                SwingUtilities.invokeLater(() -> {
+                    acBtn.setEnabled(true);
+                    if (clip != c) return;
+                    if (caps.isEmpty()) { acStatus.setText("No speech found. Try another source above."); return; }
+                    snapshot();
+                    edit.captions.addAll(caps);
+                    edit.captions.sort(java.util.Comparator.comparingDouble(x -> x.start));
+                    edited();
+                    refreshCaptions();
+                    acStatus.setText(words.size() + " words → " + caps.size() + " captions. Click one to fix its text.");
+                });
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() -> { acBtn.setEnabled(true); acStatus.setText("Couldn't caption: " + ex.getMessage()); });
+            }
+        }, "auto-captions").start();
+    }
+
+    // ------------------------------------------------------------------ project export
+
+    private void exportProject() {
+        if (clip == null || edit == null) return;
+        commitMeta();
+        clip.edit = edit;
+        app.library.update(clip);
+        Clip c = clip;
+        EditSpec e = edit.copy();
+        boolean pr = prores.isSelected();
+        app.notify("Making the project folder...", pr ? "Making the ProRes copy takes a little while" : null, false);
+        new Thread(() -> {
+            try {
+                Path dir = ProjectExport.export(c.path(app.library.root()), c, e, app.library.folder(Clip.Kind.EXPORT), pr, null, null);
+                app.notify("Project folder ready", "Open the .jsx in After Effects or the .xml in Premiere / Resolve", false);
+                LibraryPanel.reveal(dir);
+            } catch (Exception ex) { app.notify("Project export failed", ex.getMessage(), true); }
+        }, "project-export").start();
+    }
+
     // ------------------------------------------------------------------ playback
 
     private void togglePlay() {
@@ -967,7 +1789,7 @@ public final class EditorPanel extends JPanel {
                 if (t >= clip.duration - 0.05 || (edit.segmentAt(t) < 0)) t = edit.segments.get(0).start;
             } else if (t >= clip.duration - 0.05) t = 0;
             int i = edit.segmentAt(t);
-            player.play(t, previewEdits.isSelected() && i >= 0 ? edit.segments.get(i).speed : 1);
+            player.play(t, previewEdits.isSelected() && i >= 0 ? edit.segments.get(i).speedAt(t) : 1);
         }
         updatePlayIcon();
     }
@@ -999,12 +1821,14 @@ public final class EditorPanel extends JPanel {
             if (i < 0) {
                 double n = nextSegmentStart(t);
                 if (n >= clip.duration - 0.01) { player.pause(); updatePlayIcon(); }
-                else { int j = edit.segmentAt(n); player.play(n, edit.segments.get(j).speed); }
+                else { int j = edit.segmentAt(n); player.play(n, edit.segments.get(j).speedAt(n)); }
             } else {
                 EditSpec.Segment s = edit.segments.get(i);
-                if (Math.abs(player.speed() - s.speed) > 1e-6) player.play(t, s.speed);
+                double want = s.speedAt(t);
+                // ramps: follow the curve in steps (each change restarts playback, so not every frame)
+                if (Math.abs(player.speed() - want) > (s.ramped() ? 0.12 * want : 1e-6)) player.play(t, want);
                 else if (t >= s.end - 0.035) {
-                    if (i + 1 < edit.segments.size()) player.play(edit.segments.get(i + 1).start, edit.segments.get(i + 1).speed);
+                    if (i + 1 < edit.segments.size()) player.play(edit.segments.get(i + 1).start, edit.segments.get(i + 1).speedAt(edit.segments.get(i + 1).start));
                     else { player.pause(); updatePlayIcon(); }
                 }
             }
@@ -1017,7 +1841,14 @@ public final class EditorPanel extends JPanel {
             int i = edit.segmentAt(t);
             loading = true;
             speed.setEnabled(i >= 0);
-            if (i >= 0) speed.setSelectedItem(Timeline.fmtSpeed(edit.segments.get(i).speed));
+            if (i >= 0) {
+                speed.setSelectedItem(Timeline.fmtSpeed(edit.segments.get(i).speed));
+                double rt = edit.segments.get(i).ramped() ? edit.segments.get(i).rampTo : 0;
+                int ri = 0;
+                for (int k = 0; k < RAMP_TO.length; k++) if (Math.abs(RAMP_TO[k] - rt) < 1e-3) ri = k;
+                rampTo.setSelectedIndex(ri);
+            }
+            rampTo.setEnabled(i >= 0);
             loading = false;
         }
     }
@@ -1060,11 +1891,18 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "hl", this::highlightReel);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_P, 0), "shot", this::frameGrab);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_C, 0), "caption", this::addCaption);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "ramp", () -> rampAt(player.time(), 0.3));
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0), "zoomin", () -> zoomInAt(player.time()));
+        String[] fxKeys = {"shake", "punch", "flash", "hitmarker", "sound"};
+        for (int i = 0; i < fxKeys.length; i++) {
+            String type = fxKeys[i];
+            key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, 0), "fx" + i, () -> addEffect(type, player.time()));
+        }
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "undo", this::undo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "redo", this::redo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), "redo2", this::redo);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_E, InputEvent.CTRL_DOWN_MASK), "export", this::exportOrCancel);
-        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "esc", () -> app.openEditor.accept(null));
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "esc", () -> { if (pick != Pick.NONE) endPick(); else app.openEditor.accept(null); });
     }
 
     /** Bound keys that would otherwise type into text fields are skipped while one has focus. */
@@ -1089,10 +1927,11 @@ public final class EditorPanel extends JPanel {
         Exporter.Options o = options();
         String info = p.description;
         if (p == Exporter.Preset.QUICK_TRIM) {
-            boolean simple = edit.segments.stream().allMatch(s -> s.speed == 1) && edit.aspect.equals("original") && edit.zoom == 1
+            boolean simple = edit.segments.stream().allMatch(s -> s.speed == 1 && !s.ramped()) && edit.aspect.equals("original") && edit.zoom == 1
+                    && edit.zooms.isEmpty() && edit.effects.isEmpty() && edit.masks.isEmpty()
                     && edit.titleText.isBlank() && edit.volume == 1 && !edit.mute && edit.fadeIn == 0 && edit.fadeOut == 0
                     && edit.captions.isEmpty() && "none".equals(edit.effect);
-            if (!simple) info += " Only cuts are applied: speed, framing, audio, captions, effects and title need another preset.";
+            if (!simple) info += " Only cuts are applied: speed, framing, zoom, audio, captions, effects and title need another preset.";
         } else {
             int[] sz = Exporter.outputSize(clip, edit, o);
             info += "<br><span style='color:#F4F4F6'>" + sz[0] + "×" + sz[1] + " · " + Theme.timeFine(edit.outputDuration()) + "</span>";
@@ -1158,13 +1997,66 @@ public final class EditorPanel extends JPanel {
         private volatile BufferedImage frame;
         private int srcW = 16, srcH = 9;
 
+        // where the frame and the export's area were last drawn (for drawing boxes on the video)
+        private double fx, fy, fw = 1, fh = 1;
+        private Rectangle2D area = new Rectangle2D.Double();
+        private java.awt.Point dragFrom, dragTo;
+
         VideoView() {
             setFocusable(true);
             setPreferredSize(new Dimension(640, 360));
-            addMouseListener(new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e) { requestFocusInWindow(); }
-                @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 1) togglePlay(); }
-            });
+            MouseAdapter ma = new MouseAdapter() {
+                @Override public void mousePressed(MouseEvent e) {
+                    requestFocusInWindow();
+                    if (pick != Pick.NONE) { dragFrom = e.getPoint(); dragTo = e.getPoint(); }
+                }
+                @Override public void mouseDragged(MouseEvent e) { if (dragFrom != null) { dragTo = e.getPoint(); repaint(); } }
+                @Override public void mouseReleased(MouseEvent e) {
+                    if (pick == Pick.NONE || dragFrom == null) return;
+                    picked(dragFrom, e.getPoint());
+                    dragFrom = dragTo = null;
+                }
+                @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 1 && pick == Pick.NONE) togglePlay(); }
+            };
+            addMouseListener(ma);
+            addMouseMotionListener(ma);
+        }
+
+        /** A box dragged (or a spot clicked) on the video, for the facecam, a blur area or a zoom target. */
+        private void picked(java.awt.Point a, java.awt.Point b) {
+            if (edit == null) { endPick(); return; }
+            double ax = (Math.min(a.x, b.x) - fx) / fw, ay = (Math.min(a.y, b.y) - fy) / fh;
+            double bx = (Math.max(a.x, b.x) - fx) / fw, by = (Math.max(a.y, b.y) - fy) / fh;
+            ax = Exporter.clamp01(ax); ay = Exporter.clamp01(ay); bx = Exporter.clamp01(bx); by = Exporter.clamp01(by);
+            boolean click = Math.abs(a.x - b.x) < 6 && Math.abs(a.y - b.y) < 6;
+            switch (pick) {
+                case CAM -> {
+                    if (click || bx - ax < 0.03 || by - ay < 0.03) return;
+                    snapshot();
+                    edit.camX = ax; edit.camY = ay; edit.camW = bx - ax; edit.camH = by - ay;
+                    edited();
+                    loadControls();
+                }
+                case MASK -> {
+                    EditSpec.Mask m = selectedMask();
+                    if (m == null || click) return;
+                    // masks are placed on the export's frame: convert from the source to the export area
+                    double rx = (Math.min(a.x, b.x) - area.getX()) / area.getWidth(), ry = (Math.min(a.y, b.y) - area.getY()) / area.getHeight();
+                    double rw = Math.abs(a.x - b.x) / area.getWidth(), rh = Math.abs(a.y - b.y) / area.getHeight();
+                    snapshot();
+                    m.x = Exporter.clamp01(rx); m.y = Exporter.clamp01(ry); m.w = Math.max(0.02, Math.min(1 - m.x, rw)); m.h = Math.max(0.02, Math.min(1 - m.y, rh));
+                    edited();
+                }
+                case ZOOM -> {
+                    double cx = click ? ax : (ax + bx) / 2, cy = click ? ay : (ay + by) / 2;
+                    pickedX = cx; pickedY = cy;
+                    EditSpec.ZoomKey k = selectedZoomKey();
+                    if (k != null && k.zoom > 1.001) { snapshot(); k.cx = cx; k.cy = cy; edited(); refreshZoomKeys(); }
+                    app.notify("Zoom target set", "Zoom in at playhead (Z) uses this spot", false);
+                }
+                default -> {}
+            }
+            endPick();
         }
 
         void setSource(int w, int h) { srcW = Math.max(1, w); srcH = Math.max(1, h); }
@@ -1179,8 +2071,17 @@ public final class EditorPanel extends JPanel {
             double k = Math.min(W / (double) srcW, H / (double) srcH);
             int dw = (int) (srcW * k), dh = (int) (srcH * k);
             int x = (W - dw) / 2, y = (H - dh) / 2;
+            fx = x; fy = y; fw = dw; fh = dh;
             BufferedImage f = frame;
-            if (f != null) g.drawImage(f, x, y, dw, dh, null);
+            double[] zz = previewEdits.isSelected() && edit != null && pick == Pick.NONE ? zoomAt(player.time()) : null;
+            if (f != null && zz != null && zz[0] > 1.001) {
+                // zoom keyframes, previewed: show the part of the frame the export will
+                double z = zz[0];
+                int sw = (int) (f.getWidth() / z), sh = (int) (f.getHeight() / z);
+                int sx = (int) Math.max(0, Math.min(f.getWidth() - sw, zz[1] * f.getWidth() - sw / 2.0));
+                int sy = (int) Math.max(0, Math.min(f.getHeight() - sh, zz[2] * f.getHeight() - sh / 2.0));
+                g.drawImage(f, x, y, x + dw, y + dh, sx, sy, sx + sw, sy + sh, null);
+            } else if (f != null) g.drawImage(f, x, y, dw, dh, null);
             if (edit != null && clip != null) {
                 boolean framed = !edit.aspect.equals("original") || edit.zoom > 1.001;
                 if (framed) {
@@ -1245,6 +2146,57 @@ public final class EditorPanel extends JPanel {
                     if (capPreview.size() > 64) capPreview.clear();
                     g.drawImage(im, (int) area2.getX(), (int) area2.getY(), null);
                 }
+                area = area2;
+                // facecam area (split layout)
+                if ("split".equals(edit.fitMode) && edit.camFile.isBlank()) {
+                    Rectangle2D cam = new Rectangle2D.Double(x + dw * edit.camX, y + dh * edit.camY, dw * edit.camW, dh * edit.camH);
+                    g.setColor(new Color(0xFF9F1C));
+                    g.setStroke(new BasicStroke(2f));
+                    g.draw(cam);
+                    g.setFont(Theme.interBold.deriveFont(11f));
+                    g.drawString("FACECAM (goes on top)", (int) cam.getX() + 4, (int) cam.getY() - 5);
+                }
+                // blur areas
+                for (EditSpec.Mask m : edit.masks) {
+                    if (now < m.start || now > m.end) continue;
+                    Rectangle2D r = new Rectangle2D.Double(area2.getX() + area2.getWidth() * m.x, area2.getY() + area2.getHeight() * m.y,
+                            area2.getWidth() * m.w, area2.getHeight() * m.h);
+                    g.setColor(m.kind.equals("black") ? Color.BLACK : new Color(40, 40, 52, 215));
+                    g.fill(r);
+                    g.setColor(new Color(255, 255, 255, 150));
+                    g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{5, 4}, 0));
+                    g.draw(r);
+                    g.setFont(Theme.interBold.deriveFont(10.5f));
+                    g.drawString(m.kind.toUpperCase(), (int) r.getX() + 5, (int) r.getY() + 14);
+                }
+                // hitmarkers and flashes right now
+                for (EditSpec.Effect fxe : edit.effects) {
+                    if (now < fxe.t || now > fxe.t + Math.max(0.12, fxe.length)) continue;
+                    if (fxe.type.equals("hitmarker")) {
+                        BufferedImage hm = Exporter.renderHitmarker((int) area2.getWidth(), (int) area2.getHeight());
+                        g.drawImage(hm, (int) area2.getX(), (int) area2.getY(), null);
+                    } else if (fxe.type.equals("flash")) {
+                        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) (0.6 * (1 - (now - fxe.t) / Math.max(0.1, fxe.length)))));
+                        g.setColor(Color.WHITE);
+                        g.fill(area2);
+                        g.setComposite(AlphaComposite.SrcOver);
+                    }
+                }
+                // the box being dragged
+                if (dragFrom != null && dragTo != null) {
+                    g.setColor(pick == Pick.CAM ? new Color(0xFF9F1C) : Theme.BLUE);
+                    g.setStroke(new BasicStroke(2f));
+                    g.drawRect(Math.min(dragFrom.x, dragTo.x), Math.min(dragFrom.y, dragTo.y), Math.abs(dragFrom.x - dragTo.x), Math.abs(dragFrom.y - dragTo.y));
+                }
+                if (pick != Pick.NONE) {
+                    String msg = pick == Pick.ZOOM ? "Click the spot to zoom in on" : pick == Pick.CAM ? "Drag a box around your facecam" : "Drag a box over what to hide";
+                    g.setFont(Theme.interBold.deriveFont(13f));
+                    int mw = g.getFontMetrics().stringWidth(msg) + 20;
+                    g.setColor(new Color(0, 0, 0, 200));
+                    g.fill(new java.awt.geom.RoundRectangle2D.Double((W - mw) / 2.0, 10, mw, 28, 14, 14));
+                    g.setColor(Color.WHITE);
+                    g.drawString(msg, (W - mw) / 2 + 10, 29);
+                }
                 // dim when the playhead sits in a cut-out part
                 if (edit.segmentAt(player.time()) < 0) {
                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.55f));
@@ -1260,8 +2212,30 @@ public final class EditorPanel extends JPanel {
             g.dispose();
         }
 
-        private double aspect() { return switch (edit.aspect) {
-            case "16:9" -> 16 / 9.0; case "9:16" -> 9 / 16.0; case "1:1" -> 1; case "4:5" -> 0.8; default -> srcW / (double) srcH; }; }
+        /** {zoom, cx, cy} from the zoom keyframes at source time t (the same eased glide as the export). */
+        private double[] zoomAt(double t) {
+            List<EditSpec.ZoomKey> keys = edit.sortedZooms();
+            if (keys.isEmpty()) return null;
+            if (t <= keys.get(0).t) return new double[]{keys.get(0).zoom, keys.get(0).cx, keys.get(0).cy};
+            for (int i = 1; i < keys.size(); i++) {
+                EditSpec.ZoomKey a = keys.get(i - 1), b = keys.get(i);
+                if (t <= b.t) {
+                    double u = Math.max(0, Math.min(1, (t - a.t) / Math.max(0.05, b.t - a.t)));
+                    double e = u * u * (3 - 2 * u);
+                    return new double[]{a.zoom + (b.zoom - a.zoom) * e, a.cx + (b.cx - a.cx) * e, a.cy + (b.cy - a.cy) * e};
+                }
+            }
+            EditSpec.ZoomKey l = keys.get(keys.size() - 1);
+            return new double[]{l.zoom, l.cx, l.cy};
+        }
+
+        private double aspect() {
+            double r = switch (edit.aspect) {
+                case "16:9" -> 16 / 9.0; case "9:16" -> 9 / 16.0; case "1:1" -> 1; case "4:5" -> 0.8; default -> srcW / (double) srcH; };
+            // facecam on top: the gameplay fills only the part below it, so its slice is wider
+            if ("split".equals(edit.fitMode) && !edit.aspect.equals("original") && !edit.aspect.equals("16:9")) r /= Math.max(0.3, 1 - edit.camShare);
+            return r;
+        }
 
         private Rectangle2D cropRect(int x, int y, int dw, int dh) {
             double r = aspect(), sr = dw / (double) dh;
@@ -1274,13 +2248,5 @@ public final class EditorPanel extends JPanel {
     }
 
     /** Where source time t lands in the exported clip. */
-    private double outputTimeAt(double t) {
-        double out = 0;
-        for (EditSpec.Segment s : edit.segments) {
-            if (t >= s.end) out += s.outputLength();
-            else if (t >= s.start) { out += (t - s.start) / s.speed; break; }
-            else break;
-        }
-        return out;
-    }
+    private double outputTimeAt(double t) { return edit.toOutput(t); }
 }

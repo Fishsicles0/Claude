@@ -32,7 +32,8 @@ public final class VoskEngine implements VoiceCommands.Engine {
     }
 
     private Recognizer recognizer() throws java.io.IOException {
-        Recognizer r = new Recognizer(model, RATE, grammar);
+        // no grammar = free dictation (auto-captions); a grammar = only the command phrases
+        Recognizer r = grammar == null ? new Recognizer(model, RATE) : new Recognizer(model, RATE, grammar);
         r.setWords(true);
         return r;
     }
