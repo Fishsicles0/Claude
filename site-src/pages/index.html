@@ -15,7 +15,7 @@ nav: home
         </a>
         <a class="btn btn-ghost btn-lg" href="/features">Browse all {{TOTAL}} mods</a>
       </div>
-      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></p>
+      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span><span class="js-meta-more"> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></span></p>
       <div class="trust rv d3">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Free, no account</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>SHA-256 for every file</span>
@@ -24,8 +24,16 @@ nav: home
     </div>
     <div class="stage rv d2">
       <div class="stage-frame">
-        <div class="stage-bar"><i></i><i></i><i></i><span>Evade Client &middot; Right Shift</span></div>
-        <img src="/assets/menu-hero.webp" alt="The Evade Client menu: categories on the left and a grid of mod cards" width="1420" height="799" fetchpriority="high">
+        <div class="stage-bar" role="tablist" aria-label="Evade in action">
+          <button class="stage-dot on" role="tab" aria-selected="true" aria-label="The menu" data-label="The menu" data-src="/assets/menu-clip.mp4" data-poster="/assets/menu-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="HUD editor" data-label="HUD editor" data-src="/assets/hud-clip.mp4" data-poster="/assets/hud-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="Zoom and Freelook" data-label="Zoom &amp; Freelook" data-src="/assets/play-clip.mp4" data-poster="/assets/play-clip.webp"></button>
+          <span class="stage-label" id="stageLabel">The menu</span>
+        </div>
+        <div class="stage-screen">
+          <video id="stageVid" src="/assets/menu-clip.mp4" poster="/assets/menu-clip.webp" muted playsinline autoplay preload="auto" width="1280" height="720" aria-label="Recording of Evade in game"></video>
+          <i class="stage-progress" id="stageProgress"></i>
+        </div>
       </div>
       <img class="float float-a" src="/assets/crop-keys.webp" alt="" width="432" height="516" loading="lazy">
       <img class="float float-b" src="/assets/crop-cooldowns.webp" alt="" width="528" height="340" loading="lazy">
@@ -83,8 +91,8 @@ nav: home
   </div>
   <div class="shots">
     <a class="card shot-card w3 rv" href="/showcase">
-      <div class="img"><video src="/assets/menu-clip.mp4" poster="/assets/menu-clip.webp" autoplay muted loop playsinline preload="metadata" width="1280" height="720" aria-label="Recording of the Evade menu: opening, hovering, toggling and switching themes"></video></div>
-      <div class="txt"><span class="tag">Menu</span><h3>Fast to use, easy to read</h3><p>Categories down the side, every mod one click away, and a search that starts as soon as you type.</p></div>
+      <div class="img"><img src="/assets/menu-settings.webp" alt="A mod's settings in the Evade menu: sliders, switches and a keybind" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu</span><h3>Every setting, one click away</h3><p>Categories down the side, a search that starts as soon as you type, and sliders, modes, colours and keybinds for every mod.</p></div>
     </a>
     <a class="card shot-card w3 rv d1" href="/showcase">
       <div class="img"><img src="/assets/gui-styles.webp" alt="The three Evade GUI styles stacked: List, Cards and Compact" width="1920" height="1080" loading="lazy"></div>

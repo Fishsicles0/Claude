@@ -688,9 +688,42 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             e.scale.fromJson(new com.google.gson.JsonPrimitive(el[5] / 100.0));
         });
         ctx.setScreen(() -> null);
+
+        // --- clip 3: in game. Zoom in on the scene, scroll to zoom further, let go, then look around with Freelook.
+        boolean[] camWas = ctx.computeOnClient(c -> new boolean[]{
+                EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).isEnabled(),
+                EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).isEnabled()});
+        ctx.runOnClient(c -> {
+            EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).setEnabled(true);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).setEnabled(true);
+            c.particleManager.clearParticles();
+        });
+        t.set(2_000_000);
+        EvadeMenu.clock = t::get;
+        Runnable play = () -> { t.addAndGet(33); ctx.takeScreenshot("clip-play"); };
+        try {
+            for (int i = 0; i < 15; i++) play.run();
+            in.holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+            for (int i = 0; i < 30; i++) play.run();
+            in.scroll(1);
+            for (int i = 0; i < 12; i++) play.run();
+            in.scroll(1);
+            for (int i = 0; i < 24; i++) play.run();
+            in.releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+            for (int i = 0; i < 18; i++) play.run();
+            in.holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+            for (int i = 0; i < 4; i++) play.run();
+            for (int i = 0; i < 60; i++) { in.moveCursor(i < 30 ? 14 : -14, i % 30 < 15 ? -2 : 2); play.run(); }
+            in.releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
+            for (int i = 0; i < 15; i++) play.run();
+        } finally {
+            EvadeMenu.clock = System::currentTimeMillis;
+        }
         ctx.runOnClient(c -> {
             setMode(cs, "GUI Style", "Compact");
             EvadeClient.modules.get(net.evadeclient.module.hud.FpsHud.class).setEnabled(fpsWasOn);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class).setEnabled(camWas[0]);
+            EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).setEnabled(camWas[1]);
         });
     }
 

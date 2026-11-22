@@ -100,5 +100,6 @@ def clip(name, out, poster_at):
 print("recordings -> mp4:")
 clip("clip-menu", "menu-clip", 40)
 clip("clip-hud", "hud-clip", 50)
+clip("clip-play", "play-clip", 60)
 
 print("done")

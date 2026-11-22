@@ -16,7 +16,7 @@ public class Zoom extends Module {
     private final BooleanSetting cinematic = add(new BooleanSetting("Cinematic Camera", false));
 
     private double current = 1, scrollMult = 1;
-    private long lastFrame = System.nanoTime();
+    private long lastFrame = net.evadeclient.gui.EvadeMenu.clock.getAsLong();
     private boolean savedSmooth, wasZooming;
 
     public Zoom() {
@@ -28,8 +28,8 @@ public class Zoom extends Module {
 
     /** Called from the FOV mixin every frame. */
     public double fovMultiplier() {
-        long now = System.nanoTime();
-        double dt = Math.min(0.1, (now - lastFrame) / 1e9);
+        long now = net.evadeclient.gui.EvadeMenu.clock.getAsLong(); // ms; tests swap in a fixed-step clock
+        double dt = Math.min(0.1, (now - lastFrame) / 1000.0);
         lastFrame = now;
         boolean z = zooming();
         if (z != wasZooming) {

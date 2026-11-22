@@ -221,9 +221,42 @@ if (os === "mac" || os === "linux") {
   setText(".js-primary-label", os === "mac" ? "Download for macOS" : "Download for Linux");
   setText(".js-primary-meta", "One-click installer · needs Java 17+");
 } else if (os === "phone") {
-  setText(".js-primary-meta", "Evade runs on a computer · Windows, macOS, Linux");
+  setText(".js-primary-meta", "Evade runs on a computer: Windows, macOS or Linux");
+  all(".js-meta-more").forEach(e => e.remove());
 }
 all(".os[data-os]").forEach(c => c.classList.toggle("yours", c.dataset.os === os));
+
+// ---------- hero player: the three window dots switch between recordings; each plays through, then the next
+const stageVid = one("#stageVid");
+if (stageVid) {
+  const dots = all(".stage-dot"), label = one("#stageLabel"), bar = one("#stageProgress");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let cur = 0, raf = 0;
+  const tick = () => {
+    if (stageVid.duration) bar.style.transform = `scaleX(${stageVid.currentTime / stageVid.duration})`;
+    raf = requestAnimationFrame(tick);
+  };
+  const show = (i, play) => {
+    cur = (i + dots.length) % dots.length;
+    const d = dots[cur];
+    dots.forEach(x => { const on = x === d; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
+    label.textContent = d.dataset.label;
+    stageVid.poster = d.dataset.poster;
+    stageVid.src = d.dataset.src;
+    bar.style.transform = "scaleX(0)";
+    if (play) stageVid.play().catch(() => {});
+  };
+  if (still) { stageVid.removeAttribute("autoplay"); stageVid.pause(); }
+  dots.forEach((d, i) => d.addEventListener("click", () => show(i, true)));
+  stageVid.addEventListener("ended", () => show(cur + 1, true));
+  stageVid.addEventListener("play", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); });
+  stageVid.addEventListener("pause", () => cancelAnimationFrame(raf));
+  // Don't download or play clips while the hero is off screen.
+  new IntersectionObserver(([e]) => {
+    if (still) return;
+    if (e.isIntersecting) stageVid.play().catch(() => {}); else stageVid.pause();
+  }).observe(stageVid);
+}
 
 // ---------- download toast
 const toast = one("#toast"), toastText = one("#toastText");
