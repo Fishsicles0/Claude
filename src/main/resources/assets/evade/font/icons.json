@@ -1,7 +1,3 @@
-{
-  "providers": [
-    { "type": "bitmap", "file": "evade:font/evade_icon.png", "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "evade:font/evade_supporter.png", "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "evade:font/evade_animated.png", "ascent": 7, "height": 8, "chars": [""] }
-  ]
-}
+{"providers":[
+ {"type":"bitmap","file":"evade:font/evade_icon.png","ascent":7,"height":8,"chars":[""]}
+]}

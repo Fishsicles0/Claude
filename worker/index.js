@@ -7,8 +7,10 @@
 //   POST /api/auth/challenge            -> { serverId }
 //   POST /api/auth/verify {username, serverId} -> { token, uuid, name, expiresIn }   (checks Mojang hasJoined)
 //   POST /api/presence  (Bearer token)  -> marks the player as an active Evade user
-//   POST /api/icons {uuids: [...]}      -> { icons: { uuid: tier }, ttl }   (only active Evade users)
-//   POST /api/admin/grant {uuid, tier}  (Authorization: Admin <ADMIN_TOKEN>) tier: supporter | animated | none
+//   POST /api/presence/hide (Bearer)   -> stops showing the player's icon right away
+//   POST /api/icons {uuids: [...]}      -> { icons: { uuid: "evade" }, ttl }   (only active Evade users)
+//
+// Everyone gets the same free icon: there are no tiers or paid extras.
 import { DurableObject } from "cloudflare:workers";
 
 const HEADERS = {
@@ -20,7 +22,6 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 const UUID = /^[0-9a-f]{32}$/;
 const NAME = /^[A-Za-z0-9_]{1,16}$/;
 const SERVER_ID = /^[0-9a-f]{8,40}$/;
-const TIERS = ["supporter", "animated", "none"];
 const ACTIVE_MS = 15 * 60 * 1000; // counts as an Evade user for 15 min after the last heartbeat
 const TOKEN_MS = 24 * 60 * 60 * 1000;
 
@@ -81,21 +82,20 @@ export default {
           return json({ ok: true });
         }
 
+        case "/api/presence/hide": {
+          await body(req);
+          const auth = req.headers.get("authorization") || "";
+          const uuid = auth.startsWith("Bearer ") ? await store.verify(auth.slice(7)) : null;
+          if (!uuid) throw new HttpError(401, "sign in again");
+          await store.hide(uuid);
+          return json({ ok: true });
+        }
+
         case "/api/icons": {
           const { uuids } = await body(req);
           if (!Array.isArray(uuids)) throw new HttpError(400, "uuids must be a list");
           const list = [...new Set(uuids.slice(0, 200).map(normUuid).filter((u) => UUID.test(u)))];
           return json({ icons: await store.lookup(list), ttl: 300 });
-        }
-
-        case "/api/admin/grant": {
-          if (!env.ADMIN_TOKEN) throw new HttpError(503, "admin is not set up (set the ADMIN_TOKEN secret)");
-          if ((req.headers.get("authorization") || "") !== "Admin " + env.ADMIN_TOKEN) throw new HttpError(403, "forbidden");
-          const { uuid, tier } = await body(req);
-          const u = normUuid(uuid);
-          if (!UUID.test(u) || !TIERS.includes(tier)) throw new HttpError(400, "uuid and tier (supporter|animated|none) required");
-          await store.grant(u, tier);
-          return json({ ok: true, uuid: u, tier });
         }
       }
       return json({ error: "not found" }, 404);
@@ -112,7 +112,6 @@ export class EvadeIcons extends DurableObject {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(`CREATE TABLE IF NOT EXISTS presence (uuid TEXT PRIMARY KEY, last_seen INTEGER NOT NULL);
-                   CREATE TABLE IF NOT EXISTS grants (uuid TEXT PRIMARY KEY, tier TEXT NOT NULL);
                    CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
   }
 
@@ -152,15 +151,12 @@ export class EvadeIcons extends DurableObject {
     const since = Date.now() - ACTIVE_MS, out = {};
     for (const u of uuids) {
       const p = this.sql.exec("SELECT last_seen FROM presence WHERE uuid = ?", u).toArray()[0];
-      if (!p || p.last_seen < since) continue;
-      const g = this.sql.exec("SELECT tier FROM grants WHERE uuid = ?", u).toArray()[0];
-      out[u] = g ? g.tier : "evade";
+      if (p && p.last_seen >= since) out[u] = "evade";
     }
     return out;
   }
 
-  grant(uuid, tier) {
-    if (tier === "none") this.sql.exec("DELETE FROM grants WHERE uuid = ?", uuid);
-    else this.sql.exec("INSERT INTO grants (uuid, tier) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET tier = excluded.tier", uuid, tier);
+  hide(uuid) {
+    this.sql.exec("DELETE FROM presence WHERE uuid = ?", uuid);
   }
 }

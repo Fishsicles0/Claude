@@ -533,12 +533,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             var entry = c.getNetworkHandler().getPlayerListEntry(me);
             var hud = c.inGameHud.getPlayerListHud();
             String plain = hud.getPlayerName(entry).getString();
-            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "evade");
+            net.evadeclient.module.misc.EvadeIcons.putForTest(me, true);
             String evade = hud.getPlayerName(entry).getString();
-            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "animated");
-            String animated = hud.getPlayerName(entry).getString();
-            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "supporter");
-            return new String[]{plain, evade, animated};
+            return new String[]{plain, evade};
         });
         var server = sp.getServer();
         server.runCommand("scoreboard objectives add evadelist dummy");
@@ -548,11 +545,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.takeScreenshot("evade-tab-icons");
         ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_TAB);
         server.runCommand("scoreboard objectives remove evadelist");
-        ctx.runOnClient(c -> net.evadeclient.module.misc.EvadeIcons.putForTest(c.player.getUuid(), null));
-        char a = names[2].isEmpty() ? 0 : names[2].charAt(0);
-        check(!names[0].startsWith("\ue000") && names[1].startsWith("\ue000 ") && names[1].endsWith(names[0])
-                        && a >= '\ue002' && a <= '\ue005',
-                "Evade Icons puts the icon before verified Evade users' tab names (\"" + names[0] + "\" -> icon + name, animated frame U+" + Integer.toHexString(a) + ")");
+        ctx.runOnClient(c -> net.evadeclient.module.misc.EvadeIcons.putForTest(c.player.getUuid(), false));
+        check(!names[0].startsWith("\ue000") && names[1].equals("\ue000 " + names[0]),
+                "Evade Icons puts the Evade logo before Evade users' tab names (\"" + names[0] + "\" -> logo + name)");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

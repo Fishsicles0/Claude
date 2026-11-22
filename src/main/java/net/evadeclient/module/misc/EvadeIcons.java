@@ -37,14 +37,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EvadeIcons extends Module {
     private static final String API = "https://evadeclient.com/api";
     private static final StyleSpriteSource FONT = new StyleSpriteSource.Font(Identifier.of("evade", "icons"));
+    /** The Evade logo (same mark as evadeclient.com), drawn as a font glyph so it lines up with the name. */
+    private static final Text ICON = Text.literal("\ue000").setStyle(Style.EMPTY.withFont(FONT));
     private static final long CACHE_MS = 5 * 60_000, PRESENCE_MS = 4 * 60_000, SCAN_MS = 30_000;
 
     public final BooleanSetting showIcons = add(new BooleanSetting("Show Icons", true));
     public final BooleanSetting shareMe = add(new BooleanSetting("Show That I Use Evade", true));
-    public final BooleanSetting animate = add(new BooleanSetting("Animated Icons", true));
     public final StatusSetting status = add(new StatusSetting("Status", () -> statusText, "auto"));
 
-    private record Entry(String tier, long fetchedAt) {}
+    private record Entry(boolean evade, long fetchedAt) {}
     private static final Map<UUID, Entry> CACHE = new ConcurrentHashMap<>();
     private static final Set<UUID> PENDING = ConcurrentHashMap.newKeySet();
     private static volatile String statusText = "Not signed in";
@@ -73,18 +74,12 @@ public class EvadeIcons extends Module {
         EvadeIcons m = active();
         if (m == null || !m.showIcons.get() || id == null) return name;
         Entry e = CACHE.get(id);
-        if (e == null || e.tier == null) return name;
-        char glyph = switch (e.tier) {
-            case "supporter" -> '';
-            case "animated" -> m.animate.get() ? (char) ('' + (int) (EvadeClient.ticks / 4 % 4)) : '';
-            default -> '';
-        };
-        Text icon = Text.literal(String.valueOf(glyph)).setStyle(Style.EMPTY.withFont(FONT));
-        return Text.empty().append(icon).append(Text.literal(" ")).append(name);
+        if (e == null || !e.evade) return name;
+        return Text.empty().append(ICON).append(Text.literal(" ")).append(name);
     }
 
     /** Test hook: pretend the server said this player has an icon. */
-    public static void putForTest(UUID id, String tier) { CACHE.put(id, new Entry(tier, System.currentTimeMillis())); }
+    public static void putForTest(UUID id, boolean evade) { CACHE.put(id, new Entry(evade, System.currentTimeMillis())); }
 
     // ------------------------------------------------------------------ background work
 
@@ -94,6 +89,7 @@ public class EvadeIcons extends Module {
         long now = System.currentTimeMillis();
         if (shareMe.get() && !authing && (token == null || now > tokenExpiry - 60_000) && now >= nextAuthAttempt) signIn();
         if (shareMe.get() && token != null && now - lastPresence > PRESENCE_MS) heartbeat();
+        if (!shareMe.get() && token != null && lastPresence != 0) hide();
         if (showIcons.get() && (now - lastScan > SCAN_MS || (mc.options.playerListKey.isPressed() && now - lastScan > 2_000))) {
             lastScan = now;
             lookUpTabList(now);
@@ -122,8 +118,7 @@ public class EvadeIcons extends Module {
                 JsonObject icons = res != null ? res.getAsJsonObject("icons") : null;
                 for (UUID u : want) {
                     String key = u.toString().replace("-", "");
-                    String tier = icons != null && icons.has(key) ? icons.get(key).getAsString() : null;
-                    if (res != null) CACHE.put(u, new Entry(tier, t)); // on a network error, try again next scan
+                    if (res != null) CACHE.put(u, new Entry(icons != null && icons.has(key), t)); // on a network error, try again next scan
                 }
             } finally {
                 want.forEach(PENDING::remove);
@@ -180,12 +175,24 @@ public class EvadeIcons extends Module {
         post("/presence", new JsonObject(), t).whenComplete((res, err) -> {
             if (err != null && String.valueOf(err.getMessage()).contains("401")) { token = null; statusText = "Signing in again..."; }
             UUID me = mc.getSession().getUuidOrNull();
+            if (res != null) statusText = "Signed in as " + mc.getSession().getUsername() + ": your icon is showing";
             if (res != null && me != null) CACHE.remove(me); // show our own icon on the next lookup
         });
     }
 
+    /** "Show That I Use Evade" was switched off: take our icon down now instead of letting it expire. */
+    private void hide() {
+        lastPresence = 0;
+        statusText = "Hidden: others don't see your icon";
+        post("/presence/hide", new JsonObject(), token);
+    }
+
     @Override
-    protected void onDisable() { CACHE.clear(); PENDING.clear(); }
+    protected void onDisable() {
+        CACHE.clear();
+        PENDING.clear();
+        if (token != null && lastPresence != 0) hide();
+    }
 
     private CompletableFuture<JsonObject> post(String path, JsonObject body, String bearer) {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(API + path))
