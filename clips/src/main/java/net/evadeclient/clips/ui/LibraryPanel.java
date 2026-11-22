@@ -377,8 +377,26 @@ public final class LibraryPanel extends JPanel {
         m.add(item("Set game…", null, () -> setGame(list)));
         m.addSeparator();
         m.add(item("Copy file" + (list.size() > 1 ? "s" : ""), Theme.Glyph.COPY, () -> copyFiles(list)));
+        if (list.size() == 1) {
+            m.add(item(c.shareUrl != null ? "Copy share link" : "Share link (paste into Discord)", Theme.Glyph.EXPORT, () -> app.shareClip(c, true)));
+            if (c.shareUrl != null) m.add(item("Stop sharing", null, () -> new Thread(() -> {
+                try { app.cloud.unshare(c, app.library); app.notify("Link removed", c.title, false); }
+                catch (Exception ex) { app.notify("Couldn't remove the link", ex.getMessage(), true); }
+            }, "unshare").start()));
+        } else {
+            m.add(item("Upload " + list.size() + " clips to your phone", Theme.Glyph.EXPORT, () -> { for (Clip x : list) app.shareClip(x, false); }));
+        }
         long total = list.stream().mapToLong(x -> x.size).sum();
         m.add(item("Shrink to save space (" + Theme.size(total) + ")", Theme.Glyph.IMPORT, () -> app.shrink(list)));
+        m.add(item("Export vertical for TikTok / Shorts / Reels", Theme.Glyph.EXPORT, () -> {
+            for (Clip x : list) {
+                Exporter.Options o = new Exporter.Options();
+                o.preset = Exporter.Preset.SHORTS;
+                EditSpec spec = (x.edit != null ? x.edit : EditSpec.whole(x.duration)).copy();
+                if (spec.aspect.equals("original")) { spec.aspect = "9:16"; spec.fitMode = "blur"; }
+                app.export(x, spec, o, null);
+            }
+        }));
         JMenu export = new JMenu("Quick export");
         export.setIcon(Theme.icon(Theme.Glyph.EXPORT, 16, Theme.DIM));
         for (Exporter.Preset p : Exporter.Preset.values()) {

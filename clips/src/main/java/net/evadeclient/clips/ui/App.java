@@ -44,6 +44,7 @@ public final class App {
     public final net.evadeclient.clips.events.AutoClipper autoClipper;
     public final net.evadeclient.clips.events.Cs2Integration cs2;
     public final net.evadeclient.clips.events.LeagueIntegration league;
+    public final net.evadeclient.clips.core.CloudShare cloud;
     private volatile boolean autoStarted;
     public Toast toast;
 
@@ -58,6 +59,16 @@ public final class App {
             saveClipNow(secs, 0, title, game, tags);
         });
         cs2 = new net.evadeclient.clips.events.Cs2Integration(autoClipper, settings.gsiToken);
+        cloud = new net.evadeclient.clips.core.CloudShare(settings);
+        autoClipper.onMarker = label -> { if (engine.isLive()) engine.addMarker(label); };
+        library.onAdded(c -> {
+            boolean sync = switch (settings.cloudSync) {
+                case "all" -> true;
+                case "favorites" -> c.kind == Clip.Kind.EXPORT || c.favorite;
+                default -> false;
+            };
+            if (sync && cloud.configured()) shareClip(c, false);
+        });
         league = new net.evadeclient.clips.events.LeagueIntegration(autoClipper);
         applyEventSettings();
     }
@@ -66,6 +77,8 @@ public final class App {
         autoClipper.before = settings.autoClipBefore;
         autoClipper.after = settings.autoClipAfter;
         cs2.headshotsOnly = settings.cs2HeadshotsOnly;
+        cs2.deaths = settings.clipDeaths;
+        league.deaths = settings.clipDeaths;
     }
 
     private net.evadeclient.clips.core.VoiceCommands voice;
@@ -84,7 +97,7 @@ public final class App {
                     case CLIP -> saveClip(0, null, null, "voice");
                     case RECORD_START -> { if (!engine.isRecording()) toggleRecording(); }
                     case RECORD_STOP -> { if (engine.isRecording()) toggleRecording(); }
-                    case MARKER -> marker();
+                    case MARKER -> { engine.addMarker("Voice"); notify("Marker added", null, false); }
                 }
             });
             return null;
@@ -186,6 +199,7 @@ public final class App {
                     return c == null ? Map.of("ok", true, "recording", false) : Map.of("ok", true, "recording", false, "id", c.id);
                 }
                 @Override public void marker() { App.this.marker(); }
+                @Override public void marker(String label) { engine.addMarker(label); }
                 @Override public boolean gameState(String game, String body) {
                     return !settings.cs2Events || cs2.handle(body);
                 }
@@ -382,6 +396,29 @@ public final class App {
         }
     }
 
+    /**
+     * Uploads a clip and (with {@code copy}) puts its link on the clipboard, ready to paste into Discord.
+     */
+    public void shareClip(Clip c, boolean copy) {
+        if (!cloud.configured()) {
+            notify("Sharing isn't set up", "Add a share server in Settings → Sharing", true);
+            return;
+        }
+        ExportJob job = new ExportJob(c, Exporter.Preset.SOURCE, library.metaDir().resolve("share-" + c.id + ".mp4"));
+        job.label = "Share";
+        runJob(job, j -> {
+            // Let the thumbnail finish so the link preview has a picture.
+            for (int i = 0; i < 50 && !java.nio.file.Files.exists(library.thumb(c)); i++) Thread.sleep(200);
+            String url = cloud.share(c, library, p -> { j.progress = p; jobsChanged(); }, j.job);
+            if (copy) {
+                SwingUtilities.invokeLater(() -> java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
+                        .setContents(new java.awt.datatransfer.StringSelection(url), null));
+                notify("Link copied", url, false);
+            }
+            return null;
+        }, null);
+    }
+
     interface JobBody { Clip run(ExportJob j) throws Exception; }
 
     private ExportJob runJob(ExportJob j, JobBody body, Consumer<ExportJob> onDone) {
@@ -394,11 +431,11 @@ public final class App {
             try {
                 j.result = body.run(j);
                 j.state = "Done";
-                if (!"Shrink".equals(j.label)) notify("Export finished", out.getFileName().toString(), false);
+                if (!"Shrink".equals(j.label) && !"Share".equals(j.label)) notify("Export finished", out.getFileName().toString(), false);
             } catch (Exception e) {
                 j.state = j.job.cancelled() ? "Cancelled" : "Failed: " + e.getMessage();
                 try { java.nio.file.Files.deleteIfExists(out); } catch (Exception ignored) {}
-                if (!j.job.cancelled()) notify("Export failed", e.getMessage(), true);
+                if (!j.job.cancelled()) notify(j.label + " failed", e.getMessage(), true);
             }
             j.done = true;
             jobsChanged();

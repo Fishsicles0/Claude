@@ -205,6 +205,22 @@ public final class EditorPanel extends JPanel {
         JButton show = Theme.button("Show file", Theme.icon(Theme.Glyph.FOLDER, 16, Theme.TEXT), false);
         show.addActionListener(e -> { if (clip != null) LibraryPanel.reveal(clip.path(app.library.root())); });
         p.add(show);
+        p.add(Box.createHorizontalStrut(8));
+        JButton vertical = Theme.button("Make vertical", null, false);
+        vertical.setToolTipText("One click: 9:16 for TikTok, Shorts and Reels (blurred background keeps the whole frame), ready to export");
+        vertical.addActionListener(e -> makeVertical());
+        p.add(vertical);
+        p.add(Box.createHorizontalStrut(8));
+        JButton share = Theme.button("Share link", Theme.icon(Theme.Glyph.EXPORT, 16, Color.WHITE), true);
+        share.setToolTipText("Upload with your edits and copy a link that plays right in Discord");
+        share.addActionListener(e -> {
+            if (clip == null) return;
+            commitMeta();
+            clip.edit = edit;
+            app.library.update(clip);
+            app.shareClip(clip, true);
+        });
+        p.add(share);
         return p;
     }
 
@@ -527,6 +543,7 @@ public final class EditorPanel extends JPanel {
         BufferedImage strip = null;
         try { if (Files.exists(app.library.strip(c))) strip = ImageIO.read(app.library.strip(c).toFile()); } catch (Exception ignored) {}
         timeline.setClip(c.duration, edit, c.markers, strip, Library.STRIP_FRAMES);
+        timeline.labelOf = c::label;
         timeline.setPlayhead(0);
         player.open(file, c.duration, c.fps, c.hasAudio, c.width, c.height);
         player.setAudioTracks(c.audioTracks);
@@ -692,6 +709,19 @@ public final class EditorPanel extends JPanel {
         snapshot();
         edit.segments.get(i).end = Math.max(edit.segments.get(i).start + 0.1, t);
         edited();
+    }
+
+    /** 9:16 with a blurred background (nothing gets cut off), and the Shorts preset picked for export. */
+    private void makeVertical() {
+        if (edit == null) return;
+        snapshot();
+        edit.aspect = "9:16";
+        edit.fitMode = "blur";
+        edit.cropX = 0.5;
+        loadControls();
+        edited();
+        preset.setSelectedItem(Exporter.Preset.SHORTS);
+        app.notify("Vertical 9:16", "Switch Fit to Crop to fill the screen instead · Export when ready", false);
     }
 
     private EditSpec.Caption selectedCaption() {

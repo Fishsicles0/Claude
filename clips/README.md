@@ -31,6 +31,13 @@ works with any game and has extra integration with Evade Client.
   setup), League of Legends via the Live Client API (kills, double…penta, aces, dragon/baron/herald steals,
   victory), and Minecraft via Evade Client (kills, multi-kills, totem pops, deaths, wins, advancements). Events
   close together become one clip ("Triple kill").
+- **Share links and phone sync, no watermark, ads or expiry.** *Share link* uploads the clip with its edits
+  and copies a link that plays inline in Discord. Every shared clip also lands in a private gallery you
+  open on your phone by scanning a QR code; *Send to phone → Every new clip* syncs automatically. Links come
+  from an [Evade Clips Share](../clips-share/README.md) server (a Cloudflare Worker + R2 anyone can deploy).
+- **Named markers.** Every detected event and voice command drops a labelled bookmark ("Kill Steve", "ACE",
+  "Death") on the timeline, so a full-match recording shows where everything happened. Deaths are marked,
+  and optionally clipped.
 - **Voice commands.** Say "clip that", "start recording", "stop recording" or "mark that". The words are
   recognised offline on your PC and nothing is sent anywhere. Only those exact phrases count, so callouts
   and chat don't trigger it.
@@ -51,7 +58,7 @@ works with any game and has extra integration with Evade Client.
 - **Game, mic and voice chat on separate tracks.** You can turn your voice or your friends' voices down or
   off per clip without losing the game sound. Route your chat app to a virtual cable to give it its own track.
 - **A real editor.** Trim, split, delete parts, slow-mo or speed-up any part (0.25×–4×), vertical/square
-  framing with crop or blurred background, zoom, timed captions (clean, subtitle or meme style), color looks
+  framing with crop or blurred background (one click: *Make vertical*), zoom, timed captions (clean, subtitle or meme style), color looks
   (vibrant, cinematic with letterbox bars, black & white, retro, warm, cool) previewed live, fades, per-track
   volume, a title card, markers, frame grabs, and undo/redo for everything. Edits are non-destructive: the original is never touched.
 - **Exports for where it's going.** Discord 10 MB and 50 MB (two-pass, guaranteed to fit), YouTube 1080p60,
@@ -87,7 +94,7 @@ Requests from web pages are refused.
 GET  /status
 POST /clip?seconds=30&after=5&title=Ace&game=Valorant&tag=ace
 POST /record/start   POST /record/stop   POST /record/toggle
-POST /marker
+POST /marker?label=Kill
 POST /gsi/cs2        (CS2 Game State Integration, token-checked)
 ```
 
@@ -118,10 +125,11 @@ ceilings, that HEVC is smaller, and that Shrink keeps every track.
 replays, markers, post-roll, recording during replay, the local API, every export preset (including the 10 MB
 size limit and 1080×1920 vertical output), mic-track mixing, highlight detection on a clip with known loud
 moments, a montage of differently sized clips, captions appearing only in their time range, effects,
-three named audio tracks, CS2 and League event payloads becoming the right clips, and game detection from
+three named audio tracks, named markers in replays and recordings, CS2 and League event payloads becoming the right clips, and game detection from
 process paths and a live process. With a speech model (`CLIPS_VOSK_MODEL=...`) and espeak-ng it also
 checks voice commands: spoken commands are heard (including over loud noise and in a UK voice), and
-ordinary talking never triggers.
+ordinary talking never triggers. With `CLIPS_SHARE_URL` pointing at a running share server (`npx wrangler dev`
+in clips-share/) it also checks share links, embeds, byte ranges, the phone gallery, quotas and deleting.
 
 ## Layout
 
@@ -131,6 +139,7 @@ net.evadeclient.clips
 ├── core/   CaptureEngine (segments → replays + recordings), CaptureSource (per-OS inputs), Library,
 │           Clip, EditSpec, Exporter (presets, montage, shrink), Highlights, GameDetector, VoiceCommands,
 │           Hotkeys, ControlServer, Ffmpeg, Settings
+├── core/   CloudShare (share links + phone sync)
 ├── events/ AutoClipper (merges events into clips), Cs2Integration, LeagueIntegration
 └── ui/     MainWindow, LibraryPanel, RecordPanel, EditorPanel, Timeline, VideoPlayer, SettingsPanel, Toast
 ```

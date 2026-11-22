@@ -129,6 +129,26 @@ public final class SettingsPanel extends JPanel {
         check("Show a pop-up when a clip is saved", s.showToast, v -> s.showToast = v);
         check("Closing the window keeps Evade Clips running in the tray", s.minimizeToTray, v -> s.minimizeToTray = v);
 
+        heading("Sharing & phone");
+        note("Share links play right inside Discord, and every shared clip also appears in a private gallery on your phone. "
+                + "No watermark is added and links don't expire. Clips go to the Evade Clips Share server you set here: "
+                + "use your community's, or deploy your own for free (see clips-share/README.md).");
+        JTextField server = new JTextField(s.cloudUrl);
+        server.putClientProperty("JTextField.placeholderText", "https://clips.example.com");
+        commit(server, v -> s.cloudUrl = v);
+        row("Share server", server);
+        JTextField secret = new JTextField(s.cloudRegisterSecret);
+        secret.putClientProperty("JTextField.placeholderText", "Only for private servers");
+        commit(secret, v -> s.cloudRegisterSecret = v);
+        row("Server invite code", secret);
+        javax.swing.JComboBox<String> sync = new javax.swing.JComboBox<>(new String[]{"Only clips I share", "Favorites and exports", "Every new clip"});
+        sync.setSelectedIndex(switch (s.cloudSync) { case "favorites" -> 1; case "all" -> 2; default -> 0; });
+        sync.addActionListener(e -> { s.cloudSync = new String[]{"off", "favorites", "all"}[sync.getSelectedIndex()]; s.save(); });
+        row("Send to phone", small(sync));
+        JButton phone = Theme.button("Show phone QR code", null, false);
+        phone.addActionListener(e -> showPhoneQr());
+        row("Phone gallery", small(phone));
+
         heading("Automatic clips from game events");
         note("Supported games tell Evade Clips what happens through their official interfaces (nothing reads game memory, "
                 + "nothing anti-cheat cares about). Events close together become one clip.");
@@ -150,7 +170,9 @@ public final class SettingsPanel extends JPanel {
         });
         row("CS2 Game State Integration", small(cs2));
         check("League of Legends: kills, double … pentakills, aces, dragon/baron steals, victory", s.leagueEvents, v -> s.leagueEvents = v);
-        note("Minecraft: the Clips mod in Evade Client clips kills, totem pops, deaths, wins and advancements.");
+        check("Also save a clip when you die (deaths are always marked on recordings)", s.clipDeaths, v -> { s.clipDeaths = v; app.applyEventSettings(); });
+        note("Every event also drops a named marker (\"Kill Steve\", \"ACE\", \"Death\") on the timeline of recordings and replays. "
+                + "Minecraft: the Clips mod in Evade Client clips kills, totem pops, deaths, wins and advancements.");
 
         heading("Evade Client & integrations");
         check("Allow Evade Client and local tools to save clips", s.controlServer, v -> { s.controlServer = v; app.applyServer(); });
@@ -190,6 +212,38 @@ public final class SettingsPanel extends JPanel {
         sp.setBorder(null);
         sp.getVerticalScrollBar().setUnitIncrement(20);
         add(sp, BorderLayout.CENTER);
+    }
+
+    /** Opens the phone gallery link as a QR code (and copies it). */
+    private void showPhoneQr() {
+        new Thread(() -> {
+            try {
+                String url = app.cloud.galleryUrl();
+                var stats = app.cloud.list();
+                java.awt.image.BufferedImage qr = qr(url, 280);
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(url), null);
+                    JLabel img = new JLabel(new javax.swing.ImageIcon(qr));
+                    JLabel txt = Theme.label("<html><body style='width:280px'>Scan with your phone's camera to see every clip you've shared or synced. "
+                            + "Add it to your home screen for one-tap access. The link is copied too. Keep it private.<br><br>"
+                            + Theme.size(stats.get("used").getAsLong()) + " of " + Theme.size(stats.get("quota").getAsLong()) + " used</body></html>", 12.5f, false, Theme.DIM);
+                    JPanel p = new JPanel(new BorderLayout(0, 12));
+                    p.add(img, BorderLayout.CENTER);
+                    p.add(txt, BorderLayout.SOUTH);
+                    JOptionPane.showMessageDialog(this, p, "Your clips on your phone", JOptionPane.PLAIN_MESSAGE);
+                });
+            } catch (Exception ex) {
+                javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage(), "Phone gallery", JOptionPane.WARNING_MESSAGE));
+            }
+        }, "phone-qr").start();
+    }
+
+    static java.awt.image.BufferedImage qr(String text, int size) throws Exception {
+        var m = new com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, size, size,
+                java.util.Map.of(com.google.zxing.EncodeHintType.MARGIN, 2));
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(m.getWidth(), m.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < m.getHeight(); y++) for (int x = 0; x < m.getWidth(); x++) img.setRGB(x, y, m.get(x, y) ? 0x000000 : 0xFFFFFF);
+        return img;
     }
 
     static String version() {

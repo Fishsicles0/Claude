@@ -23,6 +23,11 @@ public final class AutoClipper {
         return t;
     });
     public volatile int before = 20, after = 4;
+    /** Called for every event (clipped or not), to drop a named marker on the timeline. */
+    public volatile java.util.function.Consumer<String> onMarker = l -> {};
+
+    /** An event worth a bookmark but not a clip of its own (e.g. a death, unless deaths are clipped). */
+    public void mark(String title) { onMarker.accept(title); }
 
     private final List<String> titles = new ArrayList<>();
     private final List<String> tags = new ArrayList<>();
@@ -39,6 +44,7 @@ public final class AutoClipper {
      * kill); {@code title} is used if it's the most important so far.
      */
     public synchronized void event(String game, String title, String tag, int priority) {
+        onMarker.accept(title);
         if (titles.isEmpty()) first = System.currentTimeMillis();
         this.game = game;
         titles.add(title);

@@ -46,8 +46,8 @@ public final class RecordPanel extends JPanel {
     private final JComboBox<String> monitor = new JComboBox<>();
     private final JTextField window = new JTextField();
     private final JSpinner rx = spin(0, -10000, 20000), ry = spin(0, -10000, 20000), rw = spin(1280, 16, 20000), rh = spin(720, 16, 20000);
-    private final JComboBox<String> fps = new JComboBox<>(new String[]{"30", "60", "120", "144"});
-    private final JComboBox<String> res = new JComboBox<>(new String[]{"Native", "1440p", "1080p", "720p"});
+    private final JComboBox<String> fps = new JComboBox<>(new String[]{"30", "60", "120", "144", "165", "240"});
+    private final JComboBox<String> res = new JComboBox<>(new String[]{"Native", "2160p (4K)", "1440p", "1080p", "720p"});
     private final JComboBox<String> quality = new JComboBox<>(new String[]{"Small files", "Balanced", "Best quality"});
     private final JComboBox<String> encoder = new JComboBox<>();
     private final JComboBox<String> codec = new JComboBox<>(new String[]{"Auto (smallest that's fast)", "H.264 (plays everywhere)", "HEVC (≈40% smaller)"});
@@ -284,7 +284,7 @@ public final class RecordPanel extends JPanel {
         window.setText(s.windowTitle);
         rx.setValue(s.regionX); ry.setValue(s.regionY); rw.setValue(s.regionW); rh.setValue(s.regionH);
         fps.setSelectedItem(String.valueOf(s.fps));
-        res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 1440 -> 1; case 720 -> 3; default -> 2; });
+        res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 2160 -> 1; case 1440 -> 2; case 720 -> 4; default -> 3; });
         quality.setSelectedIndex(s.quality - 1);
         codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
         encoder.removeAllItems();
@@ -351,7 +351,7 @@ public final class RecordPanel extends JPanel {
             s.windowTitle = window.getText().trim();
             s.regionX = (int) rx.getValue(); s.regionY = (int) ry.getValue(); s.regionW = (int) rw.getValue(); s.regionH = (int) rh.getValue();
             s.fps = Integer.parseInt((String) fps.getSelectedItem());
-            s.resolution = new int[]{0, 1440, 1080, 720}[res.getSelectedIndex()];
+            s.resolution = new int[]{0, 2160, 1440, 1080, 720}[res.getSelectedIndex()];
             s.quality = quality.getSelectedIndex() + 1;
             s.codec = new String[]{"auto", "h264", "hevc"}[codec.getSelectedIndex()];
             s.encoder = "";

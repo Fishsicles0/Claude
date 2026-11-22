@@ -33,6 +33,8 @@ public final class Timeline extends JComponent {
     private double duration = 1;
     private EditSpec edit;
     private List<Double> markers = List.of();
+    /** Marker names ("Kill Steve", "ACE"), drawn next to the marker and shown on hover. */
+    public java.util.function.Function<Double, String> labelOf = t -> null;
     private double playhead;
     private BufferedImage strip, wave;
     private int stripFrames = 10;
@@ -102,6 +104,12 @@ public final class Timeline extends JComponent {
                 scrubbing = false;
             }
             @Override public void mouseMoved(MouseEvent e) {
+                String tip = null;
+                for (double m : markers) if (Math.abs(xAt(m) - e.getX()) < 6 && e.getY() < RULER + PAD + 4) {
+                    String l = labelOf.apply(m);
+                    tip = (l == null ? "Marker" : l) + " · " + Theme.timeFine(m);
+                }
+                setToolTipText(tip);
                 setCursor(edgeAt(e.getX()) != null && e.getY() > RULER ? Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR) : Cursor.getDefaultCursor());
             }
             @Override public void mouseWheelMoved(MouseWheelEvent e) {
@@ -304,6 +312,16 @@ public final class Timeline extends JComponent {
             g.fill(tri);
             g.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{3, 3}, 0));
             g.drawLine((int) x, y0, (int) x, y0 + STRIP + WAVE);
+            String l = labelOf.apply(m);
+            if (l != null) {
+                g.setFont(Theme.interBold.deriveFont(10.5f));
+                int lw = g.getFontMetrics().stringWidth(l) + 8;
+                int lx = (int) Math.min(x + 6, getWidth() - lw - 2);
+                g.setColor(new Color(0, 0, 0, 190));
+                g.fill(new RoundRectangle2D.Double(lx, y0 + STRIP - 18, lw, 15, 6, 6));
+                g.setColor(Theme.GOLD);
+                g.drawString(l, lx + 4, y0 + STRIP - 7);
+            }
         }
 
         // playhead

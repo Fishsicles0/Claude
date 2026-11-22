@@ -21,7 +21,8 @@ public final class Cs2Integration {
     public static final String GAME = "Counter-Strike 2";
     private final AutoClipper clipper;
     private final String token;
-    public volatile boolean kills = true, headshotsOnly = false, multikills = true, mvps = true, wins = true;
+    public volatile boolean kills = true, headshotsOnly = false, multikills = true, mvps = true, wins = true, deaths = false;
+    private int health = -1;
 
     private int roundKills = -1, roundHs = -1, mvpCount = -1, roundNo = -1;
     private String lastMapPhase = "";
@@ -54,6 +55,13 @@ public final class Cs2Integration {
             }
             roundKills = k;
             roundHs = hs;
+            if (state.has("health")) {
+                int hp = num(state, "health");
+                if (health > 0 && hp == 0) {
+                    if (deaths) clipper.event(GAME, "Death", "death", 0); else clipper.mark("Death");
+                }
+                health = hp;
+            }
         }
         if (stats != null) {
             int m = num(stats, "mvps");

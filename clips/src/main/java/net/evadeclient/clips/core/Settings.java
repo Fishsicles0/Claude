@@ -76,12 +76,22 @@ public final class Settings {
     public int controlPort = 47821;
     public String ffmpegPath = "";
 
+    // sharing (Evade Clips Share server, see clips-share/)
+    public String cloudUrl = "";
+    /** Only needed if the server is private (REGISTER_SECRET set). */
+    public String cloudRegisterSecret = "";
+    public String cloudAccount = "", cloudKey = "", cloudViewToken = "", cloudBase = "";
+    /** "off", "favorites" (favourites + exports) or "all" new clips go to the phone gallery automatically. */
+    public String cloudSync = "off";
+
     // automatic clips from game events
     public int autoClipBefore = 20;
     public int autoClipAfter = 4;
     public boolean cs2Events = true;
     public boolean cs2HeadshotsOnly = false;
     public boolean leagueEvents = true;
+    /** Deaths always get a marker on the timeline; with this they also get their own clip. */
+    public boolean clipDeaths = false;
     /** Shared secret CS2 sends with every update, so other programs can't fake events. */
     public String gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
     public String defaultGame = "Minecraft";
@@ -138,6 +148,13 @@ public final class Settings {
         if (encoder == null) encoder = "";
         if (codec == null) codec = "auto";
         if (voiceDevice == null) voiceDevice = "";
+        if (cloudUrl == null) cloudUrl = "";
+        if (cloudRegisterSecret == null) cloudRegisterSecret = "";
+        if (cloudAccount == null) cloudAccount = "";
+        if (cloudKey == null) cloudKey = "";
+        if (cloudViewToken == null) cloudViewToken = "";
+        if (cloudBase == null) cloudBase = "";
+        if (cloudSync == null) cloudSync = "off";
         if (gsiToken == null || gsiToken.isBlank()) gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
         if (ffmpegPath == null) ffmpegPath = "";
         return this;

@@ -90,6 +90,9 @@ public final class CaptureEngine {
     private String recordingGame;
     /** Wall-clock marker presses, for markers inside saved replays. */
     private final List<Long> markerWalls = new ArrayList<>();
+    /** Label for each marker (by wall time), e.g. "Kill Steve", "ACE", "Voice". */
+    private final java.util.Map<Long, String> markerNames = new java.util.HashMap<>();
+    private final java.util.Map<Double, String> recordingLabels = new java.util.HashMap<>();
 
     public CaptureEngine(Settings settings, Library library) {
         this.settings = settings;
@@ -270,6 +273,7 @@ public final class CaptureEngine {
         }
         long cutoff = System.currentTimeMillis() - (long) (keep * 1000) - 2000;
         markerWalls.removeIf(t -> t < cutoff);
+        markerNames.keySet().removeIf(t -> t < cutoff);
     }
 
     private synchronized double buffered() {
@@ -323,6 +327,7 @@ public final class CaptureEngine {
         awaitNextSegment();
         Path joined;
         List<Double> markers = new ArrayList<>();
+        java.util.Map<Double, String> labels = new java.util.HashMap<>();
         synchronized (this) {
             if (segments.isEmpty()) throw new IOException("Replay buffer is empty");
             List<Segment> pick = new ArrayList<>();
@@ -338,7 +343,11 @@ public final class CaptureEngine {
             // The clip ends at lastSegmentWall (when the newest segment closed).
             for (long w : markerWalls) {
                 double fromEnd = (lastSegmentWall - w) / 1000.0;
-                if (fromEnd >= 0 && fromEnd <= total) markers.add(Math.max(0, total - fromEnd));
+                if (fromEnd >= 0 && fromEnd <= total) {
+                    double at = Math.max(0, total - fromEnd);
+                    markers.add(at);
+                    if (markerNames.containsKey(w)) labels.put(at, markerNames.get(w));
+                }
             }
         }
         String g = game == null || game.isBlank() ? settings.defaultGame : game;
@@ -348,7 +357,7 @@ public final class CaptureEngine {
         } finally {
             Files.deleteIfExists(joined);
         }
-        return library.addNew(dest, Clip.Kind.REPLAY, title, g, markers, null);
+        return library.addNew(dest, Clip.Kind.REPLAY, title, g, markers, labels, null);
     }
 
     /** Waits (up to 2.5 s) until ffmpeg closes the segment it is currently writing. */
@@ -404,6 +413,7 @@ public final class CaptureEngine {
         recordNextIndex = segments.isEmpty() ? 0 : segments.get(segments.size() - 1).index + 1;
         recordingStartWall = System.currentTimeMillis();
         recordingMarkers.clear();
+        recordingLabels.clear();
         recording = true;
         fire();
     }
@@ -429,6 +439,7 @@ public final class CaptureEngine {
     public Clip stopRecording() throws IOException {
         Path ts;
         List<Double> markers;
+        java.util.Map<Double, String> labels;
         String game;
         synchronized (this) {
             if (!recording) return null;
@@ -444,6 +455,7 @@ public final class CaptureEngine {
             recording = false;
             ts = recordingTs;
             markers = new ArrayList<>(recordingMarkers);
+            labels = new java.util.HashMap<>(recordingLabels);
             game = recordingGame;
         }
         fire();
@@ -454,16 +466,25 @@ public final class CaptureEngine {
         } catch (IOException e) {
             // Keep the .ts; it's still playable and the library will pick it up.
             Files.deleteIfExists(mp4);
-            return library.addNew(ts, Clip.Kind.RECORDING, null, game, markers, null);
+            return library.addNew(ts, Clip.Kind.RECORDING, null, game, markers, labels, null);
         }
-        return library.addNew(mp4, Clip.Kind.RECORDING, null, game, markers, null);
+        return library.addNew(mp4, Clip.Kind.RECORDING, null, game, markers, labels, null);
     }
 
     /** Drops a bookmark at "now": shows up on the recording's (and any saved replay's) timeline. */
-    public synchronized void addMarker() {
+    public synchronized void addMarker() { addMarker(null); }
+
+    /** A named bookmark ("Kill Steve", "ACE", "Death"): shows on the timeline with its label. */
+    public synchronized void addMarker(String label) {
         long now = System.currentTimeMillis();
+        while (markerNames.containsKey(now) || markerWalls.contains(now)) now++;
         markerWalls.add(now);
-        if (recording) recordingMarkers.add((now - recordingStartWall) / 1000.0);
+        if (label != null && !label.isBlank()) markerNames.put(now, label);
+        if (recording) {
+            double t = (now - recordingStartWall) / 1000.0;
+            recordingMarkers.add(t);
+            if (label != null && !label.isBlank()) recordingLabels.put(t, label);
+        }
     }
 
     public synchronized String lastLog() { return Ffmpeg.tail(log.toString()); }

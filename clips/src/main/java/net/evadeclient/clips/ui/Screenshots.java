@@ -85,6 +85,9 @@ public final class Screenshots {
         c.edit = e;
         c.markers.clear();
         c.markers.add(c.duration * 0.62);
+        c.markerLabels.put(Clip.key(c.duration * 0.62), "Triple kill");
+        c.markers.add(c.duration * 0.12);
+        c.markerLabels.put(Clip.key(c.duration * 0.12), "Kill Steve");
         app.library.save();
         SwingUtilities.invokeAndWait(() -> app.openEditor.accept(c));
         Thread.sleep(3500);

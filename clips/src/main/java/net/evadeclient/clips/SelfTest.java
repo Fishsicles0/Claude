@@ -67,6 +67,9 @@ final class SelfTest {
         check(replay != null && replay.markers.size() == 1 && Math.abs(replay.markers.get(0) - (replay.duration - 2.5)) < 1.2,
                 "marker pressed 2 s before saving lands ~2 s from the end (" + (replay == null ? "-" : replay.markers) + ")");
 
+        engine.addMarker("Kill Steve");
+        Clip named = engine.saveReplay(3, null, null);
+        check(named.markers.stream().anyMatch(m -> "Kill Steve".equals(named.label(m))), "event marker keeps its name in the saved replay (" + named.markerLabels + ")");
         Clip longer = engine.saveReplay(60, null, null);
         check(longer.duration >= 9 && longer.duration <= 12.5, "replay is capped at the buffer length (" + String.format("%.2f", longer.duration) + " s)");
 
@@ -102,12 +105,13 @@ final class SelfTest {
 
         engine.startRecording("Minecraft");
         Thread.sleep(1500);
-        engine.addMarker();
+        engine.addMarker("ACE");
         Thread.sleep(2500);
         Clip rec = engine.stopRecording();
         check(rec != null && rec.kind == Clip.Kind.RECORDING && Math.abs(rec.duration - 4) < 1.6,
                 "recording saved as MP4, ~4 s (got " + (rec == null ? "-" : String.format("%.2f", rec.duration)) + ")");
-        check(rec != null && rec.markers.size() == 1, "recording kept its marker");
+        check(rec != null && rec.markers.size() == 1 && "ACE".equals(rec.label(rec.markers.get(0))),
+                "recording kept its named marker (" + (rec == null ? "-" : rec.markerLabels) + ")");
         Clip afterRec = engine.saveReplay(3, null, null);
         check(afterRec != null, "replay buffer kept running during and after the recording");
         engine.shutdown();
@@ -227,6 +231,7 @@ final class SelfTest {
         Ffmpeg.MediaInfo mi = Ffmpeg.probe(mout);
         check(mi.width() == 1280 && mi.height() == 720 && Math.abs(mi.duration() - want) < 0.6 && mi.hasAudio(),
                 "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s (want " + String.format("%.2f", want) + ")");
+        shareTests(lib, dir);
         lib.shutdown();
         return finish();
     }
@@ -235,6 +240,8 @@ final class SelfTest {
     private void eventTests() throws Exception {
         List<String> saved = new java.util.concurrent.CopyOnWriteArrayList<>();
         var clipper = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> saved.add(game + "|" + title + "|" + tags + "|" + sec));
+        List<String> marks = new java.util.concurrent.CopyOnWriteArrayList<>();
+        clipper.onMarker = marks::add;
         clipper.after = 0;
 
         // CS2 GSI: three kills in a round (one headshot) → one "3K" clip; a spectated player's kills are ignored.
@@ -278,6 +285,14 @@ final class SelfTest {
         lol.handle(head + "{\"EventID\":9,\"EventName\":\"BaronKill\",\"KillerName\":\"Faker\",\"Stolen\":\"True\"}]}}");
         Thread.sleep(300);
         check(saved.size() == 1 && saved.get(0).contains("|Baron steal|"), "League: baron steal is clipped (" + saved + ")");
+        saved.clear();
+        marks.clear();
+        lol.handle(head + "{\"EventID\":10,\"EventName\":\"ChampionKill\",\"KillerName\":\"Zed\",\"VictimName\":\"Faker\"}]}}");
+        String alive = st.apply(0, 0).replace("\"round_kills\"", "\"health\":100,\"round_kills\"").replace("\"round\":4", "\"round\":5");
+        cs2.handle(alive);
+        cs2.handle(alive.replace("\"health\":100", "\"health\":0"));
+        Thread.sleep(300);
+        check(saved.isEmpty() && marks.equals(List.of("Death", "Death")), "deaths in League and CS2 become timeline markers, not clips, by default (" + marks + ")");
         clipper.shutdown();
 
         // Game detection from process paths.
@@ -347,6 +362,80 @@ final class SelfTest {
         }
         check(ok == cases.length, "voice commands: " + ok + "/" + cases.length + " right (commands heard, also over noise and in a UK voice; "
                 + "normal talking and noise ignored)" + (bad.isEmpty() ? "" : " wrong: " + bad));
+    }
+
+    /** Share links + phone gallery against a running Evade Clips Share server (CLIPS_SHARE_URL). */
+    private void shareTests(Library lib, Path dir) throws Exception {
+        String base = System.getProperty("clips.shareUrl");
+        if (base == null || base.isBlank()) { System.out.println("  SKIP  share links (set CLIPS_SHARE_URL to a running clips-share server)"); return; }
+        Settings s = new Settings();
+        s.cloudUrl = base;
+        var cloud = new net.evadeclient.clips.core.CloudShare(s);
+        cloud.partSizeOverride = 5 * 1024 * 1024;
+        // A busy 3-track clip, big enough to need several upload parts.
+        Path big = dir.resolve("big.mp4");
+        Ffmpeg.run(List.of("-f", "lavfi", "-i", "testsrc2=s=1280x720:r=30:d=8,noise=alls=30:allf=t", "-f", "lavfi", "-i", "sine=f=440:d=8",
+                "-f", "lavfi", "-i", "sine=f=220:d=8", "-map", "0", "-map", "1", "-map", "2", "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "12M",
+                "-c:a", "aac", "-metadata:s:a:0", "handler_name=Game", "-metadata:s:a:1", "handler_name=Mic", big.toString()));
+        Clip c = lib.importFiles(List.of(big), true).get(0);
+        for (int i = 0; i < 100 && !Files.exists(lib.thumb(c)); i++) Thread.sleep(100);
+        c.edit = EditSpec.whole(c.duration);
+        c.edit.captions.add(new EditSpec.Caption("shared!", 0, 2, "top", "meme"));
+        String url = cloud.share(c, lib, null, null);
+        check(url.startsWith(base + "/c/"), "share link created (" + url + ")");
+        var http = java.net.http.HttpClient.newHttpClient();
+        var pageRes = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        String pg = pageRes.body();
+        String videoUrl = base + "/v/" + c.shareId + ".mp4";
+        check(pageRes.statusCode() == 200 && pg.contains("og:video:type\" content=\"video/mp4") && pg.contains("content=\"" + videoUrl + "\"")
+                && pg.contains("og:image") && pg.contains("twitter:player:stream"), "share page has Discord/Twitter video embed tags");
+        var full = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(videoUrl)).build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+        Path got = dir.resolve("downloaded.mp4");
+        Files.write(got, full.body());
+        Ffmpeg.MediaInfo gi = Ffmpeg.probe(got);
+        check(full.statusCode() == 200 && full.headers().firstValue("content-type").orElse("").equals("video/mp4")
+                        && gi.audioTracks() == 1 && Math.abs(gi.duration() - c.duration) < 0.3 && "h264".equals(Ffmpeg.capture(List.of(Ffmpeg.ffprobe(), "-v", "error", "-select_streams", "v:0",
+                        "-show_entries", "stream=codec_name", "-of", "csv=p=0", got.toString()), 10).trim()),
+                String.format("edited 2-track clip is shared as a version that plays anywhere: %.1f MB, H.264, %d mixed audio track, %.2f s", full.body().length / 1e6, gi.audioTracks(), gi.duration()));
+        var part = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(videoUrl)).header("Range", "bytes=100-199").build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+        var tail = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(videoUrl)).header("Range", "bytes=-50").build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+        byte[] fb = full.body();
+        check(part.statusCode() == 206 && java.util.Arrays.equals(part.body(), java.util.Arrays.copyOfRange(fb, 100, 200))
+                        && part.headers().firstValue("content-range").orElse("").equals("bytes 100-199/" + fb.length)
+                        && tail.statusCode() == 206 && java.util.Arrays.equals(tail.body(), java.util.Arrays.copyOfRange(fb, fb.length - 50, fb.length)),
+                "video is served in byte ranges (seeking in Discord, browsers and phones)");
+        var th = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/t/" + c.shareId + ".jpg")).build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+        check(th.statusCode() == 200 && th.body().length > 1000, "thumbnail for the link preview");
+        String gallery = cloud.galleryUrl();
+        var g1 = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(gallery)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        var g2 = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(gallery.replaceAll("t=.*", "t=wrong"))).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(g1.statusCode() == 200 && g1.body().contains("/c/" + c.shareId) && g2.statusCode() == 404, "phone gallery lists the clip; a wrong link shows nothing");
+        String again = cloud.share(c, lib, null, null);
+        check(again.equals(url), "sharing an unchanged clip reuses its link");
+        var bad = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/clips")).header("Authorization", "Bearer " + s.cloudAccount + ".nope").build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        var over = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads")).header("Authorization", "Bearer " + s.cloudAccount + "." + s.cloudKey)
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"size\":40000000}")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(bad.statusCode() == 401 && over.statusCode() == 413, "wrong key refused (401); upload past the storage quota refused (413)");
+        // A big unedited H.264 clip is uploaded as-is, in several parts, and comes back byte-for-byte.
+        Path raw = dir.resolve("raw.mp4");
+        Ffmpeg.run(List.of("-f", "lavfi", "-i", "testsrc2=s=1280x720:r=30:d=8,noise=alls=30:allf=t", "-f", "lavfi", "-i", "sine=f=440:d=8",
+                "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "14M", "-c:a", "aac", "-movflags", "+faststart", raw.toString()));
+        Clip rc = lib.importFiles(List.of(raw), true).get(0);
+        for (int i = 0; i < 100 && !Files.exists(lib.thumb(rc)); i++) Thread.sleep(100);
+        cloud.share(rc, lib, null, null);
+        byte[] orig = Files.readAllBytes(rc.path(lib.root()));
+        var back = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/v/" + rc.shareId + ".mp4")).build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+        check(cloud.lastParts >= 2 && java.util.Arrays.equals(orig, back.body()),
+                String.format("a %.1f MB clip uploads in %d parts and downloads byte-for-byte identical", orig.length / 1e6, cloud.lastParts));
+        cloud.unshare(rc, lib);
+
+        String id = c.shareId;
+        cloud.unshare(c, lib);
+        var gone = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/c/" + id)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        var goneV = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/v/" + id + ".mp4")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(gone.statusCode() == 404 && goneV.statusCode() == 404 && cloud.list().getAsJsonArray("clips").isEmpty() && cloud.list().get("used").getAsLong() == 0,
+                "stop sharing removes the page, the video and the storage use");
     }
 
     private static java.awt.image.BufferedImage frame(Path video, double t, Path dir) throws Exception {

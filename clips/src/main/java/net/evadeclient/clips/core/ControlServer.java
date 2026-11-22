@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
  *   GET  /status
  *   POST /clip?seconds=30&after=5&title=...&game=...&tag=...
  *   POST /record/start?game=...   POST /record/stop   POST /record/toggle
- *   POST /marker
+ *   POST /marker?label=Kill
  * </pre>
  * Requests carrying an Origin header are refused, so web pages can't trigger it.
  */
@@ -31,6 +31,7 @@ public final class ControlServer {
         Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception;
         Map<String, Object> record(String action, String game) throws Exception;
         void marker();
+        default void marker(String label) { marker(); }
         /** A game's own state push (CS2 Game State Integration). Returns false to reject (bad token). */
         default boolean gameState(String game, String body) { return false; }
     }
@@ -65,7 +66,7 @@ public final class ControlServer {
                     }
                     case "/marker" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
-                        h.marker();
+                        if (q.get("label") != null) h.marker(q.get("label")); else h.marker();
                         send(ex, 200, Map.of("ok", true));
                     }
                     default -> send(ex, 404, Map.of("error", "unknown endpoint"));

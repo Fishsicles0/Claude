@@ -24,7 +24,7 @@ import java.util.Locale;
 public final class LeagueIntegration {
     public static final String GAME = "League of Legends";
     private final AutoClipper clipper;
-    public volatile boolean kills = true, multikills = true, objectives = true, wins = true;
+    public volatile boolean kills = true, multikills = true, objectives = true, wins = true, deaths = false;
     private int lastEventId = -1;
     private HttpClient http;
 
@@ -59,7 +59,12 @@ public final class LeagueIntegration {
             String name = str(e, "EventName");
             if (name == null) continue;
             switch (name) {
-                case "ChampionKill" -> { if (kills && isMe(str(e, "KillerName"), me)) clipper.event(GAME, "Kill " + str(e, "VictimName"), "kill", 1); }
+                case "ChampionKill" -> {
+                    if (kills && isMe(str(e, "KillerName"), me)) clipper.event(GAME, "Kill " + str(e, "VictimName"), "kill", 1);
+                    else if (isMe(str(e, "VictimName"), me)) {
+                        if (deaths) clipper.event(GAME, "Death", "death", 0); else clipper.mark("Death");
+                    }
+                }
                 case "Multikill" -> {
                     if (multikills && isMe(str(e, "KillerName"), me)) {
                         int k = e.has("KillStreak") ? e.get("KillStreak").getAsInt() : 2;

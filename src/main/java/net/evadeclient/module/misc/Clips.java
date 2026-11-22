@@ -85,7 +85,7 @@ public class Clips extends Module {
         if (wasAlive.size() > 256) wasAlive.clear();
 
         boolean dead = mc.player.isDead();
-        if (dead && !wasDead && deaths.get()) event("Death");
+        if (dead && !wasDead) { if (deaths.get()) event("Death"); else mark("Death"); }
         wasDead = dead;
 
         if (!events.isEmpty() && now >= fireAt) flush();
@@ -121,6 +121,7 @@ public class Clips extends Module {
     }
 
     private void event(String what) {
+        mark(what);
         long now = System.currentTimeMillis();
         if (events.isEmpty()) firstEvent = now;
         events.add(what);
@@ -164,6 +165,13 @@ public class Clips extends Module {
                 Notifications.push("Clip not saved", res.body().replaceAll(".*\"error\":\"([^\"]*)\".*", "$1"), false);
             }
         }));
+    }
+
+    /** Drops a named marker in Evade Clips right away (shows on the recording's timeline). */
+    private void mark(String label) {
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port.getInt() + "/marker?label=" + enc(label)))
+                .timeout(Duration.ofSeconds(3)).POST(HttpRequest.BodyPublishers.noBody()).build();
+        HTTP.sendAsync(req, HttpResponse.BodyHandlers.discarding());
     }
 
     private static String enc(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }

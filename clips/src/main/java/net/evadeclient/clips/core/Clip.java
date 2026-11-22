@@ -30,8 +30,17 @@ public final class Clip {
     public List<String> tags = new ArrayList<>();
     /** Bookmarks in seconds (hotkey during recording, or added in the editor). */
     public List<Double> markers = new ArrayList<>();
+    /** Names of markers, keyed by {@link #key(double)} of their time ("Kill Steve", "ACE", "Death", "Voice"). */
+    public java.util.Map<String, String> markerLabels = new java.util.HashMap<>();
+
+    public static String key(double t) { return String.format(java.util.Locale.ROOT, "%.2f", t); }
+    public String label(double t) { return markerLabels == null ? null : markerLabels.get(key(t)); }
     /** Non-destructive edits. Null until the clip is first opened in the editor. */
     public EditSpec edit;
+    /** Set once the clip has been shared: id and public link on the share server. */
+    public String shareId, shareUrl;
+    /** Edits the shared copy was rendered with, so a changed clip gets re-uploaded. */
+    public int shareEditHash;
 
     public Path path(Path clipsDir) { return clipsDir.resolve(file.replace('/', java.io.File.separatorChar)); }
 

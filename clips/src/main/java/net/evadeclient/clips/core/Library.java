@@ -58,6 +58,10 @@ public final class Library {
     }
 
     public void onChange(Runnable r) { listeners.add(r); }
+
+    private final List<java.util.function.Consumer<Clip>> addedListeners = new CopyOnWriteArrayList<>();
+    /** Called for every new replay, recording or export (not for imports or rescans). */
+    public void onAdded(java.util.function.Consumer<Clip> l) { addedListeners.add(l); }
     public void changed() { for (Runnable r : listeners) r.run(); }
 
     // ------------------------------------------------------------------ persistence
@@ -72,6 +76,7 @@ public final class Library {
                     if (c.tags == null) c.tags = new ArrayList<>();
                     if (c.markers == null) c.markers = new ArrayList<>();
                     if (c.trackNames == null) c.trackNames = new ArrayList<>();
+                    if (c.markerLabels == null) c.markerLabels = new java.util.HashMap<>();
                     if (c.kind == null) c.kind = Clip.Kind.IMPORT;
                     clips.add(c);
                 }
@@ -203,11 +208,18 @@ public final class Library {
 
     /** Adds a freshly captured or exported file, saves, enforces the storage limit and notifies listeners. */
     public Clip addNew(Path file, Clip.Kind kind, String title, String game, List<Double> markers, String sourceId) throws IOException {
+        return addNew(file, kind, title, game, markers, null, sourceId);
+    }
+
+    /** Like {@link #addNew(Path, Clip.Kind, String, String, List, String)} with marker names. */
+    public Clip addNew(Path file, Clip.Kind kind, String title, String game, List<Double> markers,
+                       java.util.Map<Double, String> labels, String sourceId) throws IOException {
         Clip c;
         synchronized (this) {
             c = addExisting(file, kind, title, game);
             c.created = System.currentTimeMillis();
             if (markers != null) c.markers.addAll(markers);
+            if (labels != null) labels.forEach((t, l) -> c.markerLabels.put(Clip.key(t), l));
             c.sourceId = sourceId;
             if (sourceId != null) {
                 Clip src = get(sourceId);
@@ -217,6 +229,7 @@ public final class Library {
             save();
         }
         changed();
+        for (var l : addedListeners) { try { l.accept(c); } catch (Exception e) { System.err.println("[clips] " + e); } }
         return c;
     }
 
