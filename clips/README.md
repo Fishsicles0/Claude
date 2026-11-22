@@ -133,6 +133,7 @@ Java 17+ (the Minecraft Launcher's Java works) and **ffmpeg**:
 ./gradlew :clips:selfTest            # headless end-to-end test, see below
 ./gradlew :clips:sizeTest            # file-size ceilings with worst-case footage
 xvfb-run java -jar clips/build/libs/EvadeClips.jar --screenshots OUT   # render every page to PNG
+scripts/film-footage.sh && scripts/clips-shots.py   # film Minecraft gameplay, then the site screenshots from it
 ```
 
 `sizeTest` records worst-case footage at every quality and checks clips and exports stay under their

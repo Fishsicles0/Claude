@@ -3,6 +3,8 @@ package net.evadeclient.clips.core;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +60,10 @@ public final class CaptureSource {
                 String size = testW + "x" + testH;
                 String src = s.source.equals("test-calm") ? "gradients=s=" + size + ":r=" + fps + ":speed=0.01:n=3"
                         : "testsrc2=s=" + size + ":r=" + fps + (s.source.equals("test-noise") ? ",noise=alls=60:allf=t+u" : "");
+                // For screenshots: loop a real gameplay video instead (-Dclips.testVideo=<file>).
+                String video = System.getProperty("clips.testVideo");
+                if (s.source.equals("test") && video != null && Files.exists(Path.of(video)))
+                    src = "movie=" + video.replace("\\", "/").replace(":", "\\:") + ":loop=0,setpts=N/FRAME_RATE/TB,scale=" + testW + ":" + testH + ",fps=" + fps;
                 a.addAll(List.of("-re", "-f", "lavfi", "-i", src));
                 srcH = testH;
             }

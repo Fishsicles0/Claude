@@ -18,6 +18,7 @@ import net.minecraft.item.Items;
 public class EvadeClientGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext ctx) {
+        if (Boolean.getBoolean("evade.footage")) { Footage.film(ctx); return; } // scripts/film-footage.sh
         try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
             sp.getClientWorld().waitForChunksRender();
             var server = sp.getServer();

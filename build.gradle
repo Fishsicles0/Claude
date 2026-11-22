@@ -54,6 +54,12 @@ fabricApi {
 // server still advance tick by tick; only the per-tick wait for in-flight packets is skipped.
 loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
     vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
+    // `-Pfootage` films gameplay for the Evade Clips screenshots instead of testing (scripts/film-footage.sh)
+    if (project.hasProperty('footage')) {
+        vmArg "-Devade.footage=true"
+        vmArg "-Devade.footage.dir=${layout.buildDirectory.dir('footage').get().asFile.absolutePath}"
+        vmArg "-Devade.footage.only=${project.findProperty('footage') ?: ''}"
+    }
 }
 
 // Simple Voice Chat for the in-game integration test only (scripts/fetch-test-mods.py downloads it from Modrinth).
