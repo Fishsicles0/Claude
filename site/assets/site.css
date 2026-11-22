@@ -585,3 +585,7 @@ html:not(.js) .mod { cursor: default; }
 .accents i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: -8px; vertical-align: -1px; }
 @media (max-width: 860px) { .clips-row, .trio, .quad { grid-template-columns: 1fr; } }
 .foot-bottom a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* A pair of call-to-action buttons under a section */
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 56px; }
+@media (max-width: 560px) { .cta-row .btn { flex: 1 1 100%; justify-content: center; text-align: center; } }
