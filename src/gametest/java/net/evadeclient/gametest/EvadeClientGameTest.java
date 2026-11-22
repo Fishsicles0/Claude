@@ -45,6 +45,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testHud(ctx, sp);
             testMenu(ctx);
             testProfiles(ctx);
+            testIcons(ctx, sp);
         }
     }
 
@@ -523,6 +524,35 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.setScreen(() -> null);
         check(installed && onServer && screen.startsWith("de.maxhenkel.voicechat"),
                 "Voice chat: Simple Voice Chat runs here and Evade opens its menu (" + screen.substring(screen.lastIndexOf('.') + 1) + ")");
+    }
+
+    /** Evade Icons: a verified Evade user's tab-list name gets the icon glyph, and the tab list shows it. */
+    private void testIcons(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        String[] names = ctx.computeOnClient(c -> {
+            var me = c.player.getUuid();
+            var entry = c.getNetworkHandler().getPlayerListEntry(me);
+            var hud = c.inGameHud.getPlayerListHud();
+            String plain = hud.getPlayerName(entry).getString();
+            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "evade");
+            String evade = hud.getPlayerName(entry).getString();
+            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "animated");
+            String animated = hud.getPlayerName(entry).getString();
+            net.evadeclient.module.misc.EvadeIcons.putForTest(me, "supporter");
+            return new String[]{plain, evade, animated};
+        });
+        var server = sp.getServer();
+        server.runCommand("scoreboard objectives add evadelist dummy");
+        server.runCommand("scoreboard objectives setdisplay list evadelist");
+        ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_TAB);
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-tab-icons");
+        ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_TAB);
+        server.runCommand("scoreboard objectives remove evadelist");
+        ctx.runOnClient(c -> net.evadeclient.module.misc.EvadeIcons.putForTest(c.player.getUuid(), null));
+        char a = names[2].isEmpty() ? 0 : names[2].charAt(0);
+        check(!names[0].startsWith("\ue000") && names[1].startsWith("\ue000 ") && names[1].endsWith(names[0])
+                        && a >= '\ue002' && a <= '\ue005',
+                "Evade Icons puts the icon before verified Evade users' tab names (\"" + names[0] + "\" -> icon + name, animated frame U+" + Integer.toHexString(a) + ")");
     }
 
     /** Profiles: each one remembers its own module state, and switching restores it. */

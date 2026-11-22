@@ -74,6 +74,7 @@ public class ModuleManager {
         register(new Notifier());
         register(new Protection());
         register(new Clips());
+        register(new EvadeIcons());
         register(new VoiceChat());
         // HUD
         register(new HudModule());
