@@ -166,6 +166,7 @@ final class SelfTest {
             check(!newer && usual, "capture works with newer ffmpeg builds: -thread_queue_size only where ffmpeg takes it on inputs (newer: " + newer + ", this one: " + usual + ")");
         }
 
+        speakerTests(dir);
         eventTests();
         voiceTests(dir);
 
@@ -1179,5 +1180,65 @@ final class SelfTest {
         System.out.println();
         System.out.println(failures.isEmpty() ? "ALL " + passed + " CHECKS PASSED" : failures.size() + " FAILED, " + passed + " passed");
         return failures.isEmpty() ? 0 : 1;
+    }
+
+    /**
+     * "What you hear" (Windows speaker recording). The Windows part can't run here, so a stand-in source plays a tone
+     * in two half-second bursts and delivers nothing in between, as Windows does when nothing plays. Real ffmpeg
+     * reads the stream the way capture does: it must come out at real time, with the bursts and silence around them.
+     */
+    private void speakerTests(Path dir) throws Exception {
+        byte[] g = net.evadeclient.clips.core.WasapiLoopback.guidBytes("BCDE0395-E52F-467C-8E3D-C4579291692E");
+        byte[] want = {(byte) 0x95, 0x03, (byte) 0xDE, (byte) 0xBC, 0x2F, (byte) 0xE5, 0x7C, 0x46, (byte) 0x8E, 0x3D, (byte) 0xC4, 0x57, (byte) 0x92, (byte) 0x91, 0x69, 0x2E};
+        check(java.util.Arrays.equals(g, want), "speaker recording: Windows component IDs are laid out the way Windows reads them");
+
+        long t0 = System.nanoTime();
+        long[] given = {0};
+        net.evadeclient.clips.core.LoopbackAudio.Source tone = new net.evadeclient.clips.core.LoopbackAudio.Source() {
+            public int rate() { return 48000; }
+            public int read(float[] st) {
+                double now = (System.nanoTime() - t0) / 1e9;
+                boolean on = (now > 0.8 && now < 1.3) || (now > 2.0 && now < 2.5);
+                long due = (long) (now * 48000);
+                if (!on) { given[0] = due; return 0; } // nothing playing: Windows delivers nothing
+                int n = (int) Math.min(due - given[0], st.length / 2);
+                for (int i = 0; i < n; i++) {
+                    float v = (float) (0.5 * Math.sin(2 * Math.PI * 1000 * (given[0] + i) / 48000.0));
+                    st[i * 2] = v; st[i * 2 + 1] = v;
+                }
+                given[0] += n;
+                return n;
+            }
+            public void close() {}
+        };
+        var loop = net.evadeclient.clips.core.LoopbackAudio.start(() -> tone);
+        Path wav = dir.resolve("speakers.wav");
+        List<String> cmd = new ArrayList<>(List.of(Ffmpeg.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y"));
+        cmd.addAll(loop.stream().ffmpegInput());
+        cmd.addAll(List.of("-t", "3", wav.toString()));
+        long start = System.nanoTime();
+        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+        String err = new String(p.getInputStream().readAllBytes());
+        p.waitFor();
+        double took = (System.nanoTime() - start) / 1e9;
+        loop.stop();
+        Process sd = new ProcessBuilder(Ffmpeg.ffmpeg(), "-hide_banner", "-i", wav.toString(), "-af", "silencedetect=n=-30dB:d=0.2", "-f", "null", "-")
+                .redirectErrorStream(true).start();
+        String log = new String(sd.getInputStream().readAllBytes());
+        sd.waitFor();
+        // the loud parts are the gaps between silences
+        List<Double> ends = new ArrayList<>(), starts = new ArrayList<>();
+        var m1 = java.util.regex.Pattern.compile("silence_end: ([0-9.]+)").matcher(log);
+        while (m1.find()) ends.add(Double.parseDouble(m1.group(1)));
+        var m2 = java.util.regex.Pattern.compile("silence_start: ([0-9.]+)").matcher(log);
+        while (m2.find()) starts.add(Double.parseDouble(m2.group(1)));
+        List<Double> bursts = new ArrayList<>();
+        for (double e : ends) for (double s : starts) if (s > e) { bursts.add(s - e); break; }
+        double length = 0;
+        try { length = Double.parseDouble(Ffmpeg.capture(List.of(Ffmpeg.ffprobe(), "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", wav.toString()), 10).trim()); } catch (Exception ignored) {}
+        boolean ok = err.isBlank() && Math.abs(length - 3) < 0.1 && took > 2.5 && took < 4.5
+                && bursts.size() == 2 && bursts.stream().allMatch(b -> Math.abs(b - 0.5) < 0.1);
+        check(ok, String.format(java.util.Locale.ROOT, "speaker recording streams to ffmpeg at real time (%.2f s of sound in %.2f s), with the two 0.5 s bursts (%s) and silence between%s",
+                length, took, bursts, err.isBlank() ? "" : " (" + err.trim() + ")"));
     }
 }
