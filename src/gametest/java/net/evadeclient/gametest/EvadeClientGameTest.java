@@ -1761,7 +1761,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(culled > 0, "Performance culls distant entities (" + fpsOff + " -> " + fpsOn + " FPS)");
 
         // Information entities are never culled: map art, holograms and name tags.
-        server.runCommand("summon item_frame 0 -59 50 {Facing:2b,Item:{id:\"minecraft:filled_map\",count:1}}");
+        server.runCommand("summon item_frame 0 -59 50 {Facing:2b,Item:{id:\"minecraft:filled_map\",count:1,components:{\"minecraft:map_id\":0}}}");
         server.runCommand("summon text_display 2 -58 50 {text:\"hologram\"}");
         server.runCommand("summon armor_stand 4 -60 50 {CustomName:\"stand\",CustomNameVisible:1b}");
         ctx.waitTicks(10);
