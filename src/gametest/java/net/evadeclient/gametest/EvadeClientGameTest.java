@@ -112,7 +112,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(5);
 
         ctx.waitTicks(2);
-        check(ctx.computeOnClient(c -> c.options.sprintKey.isPressed()), "ToggleSprint holds sprint");
+        // Toggle Sprint holds sprint in the movement input the game reads each tick (the key binding itself is left alone)
+        check(ctx.computeOnClient(c -> c.player.input.playerInput.sprint()), "ToggleSprint holds sprint");
 
         enable(ctx, net.evadeclient.module.mods.TimeChanger.class);
         ctx.waitTicks(3);
