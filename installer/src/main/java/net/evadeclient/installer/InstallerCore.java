@@ -94,7 +94,7 @@ public final class InstallerCore {
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
 
     /** Reported when Evade Clips is open and its app file can't be replaced. */
-    public static final String CLIPS_BUSY = "Evade Clips couldn't be updated (it may be running). Close it from the tray and run the installer again.";
+    public static final String CLIPS_BUSY = "Evade Clips couldn't be updated: it's recording (or wouldn't close). Stop the recording or quit it from the tray, then run the installer again.";
 
     public interface Progress {
         void update(double fraction, String message);
@@ -421,10 +421,19 @@ public final class InstallerCore {
         download(r.clipsUrl(), fresh, r.clipsSha256(), "SHA-256", 0.84, 0.94, p);
 
         FileSystemException busy = null;
+        boolean reopen = false;
         try {
             move(fresh, target);
         } catch (FileSystemException e) {
             busy = e;
+        }
+        // Running in the tray, Evade Clips keeps its .exe locked on Windows: close it, swap the new one in, reopen it
+        if (busy != null && WINDOWS) {
+            p.update(0.945, "Closing Evade Clips to update it");
+            if (closeRunningClips(target, CLIPS_PORT)) {
+                busy = moveWhenFree(fresh, target, 10_000);
+                reopen = busy == null;
+            }
         }
 
         // Where Evade Client finds the app to start it with Minecraft. Other fields (written by the app) are kept.
@@ -444,6 +453,11 @@ public final class InstallerCore {
 
         p.update(0.955, "Adding Evade Clips to your apps");
         try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
+        if (reopen) {
+            // back in the tray where it was, now updated
+            try { new ProcessBuilder(target.toString(), "--minimized").directory(app.toFile()).start(); }
+            catch (Exception e) { System.err.println("Couldn't reopen Evade Clips: " + e.getMessage()); }
+        }
 
         // ffmpeg last: it's big (about 100 MB) and its host can be slow, so it never blocks the rest of the install.
         // If it fails or stalls, Evade Clips downloads it itself the first time it opens.
@@ -1197,6 +1211,66 @@ public final class InstallerCore {
     }
 
     /** Renames a file into place, atomically where the file system can. */
+    /** Evade Clips' local control port (where Evade Client and the installer talk to it). */
+    static final int CLIPS_PORT = 47821;
+
+    /**
+     * Closes a running Evade Clips so it can be updated, and returns whether it's gone (or wasn't running). Newer
+     * versions are asked to quit over their local control port; they save everything and refuse (keep running)
+     * while a full recording is going, so an update never cuts one short. Older versions without that are closed
+     * as a process, the one running from {@code target}, but also never while they report a recording.
+     */
+    boolean closeRunningClips(Path target, int port) {
+        String base = "http://127.0.0.1:" + port;
+        try {
+            HttpResponse<String> st = http.send(HttpRequest.newBuilder(URI.create(base + "/status")).timeout(java.time.Duration.ofSeconds(2)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            if (st.statusCode() == 200 && st.body().replace(" ", "").contains("\"recording\":true")) return false;
+            HttpResponse<String> q = http.send(HttpRequest.newBuilder(URI.create(base + "/quit?client=installer")).timeout(java.time.Duration.ofSeconds(3))
+                    .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+            if (q.statusCode() == 409) return false; // recording
+            if (q.statusCode() == 200) return waitForExit(target, 10_000);
+            // an older Evade Clips (no /quit): close its process below
+        } catch (Exception e) {
+            // not answering: close its process below, if there is one
+        }
+        List<ProcessHandle> running = clipsProcesses(target);
+        for (ProcessHandle h : running) h.destroy();
+        if (waitForExit(target, 5_000)) return true;
+        for (ProcessHandle h : clipsProcesses(target)) h.destroyForcibly();
+        return waitForExit(target, 5_000);
+    }
+
+    /** Processes running the Evade Clips program at {@code target}. */
+    static List<ProcessHandle> clipsProcesses(Path target) {
+        String want = target.toAbsolutePath().normalize().toString();
+        return ProcessHandle.allProcesses().filter(h -> h.pid() != ProcessHandle.current().pid() && h.info().command()
+                .map(c -> WINDOWS ? c.equalsIgnoreCase(want) : c.equals(want)).orElse(false)).toList();
+    }
+
+    private static boolean waitForExit(Path target, long millis) {
+        long until = System.currentTimeMillis() + millis;
+        while (System.currentTimeMillis() < until) {
+            if (clipsProcesses(target).isEmpty()) return true;
+            try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return false; }
+        }
+        return clipsProcesses(target).isEmpty();
+    }
+
+    /** Swaps the new file in, retrying while Windows still holds the old one; returns the last error, or null. */
+    static FileSystemException moveWhenFree(Path from, Path to, long millis) throws IOException {
+        long until = System.currentTimeMillis() + millis;
+        while (true) {
+            try {
+                move(from, to);
+                return null;
+            } catch (FileSystemException e) {
+                if (System.currentTimeMillis() >= until) return e;
+                try { Thread.sleep(250); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return e; }
+            }
+        }
+    }
+
     static void move(Path from, Path to) throws IOException {
         try {
             Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);

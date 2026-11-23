@@ -57,6 +57,11 @@ public final class ControlServer {
         default boolean apiEnabled() { return true; }
         /** Adds a video file to the library (copied in), e.g. a replay render from Evade Client. */
         default Map<String, Object> importFile(java.nio.file.Path file, String title) throws Exception { return Map.of("ok", false); }
+        /**
+         * The installer asks Evade Clips to quit so it can update it (Windows won't replace a running app). Refused
+         * (false) while a full recording is running, so an update never cuts one short.
+         */
+        default boolean quit() { return false; }
     }
 
     private static final Map<String, Object> API_OFF = Map.of("error",
@@ -85,7 +90,7 @@ public final class ControlServer {
                 boolean post = ex.getRequestMethod().equalsIgnoreCase("POST");
                 boolean evade = "evade".equals(q.get("client"));
                 if (evade) h.evadeClientSeen();
-                boolean open = path.equals("/status") || path.equals("/open");
+                boolean open = path.equals("/status") || path.equals("/open") || path.equals("/quit");
                 if (!open && EVADE_ONLY.contains(path) && !evade) { send(ex, 403, NOT_EVADE); return; }
                 if (!open && !h.apiEnabled()) { send(ex, 403, API_OFF); return; }
                 switch (path) {
@@ -117,6 +122,11 @@ public final class ControlServer {
                             return;
                         }
                         send(ex, 200, h.importFile(f, q.get("title")));
+                    }
+                    case "/quit" -> {
+                        if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
+                        boolean ok = h.quit();
+                        send(ex, ok ? 200 : 409, ok ? Map.of("ok", true) : Map.of("ok", false, "error", "recording"));
                     }
                     case "/marker" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }

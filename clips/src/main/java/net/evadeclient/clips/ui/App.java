@@ -335,6 +335,17 @@ public final class App {
                     m.put("lastClip", lastSavedClipId);
                     return m;
                 }
+                @Override public boolean quit() {
+                    if (status.recording()) return false;
+                    // after the answer has gone out: shut down cleanly (buffer, library, hotkeys), then exit
+                    Thread t = new Thread(() -> {
+                        try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+                        shutdown();
+                        System.exit(0);
+                    }, "quit for update");
+                    t.start();
+                    return true;
+                }
                 @Override public Map<String, Object> importFile(java.nio.file.Path file, String title) {
                     var added = library.importFiles(List.of(file), false);
                     if (added.isEmpty()) return Map.of("ok", false);

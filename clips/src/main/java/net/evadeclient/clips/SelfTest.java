@@ -99,6 +99,9 @@ final class SelfTest {
             }
             public java.util.Map<String, Object> record(String a, String g) { return java.util.Map.of(); }
             public void marker() {}
+            volatile boolean recording = true;
+            int quitCalls;
+            public boolean quit() { quitCalls++; boolean ok = !recording; recording = false; return ok; }
             public java.util.Map<String, Object> importFile(Path f, String title) {
                 var added = lib.importFiles(List.of(f), false);
                 if (!added.isEmpty() && title != null) { added.get(0).title = title; lib.update(added.get(0)); }
@@ -140,6 +143,9 @@ final class SelfTest {
         var bad = imp.apply(dir.resolve("settings.json").toString());
         check(imported.statusCode() == 200 && imported.body().contains("\"ok\":true") && lib.all().stream().anyMatch(c -> "Replay render".equals(c.title)) && bad.statusCode() == 400,
                 "API /import adds a replay render to the library and refuses non-videos (" + imported.statusCode() + "/" + bad.statusCode() + ")");
+        // the installer asks Evade Clips to quit before updating it: refused mid-recording, then accepted
+        int whileRecording = callApi.apply("/quit").statusCode(), afterwards = callApi.apply("/quit").statusCode();
+        check(whileRecording == 409 && afterwards == 200, "API /quit (for the installer) is refused during a recording (" + whileRecording + "), then accepted (" + afterwards + ")");
         api.stop();
 
         eventTests();
