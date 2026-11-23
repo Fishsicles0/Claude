@@ -420,11 +420,24 @@ public final class InstallerCore {
         p.update(0.84, "Downloading Evade Clips " + r.clipsVersion());
         download(r.clipsUrl(), fresh, r.clipsSha256(), "SHA-256", 0.84, 0.94, p);
 
+        // Old copies set aside by an earlier update (once nothing is running them any more).
+        try (var old = Files.list(app)) {
+            old.filter(f -> f.getFileName().toString().startsWith(target.getFileName() + ".old"))
+               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
+        } catch (IOException ignored) { }
         FileSystemException busy = null;
         try {
             move(fresh, target);
         } catch (FileSystemException e) {
-            busy = e;
+            // Evade Clips is open (often just in the tray). Windows won't let a running program be replaced, but it
+            // can be renamed: set it aside and put the new one in its place; it's used from the next start.
+            try {
+                Path aside = app.resolve(target.getFileName() + ".old-" + System.currentTimeMillis());
+                Files.move(target, aside);
+                move(fresh, target);
+            } catch (IOException e2) {
+                busy = e;
+            }
         }
 
         // Where Evade Client finds the app to start it with Minecraft. Other fields (written by the app) are kept.
