@@ -50,6 +50,26 @@ editor and Discord/Shorts/GIF exports. Evade Client's **Clips** mod saves clips 
 pops, deaths, wins and advancements. See [clips/README.md](clips/README.md). `clips-share/` is the optional
 share-link and phone-sync server for it (Cloudflare Worker + R2).
 
+## Replays (3D)
+
+The **Replay** module records the world as you play, not just the screen: every packet the server sends (blocks,
+players, mobs, items, particles, sounds) plus your own movement, from the moment you join a world or server. So
+afterwards you can fly through it with a free camera, see moments from angles you never had, and render cinematic
+video.
+
+- **Record**: pause menu → *Start recording* (works mid-match: the session since joining is captured in the
+  background), *Pause*, *Marker*, *Save replay*. Or turn on *Record Every Session*. Replays save when you leave.
+- **Watch**: title screen → *Replays*. You're a spectator camera that flies through walls; the player who recorded
+  is shown as a normal player. `P` play/pause, `←`/`→` 5 s, `↑`/`↓` speed, `K` camera keyframe, `E` editor.
+- **Editor** (`E`): a timeline with markers and keyframes. *Camera*: keyframes make a smooth path (FOV and roll
+  per keyframe), look at or orbit a player or mob, speed keyframes for slow motion and time-lapse. *Scene*: time of
+  day, weather, fog, name tags, hide players and mobs, green-screen sky. *Render*: any size up to 4K (or vertical),
+  30/60/120 fps, rendered frame by frame to MP4 (ffmpeg from Evade Clips or the PATH), straight into Evade Clips.
+- Files: `.minecraft/evade/replays/*.evadereplay` (a zip: `meta.json` + the recorded stream), camera paths in
+  `*.evadereplay.project.json` beside them, renders in `.minecraft/evade/renders`.
+- `./gradlew runClientGameTest -PreplayTest` records a scene in singleplayer and on a real dedicated server, replays
+  both, plays, seeks both ways, checks green screen and renders a camera path to a 640x360 MP4.
+
 ## Using it
 
 ![Menu](docs/menu.png)

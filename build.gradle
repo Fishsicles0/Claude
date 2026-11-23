@@ -57,6 +57,7 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
     // `-Pfootage` films gameplay for the Evade Clips screenshots instead of testing (scripts/film-footage.sh)
     // `-PmenuShot` only opens the menu in each theme and screenshots it (quick look at GUI changes)
     if (project.hasProperty('menuShot')) vmArg "-Devade.menushot=true"
+    if (project.hasProperty('replayTest')) vmArg "-Devade.replaytest=true"
     if (project.hasProperty('footage')) {
         vmArg "-Devade.footage=true"
         vmArg "-Devade.footage.dir=${layout.buildDirectory.dir('footage').get().asFile.absolutePath}"

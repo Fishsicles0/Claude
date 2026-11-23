@@ -80,6 +80,7 @@ public class ModuleManager {
         register(new Notifier());
         register(new Protection());
         register(new Clips());
+        register(new net.evadeclient.module.misc.Replay());
         register(new EvadeIcons());
         register(new VoiceChat());
         // HUD

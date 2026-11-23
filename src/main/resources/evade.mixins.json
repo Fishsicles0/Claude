@@ -34,7 +34,15 @@
     "WeatherRenderingMixin",
     "KeybindInputMixin",
     "KeybindMouseInputMixin",
-    "ToastManagerAccessor"
+    "ToastManagerAccessor",
+    "ClientConnectionReplayMixin",
+    "WindowAccessor",
+    "ReplayClientMixin",
+    "ReplayGameRendererMixin",
+    "ReplayCameraMixin",
+    "ReplayEntityRendererMixin",
+    "ReplaySkyMixin",
+    "ReplayFogMixin"
   ],
   "injectors": {
     "defaultRequire": 1

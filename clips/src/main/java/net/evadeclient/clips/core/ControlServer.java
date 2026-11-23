@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
  *   POST /record/start?game=...   POST /record/stop   POST /record/toggle
  *   POST /marker?label=Kill
  *   POST /open[?clip=<id>|last]   (bring the app forward / open a clip in the editor)
+ *   POST /import?path=<file>[&title=]   (add a video, e.g. an Evade replay render, to the library)
  * </pre>
  * Requests carrying an Origin header are refused, so web pages can't trigger it.
  */
@@ -37,6 +38,8 @@ public final class ControlServer {
         default boolean open(String clip) { return false; }
         /** A game's own state push (CS2 Game State Integration). Returns false to reject (bad token). */
         default boolean gameState(String game, String body) { return false; }
+        /** Adds a video file to the library (copied in), e.g. a replay render from Evade Client. */
+        default Map<String, Object> importFile(java.nio.file.Path file, String title) throws Exception { return Map.of("ok", false); }
     }
 
     private static final Gson GSON = new Gson();
@@ -66,6 +69,16 @@ public final class ControlServer {
                     case "/open" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
                         send(ex, 200, Map.of("ok", h.open(q.get("clip"))));
+                    }
+                    case "/import" -> {
+                        if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
+                        String p = q.get("path");
+                        java.nio.file.Path f = p == null ? null : java.nio.file.Path.of(p);
+                        if (f == null || !java.nio.file.Files.isRegularFile(f) || !Library.VIDEO_EXT.contains(Library.ext(f))) {
+                            send(ex, 400, Map.of("error", "not a video file"));
+                            return;
+                        }
+                        send(ex, 200, h.importFile(f, q.get("title")));
                     }
                     case "/gsi/cs2" -> {
                         String body = new String(ex.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);

@@ -236,6 +236,17 @@ public final class App {
                     m.put("hotkey", hotkeys.active() ? settings.hotkeySaveClip : "");
                     return m;
                 }
+                @Override public Map<String, Object> importFile(java.nio.file.Path file, String title) {
+                    var added = library.importFiles(List.of(file), false);
+                    if (added.isEmpty()) return Map.of("ok", false);
+                    Clip c = added.get(0);
+                    if (title != null && !title.isBlank()) c.title = title;
+                    c.game = "Minecraft";
+                    if (!c.tags.contains("replay")) c.tags.add("replay");
+                    library.update(c);
+                    App.this.notify("Replay render added", c.title, false);
+                    return Map.of("ok", true, "id", c.id);
+                }
                 @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {
                     Clip c = saveClipNow(seconds, after, title, game, tag);
                     return Map.of("ok", true, "id", c.id, "file", c.path(library.root()).toString(), "duration", c.duration, "title", c.title);

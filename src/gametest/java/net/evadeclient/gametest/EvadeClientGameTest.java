@@ -20,6 +20,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext ctx) {
         if (Boolean.getBoolean("evade.footage")) { Footage.film(ctx); return; } // scripts/film-footage.sh
         if (Boolean.getBoolean("evade.menushot")) { menuShots(ctx); return; }      // ./gradlew runClientGameTest -PmenuShot
+        if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
             sp.getClientWorld().waitForChunksRender();
             var server = sp.getServer();
@@ -50,6 +51,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testIcons(ctx, sp);
             testCustomization(ctx);
         }
+        ReplayTest.run(ctx);
     }
 
     /** The new Lunar-style HUD/info readouts: Item Counter, Saturation, Stopwatch. */
