@@ -232,14 +232,14 @@ public final class InstallerCore {
     public Release fetchRelease() throws IOException, InterruptedException {
         JsonObject site;
         try {
-            site = getJson(SITE + "/version.json").getAsJsonObject();
+            site = getJson(SITE + "/version.json?t=" + System.currentTimeMillis()).getAsJsonObject(); // never a cached copy
         } catch (IOException | RuntimeException e) {
             throw new IOException("Couldn't reach " + host(SITE), e);
         }
         String evadeVersion = str(site, "version"), file0 = str(site, "file");
         if (evadeVersion == null || file0 == null) throw new IOException(host(SITE) + " sent an incomplete version list");
-        String evadeUrl = SITE + "/" + file0;
         String evadeSha = str(site, "sha256");
+        String evadeUrl = SITE + "/" + file0 + bust(evadeSha);
 
         String loader = null;
         try {
@@ -342,7 +342,7 @@ public final class InstallerCore {
             JsonObject c = site.getAsJsonObject("clips");
             clipsVersion = str(c, "version");
             JsonObject pick = WINDOWS && c.has("windows") ? c.getAsJsonObject("windows") : c.getAsJsonObject("jar");
-            if (pick != null && str(pick, "file") != null) { clipsUrl = SITE + "/" + str(pick, "file"); clipsSha = str(pick, "sha256"); }
+            if (pick != null && str(pick, "file") != null) { clipsSha = str(pick, "sha256"); clipsUrl = SITE + "/" + str(pick, "file") + bust(clipsSha); }
             if (WINDOWS && c.has("ffmpeg")) {
                 JsonObject f = c.getAsJsonObject("ffmpeg");
                 ffUrl = str(f, "url");
@@ -414,7 +414,7 @@ public final class InstallerCore {
     void installClips(Release r, Progress p) throws Exception {
         Path app = clipsAppDir();
         Files.createDirectories(app);
-        boolean exe = r.clipsUrl().toLowerCase(Locale.ROOT).endsWith(".exe");
+        boolean exe = r.clipsUrl().replaceFirst("[?#].*$", "").toLowerCase(Locale.ROOT).endsWith(".exe");
         Path target = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
         Path fresh = app.resolve(target.getFileName() + ".new");
         p.update(0.84, "Downloading Evade Clips " + r.clipsVersion());
@@ -1183,6 +1183,11 @@ public final class InstallerCore {
         } catch (IOException e) {
             return true;
         }
+    }
+
+    /** A query naming the file's checksum, so no cache can answer with an older build of it. */
+    private static String bust(String sha) {
+        return sha == null || sha.length() < 10 ? "?t=" + System.currentTimeMillis() : "?v=" + sha.substring(0, 10);
     }
 
     /** Low-pause G1 settings: short GC pauses, no forced full GCs. */
