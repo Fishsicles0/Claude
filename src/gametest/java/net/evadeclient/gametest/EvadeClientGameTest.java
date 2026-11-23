@@ -1851,7 +1851,10 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         setBool(ctx, perf, "Lighter Video Settings", false);
         ctx.waitTicks(2);
         var off = ctx.computeOnClient(c -> c.options.getCloudRenderMode().getValue());
-        boolean fileAfter = java.nio.file.Files.exists(restoreFile);
+        // Unlock FPS keeps its own entries in the file; the clouds entry must be gone.
+        boolean fileAfter;
+        try { fileAfter = java.nio.file.Files.exists(restoreFile) && java.nio.file.Files.readString(restoreFile).contains("\"clouds\""); }
+        catch (java.io.IOException e) { fileAfter = true; }
         setBool(ctx, perf, "Lighter Video Settings", true);
         disable(ctx, net.evadeclient.module.mods.Performance.class);
         check(on == net.minecraft.client.option.CloudRenderMode.OFF && off == net.minecraft.client.option.CloudRenderMode.FANCY
