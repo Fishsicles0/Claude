@@ -80,7 +80,9 @@ export default {
           const base = env.MOJANG_SESSION_URL || "https://sessionserver.mojang.com";
           try {
             const r = await fetch(base + "/session/minecraft/hasJoined?username=Evade&serverId=" + hex(20), { headers: MOJANG_HEADERS });
-            return json({ ok: r.status === 204 || r.status === 200, mojang: r.status });
+            let keys = "unreachable";
+            try { keys = (await fetch("https://api.minecraftservices.com/publickeys", { headers: MOJANG_HEADERS })).status; } catch {}
+            return json({ ok: r.status === 204 || r.status === 200, mojang: r.status, publickeys: keys });
           } catch (e) {
             return json({ ok: false, mojang: "unreachable" });
           }
