@@ -15,7 +15,6 @@
     "InGameOverlayRendererMixin",
     "ItemCooldownManagerAccessor",
     "MouseMixin",
-    "SimpleOptionAccessor",
     "BossBarHudMixin",
     "ParticleManagerMixin",
     "HandledScreenMixin",
