@@ -91,11 +91,15 @@ public final class LibraryPanel extends JPanel {
     private final Set<String> loadingPics = new java.util.HashSet<>();
     /**
      * Thumbnails as a card at rest draws them: the card's rounded top corners cut by an anti-aliased mask, with the
-     * bottom shade (newest 48, all at the cards' current size; dropped when the cards change size). UI thread only.
+     * bottom shade. All at the cards' current size (dropped when the cards change size); the newest ones that fit in
+     * {@link #FRAMED_BUDGET} bytes, but always enough for a screenful. UI thread only.
      */
     private record Framed(Image src, BufferedImage img) {}
-    private final Map<String, Framed> framedCache = lru(48);
-    private int framedW, framedH;
+    private static final long FRAMED_BUDGET = 64L << 20;
+    private int framedW, framedH, framedMax = 48;
+    private final Map<String, Framed> framedCache = new java.util.LinkedHashMap<>(64, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Framed> e) { return size() > framedMax; }
+    };
     /** Where a moving thumbnail (hover zoom, scrubbing) is put together each frame: one buffer, reused by every card. */
     private BufferedImage thumbScratch;
     /** Bumped on every library change, so cached pictures are checked against their files again. */
@@ -160,7 +164,7 @@ public final class LibraryPanel extends JPanel {
         bar.add(search);
         bar.add(Box.createHorizontalGlue());
         game.getAccessibleContext().setAccessibleName("Game");
-        game.setPrototypeDisplayValue("Counter-Strike 2   ");
+        game.setPrototypeDisplayValue("All games          ");
         game.setMaximumSize(new Dimension(190, 34));
         game.setMinimumSize(new Dimension(120, 34));
         game.addActionListener(e -> { if (!updatingGames) refresh(); });
@@ -438,6 +442,7 @@ public final class LibraryPanel extends JPanel {
             framedCache.clear();
             framedW = dw;
             framedH = dh;
+            framedMax = (int) Math.max(24, Math.min(150, FRAMED_BUDGET / (4L * dw * dh)));
         }
         Framed f = framedCache.get(c.id);
         if (f == null || f.src() != t) {

@@ -512,8 +512,8 @@ public final class MainWindow extends JFrame {
                     : err ? "Capture error" : "Replay off", 46, h - 54);
             g.setFont(Theme.inter.deriveFont(11.5f));
             g.setColor(Theme.DIM);
-            String sub = err ? "Click for details" : app.currentGame != null ? app.currentGame : live ? app.settings.hotkeySaveClip + " saves " + RecordPanel.label(app.settings.replaySeconds)
-                    : app.settings.autoReplayForGames ? "Waiting for a game" : "Click to set up capture";
+            String sub = err ? "Click for details" : live ? app.settings.hotkeySaveClip + " saves " + RecordPanel.label(app.settings.replaySeconds)
+                    : !app.minecraftRunning() ? "Open Minecraft to record" : "Minecraft is open";
             g.drawString(LibraryPanel.ellipsize(g, sub, w - 56), 28, h - 34);
             g.dispose();
         }

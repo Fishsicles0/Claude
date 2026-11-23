@@ -92,18 +92,16 @@ public final class SettingsPanel extends JPanel {
         voiceSection(s);
         storageSection(s);
         watermarkSection(s);
-        watchFolderSection(s);
 
         section("Library");
         check("Protect favorites: they can't be deleted (even in bulk) until you unfavorite them", s.protectFavorites, v -> s.protectFavorites = v);
         check("Preview clips when hovering them in the library", s.hoverPreview, v -> s.hoverPreview = v);
 
         section("Behavior");
-        check("Turn on instant replay when a game starts, off when it closes (no cost while you're not playing)", s.autoReplayForGames,
+        check("Turn on instant replay when Minecraft starts, off when it closes (no cost while you're not playing)", s.autoReplayForGames,
                 v -> { s.autoReplayForGames = v; app.applyReplaySettings(); });
-        check("Keep instant replay on all the time, even with no game open", s.replayOnLaunch,
-                v -> { s.replayOnLaunch = v; app.applyReplaySettings(); });
-        check("Find highlights in new recordings automatically (kills and wins from game events, plus the loudest moments)", s.autoHighlights, v -> s.autoHighlights = v);
+        note("Evade Clips records Minecraft with Evade Client, and only while it's open.");
+        check("Find highlights in new recordings automatically (kills and wins from Evade Client, plus the loudest moments)", s.autoHighlights, v -> s.autoHighlights = v);
         check("Play a sound when a clip is saved", s.playSound, v -> s.playSound = v);
         check("Show a pop-up when a clip is saved", s.showToast, v -> s.showToast = v);
         check("Closing the window keeps Evade Clips running in the tray", s.minimizeToTray, v -> s.minimizeToTray = v);
@@ -254,9 +252,6 @@ public final class SettingsPanel extends JPanel {
         });
         row("Delete old replays", small(age));
         note("Unfavorited instant replays older than this are deleted. Favorites, shared clips, recordings and exports are kept.");
-        JTextField game = new JTextField(s.defaultGame);
-        commit(game, v -> s.defaultGame = v);
-        row("Default game name", game);
     }
 
     private void watermarkSection(Settings s) {
@@ -330,53 +325,6 @@ public final class SettingsPanel extends JPanel {
         wmRefresh.run();
         Theme.pad(wmPreview, 6, 216, 6, 0);
         place(wmPreview, 0, 0);
-    }
-
-    private void watchFolderSection(Settings s) {
-        section("Console captures & watch folders");
-        note("Plug in the USB drive from your PS5, Xbox or Switch (or pick any folder) and new captures are imported automatically, "
-                + "named after their game. PlayStation has no capture-sharing API for apps, so this (or uploading from the phone gallery) is how console clips get in.");
-        DefaultListModel<String> wf = new DefaultListModel<>();
-        for (String f : s.watchFolders) wf.addElement(f);
-        JList<String> wfl = new JList<>(wf);
-        wfl.setVisibleRowCount(3);
-        wfl.getAccessibleContext().setAccessibleName("Watched folders");
-        JButton wfAdd = Theme.button("Add folder…", null, false), wfDel = Theme.button("Remove", null, false), wfNow = Theme.button("Import now", null, false);
-        JButton wfAgain = Theme.button("Re-import", null, false);
-        wfAgain.setToolTipText("Import everything in the selected folder again, including captures you deleted here");
-        wfAdd.addActionListener(e -> {
-            JFileChooser fc = new JFileChooser();
-            fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            if (fc.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-            String f = fc.getSelectedFile().getAbsolutePath();
-            if (!s.watchFolders.contains(f)) { s.watchFolders.add(f); wf.addElement(f); s.save(); }
-        });
-        wfDel.addActionListener(e -> { String f = wfl.getSelectedValue(); if (f != null) { s.watchFolders.remove(f); wf.removeElement(f); s.save(); } });
-        wfNow.addActionListener(e -> new Thread(() -> {
-            var added = net.evadeclient.clips.core.WatchFolders.scan(s, app.library);
-            app.notify("Imported " + added.size() + (added.size() == 1 ? " capture" : " captures"), null, false);
-        }, "watch-now").start());
-        wfAgain.addActionListener(e -> {
-            String f = wfl.getSelectedValue();
-            if (f == null) { JOptionPane.showMessageDialog(this, "Pick a folder in the list first."); return; }
-            if (JOptionPane.showConfirmDialog(this, "Import every capture in this folder again, including ones you deleted from the library?\n" + f,
-                    "Re-import", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
-            new Thread(() -> {
-                net.evadeclient.clips.core.WatchFolders.forgetFolder(s, f);
-                var added = net.evadeclient.clips.core.WatchFolders.scan(s, app.library);
-                app.notify("Imported " + added.size() + (added.size() == 1 ? " capture" : " captures"), null, false);
-            }, "watch-again").start();
-        });
-        JPanel wfp = new JPanel(new BorderLayout(8, 0));
-        wfp.setOpaque(false);
-        JScrollPane wfs = new JScrollPane(wfl);
-        wfs.setPreferredSize(new Dimension(260, 64));
-        wfp.add(wfs, BorderLayout.CENTER);
-        JPanel wfb = new JPanel(new GridLayout(4, 1, 0, 4));
-        wfb.setOpaque(false);
-        wfb.add(wfAdd); wfb.add(wfDel); wfb.add(wfNow); wfb.add(wfAgain);
-        wfp.add(wfb, BorderLayout.EAST);
-        row("Watched folders", wfp, 150);
     }
 
     private void sharingSection(Settings s) {
@@ -487,47 +435,28 @@ public final class SettingsPanel extends JPanel {
     }
 
     private void eventsSection(Settings s) {
-        section("Automatic clips from game events");
-        note("Supported games tell Evade Clips what happens through their official interfaces. Nothing reads game memory. "
-                + "Events close together become one clip.");
+        section("Automatic clips");
+        note("The Clips mod in Evade Client tells Evade Clips what happens in Minecraft (kills, totem pops, deaths, wins, "
+                + "advancements) and it saves a clip. Nothing reads game memory. Events close together become one clip.");
         JSpinner before = new JSpinner(new SpinnerNumberModel(s.autoClipBefore, 5, 120, 5));
         before.addChangeListener(e -> { s.autoClipBefore = (int) before.getValue(); s.save(); app.applyEventSettings(); });
         row("Seconds before the event", small(before));
         JSpinner after = new JSpinner(new SpinnerNumberModel(s.autoClipAfter, 0, 15, 1));
         after.addChangeListener(e -> { s.autoClipAfter = (int) after.getValue(); s.save(); app.applyEventSettings(); });
         row("Seconds after the event", small(after));
-        check("Counter-Strike 2: kills, headshots, 3K/4K/aces, MVPs, match wins", s.cs2Events, v -> s.cs2Events = v);
-        check("Any game without event support (The Finals, Valorant, Fortnite, Apex…): auto-clip loud moments like fights and explosions",
+        check("When Evade Client's Clips mod is off, auto-clip loud moments like fights and explosions",
                 s.liveHighlights, v -> s.liveHighlights = v);
         JComboBox<String> sens = new JComboBox<>(new String[]{"Low (only big moments)", "Medium", "High (more clips)"});
         sens.setSelectedIndex(switch (s.liveSensitivity) { case "low" -> 0; case "high" -> 2; default -> 1; });
         sens.addActionListener(e -> { s.liveSensitivity = new String[]{"low", "medium", "high"}[sens.getSelectedIndex()]; s.save(); app.applyEventSettings(); });
         row("Loud-moment sensitivity", small(sens));
-        JComboBox<String> rounds = new JComboBox<>(new String[]{"Off", "Rounds with a kill", "Every round"});
-        rounds.setSelectedIndex(switch (s.cs2FullRounds) { case "kills" -> 1; case "all" -> 2; default -> 0; });
-        rounds.addActionListener(e -> { s.cs2FullRounds = new String[]{"off", "kills", "all"}[rounds.getSelectedIndex()]; s.save(); app.applyEventSettings(); });
-        row("CS2 full-round clips", small(rounds));
-        note("Full-round clips cover the whole round from the moment it goes live (the replay buffer is raised to 2.5 minutes so rounds always fit).");
-        check("Counter-Strike 2: only clip headshot kills (multikills and aces always)", s.cs2HeadshotsOnly, v -> { s.cs2HeadshotsOnly = v; app.applyEventSettings(); });
-        JButton cs2 = Theme.button("Set up CS2", null, false);
-        cs2.addActionListener(e -> {
-            int n = net.evadeclient.clips.events.Cs2Integration.install(s.controlPort, s.gsiToken);
-            JOptionPane.showMessageDialog(this, n > 0
-                    ? "Done: CS2 will send events to Evade Clips (" + n + " install" + (n == 1 ? "" : "s") + "). Restart CS2 if it's open."
-                    : "CS2 wasn't found in your Steam libraries. Put this file in\n...\\Counter-Strike Global Offensive\\game\\csgo\\cfg\\\nas gamestate_integration_evadeclips.cfg:\n\n"
-                      + net.evadeclient.clips.events.Cs2Integration.config(s.controlPort, s.gsiToken));
-        });
-        row("CS2 Game State Integration", small(cs2));
-        check("League of Legends: kills, double … pentakills, aces, dragon/baron steals, victory", s.leagueEvents, v -> s.leagueEvents = v);
-        check("Also save a clip when you die (deaths are always marked on recordings)", s.clipDeaths, v -> { s.clipDeaths = v; app.applyEventSettings(); });
-        note("Every event also drops a named marker (\"Kill Steve\", \"ACE\", \"Death\") on the timeline of recordings and replays. "
-                + "Minecraft: the Clips mod in Evade Client clips kills, totem pops, deaths, wins and advancements. "
-                + "Without Evade Client, Minecraft gets loud-moment clips like other games.");
+        note("Every event also drops a named marker (\"Kill Steve\", \"Totem pop\", \"Death\") on the timeline of recordings and replays. "
+                + "Which events save a clip is set in Evade Client's Clips mod.");
     }
 
     private void integrationsSection(Settings s) {
-        section("Evade Client & integrations");
-        check("Allow Evade Client and local tools to save clips", s.controlServer, v -> s.controlServer = v);
+        section("Evade Client");
+        check("Allow Evade Client to save clips", s.controlServer, v -> s.controlServer = v);
         controlNote.setVisible(false);
         place(controlNote, 0, 6);
         JSpinner port = new JSpinner(new SpinnerNumberModel(s.controlPort, 1024, 65535, 1));
@@ -551,9 +480,9 @@ public final class SettingsPanel extends JPanel {
     }
 
     private static String portText(int port) {
-        return "Evade Client's \"Clips\" mod uses this to save replays on a key press or automatically on kills, deaths and wins "
-                + "(it finds the port by itself). Scripts and stream decks can POST to http://127.0.0.1:" + port + "/clip. Only this PC can reach it. "
-                + "With saving from other apps off, Counter-Strike 2 events and opening Evade Clips from Evade Client still work.";
+        return "Evade Client's \"Clips\" mod uses this to save replays on a key press or automatically on kills, deaths and wins, "
+                + "and to send replay renders to your library (it finds the port by itself). Only Evade Client on this PC can use it "
+                + "(port " + port + "). With saving turned off, opening Evade Clips from Evade Client still works.";
     }
 
     private void refreshControlNote() {

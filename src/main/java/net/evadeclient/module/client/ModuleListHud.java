@@ -80,7 +80,7 @@ public class ModuleListHud extends HudElementModule {
     public final ModeSetting suffixStyle = add(new ModeSetting("Suffix Style", "Plain", "Plain", "Brackets", "Dash", "Hidden")
             .describe("How a mod's mode is shown after its name: Mod Mode, Mod [Mode], Mod - Mode, or not at all."));
     public final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true));
-    public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", false));
+    // Smooth Font is the shared HudElementModule setting (same name, so saved values carry over).
 
     // ---- animation -------------------------------------------------------------------------------------
 

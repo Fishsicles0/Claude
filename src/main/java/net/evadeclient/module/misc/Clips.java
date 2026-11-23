@@ -129,7 +129,8 @@ public class Clips extends Module {
     private final BooleanSetting wins = add(new BooleanSetting("Auto Clip Wins", true)
             .describe("Clip games you win. Other end-of-game lines only drop a marker on Evade Clips' timeline."));
     private final BooleanSetting advancements = add(new BooleanSetting("Auto Clip Advancements", true));
-    private final NumberSetting after = add(new NumberSetting("Seconds After", 4, 0, 15, 1));
+    private final NumberSetting after = add(new NumberSetting("Seconds After", 4, 0, 15, 1)
+            .describe("How long an auto clip keeps recording after the moment that triggered it."));
     private final KeySetting openKey = add(new KeySetting("Open Clips App", GLFW.GLFW_KEY_UNKNOWN));
     private final BooleanSetting launchApp = add(new BooleanSetting("Start Evade Clips With Game", true));
     private final NumberSetting port = add(new NumberSetting("App Port", 47821, 1024, 65535, 1)

@@ -88,7 +88,7 @@ public final class InstallerCore {
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
     private static final String FABRIC_API_ID = "P7dR8mSH";
     /** Sodium's Modrinth project id (Iris pins an exact Sodium build) and the shader pack the Shaders option adds. */
-    private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "complementary-reimagined";
+    private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "photon-shader", LIGHT_PACK = "complementary-reimagined";
     private static final String USER_AGENT = "EvadeInstaller/1.4 (+https://evadeclient.com)";
     /** Groups of extra mods, recorded per file in the install marker. */
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
@@ -311,7 +311,7 @@ public final class InstallerCore {
             changed = perf.removeIf(f -> f.requires().stream().anyMatch(d -> d != null && !d.equals(FABRIC_API_ID) && !ids.contains(d)));
         }
 
-        // Shaders (optional): Iris, the exact Sodium build it asks for, and Complementary Reimagined.
+        // Shaders (optional): Iris, the exact Sodium build it asks for, and the Photon shader pack (Complementary Reimagined is added beside it as a lighter choice).
         ModFile iris = null, irisSodium = null, pack = null;
         try { iris = latestOnModrinth("Iris", "https://api.modrinth.com/v2/project/iris/version" + query); } catch (Exception e) { /* no shaders */ }
         if (iris != null) {
@@ -331,7 +331,7 @@ public final class InstallerCore {
         }
         if (iris != null) {
             try {
-                pack = latestOnModrinth("Complementary Reimagined", "https://api.modrinth.com/v2/project/" + SHADER_PACK
+                pack = latestOnModrinth("Photon", "https://api.modrinth.com/v2/project/" + SHADER_PACK
                         + "/version?loaders=" + enc("[\"iris\"]"));
             } catch (Exception e) { /* Iris still installs; the pack is reported as skipped */ }
         }
@@ -609,6 +609,8 @@ public final class InstallerCore {
             addProfile(mc.resolve("launcher_profiles.json"), true, o);
             Path store = mc.resolve("launcher_profiles_microsoft_store.json");
             if (Files.exists(store)) addProfile(store, false, o);
+            // 7. Windows: run Minecraft's Java on the fast graphics card (laptops often default to the weak one).
+            if (WINDOWS) preferHighPerformanceGpu(mc);
         } finally {
             try { deleteTree(staging); } catch (Exception ignored) {}
         }
@@ -821,7 +823,7 @@ public final class InstallerCore {
             prevPack = guessOldPack(packs, r.shaderPack().filename(), prevPackVersion);
         }
         boolean prevPackThere = prevPack != null && Files.isRegularFile(packs.resolve(prevPack));
-        String packFile = null, packVersion = "";
+        String packFile = null, packVersion = "", lightPack = null;
         if (shadersGo && irisReady && pack != null) {
             double a = 0.75 + 0.08 * idx / Math.max(1, total);
             p.update(a, "Downloading " + pack.name() + " " + pack.version());
@@ -838,6 +840,7 @@ public final class InstallerCore {
                     try { Files.deleteIfExists(packs.resolve(prevPack)); } catch (IOException ignored) { /* harmless extra pack */ }
                 }
                 pointIrisAt(game.resolve("config").resolve("iris.properties"), prevPack, name);
+                lightPack = installLightPack(packs, staging, prev, p);
             } catch (InterruptedException e) {
                 throw e;
             } catch (Exception e) {
@@ -851,12 +854,19 @@ public final class InstallerCore {
         } else if (prevPackThere) {
             try { Files.deleteIfExists(packs.resolve(prevPack)); } catch (IOException ignored) { /* harmless extra pack */ }
         }
+        String prevLight = prev != null ? str(prev, "lightPackFile") : null;
+        if (lightPack == null && plainName(prevLight)) {
+            // Kept while shaders stay on (a failed download this time keeps the old one); removed with shaders off.
+            if (shadersOn) lightPack = Files.isRegularFile(packs.resolve(prevLight)) ? prevLight : null;
+            else try { Files.deleteIfExists(packs.resolve(prevLight)); } catch (IOException ignored) { /* harmless */ }
+        }
 
         JsonObject marker = new JsonObject();
         marker.addProperty("voiceChat", voiceVersion);
         marker.addProperty("performanceMods", String.join(", ", perfNames));
         marker.addProperty("shaders", packVersion);
         if (packFile != null) marker.addProperty("shaderPackFile", packFile);
+        if (lightPack != null) marker.addProperty("lightPackFile", lightPack);
         marker.add("addedFiles", added);
         marker.add("addedGroups", groups);
         marker.add("addedProjects", projects);
@@ -1051,6 +1061,73 @@ public final class InstallerCore {
         profiles.add(PROFILE_KEY, prof);
 
         writeAtomic(file, GSON.toJson(root));
+    }
+
+    /**
+     * Sets Windows' per-app graphics preference to "High performance" for every Java the Minecraft Launcher ships
+     * (Settings > System > Display > Graphics shows the same choice). On a laptop with two GPUs this moves the game
+     * off the integrated one; with a single GPU it changes nothing. Only the current user's registry is touched, and a
+     * choice the player already made for that file is kept. Never fails the install.
+     */
+    static void preferHighPerformanceGpu(Path minecraftDir) {
+        try {
+            java.util.List<Path> javas = new java.util.ArrayList<>();
+            java.util.List<Path> roots = new java.util.ArrayList<>(java.util.List.of(minecraftDir.resolve("runtime")));
+            String local = System.getenv("LOCALAPPDATA");
+            if (local != null) {
+                roots.add(Paths.get(local, "Packages", "Microsoft.4297127D64EC6_8wekyb3d8bbwe", "LocalCache", "Local", "runtime"));
+            }
+            for (Path root : roots) {
+                if (!Files.isDirectory(root)) continue;
+                try (var walk = Files.walk(root, 7)) {
+                    walk.filter(f -> {
+                        String n = f.getFileName().toString().toLowerCase(Locale.ROOT);
+                        return (n.equals("javaw.exe") || n.equals("java.exe")) && f.getParent() != null
+                                && f.getParent().getFileName().toString().equalsIgnoreCase("bin");
+                    }).forEach(javas::add);
+                }
+            }
+            String key = "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences";
+            for (Path java : javas) {
+                String path = java.toAbsolutePath().toString();
+                Process q = new ProcessBuilder("reg", "query", key, "/v", path).redirectErrorStream(true).start();
+                q.getInputStream().readAllBytes();
+                if (q.waitFor() == 0) continue; // already set, by the player or a previous install
+                Process add = new ProcessBuilder("reg", "add", key, "/v", path, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f")
+                        .redirectErrorStream(true).start();
+                add.getInputStream().readAllBytes();
+                add.waitFor();
+            }
+        } catch (Exception e) {
+            // A preference, not a requirement: the game runs either way.
+        }
+    }
+
+    /**
+     * The lighter second pack (Complementary Reimagined) next to Photon, for laptops and older graphics: Evade's
+     * Shaders setting switches between them. Downloaded from Modrinth, never bundled. Null if it couldn't be added;
+     * that never fails the install.
+     */
+    private String installLightPack(Path packs, Path staging, JsonObject prev, Progress p) {
+        try {
+            ModFile light = latestOnModrinth("Complementary Reimagined", "https://api.modrinth.com/v2/project/" + LIGHT_PACK
+                    + "/version?loaders=" + enc("[\"iris\"]"));
+            if (light == null || light.filename() == null) return null;
+            String name = safeName(light.filename());
+            String prevLight = prev != null ? str(prev, "lightPackFile") : null;
+            if (name.equalsIgnoreCase(prevLight) && Files.isRegularFile(packs.resolve(name))) return name;
+            Path dir = staging.resolve("lightpack");
+            Files.createDirectories(dir);
+            p.update(0.83, "Downloading " + light.name() + " " + light.version());
+            download(light.url(), dir.resolve(name), light.sha512(), "SHA-512", 0.83, 0.85, p);
+            move(dir.resolve(name), packs.resolve(name));
+            if (plainName(prevLight) && !prevLight.equalsIgnoreCase(name)) {
+                try { Files.deleteIfExists(packs.resolve(prevLight)); } catch (IOException ignored) { /* harmless */ }
+            }
+            return name;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Low-pause G1 settings: short GC pauses, no forced full GCs. */

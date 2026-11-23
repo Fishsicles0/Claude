@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * End-to-end check without a screen: captures ffmpeg's test pattern + tone through the real capture engine,
  * saves instant replays, records a session and runs every export preset, then verifies each file with ffprobe.
- * Regression checks for fixed bugs (capture recovery, hotkeys, game detection, CS2 rounds, the library index and
- * storage limit, watch folders) run alongside; checks for features a build doesn't have yet print SKIP.
+ * Regression checks for fixed bugs (capture recovery, hotkeys, Minecraft detection, the library index and storage
+ * limit) and the Evade-Client-only rules run alongside; checks for features a build doesn't have yet print SKIP.
  */
 final class SelfTest {
     private final List<String> failures = new ArrayList<>();
@@ -106,9 +106,23 @@ final class SelfTest {
             }
         });
         var http = java.net.http.HttpClient.newHttpClient();
-        var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip?seconds=3&title=Kill%20Steve&tag=kill"))
-                .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
-        check(res.statusCode() == 200 && res.body().contains("\"ok\":true"), "API /clip saves a titled clip (" + res.statusCode() + ")");
+        java.util.function.Function<String, java.net.http.HttpResponse<String>> callApi = path -> {
+            try {
+                return http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + path))
+                        .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+            } catch (Exception e) { throw new RuntimeException(e); }
+        };
+        var res = callApi.apply("/clip?seconds=3&title=Kill%20Steve&tag=kill&client=evade");
+        check(res.statusCode() == 200 && res.body().contains("\"ok\":true"), "API /clip from Evade Client saves a titled clip (" + res.statusCode() + ")");
+        // Evade Clips only works with Evade Client: other programs can't save, record, mark or import.
+        List<String> refused = new ArrayList<>();
+        for (String path : List.of("/clip?seconds=3", "/clip?seconds=3&client=other", "/record/start", "/record/toggle", "/marker?label=x", "/import?path=x"))
+            if (callApi.apply(path).statusCode() != 403 || !callApi.apply(path).body().contains("Evade Client")) refused.add(path);
+        var status = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/status")).GET().build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        check(refused.isEmpty() && status.statusCode() == 200,
+                "API refuses /clip, /record, /marker and /import without client=evade (403), /status stays open"
+                        + (refused.isEmpty() ? "" : " (not refused: " + refused + ")"));
         var blocked = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip"))
                 .header("Origin", "https://evil.example").POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
         check(blocked.statusCode() == 403, "API refuses requests from web pages");
@@ -118,7 +132,7 @@ final class SelfTest {
         java.util.function.Function<String, java.net.http.HttpResponse<String>> imp = path -> {
             try {
                 return http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/import?path="
-                        + java.net.URLEncoder.encode(path, java.nio.charset.StandardCharsets.UTF_8) + "&title=Replay%20render"))
+                        + java.net.URLEncoder.encode(path, java.nio.charset.StandardCharsets.UTF_8) + "&title=Replay%20render&client=evade"))
                         .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
             } catch (Exception e) { throw new RuntimeException(e); }
         };
@@ -278,109 +292,70 @@ final class SelfTest {
         return finish();
     }
 
-    /** Game events → clips, with recorded-style payloads from each game. */
+    /** Minecraft events → clips, and Minecraft-only game detection. */
     private void eventTests() throws Exception {
         List<String> saved = new java.util.concurrent.CopyOnWriteArrayList<>();
         var clipper = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> saved.add(game + "|" + title + "|" + tags + "|" + sec));
         List<String> marks = new java.util.concurrent.CopyOnWriteArrayList<>();
         clipper.onMarker = marks::add;
-        clipper.after = 0;
-
-        // CS2 GSI: three kills in a round (one headshot) → one "3K" clip; a spectated player's kills are ignored.
-        var cs2 = new net.evadeclient.clips.events.Cs2Integration(clipper, "tok");
-        String me = "76561198000000001";
-        java.util.function.BiFunction<Integer, Integer, String> st = (k, hs) -> "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + me
-                + "\"},\"map\":{\"round\":4,\"phase\":\"live\"},\"player\":{\"steamid\":\"" + me + "\",\"team\":\"CT\",\"state\":{\"round_kills\":" + k
-                + ",\"round_killhs\":" + hs + "},\"match_stats\":{\"mvps\":0}}}";
-        check(!cs2.handle(st.apply(0, 0).replace("tok", "bad")), "CS2: updates with the wrong token are rejected");
-        cs2.handle(st.apply(0, 0));
-        clipper.after = 2;
-        cs2.handle(st.apply(1, 1));
-        cs2.handle(st.apply(2, 1));
-        cs2.handle(st.apply(3, 1));
-        cs2.handle(st.apply(3, 1).replace("\"steamid\":\"" + me + "\",\"team", "\"steamid\":\"76561198000000002\",\"team").replace("round_kills\":3", "round_kills\":5"));
-        Thread.sleep(2600);
-        check(saved.size() == 1 && saved.get(0).startsWith("Counter-Strike 2|3K|") && saved.get(0).contains("headshot"),
-                "CS2: 3 kills in a round become one \"3K\" clip, spectated kills ignored (" + saved + ")");
-        saved.clear();
-        clipper.after = 0;
-        String win = "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + me + "\"},\"map\":{\"round\":24,\"phase\":\"gameover\",\"team_ct\":{\"score\":13},\"team_t\":{\"score\":10}},"
-                + "\"player\":{\"steamid\":\"" + me + "\",\"team\":\"CT\",\"state\":{\"round_kills\":0,\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
-        cs2.handle(win);
-        Thread.sleep(300);
-        check(saved.size() == 1 && saved.get(0).contains("|Match win|"), "CS2: match win (13-10 on CT) is clipped (" + saved + ")");
-        saved.clear();
-
-        // League Live Client Data: events before we joined are ignored; then a kill + triple kill merge.
-        var lol = new net.evadeclient.clips.events.LeagueIntegration(clipper);
-        String head = "{\"activePlayer\":{\"riotIdGameName\":\"Faker\",\"riotId\":\"Faker#KR1\"},\"events\":{\"Events\":[";
-        String old = "{\"EventID\":0,\"EventName\":\"GameStart\"},{\"EventID\":1,\"EventName\":\"ChampionKill\",\"KillerName\":\"Faker\",\"VictimName\":\"Old\"}";
-        lol.handle(head + old + "]}}");
+        // Events close together become one clip, titled after the most important one.
         clipper.after = 1;
-        lol.handle(head + old + ",{\"EventID\":2,\"EventName\":\"ChampionKill\",\"KillerName\":\"Faker\",\"VictimName\":\"Zed\"},"
-                + "{\"EventID\":3,\"EventName\":\"ChampionKill\",\"KillerName\":\"Someone\",\"VictimName\":\"Faker\"},"
-                + "{\"EventID\":4,\"EventName\":\"Multikill\",\"KillerName\":\"Faker\",\"KillStreak\":3}]}}");
-        Thread.sleep(1500);
-        check(saved.size() == 1 && saved.get(0).startsWith("League of Legends|Triple kill|"), "League: kill + triple kill = one \"Triple kill\" clip (" + saved + ")");
-        saved.clear();
-        clipper.after = 0;
-        lol.handle(head + "{\"EventID\":9,\"EventName\":\"BaronKill\",\"KillerName\":\"Faker\",\"Stolen\":\"True\"}]}}");
-        Thread.sleep(300);
-        check(saved.size() == 1 && saved.get(0).contains("|Baron steal|"), "League: baron steal is clipped (" + saved + ")");
+        clipper.event("Minecraft", "Kill Steve", "kill", 1);
+        clipper.event("Minecraft", "Double kill", "multikill", 2);
+        clipper.event("Minecraft", "Totem pop", "totem", 0);
+        Thread.sleep(1600);
+        check(saved.size() == 1 && saved.get(0).startsWith("Minecraft|Double kill|kill,multikill,totem|"),
+                "Minecraft events close together become one clip named after the best one (" + saved + ")");
+        check(marks.equals(List.of("Kill Steve", "Double kill", "Totem pop")), "every event drops a named marker (" + marks + ")");
         saved.clear();
         marks.clear();
-        lol.handle(head + "{\"EventID\":10,\"EventName\":\"ChampionKill\",\"KillerName\":\"Zed\",\"VictimName\":\"Faker\"}]}}");
-        String alive = st.apply(0, 0).replace("\"round_kills\"", "\"health\":100,\"round_kills\"").replace("\"round\":4", "\"round\":5");
-        cs2.handle(alive);
-        cs2.handle(alive.replace("\"health\":100", "\"health\":0"));
+        clipper.mark("Death");
         Thread.sleep(300);
-        check(saved.isEmpty() && marks.equals(List.of("Death", "Death")), "deaths in League and CS2 become timeline markers, not clips, by default (" + marks + ")");
+        check(saved.isEmpty() && marks.equals(List.of("Death")), "a death is a timeline marker, not a clip (" + marks + ")");
         clipper.shutdown();
-        cs2RoundTests();
 
-        // Game detection from process paths.
+        // Game detection: Minecraft clients only; every other program (other games included) is ignored.
         String[][] cases = {
-                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe", "", "Counter-Strike 2"},
-                {"D:\\SteamLibrary\\steamapps\\common\\Hades II\\Ship\\Hades2.exe", "", "Hades II"},
-                {"C:\\Program Files\\Epic Games\\Some Indie Game\\Binaries\\Win64\\Game-Win64-Shipping.exe", "", "Some Indie Game"},
-                {"C:\\Riot Games\\VALORANT\\live\\ShooterGame\\Binaries\\Win64\\VALORANT-Win64-Shipping.exe", "", "Valorant"},
-                {"C:\\Program Files\\Java\\bin\\javaw.exe", "-cp x net.fabricmc.loader.impl.launch.knot.KnotClient", "Minecraft"},
+                {"C:\\Program Files\\Java\\bin\\javaw.exe", "-cp x net.fabricmc.loader.impl.launch.knot.KnotClient --gameDir C:\\evade", "Minecraft"},
+                {"/usr/lib/jvm/java-21/bin/java", "-cp x net.minecraft.client.main.Main --assetsDir a", "Minecraft"},
+                {"C:\\Users\\me\\AppData\\Roaming\\.minecraft\\runtime\\java-runtime-delta\\windows-x64\\java-runtime-delta\\bin\\javaw.exe", "", "Minecraft"},
+                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Some Shooter\\bin\\win64\\shooter.exe", "", null},
+                {"D:\\SteamLibrary\\steamapps\\common\\Indie Game\\Ship\\Indie.exe", "", null},
+                {"C:\\Program Files\\Epic Games\\Other Game\\Binaries\\Win64\\OtherGame-Win64-Shipping.exe", "", null},
+                {"C:\\Program Files\\WindowsApps\\Microsoft.MinecraftUWP_1.21.0.0_x64__8wekyb3d8bbwe\\Minecraft.Windows.exe", "", null},
                 {"C:\\Program Files (x86)\\Steam\\steam.exe", "", null},
-                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Hades II\\UnityCrashHandler64.exe", "", null},
                 {"C:\\Program Files\\Java\\bin\\java.exe", "-jar idea.jar", null},
+                {"/usr/lib/jvm/java-21-openjdk/bin/java", "-Xmx4G -Xms1G -jar minecraft_server.1.21.1.jar nogui", null},
                 {"/usr/bin/firefox", "", null}};
-        int ok = 0;
-        for (String[] c : cases) if (java.util.Objects.equals(net.evadeclient.clips.core.GameDetector.identify(c[0], c[1]), c[2])) ok++;
-        check(ok == cases.length, "game detection: " + ok + "/" + cases.length + " paths identified correctly (libraries, known games, Minecraft, launchers ignored)");
-        // Programs that run in the background next to games (Store apps, launcher helpers, Steam tools, a Minecraft
-        // server) must never count as a game: replay would start at login and never stop.
-        String[][] notGames = {
-                {"C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_524.34401.20.0_x64__cw5n1h2txyewy\\Dashboard\\Widgets.exe", ""},
-                {"C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2410.21.0_x64__8wekyb3d8bbwe\\Notepad\\Notepad.exe", ""},
-                {"C:\\Program Files\\Epic Games\\Fortnite\\Engine\\Binaries\\Win64\\UnrealCEFSubProcess.exe", ""},
-                {"C:\\Riot Games\\Riot Client\\UX\\RiotClientUxRender.exe", ""},
-                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe", ""},
-                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Lossless Scaling\\LosslessScaling.exe", ""},
-                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe", ""},
-                {"/usr/lib/jvm/java-21-openjdk/bin/java", "-Xmx4G -Xms1G -jar minecraft_server.1.21.1.jar nogui"}};
         List<String> wrong = new ArrayList<>();
-        for (String[] c : notGames) {
+        for (String[] c : cases) {
             String got = net.evadeclient.clips.core.GameDetector.identify(c[0], c[1]);
-            if (got != null) wrong.add(Path.of(c[0].replace('\\', '/')).getFileName() + " → " + got);
+            if (!java.util.Objects.equals(got, c[2])) wrong.add(Path.of(c[0].replace('\\', '/')).getFileName() + " → " + got);
         }
-        check(wrong.isEmpty(), "game detection ignores Store apps, launcher helpers, Steam tools and a Minecraft server ("
-                + (notGames.length - wrong.size()) + "/" + notGames.length + (wrong.isEmpty() ? ")" : "; taken for games: " + wrong + ")"));
+        check(wrong.isEmpty(), "game detection finds Minecraft clients only; other games, servers and apps are ignored ("
+                + (cases.length - wrong.size()) + "/" + cases.length + (wrong.isEmpty() ? ")" : "; wrong: " + wrong + ")"));
 
-        // Live: a program running from a Steam library folder is found among the running processes.
+        // Live: a Minecraft client process is found among the running processes; a game from a Steam library isn't.
         Path fake = Files.createDirectories(Path.of(System.getProperty("java.io.tmpdir"), "evadeclips-detect", "steamapps", "common", "Test Arena"));
         Path bin = fake.resolve("TestArena");
         Files.copy(Path.of("/bin/sleep"), bin, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         bin.toFile().setExecutable(true);
-        Process p = new ProcessBuilder(bin.toString(), "20").start();
+        Process other = new ProcessBuilder(bin.toString(), "20").start();
+        Thread.sleep(500);
+        var none = net.evadeclient.clips.core.GameDetector.detect();
+        Path javaBin = Files.createDirectories(Path.of(System.getProperty("java.io.tmpdir"), "evadeclips-detect", "jre", "bin")).resolve("java");
+        Files.copy(Path.of("/bin/bash"), javaBin, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        javaBin.toFile().setExecutable(true);
+        // "sleep 20; true" keeps the shell itself running (a lone command would replace it).
+        Process mc = new ProcessBuilder(javaBin.toString(), "-c", "sleep 20; true", "net.fabricmc.loader.impl.launch.knot.KnotClient", "--gameDir", "evadeclient").start();
         Thread.sleep(500);
         var found = net.evadeclient.clips.core.GameDetector.detect();
-        p.destroyForcibly();
-        check(found.isPresent() && found.get().name().equals("Test Arena"), "game detection finds a running game (" + found.map(Object::toString).orElse("none") + ")");
+        mc.descendants().forEach(ProcessHandle::destroyForcibly);
+        mc.destroyForcibly();
+        other.destroyForcibly();
+        check(none.isEmpty() && found.isPresent() && found.get().name().equals("Minecraft") && found.get().pid() == mc.pid(),
+                "game detection finds a running Minecraft client and ignores other games (other game: " + none.map(Object::toString).orElse("none")
+                        + ", Minecraft: " + found.map(Object::toString).orElse("none") + ")");
     }
 
     /**
@@ -436,7 +411,7 @@ final class SelfTest {
                 + "normal talking and noise ignored)" + (bad.isEmpty() ? "" : " wrong: " + bad));
     }
 
-    /** Favourites lock, watermark, overlays, separate bitrates, live highlights, CS2 full rounds. */
+    /** Favourites lock, watermark, overlays, separate bitrates, live highlights. */
     private void upgradeTests(Library lib, Path dir, Clip src) throws Exception {
         // Favourites are locked against deletion (bulk delete skips them).
         Settings fs = new Settings();
@@ -494,7 +469,7 @@ final class SelfTest {
                 String.format("recordings and replays use their own bitrates (recording %.1f Mbit/s, replay %.1f Mbit/s)", recMbps, repMbps));
         blib.shutdown();
 
-        // Live loud-moment auto-clips (any game): bursts every 8 s become clips.
+        // Live loud-moment auto-clips (Minecraft without the Clips mod's events): bursts every 8 s become clips.
         Settings ls = new Settings();
         ls.clipsFolder = dir.resolve("live").resolve("clips").toString();
         ls.source = "test-bursts"; ls.fps = 15; ls.resolution = 720; ls.recordMic = false; ls.replaySeconds = 30;
@@ -504,7 +479,7 @@ final class SelfTest {
         List<String> hits = new java.util.concurrent.CopyOnWriteArrayList<>();
         var lclip = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> hits.add(title + "@" + System.currentTimeMillis()));
         lclip.after = 1;
-        var lh = new net.evadeclient.clips.events.LiveHighlights(le, lclip, () -> "The Finals", dir.resolve("live-work"));
+        var lh = new net.evadeclient.clips.events.LiveHighlights(le, lclip, () -> "Minecraft", dir.resolve("live-work"));
         le.start();
         long l0 = System.currentTimeMillis();
         while (System.currentTimeMillis() - l0 < 34000) { lh.step(); Thread.sleep(1500); }
@@ -514,49 +489,8 @@ final class SelfTest {
         lclip.shutdown();
         llib.shutdown();
         check(hits.size() >= 2 && hits.size() <= 4 && hits.stream().allMatch(x -> x.startsWith("Highlight")),
-                "live auto-clips catch the loud bursts in a game with no event API (" + hits.size() + " clips in 34 s of play, bursts every 8 s)");
+                "live auto-clips catch the loud bursts when no game events arrive (" + hits.size() + " clips in 34 s of play, bursts every 8 s)");
 
-        // CS2 full round: a 3 s round with a kill becomes one clip covering the round.
-        List<String> rs = new java.util.concurrent.CopyOnWriteArrayList<>();
-        var rc = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> rs.add(title + "|" + sec));
-        rc.after = 0;
-        var cs = new net.evadeclient.clips.events.Cs2Integration(rc, "tok");
-        cs.fullRounds = "kills";
-        String me = "76561198000000001";
-        java.util.function.BiFunction<String, Integer, String> st = (phase, k) -> "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + me
-                + "\"},\"map\":{\"round\":7,\"phase\":\"live\"},\"round\":{\"phase\":\"" + phase + "\",\"win_team\":\"CT\"},\"player\":{\"steamid\":\"" + me
-                + "\",\"team\":\"CT\",\"state\":{\"health\":100,\"round_kills\":" + k + ",\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
-        cs.handle(st.apply("freezetime", 0));
-        cs.handle(st.apply("live", 0));
-        Thread.sleep(1500);
-        cs.handle(st.apply("live", 1));
-        Thread.sleep(1500);
-        cs.handle(st.apply("over", 1));
-        Thread.sleep(500);
-        rc.shutdown();
-        // Console captures from a USB drive: PS5 and Xbox layouts.
-        Path usb = dir.resolve("usb");
-        Path ps5 = Files.createDirectories(usb.resolve("PS5").resolve("CREATE").resolve("Video Clips").resolve("Call of Duty® Black Ops 6"));
-        Path xbox = Files.createDirectories(usb.resolve("Xbox Captures"));
-        Files.copy(red, ps5.resolve("Call of Duty® Black Ops 6_20250131201500.mp4"));
-        Files.copy(red, xbox.resolve("Halo Infinite-2025_01_31-20_15_00.mp4"));
-        for (Path f : List.of(ps5.resolve("Call of Duty® Black Ops 6_20250131201500.mp4"), xbox.resolve("Halo Infinite-2025_01_31-20_15_00.mp4")))
-            Files.setLastModifiedTime(f, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() - 60_000));
-        Settings ws = new Settings();
-        ws.watchFolders.add(usb.toString());
-        var imported = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
-        var again = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
-        boolean psOk = imported.stream().anyMatch(x -> x.game.equals("Call of Duty® Black Ops 6") && x.tags.contains("ps5"));
-        boolean xbOk = imported.stream().anyMatch(x -> x.game.equals("Halo Infinite") && x.tags.contains("xbox"));
-        check(imported.size() == 2 && psOk && xbOk && again.isEmpty(), "console captures from a PS5 / Xbox USB drive import once, named after their game");
-        // Deleting an imported capture must not bring it back on the next scan (it came back every minute).
-        int deletedImports = lib.delete(imported);
-        var afterDelete = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
-        check(deletedImports == imported.size() && afterDelete.isEmpty(),
-                "console captures you delete aren't imported again (" + deletedImports + " deleted, " + afterDelete.size() + " came back)");
-
-        check(rs.size() == 1 && rs.get(0).startsWith("Round 7 · won · 1K|") && Integer.parseInt(rs.get(0).split("\\|")[1]) >= 5
-                && Integer.parseInt(rs.get(0).split("\\|")[1]) <= 6, "CS2 full-round clip covers the whole round (" + rs + ")");
     }
 
     // ------------------------------------------------------------------ regression checks for fixed bugs
@@ -567,6 +501,62 @@ final class SelfTest {
         guard("global hotkeys", this::hotkeyTests);
         guard("library", () -> libraryTests(dir));
         guard("Discord webhook", this::webhookTest);
+        guard("Minecraft only", () -> minecraftOnlyTests(dir));
+    }
+
+    /**
+     * Evade Clips works only with Minecraft running Evade Client: old screen / window / region capture settings
+     * become Minecraft capture, nothing records or saves a clip without Minecraft open, and the Minecraft window is
+     * what Linux capture grabs.
+     */
+    private void minecraftOnlyTests(Path dir) throws Exception {
+        Path appdir = Files.createDirectories(dir.resolve("mc-only-appdata"));
+        Files.writeString(appdir.resolve("settings.json"), "{\"source\":\"screen\",\"monitor\":1,\"cs2Events\":true,\"watchFolders\":[\"E:\\\\\"],\"defaultGame\":\"Other\"}");
+        Settings.overrideAppDir(appdir);
+        Settings old;
+        try { old = Settings.load(); } finally { Settings.overrideAppDir(dir.resolve("appdata")); }
+        check("minecraft".equals(old.source) && "Minecraft".equals(old.defaultGame),
+                "settings from older versions capture Minecraft only (source " + old.source + ", game " + old.defaultGame + ")");
+
+        Settings s = new Settings();
+        s.clipsFolder = dir.resolve("mc-only").resolve("clips").toString();
+        s.playSound = false;
+        s.showToast = false;
+        net.evadeclient.clips.ui.App app = new net.evadeclient.clips.ui.App(s);
+        try {
+            String clipErr = null, recErr = null;
+            try { app.saveClipNow(0, 0, null, null, null); } catch (Exception e) { clipErr = e.getMessage(); }
+            try { app.startRecording(null); } catch (Exception e) { recErr = e.getMessage(); }
+            check(!app.minecraftRunning() && net.evadeclient.clips.ui.App.NEED_MINECRAFT.equals(clipErr) && net.evadeclient.clips.ui.App.NEED_MINECRAFT.equals(recErr)
+                            && !app.engine.isLive() && !app.engine.isRecording(),
+                    "without Minecraft, saving a clip or recording says \"" + net.evadeclient.clips.ui.App.NEED_MINECRAFT + "\" and captures nothing ("
+                            + clipErr + " / " + recErr + ")");
+        } finally {
+            app.shutdown();
+        }
+
+        // Linux: the Minecraft window's area of the screen is what's captured.
+        if (Ffmpeg.WINDOWS || Ffmpeg.MAC || java.awt.GraphicsEnvironment.isHeadless() || !new java.io.File("/usr/bin/xwininfo").canExecute()) {
+            System.out.println("  SKIP  Minecraft window capture area (needs X11 and xwininfo)");
+            return;
+        }
+        java.awt.Rectangle[] found = new java.awt.Rectangle[2];
+        javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            frame[0] = new javax.swing.JFrame("Minecraft 1.21.4 - Singleplayer");
+            frame[0].setUndecorated(true);
+            frame[0].setBounds(120, 80, 640, 360);
+            frame[0].setVisible(true);
+        });
+        try {
+            for (int i = 0; i < 20 && found[0] == null; i++) { Thread.sleep(250); found[0] = net.evadeclient.clips.core.CaptureSource.linuxMinecraftWindow(); }
+        } finally {
+            javax.swing.SwingUtilities.invokeAndWait(() -> frame[0].dispose());
+        }
+        Thread.sleep(500);
+        found[1] = net.evadeclient.clips.core.CaptureSource.linuxMinecraftWindow();
+        check(found[0] != null && found[0].equals(new java.awt.Rectangle(120, 80, 640, 360)) && found[1] == null,
+                "Linux capture grabs the Minecraft window's area (" + found[0] + "), and finds nothing once it's closed (" + found[1] + ")");
     }
 
     private interface Step { void run() throws Exception; }
@@ -577,84 +567,6 @@ final class SelfTest {
         } catch (Throwable e) {
             Throwable t = e instanceof java.lang.reflect.InvocationTargetException && e.getCause() != null ? e.getCause() : e;
             check(false, what + ": " + t);
-        }
-    }
-
-    private static final String CS2_ME = "76561198000000001", CS2_MATE = "76561198000000002";
-
-    /** A CS2 game-state update: round and match state, and the player CS2 reports (you, or who you're spectating). */
-    private static String cs2(String player, int round, String mapPhase, String roundPhase, int kills, int health) {
-        return "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + CS2_ME + "\"},\"map\":{\"round\":" + round + ",\"phase\":\"" + mapPhase
-                + "\",\"team_ct\":{\"score\":13},\"team_t\":{\"score\":10}},\"round\":{\"phase\":\"" + roundPhase + "\",\"win_team\":\"CT\"},"
-                + "\"player\":{\"steamid\":\"" + player + "\",\"team\":\"CT\",\"state\":{\"health\":" + health + ",\"round_kills\":" + kills
-                + ",\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
-    }
-
-    /** CS2 rounds: one clip per kill, round clips next to the match win and a death, spectating after dying. */
-    private void cs2RoundTests() throws Exception {
-        List<String> got = new CopyOnWriteArrayList<>();
-        var ac = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> got.add(title));
-        try {
-            ac.after = 0;
-            // A kill; then the round ends (the round number goes up while round_kills still says 1); freezetime resets it.
-            var c = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
-            c.handle(cs2(CS2_ME, 3, "live", "live", 0, 100));
-            c.handle(cs2(CS2_ME, 3, "live", "live", 1, 100));
-            Thread.sleep(300);
-            c.handle(cs2(CS2_ME, 4, "live", "over", 1, 100));
-            Thread.sleep(300);
-            c.handle(cs2(CS2_ME, 4, "live", "freezetime", 0, 100));
-            c.handle(cs2(CS2_ME, 4, "live", "live", 0, 100));
-            Thread.sleep(300);
-            check(got.equals(List.of("Kill")), "CS2: a kill is clipped once, not again when the round ends (" + got + ")");
-            got.clear();
-
-            // Connecting mid-round: kills already on the scoreboard are the starting point, not new kills.
-            var joined = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
-            joined.handle(cs2(CS2_ME, 9, "live", "live", 2, 100));
-            Thread.sleep(300);
-            check(got.isEmpty(), "CS2: kills made before Evade Clips was listening aren't clipped (" + got + ")");
-            got.clear();
-
-            ac.after = 1;
-            // Full rounds: the round that wins the match is clipped as well as the match win.
-            var win = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
-            win.fullRounds = "kills";
-            win.handle(cs2(CS2_ME, 23, "live", "freezetime", 0, 100));
-            win.handle(cs2(CS2_ME, 23, "live", "live", 0, 100));
-            win.handle(cs2(CS2_ME, 23, "live", "live", 1, 100));
-            win.handle(cs2(CS2_ME, 24, "live", "over", 1, 100));
-            win.handle(cs2(CS2_ME, 24, "gameover", "over", 1, 100));
-            Thread.sleep(1600);
-            check(sorted(got).equals(List.of("Match win", "Round 24 · won · 1K")),
-                    "CS2 full rounds: the match-winning round and the match win are both clipped (" + got + ")");
-            got.clear();
-
-            // A kill, then dying and spectating a teammate who gets 3: the round is still clipped, with only your kill.
-            var spec = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
-            spec.fullRounds = "kills";
-            spec.handle(cs2(CS2_ME, 5, "live", "freezetime", 0, 100));
-            spec.handle(cs2(CS2_ME, 5, "live", "live", 0, 100));
-            spec.handle(cs2(CS2_ME, 5, "live", "live", 1, 100));
-            spec.handle(cs2(CS2_ME, 5, "live", "live", 1, 0));
-            spec.handle(cs2(CS2_MATE, 6, "live", "over", 3, 100));
-            Thread.sleep(1600);
-            check(got.equals(List.of("Round 6 · won · 1K")), "CS2 full rounds: dying and spectating doesn't lose the round or count the teammate's kills (" + got + ")");
-            got.clear();
-
-            // Dying after the round is over (with death clips on): the round clip and the death clip are both saved.
-            var late = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
-            late.fullRounds = "kills";
-            late.deaths = true;
-            late.handle(cs2(CS2_ME, 7, "live", "freezetime", 0, 100));
-            late.handle(cs2(CS2_ME, 7, "live", "live", 0, 100));
-            late.handle(cs2(CS2_ME, 7, "live", "live", 1, 100));
-            late.handle(cs2(CS2_ME, 8, "live", "over", 1, 100));
-            late.handle(cs2(CS2_ME, 8, "live", "over", 1, 0));
-            Thread.sleep(1600);
-            check(sorted(got).equals(List.of("Death", "Round 8 · won · 1K")), "CS2 full rounds: a death after the round ends doesn't cancel the round clip (" + got + ")");
-        } finally {
-            ac.shutdown();
         }
     }
 
@@ -986,7 +898,7 @@ final class SelfTest {
             Clip c = new Clip();
             c.id = "hook";
             c.title = "Clutch 1v3";
-            c.game = "Counter-Strike 2";
+            c.game = "Minecraft";
             c.shareId = "abc123";
             c.shareUrl = "https://clips.evadeclient.com/c/abc123?k=k3yS3cret";
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/webhooks/123/token";
@@ -1159,7 +1071,7 @@ final class SelfTest {
         String gauth = "Gallery " + acct + "." + s.cloudViewToken;
         byte[] phoneBytes = Files.readAllBytes(raw2);
         var st = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/uploads")).header("Authorization", gauth)
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"title\":\"PS5 ace\",\"game\":\"Call of Duty\",\"size\":" + phoneBytes.length + "}")).build(),
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"title\":\"Phone clip\",\"game\":\"Minecraft\",\"size\":" + phoneBytes.length + "}")).build(),
                 java.net.http.HttpResponse.BodyHandlers.ofString());
         var sj = com.google.gson.JsonParser.parseString(st.body()).getAsJsonObject();
         String pid = sj.get("clip").getAsString(), up = sj.get("uploadId").getAsString();
@@ -1173,7 +1085,7 @@ final class SelfTest {
                 java.net.http.HttpResponse.BodyHandlers.ofString());
         List<Clip> pulled = cloud.pullPhoneUploads(lib);
         List<Clip> pulledAgain = cloud.pullPhoneUploads(lib);
-        check(galleryDelete.statusCode() == 401 && pulled.size() == 1 && pulled.get(0).title.equals("PS5 ace") && pulled.get(0).game.equals("Call of Duty")
+        check(galleryDelete.statusCode() == 401 && pulled.size() == 1 && pulled.get(0).title.equals("Phone clip") && pulled.get(0).game.equals("Minecraft")
                         && pulled.get(0).tags.contains("phone") && java.util.Arrays.equals(Files.readAllBytes(pulled.get(0).path(lib.root())), phoneBytes) && pulledAgain.isEmpty(),
                 "a phone upload lands in the library once, byte-for-byte; the gallery link can upload but not delete");
 

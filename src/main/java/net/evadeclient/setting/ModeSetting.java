@@ -15,6 +15,9 @@ public class ModeSetting extends Setting<String> {
 
     public boolean is(String mode) { return value.equalsIgnoreCase(mode); }
 
+    /** The options, in menu order (unmodifiable). */
+    public List<String> getModes() { return modes; }
+
     public void cycle(boolean forward) {
         int i = modes.indexOf(value);
         int n = modes.size();

@@ -11,10 +11,10 @@ import java.util.Deque;
 import java.util.function.Supplier;
 
 /**
- * Auto-clips for any game, including ones with no event API (The Finals, Valorant, Fortnite, Apex…): while you
+ * Loud-moment auto-clips for Minecraft while Evade Client's Clips mod isn't sending its own events: while you
  * play, the newest game audio is measured every few seconds, and a moment that jumps well above the last minute
- * of play (a gunfight, an explosion, a cashout) becomes a clip through the same {@link AutoClipper} as game
- * events, so a fight is one clip, not five.
+ * of play (a fight, an explosion) becomes a clip through the same {@link AutoClipper} as game events, so a fight
+ * is one clip, not five.
  */
 public final class LiveHighlights {
     private static final double WINDOW = 0.25;

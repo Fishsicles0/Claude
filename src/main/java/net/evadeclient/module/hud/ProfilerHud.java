@@ -33,7 +33,8 @@ public class ProfilerHud extends TextHudModule {
         if (now >= nextUpdate) {
             nextUpdate = now + 1000;
             float[] second = FrameStats.summary(Math.max(60, mc.getCurrentFps()));
-            float[] window = FrameStats.summary(FrameStats.count());
+            // The last ten seconds, whatever the frame rate (the recorded history can reach about 50 s at 60 FPS).
+            float[] window = FrameStats.summary((int) FrameStats.framesWithin(10_000)[0]);
             double hudMs = FrameStats.takeHudMicrosForProfiler() / 1000.0;
             long count = 0, millis = 0;
             for (GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {

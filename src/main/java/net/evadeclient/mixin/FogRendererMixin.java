@@ -27,9 +27,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code RenderSystem.getDevice()} call that opens the buffer; priority 1500 keeps this hook after Sodium Extra's
  * (1300) even if the two ever land on the same instruction.
  *
- * <p>Only the two clear environments change: open air (NoFog) and water (Clear Water). Lava, powder snow, Blindness
- * and Darkness fog are gameplay effects and always stay. NoFog also removes the fade at the edge of the render
- * distance; Clear Water keeps it.
+ * <p>Only the two clear environments change: open air (NoFog, see {@link NoFog#apply}) and water (Clear Water).
+ * Lava, powder snow, Blindness and Darkness fog are gameplay effects and always stay. NoFog thins the terrain fog,
+ * softens the render-distance fade and can open up the sky fog; Clear Water only lifts the underwater fog and keeps
+ * vanilla's render-distance fade.
  */
 @Mixin(value = FogRenderer.class, priority = 1500)
 public abstract class FogRendererMixin {
@@ -37,21 +38,15 @@ public abstract class FogRendererMixin {
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;getDevice()Lcom/mojang/blaze3d/systems/GpuDevice;"))
     private void evade$clearFog(Camera camera, int viewDistance, RenderTickCounter tickCounter, float skyDarkness, ClientWorld world,
                                 CallbackInfoReturnable<Vector4f> cir, @Local FogData data, @Local CameraSubmersionType submersion) {
-        // `submersion` is vanilla's own pick for this frame (open air reads ATMOSPHERIC), so no second lookup is needed.
-        boolean noFog = NoFog.on();
-        boolean clearWater = ClearWater.active() != null;
-        if (noFog || clearWater) {
-            boolean openAir = submersion == CameraSubmersionType.ATMOSPHERIC || submersion == CameraSubmersionType.NONE;
-            boolean water = submersion == CameraSubmersionType.WATER;
-            // Blindness and Darkness win over water and open air in vanilla's modifier order; keep their fog.
-            if (((noFog && openAir) || (clearWater && water)) && !NoFog.effectFog(camera.getFocusedEntity())) {
-                data.environmentalStart = 1e6f;
-                data.environmentalEnd = 2e6f;
-            }
-            if (noFog) {
-                data.renderDistanceStart = 1e6f;
-                data.renderDistanceEnd = 2e6f;
-            }
+        // NoFog decides for itself whether this frame's fog may change (open air only, never under Blindness or
+        // Darkness, per dimension). `submersion` is vanilla's own pick for this frame (open air reads ATMOSPHERIC).
+        if (!NoFog.apply(data, camera, world, viewDistance)
+                && submersion == CameraSubmersionType.WATER
+                && ClearWater.active() != null
+                // Blindness and Darkness win over water in vanilla's modifier order; keep their fog.
+                && !NoFog.effectFog(camera.getFocusedEntity())) {
+            data.environmentalStart = 1e6f;
+            data.environmentalEnd = 2e6f;
         }
         NoFog.LAST_ENV_START = data.environmentalStart;
         NoFog.LAST_ENV_END = data.environmentalEnd;

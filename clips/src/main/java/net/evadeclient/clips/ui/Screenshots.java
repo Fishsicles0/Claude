@@ -59,7 +59,7 @@ public final class Screenshots {
                 for (String t : names[i][1].split(",")) if (!t.isBlank()) c.tags.add(t);
             }
             c.favorite = i == 0 || i == 3;
-            c.game = i == 2 ? "Valorant" : "Minecraft";
+            c.game = "Minecraft";
             c.created = System.currentTimeMillis() - i * 3_700_000L;
         }
         app.library.save();

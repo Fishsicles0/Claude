@@ -375,28 +375,18 @@ public final class Theme {
         };
     }
 
-    /** HUD element background in the element's chosen style: Evade (dark glass with an accent top edge),
-     *  Solid, Glass (light frosted panel with a thin border) or Outline (accent border only). */
+    /** HUD element background in the element's chosen style and opacity (drawn by
+     *  {@link net.evadeclient.hud.HudDraw#panel}): a soft knockout shadow, then Evade (dark glass with an accent top
+     *  edge that fades out before the rounded corners), Solid, Glass (light frosted panel with a thin rim and a top
+     *  highlight) or Outline (accent border only, no shadow). Classic squares it and drops the shadow. */
     public static void hudBox(DrawContext ctx, int x, int y, int w, int h) {
-        switch (hudStyle) {
-            case "Solid" -> round(ctx, x, y, x + w, y + h, hudFill(), R_HUD);
-            case "Glass" -> {
-                round(ctx, x, y, x + w, y + h, alpha(0x30FFFFFF, hudOpacity), R_HUD);
-                // One px in, with a radius one smaller, so the light rim stays an even 1 px around the corners.
-                round(ctx, x + 1, y + 1, x + w - 1, y + h - 1, hudFill(), R_HUD - 1);
-            }
-            case "Outline" -> {
-                int c = alpha(RED | 0xFF000000, 0.85f * hudOpacity);
-                fill(ctx, x + 1, y, x + w - 1, y + 1, c);
-                fill(ctx, x + 1, y + h - 1, x + w - 1, y + h, c);
-                fill(ctx, x, y + 1, x + 1, y + h - 1, c);
-                fill(ctx, x + w - 1, y + 1, x + w, y + h - 1, c);
-            }
-            default -> {
-                round(ctx, x, y, x + w, y + h, hudFill(), R_HUD);
-                fill(ctx, x + 2, y, x + w - 2, y + 1, alpha(RED | 0xFF000000, Math.max(0.35f, hudOpacity)));
-            }
-        }
+        hudBox(ctx, x, y, w, h, true);
+    }
+
+    /** {@link #hudBox(DrawContext, int, int, int, int)} with or without the Evade style's accent top edge
+     *  (sub-panels inside a widget, like Keystrokes' keys, leave it off). */
+    public static void hudBox(DrawContext ctx, int x, int y, int w, int h, boolean accentEdge) {
+        net.evadeclient.hud.HudDraw.panel(ctx, x, y, w, h, accentEdge);
     }
 
     /**

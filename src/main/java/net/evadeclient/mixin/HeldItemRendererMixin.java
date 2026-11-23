@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.module.visuals.PackTweaks;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.item.HeldItemRenderer;
@@ -8,6 +9,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.ShieldItem;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,9 +28,13 @@ public abstract class HeldItemRendererMixin {
             "renderFirstPersonItem(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/util/Hand;FLnet/minecraft/item/ItemStack;FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V";
 
     /**
-     * 1.7 item position: hold items a little lower, like older versions. Applied right after vanilla's own push, so
-     * it only moves this hand's item (the main and off hand share the matrix stack) and is undone by vanilla's pop.
-     * Maps keep their own position: they're drawn big and centred, and lowering them hides the bottom of the map.
+     * Applied right after vanilla's own push, so each only moves this hand's item (the main and off hand share the
+     * matrix stack) and is undone by vanilla's pop.
+     * <ul>
+     *   <li>1.7 item position: hold items a little lower, like older versions. Maps keep their own position: they're
+     *       drawn big and centred, and lowering them hides the bottom of the map.</li>
+     *   <li>Pack Tweaks Low Shield: a shield (either hand, idle or blocking) sits lower, so it covers less of the view.</li>
+     * </ul>
      */
     @Inject(method = RENDER_FIRST_PERSON, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/util/math/MatrixStack;push()V", ordinal = 0, shift = At.Shift.AFTER))
@@ -35,8 +42,27 @@ public abstract class HeldItemRendererMixin {
                                    ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light,
                                    CallbackInfo ci) {
         OldAnimations o = OldAnimations.active();
-        if (o == null || !o.oldPosition.get() || item.isEmpty() || item.contains(DataComponentTypes.MAP_ID)) return;
-        matrices.translate(0, -o.lower.getFloat(), 0);
+        if (o != null && o.oldPosition.get() && !item.isEmpty() && !item.contains(DataComponentTypes.MAP_ID))
+            matrices.translate(0, -o.lower.getFloat(), 0);
+        PackTweaks pt = PackTweaks.active();
+        if (pt != null && pt.lowShield.get() && item.getItem() instanceof ShieldItem)
+            matrices.translate(0, -pt.shieldLower.getFloat(), 0);
+    }
+
+    /**
+     * Pack Tweaks Off-Hand Totem Size %: a totem in the off hand is drawn smaller, scaled around the hand right before
+     * the item is drawn (after every pose and swing transform; vanilla's pop undoes it).
+     */
+    @Inject(method = RENDER_FIRST_PERSON, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V"))
+    private void evade$smallOffhandTotem(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress,
+                                         ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light,
+                                         CallbackInfo ci) {
+        if (hand != Hand.OFF_HAND || !item.isOf(Items.TOTEM_OF_UNDYING)) return;
+        PackTweaks pt = PackTweaks.active();
+        if (pt == null) return;
+        float k = pt.offhandTotem.getFloat() / 100f;
+        if (k < 0.999f) matrices.scale(k, k, k);
     }
 
     /**

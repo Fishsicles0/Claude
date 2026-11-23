@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
- * Local control API on 127.0.0.1, so Evade Client (or a stream deck, script, etc.) can save clips:
+ * Local control API on 127.0.0.1, so Evade Client can save clips:
  * <pre>
  *   GET  /status
  *   POST /clip?seconds=30&after=5&title=...&game=...&tag=...      (seconds=0: the app's replay length)
@@ -24,12 +24,12 @@ import java.util.concurrent.Executors;
  *   POST /record/start?game=...   POST /record/stop   POST /record/toggle
  *   POST /marker?label=Kill
  *   POST /open[?clip=<id>|last]   (bring the app forward / open a clip in the editor)
- *   POST /gsi/cs2                 (Counter-Strike 2 Game State Integration)
  *   POST /import?path=<file>[&title=]   (add a video, e.g. an Evade replay render, to the library)
  * </pre>
- * Requests carrying an Origin header are refused, so web pages can't trigger it. With the API turned off in
- * Settings the server still answers /status and /open (so a second copy of the app finds this one) and, if
- * enabled, /gsi/cs2; everything else is refused with 403. Requests from Evade Client carry {@code client=evade}.
+ * Requests carrying an Origin header are refused, so web pages can't trigger it. Evade Clips only works with
+ * Evade Client: /clip, /record/*, /marker and /import must carry {@code client=evade} (Evade Client always sends
+ * it); anything else gets 403. /status and /open answer everyone, so a second copy of the app finds this one.
+ * With the API turned off in Settings only /status and /open answer.
  */
 public final class ControlServer {
     /**
@@ -51,20 +51,21 @@ public final class ControlServer {
         default void marker(String label) { marker(); }
         /** Shows the window; with a clip id (or "last"), opens that clip in the editor. */
         default boolean open(String clip) { return false; }
-        /** A game's own state push (CS2 Game State Integration). Returns false to reject (bad token). */
-        default boolean gameState(String game, String body) { return false; }
         /** A request came from Evade Client (it sends {@code client=evade}). */
         default void evadeClientSeen() {}
-        /** False while "Allow Evade Client and local tools to save clips" is off: only /status, /open and /gsi answer. */
+        /** False while "Allow Evade Client to save clips" is off: only /status and /open answer. */
         default boolean apiEnabled() { return true; }
-        /** False while game events from CS2 are off. */
-        default boolean gsiEnabled() { return true; }
         /** Adds a video file to the library (copied in), e.g. a replay render from Evade Client. */
         default Map<String, Object> importFile(java.nio.file.Path file, String title) throws Exception { return Map.of("ok", false); }
     }
 
     private static final Map<String, Object> API_OFF = Map.of("error",
-            "Saving clips from other apps is turned off. Turn on \"Allow Evade Client and local tools to save clips\" in Evade Clips' Settings.");
+            "Saving clips from Evade Client is turned off. Turn on \"Allow Evade Client to save clips\" in Evade Clips' Settings.");
+    private static final Map<String, Object> NOT_EVADE = Map.of("error",
+            "Evade Clips only works with Evade Client. Save clips from Minecraft with Evade Client's Clips mod.");
+
+    /** Endpoints only Evade Client may use (it sends {@code client=evade}). */
+    static final java.util.Set<String> EVADE_ONLY = java.util.Set.of("/clip", "/record/start", "/record/stop", "/record/toggle", "/marker", "/import");
 
     private static final Gson GSON = new Gson();
     private HttpServer server;
@@ -82,8 +83,10 @@ public final class ControlServer {
                 String path = ex.getRequestURI().getPath();
                 Map<String, String> q = query(ex.getRequestURI().getRawQuery());
                 boolean post = ex.getRequestMethod().equalsIgnoreCase("POST");
-                if ("evade".equals(q.get("client"))) h.evadeClientSeen();
-                boolean open = path.equals("/status") || path.equals("/open") || path.equals("/gsi/cs2");
+                boolean evade = "evade".equals(q.get("client"));
+                if (evade) h.evadeClientSeen();
+                boolean open = path.equals("/status") || path.equals("/open");
+                if (!open && EVADE_ONLY.contains(path) && !evade) { send(ex, 403, NOT_EVADE); return; }
                 if (!open && !h.apiEnabled()) { send(ex, 403, API_OFF); return; }
                 switch (path) {
                     case "/status" -> {
@@ -114,11 +117,6 @@ public final class ControlServer {
                             return;
                         }
                         send(ex, 200, h.importFile(f, q.get("title")));
-                    }
-                    case "/gsi/cs2" -> {
-                        if (!h.gsiEnabled()) { send(ex, 403, Map.of("error", "Counter-Strike 2 events are turned off in Evade Clips")); return; }
-                        String body = new String(ex.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                        send(ex, h.gameState("cs2", body) ? 200 : 403, Map.of());
                     }
                     case "/marker" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }

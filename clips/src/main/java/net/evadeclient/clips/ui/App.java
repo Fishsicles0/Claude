@@ -50,19 +50,18 @@ public final class App {
     public Runnable showWindow = () -> {};
     /** The main window, as the parent of dialogs the app asks from background work (null until it exists). */
     public volatile java.awt.Window window;
-    /** The game running right now (null if none), checked every few seconds. */
+    /**
+     * "Minecraft" while Minecraft (with Evade Client) is running, else null; checked every few seconds. Evade Clips
+     * only records Minecraft, so capture runs only while this is set.
+     */
     public volatile String currentGame;
+    /** What the app says when you try to record or save a clip without Minecraft open. */
+    public static final String NEED_MINECRAFT = "Open Minecraft with Evade Client to record.";
     public final net.evadeclient.clips.events.AutoClipper autoClipper;
-    public final net.evadeclient.clips.events.Cs2Integration cs2;
-    public final net.evadeclient.clips.events.LeagueIntegration league;
     public final CloudShare cloud;
     public final net.evadeclient.clips.events.LiveHighlights live;
-    /** Games with real event support (their own integration clips them; live audio detection stays out of the way). */
-    static final java.util.Set<String> EVENT_GAMES = java.util.Set.of("Counter-Strike 2", "League of Legends", "Minecraft");
-    /** Instant replay was started because a game started (stopped again when it closes). */
+    /** Instant replay was started because Minecraft started (stopped again when it closes). */
     private volatile boolean autoStarted;
-    /** Instant replay was started because "keep it on all the time" is set (stopped again if that's turned off). */
-    private volatile boolean launchStarted;
     /** When Evade Client last talked to the control API (it sends client=evade); its own events clip Minecraft. */
     volatile long evadeClientSeenAt;
     /** Id of the last clip this app saved (hotkey, API, voice, auto-clip, recording), for Evade Client's in-game confirmation. */
@@ -90,7 +89,6 @@ public final class App {
             if (!engine.isLive()) return;
             saveClipNow(secs, 0, title, game, tags);
         });
-        cs2 = new net.evadeclient.clips.events.Cs2Integration(autoClipper, settings.gsiToken);
         cloud = new CloudShare(settings);
         cloud.confirmReplace = this::askReplace;
         autoClipper.onMarker = label -> { if (engine.isLive()) engine.addMarker(label); };
@@ -104,24 +102,13 @@ public final class App {
             };
             if (sync && cloud.configured()) shareClip(c, false);
         });
-        league = new net.evadeclient.clips.events.LeagueIntegration(autoClipper);
         applyEventSettings();
     }
 
     public void applyEventSettings() {
         autoClipper.before = settings.autoClipBefore;
         autoClipper.after = settings.autoClipAfter;
-        cs2.headshotsOnly = settings.cs2HeadshotsOnly;
-        cs2.deaths = settings.clipDeaths;
-        cs2.fullRounds = settings.cs2FullRounds;
         if (live != null) live.threshold = net.evadeclient.clips.events.LiveHighlights.thresholdFor(settings.liveSensitivity);
-        // A whole CS2 round (1:55 + buffer) must fit in the replay buffer.
-        if (!"off".equals(settings.cs2FullRounds) && settings.replaySeconds < 150) {
-            settings.replaySeconds = 150;
-            settings.save();
-            fireCaptureSettingsChanged();
-        }
-        league.deaths = settings.clipDeaths;
     }
 
     /** The Record page reloads its controls when a setting it shows was changed elsewhere (e.g. the replay length). */
@@ -167,13 +154,11 @@ public final class App {
         return id; // on Windows the DirectShow id is already the display name
     }
 
-    /** Every minute: watched folders; every few minutes: phone uploads and notices from the share server. */
+    /** Every few minutes: phone uploads and notices from the share server. */
     private void background() {
         int n = 0;
         while (true) {
             try {
-                for (Clip c : net.evadeclient.clips.core.WatchFolders.scan(settings, library))
-                    notify("Imported " + (c.game == null || c.game.isBlank() ? "a capture" : c.game + " capture"), c.title, false);
                 if (n % 3 == 0 && cloud.configured() && !settings.cloudAccount.isBlank()) {
                     for (var note : cloud.newNotices()) {
                         String title = note.has("title") ? note.get("title").getAsString() : "A clip";
@@ -202,9 +187,6 @@ public final class App {
         watcher.start();
         applyHotkeys();
         applyServer();
-        if (settings.replayEnabled && settings.replayOnLaunch && Ffmpeg.available()) {
-            try { engine.start(); launchStarted = true; } catch (Exception e) { notify("Couldn't start capture", e.getMessage(), true); }
-        }
         CloudShare.cleanPartials(library);
         library.rescan();
         library.sweepOldReplays();
@@ -215,11 +197,22 @@ public final class App {
         if (voiceError != null && settings.voiceCommands) notify(voiceError, null, true);
     }
 
-    /** Names clips after the running game and runs instant replay only while one is open. */
+    /**
+     * True while Minecraft (with Evade Client) is open: its process is running, or Evade Client talked to the app
+     * in the last 15 s. The self-tests' built-in test patterns always count.
+     */
+    public boolean minecraftRunning() {
+        return currentGame != null || evadeClientRecently() || settings.source.startsWith("test");
+    }
+
+    private boolean evadeClientRecently() { return System.currentTimeMillis() - evadeClientSeenAt < 15_000; }
+
+    /** Runs instant replay only while Minecraft is open, and stops capture (saving a recording) when it closes. */
     private void watchGames() {
         while (true) {
             try {
-                String game = net.evadeclient.clips.core.GameDetector.detect().map(net.evadeclient.clips.core.GameDetector.Game::name).orElse(null);
+                boolean mc = net.evadeclient.clips.core.GameDetector.detect().isPresent() || evadeClientRecently();
+                String game = mc ? net.evadeclient.clips.core.GameDetector.MINECRAFT : null;
                 String before = currentGame;
                 currentGame = game;
                 if (game != null && !game.equals(before)) {
@@ -228,56 +221,37 @@ public final class App {
                         autoStarted = true;
                         notify(game + " detected", "Instant replay is on · " + settings.hotkeySaveClip + " saves a clip", false);
                     }
-                } else if (game == null && autoStarted && !engine.isRecording() && !settings.replayOnLaunch) {
-                    // Checked every round (not only when the game closes), so a recording that outlasted the game
-                    // doesn't leave instant replay running forever.
-                    engine.stop();
+                } else if (game == null && before != null && !settings.source.startsWith("test")) {
+                    // Minecraft closed: capture only ever records its window, so it stops (a recording is saved).
+                    if (engine.isRecording()) stopRecordingNow();
+                    if (engine.isLive() || autoStarted) engine.stop();
                     autoStarted = false;
                 }
             } catch (Exception e) {
                 System.err.println("[clips] game watcher: " + e.getMessage());
             }
-            // Live loud-moment detection for games without their own events. Minecraft has its own (Evade Client's
-            // Clips mod) only while Evade Client is talking to the app; without it, loud moments are clipped too.
-            String g = currentGame;
-            boolean mcEvents = "Minecraft".equals(g) && System.currentTimeMillis() - evadeClientSeenAt < 15_000;
-            boolean wantLive = settings.liveHighlights && engine.isLive() && g != null
-                    && (!EVENT_GAMES.contains(g) || ("Minecraft".equals(g) && !mcEvents));
+            // Live loud-moment detection: Evade Client's Clips mod sends Minecraft's own events while it's talking
+            // to the app; without it (the mod turned off), loud moments are clipped instead.
+            boolean wantLive = settings.liveHighlights && engine.isLive() && currentGame != null && !evadeClientRecently();
             if (wantLive && !live.running()) live.start();
             else if (!wantLive && live.running()) live.stop();
-            // League's Live Client API is only up during a match; poll it while League is open.
-            for (int i = 0; i < 3; i++) {
-                if (settings.leagueEvents && net.evadeclient.clips.events.LeagueIntegration.GAME.equals(currentGame)) league.poll();
-                try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
-            }
-            if (!net.evadeclient.clips.events.LeagueIntegration.GAME.equals(currentGame)) league.reset();
+            try { Thread.sleep(3000); } catch (InterruptedException e) { return; }
         }
     }
 
     /**
-     * Applies the "Behavior" switches right away: starts instant replay when it's now wanted (always on, or a game
-     * is running with auto start), and stops it when it was only on because of a switch that's now off. Never
-     * stops a replay you turned on yourself or a running recording.
+     * Applies the "Behavior" switch right away: starts instant replay when Minecraft is running with auto start
+     * on. Never stops a replay you turned on yourself or a running recording.
      */
     public void applyReplaySettings() {
         Thread t = new Thread(() -> {
             if (!settings.replayEnabled || !Ffmpeg.available()) return;
             String game = currentGame;
-            boolean want = settings.replayOnLaunch || (settings.autoReplayForGames && game != null);
             try {
-                if (want && !engine.isLive()) {
+                if (settings.autoReplayForGames && game != null && !engine.isLive()) {
                     engine.start();
-                    launchStarted = settings.replayOnLaunch;
-                    autoStarted = !settings.replayOnLaunch;
-                    if (game != null) notify(game + " detected", "Instant replay is on · " + settings.hotkeySaveClip + " saves a clip", false);
-                } else if (want && launchStarted && !settings.replayOnLaunch) {
-                    // Kept on for the game that's running; it stops when the game closes.
-                    launchStarted = false;
                     autoStarted = true;
-                } else if (!want && engine.isLive() && launchStarted && !engine.isRecording()) {
-                    engine.stop();
-                    launchStarted = false;
-                    autoStarted = false;
+                    notify(game + " detected", "Instant replay is on · " + settings.hotkeySaveClip + " saves a clip", false);
                 }
             } catch (Exception e) {
                 notify("Couldn't start capture", e.getMessage(), true);
@@ -287,10 +261,10 @@ public final class App {
         t.start();
     }
 
-    /** Game name for a new clip: what the caller said, else the running game, else the default. */
+    /** Game name for a new clip: what the caller said, else Minecraft. */
     String gameFor(String asked) {
         if (asked != null && !asked.isBlank()) return asked;
-        return currentGame != null ? currentGame : settings.defaultGame;
+        return net.evadeclient.clips.core.GameDetector.MINECRAFT;
     }
 
     public void shutdown() {
@@ -339,8 +313,8 @@ public final class App {
     public String controlError() { return controlError; }
 
     /**
-     * (Re)starts the local control server. It always runs (so a second copy of the app finds this one, and CS2
-     * events arrive); with "Allow Evade Client and local tools" off it refuses everything else.
+     * (Re)starts the local control server. It always runs (so a second copy of the app finds this one); it only
+     * takes clips from Evade Client, and with "Allow Evade Client to save clips" off it refuses everything else.
      */
     public void applyServer() {
         server.stop();
@@ -403,9 +377,6 @@ public final class App {
                     if (c != null) openEditor.accept(c);
                     return c != null;
                 }
-                @Override public boolean gameState(String game, String body) {
-                    return !settings.cs2Events || cs2.handle(body);
-                }
                 @Override public void evadeClientSeen() { evadeClientSeenAt = System.currentTimeMillis(); }
                 @Override public boolean apiEnabled() { return settings.controlServer; }
             });
@@ -418,19 +389,12 @@ public final class App {
     }
 
     /**
-     * After the local port changed: restarts the server, tells Evade Client where to find it (location.json) and
-     * moves Counter-Strike 2's config to the new port. Runs file work, so call it off the UI thread.
+     * After the local port changed: restarts the server and tells Evade Client where to find it (location.json).
+     * Runs file work, so call it off the UI thread.
      */
     public void applyPortChange() {
         applyServer();
         net.evadeclient.clips.ClipsApp.writeLocation(settings.controlPort);
-        int installed = 0;
-        try {
-            for (Path cfg : net.evadeclient.clips.events.Cs2Integration.cfgFolders())
-                if (Files.exists(cfg.resolve("gamestate_integration_evadeclips.cfg"))) installed++;
-        } catch (Exception ignored) {}
-        if (installed > 0 && net.evadeclient.clips.events.Cs2Integration.install(settings.controlPort, settings.gsiToken) > 0)
-            notify("CS2 updated", "Restart CS2 to use port " + settings.controlPort, false);
     }
 
     /** Called (on the UI thread) when ffmpeg was found, downloaded or changed in Settings. */
@@ -445,9 +409,7 @@ public final class App {
         if (!Ffmpeg.available()) return;
         Thread t = new Thread(() -> {
             library.rescan();
-            if (settings.replayEnabled && settings.replayOnLaunch && !engine.isLive()) {
-                try { engine.start(); launchStarted = true; } catch (Exception e) { notify("Couldn't start capture", e.getMessage(), true); }
-            } else applyReplaySettings();
+            applyReplaySettings();
         }, "ffmpeg-ready");
         t.setDaemon(true);
         t.start();
@@ -458,9 +420,13 @@ public final class App {
     public void toggleReplay(boolean on) {
         settings.replayEnabled = on;
         settings.save();
-        // Switched by hand: it stays the way you set it.
+        if (on && !minecraftRunning()) {
+            // It turns on by itself as soon as Minecraft starts.
+            notify(NEED_MINECRAFT, "Instant replay turns on by itself when Minecraft starts.", false);
+            return;
+        }
+        // Switched by hand: it stays the way you set it (until Minecraft closes).
         autoStarted = false;
-        launchStarted = false;
         new Thread(() -> {
             try {
                 if (on) engine.start();
@@ -471,6 +437,7 @@ public final class App {
 
     /** Async save from a hotkey/button; reports with a toast. */
     public void saveClip(int seconds, String title, String game, String tag) {
+        if (!minecraftRunning()) { notify(NEED_MINECRAFT, null, false); return; }
         new Thread(() -> {
             try { saveClipNow(seconds, settings.replayAfterSeconds, title, game, tag); }
             catch (Exception e) { notify("Clip not saved", e.getMessage(), true); }
@@ -478,6 +445,7 @@ public final class App {
     }
 
     public Clip saveClipNow(int seconds, int after, String title, String game, String tag) throws Exception {
+        if (!minecraftRunning()) throw new Exception(NEED_MINECRAFT);
         if (!engine.isLive()) throw new Exception("Instant replay is off. Turn it on in Record.");
         if (after > 0 && settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show("Saving…", "Capturing " + after + " more seconds", false));
         Clip c = engine.saveReplay(seconds > 0 ? seconds : settings.replaySeconds, after, title, gameFor(game));
@@ -491,6 +459,7 @@ public final class App {
     }
 
     public void toggleRecording() {
+        if (!engine.isRecording() && !minecraftRunning()) { notify(NEED_MINECRAFT, null, false); return; }
         new Thread(() -> {
             try {
                 if (engine.isRecording()) stopRecordingNow();
@@ -500,6 +469,7 @@ public final class App {
     }
 
     public void startRecording(String game) throws Exception {
+        if (!minecraftRunning()) throw new Exception(NEED_MINECRAFT);
         engine.startRecording(gameFor(game));
         notify("Recording", "Press " + settings.hotkeyRecord + " to stop", false);
     }
@@ -511,8 +481,8 @@ public final class App {
             notify("Recording saved", Theme.time(c.duration) + " · " + Theme.size(c.size), false);
         }
         if (!settings.replayEnabled && !engine.isRecording()) engine.stop();
-        // The game closed while recording: instant replay was only on for it.
-        if (autoStarted && currentGame == null && !settings.replayOnLaunch && !engine.isRecording()) {
+        // Minecraft closed while recording: instant replay was only on for it.
+        if (autoStarted && currentGame == null && !engine.isRecording()) {
             engine.stop();
             autoStarted = false;
         }

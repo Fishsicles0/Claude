@@ -41,8 +41,9 @@ java {
 
 jar { from("LICENSE") { rename { "${it}_${project.base.archivesName.get()}" } } }
 
-// In-game tests: `xvfb-run ./gradlew runClientGameTest` launches Minecraft, builds a world,
-// exercises every module and saves screenshots to build/run/clientGameTest/screenshots.
+// In-game tests: `xvfb-run ./gradlew runClientGameTest` launches Minecraft, builds a world, checks what the
+// modules, HUD, menu, commands and profiles do (and that no module crashed during the run), and saves
+// screenshots to build/run/clientGameTest/screenshots.
 fabricApi {
     configureTests {
         createSourceSet = true
@@ -53,10 +54,9 @@ fabricApi {
     }
 }
 
-// Evade cancels, holds back and sends packets itself at the connection level (Blink, NoFall, rotations). Fabric's
-// gametest network synchroniser can't account for that and stalls for 10 s at random, as its own error message
-// says ("Detected interfacing with packets at a lower level ... disable network synchronization"). Client and
-// server still advance tick by tick; only the per-tick wait for in-flight packets is skipped.
+// Fabric's gametest network synchroniser stalled for 10 s at random in this suite ("Detected interfacing with
+// packets at a lower level ... disable network synchronization"). Client and server still advance tick by tick;
+// only the per-tick wait for in-flight packets is skipped.
 loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
     vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
     // `-Pfootage` films gameplay for the Evade Clips screenshots instead of testing (scripts/film-footage.sh)

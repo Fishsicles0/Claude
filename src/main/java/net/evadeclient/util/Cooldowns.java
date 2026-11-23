@@ -1,11 +1,14 @@
 package net.evadeclient.util;
 
+import net.evadeclient.EvadeClient;
 import net.evadeclient.mixin.ItemCooldownManagerAccessor;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.Identifier;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -23,11 +26,19 @@ public final class Cooldowns {
     // so this keeps working under any mapping names.
     private static Method startTick, endTick;
 
+    /** {@link #activeCached()}'s result, the tick it was read on and the player it belongs to. */
+    private static Map<Identifier, Cooldown> cached = Map.of();
+    private static long cachedTick = Long.MIN_VALUE;
+    private static ClientPlayerEntity cachedPlayer;
+
     private Cooldowns() {}
 
+    /** The local player's active cooldowns, read fresh (empty without a player). */
     public static Map<Identifier, Cooldown> active() {
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        if (player == null) return Map.of();
         Map<Identifier, Cooldown> out = new LinkedHashMap<>();
-        var acc = (ItemCooldownManagerAccessor) MinecraftClient.getInstance().player.getItemCooldownManager();
+        var acc = (ItemCooldownManagerAccessor) player.getItemCooldownManager();
         int now = acc.evade$getTick();
         for (Map.Entry<Identifier, ?> e : acc.evade$getEntries().entrySet()) {
             int[] se = read(e.getValue());
@@ -36,6 +47,25 @@ public final class Cooldowns {
             }
         }
         return out;
+    }
+
+    /**
+     * {@link #active()}, read at most once per client tick (and again when the player entity changes): the HUD
+     * widget, its tick logic and every hotbar slot share one read. Unmodifiable. Render/client thread only.
+     */
+    public static Map<Identifier, Cooldown> activeCached() {
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        if (player == null) {
+            cachedPlayer = null;
+            cached = Map.of();
+            return cached;
+        }
+        if (cachedTick != EvadeClient.ticks || cachedPlayer != player) {
+            cached = Collections.unmodifiableMap(active());
+            cachedTick = EvadeClient.ticks;
+            cachedPlayer = player;
+        }
+        return cached;
     }
 
     private static int[] read(Object entry) {
