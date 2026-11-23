@@ -62,6 +62,8 @@ public final class ReplayProject {
     public List<SpeedKey> speeds = new ArrayList<>();
     /** The camera keeps looking at this entity (UUID), "" for none. */
     public String lookAt = "";
+    /** Player POV: the UUID of the player whose eyes the camera sees through, "" for the free camera. */
+    public String pov = "";
     /** Play the camera path while watching (otherwise you fly freely). */
     public boolean previewPath = true;
     public Scene scene = new Scene();

@@ -104,6 +104,8 @@ video.
   *Record My Voice*), are recorded into the replay as Opus through a Simple Voice Chat plugin (`voicechat`
   entrypoint, `VoiceChatPlugin`). Played back from where each player stands as they move, following speed and pause,
   and rendered into the video. The API is compiled against small stand-ins in `src/svcstub` (never packaged).
+- **Player POV**: V (or *View* in the editor's Camera tab) watches through a player's eyes, who recorded first, then
+  each other player, then back to the free camera; renders use it too (it takes over from a camera path while on).
 - **Free camera** flies at normal speed whatever the replay speed (the game's own movement would slow with it).
 - Files: `.minecraft/evade/replays/*.evadereplay` (a zip: `meta.json` + the recorded stream), camera paths in
   `*.evadereplay.project.json` beside them, renders in `.minecraft/evade/renders`.

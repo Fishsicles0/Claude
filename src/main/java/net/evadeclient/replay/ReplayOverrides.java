@@ -38,6 +38,8 @@ public final class ReplayOverrides {
         fov = 0;
         ReplayPlayer p = ReplayPlayer.current();
         if (p == null || mc.player == null || mc.world == null || p.seeking()) return;
+        // Player POV: the camera is that player, so it goes where they went and looks where they looked
+        if (applyPov(p) != null) { flyPos = null; return; }
         ReplayProject pr = p.project;
         float delta = counter.getTickProgress(true);
         double t = p.tick() - 1 + delta;
@@ -71,6 +73,65 @@ public final class ReplayOverrides {
             mc.player.setHeadYaw(yaw);
         }
     }
+
+    // ------------------------------------------------------------------ player POV
+
+    /** The player the camera sees through, if POV is on and they're in the world right now. */
+    public static net.minecraft.entity.player.PlayerEntity povTarget(ReplayPlayer p) {
+        String id = p == null ? null : p.project.pov;
+        if (id == null || id.isBlank() || mc.world == null) return null;
+        for (var e : mc.world.getPlayers()) if (e != mc.player && e.getUuidAsString().equals(id)) return e;
+        return null;
+    }
+
+    /**
+     * Makes the game's camera entity the POV player (or the free camera again), and returns the POV player. Re-run
+     * every frame and tick: seeking back rebuilds the world, so the player is found again by UUID.
+     */
+    static Entity applyPov(ReplayPlayer p) {
+        if (mc.player == null) return null;
+        Entity target = p == null || p.seeking() ? null : povTarget(p);
+        Entity want = target != null ? target : mc.player;
+        if (mc.getCameraEntity() != want) mc.setCameraEntity(want);
+        return target;
+    }
+
+    /** The players you can watch through: whoever recorded first, then everyone else by name. */
+    static java.util.List<net.minecraft.entity.player.PlayerEntity> povCandidates(ReplayPlayer p) {
+        java.util.List<net.minecraft.entity.player.PlayerEntity> list = new java.util.ArrayList<>();
+        if (mc.world == null) return list;
+        for (var e : mc.world.getPlayers()) if (e != mc.player) list.add(e);
+        Entity self = p.self();
+        list.sort(java.util.Comparator.<net.minecraft.entity.player.PlayerEntity>comparingInt(e -> e == self ? 0 : 1)
+                .thenComparing(e -> e.getName().getString(), String.CASE_INSENSITIVE_ORDER));
+        return list;
+    }
+
+    /** Next view: the recorded player's eyes, then each other player's, then back to the free camera. Returns its name. */
+    public static String cyclePov(ReplayPlayer p) {
+        var list = povCandidates(p);
+        int at = -1;
+        for (int i = 0; i < list.size(); i++) if (list.get(i).getUuidAsString().equals(p.project.pov)) at = i;
+        if (at + 1 < list.size()) {
+            var next = list.get(at + 1);
+            // the camera starts where they are, so leaving POV later carries on from their view
+            p.project.pov = next.getUuidAsString();
+            mc.player.refreshPositionAndAngles(next.getX(), next.getY(), next.getZ(), next.getYaw(), next.getPitch());
+        } else {
+            p.project.pov = "";
+        }
+        applyPov(p);
+        return povName(p);
+    }
+
+    /** "Steve's eyes", or "Free camera". */
+    public static String povName(ReplayPlayer p) {
+        if (p == null || p.project.pov == null || p.project.pov.isBlank()) return "Free camera";
+        var t = povTarget(p);
+        return (t != null ? t.getName().getString() : "Player") + "'s eyes";
+    }
+
+    // ------------------------------------------------------------------ free camera
 
     private static Vec3d flyPos, flyVel = Vec3d.ZERO;
     private static long flyLast;
@@ -152,6 +213,7 @@ public final class ReplayOverrides {
 
     /** Leaving the replay: put the player's own settings back. */
     public static void reset() {
+        if (mc.player != null && mc.getCameraEntity() != mc.player) mc.setCameraEntity(mc.player);
         if (hudBefore != null) { mc.options.hudHidden = hudBefore; hudBefore = null; }
         var noFog = EvadeClient.modules == null ? null : EvadeClient.modules.get(net.evadeclient.module.visuals.NoFog.class);
         if (noFog != null && noFogBefore != null && noFog.isEnabled() != noFogBefore) noFog.setEnabled(noFogBefore);
