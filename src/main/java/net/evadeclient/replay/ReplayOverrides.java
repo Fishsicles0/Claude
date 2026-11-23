@@ -95,7 +95,9 @@ public final class ReplayOverrides {
         double len = Math.sqrt(dx * dx + dz * dz);
         if (len > 1) { dx /= len; dz /= len; }
         // the game's spectator speed: ~11 blocks/s at the default fly speed (scroll changes it), double when sprinting
-        double speed = mc.player.getAbilities().getFlySpeed() / 0.05 * 10.9 * (keys && o.sprintKey.isPressed() ? 2 : 1);
+        // sprinting as the game sees it: the key, or Toggle Sprint (which holds sprint without pressing the key)
+        boolean sprint = keys && (o.sprintKey.isPressed() || mc.player.input.playerInput.sprint());
+        double speed = mc.player.getAbilities().getFlySpeed() / 0.05 * 10.9 * (sprint ? 2 : 1);
         Vec3d target = new Vec3d(dx * speed, u * speed * 0.7, dz * speed);
         flyVel = flyVel.lerp(target, 1 - Math.exp(-dt * 10));
         flyPos = flyPos.add(flyVel.multiply(dt));
