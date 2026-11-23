@@ -35,6 +35,16 @@ const hex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.t
 const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 /** Mojang's session server refuses requests without a normal User-Agent. */
 const MOJANG_HEADERS = { "user-agent": "EvadeClient-Icons/1.0 (+https://evadeclient.com)", accept: "application/json" };
+/**
+ * Mojang's player-certificate signing keys (api.minecraftservices.com/publickeys, "playerCertificateKeys"). Every
+ * Microsoft account gets a chat-signing key pair whose public half Mojang signs with one of these. Mojang blocks
+ * requests from Cloudflare, so the keys are built in rather than fetched; update them if Mojang ever rotates them.
+ */
+const MOJANG_CERT_KEYS = [
+  "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAylB4B6m5lz7jwrcFz6Fd/fnfUhcvlxsTSn5kIK/2aGG1C3kMy4VjhwlxF6BFUSnfxhNswPjh3ZitkBxEAFY25uzkJFRwHwVA9mdwjashXILtR6OqdLXXFVyUPIURLOSWqGNBtb08EN5fMnG8iFLgEJIBMxs9BvF3s3/FhuHyPKiVTZmXY0WY4ZyYqvoKR+XjaTRPPvBsDa4WI2u1zxXMeHlodT3lnCzVvyOYBLXL6CJgByuOxccJ8hnXfF9yY4F0aeL080Jz/3+EBNG8RO4ByhtBf4Ny8NQ6stWsjfeUIvH7bU/4zCYcYOq4WrInXHqS8qruDmIl7P5XXGcabuzQstPf/h2CRAUpP/PlHXcMlvewjmGU6MfDK+lifScNYwjPxRo4nKTGFZf/0aqHCh/EAsQyLKrOIYRE0lDG3bzBh8ogIMLAugsAfBb6M3mqCqKaTMAf/VAjh5FFJnjS+7bE+bZEV0qwax1CEoPPJL1fIQjOS8zj086gjpGRCtSy9+bTPTfTR/SJ+VUB5G2IeCItkNHpJX2ygojFZ9n5Fnj7R9ZnOM+L8nyIjPu3aePvtcrXlyLhH/hvOfIOjPxOlqW+O5QwSFP4OEcyLAUgDdUgyW36Z5mB285uKW/ighzZsOTevVUG2QwDItObIV6i8RCxFbN2oDHyPaO5j1tTaBNyVt8CAwEAAQ==",
+  "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAt4t9NPuu7cktclnaH7eZj0omkLcJHeLz5MKsyJEntHZ0INtuBjSSul3Pp3pBeJN8k3ADdcdBLUN90bcAi7WsQqTx3Ft363q3W7TbM8j2iTEdp/0uVspoRt/DP1tkaWFs/w2WwUv9jbVoBUzfUc4pSTIxRwdjmqjZQfvjwKNDbOx3IhP2H0WXodbISejPi1wBZqNW4m1rnZAXp/EpUguxA8mobCa4vUCBkyFDyXdl69/wUSJHyCPmgcMJ364OlAhIqtwVPShBZObvrK/f0BYk6ShJD3N7TFDatSYsIIdcTKRknaIm91s+EsMrdB9U4Yw+ZJ/pyCB4S3vk8zfDCnb0DWIxYH3/EMzaxl77djmTmMzi/JDITup5z3jfWtRZmrAhU2/+W5IO5hEpo3/bCS9PXIY5xb41Lmp2ZO8dXKtyD66Chchy0W129n8vPl2GIruOdrxsjZAHnneyAb9jm0uaGaphwnEnuecX/qgHY6ZMtayvLLsPst8PO6R1vufMy8WqjK+j7LnC1krL7CPDg0NEhyQTmw5l+NCNjSlvB1juM9V4PARg0bYCOkGXm7ydRCjSSH8CJXZpwnd5cBB5WKAX3KPzutRgMi/LFwNSMZzFuUyXaYOZPpD259yqph1LmGqegEdDriACVU+dVEONFMm8eIuBofe7ljmsAFKW9BINwK0CAwEAAQ=="
+];
+const b64bytes = (s) => Uint8Array.from(atob(String(s)), (c) => c.charCodeAt(0));
 const normUuid = (u) => (typeof u === "string" ? u.replace(/-/g, "").toLowerCase() : "");
 
 async function body(req) {
@@ -116,6 +126,43 @@ export default {
           const uuid = normUuid(profile.id);
           if (!UUID.test(uuid)) throw new HttpError(401, "Mojang did not confirm this account");
           return json({ token: await store.sign(uuid), uuid, name: profile.name, expiresIn: TOKEN_MS / 1000 });
+        }
+
+        case "/api/auth/key": {
+          // Proof without asking Mojang: the client's Mojang-signed chat key, plus our one-time id signed with it.
+          const { uuid: rawUuid, expiresAt, publicKey, keySignature, serverId, signature } = await body(req);
+          const uuid = normUuid(rawUuid);
+          if (!UUID.test(uuid) || !SERVER_ID.test(String(serverId)) || typeof publicKey !== "string"
+            || typeof keySignature !== "string" || typeof signature !== "string"
+            || !Number.isSafeInteger(expiresAt) || publicKey.length > 2048 || keySignature.length > 2048 || signature.length > 2048) {
+            throw new HttpError(400, "bad request");
+          }
+          if (expiresAt <= Date.now()) throw new HttpError(401, "your Minecraft chat key has expired; restart the game");
+          if (!(await store.consume(serverId))) throw new HttpError(401, "challenge expired; try again");
+          let keyBytes, keySig, sig;
+          try { keyBytes = b64bytes(publicKey); keySig = b64bytes(keySignature); sig = b64bytes(signature); }
+          catch { throw new HttpError(400, "bad request"); }
+          // What Mojang signed: UUID (16 bytes), expiry in ms (8 bytes, big-endian), then the key itself.
+          const signed = new Uint8Array(24 + keyBytes.length);
+          const dv = new DataView(signed.buffer);
+          dv.setBigUint64(0, BigInt("0x" + uuid.slice(0, 16)));
+          dv.setBigUint64(8, BigInt("0x" + uuid.slice(16)));
+          dv.setBigInt64(16, BigInt(expiresAt));
+          signed.set(keyBytes, 24);
+          let mojangOk = false;
+          for (const k of MOJANG_CERT_KEYS) {
+            try {
+              const mk = await crypto.subtle.importKey("spki", b64bytes(k), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-1" }, false, ["verify"]);
+              if (await crypto.subtle.verify("RSASSA-PKCS1-v1_5", mk, keySig, signed)) { mojangOk = true; break; }
+            } catch { /* try the next key */ }
+          }
+          if (!mojangOk) throw new HttpError(401, "Mojang did not sign this key");
+          let playerKey;
+          try { playerKey = await crypto.subtle.importKey("spki", keyBytes, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]); }
+          catch { throw new HttpError(400, "bad key"); }
+          const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", playerKey, sig, new TextEncoder().encode("evade-icons:" + serverId));
+          if (!ok) throw new HttpError(401, "signature doesn't match");
+          return json({ token: await store.sign(uuid), uuid, expiresIn: TOKEN_MS / 1000 });
         }
 
         case "/api/presence": {

@@ -138,27 +138,36 @@ public class EvadeIcons extends Module {
         }
         authing = true;
         statusText = "Signing in...";
-        post("/auth/challenge", new JsonObject(), null).thenCompose(ch -> {
+        // Proof without Mojang's join check (Mojang refuses those from our server): the Mojang-signed chat key
+        // every Microsoft account has, and our one-time id signed with its private half. No token leaves the game.
+        mc.getProfileKeys().fetchKeyPair().thenCombine(post("/auth/challenge", new JsonObject(), null), (keys, ch) -> {
+            var pair = keys.orElseThrow(() -> new IllegalStateException("no chat key (chat signing unavailable for this account)"));
             String serverId = ch.get("serverId").getAsString();
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    mc.getApiServices().sessionService().joinServer(uuid, accessToken, serverId); // goes to Mojang only
-                } catch (Exception e) {
-                    throw new RuntimeException("Mojang sign-in failed", e);
-                }
-                return serverId;
-            });
-        }).thenCompose(serverId -> {
-            JsonObject b = new JsonObject();
-            b.addProperty("username", name);
-            b.addProperty("serverId", serverId);
-            return post("/auth/verify", b, null);
-        }).whenComplete((res, err) -> {
+            try {
+                java.security.Signature sig = java.security.Signature.getInstance("SHA256withRSA");
+                sig.initSign(pair.privateKey());
+                sig.update(("evade-icons:" + serverId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                var data = pair.publicKey().data();
+                var enc = java.util.Base64.getEncoder();
+                JsonObject b = new JsonObject();
+                b.addProperty("uuid", uuid.toString());
+                b.addProperty("expiresAt", data.expiresAt().toEpochMilli());
+                b.addProperty("publicKey", enc.encodeToString(data.key().getEncoded()));
+                b.addProperty("keySignature", enc.encodeToString(data.keySignature()));
+                b.addProperty("serverId", serverId);
+                b.addProperty("signature", enc.encodeToString(sig.sign()));
+                return b;
+            } catch (java.security.GeneralSecurityException e) {
+                throw new IllegalStateException("couldn't sign", e);
+            }
+        }).thenCompose(b -> post("/auth/key", b, null)).whenComplete((res, err) -> {
             authing = false;
             if (err != null || res == null || !res.has("token")) {
                 statusText = "Couldn't verify your account (trying again later)";
                 nextAuthAttempt = System.currentTimeMillis() + 10 * 60_000;
-                EvadeClient.LOG.info("Evade Icons: sign-in failed: {}", err != null ? err.getMessage() : res);
+                String why = err != null ? String.valueOf(err.getCause() != null ? err.getCause().getMessage() : err.getMessage()) : String.valueOf(res);
+                statusText = "Couldn't verify your account: " + (why.length() > 80 ? why.substring(0, 80) : why);
+                EvadeClient.LOG.info("Evade Icons: sign-in failed: {}", why);
                 return;
             }
             token = res.get("token").getAsString();
