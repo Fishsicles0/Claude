@@ -433,10 +433,10 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(during[0] && during[1] && !after[0] && after[1] && !done[0] && done[1],
                 "Freelook smooth return (" + java.util.Arrays.toString(during) + java.util.Arrays.toString(after) + java.util.Arrays.toString(done) + ")");
         check("Keep Current".equals(migrated), "Freelook migrates Third Person off to Perspective Keep Current (" + migrated + ")");
-        check(net.evadeclient.module.mods.Freelook.host("Mc.Hypixel.NET.:25565").equals("mc.hypixel.net")
+        check(ctx.computeOnClient(c -> net.evadeclient.module.mods.Freelook.host("Mc.Hypixel.NET.:25565").equals("mc.hypixel.net")
                         && net.evadeclient.module.mods.Freelook.isForbidden("mc.hypixel.net", "")
                         && net.evadeclient.module.mods.Freelook.isForbidden("play.example.net", "example.net")
-                        && !net.evadeclient.module.mods.Freelook.isForbidden("nothypixel.net", ""),
+                        && !net.evadeclient.module.mods.Freelook.isForbidden("nothypixel.net", "")),
                 "Freelook stays off on servers that forbid it (host parsing and denylist)");
 
         // Clicks: every press counts, even several within one frame; the CPS widget formats them.
@@ -804,12 +804,12 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(elapsed > 500, "Stopwatch counts up while on (" + elapsed + " ms)");
 
         // Server Address trimming (pure helpers).
-        check("play.example.net".equals(net.evadeclient.module.hud.ServerHud.withoutPort("play.example.net:25565"))
+        check(ctx.computeOnClient(c -> "play.example.net".equals(net.evadeclient.module.hud.ServerHud.withoutPort("play.example.net:25565"))
                         && "[::1]".equals(net.evadeclient.module.hud.ServerHud.withoutPort("[::1]:25565"))
                         && "2001:db8::1".equals(net.evadeclient.module.hud.ServerHud.withoutPort("2001:db8::1"))
                         && "hypixel.net".equals(net.evadeclient.module.hud.ServerHud.withoutPrefix("mc.hypixel.net"))
                         && "play.net".equals(net.evadeclient.module.hud.ServerHud.withoutPrefix("play.net"))
-                        && "192.168.0.1".equals(net.evadeclient.module.hud.ServerHud.withoutPrefix("192.168.0.1")),
+                        && "192.168.0.1".equals(net.evadeclient.module.hud.ServerHud.withoutPrefix("192.168.0.1"))),
                 "Server Address drops ports and mc. prefixes, never mangles IPs");
 
         // Saturation formats: Of Cap shows saturation over the food level that caps it.
@@ -1432,12 +1432,12 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(matchProblems.isEmpty(), "Nick Hider matching and aliases (" + matchProblems + ")");
 
         // Tab Tweaks: ping text and colours.
-        check(net.evadeclient.module.visuals.TabTweaks.pingText(87).equals("87ms")
+        check(ctx.computeOnClient(c -> net.evadeclient.module.visuals.TabTweaks.pingText(87).equals("87ms")
                         && net.evadeclient.module.visuals.TabTweaks.pingText(12_345).equals("12s")
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(100) == 0xFF55FF55
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(200) == 0xFFFFFF55
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(450) == 0xFFFFAA00
-                        && net.evadeclient.module.visuals.TabTweaks.pingColor(900) == 0xFFFF5555,
+                        && net.evadeclient.module.visuals.TabTweaks.pingColor(900) == 0xFFFF5555),
                 "Tab Tweaks formats and colours ping");
 
         // Nametags: your own tag shows in third person only, and a third-person frame with it renders fine.
@@ -2187,7 +2187,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
     /** Misc modules: AutoGG, AutoReconnect, AutoTip, screenshot paths, chat stacking, own-only pops, sound sliders, crosshair. */
     private void testMiscModules(ClientGameTestContext ctx) {
-        check(net.evadeclient.module.misc.AutoGG.matches("                   1st Killer - Steve - 12")
+        check(ctx.computeOnClient(c -> net.evadeclient.module.misc.AutoGG.matches("                   1st Killer - Steve - 12")
                         && net.evadeclient.module.misc.AutoGG.matches("Winner: Steve")
                         && net.evadeclient.module.misc.AutoGG.matches("VICTORY!")
                         && net.evadeclient.module.misc.AutoGG.matches("Steve has won the game!")
@@ -2196,7 +2196,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                         && !net.evadeclient.module.misc.AutoGG.matches("#1 Steve")
                         && net.evadeclient.module.misc.AutoGG.looksLikePlayerChat("[MVP+] Steve: you won")
                         && net.evadeclient.module.misc.AutoGG.looksLikePlayerChat("<Steve> GAME OVER")
-                        && !net.evadeclient.module.misc.AutoGG.looksLikePlayerChat("Winner: Steve"),
+                        && !net.evadeclient.module.misc.AutoGG.looksLikePlayerChat("Winner: Steve")),
                 "AutoGG answers end-of-game announcements only");
         check(ctx.computeOnClient(c -> {
             var gg = EvadeClient.modules.get(net.evadeclient.module.misc.AutoGG.class);
@@ -2214,7 +2214,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             setting(gg, "Custom Text").reset();
             return generic && ok;
         }), "AutoGG Custom Text pool: trimmed, no commands, no repeats");
-        check("banned".equals(net.evadeclient.module.misc.AutoReconnect.blockReason(
+        check(ctx.computeOnClient(c -> "banned".equals(net.evadeclient.module.misc.AutoReconnect.blockReason(
                         net.minecraft.text.Text.translatable("multiplayer.disconnect.banned.reason", "test")))
                         && "AFK kick".equals(net.evadeclient.module.misc.AutoReconnect.blockReason(
                         net.minecraft.text.Text.translatable("multiplayer.disconnect.idling")))
@@ -2224,14 +2224,14 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                         && "AFK kick".equals(net.evadeclient.module.misc.AutoReconnect.blockReason(
                         net.minecraft.text.Text.literal("Kicked for being AFK")))
                         && net.evadeclient.module.misc.AutoReconnect.blockReason(net.minecraft.text.Text.translatable("disconnect.timeout")) == null
-                        && net.evadeclient.module.misc.AutoReconnect.blockReason(net.minecraft.text.Text.literal("Server restarting")) == null,
+                        && net.evadeclient.module.misc.AutoReconnect.blockReason(net.minecraft.text.Text.literal("Server restarting")) == null),
                 "AutoReconnect skips bans, whitelist refusals and AFK kicks");
         check(ctx.computeOnClient(c -> net.evadeclient.module.misc.AutoReconnect.target()) == null,
                 "AutoReconnect has no server to rejoin in singleplayer");
-        check(net.evadeclient.module.misc.AutoTip.isHypixel("mc.hypixel.net:25565")
+        check(ctx.computeOnClient(c -> net.evadeclient.module.misc.AutoTip.isHypixel("mc.hypixel.net:25565")
                         && net.evadeclient.module.misc.AutoTip.isHypixel("Hypixel.net")
                         && !net.evadeclient.module.misc.AutoTip.isHypixel("nothypixel.net")
-                        && !net.evadeclient.module.misc.AutoTip.isHypixel("hypixel.net.example.com"),
+                        && !net.evadeclient.module.misc.AutoTip.isHypixel("hypixel.net.example.com")),
                 "AutoTip only tips on Hypixel");
         check(ctx.computeOnClient(c -> net.evadeclient.module.misc.AutoTip.allow(
                         net.minecraft.text.Text.literal("You tipped 5 players in 5 different games!"), false)),
