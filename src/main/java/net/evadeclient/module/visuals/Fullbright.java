@@ -82,6 +82,13 @@ public class Fullbright extends Module {
         }
     }
 
+    /** Shader packs light the world themselves and ignore the lightmap Fullbright changes: say so. */
+    @Override
+    protected void onEnable() {
+        if (net.evadeclient.util.ShaderSwitch.inUse())
+            net.evadeclient.util.Notifications.push("Fullbright", "Doesn't work while shaders are on. Turn them off in Performance > Shaders.", false);
+    }
+
     /** The current faded level (0..1), for tests. Render thread. */
     public static float level() { return level; }
 

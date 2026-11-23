@@ -73,6 +73,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testWaypoints(ctx);
             testPerformance(ctx, sp);
             testFpsAndServerRules(ctx, sp);
+            testFullbrightOnScreen(ctx, sp);
             testFrameTime(ctx);
             testClips(ctx, sp);
             testVoice(ctx);
@@ -1278,7 +1279,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(groups, "Inventory Blur blurs only the screen groups it's set to");
     }
 
-    /** Deeper render mods: Nick Hider, Tab Tweaks, Nametags, Hit Color, ShinyPots, EnchantGlint, tooltips, Hitboxes, 1.7 Animations. */
+    /** Deeper render mods: Nick Hider, Tab Tweaks, Hit Color, ShinyPots, EnchantGlint, tooltips, Hitboxes, 1.7 Animations. */
     private void testRenderBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var server = sp.getServer();
         server.runCommand("kill @e[type=!player]");
@@ -1439,30 +1440,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(450) == 0xFFFFAA00
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(900) == 0xFFFF5555),
                 "Tab Tweaks formats and colours ping");
-
-        // Nametags: your own tag shows in third person only, and a third-person frame with it renders fine.
-        boolean[] ownTag = ctx.computeOnClient(c -> {
-            var nt = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
-            nt.setEnabled(true);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
-            boolean third = net.evadeclient.module.visuals.Nametags.showOwnTag(c.player);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.FIRST_PERSON);
-            boolean first = net.evadeclient.module.visuals.Nametags.showOwnTag(c.player);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
-            nt.scale.set(1.5);
-            nt.shadow.set(true);
-            return new boolean[]{third, first};
-        });
-        ctx.waitTicks(3);
-        ctx.takeScreenshot("evade-nametags-own");
-        ctx.runOnClient(c -> {
-            var nt = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
-            nt.scale.reset();
-            nt.shadow.reset();
-            nt.setEnabled(false);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.FIRST_PERSON);
-        });
-        check(ownTag[0] && !ownTag[1], "Nametags shows your own tag in third person only");
 
         // Hit Color repaints the hurt overlay (palette blue by default), and restores red when turned off.
         enable(ctx, net.evadeclient.module.visuals.HitColor.class);
@@ -1977,6 +1954,58 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     }
 
     /** Frame Time Graph: frames are being recorded and summarised; header, freeze and styles. */
+    /** Fullbright really lights the picture (with Sodium, BadOptimizations and the other FPS mods loaded). */
+    private void testFullbrightOnScreen(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        server.runCommand("time set midnight");
+        server.runCommand("weather clear");
+        server.runCommand("fill -4 -62 -4 4 -55 4 stone hollow");
+        server.runCommand("tp @a 0 -61 0 0 30");
+        disable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        ctx.runOnClient(c -> c.options.getGamma().setValue(0.0));
+        ctx.waitTicks(60);
+        clearToasts(ctx);
+        double off = centreBrightness(ctx.takeScreenshot("evade-fullbright-off"));
+        String[] modes = {"Gamma", "Night Vision", "Full Light"};
+        double[] on = new double[modes.length];
+        var fb = enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        for (int m = 0; m < modes.length; m++) {
+            String mode = modes[m];
+            ctx.runOnClient(c -> setJson(fb, "Mode", mode));
+            ctx.waitTicks(40);
+            on[m] = centreBrightness(ctx.takeScreenshot("evade-fullbright-" + mode.toLowerCase(java.util.Locale.ROOT).replace(' ', '-')));
+        }
+        ctx.runOnClient(c -> setting(fb, "Mode").reset());
+        disable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        server.runCommand("fill -4 -62 -4 4 -55 4 air");
+        server.runCommand("fill -4 -62 -4 4 -62 4 grass_block");
+        server.runCommand("time set day");
+        server.runCommand("tp @a 0 -60 0 0 0");
+        ctx.runOnClient(c -> c.options.getGamma().setValue(0.5));
+        EvadeClient.LOG.info("[gametest] Fullbright on screen: off {} -> {}", off, java.util.Arrays.toString(on));
+        for (int m = 0; m < modes.length; m++)
+            check(on[m] > off + 40 && on[m] > 60, "Fullbright " + modes[m] + " lights a dark room on screen (brightness "
+                    + Math.round(off) + " -> " + Math.round(on[m]) + ")");
+    }
+
+    /** Average brightness (0-255) of the middle of a screenshot, away from the HUD. */
+    private static double centreBrightness(java.nio.file.Path png) {
+        try {
+            var img = javax.imageio.ImageIO.read(png.toFile());
+            int w = img.getWidth(), h = img.getHeight();
+            long sum = 0, n = 0;
+            for (int y = h / 3; y < 2 * h / 3; y += 2)
+                for (int x = w / 3; x < 2 * w / 3; x += 2) {
+                    int rgb = img.getRGB(x, y);
+                    sum += ((rgb >> 16) & 255) * 299 + ((rgb >> 8) & 255) * 587 + (rgb & 255) * 114;
+                    n++;
+                }
+            return n == 0 ? 0 : sum / 1000.0 / n;
+        } catch (java.io.IOException e) {
+            throw new AssertionError("can't read screenshot " + png + ": " + e);
+        }
+    }
+
     /** FPS Mode presets, Unlock FPS, the benchmark, server rules, the minimap and the shader switch. */
     private void testFpsAndServerRules(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var perf = enable(ctx, net.evadeclient.module.mods.Performance.class);

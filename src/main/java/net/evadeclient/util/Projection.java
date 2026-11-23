@@ -8,7 +8,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-/** Projects world positions onto the 2D GUI, for HUD overlays like Nametags, Waypoints and TNT Timer. */
+/** Projects world positions onto the 2D GUI, for HUD overlays like Waypoints and TNT Timer. */
 public final class Projection {
     /**
      * Field of view of the last world frame (zoom and FOV Changer included, the hand's FOV never). Kept for code

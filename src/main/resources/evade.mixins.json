@@ -88,9 +88,7 @@
     "NickHiderDrawContextMixin",
     "NickHiderTextRendererMixin",
     "NickHiderTextHandlerMixin",
-    "PlayerListEntryMixin",
-    "PlayerEntityRendererMixin",
-    "NametagsLabelCommandsMixin"
+    "PlayerListEntryMixin"
   ],
   "injectors": {
     "defaultRequire": 1

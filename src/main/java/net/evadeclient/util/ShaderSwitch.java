@@ -35,6 +35,17 @@ public final class ShaderSwitch {
         }
     }
 
+    /** Whether an Iris shader pack is drawing the world right now. */
+    public static boolean inUse() {
+        if (!irisLoaded()) return false;
+        try {
+            Object api = Class.forName("net.irisshaders.iris.api.v0.IrisApi").getMethod("getInstance").invoke(null);
+            return (boolean) api.getClass().getMethod("isShaderPackInUse").invoke(api);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** The pack Iris has selected and whether shaders are on, e.g. "Photon (on)". Empty without Iris. */
     public static String status() {
         if (!irisLoaded()) return "Iris not installed";
