@@ -6,8 +6,8 @@
   "size": "3212 KB",
   "sha256": "fa148b4ba25a3f3b630d0fd6988540826ddd87d2e734f5e02d71c723c3a17c59",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "867 KB", "sha256": "58cd39eb4a061cd9eadfa4bbca85c0ab66c6ebb44de73f76961acb0396c6322e" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "755 KB", "sha256": "418d9541fa7de376841ba321d4f13e6a20db1093a57f927e2857777e878be45f" }
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "867 KB", "sha256": "9166a815d51dc42ff8021d3e78e2d5f8d0bea970a9e0c5dfd74fd9a411a90d3b" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "755 KB", "sha256": "5b6dec32eef2920984fa302737667b53db465fb5b6fa43f72f493ca450cacfb0" }
   },
   "clips": {
     "version": "1.1.0",

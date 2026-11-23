@@ -1157,16 +1157,31 @@ public final class InstallerCore {
      */
     static void closeRunningClips(Path exe) {
         String image = exe.getFileName().toString();
+        // Evade-Clips.exe only starts Java (javaw.exe) and exits; that Java keeps the .exe open. So match every
+        // process whose command line or program path mentions the file, not just the image name.
+        String needle = exe.toAbsolutePath().toString().replace("'", "''");
+        String ps = "$n='" + needle + "'; Get-CimInstance Win32_Process | Where-Object { "
+                + "($_.CommandLine -and $_.CommandLine.IndexOf($n, [StringComparison]::OrdinalIgnoreCase) -ge 0) -or "
+                + "($_.ExecutablePath -and $_.ExecutablePath -ieq $n) } | ForEach-Object { %s }";
         try {
             run("taskkill", "/T", "/IM", image);
+            powershell(String.format(ps, "$null = $_.CimInstance; try { (Get-Process -Id $_.ProcessId).CloseMainWindow() | Out-Null } catch {}"));
             for (int i = 0; i < 10 && locked(exe); i++) Thread.sleep(300);
-            if (locked(exe)) run("taskkill", "/F", "/T", "/IM", image);
+            if (locked(exe)) {
+                run("taskkill", "/F", "/T", "/IM", image);
+                powershell(String.format(ps, "Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue"));
+            }
             for (int i = 0; i < 17 && locked(exe); i++) Thread.sleep(300);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception ignored) {
             // Not fatal: the caller falls back to updating it on the next start.
         }
+    }
+
+    private static void powershell(String script) throws Exception {
+        String encoded = java.util.Base64.getEncoder().encodeToString(script.getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
+        run("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded);
     }
 
     private static void run(String... cmd) throws Exception {
