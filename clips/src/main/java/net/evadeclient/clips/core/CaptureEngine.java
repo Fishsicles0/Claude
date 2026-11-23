@@ -48,8 +48,8 @@ public final class CaptureEngine {
         double length() { return end - start; }
     }
 
-    /** A finished piece of a recording whose own encoder stopped; it's saved as its own clip. */
-    private record Part(Path ts, long startWall, long endWall) {}
+    /** A finished piece of a recording whose own encoder stopped; the pieces are joined when it stops. */
+    private record Part(Path ts, long startWall) {}
 
     private static final String CAPTURE_PID = "ffmpeg.pid", RECORD_PID = "ffmpeg-rec.pid";
     static final String WAYLAND_MESSAGE = "Screen capture on Linux needs an X11 session; on Wayland clips will be black. Choose the 'on Xorg' session at login.";
@@ -566,13 +566,17 @@ public final class CaptureEngine {
         deletePid(RECORD_PID);
         failureLog = full;
         System.err.println("[clips] recording encoder stopped: " + Ffmpeg.tail(full));
-        // Keep what it wrote, then carry on from the newest finished segment (so nothing is missing) in a new file.
+        // Keep what it wrote, then carry on from the buffer in a new file, starting early enough that nothing is
+        // missing. The encoder died at most a tick (250 ms) ago and may have lost a little unwritten output, so
+        // its file reliably reaches ~600 ms back. The segment being written now started by lastSegmentWall (when
+        // the previous one was seen to close); if that's before then, it's enough, otherwise take one more.
         Segment last = segments.isEmpty() ? null : segments.get(segments.size() - 1);
-        long resumeWall = last == null ? now : lastSegmentWall - Math.round(last.length() * 1000);
-        parts.add(new Part(recordingTs, partStartWall, now));
+        boolean currentIsEnough = last == null || lastSegmentWall <= now - 600;
+        parts.add(new Part(recordingTs, partStartWall));
         recordingTs = Library.unique(recordingTs.getParent(), Library.stampName(recordingGame, "ts"));
         Files.createFile(recordingTs);
-        recordNextIndex = last == null ? nextSegmentIndex : last.index;
+        recordNextIndex = currentIsEnough ? nextSegmentIndex : last.index;
+        long resumeWall = last == null ? now : lastSegmentWall - 125 - (currentIsEnough ? 0 : Math.round(last.length() * 1000));
         partStartWall = Math.min(now, resumeWall);
         notice("Recording encoder stopped" + (why.isBlank() ? "" : ": " + why) + " - continuing at replay quality", 15_000);
     }
@@ -783,15 +787,22 @@ public final class CaptureEngine {
     }
 
     private void remux(Path ts, Path mp4) throws IOException {
-        Files.createDirectories(mp4.getParent());
         List<String> a = new ArrayList<>(List.of("-fflags", "+genpts+discardcorrupt", "-i", ts.toString(), "-map", "0", "-c", "copy"));
+        a.addAll(mp4OutputArgs(mp4));
+        Ffmpeg.run(a);
+    }
+
+    /** Output options shared by every remux to MP4: HEVC tag, track names, faststart. */
+    private List<String> mp4OutputArgs(Path mp4) throws IOException {
+        Files.createDirectories(mp4.getParent());
+        List<String> a = new ArrayList<>();
         if (Ffmpeg.isHevc(encoder)) a.addAll(List.of("-tag:v", "hvc1")); // plays in QuickTime / iOS / browsers
         for (int i = 0; i < trackTitles.size(); i++) {
             // MP4 keeps a track's name in handler_name ("title" is dropped); write both.
             a.addAll(List.of("-metadata:s:a:" + i, "title=" + trackTitles.get(i), "-metadata:s:a:" + i, "handler_name=" + trackTitles.get(i)));
         }
         a.addAll(List.of("-avoid_negative_ts", "make_zero", "-movflags", "+faststart", mp4.toString()));
-        Ffmpeg.run(a);
+        return a;
     }
 
     // ------------------------------------------------------------------ recording
@@ -850,8 +861,9 @@ public final class CaptureEngine {
     private record Finished(Path ts, List<Double> markers, java.util.Map<Double, String> labels) {}
 
     /**
-     * Finishes the recording, converts it to MP4 and adds it to the library. Returns the clip (the newest part,
-     * if the recording encoder stopped partway and the rest continued in a second file).
+     * Finishes the recording, converts it to MP4 and adds it to the library. If its own encoder stopped partway
+     * (the rest continued from the replay buffer in a second file), the parts are joined into one clip; should
+     * that fail, each part is saved and the newest is returned.
      */
     public Clip stopRecording() throws IOException {
         Process own;
@@ -897,6 +909,24 @@ public final class CaptureEngine {
         }
         fire();
         applyPendingRestart();
+        if (files.size() > 1) {
+            // A part that never got any footage (stopped right after the switch) has nothing to add.
+            for (int i = files.size() - 1; i >= 0 && files.size() > 1; i--) {
+                Path ts = files.get(i).ts();
+                if (size(ts) == 0) {
+                    try { Files.deleteIfExists(ts); } catch (IOException ignored) {}
+                    files.remove(i);
+                }
+            }
+        }
+        if (files.size() > 1) {
+            try {
+                return joinRecording(files, game);
+            } catch (IOException e) {
+                // Each part is still a playable recording on its own.
+                System.err.println("[clips] couldn't join the recording's parts: " + e.getMessage());
+            }
+        }
         Clip last = null;
         IOException error = null;
         for (Finished f : files) {
@@ -911,15 +941,15 @@ public final class CaptureEngine {
     private List<Finished> finishedFiles() {
         List<Finished> out = new ArrayList<>();
         List<Part> all = new ArrayList<>(parts);
-        all.add(new Part(recordingTs, partStartWall, Long.MAX_VALUE));
+        all.add(new Part(recordingTs, partStartWall));
         for (int i = 0; i < all.size(); i++) {
             Part p = all.get(i);
-            boolean lastPart = i == all.size() - 1;
+            long until = i + 1 < all.size() ? all.get(i + 1).startWall() : Long.MAX_VALUE;
             List<Double> m = new ArrayList<>();
             java.util.Map<Double, String> l = new java.util.HashMap<>();
             for (double t : recordingMarkers) {
                 long wall = recordingStartWall + Math.round(t * 1000);
-                if (wall < p.startWall() || (!lastPart && wall >= p.endWall())) continue;
+                if ((i > 0 && wall < p.startWall()) || wall >= until) continue;
                 double at = Math.max(0, (wall - p.startWall()) / 1000.0);
                 m.add(at);
                 if (recordingLabels.containsKey(t)) l.put(at, recordingLabels.get(t));
@@ -927,6 +957,45 @@ public final class CaptureEngine {
             out.add(new Finished(p.ts(), m, l));
         }
         return out;
+    }
+
+    /**
+     * Joins the parts of a recording whose own encoder stopped partway into one MP4. ffmpeg's concat demuxer
+     * lines up each part after the one before, so the timeline runs straight through.
+     */
+    private Clip joinRecording(List<Finished> files, String game) throws IOException {
+        Path first = files.get(0).ts();
+        Path mp4 = Library.unique(first.getParent(), first.getFileName().toString().replaceAll("\\.ts$", ".mp4"));
+        List<Double> markers = new ArrayList<>();
+        java.util.Map<Double, String> labels = new java.util.HashMap<>();
+        StringBuilder list = new StringBuilder("ffconcat version 1.0\n");
+        double offset = 0;
+        for (Finished f : files) {
+            double length = Ffmpeg.probe(f.ts()).duration();
+            list.append("file '").append(f.ts().toAbsolutePath().toString().replace("'", "'\\''")).append("'\n");
+            for (double m : f.markers()) {
+                double at = offset + Math.min(m, length);
+                markers.add(at);
+                String label = f.labels().get(m);
+                if (label != null) labels.put(at, label);
+            }
+            offset += length;
+        }
+        Path script = Files.createTempFile(library.metaDir(), "parts", ".ffconcat");
+        try {
+            Files.writeString(script, list.toString());
+            List<String> a = new ArrayList<>(List.of("-f", "concat", "-safe", "0", "-fflags", "+genpts+discardcorrupt",
+                    "-i", script.toString(), "-map", "0", "-c", "copy"));
+            a.addAll(mp4OutputArgs(mp4));
+            Ffmpeg.run(a);
+        } catch (IOException e) {
+            Files.deleteIfExists(mp4);
+            throw e;
+        } finally {
+            Files.deleteIfExists(script);
+        }
+        for (Finished f : files) Files.deleteIfExists(f.ts());
+        return library.addNew(mp4, Clip.Kind.RECORDING, null, game, markers, labels, null);
     }
 
     private Clip finishRecording(Path ts, List<Double> markers, java.util.Map<Double, String> labels, String game) throws IOException {
