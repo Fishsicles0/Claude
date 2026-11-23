@@ -50,6 +50,8 @@ public final class ReplayFile {
     public static final byte SWING = 4;
     /** The local player's held items or armour changed. */
     public static final byte EQUIP = 5;
+    /** Simple Voice Chat audio (Opus): someone talking, at an entity, a place, or everywhere (groups). */
+    public static final byte VOICE = 6;
 
     static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 

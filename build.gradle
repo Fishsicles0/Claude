@@ -12,6 +12,10 @@ repositories {
     mavenCentral()
 }
 
+// Compile-only stand-ins for the Simple Voice Chat API (see src/svcstub/README.md): replays record and play back
+// voice chat when that mod is installed. Never packaged; the real classes come from Simple Voice Chat at runtime.
+sourceSets { svcstub { java.srcDir 'src/svcstub/java' } }
+
 dependencies {
     // Pure-Java H.264/MP4 encoder for Clips, bundled inside the mod jar.
     include(implementation("org.jcodec:jcodec:0.2.5"))
@@ -19,6 +23,7 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly sourceSets.svcstub.output
 }
 
 processResources {

@@ -227,6 +227,8 @@ public final class ReplayPlayer {
             case ReplayFile.SELF -> self(r.data());
             case ReplayFile.SWING -> swing(r.data());
             case ReplayFile.EQUIP -> equip(r.data());
+            // voices only while actually playing: fast-forwarding through a seek would queue them all at once
+            case ReplayFile.VOICE -> { if (seekTarget < 0) ReplayVoice.play(r.data()); }
             default -> {}
         }
     }
@@ -378,6 +380,7 @@ public final class ReplayPlayer {
         if (target == tick) return;
         if (target < tick) restartPending = true;
         seekTarget = target;
+        ReplayVoice.clear();
         viewerTookOver = false;
     }
 
@@ -399,6 +402,7 @@ public final class ReplayPlayer {
         }
         if (channel != null) channel.close();
         ReplayOverrides.reset();
+        ReplayVoice.clear();
     }
 
     /** The game left the world itself (pause menu "Disconnect"). */
@@ -409,6 +413,7 @@ public final class ReplayPlayer {
             current = null;
             try { if (p.reader != null) p.reader.close(); } catch (IOException ignored) {}
             ReplayOverrides.reset();
+            ReplayVoice.clear();
         }
     }
 }

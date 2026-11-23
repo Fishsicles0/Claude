@@ -83,6 +83,53 @@ public final class ReplayAudio {
         }
     }
 
+    // ------------------------------------------------------------------ slow motion
+
+    /** Implemented by every OpenAL source (mixin): re-applies its pitch times {@link #timeScale()}. */
+    public interface ScaledSource { void evade$rescale(); }
+
+    private static volatile float timeScale = 1f;
+    private static boolean pausedByReplay;
+
+    /** How fast game sound plays: 0.5 in half-speed slow motion (an octave down, twice as long), 1 normally. */
+    public static float timeScale() { return timeScale; }
+
+    /** Sets {@link #timeScale()} and updates every sound already playing. */
+    static void setTimeScale(double scale) {
+        float f = (float) Math.max(0.05, Math.min(8, scale));
+        if (Math.abs(f - timeScale) < 1e-4) return;
+        timeScale = f;
+        try {
+            SoundSystemAccessor sys = system();
+            if (sys.evade$started()) sys.evade$channel().execute(sources -> sources.forEach(s -> ((ScaledSource) s).evade$rescale()));
+        } catch (Throwable t) {
+            EvadeClient.LOG.debug("Replay audio: couldn't rescale sounds: {}", t.toString());
+        }
+    }
+
+    /** Every client tick: replay speed and pause for all sound, and the voices. */
+    static void onTick(ReplayPlayer p) {
+        if (p == null) {
+            setTimeScale(1);
+            setPaused(false);
+            return;
+        }
+        boolean rendering = ReplayRender.rendering();
+        boolean paused = !rendering && !p.playing() && !p.seeking();
+        // while rendering, the render sets the scale frame by frame from the speed keyframes
+        if (!rendering) setTimeScale(p.project.render.slowSound ? p.speed() : 1);
+        setPaused(paused);
+        ReplayVoice.tick(paused);
+    }
+
+    /** Paused replay, paused sound (what was playing carries on when you press play). */
+    static void setPaused(boolean paused) {
+        if (paused == pausedByReplay) return;
+        pausedByReplay = paused;
+        if (paused) mc.getSoundManager().pauseAllExcept();
+        else mc.getSoundManager().resumeAll();
+    }
+
     // ------------------------------------------------------------------ switching
 
     private static SoundSystemAccessor system() {

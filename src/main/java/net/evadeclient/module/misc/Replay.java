@@ -25,6 +25,9 @@ public class Replay extends Module {
     private final KeySetting recordKey = add(new KeySetting("Start / Save Key", GLFW.GLFW_KEY_UNKNOWN));
     private final KeySetting markerKey = add(new KeySetting("Marker Key", GLFW.GLFW_KEY_UNKNOWN));
     private final BooleanSetting indicator = add(new BooleanSetting("Recording Indicator", true));
+    /** With Simple Voice Chat: what others say near you goes into the replay (played back from where they stood). */
+    private final BooleanSetting voiceChat = add(new BooleanSetting("Record Voice Chat", true));
+    private final BooleanSetting ownVoice = add(new BooleanSetting("Record My Voice", true));
     private boolean recordWasDown, markerWasDown;
 
     public Replay() {
@@ -34,6 +37,8 @@ public class Replay extends Module {
 
     public boolean autoRecord() { return autoRecord.get(); }
     public boolean saveOnLeave() { return saveOnLeave.get(); }
+    public boolean recordVoiceChat() { return voiceChat.get(); }
+    public boolean recordOwnVoice() { return voiceChat.get() && ownVoice.get(); }
 
     @Override
     public void onTick() {

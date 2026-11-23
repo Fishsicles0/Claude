@@ -35,6 +35,7 @@ public final class Replays {
         });
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
             ReplayRecorder.tick();
+            ReplayAudio.onTick(ReplayPlayer.current());
             if (ReplayPlayer.active()) {
                 ReplayOverrides.onTick();
                 keys();

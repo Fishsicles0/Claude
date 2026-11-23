@@ -161,15 +161,17 @@ public final class ReplayEditorScreen extends Screen {
                 () -> { if (r.from < 0) { r.from = player.tick(); r.to = player.endTick(); } else { r.from = -1; r.to = -1; } },
                 "Path: from its first to its last keyframe. Marked: from the playhead (when you pressed this) to the end");
         y += 20;
-        toggle(x, y, 188, () -> "Sound: " + switch (r.audio == null ? "sounds" : r.audio) {
-                    case "music" -> "game sounds + music";
+        toggle(x, y, 92, () -> "Sound: " + switch (r.audio == null ? "sounds" : r.audio) {
+                    case "music" -> "+ music";
                     case "off" -> "off";
-                    default -> "game sounds";
+                    default -> "game";
                 }, () -> r.audio = switch (r.audio == null ? "sounds" : r.audio) {
                     case "sounds" -> "music";
                     case "music" -> "off";
                     default -> "sounds";
-                }, "Everything you'd hear from the camera's position, in sync with the video. You won't hear it while it renders");
+                }, "Game sounds and voice chat as heard from the camera, in sync with the video (+ music adds the game's music). You won't hear it while it renders");
+        toggle(x + 96, y, 92, () -> "Slow-mo: " + (r.slowSound ? "deep" : "normal"), () -> r.slowSound = !r.slowSound,
+                "Deep: in slow motion, sounds slow down too (lower and longer, like slowed-down tape). Normal: they play at normal speed");
         y += 24;
         action(x, y, 188, "Render video", () -> { save(); ReplayRender.start(); },
                 "Renders frame by frame (smooth whatever your FPS) to an MP4 in .minecraft/evade/renders, and into Evade Clips when it's open");

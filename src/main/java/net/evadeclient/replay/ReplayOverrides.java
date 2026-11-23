@@ -43,6 +43,9 @@ public final class ReplayOverrides {
         double t = p.tick() - 1 + delta;
         boolean usePath = pr.hasPath() && (ReplayRender.rendering() || (pr.previewPath && p.playing()));
         float yaw = mc.player.getYaw(), pitch = mc.player.getPitch();
+        // the free camera flies at normal speed whatever the replay's speed (the game's own movement slows with it)
+        if (!usePath && !ReplayRender.rendering() && Math.abs(p.speed() - 1) > 1e-3) flyCamera();
+        else flyPos = null;
         if (usePath) {
             ReplayProject.CamKey k = pr.sample(t);
             setCamera(k.x, k.y, k.z);
@@ -67,6 +70,36 @@ public final class ReplayOverrides {
             mc.player.lastPitch = mc.player.getPitch();
             mc.player.setHeadYaw(yaw);
         }
+    }
+
+    private static Vec3d flyPos, flyVel = Vec3d.ZERO;
+    private static long flyLast;
+
+    /** Spectator-style flying, moved by real time each frame instead of by (slowed or sped-up) game ticks. */
+    private static void flyCamera() {
+        long now = System.nanoTime();
+        if (flyPos == null) {
+            flyPos = mc.player.getEyePos();
+            flyVel = Vec3d.ZERO;
+            flyLast = now;
+        }
+        double dt = Math.min(0.1, (now - flyLast) / 1e9);
+        flyLast = now;
+        var o = mc.options;
+        boolean keys = mc.currentScreen == null;
+        double f = keys ? (o.forwardKey.isPressed() ? 1 : 0) - (o.backKey.isPressed() ? 1 : 0) : 0;
+        double s = keys ? (o.leftKey.isPressed() ? 1 : 0) - (o.rightKey.isPressed() ? 1 : 0) : 0;
+        double u = keys ? (o.jumpKey.isPressed() ? 1 : 0) - (o.sneakKey.isPressed() ? 1 : 0) : 0;
+        double yaw = Math.toRadians(mc.player.getYaw()), sin = Math.sin(yaw), cos = Math.cos(yaw);
+        double dx = s * cos - f * sin, dz = f * cos + s * sin;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len > 1) { dx /= len; dz /= len; }
+        // the game's spectator speed: ~11 blocks/s at the default fly speed (scroll changes it), double when sprinting
+        double speed = mc.player.getAbilities().getFlySpeed() / 0.05 * 10.9 * (keys && o.sprintKey.isPressed() ? 2 : 1);
+        Vec3d target = new Vec3d(dx * speed, u * speed * 0.7, dz * speed);
+        flyVel = flyVel.lerp(target, 1 - Math.exp(-dt * 10));
+        flyPos = flyPos.add(flyVel.multiply(dt));
+        setCamera(flyPos.x, flyPos.y, flyPos.z);
     }
 
     /** Puts the camera exactly at a point this frame (no interpolation from last tick). */

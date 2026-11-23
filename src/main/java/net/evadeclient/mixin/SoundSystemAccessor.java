@@ -9,4 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface SoundSystemAccessor {
     @Accessor("taskQueue") SoundExecutor evade$taskQueue();
     @Accessor("started") boolean evade$started();
+    @Accessor("channel") net.minecraft.client.sound.Channel evade$channel();
 }

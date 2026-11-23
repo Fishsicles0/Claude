@@ -46,7 +46,8 @@
     "ReplaySoundEngineMixin",
     "ReplaySoundSystemMixin",
     "SoundManagerAccessor",
-    "SoundSystemAccessor"
+    "SoundSystemAccessor",
+    "ReplaySourceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

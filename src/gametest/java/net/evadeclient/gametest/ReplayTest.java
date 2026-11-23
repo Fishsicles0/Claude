@@ -32,9 +32,80 @@ final class ReplayTest {
         if (!ok) throw new AssertionError("FAILED: " + what);
     }
 
+    /** Mean loudness (dB) of the video's sound in a narrow band around {@code hz}, from {@code at} for {@code len} s. */
+    static double bandLevel(Path video, double at, double len, int hz) throws Exception {
+        Process p = new ProcessBuilder("ffmpeg", "-hide_banner", "-ss", String.valueOf(Math.max(0, at)), "-t", String.valueOf(len),
+                "-i", video.toString(), "-map", "0:a", "-af", "bandpass=f=" + hz + ":width_type=h:w=100,volumedetect", "-f", "null", "-")
+                .redirectErrorStream(true).start();
+        String log = new String(p.getInputStream().readAllBytes());
+        p.waitFor();
+        var m = java.util.regex.Pattern.compile("mean_volume: (-?[0-9.]+|-inf) dB").matcher(log);
+        return m.find() && !m.group(1).equals("-inf") ? Double.parseDouble(m.group(1)) : -120;
+    }
+
+    /** When the first loud sound (above -20 dB below 1.5 kHz, so the test's 3 kHz voice tone doesn't count) starts and ends, in seconds. */
+    static double[] loudSpan(Path video) throws Exception {
+        Process p = new ProcessBuilder("ffmpeg", "-hide_banner", "-i", video.toString(), "-map", "0:a",
+                "-af", "lowpass=f=1500,silencedetect=n=-20dB:d=0.15", "-f", "null", "-").redirectErrorStream(true).start();
+        String log = new String(p.getInputStream().readAllBytes());
+        p.waitFor();
+        var on = java.util.regex.Pattern.compile("silence_end: ([0-9.]+)").matcher(log);
+        double start = on.find() ? Double.parseDouble(on.group(1)) : -1;
+        var off = java.util.regex.Pattern.compile("silence_start: ([0-9.]+)").matcher(log);
+        double end = -1;
+        while (off.find()) { double v = Double.parseDouble(off.group(1)); if (v > start) { end = v; break; } }
+        if (end < 0) {
+            var d = java.util.regex.Pattern.compile("Duration: (\\d+):(\\d+):([0-9.]+)").matcher(log);
+            end = d.find() ? Integer.parseInt(d.group(1)) * 3600 + Integer.parseInt(d.group(2)) * 60 + Double.parseDouble(d.group(3)) : start;
+        }
+        return new double[]{start, end};
+    }
+
+    /**
+     * Seconds from {@code from} until half the sound energy (below 1.5 kHz) of the next {@code len} seconds has
+     * arrived. Slowing a sound to half speed stretches it in time, so this exactly doubles.
+     */
+    static double halfEnergyTime(Path video, double from, double len) throws Exception {
+        Process p = new ProcessBuilder("ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", String.valueOf(from), "-t", String.valueOf(len),
+                "-i", video.toString(), "-map", "0:a", "-af", "lowpass=f=1500,lowpass=f=1500", "-ac", "1", "-ar", "48000", "-f", "s16le", "-")
+                .start();
+        byte[] b = p.getInputStream().readAllBytes();
+        p.waitFor();
+        int n = b.length / 2;
+        double total = 0;
+        double[] e = new double[n];
+        for (int i = 0; i < n; i++) { double v = (short) ((b[2 * i] & 0xFF) | (b[2 * i + 1] << 8)); e[i] = v * v; total += e[i]; }
+        double acc = 0;
+        for (int i = 0; i < n; i++) { acc += e[i]; if (acc >= total / 2) return i / 48000.0; }
+        return len;
+    }
+
+    /** Holds W while the replay plays at {@code speed} and returns how fast the camera moved, in blocks per real second. */
+    static double flySpeed(ClientGameTestContext ctx, double speed, int ticks) {
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            p.setSpeed(speed);
+            p.setPlaying(true);
+            c.player.setYaw(0);
+            c.player.setPitch(0);
+        });
+        ctx.waitTicks(2);
+        // get up to speed first, then measure
+        ctx.runOnClient(c -> c.options.forwardKey.setPressed(true));
+        ctx.waitTicks(Math.max(1, ticks / 3));
+        net.minecraft.util.math.Vec3d from = ctx.computeOnClient(c -> c.player.getEyePos());
+        long t0 = System.nanoTime();
+        ctx.waitTicks(ticks);
+        net.minecraft.util.math.Vec3d to = ctx.computeOnClient(c -> c.player.getEyePos());
+        double secs = (System.nanoTime() - t0) / 1e9;
+        ctx.runOnClient(c -> { c.options.forwardKey.setPressed(false); var p = ReplayPlayer.current(); p.setSpeed(1); p.setPlaying(false); });
+        ctx.waitTicks(10);
+        return to.distanceTo(from) / secs;
+    }
+
     static void run(ClientGameTestContext ctx) {
         Path saved;
-        int soundAt;
+        int soundAt, voiceAt;
         BlockPos a = new BlockPos(3, -60, 3), b = new BlockPos(-3, -60, 5);
         try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
             sp.getClientWorld().waitForChunksRender();
@@ -65,7 +136,26 @@ final class ReplayTest {
             server.runCommand("playsound minecraft:entity.generic.explode master @a 0 -59 0 4 1");
             ctx.waitTicks(20);
             server.runCommand("setblock -3 -60 5 minecraft:diamond_block");
-            ctx.waitTicks(40);
+            ctx.waitTicks(5);
+            // voice chat: half a second of a 3 kHz tone "said" by the recording player, through Simple Voice Chat's
+            // own Opus (the plugin is loaded by the real mod), 20 ms frames arriving 2-3 per tick as they do live
+            check(ctx.computeOnClient(c -> net.evadeclient.replay.ReplayVoice.available()), "Simple Voice Chat plugin loaded: voice can be recorded");
+            voiceAt = ctx.computeOnClient(c -> ReplayRecorder.recordedTicks());
+            java.util.UUID me = ctx.computeOnClient(c -> c.player.getUuid());
+            int[] sent = {0};
+            for (int t = 0; t < 10; t++) {
+                int n = t % 2 == 0 ? 3 : 2;
+                ctx.runOnClient(c -> {
+                    for (int i = 0; i < n; i++) {
+                        short[] pcm = new short[960];
+                        for (int k = 0; k < pcm.length; k++) pcm[k] = (short) (12000 * Math.sin(2 * Math.PI * 3000 * (sent[0] * 960 + k) / 48000.0));
+                        sent[0]++;
+                        net.evadeclient.replay.ReplayVoice.recordEntity(me, 48, false, pcm);
+                    }
+                });
+                ctx.waitTick();
+            }
+            ctx.waitTicks(25);
             saved = ctx.computeOnClient(c -> ReplayRecorder.save());
             check(saved != null, "save replay");
             for (int i = 0; i < 100 && !(Files.exists(saved)); i++) ctx.waitTicks(5);
@@ -133,6 +223,8 @@ final class ReplayTest {
         ctx.runOnClient(c -> ReplayPlayer.current().project.scene.greenScreen = false);
 
         // a camera path, rendered to video
+        double[][] normalSpan = new double[1][];
+        Path[] normalSpanVideo = new Path[1];
         int start = ctx.computeOnClient(c -> ReplayPlayer.current().startTick());
         ctx.runOnClient(c -> {
             var p = ReplayPlayer.current();
@@ -178,11 +270,58 @@ final class ReplayTest {
             check(ReplayRender.lastAudioPeak > 3000 && heard >= expected - 0.05 && heard <= expected + 0.25,
                     String.format(java.util.Locale.ROOT, "render sound in sync: the explosion starts at %.2f s (expected %.2f s), peak %d",
                             heard, expected, ReplayRender.lastAudioPeak));
+
+            // the voice: loud at 3 kHz from when it was said (plus the short start-up cushion), quiet there before
+            double said = (voiceAt - 10) / 20.0;
+            double before = bandLevel(video, said - 0.45, 0.35, 3000), during = bandLevel(video, said + 0.1, 0.35, 3000);
+            check(during - before > 15, String.format(java.util.Locale.ROOT,
+                    "voice chat in the render: the recorded voice is heard at %.2f s (%.0f dB at 3 kHz, %.0f dB just before)", said, during, before));
+            normalSpan[0] = loudSpan(video);
+            normalSpanVideo[0] = video;
         } catch (AssertionError e) {
             throw e;
         } catch (Exception e) {
             throw new AssertionError("render: can't read the video: " + e);
         }
+
+        // slow motion: the same explosion rendered at half speed lasts about twice as long (pitched down, like tape)
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            p.project.speeds.clear();
+            p.project.speeds.add(new ReplayProject.SpeedKey(start, 0.5));
+            p.project.render.from = start + soundAt - 4;
+            p.project.render.to = start + soundAt + 56;
+            ReplayRender.start();
+        });
+        ctx.waitFor(c -> !ReplayRender.rendering(), 20 * 300);
+        Path slow = ReplayRender.lastResult;
+        check(slow != null, "slow-motion render finished: " + (slow == null ? ReplayRender.lastError : slow.getFileName()));
+        try {
+            // from the explosion's start: 1.1 s at normal speed (before the voice) against 2.2 s at half speed
+            double normalOn = normalSpan[0][0], slowOn = loudSpan(slow)[0];
+            double tNormal = halfEnergyTime(normalSpanVideo[0], normalOn - 0.05, 1.1), tSlow = halfEnergyTime(slow, slowOn - 0.1, 2.2);
+            double ratio = tSlow / Math.max(0.001, tNormal);
+            check(ratio > 1.7 && ratio < 2.3, String.format(java.util.Locale.ROOT,
+                    "slow-motion sound: at half speed the explosion is stretched x%.2f (half its energy after %.2f s instead of %.2f s)", ratio, tSlow, tNormal));
+        } catch (AssertionError e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AssertionError("slow-motion render: can't read the video: " + e);
+        }
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            p.project.speeds.clear();
+            p.project.render.from = -1;
+            p.project.render.to = -1;
+        });
+
+        // the free camera flies at normal speed even when the replay runs at a quarter
+        ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.seek(p.startTick()); });
+        ctx.waitFor(c -> !ReplayPlayer.current().seeking() && c.currentScreen == null, 20 * 60);
+        ctx.runOnClient(c -> ReplayPlayer.current().project.previewPath = false); // flying freely, not along the camera path
+        double normal = flySpeed(ctx, 1, 24), quarter = flySpeed(ctx, 0.25, 6);
+        check(quarter > 0.7 * normal && quarter < 1.4 * normal, String.format(java.util.Locale.ROOT,
+                "free camera at 0.25x replay speed flies at %.1f blocks/s, like at normal speed (%.1f blocks/s)", quarter, normal));
 
         // the editor's three tabs
         ctx.runOnClient(c -> { ReplayPlayer.current().seek(ReplayPlayer.current().startTick() + 40); });

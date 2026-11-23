@@ -54,6 +54,8 @@ public final class ReplayProject {
         public int from = -1, to = -1;
         /** "sounds" (game sounds), "music" (game sounds and music) or "off". */
         public String audio = "sounds";
+        /** Slow motion slows sound down too (lower and longer, like tape); off keeps sounds at normal speed. */
+        public boolean slowSound = true;
     }
 
     public List<CamKey> camera = new ArrayList<>();

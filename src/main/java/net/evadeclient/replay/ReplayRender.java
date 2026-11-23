@@ -129,6 +129,7 @@ public final class ReplayRender {
         double before = replayTime;
         replayTime = player.project.advance(replayTime, 1.0 / fps);
         double ticks = replayTime - before;
+        ReplayAudio.setTimeScale(player.project.render.slowSound ? player.project.speedAt(replayTime) : 1);
         clockMs += Math.max(1, Math.round(ticks * 50));
         return clockMs;
     }

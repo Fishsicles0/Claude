@@ -177,6 +177,19 @@ public final class ReplayRecorder {
         }
     }
 
+    /** Voice chat audio (any thread): goes in at the current tick of the live session, if there is one. */
+    static void voice(byte[] data) {
+        Session s = session;
+        if (s == null || s.failed || ReplayPlayer.active()) return;
+        write(s, ReplayFile.VOICE, data);
+    }
+
+    /** The local player's UUID while a live session is being captured (for recording your own voice). */
+    static java.util.UUID livePlayer() {
+        Session s = session;
+        return s == null || s.failed || mc.player == null || ReplayPlayer.active() ? null : mc.player.getUuid();
+    }
+
     // ------------------------------------------------------------------ the local player (client thread)
 
     /** End of every client tick: write where you are, then move the clock on. */
