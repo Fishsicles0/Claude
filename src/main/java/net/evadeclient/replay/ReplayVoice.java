@@ -99,6 +99,7 @@ public final class ReplayVoice {
             out.writeFloat(distance);
             out.write(opus);
             ReplayRecorder.voice(bytes.toByteArray());
+            framesRecorded++;
         } catch (Exception e) {
             EvadeClient.LOG.debug("Replay: couldn't record a voice frame: {}", e.toString());
         }
@@ -112,6 +113,8 @@ public final class ReplayVoice {
         final UUID id;
         double x, y, z;
         float distance;
+        /** Whether an entity speaker has been found in the world (until then it plays from the camera). */
+        volatile boolean located;
         int source;
         long context;
         int queued, waitTicks, idleTicks;
@@ -148,6 +151,8 @@ public final class ReplayVoice {
             if (type == LOCATION) { s.x = x; s.y = y; s.z = z; }
             else if (type == ENTITY) locate(s);
             s.idleTicks = 0;
+            framesPlayed++;
+            lastSpeaker = String.format(java.util.Locale.ROOT, "%s at %.1f, %.1f, %.1f, range %.0f, volume %.2f", type == ENTITY ? "player" : type == LOCATION ? "place" : "group", s.x, s.y, s.z, s.distance, volume);
             ByteBuffer buf = org.lwjgl.BufferUtils.createByteBuffer(pcm.length * 2);
             buf.asShortBuffer().put(pcm);
             SoundExecutor exec = executor();
@@ -164,10 +169,16 @@ public final class ReplayVoice {
                 s.x = e.getX();
                 s.y = e.getEyeY();
                 s.z = e.getZ();
+                s.located = true;
                 return;
             }
         }
+        // not (yet) in the world: keep the last place they were seen; never found, they're heard from the camera
+        // rather than from the world's origin, which would usually be out of range and silent
+        if (!s.located && unlocatedWarnings++ < 5) EvadeClient.LOG.info("Replay: voice from {} plays from the camera (no such entity in view)", s.id);
     }
+
+    private static int unlocatedWarnings;
 
     // --- sound thread ---
 
@@ -195,7 +206,11 @@ public final class ReplayVoice {
     }
 
     private static void update(Speaker s) {
-        if (s.type != STATIC) {
+        if (s.type == ENTITY && !s.located) {
+            AL10.alSourcei(s.source, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE);
+            AL10.alSource3f(s.source, AL10.AL_POSITION, 0, 0, 0);
+        } else if (s.type != STATIC) {
+            AL10.alSourcei(s.source, AL10.AL_SOURCE_RELATIVE, AL10.AL_FALSE);
             AL10.alSource3f(s.source, AL10.AL_POSITION, (float) s.x, (float) s.y, (float) s.z);
             AL10.alSourcef(s.source, AL10.AL_MAX_DISTANCE, s.distance);
         }
@@ -279,6 +294,11 @@ public final class ReplayVoice {
         for (Speaker s : speakers.values()) if (exec != null) exec.execute(() -> delete(s));
         speakers.clear();
     }
+
+    /** Voice frames written to the replay, and played back from one (for tests and diagnostics). */
+    public static volatile int framesRecorded, framesPlayed;
+    /** Where the last speaker played back was, and how far the voice carries (for tests and diagnostics). */
+    public static volatile String lastSpeaker = "";
 
     /** Speakers currently known (for tests). */
     public static int speakerCount() { return speakers.size(); }

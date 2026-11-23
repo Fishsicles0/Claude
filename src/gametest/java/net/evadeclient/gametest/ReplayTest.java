@@ -156,6 +156,7 @@ final class ReplayTest {
                 ctx.waitTick();
             }
             ctx.waitTicks(25);
+            System.out.println("[gametest] voice frames recorded: " + net.evadeclient.replay.ReplayVoice.framesRecorded);
             saved = ctx.computeOnClient(c -> ReplayRecorder.save());
             check(saved != null, "save replay");
             for (int i = 0; i < 100 && !(Files.exists(saved)); i++) ctx.waitTicks(5);
@@ -272,6 +273,7 @@ final class ReplayTest {
                             heard, expected, ReplayRender.lastAudioPeak));
 
             // the voice: loud at 3 kHz from when it was said (plus the short start-up cushion), quiet there before
+            System.out.println("[gametest] voice frames played: " + net.evadeclient.replay.ReplayVoice.framesPlayed + ", last: " + net.evadeclient.replay.ReplayVoice.lastSpeaker);
             double said = (voiceAt - 10) / 20.0;
             double before = bandLevel(video, said - 0.45, 0.35, 3000), during = bandLevel(video, said + 0.1, 0.35, 3000);
             check(during - before > 15, String.format(java.util.Locale.ROOT,

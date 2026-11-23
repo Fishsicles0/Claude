@@ -136,6 +136,10 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(3);
         float y1 = ctx.computeOnClient(c -> c.player.getYaw());
         EvadeClient.LOG.info("[gametest] mouse sanity: yaw {} -> {}", y0, y1);
+        // Freelook is off by default now: switch it on for this check, as a player would
+        boolean freelookWas = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.mods.Freelook.class).isEnabled());
+        enable(ctx, net.evadeclient.module.mods.Freelook.class);
+        ctx.waitTicks(1);
         float yawBefore = ctx.computeOnClient(c -> c.player.getYaw());
         ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
         ctx.waitTicks(3);
@@ -146,19 +150,22 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.takeScreenshot("evade-freelook");
         ctx.getInput().releaseKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT);
         ctx.waitTicks(3);
+        if (!freelookWas) disable(ctx, net.evadeclient.module.mods.Freelook.class);
         check(Math.abs(yawAfter - yawBefore) < 0.01 && Math.abs(camYaw - yawBefore) > 5,
                 "Freelook turns the camera but not the player (player " + yawBefore + "->" + yawAfter + ", camera " + camYaw + ")");
 
-        // Fullbright pushes gamma past its normal range via the SimpleOption accessor, then restores it.
+        // Fullbright raises the brightness the lightmap is built with, and never writes the Brightness option
         double g0 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
-        enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        var fullbright = enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
         ctx.waitTicks(3);
+        float lit = ctx.computeOnClient(c -> fullbright.appliedGamma());
         double g1 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
         disable(ctx, net.evadeclient.module.visuals.Fullbright.class);
         ctx.waitTicks(3);
+        float off = ctx.computeOnClient(c -> fullbright.appliedGamma());
         double g2 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
-        check(g1 >= 10.0 && Math.abs(g2 - g0) < 0.01,
-                "Fullbright maxes gamma then restores (" + g0 + " -> " + g1 + " -> " + g2 + ")");
+        check(lit >= 10 && Float.isNaN(off) && Math.abs(g1 - g0) < 0.01 && Math.abs(g2 - g0) < 0.01,
+                "Fullbright lights the world (brightness " + lit + " while on), then stops, leaving the Brightness option at " + g0);
     }
 
 
@@ -345,7 +352,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         int painted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
         disable(ctx, net.evadeclient.module.visuals.HitColor.class);
         int restored = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).current());
-        check((painted & 0xFFFFFF) == 0x3B82F6 && restored == 0xB2FF0000,
+        int wanted = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.HitColor.class).color.get()) & 0xFFFFFF;
+        check((painted & 0xFFFFFF) == wanted && restored == 0xB2FF0000,
                 "Hit Color repaints the hurt flash and restores it (" + Integer.toHexString(painted) + " -> " + Integer.toHexString(restored) + ")");
 
         // ShinyPots: potions glint only while it's on
