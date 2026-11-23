@@ -23,8 +23,9 @@ can save clips to it.
   re-encodes old clips to HEVC and keeps every track, usually 40–60% smaller.
 - **Zero cost when you're not playing.** Evade Clips notices Minecraft with Evade Client (its process, or Evade
   Client talking to the app) and turns instant replay on when it starts and off when it closes. Only the
-  Minecraft window is captured (Windows: the window itself; Linux: the window's area of the X11 screen; macOS:
-  the main screen). Without Minecraft open, Record says "Open Minecraft with Evade Client to record." Capture runs
+  Minecraft window is captured (Windows: the monitor the Minecraft window is on, with Desktop Duplication, so
+  fullscreen works; the window itself through GDI if Desktop Duplication isn't available or fails; Linux: the
+  window's area of the X11 screen; macOS: the main screen). Without Minecraft open, Record says "Open Minecraft with Evade Client to record." Capture runs
   on the GPU's video encoder (NVENC, AMF, Quick Sync, VideoToolbox), so the game keeps its frames.
 - **Game events from Evade Client** (no memory reading): the Clips mod sends kills, multi-kills, totem pops,
   deaths, wins and advancements. Events close together become one clip ("Triple kill").

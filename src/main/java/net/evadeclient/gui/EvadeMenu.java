@@ -1082,7 +1082,7 @@ public class EvadeMenu extends Screen {
 
         int tx = x + 16;
         text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 150), tx, y + 11, Theme.TEXT, Role.STRONG);
-        text(ctx, ellipsize(Role.SMALL, mod.getDescription(), w - 150), tx, y + 26, Theme.TEXT_DIM, Role.SMALL);
+        text(ctx, ellipsize(Role.SMALL, blurb(mod), w - 150), tx, y + 26, blurbColor(mod), Role.SMALL);
 
         int right = x + w - 12;
         // toggle (far right)
@@ -1127,7 +1127,7 @@ public class EvadeMenu extends Screen {
             text(ctx, k, x + w - kw - 9, y + 7, Theme.TEXT_DIM, Role.TINY);
         }
         text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 14), x + 8, y + 16, Theme.TEXT, Role.STRONG);
-        text(ctx, ellipsize(Role.TINY, mod.getDescription(), w - 14), x + 8, y + 29, Theme.TEXT_DIM, Role.TINY);
+        text(ctx, ellipsize(Role.TINY, blurb(mod), w - 14), x + 8, y + 29, blurbColor(mod), Role.TINY);
 
         Theme.toggle(ctx, x + 8, y + CARD_H - 15, on);
         if (hasSettingsPage(mod)) {
@@ -1334,7 +1334,7 @@ public class EvadeMenu extends Screen {
         boolean resetShown = resettable || ra > 0.01f;
         int titleRight = resetShown ? resetX() - 8 : selected != null ? controlRight() - 20 - 8 : cx + cw;
         text(ctx, ellipsize(Role.TITLE, mod.getName(), titleRight - cx), cx, headerY, Theme.TEXT, Role.TITLE);
-        text(ctx, ellipsize(Role.LABEL, mod.getDescription(), cw), cx, headerY + 16, Theme.TEXT_DIM, Role.LABEL);
+        text(ctx, ellipsize(Role.LABEL, blurb(mod), cw), cx, headerY + 16, blurbColor(mod), Role.LABEL);
         if (selected != null) Theme.toggle(ctx, controlRight() - 20, headerY, animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14));
         if (ra > 0.01f) {
             int rx = resetX(), rw = 52;
@@ -2873,5 +2873,14 @@ public class EvadeMenu extends Screen {
     /** Put a HUD element back at its default spot. */
     private static void resetPosition(HudElementModule hem) {
         hem.resetPosition();
+    }
+
+    /** A module's one-line description, or why it can't be used here. */
+    private static String blurb(net.evadeclient.module.Module mod) {
+        return net.evadeclient.util.ServerRules.isDisabled(mod) ? "Disabled by this server" : mod.getDescription();
+    }
+
+    private static int blurbColor(net.evadeclient.module.Module mod) {
+        return net.evadeclient.util.ServerRules.isDisabled(mod) ? Theme.WARN : Theme.TEXT_DIM;
     }
 }

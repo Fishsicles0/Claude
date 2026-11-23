@@ -134,7 +134,7 @@ public class MinimapHud extends HudElementModule {
     private boolean coordsSmooth;
 
     public MinimapHud() {
-        super("Minimap", "Top-down map of the terrain around you, with your waypoints.", -1, 2);
+        super("Minimap", "Top-down map of the terrain around you, with your waypoints.", -1, 175);
         width = height = 120 + 2 * PAD;
     }
 

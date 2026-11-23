@@ -12,6 +12,7 @@ Each file in site-src/pages/*.html starts with a small header block:
 and is wrapped in the shared layout below (head, nav, footer, toast, scripts), then written to
 site/<name>.html. Cloudflare serves /features from features.html, so links use clean URLs.
 """
+import functools
 import hashlib
 import html
 import json
@@ -250,6 +251,88 @@ def split_plus(expr: str) -> list:
     return out
 
 
+def statement_end(src: str, i: int) -> int:
+    """Index of the `;` that ends the statement running from src[i], skipping quotes and brackets; or of the bracket
+    that closes the one it sits in (a `final` parameter), or len(src)."""
+    depth, n = 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in "\"'":
+            k = i + 1
+            while k < n and src[k] != c:
+                k += 2 if src[k] == "\\" else 1
+            i = k
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth < 0:
+                return i
+        elif c == ";" and depth == 0:
+            return i
+        i += 1
+    return n
+
+
+FINAL_DECL = re.compile(r"\bfinal\s+(?:(?:static|transient|volatile)\s+)*")
+TYPE_HEAD = re.compile(r"[\w.]+")
+
+
+def mask_literals(src: str) -> str:
+    """src with the inside of every string and char literal blanked out (same length), so a search for Java
+    keywords doesn't land in a description."""
+    out, i, n = list(src), 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in "\"'":
+            k = i + 1
+            while k < n and src[k] != c and src[k] != "\n":
+                k += 2 if src[k] == "\\" else 1
+            for p in range(i + 1, min(k, n)):
+                out[p] = " "
+            i = k + 1
+        else:
+            i += 1
+    return "".join(out)
+
+
+@functools.lru_cache(maxsize=None)
+def constants(src: str) -> dict:
+    """Every `final` variable in one source with its value: `static final String OFF = "Off", ON = "On";` gives both,
+    `final String[] KINDS = {"A", "B"};` gives the array literal, `Map<String, X> M = ...` skips the type's comma.
+    The first declaration of a name wins."""
+    out = {}
+    for m in FINAL_DECL.finditer(mask_literals(src)):
+        t = TYPE_HEAD.match(src, m.end())
+        if not t:
+            continue
+        i = t.end()
+        while i < len(src) and src[i].isspace():
+            i += 1
+        if i < len(src) and src[i] == "<":  # generic type arguments, which can hold commas
+            depth = 0
+            while i < len(src):
+                depth += {"<": 1, ">": -1}.get(src[i], 0)
+                i += 1
+                if depth == 0:
+                    break
+        while True:  # array brackets after the type
+            k = i
+            while k < len(src) and src[k].isspace():
+                k += 1
+            if not src.startswith("[", k):
+                break
+            close = src.find("]", k)
+            if close < 0:
+                break
+            i = close + 1
+        for decl in split_top(src[i:statement_end(src, i)]):
+            d = re.fullmatch(r"([A-Za-z_]\w*)\s*=\s*(.+)", decl, re.S)
+            if d and d.group(1) not in out:
+                out[d.group(1)] = d.group(2).strip()
+    return out
+
+
 def resolve(expr: str, srcs: list, depth: int = 0) -> str:
     """Follows a constant (`static final ... NAME = ...`) or a no-argument method (`boolean x() { return ...; }`)
     to the literal it stands for, looking in the module's own source first, then in its base classes."""
@@ -265,15 +348,46 @@ def resolve(expr: str, srcs: list, depth: int = 0) -> str:
                 return resolve(hit.group(1), srcs, depth + 1)
         return expr
     m = re.fullmatch(r"(?:([\w.]+)\.)?([A-Za-z_]\w*)", expr)
-    if m and expr not in ("true", "false"):
+    if m and expr not in ("true", "false", "null"):
         owner = (m.group(1) or "").split(".")[-1]  # Theme.PRESETS: also look in util/Theme.java
         more = [strip_comments(CLASS_FILES[owner].read_text())] if owner in CLASS_FILES else []
-        pat = re.compile(r"\bfinal\s+[\w<>\[\]]+\s+" + m.group(2) + r"\s*=\s*([^;]+);")
         for s in more + srcs:
-            hit = pat.search(s)
-            if hit:
-                return resolve(hit.group(1), srcs, depth + 1)
+            value = constants(s).get(m.group(2))
+            if value is not None:
+                return resolve(value, more + srcs if more else srcs, depth + 1)
     return expr
+
+
+def array_items(expr: str, srcs: list, depth: int = 0):
+    """The items of a String[] argument: an array literal, a constant holding one, or a small helper that puts one
+    item in front of another array, such as `prepend("Local", ZONES)` or `withOff(KINDS)` (its body sets `out[0]`
+    and copies the rest in with System.arraycopy). None for anything else."""
+    expr = resolve(expr, srcs)
+    arr = re.fullmatch(r"(?:new\s+String\s*\[\s*\]\s*)?\{(.*)\}", expr, re.S)
+    if arr:
+        return [resolve(x, srcs) for x in split_top(arr.group(1))]
+    call = re.fullmatch(r"(?:[\w.]+\.)?(\w+)\s*\((.*)\)", expr, re.S)
+    if not call or depth > 4:
+        return None
+    head = re.compile(r"\bstatic\s+String\s*\[\s*\]\s+" + call.group(1) + r"\s*\(([^)]*)\)\s*\{")
+    for s in srcs:
+        h = head.search(s)
+        if not h:
+            continue
+        body = balanced(s, h.end() - 1)[0]
+        params = [p.split()[-1] for p in split_top(h.group(1)) if p.split()]
+        args = split_top(call.group(2))
+        if len(params) != len(args):
+            return None
+        bind = dict(zip(params, args))
+        sub = lambda e: bind.get(e.strip(), e.strip())
+        first = re.search(r"\b(\w+)\s*\[\s*0\s*\]\s*=\s*([^;]+);", body)
+        copy = first and re.search(r"System\.arraycopy\(\s*(\w+)\s*,\s*0\s*,\s*" + first.group(1) + r"\s*,\s*1\s*,", body)
+        if not copy:
+            return None
+        rest = array_items(sub(copy.group(1)), srcs, depth + 1)
+        return None if rest is None else [resolve(sub(first.group(2)), srcs)] + rest
+    return None
 
 
 def num(expr: str):
@@ -352,9 +466,8 @@ def scan_settings(src: str, srcs: list, where: str) -> list:
             elif kind == "ModeSetting":
                 opts = []
                 for v in vals[1:]:
-                    arr = re.fullmatch(r"(?:new\s+String\s*\[\s*\]\s*)?\{(.*)\}", v, re.S)
-                    items = split_top(arr.group(1)) if arr else [v]
-                    opts += [java_string(x) for x in items]
+                    items = array_items(v, srcs)
+                    opts += [java_string(x) for x in (items if items is not None else [v])]
                 if java_string(vals[0]) is None or None in opts:
                     raise ValueError
                 st |= {"type": "mode", "default": java_string(vals[0]), "options": opts}

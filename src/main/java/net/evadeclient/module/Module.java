@@ -95,6 +95,10 @@ public abstract class Module {
 
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
+        if (enabled && net.evadeclient.util.ServerRules.isDisabled(this)) {
+            net.evadeclient.util.Notifications.push(getName(), "Disabled by this server", false);
+            return;
+        }
         this.enabled = enabled;
         if (enabled) {
             // No world yet: ModuleManager runs onEnable once one has loaded (applyPendingEnable).

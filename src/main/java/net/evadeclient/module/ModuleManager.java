@@ -113,6 +113,7 @@ public class ModuleManager {
         register(new ItemCounterHud());
         register(new PackDisplayHud());
         register(new FrameTimeHud());
+        register(new net.evadeclient.module.hud.MinimapHud());
         register(new net.evadeclient.module.hud.ProfilerHud());
         // Client
         register(new ClientSettings());

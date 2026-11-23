@@ -81,8 +81,10 @@ public final class CaptureEngine {
     private int outW, outH;
     /** Audio track names of the running capture ("Game", "Mic", "Voice chat"); MPEG-TS can't store them. */
     private List<String> trackTitles = List.of();
-    /** Exact title of the Minecraft window being grabbed (Windows), or null. */
-    private String windowTitle;
+    /** The Minecraft window being captured (Windows: its monitor, or the window itself as the fallback), or null. */
+    private CaptureSource.Window window;
+    /** The running capture uses Desktop Duplication (Windows), so if it fails, GDI window capture takes over. */
+    private boolean ddagrab;
     /** The running capture grabs a Linux screen under Wayland (black frames). */
     private boolean waylandScreen;
 
@@ -170,7 +172,7 @@ public final class CaptureEngine {
         // The slow parts (encoder probe, audio devices, finding the Minecraft window) run before taking the lock, so
         // the Record page never waits on them.
         String enc = pickEncoder(settings);
-        String title = Ffmpeg.WINDOWS && !settings.source.startsWith("test") ? CaptureSource.findWindow(CaptureSource.MINECRAFT_WINDOW) : null;
+        CaptureSource.Window title = Ffmpeg.WINDOWS && !settings.source.startsWith("test") ? CaptureSource.findWindow(CaptureSource.MINECRAFT_WINDOW) : null;
         CaptureSource.Inputs in = CaptureSource.build(settings, enc, title);
         synchronized (this) {
             if (closed || (process != null && process.isAlive())) return;
@@ -178,7 +180,7 @@ public final class CaptureEngine {
         }
     }
 
-    private void launch(String enc, String title, CaptureSource.Inputs in) throws IOException {
+    private void launch(String enc, CaptureSource.Window title, CaptureSource.Inputs in) throws IOException {
         // A recording made from the buffer keeps everything the previous ffmpeg finished (and the piece it was
         // writing) before the folder is cleared.
         if (recording && recProcess == null && bufferDir != null) {
@@ -205,7 +207,8 @@ public final class CaptureEngine {
         }
 
         encoder = enc;
-        windowTitle = title;
+        window = title;
+        ddagrab = in.ddagrab();
         outW = in.outW();
         outH = in.outH();
         trackTitles = new ArrayList<>(in.audioTitles());
@@ -462,6 +465,17 @@ public final class CaptureEngine {
 
     // ------------------------------------------------------------------ periodic work
 
+    /** Whether an ffmpeg log shows Desktop Duplication (or the copy of its frames) failing. */
+    public static boolean ddagrabError(String log) {
+        for (String line : log.split("\r?\n")) {
+            String l = line.toLowerCase(java.util.Locale.ROOT);
+            if ((l.contains("ddagrab") || l.contains("hwdownload") || l.contains("dxgi") || l.contains("duplicat"))
+                    && (l.contains("error") || l.contains("fail") || l.contains("invalid") || l.contains("unsupported") || l.contains("not ")))
+                return true;
+        }
+        return false;
+    }
+
     private void tick() {
         try {
             synchronized (this) {
@@ -469,6 +483,7 @@ public final class CaptureEngine {
                 readSegmentList();
                 long now = System.currentTimeMillis();
                 if (!process.isAlive() && !stopping) {
+                    boolean neverLive = state == State.STARTING;
                     String full = log.toString();
                     failureLog = full;
                     String why = Ffmpeg.explain(full, trackTitles);
@@ -478,7 +493,20 @@ public final class CaptureEngine {
                     noticeUntil = 0;
                     message = why.isBlank() ? "Capture stopped unexpectedly" : why;
                     System.err.println("[clips] capture died: " + Ffmpeg.tail(full));
-                    if (restarts++ < 3 && now - startedWall > 5000) {
+                    if (ddagrab && neverLive && ddagrabError(full)) {
+                        // Desktop Duplication doesn't work on this PC (it never produced a frame): record the
+                        // Minecraft window with GDI instead. A failure later on (e.g. a fullscreen mode switch) just
+                        // restarts Desktop Duplication below.
+                        CaptureSource.ddagrabFailed();
+                        System.err.println("[clips] Desktop Duplication failed; capturing the Minecraft window with GDI instead");
+                        try {
+                            start();
+                            notice("Switched to window capture (screen capture isn't available on this PC)", 10_000);
+                        } catch (IOException e) {
+                            state = State.ERROR;
+                            message = e.getMessage();
+                        }
+                    } else if (restarts++ < 3 && now - startedWall > 5000) {
                         String reason = message;
                         try {
                             start(); // a recording from the buffer keeps going: start() saves what ffmpeg finished
@@ -819,7 +847,7 @@ public final class CaptureEngine {
         recVerified = false;
         if (settings.recordBitrateMbps > 0 && settings.recordBitrateMbps != settings.replayBitrateMbps) {
             // Recordings have their own bitrate: a second encode writes the recording directly (crash-safe TS).
-            CaptureSource.Inputs in = CaptureSource.build(settings, encoder, windowTitle);
+            CaptureSource.Inputs in = CaptureSource.build(settings, encoder, window);
             List<String> args = captureArgs(in, settings.recordBitrateMbps, false);
             args.addAll(List.of("-f", "mpegts", recordingTs.toString()));
             synchronized (recLog) { recLog.setLength(0); }

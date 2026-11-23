@@ -37,15 +37,18 @@ xvfb-run ./gradlew runClientGameTest
 ```
 
 This launches the real game next to those mods, builds a test world and checks that each mod does what it says.
-ToggleSprint holds sprint, Time Changer sets the time you see, Zoom narrows the FOV, Freelook turns the camera
-but not the player, and Fullbright raises gamma and then puts it back. Item Counter, Saturation and Stopwatch
-show real values, and the whole HUD costs less than 4 ms a frame with every element on. Particles, TNT Timer,
-Chunk Borders, Clear Water, Nick Hider, Hit Color, ShinyPots and EnchantGlint do their job and undo it when
-switched off. Performance culls far entities and block entities, applies and restores its video settings,
-trims particles and idles when you're AFK. Clips saves a playable MP4, Evade Icons marks Evade users in the tab
-list, and the Voice Chat shortcut opens Simple Voice Chat. Profiles keep separate settings and their share codes
-round-trip. HUD visibility rules and theme presets work, and clicking a mod in the menu toggles it.
-Screenshots land in `build/run/clientGameTest/screenshots/`.
+ToggleSprint holds sprint through the movement input, Time Changer sets the time you see, Zoom narrows the FOV,
+Freelook turns the camera but not the player, and Fullbright lights the world without touching your Brightness
+setting. Chat commands, keybinds, hidden settings and modules switched on before a world loads are covered too.
+Every text HUD element shows a real reading, the default layout fits a small screen without overlaps, and the
+whole HUD costs less than 4 ms a frame with every element on. Particles, TNT Timer, Chunk Borders, Clear Water,
+NoFog, Nick Hider, Hit Color, ShinyPots, EnchantGlint and BetterTooltips do their job and undo it when switched
+off. Performance culls far entities (never map art, holograms or name tags), applies and restores its video
+settings, trims particles without losing gameplay cues or fireworks, and idles when you're AFK. Clips saves a
+playable MP4, Evade Icons marks Evade users in the tab list, and the Voice Chat shortcut opens Simple Voice Chat.
+Profiles keep separate settings, switch for linked servers and back, and their share codes round-trip. The menu's
+search, styles and animations, the HUD editor's drag, resize and grid, and theme presets work. The run ends by
+checking that no module crashed along the way. Screenshots land in `build/run/clientGameTest/screenshots/`.
 
 `./gradlew runClientGameTest -PmenuShot` skips the tests and only screenshots the menu (each GUI style) and the
 HUD at several screen sizes, for a quick look at GUI changes.
@@ -153,18 +156,19 @@ The tables follow the menu's pages. Each mod has its own settings and keybind.
 | Mod | What it does |
 |---|---|
 | **NoFog** | Removes distance fog so you see out to your full render distance. Fog from Blindness, Darkness, lava and powder snow stays. |
-| **NoRender** | Hides overlays you don't need: fire on screen, pumpkin blur, nausea and portal warping, the totem animation and the vignette, each on its own switch. |
+| **NoRender** | Hides fire on screen (always, or only while fire can't hurt you), pumpkin blur, the nausea and portal overlays and screen wobble, the totem animation (or shrinks it), and advancement, recipe and tutorial toasts. |
 | **BetterTooltips** | Shulker box contents, durability and food values in item tooltips. |
-| **CameraClip** | Sets how far back the third-person camera sits. |
+| **Camera Distance** | Sets how far back the third-person camera sits (capped at 8 blocks; the camera still stops at walls). |
+| **Motion Blur** | Blends frames together for smoother-looking motion. Can cause motion sickness. |
 | **Waypoints** | Saved locations per server and dimension, drawn as a beam with the name and distance. Adds a point where you die. Manage them with `.wp`. |
 | **Fullbright** | Lights up caves and nights as if gamma were maxed, without touching your brightness setting. |
 | **Damage Tint** | A red vignette at the screen edges when your health gets low. |
 | **Clear Water** | Removes underwater fog and can hide the water overlay. Blindness and Darkness still apply. |
 | **Particles** | Hides crits, sharpness sparks, damage hearts, sweeps, explosions, totem pops, fireworks, mining particles or your own potion particles, each on its own switch. |
-| **Pack Tweaks** | Lowers the fire overlay and hides pumpkin blur. |
+| **Pack Tweaks** | Lowers and fades the fire on screen, fades or drops the pumpkin and powder-snow overlays, holds the shield lower and shrinks a totem in your off hand. |
 | **Inventory Blur** | Blurs the world behind open inventories. |
-| **Boss Bar** | Hides or resizes the boss health bar. |
-| **Scoreboard** | Hides the red numbers, or resizes or hides the whole sidebar. |
+| **Boss Bar** | Shrinks, moves down, trims to a few bars, slims to just the bar or just the name, or hides the boss bars. |
+| **Scoreboard** | The sidebar drawn by Evade: hide or recolour the numbers (or let Auto decide), trim it to fewer lines, hide the title or the server address line, move, resize or hide it. |
 | **TNT Timer** | A countdown above primed TNT. |
 | **Chunk Borders** | Chunk boundaries around you without F3+G, in your colour and height. |
 | **Nick Hider** | Shows a nickname instead of your username everywhere on your screen and can hide your skin. Handy for streaming. Set the name with `.nick`. |
@@ -172,9 +176,10 @@ The tables follow the menu's pages. Each mod has its own settings and keybind.
 | **Nametags** | Shows your own nametag in third person and restyles player nametags (scale, text shadow, background). |
 | **Hit Color** | Changes the colour of the flash when you hit players or mobs. |
 | **1.7 Animations** | Visual 1.7-style swing while eating and held-item position. |
-| **Item Physics** | Dropped items lie flat on the ground instead of spinning. |
+| **Item Physics** | Dropped items tumble as they fall, tip over flat when they land and float in water, or simply lie flat (Flat mode). |
 | **ShinyPots** | Makes potions glint in your inventory and hotbar. |
-| **EnchantGlint** | Recolours the enchantment glint. |
+| **EnchantGlint** | Recolours the enchantment glint (solid, gradient or rainbow), with its own speed, scale and armour glint. |
+| **Hitboxes** | Restyles the F3+B hitboxes: colour, line width, eye line and look vector, and which entity types show. |
 
 ### Controls
 
@@ -182,12 +187,13 @@ The tables follow the menu's pages. Each mod has its own settings and keybind.
 |---|---|
 | **ToggleSprint** | Tap sprint (and optionally sneak) to toggle it. Shows the state on screen. |
 | **Zoom** | Hold **C** to zoom and scroll to change the level. Zooms smoothly and lowers mouse sensitivity while zoomed, with an optional cinematic camera. |
-| **Freelook** | Hold **Left Alt** to look around your player without turning. Some servers don't allow it, so check their rules. |
-| **Crosshair** | Cross, dot, circle, cross + dot or T. Set the size, gap, thickness, outline and colour, with a second colour while it's over a mob or player. Can also show in third person. |
+| **Freelook** | Hold **Left Alt** to look around your player without turning. Off by default, and always off on servers that forbid it. |
+| **Crosshair** | Cross, dot, circle, cross + dot, T, X, square, arrow, circle + dot, or your own pixel pattern (with share codes). Set the size, gap, thickness, rotation, outline and colour, with a second colour while it's over a mob or player. Can also show in third person. |
 | **No Hurt Cam** | Removes the screen shake when you're hit. |
 | **Block Outline** | Colour, thickness and a translucent fill for the block you're looking at. |
 | **Time Changer** / **Weather Changer** | Client-side time of day and weather. Only you see them. |
 | **FOV Changer** | Keeps your field of view fixed so speed, sprinting and status effects don't stretch it. |
+| **Sound Tweaks** | Volume sliders for rain, thunder, explosions, fireworks, villagers, anvils, armour equip and hit sounds. |
 | **Performance** | Evade's built-in FPS boost. It culls far entities and block entities, caps particles, uses lighter video settings, offers a Low-End PC Mode, and drops the frame rate while you're AFK or tabbed out. It works alongside Sodium and the other performance mods the installer adds. |
 
 ### Server-facing
@@ -210,6 +216,7 @@ These send something to the server for you, so they have their own page and star
 | **Clips** | Instant replay and automatic clips. Press **F8** to save what just happened, or let it clip kills (close ones become one clip), totem pops, deaths, wins and advancements. It uses Evade Clips when that's installed, and otherwise saves an MP4 itself. |
 | **Evade Icons** | Puts an Evade logo next to tab-list players who also use Evade, checked through evadeclient.com. Turn off *Show That I Use Evade* to keep yours hidden. |
 | **Voice Chat** | Opens Simple Voice Chat's menu and shows whether the server supports it. |
+| **Screenshot Tools** | Copy, Folder and Delete buttons after "Saved screenshot as ...", and an optional auto copy. |
 
 ### HUD (drag and resize in *Edit HUD Layout*)
 

@@ -423,6 +423,8 @@ public final class Ffmpeg {
             return "The Minecraft window isn't open. Open Minecraft with Evade Client to record.";
         if (lower.contains("cannot open display") || lower.contains("can't open display"))
             return "Couldn't open the X11 display. Screen capture on Linux needs an X11 session (\"on Xorg\" at login).";
+        if (lower.contains("ddagrab") && ERROR_WORDS.matcher(lower).find())
+            return "Windows screen capture (Desktop Duplication) failed. Updating your graphics driver usually fixes it.";
         if (lower.contains("no space left"))
             return "The disk is full. Free some space or move the clips folder in Settings.";
 

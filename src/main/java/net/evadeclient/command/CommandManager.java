@@ -35,7 +35,7 @@ public class CommandManager {
 
     /** Built-in command words. Module-owned command aliases must be accepted by {@link #isCommand} too. */
     public static final Set<String> COMMANDS = Set.of("help", "clips", "clip", "t", "toggle", "bind", "set",
-            "waypoint", "waypoints", "wp", "modules", "list", "nick", "voice", "save", "load", "menu", "gui", "evade");
+            "waypoint", "waypoints", "wp", "modules", "list", "nick", "voice", "save", "load", "menu", "gui", "evade", "bench", "benchmark");
 
     /** Set while re-sending an escaped ".." message, so it isn't parsed again. */
     private boolean resending;
@@ -164,6 +164,15 @@ public class CommandManager {
                 print("Nick Hider on. You now show as §c" + name);
             }
             case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
+            case "bench", "benchmark" -> {
+                if (a.length > 1 && a[1].equalsIgnoreCase("stop")) { net.evadeclient.util.Benchmark.cancel(); print("Benchmark stopped."); }
+                else {
+                    int secs = 30;
+                    if (a.length > 1) try { secs = Integer.parseInt(a[1]); } catch (NumberFormatException ignored) {}
+                    if (net.evadeclient.util.Benchmark.start(secs)) print("§7Benchmarking for " + Math.max(5, Math.min(120, secs)) + " s" + (MinecraftClient.getInstance().isInSingleplayer() ? " (the camera turns one full circle)" : " (stand still; nothing is sent to the server)") + "...");
+                    else print("§cJoin a world first (or a benchmark is already running).");
+                }
+            }
             case "save" -> { EvadeClient.config.save(); print("Config saved."); }
             case "load" -> { EvadeClient.config.load(); print("Config loaded."); }
             case "menu", "gui", "evade" -> {
@@ -189,6 +198,7 @@ public class CommandManager {
         print("§d.nick <name>§7 - set your Nick Hider name");
         print("§d.clip§7 - save the last seconds as a clip");
         print("§d.voice§7 - open the voice chat menu");
+        print("§d.bench [seconds]§7 - measure your FPS (average and 1% low) and compare with the last run");
         print("§d.save§7 / §d.load§7 - config");
         print("§d.clips§7 [last|save]§7 - open Evade Clips (or the clips folder), edit your last clip, or save one now");
         for (Module m : EvadeClient.modules.all()) {

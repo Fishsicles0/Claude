@@ -535,6 +535,29 @@ final class SelfTest {
             app.shutdown();
         }
 
+        // Windows: the Minecraft window (and its area) is picked from the window list; Desktop Duplication records the
+        // monitor it's on (the primary one when that isn't known), and a Desktop Duplication failure is recognised.
+        String listing = "#ok\r\n"
+                + "4100\tC:\\Program Files\\Mozilla Firefox\\firefox.exe\t0,0,1920,1080\tMinecraft wiki - Mozilla Firefox\r\n"
+                + "5200\tC:\\Users\\me\\AppData\\Roaming\\.minecraft\\runtime\\java-runtime-delta\\bin\\javaw.exe\t2560,0,4480,1080\tMinecraft 1.21.11 - Multiplayer (3rd-party Server)\r\n"
+                + "6300\tC:\\Windows\\explorer.exe\t,,,\tFile Explorer\r\n";
+        var mcWin = net.evadeclient.clips.core.CaptureSource.pickWindow(listing, "Minecraft", 1);
+        var noRect = net.evadeclient.clips.core.CaptureSource.pickWindow(listing.replace("2560,0,4480,1080", ",,,"), "Minecraft", 1);
+        List<java.awt.Rectangle> mons = List.of(new java.awt.Rectangle(0, 0, 2560, 1440), new java.awt.Rectangle(2560, 0, 1920, 1080), new java.awt.Rectangle(-1920, 0, 1920, 1080));
+        int onSecond = mcWin == null ? -1 : net.evadeclient.clips.core.CaptureSource.monitorIndex(mcWin.rect(), mons, 0);
+        int straddling = net.evadeclient.clips.core.CaptureSource.monitorIndex(new java.awt.Rectangle(-300, 100, 1280, 720), mons, 0);
+        int unknown = net.evadeclient.clips.core.CaptureSource.monitorIndex(null, mons, 0);
+        int offScreen = net.evadeclient.clips.core.CaptureSource.monitorIndex(new java.awt.Rectangle(9000, 9000, 800, 600), mons, 0);
+        check(mcWin != null && mcWin.title().startsWith("Minecraft 1.21.11") && new java.awt.Rectangle(2560, 0, 1920, 1080).equals(mcWin.rect())
+                        && noRect != null && noRect.rect() == null && onSecond == 1 && straddling == 0 && unknown == 0 && offScreen == 0,
+                "Windows capture records the monitor the Minecraft window is on (" + mcWin + " → monitor " + onSecond
+                        + "; mostly on the first: " + straddling + "; unknown or off-screen: primary " + unknown + "/" + offScreen + ")");
+        boolean ddaFail = net.evadeclient.clips.core.CaptureEngine.ddagrabError(
+                "[Parsed_ddagrab_0 @ 000001] Failed to duplicate output: 887a0004\n[lavfi @ 000002] Error initializing filters");
+        boolean otherFail = net.evadeclient.clips.core.CaptureEngine.ddagrabError(
+                "[dshow @ 000001] Could not find audio only device with name [Stereo Mix]\naudio=Stereo Mix: I/O error");
+        check(ddaFail && !otherFail, "a Desktop Duplication failure is recognised (falls back to window capture); an audio failure isn't");
+
         // Linux: the Minecraft window's area of the screen is what's captured.
         if (Ffmpeg.WINDOWS || Ffmpeg.MAC || java.awt.GraphicsEnvironment.isHeadless() || !new java.io.File("/usr/bin/xwininfo").canExecute()) {
             System.out.println("  SKIP  Minecraft window capture area (needs X11 and xwininfo)");

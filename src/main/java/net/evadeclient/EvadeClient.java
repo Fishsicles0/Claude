@@ -84,6 +84,8 @@ public class EvadeClient implements ClientModInitializer {
         WorldRenderEvents.END_MAIN.register(EvadeClient::onWorldRender);
         ClientSendMessageEvents.ALLOW_CHAT.register(commands::handleChat);
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());
+        // Servers can switch off Evade mods for their players (evade:rules).
+        net.evadeclient.util.ServerRules.register();
         // Profiles linked to a server switch in automatically when you join it.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             var entry = client.getCurrentServerEntry();
