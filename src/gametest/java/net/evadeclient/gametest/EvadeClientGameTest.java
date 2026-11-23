@@ -2163,13 +2163,13 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(hidden && queued, "Clips hides overlays while recording and queues a second save (" + hidden + ", " + queued + ")");
 
         String me = ctx.computeOnClient(c -> c.player.getName().getString());
-        check("Win".equals(net.evadeclient.module.misc.Clips.endOfGame("You won the game!", me))
+        check(ctx.computeOnClient(c -> "Win".equals(net.evadeclient.module.misc.Clips.endOfGame("You won the game!", me))
                         && "Win".equals(net.evadeclient.module.misc.Clips.endOfGame("Winner: " + me, me))
                         && "Game end".equals(net.evadeclient.module.misc.Clips.endOfGame("Winner: Red Team", me))
                         && "Game end".equals(net.evadeclient.module.misc.Clips.endOfGame("GAME OVER!", me))
                         && net.evadeclient.module.misc.Clips.endOfGame("<Bob> you won lol", me) == null
                         && net.evadeclient.module.misc.Clips.endOfGame("[MVP+] Bob: you won", me) == null
-                        && net.evadeclient.module.misc.Clips.endOfGame("You won 50 coins!", me) == null,
+                        && net.evadeclient.module.misc.Clips.endOfGame("You won 50 coins!", me) == null),
                 "Clips tells wins from other end-of-game lines and ignores player chat");
     }
 
