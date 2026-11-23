@@ -479,7 +479,15 @@ public final class InstallerCore {
         else loc.remove("pendingUpdate");
         Files.createDirectories(clipsDataDir());
         writeAtomic(locFile, GSON.toJson(loc));
-        if (busy != null) throw new ClipsBusyException(busy);
+        if (busy != null) {
+            // Keep the exact reason for support: %APPDATA%\\EvadeClips\\installer-error.log (or ~/.evade-clips).
+            try {
+                java.io.StringWriter sw = new java.io.StringWriter();
+                busy.printStackTrace(new java.io.PrintWriter(sw));
+                Files.writeString(clipsDataDir().resolve("installer-error.log"), java.time.Instant.now() + "\n" + sw);
+            } catch (Exception ignored) { }
+            throw new ClipsBusyException(busy);
+        }
 
         p.update(0.955, "Adding Evade Clips to your apps");
         try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
@@ -1291,10 +1299,21 @@ public final class InstallerCore {
 
     /** Renames a file into place, atomically where the file system can. */
     static void move(Path from, Path to) throws IOException {
-        try {
-            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+        // On Windows, antivirus (Defender) briefly locks a program that was just written while it scans it, so a
+        // move right after a download can fail for a second or two. Retry for a while before giving up.
+        long deadline = System.currentTimeMillis() + (WINDOWS ? 8000 : 0);
+        while (true) {
+            try {
+                try {
+                    Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return;
+            } catch (FileSystemException e) {
+                if (e instanceof java.nio.file.NoSuchFileException || System.currentTimeMillis() >= deadline) throw e;
+                try { Thread.sleep(400); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+            }
         }
     }
 
@@ -1398,7 +1417,7 @@ public final class InstallerCore {
             Files.deleteIfExists(tmp);
             throw new IOException("Download check failed for " + target.getFileName() + " (file was corrupted or changed). Try again.");
         }
-        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        move(tmp, target);
     }
 
     /** Closes the stream if no bytes arrive for stallMs, so a dead connection fails instead of hanging forever. */
