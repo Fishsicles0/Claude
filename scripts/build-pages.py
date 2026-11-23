@@ -555,6 +555,29 @@ def main() -> None:
             raise SystemExit(f"{src.name}: unknown tokens {sorted(set(left))}")
         out.write_text(page(src.stem, meta, body, ver, keys))
         print(f"built {out.relative_to(ROOT)}")
+    write_seo_files(ver)
+
+
+SITE = "https://evadeclient.com"
+
+
+def write_seo_files(ver: dict) -> None:
+    """sitemap.xml and robots.txt for search engines, and _headers so browsers always use HTTPS."""
+    pages = sorted(p.stem for p in SRC.glob("*.html") if p.stem != "404")
+    prio = {"index": "1.0", "download": "0.9", "features": "0.9", "clips": "0.8"}
+    urls = "".join(
+        f"  <url><loc>{SITE}{'/' if p == 'index' else '/' + p}</loc><lastmod>{ver['date']}</lastmod>"
+        f"<priority>{prio.get(p, '0.6')}</priority></url>\n" for p in pages)
+    (OUT / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n')
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
+    (OUT / "_headers").write_text(
+        "/*\n"
+        "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
+        "  X-Content-Type-Options: nosniff\n"
+        "  Referrer-Policy: strict-origin-when-cross-origin\n")
+    print(f"built sitemap.xml ({len(pages)} pages), robots.txt, _headers")
 
 
 if __name__ == "__main__":
