@@ -4,6 +4,9 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import java.awt.Color;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 import java.nio.file.AccessDeniedException;
@@ -48,9 +51,25 @@ public final class EvadeInstaller {
         frame.setUndecorated(true);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setContentPane(view);
+        // Rounded corners: with per-pixel alpha the frame is see-through and the view paints the rounded window
+        // itself, anti-aliased. Without it, the window is cut to the rounded shape (hard-edged corners). Set
+        // before pack(), while the frame has no native window yet.
+        boolean perPixel = perPixelTranslucency();
+        if (perPixel) {
+            try {
+                frame.setBackground(new Color(0, 0, 0, 0));
+            } catch (RuntimeException e) {
+                perPixel = false;
+                frame.setBackground(InstallerView.BG);
+            }
+        }
+        view.setOpaque(!perPixel);
+        view.roundCorners = perPixel;
         frame.pack();
         frame.setResizable(false);
-        try { frame.setShape(new RoundRectangle2D.Double(0, 0, InstallerView.W, InstallerView.H, 22, 22)); } catch (Exception ignored) {}
+        if (!perPixel) {
+            try { frame.setShape(new RoundRectangle2D.Double(0, 0, InstallerView.W, InstallerView.H, 22, 22)); } catch (Exception ignored) {}
+        }
         List<java.awt.Image> icons = new ArrayList<>();
         icons.add(InstallerView.image("/evade/icon-128.png"));
         frame.setIconImages(icons);
@@ -128,6 +147,16 @@ public final class EvadeInstaller {
                 });
             }, "open-launcher").start();
         };
+    }
+
+    /** Whether the screen can show windows with see-through pixels (smooth, anti-aliased window corners). */
+    private static boolean perPixelTranslucency() {
+        try {
+            return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+                    .isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSLUCENT);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Best-effort: start the official Minecraft Launcher on each OS. True once one of the attempts started. */

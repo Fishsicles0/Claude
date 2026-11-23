@@ -53,6 +53,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -87,6 +89,15 @@ public final class LibraryPanel extends JPanel {
     private final Map<String, Pic> thumbCache = lru(150);
     private final Map<String, Pic> stripCache = lru(20);
     private final Set<String> loadingPics = new java.util.HashSet<>();
+    /**
+     * Thumbnails as a card at rest draws them: the card's rounded top corners cut by an anti-aliased mask, with the
+     * bottom shade (newest 48, all at the cards' current size; dropped when the cards change size). UI thread only.
+     */
+    private record Framed(Image src, BufferedImage img) {}
+    private final Map<String, Framed> framedCache = lru(48);
+    private int framedW, framedH;
+    /** Where a moving thumbnail (hover zoom, scrubbing) is put together each frame: one buffer, reused by every card. */
+    private BufferedImage thumbScratch;
     /** Bumped on every library change, so cached pictures are checked against their files again. */
     private int picGen;
     private final java.util.concurrent.ExecutorService picLoader = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
@@ -324,6 +335,8 @@ public final class LibraryPanel extends JPanel {
     void clearCaches() {
         thumbCache.clear();
         stripCache.clear();
+        framedCache.clear();
+        thumbScratch = null;
     }
 
     private static javax.swing.AbstractAction action(Runnable r) {
@@ -355,6 +368,7 @@ public final class LibraryPanel extends JPanel {
         for (Clip c : app.library.all()) ids.add(c.id);
         thumbCache.keySet().retainAll(ids);
         stripCache.keySet().retainAll(ids);
+        framedCache.keySet().retainAll(ids);
         int total = app.library.all().size();
         count.setText(shown.size() == total ? total + (total == 1 ? " clip" : " clips") : shown.size() + " of " + total);
         long bytes = app.library.totalBytes();
@@ -412,6 +426,87 @@ public final class LibraryPanel extends JPanel {
                 if (result != (old == null ? null : old.img())) grid.repaint();
             });
         });
+    }
+
+    /**
+     * The clip's thumbnail at rest, framed: rendered once per clip and size, then just copied. {@code t} must be
+     * exactly dw×dh (a thumbnail still being re-read at a new size is framed each frame instead, not cached).
+     */
+    private BufferedImage framedThumb(Clip c, Image t, int w, int th, int dw, int dh, Component card) {
+        if (dw != framedW || dh != framedH) {
+            // The cards changed size (window resized, or moved to a screen with another scale).
+            framedCache.clear();
+            framedW = dw;
+            framedH = dh;
+        }
+        Framed f = framedCache.get(c.id);
+        if (f == null || f.src() != t) {
+            BufferedImage img = new BufferedImage(dw, dh, BufferedImage.TYPE_INT_ARGB_PRE);
+            renderThumb(img, dw, dh, w, th, t, null, -1, 1, card);
+            f = new Framed(t, img);
+            framedCache.put(c.id, f);
+        }
+        return f.img();
+    }
+
+    /** The shared buffer for moving thumbnails, at least dw×dh. */
+    private BufferedImage thumbScratch(int dw, int dh) {
+        BufferedImage s = thumbScratch;
+        if (s == null || s.getWidth() < dw || s.getHeight() < dh) {
+            s = new BufferedImage(Math.max(dw, s == null ? 0 : s.getWidth()), Math.max(dh, s == null ? 0 : s.getHeight()),
+                    BufferedImage.TYPE_INT_ARGB_PRE);
+            thumbScratch = s;
+        }
+        return s;
+    }
+
+    /**
+     * Paints a card's thumbnail area (w×th) into the top-left dw×dh device pixels of {@code dst}. The rounded top
+     * corners are an anti-aliased mask: the picture goes in with SrcIn, so it takes the mask's soft edge (a hard
+     * clip would leave jagged corners). Then, on top: the bottom shade and the scrub bar. {@code strip} (the hover
+     * strip, at {@code scrub}) wins over {@code t} (the thumbnail, zoomed by {@code z}); with neither, a film icon.
+     */
+    private static BufferedImage renderThumb(BufferedImage dst, int dw, int dh, int w, int th, Image t, BufferedImage strip,
+                                             double scrub, double z, Component card) {
+        Graphics2D g = dst.createGraphics();
+        g.setComposite(AlphaComposite.Clear);
+        g.fillRect(0, 0, dw, dh);
+        g.setComposite(AlphaComposite.SrcOver);
+        Theme.hq(g);
+        g.clipRect(0, 0, dw, dh);
+        g.scale(dw / (double) w, dh / (double) th);
+        // mask: the card's 14 px corners at the top; the bottom is square (it runs past the image's bottom edge)
+        g.setColor(Color.WHITE);
+        g.fill(new RoundRectangle2D.Double(0, 0, w, th + 14, 14, 14));
+        g.setComposite(AlphaComposite.SrcIn);
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, w, th);
+        if (strip != null) {
+            int n = Library.STRIP_FRAMES;
+            int fw = strip.getWidth() / n;
+            int i = (int) (scrub * n);
+            g.drawImage(strip, 0, 0, w, th, i * fw, 0, (i + 1) * fw, strip.getHeight(), null);
+        } else if (t != null) {
+            // Centred and zoomed by z, at sub-pixel precision (so the hover zoom glides instead of stepping).
+            int iw = t.getWidth(null), ih = t.getHeight(null);
+            if (iw > 0 && ih > 0) {
+                AffineTransform at = new AffineTransform();
+                at.translate(w / 2.0, th / 2.0);
+                at.scale(w * z / iw, th * z / ih);
+                at.translate(-iw / 2.0, -ih / 2.0);
+                g.drawImage(t, at, null);
+            }
+        }
+        g.setComposite(AlphaComposite.SrcAtop);
+        if (strip == null && t == null) Theme.icon(Theme.Glyph.FILM, 36, Theme.FAINT).paintIcon(card, g, w / 2 - 18, th / 2 - 18);
+        g.setPaint(new GradientPaint(0, th - 50, new Color(0, 0, 0, 0), 0, th, new Color(0, 0, 0, 170)));
+        g.fillRect(0, th - 50, w, 50);
+        if (scrub >= 0) {
+            g.setColor(Theme.RED);
+            g.fill(new Rectangle2D.Double(0, th - 3, w * scrub, 3));
+        }
+        g.dispose();
+        return dst;
     }
 
     /** {@code src} scaled to w×h in a few halving steps (smooth, unlike one big bilinear step). */
@@ -946,35 +1041,16 @@ public final class LibraryPanel extends JPanel {
             g.setColor(hoverAnim > 0 ? blend(Theme.CARD, Theme.CARD_HI, hoverAnim) : Theme.CARD);
             g.fill(shape);
 
-            // thumbnail / scrub frame
-            g.setClip(new RoundRectangle2D.Double(0, 0, w, th + 14, 14, 14));
-            g.clipRect(0, 0, w, th);
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, w, th);
+            // thumbnail / scrub frame, put together at device pixels with smooth rounded top corners. At rest it's
+            // cached per clip; while it moves (hover zoom, scrubbing) it's put together in a shared buffer.
             BufferedImage strip = scrub >= 0 ? strip(clip, this) : null;
-            if (strip != null) {
-                int n = Library.STRIP_FRAMES;
-                int fw = strip.getWidth() / n;
-                int i = (int) (scrub * n);
-                g.drawImage(strip, 0, 0, w, th, i * fw, 0, (i + 1) * fw, strip.getHeight(), null);
-            } else {
-                double scale = g.getTransform().getScaleX();
-                Image t = thumb(clip, (int) Math.round(w * scale), (int) Math.round(th * scale), this);
-                if (t != null) {
-                    double z = 1 + hoverAnim * 0.03;
-                    int dw = (int) (w * z), dh = (int) (th * z);
-                    g.drawImage(t, (w - dw) / 2, (th - dh) / 2, dw, dh, null);
-                } else {
-                    Theme.icon(Theme.Glyph.FILM, 36, Theme.FAINT).paintIcon(this, g, w / 2 - 18, th / 2 - 18);
-                }
-            }
-            g.setPaint(new GradientPaint(0, th - 50, new Color(0, 0, 0, 0), 0, th, new Color(0, 0, 0, 170)));
-            g.fillRect(0, th - 50, w, 50);
-            if (scrub >= 0) {
-                g.setColor(Theme.RED);
-                g.fillRect(0, th - 3, (int) (w * scrub), 3);
-            }
-            g.setClip(null);
+            double scale = g.getTransform().getScaleX();
+            int dw = Math.max(1, (int) Math.round(w * scale)), dh = Math.max(1, (int) Math.round(th * scale));
+            Image t = strip == null ? thumb(clip, dw, dh, this) : null;
+            boolean still = scrub < 0 && hoverAnim == 0 && t != null && t.getWidth(null) == dw && t.getHeight(null) == dh;
+            BufferedImage pic = still ? framedThumb(clip, t, w, th, dw, dh, this)
+                    : renderThumb(thumbScratch(dw, dh), dw, dh, w, th, t, strip, scrub, 1 + hoverAnim * 0.03, this);
+            g.drawImage(pic, 0, 0, w, th, 0, 0, dw, dh, null);
 
             // badges
             g.setFont(Theme.interBold.deriveFont(11.5f));

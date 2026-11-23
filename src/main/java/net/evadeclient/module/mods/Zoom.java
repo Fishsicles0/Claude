@@ -25,7 +25,7 @@ public class Zoom extends Module {
 
     /** FOV multiplier (1 = no zoom) and how far zoomed in we are (0..1), both eased the same way. */
     private double current = 1, amount = 0, scrollMult = 1;
-    private long lastFrame = net.evadeclient.gui.EvadeMenu.clock.getAsLong();
+    private double lastFrame = net.evadeclient.gui.EvadeMenu.clock.getAsDouble();
     /** Whether we switched Cinematic Camera on for this zoom, and what it was before. */
     private boolean cinematicApplied, savedSmooth;
     private boolean wasZooming, toggled, keyWasDown;
@@ -45,7 +45,7 @@ public class Zoom extends Module {
      * zoom that was cut off by disabling the module is always cleaned up).
      */
     public void frame() {
-        long now = net.evadeclient.gui.EvadeMenu.clock.getAsLong(); // ms; tests swap in a fixed-step clock
+        double now = net.evadeclient.gui.EvadeMenu.clock.getAsDouble(); // ms, sub-ms precise; tests swap in a fixed-step clock
         double dt = Math.max(0, Math.min(0.1, (now - lastFrame) / 1000.0)); // never negative if the clock jumps back
         lastFrame = now;
         if (!isEnabled()) {

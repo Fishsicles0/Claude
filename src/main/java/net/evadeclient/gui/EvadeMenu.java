@@ -80,7 +80,12 @@ public class EvadeMenu extends Screen {
     private String search = "";
     private boolean searchFocused;
     private double scroll, scrollTarget;
-    private long openedAt;
+    /** When the menu was last put on screen ({@link #clock} ms): the intro animation runs from here. */
+    private double openedAt;
+    /** When the close fade started ({@link #clock} ms), or -1 while the menu is open. */
+    private double closingAt = -1;
+    /** The close fade has played and the real close is queued (or done), so it is only queued once. */
+    private boolean finishing;
     private final Map<Object, Float> anim = new HashMap<>();
     /** Springs by key (see {@link #spring}): highlights, scroll and sliders that chase a moving target. */
     private final Map<Object, Motion.Spring> springs = new HashMap<>();
@@ -89,16 +94,21 @@ public class EvadeMenu extends Screen {
     /** Client Settings' Smooth Font, read once per frame at the top of {@link #render}, so clicks measure text the
      *  way the frame they land on drew it. */
     private boolean smooth = true;
-    /** Milliseconds for animations. Tests swap in a fixed-step clock to record smooth clips for the website. */
-    public static java.util.function.LongSupplier clock = System::currentTimeMillis;
-    private long lastFrame = clock.getAsLong();
+    private static final long CLOCK_ORIGIN = System.nanoTime();
+    /** The real animation clock: milliseconds since the client loaded, monotonic (never jumps with the wall clock)
+     *  and finer than a millisecond, so frame times stay even at high frame rates. */
+    public static final java.util.function.DoubleSupplier SYSTEM_CLOCK = () -> (System.nanoTime() - CLOCK_ORIGIN) / 1e6;
+    /** Milliseconds for animations (the menu's, Zoom's). Tests swap in a fixed-step clock to record smooth clips for
+     *  the website, and put {@link #SYSTEM_CLOCK} back after. */
+    public static java.util.function.DoubleSupplier clock = SYSTEM_CLOCK;
+    private double lastFrame = clock.getAsDouble();
     private float dt;
 
     /** The module (keybind) or KeySetting waiting for a key press. */
     private Object listening;
     /** A key the capture refused (e.g. the Menu Key for a module): the row flashes red with {@link #rejectMsg}. */
     private Object rejectRow;
-    private long rejectAt;
+    private double rejectAt;
     private String rejectMsg = "";
     private NumberSetting dragging;
     private int dragX, dragW;
@@ -123,7 +133,7 @@ public class EvadeMenu extends Screen {
     // settings-row hover: the slider under the mouse (wheel and arrow keys), and the row the tooltip is for
     private NumberSetting hoverSlider;
     private Object tipRow;
-    private long tipSince;
+    private double tipSince;
     private List<TipLine> tip;
     private int tipX, tipY;
 
@@ -137,6 +147,8 @@ public class EvadeMenu extends Screen {
     private static final long TIP_DELAY = 400;
     /** How long a pending profile delete waits for its confirming second click. */
     private static final long DELETE_CONFIRM_MS = 3000;
+    /** The window's intro (it fades in, then finishes growing and rising into place) and its close fade, in ms. */
+    private static final double OPEN_FADE_MS = 140, OPEN_MOVE_MS = 200, CLOSE_MS = 120;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -162,9 +174,22 @@ public class EvadeMenu extends Screen {
         return menu;
     }
 
+    /**
+     * Each time the menu is put on screen (MinecraftClient.setScreen calls this once per display, before init): the
+     * intro starts here. Not in init, which a window resize runs again, so resizing doesn't replay it; coming back
+     * from the HUD editor does.
+     */
+    @Override
+    public void onDisplayed() {
+        super.onDisplayed();
+        openedAt = clock.getAsDouble();
+        lastFrame = openedAt; // springs and fades pick up from here, not from before the menu was away
+        closingAt = -1;
+        finishing = false;
+    }
+
     @Override
     protected void init() {
-        openedAt = clock.getAsLong();
         anims = settings().animations.get();
         smooth = settings().smoothFont.get();
     }
@@ -176,8 +201,42 @@ public class EvadeMenu extends Screen {
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         settings().applyTheme();
+        anims = settings().animations.get(); // this runs before render, which reads it again
         if (settings().blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, (0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF)));
+        // The tint fades in and out with the window (the vanilla blur can't fade: it is on or off).
+        float a = windowState(clock.getAsDouble()).alpha();
+        ctx.fillGradient(0, 0, width, height, Theme.alpha(0xB0000000, a),
+                Theme.alpha(0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF), a));
+    }
+
+    /** How the whole window looks this frame: its opacity, its scale about the screen centre, and how far below its
+     *  resting place it sits (menu pixels). */
+    private record WindowState(float alpha, float scale, float dy) {}
+
+    private static final WindowState AT_REST = new WindowState(1f, 1f, 0f);
+    /** Where the window was when the close fade started: at rest, or part way through its intro (a quick open and
+     *  close), so the close carries on from there instead of first jumping back to fully shown. */
+    private WindowState closeFrom = AT_REST;
+
+    /**
+     * The window's open or close animation at {@code now} ({@link #clock} ms). Opening: it fades in over 140 ms while
+     * it grows from 97% and rises 10 px into place over 200 ms (both ease out). Closing: it fades out over 120 ms,
+     * shrinking 1.5% and sinking 6 px (ease in). With Animations off it is simply there. Both renderBackground and
+     * render ask, so the order they run in doesn't matter.
+     */
+    private WindowState windowState(double now) {
+        if (closingAt >= 0) {
+            // The clock went back (a test swapped it): fade out from here, unless the fade is already done.
+            if (now < closingAt && !finishing) closingAt = now;
+            float c = finishing ? 1f : Motion.cubicIn((float) ((now - closingAt) / CLOSE_MS));
+            WindowState f = closeFrom;
+            return new WindowState(f.alpha() * (1f - c), f.scale() + (0.985f - f.scale()) * c, f.dy() + (6f - f.dy()) * c);
+        }
+        if (!anims) return AT_REST;
+        if (now < openedAt) openedAt = now - OPEN_MOVE_MS; // the clock went back: show the menu, never hide it
+        float a = Motion.cubicOut((float) ((now - openedAt) / OPEN_FADE_MS));
+        float p = Motion.cubicOut((float) ((now - openedAt) / OPEN_MOVE_MS));
+        return p >= 1f && a >= 1f ? AT_REST : new WindowState(a, 0.97f + 0.03f * p, (1f - p) * 10f);
     }
 
     // ------------------------------------------------------------------ fitting the screen
@@ -225,8 +284,8 @@ public class EvadeMenu extends Screen {
     }
 
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        long now = clock.getAsLong();
-        dt = Math.max(0f, Math.min(0.1f, (now - lastFrame) / 1000f));
+        double now = clock.getAsDouble();
+        dt = (float) Math.max(0, Math.min(0.1, (now - lastFrame) / 1000));
         lastFrame = now;
         scroll += (scrollTarget - scroll) * (1 - Math.exp(-18 * dt));
         // Per-frame hover state, filled in by whichever page draws below.
@@ -246,34 +305,47 @@ public class EvadeMenu extends Screen {
         cy = headerY + 30;
         ch = wy + wh - 16 - cy;
 
-        float open = anims ? ease(Math.min(1, (clock.getAsLong() - openedAt) / 220f)) : 1;
+        // The window opens and closes as one piece: scaled about the screen centre, moved down by dy (snapped to a
+        // device pixel), and every colour it draws multiplied by its opacity through Theme.fade, which Theme, UiFont,
+        // Icons and Logo all honour. The fade is put back in the finally: the HUD and toasts never inherit it.
+        WindowState ws = windowState(now);
         var m = ctx.getMatrices();
+        float base = Theme.fade;
         m.pushMatrix();
-        float s = 0.95f + 0.05f * open;
-        m.translate(width / 2f, height / 2f + (1 - open) * 14);
-        m.scale(s, s);
-        m.translate(-width / 2f, -height / 2f);
+        try {
+            m.translate(width / 2f, height / 2f + Theme.snap(ctx, ws.dy()));
+            m.scale(ws.scale(), ws.scale());
+            m.translate(-width / 2f, -height / 2f);
 
-        // Window: a soft drop shadow and a faint accent halo behind the body, then the sidebar, then the 1 px ring
-        // over both, so it also covers the sidebar's rounded corners.
-        windowShadow(ctx, wx, wy + 6, wx + ww, wy + wh + 6, Theme.alpha(0xFF000000, 0.6f));
-        windowShadow(ctx, wx, wy, wx + ww, wy + wh, Theme.alpha(Theme.RED, 0.2f));
-        Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
-        renderSidebar(ctx, mouseX, mouseY);
-        Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
-        renderClose(ctx, mouseX, mouseY);
+            // Window: a soft drop shadow and a faint accent halo behind the body, then the sidebar, then the 1 px ring
+            // over both, so it also covers the sidebar's rounded corners. While the window fades, the shadow and halo
+            // fade with the square of its opacity: the body is slightly see-through, and at the same opacity they
+            // would tint the whole window from underneath.
+            Theme.fade = base * ws.alpha() * ws.alpha();
+            windowShadow(ctx, wx, wy + 6, wx + ww, wy + wh + 6, Theme.alpha(0xFF000000, 0.6f));
+            windowShadow(ctx, wx, wy, wx + ww, wy + wh, Theme.alpha(Theme.RED, 0.2f));
+            Theme.fade = base * ws.alpha();
+            Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
+            renderSidebar(ctx, mouseX, mouseY);
+            Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
+            renderClose(ctx, mouseX, mouseY);
 
-        if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
-        else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
-        else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
-        else {
-            renderSearch(ctx, mouseX, mouseY);
-            renderHeader(ctx, mouseX, mouseY);
-            renderGrid(ctx, mouseX, mouseY);
+            if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
+            else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
+            else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
+            else {
+                renderSearch(ctx, mouseX, mouseY);
+                renderHeader(ctx, mouseX, mouseY);
+                renderGrid(ctx, mouseX, mouseY);
+            }
+            drawTip(ctx);
+        } finally {
+            Theme.fade = base;
+            m.popMatrix();
         }
-        drawTip(ctx);
 
-        m.popMatrix();
+        // The close fade has played: close for real, after this frame (setScreen must never run mid-render).
+        if (closingAt >= 0 && !finishing && now - closingAt >= CLOSE_MS) queueFinishClose();
     }
 
     /**
@@ -412,7 +484,7 @@ public class EvadeMenu extends Screen {
         // magnifier
         icon(ctx, "search", sx + 7, searchY + 7, 10, searchFocused ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
 
-        boolean caret = searchFocused && (clock.getAsLong() / 500) % 2 == 0;
+        boolean caret = searchFocused && blink(0);
         if (search.isEmpty() && !searchFocused) {
             text(ctx, "Search modules", sx + 22, searchY + 8, Theme.TEXT_FAINT, false);
             int hx = sx + 22 + width("Search modules") + 14;
@@ -481,7 +553,7 @@ public class EvadeMenu extends Screen {
     private boolean profileFocused;
     /** A profile whose delete button was clicked once: a second click within {@link #DELETE_CONFIRM_MS} deletes it. */
     private String pendingDelete;
-    private long pendingDeleteAt;
+    private double pendingDeleteAt;
     private static final int PROFILE_H = 44;
 
     private int createButtonX() { return contentRight() - 96; }
@@ -497,7 +569,7 @@ public class EvadeMenu extends Screen {
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         focusGlow(ctx, "profile", profileFocused, cx, searchY, cx + inW, searchY + 24);
         Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
-        boolean caret = profileFocused && (clock.getAsLong() / 500) % 2 == 0;
+        boolean caret = profileFocused && blink(0);
         if (profileInput.isEmpty() && !profileFocused) {
             text(ctx, "New profile name…", cx + 8, searchY + 8, Theme.TEXT_FAINT, false);
         } else {
@@ -669,7 +741,7 @@ public class EvadeMenu extends Screen {
                             if (profiles.delete(name)) Notifications.push("Profile deleted", name, true);
                         } else {
                             pendingDelete = name;
-                            pendingDeleteAt = clock.getAsLong();
+                            pendingDeleteAt = clock.getAsDouble();
                         }
                     }
                     case "copy" -> {
@@ -994,7 +1066,7 @@ public class EvadeMenu extends Screen {
         drawScrollbar(ctx, top, viewH, contentH);
 
         // Tooltip for the row under the mouse once it has rested there (not while dragging, typing or binding).
-        long now = clock.getAsLong();
+        double now = clock.getAsDouble();
         if (hovered != tipRow) { tipRow = hovered; tipSince = now; }
         if (hovered != null && now - tipSince >= TIP_DELAY && dragging == null && editor == null && listening == null && !sbDrag) {
             List<TipLine> lines = tipFor(hovered, mod);
@@ -1010,7 +1082,7 @@ public class EvadeMenu extends Screen {
             Object self = isKeybind ? mod : row;
             boolean l = listening == self;
             int code = isKeybind ? mod.getKey() : ((KeySetting) row).get();
-            boolean rejected = rejectRow == self && clock.getAsLong() - rejectAt < 1400;
+            boolean rejected = rejectRow == self && clock.getAsDouble() - rejectAt < 1400;
             boolean conflict = !l && !conflicts(code, self).isEmpty();
             String text = l ? (acceptsMouse(self) ? "Press a key or mouse button..." : "Press a key...") : KeySetting.keyName(code);
             int w = Math.max(50, width(text) + 14);
@@ -1230,8 +1302,12 @@ public class EvadeMenu extends Screen {
 
     // ------------------------------------------------------------------ input
 
+    /** The close fade is playing: input is swallowed (a close is never reversed). */
+    private boolean closing() { return closingAt >= 0 || finishing; }
+
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        if (closing()) return true;
         int realW = width, realH = height;
         width = Math.round(realW / vs); height = Math.round(realH / vs);
         try { return clicked(scaled(click), doubled); } finally { width = realW; height = realH; }
@@ -1426,6 +1502,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
+        if (closing()) return true;
         if (dragging != null) { updateSlider(click.x() / vs); return true; }
         if (sbDrag) { dragScrollbar(click.y() / vs); return true; }
         return super.mouseDragged(click, dx, dy);
@@ -1440,6 +1517,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (closing()) return true;
         double mx = mouseX / vs, my = mouseY / vs;
         if (menuKeyDown) menuKeyUsed = true;
         // Shift + wheel arrives as horizontal scrolling on macOS.
@@ -1460,6 +1538,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean keyPressed(KeyInput input) {
+        if (closing()) return true;
         int key = input.key();
         // An open text field takes every key (Enter applies, Escape cancels).
         if (editor != null) { editor.key(input); return true; }
@@ -1553,6 +1632,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean keyReleased(KeyInput input) {
+        if (closing()) return true;
         if (menuKeyDown && input.key() == settings().menuKey.get()) {
             menuKeyDown = false;
             if (!menuKeyUsed && editor == null && listening == null) close();
@@ -1563,6 +1643,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
+        if (closing()) return true;
         if (menuKeyDown) menuKeyUsed = true;
         if (editor != null) { if (input.isValidChar()) editor.insert(input.asString()); return true; }
         if (listening != null) return true;
@@ -1635,7 +1716,7 @@ public class EvadeMenu extends Screen {
 
     private void reject(Object target, String why) {
         rejectRow = target;
-        rejectAt = clock.getAsLong();
+        rejectAt = clock.getAsDouble();
         rejectMsg = why;
     }
 
@@ -1709,7 +1790,7 @@ public class EvadeMenu extends Screen {
         String text;
         int caret;
         boolean all = true;
-        long typedAt = clock.getAsLong();
+        double typedAt = clock.getAsDouble();
         int x1, y1, x2, y2;
 
         Editor(Setting<?> target, String initial, int max, IntPredicate allowed) {
@@ -1727,8 +1808,7 @@ public class EvadeMenu extends Screen {
             int tx = x1 + 6, ty = (y1 + y2) / 2 - 4;
             if (all && !text.isEmpty()) Theme.fill(ctx, tx - 1, ty - 1, tx + width(text) + 1, ty + 9, Theme.alpha(Theme.RED, 0.45f));
             text(ctx, text, tx, ty, Theme.TEXT, false);
-            long now = clock.getAsLong();
-            if (!all && ((now - typedAt) / 500) % 2 == 0) {
+            if (!all && blink(typedAt)) {
                 int cxp = tx + width(text.substring(0, caret));
                 Theme.fill(ctx, cxp, ty - 1, cxp + 1, ty + 9, Theme.TEXT);
             }
@@ -1746,7 +1826,7 @@ public class EvadeMenu extends Screen {
                 if (d < bestD) { bestD = d; best = i; }
             }
             caret = best;
-            typedAt = clock.getAsLong();
+            typedAt = clock.getAsDouble();
         }
 
         void insert(String s) {
@@ -1757,12 +1837,12 @@ public class EvadeMenu extends Screen {
             String add = cap(ok.toString(), Math.max(0, max - text.length()));
             text = text.substring(0, caret) + add + text.substring(caret);
             caret += add.length();
-            typedAt = clock.getAsLong();
+            typedAt = clock.getAsDouble();
         }
 
         void key(KeyInput in) {
             int k = in.key();
-            typedAt = clock.getAsLong();
+            typedAt = clock.getAsDouble();
             if (in.isEscape()) { editor = null; return; }
             if (in.isEnter()) { commitEditor(); return; }
             if (in.isSelectAll()) { all = true; return; }
@@ -1857,11 +1937,41 @@ public class EvadeMenu extends Screen {
         back();
     }
 
+    /**
+     * Escape, the Menu Key or the close button. With Animations on the window fades out first (input is ignored
+     * meanwhile) and the frame that finishes the fade closes it; a second close() during the fade closes at once.
+     */
     @Override
     public void close() {
+        if (anims && closingAt < 0 && !finishing) {
+            commitEditor(); // the fade shows the value the field applied
+            double now = clock.getAsDouble();
+            closeFrom = windowState(now);
+            closingAt = now;
+            return;
+        }
+        finishClose();
+    }
+
+    /** Queue the real close for after this frame: ThreadExecutor.send always queues, where execute would run it here. */
+    private void queueFinishClose() {
+        finishing = true;
+        double at = closingAt;
+        // Skipped if this close was already finished (a second close()) or the menu was shown again before the task
+        // ran: either one resets closingAt.
+        if (client != null) client.send(() -> { if (closingAt == at) finishClose(); });
+        else finishClose();
+    }
+
+    /** Close for real: save, then leave for the screen the menu came from, or the game. */
+    private void finishClose() {
+        finishing = true; // input stays swallowed
+        closingAt = -1;   // the fade is over: a close task still queued for it finds nothing to do
         commitEditor();
         EvadeClient.config.save();
-        if (returnTo != null && client != null) {
+        // Something else may have replaced the menu during the fade (a disconnect, a server screen): never close that.
+        if (client == null || client.currentScreen != this) return;
+        if (returnTo != null) {
             Screen to = returnTo;
             returnTo = null;
             client.setScreen(to);
@@ -1871,8 +1981,21 @@ public class EvadeMenu extends Screen {
     }
 
     @Override
+    public void tick() {
+        super.tick();
+        // Frames normally finish the close fade; this ends it even if none are drawn (a minimised window) or the
+        // queued close never ran, so an invisible menu can never be left on screen swallowing input.
+        if (closingAt >= 0 && clock.getAsDouble() - closingAt >= CLOSE_MS + 250) finishClose();
+    }
+
+    @Override
     public void removed() {
         commitEditor(); // e.g. the HUD editor opened over a half-typed value
+        // Replaced in the middle of the close fade (a disconnect): still save, as the close would have.
+        if (closingAt >= 0 && !finishing) {
+            finishing = true;
+            EvadeClient.config.save();
+        }
         super.removed();
     }
 
@@ -1908,7 +2031,10 @@ public class EvadeMenu extends Screen {
         return springs.computeIfAbsent(key, k -> new Motion.Spring());
     }
 
-    private static float ease(float t) { return 1 - (float) Math.pow(1 - t, 3); }
+    /** Whether a caret blinking every 500 ms since {@code since} ({@link #clock} ms) is in its shown half. */
+    private static boolean blink(double since) {
+        return Math.floorMod((long) Math.floor((clock.getAsDouble() - since) / 500), 2L) == 0;
+    }
 
     // ------------------------------------------------------------------ text: UI roles (see UiFont)
     // Every string the menu draws goes through these, in a UiFont role, and no text is matrix-scaled. Smooth Font on:

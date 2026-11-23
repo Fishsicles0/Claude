@@ -18,6 +18,9 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.io.InputStream;
@@ -115,6 +118,7 @@ public final class Theme {
     public static void hq(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
@@ -267,13 +271,7 @@ public final class Theme {
                 case GRID -> { for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) g.draw(new RoundRectangle2D.Double(4 + i * 9, 4 + j * 9, 7, 7, 2, 2)); }
                 case CAMERA -> { g.draw(new RoundRectangle2D.Double(3, 6, 13, 12, 3, 3)); g.draw(poly(16, 10, 21, 7, 21, 17, 16, 14)); }
                 case FILM -> { g.draw(new RoundRectangle2D.Double(3, 4, 18, 16, 3, 3)); g.drawLine(7, 4, 7, 20); g.drawLine(17, 4, 17, 20); g.drawLine(3, 12, 21, 12); }
-                case GEAR -> {
-                    g.drawOval(9, 9, 6, 6);
-                    for (int i = 0; i < 8; i++) {
-                        double a = i * Math.PI / 4;
-                        g.drawLine((int) (12 + Math.cos(a) * 6), (int) (12 + Math.sin(a) * 6), (int) (12 + Math.cos(a) * 9), (int) (12 + Math.sin(a) * 9));
-                    }
-                }
+                case GEAR -> { g.draw(COG); g.draw(COG_HUB); }
                 case BOOKMARK -> g.draw(poly(6, 3, 18, 3, 18, 21, 12, 16, 6, 21));
                 case BACK -> g.draw(open(15, 4, 7, 12, 15, 20));
                 case FRAME_PREV -> { g.fill(poly(16, 5, 8, 12, 16, 19)); g.fillRect(5, 5, 2, 14); }
@@ -292,6 +290,39 @@ public final class Theme {
                 case SEARCH -> { g.drawOval(4, 4, 12, 12); g.drawLine(14, 14, 20, 20); }
             }
             g.dispose();
+        }
+
+        /**
+         * The settings cog: the menu's nav icon (draw-nav-icons.py settings()) on this 24-unit grid. Eight square
+         * teeth centred on 22.5° + k·45° (flat valleys at top, bottom and sides), the outline running at radius 7
+         * between teeth and 9 across their tips; drawn with the 2-unit stroke, the teeth come out 3.5 units wide.
+         */
+        private static final Shape COG = cog(8, 7, 9, 0.75);
+        private static final Shape COG_HUB = new Ellipse2D.Double(9, 9, 6, 6);
+
+        private static Shape cog(int teeth, double inner, double outer, double halfWidth) {
+            Path2D p = new Path2D.Double();
+            double baseHalf = Math.asin(halfWidth / inner);      // a tooth's half-width at the root, as an angle
+            double rootR = Math.sqrt(inner * inner - halfWidth * halfWidth), tipR = Math.sqrt(outer * outer - halfWidth * halfWidth);
+            for (int k = 0; k < teeth; k++) {
+                double a = Math.toRadians(22.5 + k * 360.0 / teeth);
+                double ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux; // radial and tangential unit vectors
+                double[][] pts = {
+                        {rootR * ux - halfWidth * vx, rootR * uy - halfWidth * vy},
+                        {tipR * ux - halfWidth * vx, tipR * uy - halfWidth * vy},
+                        {tipR * ux + halfWidth * vx, tipR * uy + halfWidth * vy},
+                        {rootR * ux + halfWidth * vx, rootR * uy + halfWidth * vy}};
+                for (int i = 0; i < pts.length; i++) {
+                    if (k == 0 && i == 0) p.moveTo(12 + pts[i][0], 12 + pts[i][1]);
+                    else p.lineTo(12 + pts[i][0], 12 + pts[i][1]);
+                }
+                // The valley to the next tooth, along the inner circle (clockwise on screen, so a negative extent).
+                double from = a + baseHalf, to = Math.toRadians(22.5 + (k + 1) * 360.0 / teeth) - baseHalf;
+                p.append(new Arc2D.Double(12 - inner, 12 - inner, 2 * inner, 2 * inner, -Math.toDegrees(from),
+                        -Math.toDegrees(to - from), Arc2D.OPEN), true);
+            }
+            p.closePath();
+            return p;
         }
 
         private static Path2D poly(double... xy) {

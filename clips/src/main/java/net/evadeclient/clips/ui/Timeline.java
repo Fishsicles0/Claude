@@ -16,6 +16,7 @@ import java.awt.TexturePaint;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
@@ -441,7 +442,8 @@ public final class Timeline extends JComponent {
             tri.closePath();
             g.fill(tri);
             g.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{3, 3}, 0));
-            g.drawLine((int) x, y0, (int) x, y0 + STRIP + WAVE);
+            // At the exact (unrounded) x, like the triangle above it (STROKE_PURE keeps it there).
+            g.draw(new Line2D.Double(x, y0, x, y0 + STRIP + WAVE));
             String l = labelOf.apply(m);
             if (l != null) {
                 g.setFont(Theme.interBold.deriveFont(10.5f));
@@ -459,7 +461,8 @@ public final class Timeline extends JComponent {
         if (px >= PAD - 1 && px <= PAD + tw + 1) {
             g.setColor(Color.WHITE);
             g.setStroke(new BasicStroke(2f));
-            g.drawLine((int) px, y0 - 4, (int) px, y0 + STRIP + WAVE + 4);
+            // At the exact (unrounded) x, so the line stays centred under the head and moves smoothly.
+            g.draw(new Line2D.Double(px, y0 - 4, px, y0 + STRIP + WAVE + 4));
             Path2D head = new Path2D.Double();
             head.moveTo(px - 6, y0 - 12);
             head.lineTo(px + 6, y0 - 12);

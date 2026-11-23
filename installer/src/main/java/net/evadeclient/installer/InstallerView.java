@@ -8,6 +8,7 @@ import javax.swing.Timer;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -19,6 +20,7 @@ import java.awt.Point;
 import java.awt.RadialGradientPaint;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -26,12 +28,16 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /** The whole installer UI, painted by hand so it matches the client's black and red look. */
@@ -78,11 +84,28 @@ public final class InstallerView extends JPanel {
     boolean openingLauncher;
     final List<String> stepsDone = new ArrayList<>();
 
+    /**
+     * Set when the window has per-pixel alpha: the view then paints the rounded window itself, with anti-aliased
+     * corners, over a transparent frame. Otherwise the window is cut to the rounded shape (hard-edged corners).
+     */
+    boolean roundCorners;
+
     private final Map<String, Rectangle> hits = new HashMap<>();
     private final Map<String, Float> hover = new HashMap<>();
     private String hovered;
     private Point dragFrom;
     private final long start = System.currentTimeMillis();
+    /** Set while painting when a hover or toggle animation hasn't settled yet (the timer keeps repainting until it has). */
+    private boolean animating;
+
+    /** Static layers, rendered once per device scale: the window background and the card's soft shadow. */
+    private BufferedImage bgLayer, shadowLayer;
+    private double bgScale, shadowScale;
+    private boolean bgRound;
+    private int shadowW, shadowH;
+    /** Card shadow: box-blur radius (three passes, close to a Gaussian), offset and strength. */
+    private static final int SHADOW_BLUR = 5, SHADOW_PAD = 3 * SHADOW_BLUR + 2, SHADOW_DY = 10;
+    private static final float SHADOW_ALPHA = 0.45f;
 
     Runnable onInstall = () -> {};
     /** Runs the version check again after it failed. */
@@ -102,7 +125,7 @@ public final class InstallerView extends JPanel {
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) { updateHover(e.getPoint()); }
-            @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); }
+            @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
             @Override public void mousePressed(MouseEvent e) {
                 if (e.getY() < 44 && hit(e.getPoint()) == null) dragFrom = e.getPoint();
             }
@@ -116,10 +139,11 @@ public final class InstallerView extends JPanel {
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
-        // Smooth hover/progress animation.
+        // Smooth hover/progress animation. Repaints only while something moves: an idle window costs nothing
+        // (with per-pixel alpha every repaint re-uploads the whole window).
         new Timer(16, e -> {
             shownProgress += (progress - shownProgress) * 0.18;
-            repaint();
+            if (animating || state == State.INSTALLING || Math.abs(progress - shownProgress) > 1e-4) repaint();
         }).start();
     }
 
@@ -135,7 +159,9 @@ public final class InstallerView extends JPanel {
     }
 
     private void updateHover(Point p) {
+        String was = hovered;
         hovered = hit(p);
+        if (!Objects.equals(was, hovered)) repaint();
         boolean enabled = hovered != null && !(hovered.equals("install") && release == null && releaseError == null)
                 && !(hovered.equals("open") && openingLauncher);
         setCursor(enabled ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
@@ -200,11 +226,13 @@ public final class InstallerView extends JPanel {
     protected void paintComponent(Graphics g0) {
         Graphics2D g = (Graphics2D) g0.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+        // Greyscale text AA: right on a per-pixel-alpha window (LCD AA needs an opaque background) and no colour fringes.
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         hits.clear();
+        animating = false;
         paintBackground(g);
         paintTitleBar(g);
         paintLeft(g);
@@ -212,15 +240,40 @@ public final class InstallerView extends JPanel {
         g.dispose();
     }
 
+    /** The window background (it never changes, so it's rendered once per device scale and then just copied). */
     private void paintBackground(Graphics2D g) {
+        double scale = g.getTransform().getScaleX();
+        if (bgLayer == null || bgScale != scale || bgRound != roundCorners) {
+            bgLayer = deviceImage(W, H, scale);
+            Graphics2D b = bgLayer.createGraphics();
+            b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            b.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            b.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+            b.scale(bgLayer.getWidth() / (double) W, bgLayer.getHeight() / (double) H);
+            paintBackgroundLayer(b, roundCorners);
+            b.dispose();
+            bgScale = scale;
+            bgRound = roundCorners;
+        }
+        g.drawImage(bgLayer, 0, 0, W, H, null);
+    }
+
+    /**
+     * With {@code round}, the three fills cover an anti-aliased rounded rectangle and the corners stay transparent
+     * (the window has per-pixel alpha); otherwise they cover the whole rectangle and the window is cut to shape.
+     */
+    private static void paintBackgroundLayer(Graphics2D g, boolean round) {
+        Shape win = round ? new RoundRectangle2D.Double(0, 0, W, H, 22, 22) : new Rectangle(0, 0, W, H);
         g.setColor(BG);
-        g.fillRect(0, 0, W, H);
+        g.fill(win);
         g.setPaint(new RadialGradientPaint(560, 90, 420, new float[]{0f, 1f},
                 new Color[]{new Color(225, 29, 46, 70), new Color(225, 29, 46, 0)}));
-        g.fillRect(0, 0, W, H);
+        g.fill(win);
         g.setPaint(new RadialGradientPaint(80, 470, 300, new float[]{0f, 1f},
                 new Color[]{new Color(225, 29, 46, 28), new Color(225, 29, 46, 0)}));
-        g.fillRect(0, 0, W, H);
+        g.fill(win);
+        // Everything on top keeps the window's own alpha (SrcAtop), so nothing shows in the transparent corners.
+        g.setComposite(AlphaComposite.SrcAtop);
         // faint grid, fading out from the top
         for (int x = 0; x < W; x += 40) {
             g.setPaint(new GradientPaint(0, 0, new Color(255, 255, 255, 10), 0, H, new Color(255, 255, 255, 0)));
@@ -231,7 +284,54 @@ public final class InstallerView extends JPanel {
             g.fillRect(0, y, W, 1);
         }
         g.setColor(new Color(255, 255, 255, 18));
-        g.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, 22, 22));
+        g.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, 21, 21));
+        g.setComposite(AlphaComposite.SrcOver);
+    }
+
+    /** An empty image covering {@code w}×{@code h} user units at {@code scale} device pixels per unit. */
+    private static BufferedImage deviceImage(int w, int h, double scale) {
+        return new BufferedImage(Math.max(1, (int) Math.round(w * scale)), Math.max(1, (int) Math.round(h * scale)),
+                BufferedImage.TYPE_INT_ARGB_PRE);
+    }
+
+    /**
+     * The card's drop shadow: a black rounded rectangle softened by three passes of a separable box blur, built
+     * once per card size and device scale and drawn at {@link #SHADOW_ALPHA}, {@link #SHADOW_DY} px lower.
+     */
+    private void paintCardShadow(Graphics2D g, int x, int y, int w, int h) {
+        double scale = g.getTransform().getScaleX();
+        int pad = SHADOW_PAD;
+        if (shadowLayer == null || shadowScale != scale || shadowW != w || shadowH != h) {
+            BufferedImage img = deviceImage(w + 2 * pad, h + 2 * pad, scale);
+            Graphics2D s = img.createGraphics();
+            s.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            s.scale(img.getWidth() / (double) (w + 2 * pad), img.getHeight() / (double) (h + 2 * pad));
+            s.setColor(Color.BLACK);
+            s.fill(new RoundRectangle2D.Double(pad, pad, w, h, 18, 18));
+            s.dispose();
+            int r = Math.max(1, (int) Math.round(SHADOW_BLUR * scale));
+            float[] k = new float[2 * r + 1];
+            Arrays.fill(k, 1f / k.length);
+            ConvolveOp across = new ConvolveOp(new Kernel(k.length, 1, k), ConvolveOp.EDGE_NO_OP, null);
+            ConvolveOp down = new ConvolveOp(new Kernel(1, k.length, k), ConvolveOp.EDGE_NO_OP, null);
+            BufferedImage tmp = new BufferedImage(img.getWidth(), img.getHeight(), img.getType());
+            try {
+                for (int i = 0; i < 3; i++) {
+                    across.filter(img, tmp);
+                    down.filter(tmp, img);
+                }
+            } catch (RuntimeException ignored) {
+                // No imaging library: the shadow stays crisp rather than missing.
+            }
+            shadowLayer = img;
+            shadowScale = scale;
+            shadowW = w;
+            shadowH = h;
+        }
+        Composite was = g.getComposite();
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SHADOW_ALPHA));
+        g.drawImage(shadowLayer, x - pad, y + SHADOW_DY - pad, w + 2 * pad, h + 2 * pad, null);
+        g.setComposite(was);
     }
 
     private void paintTitleBar(Graphics2D g) {
@@ -304,10 +404,7 @@ public final class InstallerView extends JPanel {
     private void paintCard(Graphics2D g) {
         int x = 420, y = 60, w = 316, h = H - 104;
         // shadow + card
-        for (int i = 0; i < 6; i++) {
-            g.setColor(new Color(0, 0, 0, 22));
-            g.fill(new RoundRectangle2D.Double(x - i, y - i + 6, w + 2 * i, h + 2 * i, 22 + i, 22 + i));
-        }
+        paintCardShadow(g, x, y, w, h);
         g.setColor(CARD);
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 18, 18));
         g.setColor(BORDER);
@@ -384,10 +481,16 @@ public final class InstallerView extends JPanel {
                 g.setFont(inter.deriveFont(13f));
                 g.setColor(TEXT);
                 g.drawString(rows[i][1], x, ry + 13);
-                g.setColor(mix(new Color(0x2A2A31), RED, on));
+                // On: the Install button's RED_HI-to-RED gradient (blended in from the off grey as it switches).
+                Color off = new Color(0x2A2A31);
+                g.setPaint(new GradientPaint(0, ry, mix(off, RED_HI, on), 0, ry + 20, mix(off, RED, on)));
                 g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
+                // knob, on a soft contact shadow
+                double kx = tx + 3 + on * 18;
+                g.setColor(new Color(0, 0, 0, 50));
+                g.fill(new Ellipse2D.Double(kx - 0.5, ry + 3 + 1 - 0.5, 15, 15));
                 g.setColor(Color.WHITE);
-                g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
+                g.fill(new Ellipse2D.Double(kx, ry + 3, 14, 14));
                 hits.put(rows[i][0], new Rectangle(x, ry - 4, w, 28));
             } else {
                 g.setFont(inter.deriveFont(13f));
@@ -446,9 +549,7 @@ public final class InstallerView extends JPanel {
         // moving shine
         float s = ((System.currentTimeMillis() - start) % 1400) / 1400f;
         g.setPaint(new GradientPaint(x + bw * s - 30, 0, new Color(255, 255, 255, 0), x + bw * s, 0, new Color(255, 255, 255, 90), true));
-        g.setClip(new RoundRectangle2D.Double(x, y + 114, bw, 6, 6, 6));
-        g.fillRect(x, y + 114, bw, 6);
-        g.setClip(null);
+        g.fill(new RoundRectangle2D.Double(x, y + 114, bw, 6, 6, 6));
 
         g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
@@ -768,8 +869,12 @@ public final class InstallerView extends JPanel {
     // ------------------------------------------------------------------ misc
 
     private float anim(String id, boolean target) {
-        float v = hover.getOrDefault(id, target ? 1f : 0f);
-        v += ((target ? 1f : 0f) - v) * 0.22f;
+        float to = target ? 1f : 0f;
+        float v = hover.getOrDefault(id, to);
+        v += (to - v) * 0.22f;
+        // Settle exactly on the target, so the timer can stop repainting.
+        if (Math.abs(to - v) < 0.002f) v = to;
+        else animating = true;
         hover.put(id, v);
         return v;
     }
@@ -807,7 +912,11 @@ public final class InstallerView extends JPanel {
         g.setComposite(AlphaComposite.SrcOver);
         setSize(W, H);
         shownProgress = progress;
+        // The image has alpha, so it shows the window as it looks with per-pixel alpha: smooth, see-through corners.
+        boolean was = roundCorners;
+        roundCorners = true;
         paint(g);
+        roundCorners = was;
         g.dispose();
         return img;
     }
