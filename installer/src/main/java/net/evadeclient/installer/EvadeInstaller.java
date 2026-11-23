@@ -37,6 +37,8 @@ public final class EvadeInstaller {
         List<String> a = List.of(args);
         if (a.contains("--cli")) { cli(a); return; }
         if (a.contains("--screenshots")) { screenshots(Paths.get(arg(a, "--screenshots", "screenshots"))); return; }
+        // A newer installer on evadeclient.com takes over (and replaces this file), so one download lasts.
+        if (SelfUpdate.run(a)) { System.exit(0); return; }
         System.setProperty("awt.useSystemAAFontSettings", "lcd");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
         SwingUtilities.invokeLater(EvadeInstaller::openWindow);
