@@ -415,14 +415,15 @@ public final class InstallerCore {
         Path app = clipsAppDir();
         Files.createDirectories(app);
         boolean exe = r.clipsUrl().replaceFirst("[?#].*$", "").toLowerCase(Locale.ROOT).endsWith(".exe");
-        Path target = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
+        Path standard = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
+        Path target = standard;
         Path fresh = app.resolve(target.getFileName() + ".new");
         p.update(0.84, "Downloading Evade Clips " + r.clipsVersion());
         download(r.clipsUrl(), fresh, r.clipsSha256(), "SHA-256", 0.84, 0.94, p);
 
         // Old copies set aside by an earlier update (once nothing is running them any more).
         try (var old = Files.list(app)) {
-            old.filter(f -> f.getFileName().toString().startsWith(target.getFileName() + ".old"))
+            old.filter(f -> f.getFileName().toString().startsWith(standard.getFileName() + ".old"))
                .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
         } catch (IOException ignored) { }
         FileSystemException busy = null;
@@ -444,9 +445,26 @@ public final class InstallerCore {
                 Files.move(target, aside);
                 move(fresh, target);
             } catch (IOException e2) {
-                busy = e;
+                // Still locked: install the new build under its own name beside the running one and point Evade
+                // Client and the shortcuts at it. Nothing has to be replaced, so no lock can stop the update.
+                String name = exe ? "Evade-Clips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".exe"
+                        : "EvadeClips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".jar";
+                try {
+                    Path side = app.resolve(name);
+                    move(fresh, side);
+                    target = side;
+                } catch (IOException e3) {
+                    busy = e;
+                }
             }
         }
+        // Earlier side-by-side builds that nothing runs any more (a running one stays until next time).
+        final Path current = target;
+        try (var old = Files.list(app)) {
+            String prefix = exe ? "Evade-Clips-" : "EvadeClips-";
+            old.filter(f -> f.getFileName().toString().startsWith(prefix) && !f.equals(current))
+               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
+        } catch (IOException ignored) { }
 
         // Where Evade Client finds the app to start it with Minecraft. Other fields (written by the app) are kept.
         Path locFile = clipsDataDir().resolve("location.json");
