@@ -427,7 +427,15 @@ public final class InstallerCore {
         } catch (IOException ignored) { }
         FileSystemException busy = null;
         try {
-            move(fresh, target);
+            try {
+                move(fresh, target);
+            } catch (FileSystemException first) {
+                // Evade Clips is open (often only in the tray) and Windows keeps its file locked: close it and retry.
+                if (!WINDOWS) throw first;
+                p.update(0.945, "Closing Evade Clips to update it");
+                closeRunningClips(target);
+                move(fresh, target);
+            }
         } catch (FileSystemException e) {
             // Evade Clips is open (often just in the tray). Windows won't let a running program be replaced, but it
             // can be renamed: set it aside and put the new one in its place; it's used from the next start.
@@ -1140,6 +1148,40 @@ public final class InstallerCore {
             return name;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Windows: closes a running Evade Clips so its file can be replaced. Asks politely first (like closing the
+     * window), then ends it and the Java it started. Waits until the file is free, at most about 8 seconds.
+     */
+    static void closeRunningClips(Path exe) {
+        String image = exe.getFileName().toString();
+        try {
+            run("taskkill", "/T", "/IM", image);
+            for (int i = 0; i < 10 && locked(exe); i++) Thread.sleep(300);
+            if (locked(exe)) run("taskkill", "/F", "/T", "/IM", image);
+            for (int i = 0; i < 17 && locked(exe); i++) Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception ignored) {
+            // Not fatal: the caller falls back to updating it on the next start.
+        }
+    }
+
+    private static void run(String... cmd) throws Exception {
+        Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+        pr.getInputStream().readAllBytes();
+        pr.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    /** True while another program holds {@code file} open (Windows refuses to open it for writing). */
+    private static boolean locked(Path file) {
+        if (!Files.exists(file)) return false;
+        try (var ch = java.nio.channels.FileChannel.open(file, java.nio.file.StandardOpenOption.WRITE)) {
+            return false;
+        } catch (IOException e) {
+            return true;
         }
     }
 
