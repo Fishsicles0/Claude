@@ -50,7 +50,7 @@ public abstract class InGameHudMixin {
     }
 
     /**
-     * Freelook in first person (Third Person off): the camera looks away from where the player aims, so vanilla's
+     * Freelook in first person (Perspective First Person or Keep Current): the camera looks away from where the player aims, so vanilla's
      * crosshair would point at nothing. The custom Crosshair hides itself the same way.
      */
     @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)

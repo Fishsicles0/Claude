@@ -17,9 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Builds the ffmpeg input arguments for the screen / window / region and audio devices on each OS:
- * Windows uses Desktop Duplication (ddagrab) or GDI and DirectShow audio, macOS AVFoundation, Linux X11 and
- * PulseAudio/PipeWire.
+ * Builds the ffmpeg input arguments for the Minecraft window and the audio devices on each OS. Evade Clips only
+ * records Minecraft: Windows grabs the Minecraft window itself (GDI) with DirectShow audio, Linux grabs the
+ * Minecraft window's area of the X11 screen with PulseAudio/PipeWire, and macOS (which can only grab whole
+ * screens) the main screen, where Minecraft plays.
  */
 public final class CaptureSource {
     private CaptureSource() {}
@@ -46,9 +47,9 @@ public final class CaptureSource {
         return out;
     }
 
-    private static Rectangle monitor(Settings s) {
-        List<Rectangle> mons = monitors();
-        return mons.get(Math.max(0, Math.min(mons.size() - 1, s.monitor)));
+    /** The main screen (where the Minecraft window's size is assumed to be until it's found). */
+    private static Rectangle mainScreen() {
+        return monitors().get(0);
     }
 
     /**
@@ -62,15 +63,14 @@ public final class CaptureSource {
 
     /**
      * The size capture will produce with these settings (for the bitrate ceiling and the Record page), worked
-     * out without opening audio devices or looking for windows. A window's size isn't known up front, so the
-     * window source assumes its monitor.
+     * out without opening audio devices or looking for windows. The Minecraft window's size isn't known up
+     * front, so it's assumed to fill the main screen (as it does when you play fullscreen).
      */
     public static Dimension outputSize(Settings s) {
-        Rectangle mon = monitor(s);
+        Rectangle mon = mainScreen();
         int testH = s.resolution >= 1080 ? 1080 : 720, testW = testH == 1080 ? 1920 : 1280;
         int srcW, srcH;
         if (s.source.startsWith("test")) { srcW = testW; srcH = testH; }
-        else if (s.source.equals("region")) { srcW = even(s.regionW); srcH = even(s.regionH); }
         else { srcW = mon.width; srcH = mon.height; }
         srcH = Math.max(2, srcH);
         int oh = s.resolution > 0 && srcH > s.resolution ? s.resolution : srcH;
@@ -83,14 +83,13 @@ public final class CaptureSource {
 
     /**
      * Inputs for a capture that encodes with {@code encoder}. {@code windowTitle} is the exact title of the
-     * window to grab (from {@link #findWindow}) for the Windows "Game window" source; null uses the setting as is.
+     * Minecraft window to grab on Windows (from {@link #findWindow}); null uses "Minecraft".
      */
     static Inputs build(Settings s, String encoder, String windowTitle) {
         List<String> a = new ArrayList<>();
         boolean vaapi = Ffmpeg.isVaapi(encoder);
         if (vaapi) a.addAll(Ffmpeg.vaapiDeviceArgs());
         int fps = s.fps;
-        Rectangle mon = monitor(s);
         String vf = null; // extra filter on the video input
         int srcH;
         int testH = s.resolution >= 1080 ? 1080 : 720, testW = testH == 1080 ? 1920 : 1280;
@@ -109,35 +108,33 @@ public final class CaptureSource {
                 a.addAll(List.of("-re", "-f", "lavfi", "-i", src));
                 srcH = testH;
             }
-            case "region" -> {
-                Rectangle r = new Rectangle(s.regionX, s.regionY, even(s.regionW), even(s.regionH));
-                screenInput(a, s, r, fps, null);
-                // AVFoundation can only grab whole screens, so cut the region out afterwards.
-                if (Ffmpeg.MAC) vf = "crop=" + r.width + ":" + r.height + ":" + r.x + ":" + r.y;
-                srcH = r.height;
-            }
-            case "window" -> {
+            default -> {
+                // The Minecraft window, and nothing else.
                 if (Ffmpeg.WINDOWS) {
                     a.addAll(List.of("-f", "gdigrab", "-framerate", String.valueOf(fps), "-draw_mouse", s.captureCursor ? "1" : "0",
-                            "-i", "title=" + (windowTitle != null ? windowTitle : s.windowTitle)));
+                            "-i", "title=" + (windowTitle != null ? windowTitle : MINECRAFT_WINDOW)));
                     vf = "crop=trunc(iw/2)*2:trunc(ih/2)*2";
                     srcH = 0;
+                } else if (Ffmpeg.MAC) {
+                    // AVFoundation can only grab whole screens: the main one, where Minecraft plays.
+                    String fr = String.valueOf(fps);
+                    a.addAll(List.of("-f", "avfoundation", "-framerate", fr, "-capture_cursor", s.captureCursor ? "1" : "0",
+                            "-pixel_format", "uyvy422", "-i", "Capture screen 0:none"));
+                    srcH = mainScreen().height;
                 } else {
-                    // No per-window capture outside Windows; fall back to the monitor.
-                    screenInput(a, s, mon, fps, s.monitor);
-                    srcH = mon.height;
+                    Rectangle r = linuxMinecraftWindow();
+                    if (r == null) r = mainScreen();
+                    String display = System.getenv("DISPLAY");
+                    if (display == null || display.isBlank()) display = ":0";
+                    a.addAll(List.of("-f", "x11grab", "-framerate", String.valueOf(fps), "-draw_mouse", s.captureCursor ? "1" : "0",
+                            "-video_size", even(r.width) + "x" + even(r.height), "-i", display + "+" + r.x + "," + r.y));
+                    srcH = even(r.height);
                 }
-            }
-            default -> {
-                screenInput(a, s, mon, fps, s.monitor);
-                srcH = mon.height;
             }
         }
 
         // Video chain: optional crop to even size, then downscale to the chosen resolution.
         List<String> chain = new ArrayList<>();
-        if (Ffmpeg.WINDOWS && !s.source.startsWith("test") && !s.source.equals("window") && !s.source.equals("region") && hasDdagrab())
-            chain.add("hwdownload,format=bgra");
         if (vf != null) chain.add(vf);
         if (s.resolution > 0) {
             // A window's size is only known once it's grabbed: shrink big ones, never blow small ones up.
@@ -193,30 +190,6 @@ public final class CaptureSource {
         return Ffmpeg.WINDOWS || Ffmpeg.MAC ? audioDevices() : Map.of();
     }
 
-    private static void screenInput(List<String> a, Settings s, Rectangle r, int fps, Integer monitorIndex) {
-        String fr = String.valueOf(fps);
-        if (Ffmpeg.WINDOWS) {
-            if (monitorIndex != null && hasDdagrab()) {
-                // Desktop Duplication: captures fullscreen games and is far cheaper than GDI.
-                a.addAll(List.of("-f", "lavfi", "-i", "ddagrab=output_idx=" + monitorIndex + ":framerate=" + fr
-                        + ":draw_mouse=" + (s.captureCursor ? 1 : 0)));
-            } else {
-                a.addAll(List.of("-f", "gdigrab", "-framerate", fr, "-draw_mouse", s.captureCursor ? "1" : "0",
-                        "-offset_x", String.valueOf(r.x), "-offset_y", String.valueOf(r.y),
-                        "-video_size", even(r.width) + "x" + even(r.height), "-i", "desktop"));
-            }
-        } else if (Ffmpeg.MAC) {
-            int screen = monitorIndex == null ? 0 : monitorIndex;
-            a.addAll(List.of("-f", "avfoundation", "-framerate", fr, "-capture_cursor", s.captureCursor ? "1" : "0",
-                    "-pixel_format", "uyvy422", "-i", "Capture screen " + screen + ":none"));
-        } else {
-            String display = System.getenv("DISPLAY");
-            if (display == null || display.isBlank()) display = ":0";
-            a.addAll(List.of("-f", "x11grab", "-framerate", fr, "-draw_mouse", s.captureCursor ? "1" : "0",
-                    "-video_size", even(r.width) + "x" + even(r.height), "-i", display + "+" + r.x + "," + r.y));
-        }
-    }
-
     private static boolean audioInput(List<String> a, String device) {
         if (Ffmpeg.WINDOWS) a.addAll(List.of("-f", "dshow", "-audio_buffer_size", "50", "-i", "audio=" + device));
         else if (Ffmpeg.MAC) a.addAll(List.of("-f", "avfoundation", "-i", ":" + device));
@@ -226,18 +199,34 @@ public final class CaptureSource {
 
     private static int even(int v) { return Math.max(2, v - (v % 2)); }
 
-    private static Boolean ddagrab;
+    // ------------------------------------------------------------------ the Minecraft window
 
-    static synchronized boolean hasDdagrab() {
-        if (ddagrab == null) {
-            String exe = Ffmpeg.ffmpeg();
-            if (exe == null) return false;
-            ddagrab = Ffmpeg.WINDOWS && Ffmpeg.capture(List.of(exe, "-hide_banner", "-filters"), 10).contains("ddagrab");
+    /** What the Minecraft window's title starts with ("Minecraft 1.21.4 - Multiplayer (3rd-party Server)"). */
+    public static final String MINECRAFT_WINDOW = "Minecraft";
+
+    /**
+     * The Minecraft window's area on the X11 screen (from {@code xwininfo}), clipped to the screen, or null when
+     * it can't be found (no xwininfo, or Minecraft has no window yet).
+     */
+    static Rectangle linuxMinecraftWindow() {
+        String out;
+        try { out = Ffmpeg.capture(List.of("xwininfo", "-root", "-tree"), 5); } catch (RuntimeException e) { return null; }
+        // 0x3a00007 "Minecraft 1.21.4 - Singleplayer": ("Minecraft" "Minecraft")  1280x720+0+0  +320+180
+        Pattern line = Pattern.compile("0x[0-9a-fA-F]+ \"([^\"]*)\".*?(\\d+)x(\\d+)[+-]-?\\d+[+-]-?\\d+\\s+\\+?(-?\\d+)\\+?(-?\\d+)");
+        Rectangle best = null;
+        for (String l : out.split("\r?\n")) {
+            Matcher m = line.matcher(l.trim());
+            if (!m.find() || !m.group(1).startsWith(MINECRAFT_WINDOW)) continue;
+            Rectangle r = new Rectangle(Integer.parseInt(m.group(4)), Integer.parseInt(m.group(5)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)));
+            if (r.width < 64 || r.height < 64) continue;
+            if (best == null || r.width * (long) r.height > best.width * (long) best.height) best = r;
         }
-        return ddagrab;
+        if (best == null) return null;
+        Rectangle screen = new Rectangle();
+        for (Rectangle mon : monitors()) screen = screen.isEmpty() ? new Rectangle(mon) : screen.union(mon);
+        Rectangle r = best.intersection(screen);
+        return r.width < 64 || r.height < 64 ? null : new Rectangle(r.x, r.y, even(r.width), even(r.height));
     }
-
-    // ------------------------------------------------------------------ game window (Windows)
 
     /**
      * Lists the visible top-level windows as "pid TAB exe path TAB title", without any user text in the
@@ -248,15 +237,14 @@ public final class CaptureSource {
             + "Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { [string]$_.Id + [char]9 + [string]$_.Path + [char]9 + $_.MainWindowTitle }";
 
     /**
-     * The exact title of the open window whose title contains {@code text} (ignoring case), which is what
-     * gdigrab needs. Prefers a game's window, then an exact match, then one that starts with the text, so
-     * "Minecraft" finds "Minecraft 1.21.11 - Multiplayer" rather than a browser tab about Minecraft.
+     * The exact title of the open window whose title contains {@code text} (ignoring case; normally "Minecraft"),
+     * which is what gdigrab needs. Prefers Minecraft's own (Java) window, then an exact match, then one that starts
+     * with the text, so "Minecraft" finds "Minecraft 1.21.11 - Multiplayer" rather than a browser tab about it.
      *
      * @throws IOException when no such window is open
      */
     static String findWindow(String text) throws IOException {
-        String want = text == null ? "" : text.trim();
-        if (want.isEmpty()) throw new IOException("Enter the game window's title on the Record page");
+        String want = text == null || text.isBlank() ? MINECRAFT_WINDOW : text.trim();
         String out = Ffmpeg.capture(List.of(powershell(), "-NoProfile", "-NonInteractive", "-Command", WINDOW_LIST), 10);
         if (!out.contains("#ok")) return want; // PowerShell couldn't run: let gdigrab try the text as the exact title
         String w = want.toLowerCase(Locale.ROOT);
@@ -281,7 +269,7 @@ public final class CaptureSource {
             else if (low.startsWith(w)) score += 1;
             if (score > bestScore) { best = title; bestScore = score; }
         }
-        if (best == null) throw new IOException("No window containing \"" + want + "\" is open");
+        if (best == null) throw new IOException("Open Minecraft with Evade Client to record.");
         return best;
     }
 

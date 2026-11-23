@@ -81,7 +81,7 @@ public final class CaptureEngine {
     private int outW, outH;
     /** Audio track names of the running capture ("Game", "Mic", "Voice chat"); MPEG-TS can't store them. */
     private List<String> trackTitles = List.of();
-    /** Exact title of the window being grabbed (Windows "Game window" source), or null. */
+    /** Exact title of the Minecraft window being grabbed (Windows), or null. */
     private String windowTitle;
     /** The running capture grabs a Linux screen under Wayland (black frames). */
     private boolean waylandScreen;
@@ -167,10 +167,10 @@ public final class CaptureEngine {
             if (closed || (process != null && process.isAlive())) return;
         }
         if (!Ffmpeg.available()) throw new IOException("ffmpeg was not found. Install it or set its location in Settings.");
-        // The slow parts (encoder probe, audio devices, finding the game window) run before taking the lock, so
+        // The slow parts (encoder probe, audio devices, finding the Minecraft window) run before taking the lock, so
         // the Record page never waits on them.
         String enc = pickEncoder(settings);
-        String title = Ffmpeg.WINDOWS && "window".equals(settings.source) ? CaptureSource.findWindow(settings.windowTitle) : null;
+        String title = Ffmpeg.WINDOWS && !settings.source.startsWith("test") ? CaptureSource.findWindow(CaptureSource.MINECRAFT_WINDOW) : null;
         CaptureSource.Inputs in = CaptureSource.build(settings, enc, title);
         synchronized (this) {
             if (closed || (process != null && process.isAlive())) return;

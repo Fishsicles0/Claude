@@ -24,7 +24,7 @@ public final class FrameStats {
         long now = System.nanoTime();
         if (last != 0) {
             float ms = (now - last) / 1_000_000f;
-            if (ms < 1000) { MS[head] = ms; head = (head + 1) % SIZE; count = Math.min(count + 1, SIZE); }
+            if (ms < 1000) { MS[head] = ms; head = (head + 1) % SIZE; count = Math.min(count + 1, SIZE); Benchmark.onFrame(ms); }
         }
         last = now;
     }

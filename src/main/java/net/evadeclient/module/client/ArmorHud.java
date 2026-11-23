@@ -357,7 +357,7 @@ public class ArmorHud extends HudElementModule {
             if (s.warn && style.equals("Flash Slot"))
                 ctx.fill(x - 1, y - 1, x + 17, y + 17, ColorUtil.withAlpha(0xFF3030, (int) (40 + 120 * pulse)));
             if (s.stack.isEmpty()) {
-                ctx.fill(x + 3, y + 3, x + 13, y + 13, 0x30FFFFFF);
+                net.evadeclient.util.Theme.round(ctx, x + 3, y + 3, x + 13, y + 13, 0x30FFFFFF, net.evadeclient.util.Theme.R_XS);
                 continue;
             }
             boolean under = !vertical || side.equals("Under");

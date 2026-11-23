@@ -1,4 +1,5 @@
-Inter font (assets/evade/font/inter-medium.ttf, converted to TrueType outlines)
+Inter font (assets/evade/font/inter-medium.ttf and inter-semibold.ttf: Inter Medium and SemiBold 4.000,
+converted to TrueType outlines and subset to Latin, Greek and Cyrillic by scripts/build-ui-fonts.py)
 Copyright 2016-2023 The Inter Project Authors (https://github.com/rsms/inter)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

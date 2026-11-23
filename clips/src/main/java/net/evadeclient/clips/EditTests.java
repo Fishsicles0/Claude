@@ -122,7 +122,11 @@ public final class EditTests {
         fx.effects.add(new EditSpec.Effect("hitmarker", 3, "Hitmarker"));
         fx.effects.add(new EditSpec.Effect("shake", 5, "Boom"));
         fx.effects.add(new EditSpec.Effect("punch", 6.5, "Whoosh"));
-        Path fxOut = export(srcFile, src, fx, o, "fx");
+        Exporter.Options raw = new Exporter.Options();
+        raw.preset = o.preset;
+        raw.gpu = o.gpu;
+        raw.normalize = false; // this check compares levels inside the mix (exports are loudness-normalised by default)
+        Path fxOut = export(srcFile, src, fx, raw, "fx");
         double before = luma(frame(fxOut, 1.8)), during = luma(frame(fxOut, 2.03));
         check(during > before + 40, String.format("flash brightens the frame (luma %.0f → %.0f)", before, during));
         BufferedImage hm = frame(fxOut, 3.06), noHm = frame(fxOut, 2.7);
@@ -228,7 +232,7 @@ public final class EditTests {
         Path jsx = dirOut.resolve("Project test - After Effects.jsx"), xml = dirOut.resolve("Project test - Premiere & Resolve.xml");
         String js = Files.readString(jsx);
         long parts = js.lines().filter(l -> l.contains("remap(L")).count();
-        check(Files.exists(dirOut.resolve("media/Project test.mp4")) && Files.exists(dirOut.resolve("media/Game.wav")) && Files.exists(dirOut.resolve("media/sfx-Boom.wav")),
+        check(Files.exists(dirOut.resolve("media/Project test.mp4")) && Files.exists(dirOut.resolve("media/1 - Game.wav")) && Files.exists(dirOut.resolve("media/sfx-Boom.wav")),
                 "project folder: footage, each audio track as WAV, and the effect sound");
         check(parts == e.segments.size() && js.contains("addText('CLUTCH')") && js.contains("setValueAtTime") && js.contains("Kill Steve") && js.contains("Shake + Boom"),
                 "After Effects script: " + parts + " time-remapped parts, caption text layer, zoom keyframes, markers and effects");

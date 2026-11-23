@@ -469,7 +469,7 @@ public final class InstallerView extends JPanel {
                 {"copy", "Copy my settings & servers", ""},
                 {"voice", "Voice chat (Simple Voice Chat)", "Voice chat"},
                 {"perf", "FPS mods (Sodium & more)", "FPS mods"},
-                {"shaders", "Shaders (Iris + Complementary)", "Shaders"},
+                {"shaders", "Shaders (Iris + Photon)", "Shaders"},
                 {"clips", "Evade Clips (record & edit clips)", "Evade Clips"}};
         boolean[] values = {copySettings, voiceChat, performanceMods, shaders, installClips};
         boolean[] available = {true, voiceAvailable(), perfAvailable(), shadersAvailable(), clipsAvailable()};

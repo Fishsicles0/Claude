@@ -375,7 +375,7 @@ public final class ReplayRender {
                 var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(1)).build();
                 var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:47821/import?path="
                         + java.net.URLEncoder.encode(file.toAbsolutePath().toString(), java.nio.charset.StandardCharsets.UTF_8)
-                        + "&title=" + java.net.URLEncoder.encode(file.getFileName().toString().replace(".mp4", ""), java.nio.charset.StandardCharsets.UTF_8)))
+                        + "&title=" + java.net.URLEncoder.encode(file.getFileName().toString().replace(".mp4", ""), java.nio.charset.StandardCharsets.UTF_8) + "&client=evade"))
                         .timeout(java.time.Duration.ofSeconds(10)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
                 var res = http.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
                 if (res.statusCode() == 200) mc.execute(() -> Notifications.push("Evade Clips", "Render added to your library", true));

@@ -12,6 +12,8 @@ import net.evadeclient.module.Module;
 import net.evadeclient.module.visuals.Particles;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.ModeSetting;
+import net.evadeclient.setting.StringSetting;
+import net.evadeclient.util.Notifications;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.util.FrameStats;
@@ -116,6 +118,20 @@ public class Performance extends Module {
     public final ModeSetting adaptSpeed = add(new ModeSetting("Adapt Speed", "Normal", "Slow", "Normal", "Fast")
             .describe("How quickly Adaptive Quality reacts to the frame rate."));
     public final StatusSetting adaptiveNow = add(new StatusSetting("Adaptive Now", this::adaptiveNowText, "live"));
+    /** One-click presets that set the options below. Changing any of them afterwards is fine: the preset only applies when picked. */
+    public final ModeSetting fpsMode = add(new ModeSetting("FPS Mode", "Balanced", "Max FPS", "Balanced", "Quality", "Custom")
+            .describe("Max FPS: the highest frame rate, render distance up to 8. Balanced: big gains while it still looks good, render distance up to 12. Quality: only unlocks the frame rate and keeps your visuals. Custom: set everything yourself."));
+    /** The preset last applied (so a saved config isn't re-applied over your own changes on every start). */
+    private final StringSetting appliedMode = add(new StringSetting("Applied FPS Mode", "", "").hidden());
+    public final BooleanSetting unlockFps = add(new BooleanSetting("Unlock FPS", true)
+            .describe("Turns VSync off and removes the frame rate cap, so the game runs as fast as your PC allows. Turn off to put your own VSync and Max Framerate back."));
+    public final NumberSetting renderCap = add(new NumberSetting("Render Distance Cap", 12, 0, 32, 1)
+            .describe("Lowers your render distance to this while Performance is on (0 = leave it alone). Far chunks cost the most frames, especially on laptop graphics."));
+    /** Iris shader packs the installer adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
+    public final ModeSetting shaders = add(new ModeSetting("Shaders", "Leave Alone", "Leave Alone", "Off", "Photon", "Complementary")
+            .describe("Switch shaders without opening Iris. Photon looks the best; Complementary is lighter for laptops. Shaders cost a lot of FPS, so they're best left Off for the highest frame rates."));
+    public final StatusSetting shadersNow = add(new StatusSetting("Shaders Now", net.evadeclient.util.ShaderSwitch::status, "Iris"));
+    private String shadersApplied = "Leave Alone";
     public final BooleanSetting lighterOptions = add(new BooleanSetting("Lighter Video Settings", true));
     public final BooleanSetting lowEnd = add(new BooleanSetting("Low-End PC Mode", false));
     public final StatusSetting addons = add(new StatusSetting("FPS Mods Installed", Performance::installedAddons, "via installer"));
@@ -513,14 +529,94 @@ public class Performance extends Module {
             Map.entry("improvedTransparency", GameOptions::getImprovedTransparency),
             Map.entry("chunkFade", GameOptions::getChunkFade),
             Map.entry("biomeBlendRadius", GameOptions::getBiomeBlendRadius),
-            Map.entry("entityDistanceScaling", GameOptions::getEntityDistanceScaling));
+            Map.entry("entityDistanceScaling", GameOptions::getEntityDistanceScaling),
+            Map.entry("enableVsync", GameOptions::getEnableVsync),
+            Map.entry("maxFps", GameOptions::getMaxFps),
+            Map.entry("renderDistance", GameOptions::getViewDistance),
+            Map.entry("simulationDistance", GameOptions::getSimulationDistance));
 
     /** One option Evade changed: your value, and the value Evade put in its place. */
     private record Changed(String id, SimpleOption<Object> option, Object original, Object applied) {}
 
     private final List<Changed> lighterChanged = new ArrayList<>();
     private final List<Changed> lowEndChanged = new ArrayList<>();
-    private boolean lighterApplied, lowEndApplied;
+    private final List<Changed> unlockChanged = new ArrayList<>();
+    private final List<Changed> distanceChanged = new ArrayList<>();
+    private boolean lighterApplied, lowEndApplied, unlockApplied;
+    private int distanceApplied;
+    /** The game's "Unlimited" Max Framerate. */
+    private static final int UNLIMITED_FPS = 260;
+
+    /** Applies an FPS Mode preset to the settings (Custom changes nothing). */
+    private void applyPreset(String mode) {
+        switch (mode) {
+            case "Max FPS" -> preset(true, true, true, 8, 40, 48, 24);
+            case "Balanced" -> preset(true, true, false, 12, 60, 64, 32);
+            case "Quality" -> preset(true, false, false, 0, 100, 96, 48);
+            default -> { }
+        }
+    }
+
+    private void preset(boolean unlock, boolean lighter, boolean low, int cap, int particles, int entities, int particleDist) {
+        unlockFps.set(unlock);
+        lighterOptions.set(lighter);
+        lowEnd.set(low);
+        renderCap.set((double) cap);
+        particlePercent.set((double) particles);
+        entityDistance.set((double) entities);
+        particleDistance.set((double) particleDist);
+    }
+
+    /** Follows Shaders: a new choice is applied once (in a world, so Iris can reload). */
+    private void followShaders() {
+        String want = shaders.get();
+        if (want.equals(shadersApplied) || mc.world == null) return;
+        shadersApplied = want;
+        if (want.equals("Leave Alone")) return;
+        Notifications.push("Shaders", net.evadeclient.util.ShaderSwitch.apply(want), !want.equals("Off"));
+    }
+
+    /** Follows FPS Mode: a newly picked preset is applied once. */
+    private void followPreset() {
+        String mode = fpsMode.get();
+        if (mode.equals(appliedMode.get())) return;
+        applyPreset(mode);
+        appliedMode.set(mode);
+    }
+
+    /** Unlock FPS: VSync off and the cap at Unlimited. Your own values come back when it's turned off. */
+    private void applyUnlock(boolean on) {
+        if (on == unlockApplied || mc.options == null) return;
+        boolean restored = false;
+        if (on) {
+            boolean vsync = mc.options.getEnableVsync().getValue();
+            int cap = mc.options.getMaxFps().getValue();
+            change(unlockChanged, "enableVsync", false);
+            change(unlockChanged, "maxFps", UNLIMITED_FPS);
+            if (!unlockChanged.isEmpty() && (vsync || cap < UNLIMITED_FPS) && !announcedUnlock) {
+                announcedUnlock = true;
+                Notifications.push("FPS unlocked", "VSync off, no frame cap. Turn off Unlock FPS in Performance to undo.", false);
+            }
+        } else {
+            restored = putBack(unlockChanged);
+        }
+        unlockApplied = on;
+        videoChanged(restored);
+    }
+
+    private boolean announcedUnlock;
+
+    /** Render Distance Cap: lowers render (and simulation) distance to the cap; never raises them. */
+    private void applyDistance(int cap) {
+        if (cap == distanceApplied || mc.options == null) return;
+        boolean restored = putBack(distanceChanged);
+        if (cap > 0) {
+            if (mc.options.getViewDistance().getValue() > cap) change(distanceChanged, "renderDistance", cap);
+            if (mc.options.getSimulationDistance().getValue() > cap) change(distanceChanged, "simulationDistance", Math.max(5, cap));
+        }
+        distanceApplied = cap;
+        videoChanged(restored);
+    }
 
     @SuppressWarnings("unchecked")
     private static SimpleOption<Object> option(GameOptions o, String id) {
@@ -594,6 +690,10 @@ public class Performance extends Module {
     @Override
     public void onTick() {
         // follow the settings while Performance is on
+        followPreset();
+        followShaders();
+        applyUnlock(unlockFps.get());
+        applyDistance((int) Math.round(renderCap.get()));
         applyLighter(lighterOptions.get());
         applyLowEnd(lowEnd.get());
         // Max Particles: start the tick from what's actually alive (render thread, after the particles ticked).
@@ -605,6 +705,9 @@ public class Performance extends Module {
 
     @Override
     protected void onEnable() {
+        followPreset();
+        applyUnlock(unlockFps.get());
+        applyDistance((int) Math.round(renderCap.get()));
         applyLighter(lighterOptions.get());
         applyLowEnd(lowEnd.get());
         resetRuntime();
@@ -614,6 +717,8 @@ public class Performance extends Module {
     protected void onDisable() {
         applyLowEnd(false);
         applyLighter(false);
+        applyDistance(0);
+        applyUnlock(false);
         resetRuntime();
     }
 
@@ -632,9 +737,11 @@ public class Performance extends Module {
     /** On quit: hand every option back before the game shuts down, and save them as yours. */
     private void restoreVideoOptions() {
         try {
-            boolean restored = putBack(lowEndChanged) | putBack(lighterChanged);
+            boolean restored = putBack(lowEndChanged) | putBack(lighterChanged) | putBack(distanceChanged) | putBack(unlockChanged);
             lowEndApplied = false;
             lighterApplied = false;
+            unlockApplied = false;
+            distanceApplied = 0;
             saveRestoreFile();
             if (restored && mc.options != null) mc.options.write();
         } catch (Exception e) {
@@ -650,12 +757,12 @@ public class Performance extends Module {
     private void saveRestoreFile() {
         Path file = restoreFile();
         try {
-            if (lighterChanged.isEmpty() && lowEndChanged.isEmpty()) {
+            if (lighterChanged.isEmpty() && lowEndChanged.isEmpty() && unlockChanged.isEmpty() && distanceChanged.isEmpty()) {
                 Files.deleteIfExists(file);
                 return;
             }
             JsonObject root = new JsonObject();
-            for (List<Changed> list : List.of(lighterChanged, lowEndChanged)) {
+            for (List<Changed> list : List.of(lighterChanged, lowEndChanged, unlockChanged, distanceChanged)) {
                 for (Changed c : list) {
                     Optional<JsonElement> original = encode(c.option(), c.original()), applied = encode(c.option(), c.applied());
                     if (original.isEmpty() || applied.isEmpty()) continue;
