@@ -243,9 +243,11 @@ public final class CaptureEngine {
         // -thread_queue_size applies to the next input. A short queue on the video grabber means a lagging
         // encoder makes it skip frames, instead of buffering seconds (and gigabytes) of raw frames that leave
         // replays ending before the key press. Audio packets are tiny, so audio gets a deep queue.
+        // Newer ffmpeg builds refuse it on inputs (and wouldn't capture at all): only where this one takes it.
+        boolean queue = Ffmpeg.inputThreadQueue();
         int input = 0;
         for (String v : in.args()) {
-            if (v.equals("-i")) args.addAll(List.of("-thread_queue_size", input++ == 0 ? "16" : "512"));
+            if (v.equals("-i") && queue) args.addAll(List.of("-thread_queue_size", input++ == 0 ? "16" : "512"));
             args.add(v);
         }
         args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));

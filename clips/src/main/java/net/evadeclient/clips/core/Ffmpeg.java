@@ -54,6 +54,32 @@ public final class Ffmpeg {
     private static String exe(String name) { return WINDOWS ? name + ".exe" : name; }
 
     /** Path to ffmpeg, or null when none can be found. */
+    private static String queueCheckedFor;
+    private static boolean inputQueue;
+
+    /**
+     * Whether this ffmpeg takes {@code -thread_queue_size} on an input. Newer builds (the current Windows release
+     * builds among them) only accept it on outputs and refuse to start capture with "cannot be applied to input
+     * url ddagrab=...", so it's tried once on a tiny test input, per ffmpeg, before it's used.
+     */
+    public static synchronized boolean inputThreadQueue() {
+        String exe = ffmpeg();
+        if (exe == null) return false;
+        if (exe.equals(queueCheckedFor)) return inputQueue;
+        boolean ok;
+        try {
+            Process p = new ProcessBuilder(exe, "-hide_banner", "-loglevel", "error", "-thread_queue_size", "8",
+                    "-f", "lavfi", "-i", "nullsrc=s=16x16:d=0.04", "-f", "null", "-").redirectErrorStream(true).start();
+            p.getInputStream().readAllBytes();
+            ok = p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+        } catch (Exception e) {
+            ok = false;
+        }
+        queueCheckedFor = exe;
+        inputQueue = ok;
+        return ok;
+    }
+
     public static synchronized String ffmpeg() {
         if (ffmpeg == null) ffmpeg = locate("ffmpeg");
         return ffmpeg;

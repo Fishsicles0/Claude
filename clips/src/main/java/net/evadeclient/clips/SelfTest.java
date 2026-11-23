@@ -148,6 +148,24 @@ final class SelfTest {
         check(whileRecording == 409 && afterwards == 200, "API /quit (for the installer) is refused during a recording (" + whileRecording + "), then accepted (" + afterwards + ")");
         api.stop();
 
+        // Newer ffmpeg builds (the current Windows release builds) refuse -thread_queue_size on an input, and capture
+        // never started ("cannot be applied to input url ddagrab=..."). A stand-in that refuses it the same way:
+        // Clips must notice and leave it out; with the real ffmpeg it keeps using it.
+        if (!Ffmpeg.WINDOWS) {
+            String real = Ffmpeg.ffmpeg();
+            Path fake = dir.resolve("ffmpeg-new").resolve("ffmpeg");
+            java.nio.file.Files.createDirectories(fake.getParent());
+            java.nio.file.Files.writeString(fake, "#!/bin/sh\nfor a in \"$@\"; do\n  if [ \"$a\" = -thread_queue_size ]; then q=1; fi\n"
+                    + "  if [ \"$a\" = -i ] && [ -n \"$q\" ]; then echo 'Option thread_queue_size (set the maximum number of queued packets per stream on the muxer) cannot be applied to input url x' >&2; exit 1; fi\n"
+                    + "done\nexec '" + real + "' \"$@\"\n");
+            fake.toFile().setExecutable(true);
+            Ffmpeg.configure(fake.toString());
+            boolean newer = Ffmpeg.inputThreadQueue();
+            Ffmpeg.configure("");
+            boolean usual = Ffmpeg.inputThreadQueue();
+            check(!newer && usual, "capture works with newer ffmpeg builds: -thread_queue_size only where ffmpeg takes it on inputs (newer: " + newer + ", this one: " + usual + ")");
+        }
+
         eventTests();
         voiceTests(dir);
 
