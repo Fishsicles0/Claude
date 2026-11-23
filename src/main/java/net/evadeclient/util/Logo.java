@@ -8,6 +8,9 @@ import net.minecraft.util.Identifier;
  * Draws the Evade logo: the speed-bar "E" mark and the slashed EVADE wordmark. Both ship as a small mip chain
  * (mark 32/64/128 px, wordmark 80x24/160x48/320x96) with LINEAR sampling, and the smallest source that covers the
  * on-screen size in device pixels is used, so the logo stays smooth at every GUI scale.
+ *
+ * <p>The mark is a white mask (its shading kept in the grey levels) tinted in the accent colour, so it follows the
+ * Accent chosen in Client Settings. The original red artwork is kept as {@code logo_mark_brand.png}.
  */
 public final class Logo {
     private static final Identifier MARK_32 = gui("logo_mark_32"), MARK_64 = gui("logo_mark_64"), MARK_128 = gui("logo_mark");
@@ -22,11 +25,31 @@ public final class Logo {
         return Identifier.of("evade", "textures/gui/" + name + ".png");
     }
 
+    /** The mark in the accent colour (see {@link #markTint}), faded with {@link Theme#fade}. */
     public static void mark(DrawContext ctx, int x, int y, int size) {
-        mark(ctx, x, y, size, 0xFFFFFFFF);
+        mark(ctx, x, y, size, Theme.fa(markTint()));
     }
 
-    /** The mark, {@code size} GUI pixels square, multiplied by {@code color} (white keeps the artwork's colours). */
+    private static int tintFor = 0, tint = 0xFFFFFFFF;
+
+    /**
+     * The colour that draws the mark in the accent: the accent scaled up until its brightest channel is full. The
+     * mask's grey levels then put the mark's mid-tones on the accent itself, so with the Red accent the mark matches
+     * the original artwork, and every other accent gets the same gradient in its own hue.
+     */
+    public static int markTint() {
+        int accent = Theme.RED | 0xFF000000;
+        if (accent != tintFor) {
+            int r = accent >> 16 & 255, g = accent >> 8 & 255, b = accent & 255, max = Math.max(r, Math.max(g, b));
+            float k = max == 0 ? 1f : 255f / max;
+            tint = 0xFF000000 | Math.min(255, Math.round(r * k)) << 16 | Math.min(255, Math.round(g * k)) << 8
+                    | Math.min(255, Math.round(b * k));
+            tintFor = accent;
+        }
+        return tint;
+    }
+
+    /** The mark, {@code size} GUI pixels square: the white mask multiplied by {@code color} (no fade applied). */
     public static void mark(DrawContext ctx, int x, int y, int size, int color) {
         if (size <= 0 || color >>> 24 == 0) return;
         float px = size * Theme.deviceScale(ctx);
@@ -58,10 +81,11 @@ public final class Logo {
         return Math.round(h * (WORD_W / (float) WORD_H));
     }
 
-    /** Mark followed by the wordmark, vertically centred on the mark, faded with {@link Theme#fade}. Returns total width. */
+    /** Accent mark followed by the white wordmark, vertically centred on the mark, faded with {@link Theme#fade}.
+     *  Returns total width. */
     public static int lockup(DrawContext ctx, int x, int y, int markSize) {
         int white = Theme.fa(0xFFFFFFFF);
-        mark(ctx, x, y, markSize, white);
+        mark(ctx, x, y, markSize, Theme.fa(markTint()));
         int letter = Math.max(6, Math.round(markSize * 0.52f));
         int wx = x + markSize + Math.max(2, markSize / 6);
         return (wx - x) + word(ctx, wx, y + (markSize - letter) / 2, letter, white);
