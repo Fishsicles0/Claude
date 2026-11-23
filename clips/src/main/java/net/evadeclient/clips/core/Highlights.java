@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /**
  * Finds the action in a video. Game events marked while recording (kills, aces, wins, clutches) come first;
- * then, for any game, the sound: fights are loud. The audio (the game, and your mic when it was recorded on its
+ * then the sound: fights are loud. The audio (the game, and your mic when it was recorded on its
  * own track) is measured in quarter-second windows; moments that jump well above the surrounding level (shots,
  * hits, explosions, shouting into the mic) are scored by how far they stand out and how long the burst lasts.
  * The best ones become markers, and {@link #cut} turns them into an edit that keeps only the action.

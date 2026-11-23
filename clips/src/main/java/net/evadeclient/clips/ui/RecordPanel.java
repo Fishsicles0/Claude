@@ -18,12 +18,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
-import javax.swing.JSpinner;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
-import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
@@ -60,10 +57,6 @@ public final class RecordPanel extends JPanel {
 
     private final App app;
     private Hero hero;
-    private final JComboBox<String> source = new JComboBox<>(new String[]{"Entire screen", "Game window", "Region"});
-    private final JComboBox<String> monitor = new JComboBox<>();
-    private final JTextField window = new JTextField();
-    private final JSpinner rx = spin(0, -10000, 20000), ry = spin(0, -10000, 20000), rw = spin(1280, 16, 20000), rh = spin(720, 16, 20000);
     private final JComboBox<String> fps = new JComboBox<>(new String[]{"30", "60", "120", "144", "165", "240"});
     private final JComboBox<String> res = new JComboBox<>(new String[]{"Native", "2160p (4K)", "1440p", "1080p", "720p"});
     private final JComboBox<String> quality = new JComboBox<>(new String[]{"Small files", "Balanced", "Best quality"});
@@ -81,14 +74,14 @@ public final class RecordPanel extends JPanel {
         return out;
     }
     private final JCheckBox cursor = new JCheckBox("Capture mouse cursor");
-    private final JCheckBox sysAudio = new JCheckBox("Record game / desktop audio");
+    private final JCheckBox sysAudio = new JCheckBox("Record game audio");
     private final JComboBox<String> sysDevice = new JComboBox<>();
     private final JCheckBox mic = new JCheckBox("Record microphone");
     private final JComboBox<String> micDevice = new JComboBox<>();
     private final JSlider micVol = new JSlider(0, 200, 100);
     private final JCheckBox voice = new JCheckBox("Record voice chat on its own track");
     private final JComboBox<String> voiceDevice = new JComboBox<>();
-    /** Replay lengths offered (a length set elsewhere, e.g. by CS2 full rounds, is added to the list). */
+    /** Replay lengths offered (a length set elsewhere is added to the list). */
     private static final int[] REPLAY_LENS = {15, 30, 60, 120, 150, 300, 600};
     private final List<Integer> lenValues = new ArrayList<>();
     private final JComboBox<String> replayLen = new JComboBox<>();
@@ -189,14 +182,6 @@ public final class RecordPanel extends JPanel {
         hero.refreshControls();
     }
 
-    private static JSpinner spin(int v, int min, int max) {
-        JSpinner s = new JSpinner(new SpinnerNumberModel(v, min, max, 1));
-        s.setEditor(new JSpinner.NumberEditor(s, "#"));
-        // Four of them (x, y, w, h) fit on one line in a half-width card.
-        s.setPreferredSize(new Dimension(72, 30));
-        return s;
-    }
-
     /** The page body: as wide as the window, scrolling only up and down. */
     private static final class Body extends JPanel implements Scrollable {
         @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
@@ -289,17 +274,9 @@ public final class RecordPanel extends JPanel {
     private JPanel videoCard() {
         row = 1;
         JPanel c = card("Video");
-        line(c, "Capture", source);
-        line(c, "Monitor", monitor);
-        window.putClientProperty("JTextField.placeholderText", "Part of the window title, e.g. Minecraft");
-        line(c, "Window", window);
-        JPanel region = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        region.setOpaque(false);
-        region.add(Theme.label("x", 12f, false, Theme.FAINT)); region.add(rx);
-        region.add(Theme.label("y", 12f, false, Theme.FAINT)); region.add(ry);
-        region.add(Theme.label("w", 12f, false, Theme.FAINT)); region.add(rw);
-        region.add(Theme.label("h", 12f, false, Theme.FAINT)); region.add(rh);
-        line(c, "Region", region);
+        JLabel captured = Theme.label("Minecraft (Evade Client)", 13f, false, Theme.TEXT);
+        captured.setToolTipText("Evade Clips records the Minecraft window only, while Minecraft with Evade Client is open");
+        line(c, "Captures", captured);
         line(c, "Frame rate", fps);
         line(c, "Resolution", res);
         line(c, "Quality", quality);
@@ -355,7 +332,7 @@ public final class RecordPanel extends JPanel {
             if (list.size() >= 5) break;
         }
         // The library changes often (every new thumbnail): rebuild only when what's listed changed.
-        StringBuilder key = new StringBuilder(app.settings.hotkeySaveClip);
+        StringBuilder key = new StringBuilder(app.settings.hotkeySaveClip).append(app.minecraftRunning());
         for (Clip c : list) key.append('|').append(c.id).append(c.title).append(c.duration).append(Theme.ago(c.created));
         if (key.toString().equals(recentKey)) return;
         recentKey = key.toString();
@@ -372,7 +349,8 @@ public final class RecordPanel extends JPanel {
             b.addActionListener(e -> app.openEditor.accept(c));
             recent.add(b);
         }
-        if (list.isEmpty()) recent.add(Theme.label("Nothing yet. Press " + app.settings.hotkeySaveClip + " to save a replay.", 12.5f, false, Theme.FAINT));
+        if (list.isEmpty()) recent.add(Theme.label(app.minecraftRunning() ? "Nothing yet. Press " + app.settings.hotkeySaveClip + " in Minecraft to save a replay."
+                : App.NEED_MINECRAFT, 12.5f, false, Theme.FAINT));
         recent.revalidate();
         recent.repaint();
     }
@@ -386,13 +364,6 @@ public final class RecordPanel extends JPanel {
         loading = true;
         try {
             var s = app.settings;
-            source.setSelectedIndex(switch (s.source) { case "window" -> 1; case "region" -> 2; default -> 0; });
-            List<Rectangle> mons = CaptureSource.monitors();
-            monitor.removeAllItems();
-            for (int i = 0; i < mons.size(); i++) monitor.addItem("Monitor " + (i + 1) + "  (" + mons.get(i).width + "×" + mons.get(i).height + ")");
-            monitor.setSelectedIndex(Math.max(0, Math.min(mons.size() - 1, s.monitor)));
-            window.setText(s.windowTitle);
-            rx.setValue(s.regionX); ry.setValue(s.regionY); rw.setValue(s.regionW); rh.setValue(s.regionH);
             fps.setSelectedItem(String.valueOf(s.fps));
             res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 2160 -> 1; case 1440 -> 2; case 720 -> 4; default -> 3; });
             quality.setSelectedIndex(s.quality - 1);
@@ -518,10 +489,6 @@ public final class RecordPanel extends JPanel {
             if (loading) return;
             var s = app.settings;
             String micBefore = s.micDevice;
-            s.source = new String[]{"screen", "window", "region"}[source.getSelectedIndex()];
-            s.monitor = Math.max(0, monitor.getSelectedIndex());
-            s.windowTitle = window.getText().trim();
-            s.regionX = (int) rx.getValue(); s.regionY = (int) ry.getValue(); s.regionW = (int) rw.getValue(); s.regionH = (int) rh.getValue();
             s.fps = Integer.parseInt((String) fps.getSelectedItem());
             s.resolution = new int[]{0, 2160, 1440, 1080, 720}[res.getSelectedIndex()];
             s.quality = quality.getSelectedIndex() + 1;
@@ -564,12 +531,9 @@ public final class RecordPanel extends JPanel {
                 if (err != null) app.notify(err, null, true);
             }, "voice-mic").start();
         };
-        for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, codec, encoder, replayRate, recordRate, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
+        for (JComboBox<?> b : List.of(fps, res, quality, codec, encoder, replayRate, recordRate, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
         for (JCheckBox b : List.of(cursor, sysAudio, mic, voice)) b.addActionListener(e -> apply.run());
-        for (JSpinner sp : List.of(rx, ry, rw, rh)) sp.addChangeListener(e -> apply.run());
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
-        window.addActionListener(e -> apply.run());
-        window.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { apply.run(); } });
         postRoll.setToolTipText("Keep capturing this long after you press the key, so the clip shows what happens next");
         postRoll.addActionListener(e -> {
             if (loading) return;
@@ -579,13 +543,6 @@ public final class RecordPanel extends JPanel {
         replayLen.addActionListener(e -> {
             if (loading || replayLen.getSelectedIndex() < 0) return;
             int v = lenValues.get(replayLen.getSelectedIndex());
-            if (!"off".equals(app.settings.cs2FullRounds) && v < 150) {
-                // A whole round has to fit in the buffer.
-                v = 150;
-                int keep = v;
-                SwingUtilities.invokeLater(() -> { loading = true; try { loadReplayLengths(keep); } finally { loading = false; } });
-                app.notify("CS2 full-round clips need at least 2.5 minutes", "Turn off CS2 full-round clips in Settings for a shorter replay", true);
-            }
             app.settings.replaySeconds = v;
             app.settings.save();
             updateDataRate();
@@ -637,22 +594,18 @@ public final class RecordPanel extends JPanel {
         updateDataRate();
         var st = app.settings;
         String s = st.source;
-        monitor.setEnabled(s.equals("screen"));
-        window.setEnabled(s.equals("window"));
-        for (JSpinner sp : List.of(rx, ry, rw, rh)) sp.setEnabled(s.equals("region"));
         sysDevice.setEnabled(sysAudio.isSelected());
         micDevice.setEnabled(mic.isSelected());
         micVol.setEnabled(mic.isSelected());
         voiceDevice.setEnabled(voice.isSelected());
         // The warning always matches the settings now (it clears once the cause is fixed).
         String w = " ";
-        if (s.equals("window") && !Ffmpeg.WINDOWS) w = "Window capture is Windows-only; the whole monitor is captured instead.";
-        else if ((s.equals("screen") || s.equals("region")) && CaptureSource.linuxWayland())
+        if (!s.startsWith("test") && CaptureSource.linuxWayland())
             w = "Screen capture on Linux needs an X11 session; on Wayland clips will be black. Choose the 'on Xorg' session at login.";
         else if ((Ffmpeg.WINDOWS || Ffmpeg.MAC) && noDefaultSys && st.recordSystemAudio && st.systemAudioDevice.isBlank())
             w = Ffmpeg.WINDOWS
-                    ? "No desktop-audio device found. Enable \"Stereo Mix\" in Sound settings → Recording, or install VB-Cable, then pick it above."
-                    : "No desktop-audio device found. Install BlackHole to record game audio, then pick it above.";
+                    ? "No game-audio device found. Enable \"Stereo Mix\" in Sound settings → Recording, or install VB-Cable, then pick it above."
+                    : "No game-audio device found. Install BlackHole to record game audio, then pick it above.";
         warn.setText(w);
         warn.setVisible(!w.isBlank());
     }
@@ -731,6 +684,8 @@ public final class RecordPanel extends JPanel {
                 refreshControls();
                 repaint();
             }).start();
+            // The empty "Latest captures" list says whether Minecraft is open.
+            new Timer(3000, e -> { if (isShowing()) refreshRecent(); }).start();
         }
 
         private void setHeights() {
@@ -800,7 +755,8 @@ public final class RecordPanel extends JPanel {
             g.setFont(Theme.interBold.deriveFont(20f));
             g.setColor(Theme.TEXT);
             String head = st.recording() ? "Recording  " + Theme.time(st.recordingSeconds())
-                    : live ? "Instant replay is on" : starting ? "Starting capture…" : err ? "Capture stopped" : "Instant replay is off";
+                    : live ? "Instant replay is on" : starting ? "Starting capture…" : err ? "Capture stopped"
+                    : !app.minecraftRunning() ? "Waiting for Minecraft" : "Instant replay is off";
             g.drawString(head, 56, 42);
             g.setFont(Theme.inter.deriveFont(13f));
             g.setColor(Theme.DIM);
@@ -824,12 +780,13 @@ public final class RecordPanel extends JPanel {
             String sub;
             if (!ffmpegOk) sub = app.ffmpegDownloading ? "Downloading ffmpeg… " + Math.round(app.ffmpegProgress * 100) + "%. Recording starts working as soon as it's done."
                     : "ffmpeg wasn't found. Put ffmpeg next to Evade Clips, add it to PATH, or set it in Settings.";
-            else if (live && app.currentGame != null) sub = app.currentGame + " detected  ·  " + app.settings.hotkeySaveClip + " saves the last " + label(app.settings.replaySeconds)
+            else if (live && app.currentGame != null) sub = "Minecraft detected  ·  " + app.settings.hotkeySaveClip + " saves the last " + label(app.settings.replaySeconds)
                     + "  ·  " + app.settings.hotkeyRecord + " to " + (st.recording() ? "stop" : "start") + " recording";
             else if (live) sub = "Press " + app.settings.hotkeySaveClip + " to save the last " + label(app.settings.replaySeconds) + "  ·  "
                     + app.settings.hotkeyRecord + " to " + (st.recording() ? "stop" : "start") + " recording  ·  " + app.settings.hotkeyMarker + " for a marker"
                     + (st.encoder().isEmpty() ? "" : "  ·  " + Ffmpeg.encoderLabel(st.encoder()));
-            else if (app.settings.autoReplayForGames) sub = "Waiting for a game. Instant replay turns on by itself when one starts, or turn it on now.";
+            else if (!app.minecraftRunning()) sub = App.NEED_MINECRAFT + (app.settings.autoReplayForGames && app.settings.replayEnabled
+                    ? " Instant replay turns on by itself when it starts." : "");
             else sub = "Turn it on to keep the last " + label(app.settings.replaySeconds) + " ready to save at any moment.";
             g.drawString(LibraryPanel.ellipsize(g, sub, w - 80), 56, 64);
 

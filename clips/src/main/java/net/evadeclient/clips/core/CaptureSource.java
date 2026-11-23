@@ -208,7 +208,7 @@ public final class CaptureSource {
      * The Minecraft window's area on the X11 screen (from {@code xwininfo}), clipped to the screen, or null when
      * it can't be found (no xwininfo, or Minecraft has no window yet).
      */
-    static Rectangle linuxMinecraftWindow() {
+    public static Rectangle linuxMinecraftWindow() {
         String out;
         try { out = Ffmpeg.capture(List.of("xwininfo", "-root", "-tree"), 5); } catch (RuntimeException e) { return null; }
         // 0x3a00007 "Minecraft 1.21.4 - Singleplayer": ("Minecraft" "Minecraft")  1280x720+0+0  +320+180

@@ -29,12 +29,11 @@ public final class Settings {
     public boolean hoverPreview = true;
 
     // capture
-    /** "screen", "window" or "region" ("test" is the built-in pattern used by the self-test). */
-    public String source = "screen";
-    public int monitor = 0;
-    /** Window title to capture when source = window (Windows only; e.g. "Minecraft"). */
-    public String windowTitle = "Minecraft";
-    public int regionX, regionY, regionW = 1280, regionH = 720;
+    /**
+     * What is captured: always "minecraft" (the Minecraft window; Evade Clips records nothing else). "test",
+     * "test-noise", "test-calm" and "test-bursts" are built-in patterns used by the self-tests.
+     */
+    public String source = "minecraft";
     public int fps = 60;
     /** Output height: 0 = native, otherwise 1080 / 720 / 1440 ... (width follows the aspect ratio). */
     public int resolution = 1080;
@@ -67,9 +66,7 @@ public final class Settings {
     public int replayAfterSeconds = 0;
     /** Scan new recordings for loud moments and mark them. */
     public boolean autoHighlights = true;
-    /** Start the replay buffer as soon as the app opens (otherwise only while a game is running). */
-    public boolean replayOnLaunch = false;
-    /** Start instant replay when a game starts and stop it when the game closes: zero cost when not playing. */
+    /** Start instant replay when Minecraft starts and stop it when Minecraft closes: zero cost when not playing. */
     public boolean autoReplayForGames = true;
 
     /** Say "clip that" / "start recording" / "mark that". Recognised offline on this PC. */
@@ -89,7 +86,7 @@ public final class Settings {
     /** Main window position and size on the virtual desktop (x, y, w, h), or null for the default. */
     public int[] windowBounds;
     public boolean windowMaximized = false;
-    /** Lets Evade Client (and other local tools) save clips: http://127.0.0.1:{port}. */
+    /** Lets Evade Client save clips: http://127.0.0.1:{port} (only requests from Evade Client are accepted). */
     public boolean controlServer = true;
     public int controlPort = 47821;
     public String ffmpegPath = "";
@@ -133,30 +130,15 @@ public final class Settings {
     public boolean sharePrivateByDefault = false;
     /** Bring clips uploaded from the phone gallery into the library automatically. */
     public boolean pullPhoneUploads = true;
-    /** Folders to import new videos from automatically: console captures on a USB drive, a phone sync folder… */
-    public java.util.List<String> watchFolders = new java.util.ArrayList<>();
-    /**
-     * Every file a watched folder has imported ({@link WatchFolders#key}), kept after the clip is deleted so it
-     * isn't imported again.
-     */
-    public java.util.Set<String> watchImported = new java.util.LinkedHashSet<>();
 
     // automatic clips from game events
     public int autoClipBefore = 20;
     public int autoClipAfter = 4;
-    public boolean cs2Events = true;
-    public boolean cs2HeadshotsOnly = false;
-    public boolean leagueEvents = true;
-    /** Deaths always get a marker on the timeline; with this they also get their own clip. */
-    public boolean clipDeaths = false;
-    /** Auto-clip loud moments live in games without an event API (The Finals, Valorant, Fortnite, Apex…). */
+    /** Auto-clip loud moments live in Minecraft while Evade Client's Clips mod isn't sending its own events. */
     public boolean liveHighlights = true;
     /** "low", "medium", "high". */
     public String liveSensitivity = "medium";
-    /** CS2: save each whole round as one clip: "off", "kills" (rounds you got a kill in) or "all". */
-    public String cs2FullRounds = "off";
-    /** Shared secret CS2 sends with every update, so other programs can't fake events. */
-    public String gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
+    /** The game clips are filed under: always Minecraft (Evade Clips only records Minecraft with Evade Client). */
     public String defaultGame = "Minecraft";
 
     /** This PC's account on one share server. */
@@ -309,7 +291,8 @@ public final class Settings {
         quality = Math.max(1, Math.min(3, quality));
         replaySeconds = Math.max(5, Math.min(600, replaySeconds)); // up to 10 minutes
         replayAfterSeconds = Math.max(0, Math.min(30, replayAfterSeconds));
-        if (source == null) source = "screen";
+        // Older versions could capture the screen, any window or a region: Evade Clips now records Minecraft only.
+        if (source == null || !source.startsWith("test")) source = "minecraft";
         if (encoder == null) encoder = "";
         if (codec == null) codec = "auto";
         if (voiceDevice == null) voiceDevice = "";
@@ -320,8 +303,6 @@ public final class Settings {
         if (cloudViewToken == null) cloudViewToken = "";
         if (cloudBase == null) cloudBase = "";
         if (cloudSync == null) cloudSync = "off";
-        if (watchFolders == null) watchFolders = new java.util.ArrayList<>();
-        if (watchImported == null) watchImported = new java.util.LinkedHashSet<>();
         if (deletedPhoneIds == null) deletedPhoneIds = new java.util.LinkedHashSet<>();
         if (discordWebhooks == null) discordWebhooks = new java.util.ArrayList<>();
         discordWebhooks.removeIf(w -> w == null || !validWebhook(w.url));
@@ -335,12 +316,11 @@ public final class Settings {
         if (!cloudAccount.isBlank() && !cloudBase.isBlank())
             cloudAccounts.put(normBase(cloudBase), new Creds(cloudAccount, cloudKey, cloudViewToken));
         if (liveSensitivity == null) liveSensitivity = "medium";
-        if (cs2FullRounds == null) cs2FullRounds = "off";
         if (watermarkText == null) watermarkText = "";
         if (watermarkImage == null) watermarkImage = "";
         if (watermarkPosition == null) watermarkPosition = "bottom-right";
-        if (gsiToken == null || gsiToken.isBlank()) gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
         if (ffmpegPath == null) ffmpegPath = "";
+        defaultGame = "Minecraft";
         return this;
     }
 }

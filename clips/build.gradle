@@ -48,7 +48,7 @@ tasks.register('selfTest', JavaExec) {
     def model = System.getProperty('clips.voskModel') ?: System.getenv('CLIPS_VOSK_MODEL')
     if (model) systemProperty 'clips.voskModel', model
     systemProperty 'clips.voiceLibs', "${buildDir}/voice-libs"
-    // Unicode file names (e.g. PS5 game folders with ®) need a UTF-8 locale on Linux.
+    // Unicode file names need a UTF-8 locale on Linux.
     environment 'LC_ALL', 'C.UTF-8'
     environment 'LANG', 'C.UTF-8'
     jvmArgs '-Dsun.jnu.encoding=UTF-8', '-Dfile.encoding=UTF-8'

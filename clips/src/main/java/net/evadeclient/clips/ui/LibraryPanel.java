@@ -164,7 +164,7 @@ public final class LibraryPanel extends JPanel {
         bar.add(search);
         bar.add(Box.createHorizontalGlue());
         game.getAccessibleContext().setAccessibleName("Game");
-        game.setPrototypeDisplayValue("Counter-Strike 2   ");
+        game.setPrototypeDisplayValue("All games          ");
         game.setMaximumSize(new Dimension(190, 34));
         game.setMinimumSize(new Dimension(120, 34));
         game.addActionListener(e -> { if (!updatingGames) refresh(); });

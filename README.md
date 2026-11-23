@@ -71,7 +71,8 @@ stable Fabric Loader from meta.fabricmc.net and Fabric API from Modrinth, and ve
 
 ## Evade Clips
 
-`clips/` is **Evade Clips**, a desktop app that records, stores and edits gameplay clips for any game. It has
+`clips/` is **Evade Clips**, a desktop app that records, stores and edits Minecraft clips; it works only with
+Evade Client. It has
 free instant replays, recording while the replay buffer keeps running, automatic highlight detection, a
 timeline editor, and Discord/Shorts/GIF exports. Evade Client's **Clips** mod saves clips through it
 automatically on kills, totem pops, deaths, wins and advancements. See [clips/README.md](clips/README.md).

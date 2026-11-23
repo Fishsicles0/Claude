@@ -144,7 +144,7 @@ public final class CloudShare {
     }
 
     /**
-     * Downloads clips uploaded from the phone gallery (console captures, phone recordings) that aren't in the
+     * Downloads clips uploaded from the phone gallery (phone recordings) that aren't in the
      * library yet and weren't deleted here. Returns the new clips. One failed download doesn't stop the others,
      * and nothing half-downloaded is left behind.
      */

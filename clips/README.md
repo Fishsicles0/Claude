@@ -1,7 +1,8 @@
 # Evade Clips
 
-Record, store and edit gameplay clips. Evade Clips is a standalone desktop app for Windows, macOS and Linux. It
-works with any game and has extra integration with Evade Client.
+Record, store and edit Minecraft clips. Evade Clips is a desktop app for Windows, macOS and Linux that works with
+Evade Client: it records the Minecraft window while Minecraft with Evade Client is running, and only Evade Client
+can save clips to it.
 
 ![Library](docs/library.png)
 
@@ -20,17 +21,13 @@ works with any game and has extra integration with Evade Client.
 
   The Record page shows the most a minute can cost with your settings. **Shrink** (right-click a clip)
   re-encodes old clips to HEVC and keeps every track, usually 40–60% smaller.
-- **Zero cost when you're not playing.** Evade Clips detects running games and turns instant replay on when
-  one starts and off when it closes. Any game in a Steam, Epic, Riot, Xbox/Game Pass, GOG, EA, Ubisoft,
-  Rockstar or itch library is recognised by where it's installed, so detection never needs updates. A
-  curated list covers popular games installed elsewhere, and Minecraft (any launcher) is recognised too. Clips
-  are named after the game. Capture runs on the GPU's video encoder (NVENC, AMF, Quick Sync, VideoToolbox), so
-  the game keeps its frames.
-- **Game events, through official interfaces only** (no memory reading, nothing anti-cheat cares about):
-  Counter-Strike 2 via Game State Integration (kills, headshots, 3K/4K/aces, MVPs, match wins; one-click
-  setup), League of Legends via the Live Client API (kills, double…penta, aces, dragon/baron/herald steals,
-  victory), and Minecraft via Evade Client (kills, multi-kills, totem pops, deaths, wins, advancements). Events
-  close together become one clip ("Triple kill").
+- **Zero cost when you're not playing.** Evade Clips notices Minecraft with Evade Client (its process, or Evade
+  Client talking to the app) and turns instant replay on when it starts and off when it closes. Only the
+  Minecraft window is captured (Windows: the window itself; Linux: the window's area of the X11 screen; macOS:
+  the main screen). Without Minecraft open, Record says "Open Minecraft with Evade Client to record." Capture runs
+  on the GPU's video encoder (NVENC, AMF, Quick Sync, VideoToolbox), so the game keeps its frames.
+- **Game events from Evade Client** (no memory reading): the Clips mod sends kills, multi-kills, totem pops,
+  deaths, wins and advancements. Events close together become one clip ("Triple kill").
 - **Share links and phone sync, no watermark, ads or expiry,** at clips.evadeclient.com. Clips can be shared to
   anyone with the link or kept **private** (only you). If a clip is ever taken down (copyright, abuse), you get a
   notice naming the clip and the reason, and its link says why. Viewers can report clips, and autoplay is a toggle.
@@ -55,7 +52,7 @@ works with any game and has extra integration with Evade Client.
 - **Recordings survive crashes.** A recording is written as you play and is playable at every moment. On stop
   it's converted to MP4.
 - **Post-roll.** "Save the last 30 s **+5 s after**", so the clip shows what happened after you pressed the key.
-- **Highlights in any game.** Fights are loud, so Evade Clips scans the audio for moments that stand out
+- **Highlights.** Fights are loud, so Evade Clips scans the audio for moments that stand out
   (shots, hits, explosions, your shouting) and marks them. One button (**H** in the editor) cuts a long
   recording down to just the action. New recordings are scanned automatically.
 - **Auto-clips in Minecraft.** The **Clips** mod in Evade Client saves clips by itself on kills, totem pops,
@@ -68,11 +65,9 @@ works with any game and has extra integration with Evade Client.
   positions, size, opacity, margin) for free; Evade Clips never adds one of its own.
 - **Separate bitrates.** Instant replay and full recordings each have their own bitrate (recordings can run their own
   higher-quality encode while the replay buffer stays small).
-- **Auto-clips in any game.** Games with no event API (The Finals, Valorant, Fortnite, Apex…) get live
-  loud-moment clips while you play, with adjustable sensitivity. CS2 can save each **whole round** as one clip.
-- **Console captures.** Watch folders import PS5 / Xbox / Switch captures from a USB drive, named after their game;
-  or upload them from your phone's gallery page and they sync into the library. (PlayStation has no capture API
-  for apps, so there's no account linking.)
+- **Loud-moment auto-clips.** With the Clips mod's events turned off, loud moments (fights, explosions) are
+  clipped live while you play, with adjustable sensitivity.
+- **Phone uploads.** Videos uploaded from your phone's gallery page sync into the library.
 - **A real editor.** Trim, split, delete parts, slow-mo or speed-up any part (0.25×–4×), vertical/square
   framing with crop or blurred background (one click: *Make vertical*), zoom, timed captions (clean, subtitle or meme style), color looks
   (vibrant, cinematic with letterbox bars, black & white, retro, warm, cool) previewed live, **video
@@ -104,15 +99,17 @@ through it. Favorites are never auto-deleted when the storage limit is reached (
 
 ## Local API
 
-Evade Client and your own tools (scripts, stream decks) can drive Evade Clips on `http://127.0.0.1:47821`.
-Requests from web pages are refused.
+Evade Client drives Evade Clips on `http://127.0.0.1:47821`. Requests from web pages are refused, and `/clip`,
+`/record/*`, `/marker` and `/import` must carry `client=evade` (Evade Client always sends it); anything else
+gets 403. `/status` and `/open` answer everyone, so a second copy of the app finds the first.
 
 ```
 GET  /status
-POST /clip?seconds=30&after=5&title=Ace&game=Valorant&tag=ace
-POST /record/start   POST /record/stop   POST /record/toggle
-POST /marker?label=Kill
-POST /gsi/cs2        (CS2 Game State Integration, token-checked)
+POST /clip?seconds=30&after=5&title=Ace&game=Minecraft&tag=ace&client=evade
+POST /record/start?client=evade   POST /record/stop?client=evade   POST /record/toggle?client=evade
+POST /marker?label=Kill&client=evade
+POST /import?path=<file>&title=...&client=evade   (a replay render from Evade Client)
+POST /open[?clip=<id>|last]
 ```
 
 ## Requirements
@@ -143,8 +140,9 @@ ceilings, that HEVC is smaller, and that Shrink keeps every track.
 replays, markers, post-roll, recording during replay, the local API, every export preset (including the 10 MB
 size limit and 1080×1920 vertical output), mic-track mixing, highlight detection on a clip with known loud
 moments, a montage of differently sized clips, captions appearing only in their time range, effects,
-three named audio tracks, named markers in replays and recordings, CS2 and League event payloads becoming the right clips, and game detection from
-process paths and a live process. With a speech model (`CLIPS_VOSK_MODEL=...`) and espeak-ng it also
+three named audio tracks, named markers in replays and recordings, Minecraft events merging into clips, Minecraft-only
+game detection from process paths and a live process, and the Evade-Client-only rules (the API refuses other
+callers, nothing records without Minecraft, Linux capture grabs the Minecraft window's area). With a speech model (`CLIPS_VOSK_MODEL=...`) and espeak-ng it also
 checks voice commands: spoken commands are heard (including over loud noise and in a UK voice), and
 ordinary talking never triggers. With `CLIPS_SHARE_URL` pointing at a running share server (`npx wrangler dev`
 in clips-share/) it also checks share links, embeds, byte ranges, the phone gallery, quotas and deleting.
@@ -158,6 +156,6 @@ net.evadeclient.clips
 │           Clip, EditSpec, Exporter (presets, montage, shrink), Highlights, GameDetector, VoiceCommands,
 │           Hotkeys, ControlServer, Ffmpeg, Settings
 ├── core/   CloudShare (share links + phone sync)
-├── events/ AutoClipper (merges events into clips), Cs2Integration, LeagueIntegration
+├── events/ AutoClipper (merges events into clips), LiveHighlights (loud-moment clips)
 └── ui/     MainWindow, LibraryPanel, RecordPanel, EditorPanel, Timeline, VideoPlayer, SettingsPanel, Toast
 ```
