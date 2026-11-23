@@ -1,5 +1,7 @@
 package net.evadeclient.clips.core;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -16,7 +18,8 @@ import java.util.regex.Pattern;
  * Epic, Riot, Xbox/Game Pass, GOG, EA, Ubisoft, Battle.net, Rockstar or itch library is a game, named after its
  * install folder. That covers every game in those libraries (tens of thousands) without updates. A curated list
  * adds well-known games installed elsewhere and gives the proper name, and Minecraft is recognised from its Java
- * command line (vanilla, Fabric, Forge, Lunar-style launchers, Evade).
+ * command line (vanilla, Fabric, Quilt, Forge, third-party launchers, Evade). Launchers, overlays, runtimes,
+ * store apps and Minecraft servers are not games, so they never start the replay buffer.
  */
 public final class GameDetector {
     /** A detected game: display name, process id. */
@@ -78,7 +81,6 @@ public final class GameDetector {
             Pattern.compile("(?i)[/\\\\]Epic Games[/\\\\]([^/\\\\]+)"),
             Pattern.compile("(?i)[/\\\\]Riot Games[/\\\\]([^/\\\\]+)"),
             Pattern.compile("(?i)[/\\\\]XboxGames[/\\\\]([^/\\\\]+)"),
-            Pattern.compile("(?i)[/\\\\]WindowsApps[/\\\\]([^/\\\\_]+)_"),
             Pattern.compile("(?i)[/\\\\]GOG Galaxy[/\\\\]Games[/\\\\]([^/\\\\]+)"),
             Pattern.compile("(?i)[/\\\\]GOG Games[/\\\\]([^/\\\\]+)"),
             Pattern.compile("(?i)[/\\\\]EA Games[/\\\\]([^/\\\\]+)"),
@@ -96,7 +98,31 @@ public final class GameDetector {
             "unitycrashhandler64", "unitycrashhandler32", "crashreportclient", "crashpad_handler", "easyanticheat", "easyanticheat_eos",
             "beservice", "battleye", "vanguard", "vgc", "vgtray", "eadesktop", "eabackgroundservice", "origin", "upc", "uplaywebcore",
             "galaxyclient", "battle.net", "agent", "launcher", "updater", "setup", "unins000", "dxsetup", "vc_redist.x64",
-            "vcredist_x64", "dotnetfx", "uninstall", "proton", "wineserver", "reaper", "pressure-vessel-wrap", "steam-runtime-launcher-service");
+            "vcredist_x64", "dotnetfx", "uninstall", "proton", "wineserver", "reaper", "pressure-vessel-wrap", "steam-runtime-launcher-service",
+            "leagueclient", "leagueclientux", "gameoverlayui", "gamebar", "gamebarftserver");
+
+    /** Parts of an exe name that mark a helper process (browser views, overlays, crash reporters), not the game. */
+    private static final List<String> HELPER_PARTS = List.of("crash", "launcher", "updater", "anticheat", "helper",
+            "cefsubprocess", "uxrender", "overlay", "webhelper", "crashreport");
+
+    /** Folders in game libraries that hold tools, runtimes or launchers rather than a game. */
+    private static final Set<String> NOT_GAME_FOLDERS = Set.of("launcher", "riot client", "steamworks shared", "steamvr",
+            "wallpaper_engine", "wallpaper engine", "lossless scaling", "directx", "epic online services",
+            "steam controller configs", "steamworks common redistributables", "tools");
+
+    /** Microsoft Store packages: the package folder, and its name before the version ("Publisher.App"). */
+    private static final Pattern WINDOWS_APPS = Pattern.compile("(?i)^(.*[/\\\\]WindowsApps[/\\\\]([^/\\\\_]+)_[^/\\\\]*)[/\\\\]");
+    /** Store publishers whose packages are apps (or games the curated list already names by their exe). */
+    private static final List<String> STORE_APPS = List.of("microsoft.", "microsoftwindows.", "microsoftcorporationii.", "spotifyab.");
+    /** Whether a Store package folder is a game (it has a MicrosoftGame.config), by folder. */
+    private static final Map<String, Boolean> STORE_GAMES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Command-line parts only a Minecraft <b>client</b> has (servers have none of them). */
+    private static final List<String> MC_CLIENT = List.of("net.minecraft.client.main.main", "net.fabricmc.loader.impl.launch.knot.knotclient",
+            "org.quiltmc.loader.impl.launch.knot.knotclient", "cpw.mods.bootstraplauncher", "--gamedir", "--assetsdir", "evadeclient");
+    private static final List<String> MC_SERVER = List.of("server.jar", "minecraft_server", "nogui");
+    /** The Java runtimes the official launcher installs, which only ever run the game (for when the command line is hidden). */
+    private static final List<String> MC_RUNTIMES = List.of("/.minecraft/runtime/", "/minecraft launcher/runtime/", "/microsoft.4297127d64ec6_");
 
     private GameDetector() {}
 
@@ -106,22 +132,59 @@ public final class GameDetector {
         String file = path.replace('\\', '/');
         file = file.substring(file.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
         String exe = file.endsWith(".exe") ? file.substring(0, file.length() - 4) : file;
-        if (NOT_GAMES.contains(exe) || exe.contains("crash") || exe.contains("launcher") || exe.contains("updater")
-                || exe.contains("anticheat") || exe.contains("helper")) return null;
+        if (NOT_GAMES.contains(exe)) return null;
+        for (String part : HELPER_PARTS) if (exe.contains(part)) return null;
         String cl = cmdline == null ? "" : cmdline.toLowerCase(Locale.ROOT);
         // Minecraft Java runs as java/javaw.
-        if (exe.equals("java") || exe.equals("javaw")) {
-            if (cl.contains("net.minecraft") || cl.contains(".minecraft") || cl.contains("net.fabricmc") || cl.contains("cpw.mods")
-                    || cl.contains("minecraft") || cl.contains("evadeclient")) return "Minecraft";
-            return null;
-        }
+        if (exe.equals("java") || exe.equals("javaw")) return minecraftClient(path, cl) ? "Minecraft" : null;
         String known = KNOWN.get(exe);
         if (known != null) return known;
         for (Pattern p : LIBRARIES) {
             Matcher m = p.matcher(path + "/");
-            if (m.find()) return m.groupCount() >= 1 && m.group(1) != null ? tidy(m.group(1)) : null;
+            if (!m.find()) continue;
+            if (m.groupCount() < 1 || m.group(1) == null) return null;
+            return toolFolder(m.group(1)) ? null : tidy(m.group(1));
         }
+        Matcher store = WINDOWS_APPS.matcher(path + "/");
+        if (store.find()) return storeGame(store.group(1), store.group(2));
         return null;
+    }
+
+    /** Runtimes, redistributables and tools that live in a game library. */
+    private static boolean toolFolder(String folder) {
+        String f = folder.trim().toLowerCase(Locale.ROOT);
+        return NOT_GAME_FOLDERS.contains(f) || f.startsWith("steamlinuxruntime") || f.equals("proton") || f.startsWith("proton ")
+                || f.startsWith("proton-");
+    }
+
+    /**
+     * A Java process is Minecraft only when its command line shows a game client (servers, IDEs and other Java
+     * programs aren't). Windows doesn't show other programs' command lines, so there the official launcher's
+     * own Java runtime is the sign.
+     */
+    private static boolean minecraftClient(String path, String cl) {
+        if (cl.isBlank()) {
+            String p = path.replace('\\', '/').toLowerCase(Locale.ROOT);
+            for (String r : MC_RUNTIMES) if (p.contains(r)) return true;
+            return false;
+        }
+        for (String s : MC_SERVER) if (cl.contains(s)) return false;
+        for (String c : MC_CLIENT) if (cl.contains(c)) return true;
+        return false;
+    }
+
+    /** A Microsoft Store / Game Pass package is a game only if it ships a MicrosoftGame.config. */
+    private static String storeGame(String folder, String pkg) {
+        String lower = pkg.toLowerCase(Locale.ROOT);
+        for (String app : STORE_APPS) if (lower.startsWith(app)) return null;
+        boolean game = STORE_GAMES.computeIfAbsent(folder.toLowerCase(Locale.ROOT), k -> {
+            try { return Files.isRegularFile(Path.of(folder, "MicrosoftGame.config")); } catch (RuntimeException e) { return false; }
+        });
+        if (!game) return null;
+        // "BethesdaSoftworks.Starfield" → "Starfield".
+        int dot = pkg.indexOf('.');
+        String name = dot >= 0 && dot < pkg.length() - 1 ? pkg.substring(dot + 1) : pkg;
+        return tidy(name);
     }
 
     /** "CounterStrikeGlobalOffensive" style folder names stay as they are; underscores and trailing junk go. */

@@ -26,7 +26,8 @@ nav: features
       <button class="tab" data-f="new">New <small>{{NEW}}</small></button>
     </div>
   </div>
-  <div class="grid" id="grid" aria-live="polite">{{MOD_GRID}}</div>
+  <p class="more" id="more" role="status" hidden></p>
+  <div class="grid" id="grid" aria-live="polite" data-src="/assets/mods.json?v={{MODS_KEY}}">{{MOD_GRID}}</div>
   <p class="empty" id="empty">No mods match that search.</p>
 
   <div class="card help rv">

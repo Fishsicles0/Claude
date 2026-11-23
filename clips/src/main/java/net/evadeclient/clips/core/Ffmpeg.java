@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.function.DoubleConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Finds and runs ffmpeg / ffprobe. Every recording, thumbnail, preview frame and export goes through here, so
@@ -24,21 +26,27 @@ public final class Ffmpeg {
     public static final boolean MAC = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
 
     private static volatile String ffmpeg, ffprobe;
-    private static volatile List<String> encoders;
 
     private Ffmpeg() {}
 
     /** Points at a custom ffmpeg binary (from settings). Blank = auto-detect. */
     public static synchronized void configure(String customPath) {
         ffmpeg = ffprobe = null;
-        encoders = null;
+        // A different ffmpeg can have different encoders: probe again next time.
+        encoderGeneration++;
+        ENCODERS.clear();
+        encoderListing = null;
         if (customPath != null && !customPath.isBlank()) {
-            Path p = Path.of(customPath.trim());
-            if (Files.isDirectory(p)) p = p.resolve(exe("ffmpeg"));
-            if (Files.isRegularFile(p)) {
-                ffmpeg = p.toString();
-                Path probe = p.resolveSibling(exe("ffprobe"));
-                ffprobe = Files.isRegularFile(probe) ? probe.toString() : null;
+            try {
+                Path p = Path.of(customPath.trim().replaceAll("^\"+|\"+$", ""));
+                if (Files.isDirectory(p)) p = p.resolve(exe("ffmpeg"));
+                if (Files.isRegularFile(p)) {
+                    ffmpeg = p.toString();
+                    Path probe = p.resolveSibling(exe("ffprobe"));
+                    ffprobe = Files.isRegularFile(probe) ? probe.toString() : null;
+                }
+            } catch (java.nio.file.InvalidPathException e) {
+                System.err.println("[clips] ignoring the ffmpeg location setting: " + e.getMessage());
             }
         }
     }
@@ -58,27 +66,56 @@ public final class Ffmpeg {
 
     public static boolean available() { return ffmpeg() != null && ffprobe() != null; }
 
+    /**
+     * Looks for {@code name} next to a configured ffmpeg, next to the app, in the app-data folder (where the
+     * first-run download goes), then on the PATH. The app's own copies are checked first, so a broken PATH (a
+     * quoted or invalid entry, common on Windows) can never hide them.
+     */
     private static String locate(String name) {
-        List<Path> candidates = new ArrayList<>();
-        // Next to a configured ffmpeg, next to the app, then in the app-data folder.
-        if (ffmpeg != null) candidates.add(Path.of(ffmpeg).resolveSibling(exe(name)));
         try {
-            Path jar = Path.of(Ffmpeg.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
-            if (jar != null) {
-                candidates.add(jar.resolve("ffmpeg").resolve(exe(name)));
-                candidates.add(jar.resolve("ffmpeg").resolve("bin").resolve(exe(name)));
-                candidates.add(jar.resolve(exe(name)));
+            List<Path> own = new ArrayList<>();
+            String configured = ffmpeg;
+            if (configured != null) {
+                try { own.add(Path.of(configured).resolveSibling(exe(name))); } catch (java.nio.file.InvalidPathException ignored) {}
             }
-        } catch (Exception ignored) {}
-        candidates.add(Settings.appDir().resolve("ffmpeg").resolve(exe(name)));
-        candidates.add(Settings.appDir().resolve("ffmpeg").resolve("bin").resolve(exe(name)));
-        String path = System.getenv("PATH");
-        if (path != null) for (String dir : path.split(java.io.File.pathSeparator)) {
-            if (!dir.isBlank()) candidates.add(Path.of(dir).resolve(exe(name)));
+            try {
+                Path jar = Path.of(Ffmpeg.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+                if (jar != null) {
+                    own.add(jar.resolve("ffmpeg").resolve(exe(name)));
+                    own.add(jar.resolve("ffmpeg").resolve("bin").resolve(exe(name)));
+                    own.add(jar.resolve(exe(name)));
+                }
+            } catch (Exception ignored) {}
+            try {
+                own.add(Settings.appDir().resolve("ffmpeg").resolve(exe(name)));
+                own.add(Settings.appDir().resolve("ffmpeg").resolve("bin").resolve(exe(name)));
+            } catch (RuntimeException ignored) {}
+            for (Path c : own) if (runnable(c)) return c.toString();
+
+            String path = System.getenv("PATH");
+            if (path != null) for (String entry : path.split(java.io.File.pathSeparator)) {
+                // Windows PATH entries are sometimes quoted ("C:\Program Files\x") or plain invalid; skip what can't be a folder.
+                String dir = entry.trim().replaceAll("^\"+|\"+$", "").trim();
+                if (dir.isEmpty()) continue;
+                try {
+                    Path c = Path.of(dir).resolve(exe(name));
+                    if (runnable(c)) return c.toString();
+                } catch (java.nio.file.InvalidPathException ignored) {}
+            }
+            // GUI apps on macOS get a minimal PATH without Homebrew's folders.
+            if (MAC) for (String dir : List.of("/opt/homebrew/bin", "/usr/local/bin")) {
+                Path c = Path.of(dir, name);
+                if (runnable(c)) return c.toString();
+            }
+            return null;
+        } catch (RuntimeException e) {
+            System.err.println("[clips] looking for " + name + ": " + e);
+            return null;
         }
-        if (MAC) { candidates.add(Path.of("/opt/homebrew/bin", name)); candidates.add(Path.of("/usr/local/bin", name)); }
-        for (Path c : candidates) if (Files.isRegularFile(c) && Files.isExecutable(c)) return c.toString();
-        return null;
+    }
+
+    private static boolean runnable(Path c) {
+        try { return Files.isRegularFile(c) && Files.isExecutable(c); } catch (RuntimeException e) { return false; }
     }
 
     // ------------------------------------------------------------------ first-run download (Windows)
@@ -266,6 +303,30 @@ public final class Ffmpeg {
         }
     }
 
+    /**
+     * Runs a short check command with its output discarded and returns whether it exited with 0 within
+     * {@code timeoutSec}. A command that hangs (a GPU driver that never answers) is killed and counts as failed.
+     */
+    static boolean runsOk(List<String> cmd, long timeoutSec) {
+        Process p = null;
+        try {
+            p = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            p.getOutputStream().close();
+            if (!p.waitFor(timeoutSec, TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                return false;
+            }
+            return p.exitValue() == 0;
+        } catch (InterruptedException e) {
+            if (p != null) p.destroyForcibly();
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception e) {
+            if (p != null) p.destroyForcibly();
+            return false;
+        }
+    }
+
     static Thread drain(java.io.InputStream in, StringBuilder into) {
         Thread t = new Thread(() -> {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
@@ -283,11 +344,101 @@ public final class Ffmpeg {
         return t;
     }
 
+    /** Hands every line of {@code in} to {@code sink} on a background thread (e.g. ffmpeg's -progress output). */
+    static Thread drainLines(java.io.InputStream in, java.util.function.Consumer<String> sink) {
+        Thread t = new Thread(() -> {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    try { sink.accept(line); } catch (RuntimeException ignored) {}
+                }
+            } catch (IOException ignored) {}
+        }, "ffmpeg-progress");
+        t.setDaemon(true);
+        t.start();
+        return t;
+    }
+
     static String tail(String log) {
         String[] lines = log.strip().split("\n");
         StringBuilder sb = new StringBuilder();
         for (int i = Math.max(0, lines.length - 6); i < lines.length; i++) sb.append(lines[i].strip()).append('\n');
         return sb.toString().strip();
+    }
+
+    // ------------------------------------------------------------------ readable errors
+
+    private static final Pattern LOG_PREFIX = Pattern.compile("^\\[[^\\]]*@ ?(0x)?[0-9a-fA-F]+\\]\\s*");
+    private static final Pattern INPUT_INDEX = Pattern.compile("\\[in#(\\d+)");
+    private static final Pattern GPU_ENCODER = Pattern.compile("nvenc|_amf|\\bamf\\b|_qsv|\\bqsv\\b|\\bmfx|vaapi|\\bva-api|videotoolbox|\\bcuda\\b|nvcuda");
+    private static final Pattern ERROR_WORDS = Pattern.compile("error|failed|cannot|can't|could not|couldn't|not supported|no capable|unable");
+    private static final Pattern AUDIO_DEVICE = Pattern.compile("@default_monitor@|\\.monitor\\b|audio=|\\[dshow|\\[pulse|\\[wasapi|\\[alsa|\\bdshow\\b|\\bwasapi\\b|pa_context|pulseaudio|audio device|audio only device");
+
+    /** {@link #explain(String, List)} without track names (an audio failure is reported as the desktop audio). */
+    public static String explain(String log) { return explain(log, List.of()); }
+
+    /**
+     * Turns an ffmpeg log into one sentence a player can act on: a desktop-audio / mic device that won't open,
+     * a GPU encoder that won't start, a missing window or display. Otherwise the last line that mentions an
+     * error, else the last line. {@code audioTitles} are the capture's audio tracks in input order ("Game",
+     * "Mic", "Voice chat"; input 0 is the video), used to name the device that failed.
+     */
+    public static String explain(String log, List<String> audioTitles) {
+        if (log == null || log.isBlank()) return "";
+        String[] lines = log.strip().split("\n");
+        String lower = log.toLowerCase(Locale.ROOT);
+
+        // Which input failed to open (newer ffmpeg says "[in#2 @ ...] Error opening input").
+        int failedInput = -1;
+        for (String line : lines) {
+            String l = line.toLowerCase(Locale.ROOT);
+            if (!l.contains("error opening input")) continue;
+            Matcher m = INPUT_INDEX.matcher(l);
+            if (m.find()) failedInput = Integer.parseInt(m.group(1));
+        }
+        boolean audioFailed = failedInput >= 1;
+        if (failedInput < 0) {
+            // Older ffmpeg doesn't number its inputs: look for one line that names an audio device and an error
+            // ("audio=Stereo Mix: I/O error", "[pulse @ ..] pa_context_connect() failed").
+            for (String line : lines) {
+                String l = line.toLowerCase(Locale.ROOT);
+                if (AUDIO_DEVICE.matcher(l).find() && ERROR_WORDS.matcher(l).find()) { audioFailed = true; break; }
+            }
+        }
+        if (audioFailed) {
+            String track = failedInput >= 1 && failedInput - 1 < audioTitles.size() ? audioTitles.get(failedInput - 1)
+                    : audioTitles.size() == 1 ? audioTitles.get(0) : "Game";
+            return switch (track) {
+                case "Mic" -> "Couldn't open the microphone. Pick another one on the Record page or turn off the mic.";
+                case "Voice chat" -> "Couldn't open the voice-chat device. Pick another one on the Record page or turn off voice chat.";
+                default -> "Couldn't open the desktop-audio device. Pick another one on the Record page or turn off desktop audio.";
+            };
+        }
+        for (String line : lines) {
+            String l = line.toLowerCase(Locale.ROOT);
+            if (GPU_ENCODER.matcher(l).find() && ERROR_WORDS.matcher(l).find())
+                return "The GPU encoder failed to start. Switch the encoder to x264 (CPU) on the Record page.";
+        }
+        if (lower.contains("can't find window") || lower.contains("cannot find window"))
+            return "The game window isn't open. Start the game, or check the window title on the Record page.";
+        if (lower.contains("cannot open display") || lower.contains("can't open display"))
+            return "Couldn't open the X11 display. Screen capture on Linux needs an X11 session (\"on Xorg\" at login).";
+        if (lower.contains("ddagrab") && ERROR_WORDS.matcher(lower).find())
+            return "Windows screen capture (Desktop Duplication) failed. Update your graphics driver, or capture the game window instead.";
+        if (lower.contains("no space left"))
+            return "The disk is full. Free some space or move the clips folder in Settings.";
+
+        for (int i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].toLowerCase(Locale.ROOT).contains("error")) return readable(lines[i]);
+        }
+        for (int i = lines.length - 1; i >= 0; i--) if (!lines[i].isBlank()) return readable(lines[i]);
+        return "";
+    }
+
+    /** "[x11grab @ 0x55d1] Cannot open display :0" → "Cannot open display :0". */
+    private static String readable(String line) {
+        String s = LOG_PREFIX.matcher(line.strip()).replaceFirst("");
+        return s.isEmpty() ? line.strip() : s;
     }
 
     // ------------------------------------------------------------------ probing
@@ -318,6 +469,9 @@ public final class Ffmpeg {
                 video = true;
                 w = s.has("width") ? s.get("width").getAsInt() : 0;
                 h = s.has("height") ? s.get("height").getAsInt() : 0;
+                // Phone videos are stored landscape with a rotation flag; ffmpeg autorotates them when decoding,
+                // so report the size as they play (portrait), not as they're stored.
+                if (Math.abs(rotation(s)) % 180 == 90) { int t = w; w = h; h = t; }
                 fps = s.has("avg_frame_rate") ? ratio(s.get("avg_frame_rate").getAsString()) : 0;
                 if (fps <= 0 && s.has("r_frame_rate")) fps = ratio(s.get("r_frame_rate").getAsString());
                 if (dur <= 0 && s.has("duration")) dur = parseD(s.get("duration").getAsString());
@@ -334,6 +488,21 @@ public final class Ffmpeg {
         return new MediaInfo(dur, w, h, fps > 0 && fps < 1000 ? fps : 30, audio, video, audioTracks, trackNames);
     }
 
+    /** A video stream's rotation in degrees: the display matrix side data, else the older "rotate" tag. */
+    private static int rotation(JsonObject stream) {
+        try {
+            if (stream.has("side_data_list")) for (var el : stream.getAsJsonArray("side_data_list")) {
+                JsonObject sd = el.getAsJsonObject();
+                if (sd.has("rotation")) return (int) Math.round(parseD(sd.get("rotation").getAsString()));
+            }
+            if (stream.has("tags")) {
+                JsonObject tags = stream.getAsJsonObject("tags");
+                if (tags.has("rotate")) return (int) Math.round(parseD(tags.get("rotate").getAsString()));
+            }
+        } catch (RuntimeException ignored) {}
+        return 0;
+    }
+
     private static double parseD(String s) { try { return Double.parseDouble(s); } catch (Exception e) { return 0; } }
 
     private static double ratio(String r) {
@@ -346,51 +515,122 @@ public final class Ffmpeg {
 
     // ------------------------------------------------------------------ encoders
 
-    private static final java.util.Map<String, List<String>> ENCODERS = new java.util.HashMap<>();
+    /**
+     * Probed encoder lists by codec ("h264", "hevc", and "+capture" for the live-capture lists). Probing has its
+     * own lock, so ffmpeg() / ffprobe() and everything else never wait behind a slow GPU test encode.
+     */
+    private static final java.util.Map<String, List<String>> ENCODERS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Object ENCODER_PROBE = new Object();
+    private static volatile int encoderGeneration;
+    private static volatile String encoderListing;
+
+    /** The render node VA-API capture encodes on (the first GPU). */
+    static final String VAAPI_DEVICE = "/dev/dri/renderD128";
 
     /** H.264 encoders that actually work on this machine, best first (hardware before software). */
     public static List<String> workingEncoders() { return workingEncoders("h264"); }
 
     /**
      * Encoders for {@code codec} ("h264" or "hevc") that actually work here, hardware first. Hardware encoders
-     * (NVENC, AMF, Quick Sync, VideoToolbox) are listed only if a real test encode succeeds.
+     * (NVENC, AMF, Quick Sync, VideoToolbox) are listed only if a real test encode succeeds. These are the
+     * encoders exports can use; live capture can also use {@link #captureEncoders}.
      */
-    public static synchronized List<String> workingEncoders(String codec) {
-        List<String> cached = ENCODERS.get(codec);
+    public static List<String> workingEncoders(String codec) { return encoders(codec, false); }
+
+    /**
+     * Encoders live capture can use: {@link #workingEncoders} plus VA-API (AMD / Intel GPUs on Linux), which
+     * needs frames uploaded to the GPU first. Only the capture pipeline does that, so exports never pick it.
+     */
+    public static List<String> captureEncoders(String codec) { return encoders(codec, true); }
+
+    private static List<String> encoders(String codec, boolean capture) {
+        String c = "hevc".equals(codec) ? "hevc" : "h264";
+        String key = capture ? c + "+capture" : c;
+        List<String> cached = ENCODERS.get(key);
         if (cached != null) return cached;
-        String prefix = codec.equals("hevc") ? "hevc" : "h264";
+        synchronized (ENCODER_PROBE) {
+            cached = ENCODERS.get(key);
+            if (cached != null) return cached;
+            int generation = encoderGeneration;
+            String list = encoderListing();
+            List<String> found = new ArrayList<>(capture ? encoders(c, false) : probeEncoders(c, list));
+            if (capture && !WINDOWS && !MAC) {
+                String vaapi = c + "_vaapi";
+                if (list.contains(" " + vaapi + " ") && testVaapi(vaapi)) {
+                    // After the other GPU encoders, before the CPU ones.
+                    int at = 0;
+                    while (at < found.size() && !found.get(at).startsWith("lib") && !found.get(at).equals("mpeg4")) at++;
+                    found.add(at, vaapi);
+                }
+            }
+            List<String> result = List.copyOf(found);
+            // Don't keep a result from a failed listing (ffmpeg missing or hung), or one made for an ffmpeg that
+            // was swapped meanwhile.
+            if (!list.isBlank() && generation == encoderGeneration) ENCODERS.put(key, result);
+            return result;
+        }
+    }
+
+    /** {@code ffmpeg -encoders}, cached per ffmpeg. Empty when ffmpeg is missing or doesn't answer in 10 s. */
+    private static String encoderListing() {
+        String cached = encoderListing;
+        if (cached != null) return cached;
+        int generation = encoderGeneration;
+        String exe = ffmpeg();
+        if (exe == null) return "";
+        String list = capture(List.of(exe, "-hide_banner", "-encoders"), 10);
+        if (!list.isBlank() && generation == encoderGeneration) encoderListing = list;
+        return list;
+    }
+
+    private static List<String> probeEncoders(String codec, String list) {
         List<String> found = new ArrayList<>();
-        String list = capture(List.of(ffmpeg(), "-hide_banner", "-encoders"), 15);
         for (String hw : List.of("_nvenc", "_amf", "_qsv", "_videotoolbox")) {
-            String enc = prefix + hw;
+            String enc = codec + hw;
             if (list.contains(" " + enc + " ") && testEncoder(enc)) found.add(enc);
         }
         String sw = codec.equals("hevc") ? "libx265" : "libx264";
         if (list.contains(" " + sw + " ")) found.add(sw);
         if (found.isEmpty() && codec.equals("h264")) found.add("mpeg4");
-        ENCODERS.put(codec, found);
         return found;
     }
 
     /** HEVC only pays off live when a GPU does it; x265 on the CPU would cost frames while playing. */
-    public static boolean hardwareHevc() {
-        for (String e : workingEncoders("hevc")) if (!e.startsWith("lib")) return true;
+    public static boolean hardwareHevc() { return hardwareHevc(false); }
+
+    /** Like {@link #hardwareHevc()}, counting the capture-only GPU encoders ({@code capture}) too. */
+    public static boolean hardwareHevc(boolean capture) {
+        for (String e : capture ? captureEncoders("hevc") : workingEncoders("hevc")) if (!e.startsWith("lib")) return true;
         return false;
     }
 
     public static boolean isHevc(String enc) { return enc.startsWith("hevc") || enc.equals("libx265"); }
 
+    /** VA-API encoders take GPU frames: the capture graph ends in hwupload and the device is set up front. */
+    public static boolean isVaapi(String enc) { return enc != null && enc.endsWith("_vaapi"); }
+
+    /** ffmpeg options that open the VA-API device and hand it to the filter graph (for hwupload). */
+    static List<String> vaapiDeviceArgs() {
+        return List.of("-init_hw_device", "vaapi=evadeva:" + VAAPI_DEVICE, "-filter_hw_device", "evadeva");
+    }
+
     /** A listed hardware encoder can still fail (no GPU / driver), so encode a few frames to make sure. */
     private static boolean testEncoder(String enc) {
-        List<String> cmd = new ArrayList<>(List.of(ffmpeg(), "-hide_banner", "-loglevel", "error", "-f", "lavfi",
-                "-i", "color=black:s=320x240:r=30:d=0.2"));
-        cmd.addAll(List.of("-c:v", enc, "-f", "null", "-"));
-        try {
-            Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
-            p.getOutputStream().close();
-            p.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
-            return p.waitFor(10, TimeUnit.SECONDS) && p.exitValue() == 0;
-        } catch (Exception e) { return false; }
+        String exe = ffmpeg();
+        if (exe == null) return false;
+        return runsOk(List.of(exe, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+                "-i", "color=black:s=320x240:r=30:d=0.2", "-c:v", enc, "-f", "null", "-"), 10);
+    }
+
+    /** VA-API test encode through the same device setup and upload the capture uses. */
+    private static boolean testVaapi(String enc) {
+        String exe = ffmpeg();
+        if (exe == null || !Files.exists(Path.of(VAAPI_DEVICE))) return false;
+        List<String> cmd = new ArrayList<>(List.of(exe, "-hide_banner", "-loglevel", "error"));
+        cmd.addAll(vaapiDeviceArgs());
+        cmd.addAll(List.of("-f", "lavfi", "-i", "color=black:s=320x240:r=30:d=0.2", "-vf", "format=nv12,hwupload",
+                "-c:v", enc, "-f", "null", "-"));
+        return runsOk(cmd, 10);
     }
 
     public static String bestEncoder() { return workingEncoders().get(0); }
@@ -403,6 +643,7 @@ public final class Ffmpeg {
             case "_amf" -> "AMD AMF (GPU)" + codec;
             case "_qsv" -> "Intel Quick Sync (GPU)" + codec;
             case "_videotoolbox" -> "Apple VideoToolbox (GPU)" + codec;
+            case "_vaapi" -> "VA-API (GPU)" + codec;
             default -> enc.equals("libx264") ? "x264 (CPU)" : enc.equals("libx265") ? "x265 (CPU) · HEVC" : enc;
         };
     }
@@ -444,6 +685,7 @@ public final class Ffmpeg {
             case "_amf" -> a.addAll(List.of("-quality", "speed", "-rc", "vbr_peak", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
             case "_qsv" -> a.addAll(List.of("-preset", "veryfast", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
             case "_videotoolbox" -> a.addAll(List.of("-realtime", "1", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
+            case "_vaapi" -> a.addAll(List.of("-rc_mode", "VBR", "-b:v", avg, "-maxrate", maxrate, "-bufsize", bufsize));
             default -> {
                 if (enc.equals("libx264")) a.addAll(List.of("-preset", quality == 3 ? "veryfast" : "ultrafast", "-tune", "zerolatency",
                         "-crf", String.valueOf(new int[]{30, 24, 20}[q]), "-maxrate", maxrate, "-bufsize", bufsize));
@@ -453,7 +695,9 @@ public final class Ffmpeg {
             }
         }
         a.addAll(List.of("-g", String.valueOf(gop), "-keyint_min", String.valueOf(gop),
-                "-force_key_frames", "expr:gte(t,n_forced*1)", "-pix_fmt", "yuv420p"));
+                "-force_key_frames", "expr:gte(t,n_forced*1)"));
+        // VA-API gets GPU frames (the capture graph ends in hwupload); a pixel format here would force a download.
+        if (!isVaapi(enc)) a.addAll(List.of("-pix_fmt", "yuv420p"));
         return a;
     }
 }

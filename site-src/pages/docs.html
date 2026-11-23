@@ -16,6 +16,7 @@ nav: docs
       <a href="#profiles">Profiles</a>
       <a href="#performance">Performance</a>
       <a href="#voice">Voice chat</a>
+      <a href="#icons">Evade icons</a>
       <a href="#clips">Clips</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
@@ -26,12 +27,13 @@ nav: docs
     <div class="doc">
       <div class="doc-sec rv" id="menu">
         <h2>The menu</h2>
-        <p>Press <span class="kbd">Right Shift</span> in game. The sidebar has {{CATS}} categories plus <b>All Mods</b>, <b>Edit HUD Layout</b> and <b>Settings</b>.</p>
+        <p>Press <span class="kbd">Right Shift</span> in game. The sidebar has {{CATS}} categories plus <b>All Mods</b>, <b>Edit HUD Layout</b>, <a href="#profiles"><b>Profiles</b></a> and <b>Settings</b>.</p>
         <ul>
           <li><b>Left-click</b> a card to turn the mod on or off.</li>
           <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
           <li><b>Start typing</b> anywhere to search all {{TOTAL}} mods.</li>
-          <li>On a settings page, click <b>Keybind</b> and press a key to bind it. Right-click, <span class="kbd">Esc</span>, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears it.</li>
+          <li>On a mod's settings page, click <b>Toggle Key</b> and press a key to bind it. <span class="kbd">Esc</span> cancels; right-click, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears a key. Keys a mod uses while it's on, like <b>Zoom Key</b> or <b>Freelook Key</b>, are separate settings on the same page and bind the same way.</li>
+          <li><b>Middle-click</b> a setting to put it back to its default, or click <b>Reset</b> to put the whole mod back.</li>
         </ul>
         <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
         <p><b>Three menu styles.</b> Under <b>Settings &rarr; GUI Style</b> you can switch between <b>List</b> (the default: spacious full-width rows with a description, keybind chip and settings), <b>Cards</b> (a grid of cards) and <b>Compact</b> (a dense single-column list). The <b>All / Enabled</b> filter at the top right shows either every module or only the ones you have on. The controls are the same in all three.</p>
@@ -69,13 +71,14 @@ nav: docs
         <p>Its <b>Effects</b> settings cut the eye candy that costs frames:</p>
         <ul>
           <li><b>Particle Distance</b> (32 blocks): particles further away aren't created at all.</li>
-          <li><b>Hide Ambient Particles</b> (on): campfire smoke, ash, spores, falling leaves, drips and fireflies.</li>
+          <li><b>Hide Ambient Particles</b> (on): campfire smoke, ash, spores, falling leaves, water drips and fireflies.</li>
+          <li><b>Hide Lava Drips</b> (off): lava dripping through a ceiling warns you there's lava above, so it stays visible unless you switch this on.</li>
           <li><b>Less Block Break Dust</b> (on): a quarter of the dust when blocks break, which adds up fast when mining or when TNT goes off.</li>
-          <li><b>Hide Rain Splashes</b> (on), plus a shorter weather radius with Lighter Video Settings.</li>
+          <li><b>Hide Rain Splashes</b> (on): the splashes raindrops make on the ground, plus a shorter weather radius with Lighter Video Settings. Splashes from things landing in water still show.</li>
           <li><b>Hide Fire On Mobs</b> (on): burning mobs skip their fire layer. Burning players still show it.</li>
           <li><b>Hide Rain &amp; Snow</b> (off): skips drawing precipitation completely, for the weakest PCs.</li>
         </ul>
-        <p>For the fire on your own screen, <b>Pack Tweaks</b> lowers it and <b>NoRender</b> hides it.</p>
+        <p>Particles that tell you something, like a fishing bite, a splash, bubbles or an explosion, are never thinned or cut by distance. For the fire on your own screen, <b>Pack Tweaks</b> lowers it and <b>NoRender</b> hides it.</p>
         <p><b>Shaders:</b> switch on <b>Shaders</b> in the installer to add <a href="https://modrinth.com/mod/iris" target="_blank" rel="noopener">Iris</a> and the <a href="https://modrinth.com/shader/complementary-reimagined" target="_blank" rel="noopener">Complementary Reimagined</a> shader pack from Modrinth: real-time shadows, volumetric light, reflective water and more. Shaders cost a lot of FPS, so they're off by default. Press <span class="kbd">K</span> in game to turn them on or off, or pick another pack under <b>Options &rsaquo; Video Settings &rsaquo; Shader Packs</b>.</p>
         <p><b>Memory:</b> the installer recommends how much memory to give Minecraft based on your PC. More isn't faster: an oversized heap makes garbage-collection pauses longer.</p>
         <p>The installer also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. The installer also sets low-pause memory settings for smoother frame times.</p>
@@ -104,7 +107,13 @@ nav: docs
 
       <div class="doc-sec rv" id="clips">
         <h2>Clips</h2>
-        <p>Turn on <b>Clips</b> (Misc). While it's on, Evade keeps the last 10&ndash;120 seconds of your screen in memory. Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> to save them as an MP4 in <span class="mono">.minecraft/evade/clips</span>; <span class="mono">.clips</span> opens that folder. Pick 480p, 720p or 1080p and 15&ndash;60 FPS in its settings. Video only, no audio.</p>
+        <p>Turn on <b>Clips</b> (Misc) to keep your best moments; it's already on if you installed <a href="/clips">Evade Clips</a>. Its <b>Recorder</b> setting picks where clips go:</p>
+        <ul>
+          <li><b>Auto</b> (the default): Evade Clips whenever the app is running, the built-in recorder otherwise.</li>
+          <li><b>Evade Clips</b>: clips go to the app, with sound, where you can edit them and share links that play in Discord. See <a href="/clips">Evade Clips</a>.</li>
+          <li><b>Built-in</b>: Evade keeps the last 10&ndash;120 seconds of your screen in memory and saves them as an MP4 in <span class="mono">.minecraft/evade/clips</span>, at 480p, 720p or 1080p and 15&ndash;60 FPS. These clips are video only, with no sound.</li>
+        </ul>
+        <p>Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> to save a clip. Evade also clips by itself with either recorder: your kills, totem pops of players you're fighting, wins and advancements are on by default, and deaths are off. <b>Seconds After</b> sets how long it keeps recording after the moment, and in Evade Clips each one gets a named marker on the timeline. Bind <b>Open Clips App</b> to open the app from in game.</p>
       </div>
 
       <div class="doc-sec rv" id="keys">
@@ -112,9 +121,9 @@ nav: docs
         <div class="table">
           <div><span class="kbd">Right Shift</span><span>Open the menu (change it under Settings)</span></div>
           <div><span class="kbd">C</span><span>Zoom (scroll while zooming to change how far)</span></div>
-          <div><span class="kbd">Left Alt</span><span>Freelook</span></div>
+          <div><span class="kbd">Left Alt</span><span>Freelook (switched off on servers that forbid it)</span></div>
           <div><span class="kbd">V</span><span>Voice chat menu</span></div>
-          <div><span class="kbd">F8</span><span>Save a clip of the last seconds (with Clips on)</span></div>
+          <div><span class="kbd">F8</span><span>Save a clip (with Clips on)</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
         <p>Every other mod starts unbound. Bind the ones you use most from their settings page or with <span class="mono">.bind</span>.</p>
@@ -122,18 +131,22 @@ nav: docs
 
       <div class="doc-sec rv" id="commands">
         <h2>Chat commands</h2>
-        <p>Commands start with a dot and are never sent to the server.</p>
+        <p>Commands start with a dot and are never sent to the server. Mod and setting names can be typed with or without spaces, in any case: <code>.toggle NickHider</code> and <code>.toggle nick hider</code> both work.</p>
         <div class="table code">
           <div><code>.help</code><span>List commands</span></div>
-          <div><code>.toggle &lt;mod&gt;</code><span>Turn a mod on or off (short: <code>.t</code>)</span></div>
-          <div><code>.bind &lt;mod&gt; &lt;key|none&gt;</code><span>Set or clear a keybind</span></div>
-          <div><code>.set &lt;mod&gt; &lt;setting&gt; &lt;value&gt;</code><span>Change a setting, e.g. <code>.set Zoom Level 4</code></span></div>
+          <div><code>.menu</code><span>Open the Evade menu</span></div>
+          <div><code>.toggle &lt;mod&gt;</code><span>Turn a mod on or off; name several to switch them all (short: <code>.t</code>)</span></div>
+          <div><code>.bind &lt;mod&gt; &lt;key|none&gt;</code><span>Set or clear a mod's toggle key. The middle and side mouse buttons work too, e.g. <code>.bind Fullbright mouse4</code></span></div>
+          <div><code>.set &lt;mod&gt; &lt;setting&gt; &lt;value&gt;</code><span>Change a setting, e.g. <code>.set Zoom Level 4</code>. Leave out the value to see the current one.</span></div>
           <div><code>.modules</code><span>List every mod, enabled ones in green</span></div>
           <div><code>.voice</code><span>Open the voice chat menu</span></div>
-          <div><code>.clip</code> / <code>.clips</code><span>Save an instant-replay clip / open the clips folder</span></div>
+          <div><span class="cmds"><code>.clip</code> or <code>.clips save</code></span><span>Save a clip now</span></div>
+          <div><code>.clips</code><span>Open Evade Clips, or the clips folder without it</span></div>
+          <div><code>.clips last</code><span>Open your last clip in the Evade Clips editor</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
           <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
-          <div><code>.save</code> / <code>.load</code><span>Save or reload your config</span></div>
+          <div><code>.save</code><span>Save your config now</span></div>
+          <div><code>.load</code><span>Reload your config from disk</span></div>
         </div>
       </div>
 

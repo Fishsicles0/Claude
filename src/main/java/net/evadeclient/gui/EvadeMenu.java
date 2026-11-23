@@ -2,6 +2,7 @@ package net.evadeclient.gui;
 
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.Category;
+import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.Module;
 import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.setting.BooleanSetting;
@@ -10,21 +11,26 @@ import net.evadeclient.setting.KeySetting;
 import net.evadeclient.setting.ModeSetting;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.Setting;
+import net.evadeclient.setting.StatusSetting;
+import net.evadeclient.setting.StringSetting;
+import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
+import net.minecraft.util.StringHelper;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.IntPredicate;
 
 /**
  * The Evade menu: a centred window with a grouped sidebar, a search bar, an All/Enabled filter and a
@@ -62,7 +68,11 @@ public class EvadeMenu extends Screen {
 
     private static Page page = Page.ALL;
     private static Module selected;
+    /** Sort the module list A-Z instead of the curated order (kept for the session). */
+    private static boolean sortAz;
     private boolean enabledOnly;
+    /** The screen to go back to when the menu was opened from another one (the HUD editor's right-click). */
+    private Screen returnTo;
 
     private String search = "";
     private boolean searchFocused;
@@ -80,14 +90,44 @@ public class EvadeMenu extends Screen {
 
     /** The module (keybind) or KeySetting waiting for a key press. */
     private Object listening;
+    /** A key the capture refused (e.g. the Menu Key for a module): the row flashes red with {@link #rejectMsg}. */
+    private Object rejectRow;
+    private long rejectAt;
+    private String rejectMsg = "";
     private NumberSetting dragging;
     private int dragX, dragW;
+    /** The text field open on a settings row (a number, a colour or a short text value), or null. */
+    private Editor editor;
+
+    /** A modifier Menu Key (e.g. Right Shift) closes the menu when it is released, if nothing else was pressed,
+     *  typed, clicked or scrolled meanwhile: Shift + letter types a capital and Shift + wheel steps by 10. */
+    private boolean menuKeyDown, menuKeyUsed;
+
+    // scrollbar of the current page (set while drawing it) and its drag state
+    private int sbTop, sbViewH, sbContentH;
+    private boolean sbDrag;
+    private double sbGrab;
+
+    // sidebar scrolling: only used when the nav list can't fit (it always fits at the menu's design size)
+    private double navScroll;
+
+    // settings-row hover: the slider under the mouse (wheel and arrow keys), and the row the tooltip is for
+    private NumberSetting hoverSlider;
+    private Object tipRow;
+    private long tipSince;
+    private List<TipLine> tip;
+    private int tipX, tipY;
 
     // layout (recomputed each frame)
     private int wx, wy, ww, wh, cx, cy, cw, ch, searchY, headerY;
     private static final int SIDEBAR = 158, ROW_H = 24, SLIDER_W = 120;
     private static final int LIST_H = 50, CARD_H = 58, COMPACT_H = 22, GAP = 8;
     private static final int NAV_TOP = 58, NAV_HEADER_H = 18, NAV_ITEM_H = 27, NAV_GROUP_GAP = 6;
+    private static final int NAV_CONTENT_H = navContentHeight();
+    /** Hover time before a settings row shows its tooltip. */
+    private static final long TIP_DELAY = 400;
+    /** How long a pending profile delete waits for its confirming second click. */
+    private static final long DELETE_CONFIRM_MS = 3000;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -99,8 +139,17 @@ public class EvadeMenu extends Screen {
 
     /** Open the menu, optionally straight onto a module's settings page. */
     public static EvadeMenu open(Module select) {
+        return open(select, null);
+    }
+
+    /**
+     * Open the menu, optionally on a module's settings page, from another screen: Escape (or Back) on that module
+     * page and closing the menu return to {@code returnTo} instead of the game. Picking a sidebar page forgets it.
+     */
+    public static EvadeMenu open(Module select, Screen returnTo) {
         EvadeMenu menu = new EvadeMenu();
         if (select != null) selected = select;
+        menu.returnTo = returnTo;
         return menu;
     }
 
@@ -168,6 +217,11 @@ public class EvadeMenu extends Screen {
         dt = Math.max(0f, Math.min(0.1f, (now - lastFrame) / 1000f));
         lastFrame = now;
         scroll += (scrollTarget - scroll) * (1 - Math.exp(-18 * dt));
+        // Per-frame hover state, filled in by whichever page draws below.
+        sbContentH = 0;
+        hoverSlider = null;
+        tip = null;
+        if (pendingDelete != null && now - pendingDeleteAt > DELETE_CONFIRM_MS) pendingDelete = null;
 
         ww = Math.min(width - 40, 780);
         wh = Math.min(height - 36, 470);
@@ -202,6 +256,7 @@ public class EvadeMenu extends Screen {
             renderHeader(ctx, mouseX, mouseY);
             renderGrid(ctx, mouseX, mouseY);
         }
+        drawTip(ctx);
 
         m.popMatrix();
     }
@@ -210,10 +265,21 @@ public class EvadeMenu extends Screen {
 
     private record NavHit(Nav nav, int y) {}
 
+    private static int navContentHeight() {
+        int h = 0;
+        for (NavGroup g : GROUPS) h += (g.header != null ? NAV_HEADER_H : 0) + g.items.size() * NAV_ITEM_H + NAV_GROUP_GAP;
+        return h;
+    }
+
+    /** The nav list's visible band: from under the logo to above the account footer. */
+    private int navTop() { return wy + NAV_TOP; }
+    private int navBottom() { return wy + wh - 34; }
+    private int navMaxScroll() { return Math.max(0, NAV_CONTENT_H - (navBottom() - navTop())); }
+
     /** Lay the grouped nav out and return each item with its y, for render + click to share. */
     private List<NavHit> navLayout() {
         List<NavHit> hits = new ArrayList<>();
-        int y = wy + NAV_TOP;
+        int y = navTop() - (int) Math.round(navScroll);
         for (NavGroup g : GROUPS) {
             if (g.header != null) y += NAV_HEADER_H;
             for (Nav n : g.items) { hits.add(new NavHit(n, y)); y += NAV_ITEM_H; }
@@ -230,7 +296,11 @@ public class EvadeMenu extends Screen {
         small(ctx, "C L I E N T", wx + 44, wy + 35, Theme.TEXT_FAINT, 0.65f);
         ctx.fill(wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, Theme.DIVIDER);
 
-        int y = wy + NAV_TOP;
+        // On a screen too short for the whole list (it fits at the design size) the list clips and scrolls.
+        navScroll = Math.max(0, Math.min(navScroll, navMaxScroll()));
+        boolean clip = navMaxScroll() > 0;
+        if (clip) ctx.enableScissor(wx + 1, navTop(), wx + SIDEBAR, navBottom());
+        int y = navTop() - (int) Math.round(navScroll);
         for (NavGroup g : GROUPS) {
             if (g.header != null) {
                 small(ctx, spaced(g.header), wx + 18, y + 7, Theme.TEXT_HEADER, 0.78f);
@@ -243,6 +313,7 @@ public class EvadeMenu extends Screen {
             }
             y += NAV_GROUP_GAP;
         }
+        if (clip) ctx.disableScissor();
 
         String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
         ctx.fill(wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, Theme.DIVIDER);
@@ -252,7 +323,7 @@ public class EvadeMenu extends Screen {
 
     private void navItem(DrawContext ctx, Nav n, int y, int mx, int my, boolean active) {
         int x1 = wx + 10, x2 = wx + SIDEBAR - 10, top = y + 1, bot = y + NAV_ITEM_H - 3;
-        boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot;
+        boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot && my >= navTop() && my < navBottom();
         float t = animate("nav:" + n.label, active ? 1 : hover ? 0.4f : 0, 16);
 
         // Active: accent-tinted fill with a thin accent outline. Hover: a soft highlight.
@@ -295,12 +366,15 @@ public class EvadeMenu extends Screen {
         int bx = wx + ww - 24, by = wy + 12;
         boolean hc = mx >= bx && mx < bx + 14 && my >= by && my < by + 14;
         Theme.round(ctx, bx, by, bx + 14, by + 14, hc ? Theme.RED : Theme.CONTROL);
-        icon(ctx, "close", bx + 3, by + 3, 8, hc ? 0xFFFFFFFF : Theme.TEXT_SOFT);
+        icon(ctx, "close", bx + 2, by + 2, 10, hc ? Theme.ON_ACCENT : Theme.TEXT_SOFT);
     }
 
     // ---- content header ----------------------------------------------
 
-    private int searchW() { return cw - 22; }
+    /** Right edge of the content row that shares the window's top band with the close button. */
+    private int contentRight() { return cx + cw - 22; }
+
+    private int searchW() { return contentRight() - cx; }
 
     private void renderSearch(DrawContext ctx, int mx, int my) {
         int sx = cx, sw = searchW();
@@ -312,32 +386,47 @@ public class EvadeMenu extends Screen {
         boolean caret = searchFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (search.isEmpty() && !searchFocused) {
             text(ctx, "Search modules", sx + 22, searchY + 8, Theme.TEXT_FAINT, false);
-            small(ctx, "Ctrl+F  ·  searches settings too", sx + 22 + width("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
+            small(ctx, "Ctrl+F  ·  searches every mod and setting", sx + 22 + width("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
         } else {
-            text(ctx, trim(search, sw - 30) + (caret ? "_" : ""), sx + 22, searchY + 8, Theme.TEXT, false);
+            text(ctx, trimStart(search, sw - 30) + (caret ? "_" : ""), sx + 22, searchY + 8, Theme.TEXT, false);
         }
     }
 
+    // All / Enabled segmented toggle and the A-Z sort chip to its left, right-aligned in the header.
+    private static final int SEG_W = 150, AZ_W = 34;
+
+    private int segX() { return cx + cw - SEG_W; }
+    private int azX() { return segX() - 8 - AZ_W; }
+
     private void renderHeader(DrawContext ctx, int mx, int my) {
-        // title + module count
+        // title + module count; while searching the list covers every category
+        String title = search.isBlank() ? page.label : "Search";
         var m = ctx.getMatrices();
         m.pushMatrix();
         m.translate(cx, headerY);
         m.scale(1.45f, 1.45f);
-        text(ctx, page.label, 0, 0, Theme.TEXT, false);
+        text(ctx, title, 0, 0, Theme.TEXT, false);
         m.popMatrix();
-        int tw = Math.round(width(page.label) * 1.45f);
-        int count = modulesFor(page, "").size();
-        small(ctx, count + (count == 1 ? " module" : " modules"), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, 0.9f);
+        int tw = Math.round(width(title) * 1.45f);
+        int total = modulesFor(listPage(), "").size();
+        String noun = total == 1 ? " module" : " modules";
+        String count = !search.isBlank() || enabledOnly ? visibleModules().size() + " of " + total + noun : total + noun;
+        small(ctx, trimScaled(count, azX() - 10 - (cx + tw + 10), 0.9f), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, 0.9f);
 
-        // All / Enabled segmented toggle, right-aligned
-        int segW = 150, segX = cx + cw - segW, segY = headerY - 3, half = segW / 2;
-        Theme.roundBordered(ctx, segX, segY, segX + segW, segY + 22, Theme.INPUT, Theme.BORDER);
+        int segX = segX(), segY = headerY - 3, half = SEG_W / 2;
+        Theme.roundBordered(ctx, segX, segY, segX + SEG_W, segY + 22, Theme.INPUT, Theme.BORDER);
         float sel = animate("seg", enabledOnly ? 1 : 0, 18);
         int knobX = segX + 2 + Math.round((half - 2) * sel);
         Theme.round(ctx, knobX, segY + 2, knobX + half - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f));
-        drawCentered(ctx, "All", segX, segX + half, segY + 7, enabledOnly ? Theme.TEXT_DIM : Theme.TEXT);
-        drawCentered(ctx, "Enabled", segX + half, segX + segW, segY + 7, enabledOnly ? Theme.TEXT : Theme.TEXT_DIM);
+        drawCentered(ctx, "All", segX, segX + half, segY + 7, Theme.lerpColor(Theme.ON_ACCENT, Theme.TEXT_DIM, sel));
+        drawCentered(ctx, "Enabled", segX + half, segX + SEG_W, segY + 7, Theme.lerpColor(Theme.TEXT_DIM, Theme.ON_ACCENT, sel));
+
+        int ax = azX();
+        boolean ha = mx >= ax && mx < ax + AZ_W && my >= segY && my < segY + 22;
+        Theme.roundBordered(ctx, ax, segY, ax + AZ_W, segY + 22, sortAz ? Theme.tint(0.16f) : ha ? Theme.CONTROL_HOVER : Theme.INPUT,
+                sortAz ? Theme.RED : ha ? Theme.BORDER_HOVER : Theme.BORDER);
+        drawCentered(ctx, "A-Z", ax, ax + AZ_W, segY + 7, sortAz ? Theme.RED_BRIGHT : ha ? Theme.TEXT : Theme.TEXT_DIM);
+        if (ha) setTip(mx, my, List.of(new TipLine(sortAz ? "Sorted A-Z. Click for the usual order" : "Sort A-Z", Theme.TEXT_SOFT)));
     }
 
     private void drawCentered(DrawContext ctx, String s, int x1, int x2, int y, int color) {
@@ -348,29 +437,33 @@ public class EvadeMenu extends Screen {
 
     private String profileInput = "";
     private boolean profileFocused;
+    /** A profile whose delete button was clicked once: a second click within {@link #DELETE_CONFIRM_MS} deletes it. */
+    private String pendingDelete;
+    private long pendingDeleteAt;
     private static final int PROFILE_H = 44;
 
-    private int createButtonX() { return cx + cw - 96; }
+    private int createButtonX() { return contentRight() - 96; }
     private int importButtonX() { return createButtonX() - 78; }
+    private int profileInputW() { return cw - 22 - 104 - 78; }
 
     private void renderProfilesPage(DrawContext ctx, int mx, int my) {
         var profiles = EvadeClient.profiles;
         if (profiles == null) return;
 
-        // new-profile input + Create button
-        int inW = cw - 104 - 78;
+        // new-profile input + Import and Create buttons (kept clear of the window's close button)
+        int inW = profileInputW();
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
         boolean caret = profileFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (profileInput.isEmpty() && !profileFocused) {
             text(ctx, "New profile name…", cx + 8, searchY + 8, Theme.TEXT_FAINT, false);
         } else {
-            text(ctx, trim(profileInput, inW - 14) + (caret ? "_" : ""), cx + 8, searchY + 8, Theme.TEXT, false);
+            text(ctx, trimStart(profileInput, inW - 22) + (caret ? "_" : ""), cx + 8, searchY + 8, Theme.TEXT, false);
         }
-        int bx = createButtonX();
-        boolean hc = mx >= bx && mx < cx + cw && my >= searchY && my < searchY + 24;
-        Theme.round(ctx, bx, searchY, cx + cw, searchY + 24, hc ? Theme.RED : Theme.RED_DARK);
-        drawCentered(ctx, "Create", bx, cx + cw, searchY + 8, Theme.TEXT);
+        int bx = createButtonX(), br = contentRight();
+        boolean hc = mx >= bx && mx < br && my >= searchY && my < searchY + 24;
+        Theme.round(ctx, bx, searchY, br, searchY + 24, hc ? Theme.RED : Theme.RED_DARK);
+        drawCentered(ctx, "Create", bx, br, searchY + 8, hc ? Theme.ON_ACCENT : Theme.TEXT);
         int ix = importButtonX();
         boolean hi = mx >= ix && mx < ix + 70 && my >= searchY && my < searchY + 24;
         Theme.roundBordered(ctx, ix, searchY, ix + 70, searchY + 24, hi ? Theme.CONTROL_HOVER : Theme.CONTROL, hi ? Theme.RED : Theme.BORDER);
@@ -397,28 +490,36 @@ public class EvadeMenu extends Screen {
             renderProfileRow(ctx, list.get(i), list.get(i).equals(active), list.size(), y, mx, my);
         }
         ctx.disableScissor();
+        drawScrollbar(ctx, cy, ch, contentH);
 
-        small(ctx, "Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.",
+        small(ctx, trimScaled("Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.", cw, 0.8f),
                 cx, cy + ch + 2, Theme.TEXT_FAINT, 0.8f);
     }
 
     private record ProfileButton(String id, String label, int x1, int x2) {}
 
-    /** The buttons on a profile row, right to left: Use (or the ACTIVE chip), delete, copy code, link to this server. */
+    /** Width of the Use button and the ACTIVE chip that takes its place on the active row. */
+    private static final int USE_W = 46, DELETE_W = 18;
+
+    /** The buttons on a profile row, right to left: Use (or the ACTIVE chip), delete, copy code, link to this server.
+     *  The active row leaves the delete slot empty, so Copy code lines up on every row. */
     private List<ProfileButton> profileButtons(String name, boolean active, int total) {
         List<ProfileButton> out = new ArrayList<>();
         int right = cx + cw - 12;
         if (!active) {
-            out.add(new ProfileButton("use", "Use", right - 46, right)); right -= 46 + 6;
-            if (total > 1) { out.add(new ProfileButton("delete", "×", right - 18, right)); right -= 18 + 6; }
+            out.add(new ProfileButton("use", "Use", right - USE_W, right)); right -= USE_W + 6;
+            if (total > 1) {
+                boolean confirm = name.equals(pendingDelete);
+                int dw = confirm ? Math.round(width("Delete?") * 0.85f) + 14 : DELETE_W;
+                out.add(new ProfileButton("delete", confirm ? "Delete?" : "×", right - dw, right)); right -= dw + 6;
+            }
         } else {
-            right -= Math.round(width("ACTIVE") * 0.8f) + 12 + 6;
+            right -= USE_W + 6 + (total > 1 ? DELETE_W + 6 : 0);
         }
         out.add(new ProfileButton("copy", "Copy code", right - 64, right)); right -= 64 + 6;
         String srv = currentServer();
         if (srv != null) {
-            boolean linked = EvadeClient.profiles.serversFor(name).contains(srv.toLowerCase(Locale.ROOT));
-            String label = linked ? "Linked here" : "Use on this server";
+            String label = isLinked(name, srv) ? "Linked here" : "Use on this server";
             int w = width(label) * 85 / 100 + 14;
             out.add(new ProfileButton("server", label, right - w, right));
         }
@@ -439,32 +540,52 @@ public class EvadeMenu extends Screen {
         Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? Theme.tint(0.09f) : fill, border);
         if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED);
 
+        List<ProfileButton> buttons = profileButtons(name, active, total);
+        int textRight = cx + cw - 12 - (active ? USE_W : 0);
+        for (ProfileButton b : buttons) textRight = Math.min(textRight, b.x1());
+        int textW = textRight - 10 - (cx + 16);
+
         List<String> servers = EvadeClient.profiles.serversFor(name);
         if (servers.isEmpty()) {
-            text(ctx, name, cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
+            text(ctx, trim(name, textW), cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
         } else {
-            text(ctx, name, cx + 16, y + 11, Theme.TEXT, false);
-            small(ctx, "Auto on " + String.join(", ", servers), cx + 16, y + 25, Theme.TEXT_DIM, 0.8f);
+            text(ctx, trim(name, textW), cx + 16, y + 11, Theme.TEXT, false);
+            small(ctx, trimScaled("Auto on " + String.join(", ", servers), textW, 0.8f), cx + 16, y + 25, Theme.TEXT_DIM, 0.8f);
         }
 
         int by = y + (PROFILE_H - 18) / 2;
         if (active) {
-            int right = cx + cw - 12, w = Math.round(width("ACTIVE") * 0.8f) + 12, chipY = y + (PROFILE_H - 15) / 2;
-            Theme.round(ctx, right - w, chipY, right, chipY + 15, Theme.alpha(Theme.RED, 0.3f));
-            small(ctx, "ACTIVE", right - w + 6, chipY + 4, Theme.RED_BRIGHT, 0.8f);
+            // The ACTIVE chip sits in the Use button's slot, at the buttons' height.
+            int right = cx + cw - 12, tw = Math.round(width("ACTIVE") * textScale(0.8f));
+            Theme.round(ctx, right - USE_W, by, right, by + 18, Theme.alpha(Theme.RED, 0.3f));
+            small(ctx, "ACTIVE", right - USE_W + (USE_W - tw) / 2, by + 6, Theme.RED_BRIGHT, 0.8f);
         }
-        for (ProfileButton b : profileButtons(name, active, total)) {
+        for (ProfileButton b : buttons) {
             boolean hb = inView && mx >= b.x1() && mx < b.x2() && my >= by && my < by + 18;
-            boolean primary = b.id().equals("use");
-            boolean linked = b.id().equals("server") && b.label().startsWith("Linked");
-            int bg = hb ? (b.id().equals("delete") ? Theme.tint(0.17f) : primary ? Theme.RED : Theme.CONTROL_HOVER)
-                    : linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL;
-            Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, hb || linked ? Theme.RED : Theme.BORDER);
-            if (b.id().equals("use")) drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, Theme.TEXT);
-            else if (b.id().equals("delete")) text(ctx, "×", b.x1() + 6, by + 5, hb ? Theme.RED_BRIGHT : Theme.TEXT_DIM, false);
-            else {
-                int tw = Math.round(width(b.label()) * 0.85f);
-                small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, 0.85f);
+            switch (b.id()) {
+                case "use" -> {
+                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
+                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, hb ? Theme.ON_ACCENT : Theme.TEXT);
+                }
+                case "delete" -> {
+                    boolean confirm = name.equals(pendingDelete);
+                    int bg = confirm ? Theme.alpha(Theme.DANGER, hb ? 0.3f : 0.18f) : hb ? Theme.alpha(Theme.DANGER, 0.15f) : Theme.CONTROL;
+                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, confirm || hb ? Theme.DANGER : Theme.BORDER);
+                    if (confirm) {
+                        int tw = Math.round(width(b.label()) * textScale(0.85f));
+                        small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, Theme.DANGER, 0.85f);
+                    } else {
+                        text(ctx, "×", b.x1() + 6, by + 5, hb ? Theme.DANGER : Theme.TEXT_DIM, false);
+                    }
+                    if (hb) setTip(mx, my, List.of(new TipLine(confirm ? "Click again to delete " + name : "Delete " + name, Theme.TEXT_SOFT)));
+                }
+                default -> {
+                    boolean linked = b.id().equals("server") && b.label().startsWith("Linked");
+                    int bg = hb ? Theme.CONTROL_HOVER : linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL;
+                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, hb || linked ? Theme.RED : Theme.BORDER);
+                    int tw = Math.round(width(b.label()) * 0.85f);
+                    small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, 0.85f);
+                }
             }
         }
     }
@@ -472,44 +593,57 @@ public class EvadeMenu extends Screen {
     private boolean clickProfiles(double mx, double my) {
         var profiles = EvadeClient.profiles;
         if (profiles == null) return true;
-        // input box / create button
-        int inW = cw - 104 - 78;
+        // Any click other than the confirming one cancels a pending delete.
+        String confirming = pendingDelete;
+        pendingDelete = null;
+        // input box / import / create
+        int inW = profileInputW();
         profileFocused = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         if (profileFocused) return true;
         if (mx >= importButtonX() && mx < importButtonX() + 70 && my >= searchY && my < searchY + 24) {
             String imported = profiles.importCode(client.keyboard.getClipboard());
-            if (imported != null) net.evadeclient.util.Notifications.push("Profile imported", imported + " is ready to use", true);
-            else net.evadeclient.util.Notifications.push("Nothing to import", "Copy an Evade profile code first", false);
+            if (imported != null) Notifications.push("Profile imported", imported + " is ready to use", true);
+            else Notifications.push("Nothing to import", "Copy an Evade profile code first", false);
             return true;
         }
-        if (mx >= createButtonX() && mx < cx + cw && my >= searchY && my < searchY + 24) {
-            String name = ProfileManagerName(profileInput);
-            if (profiles.create(name)) { profileInput = ""; profileFocused = false; }
+        if (mx >= createButtonX() && mx < contentRight() && my >= searchY && my < searchY + 24) {
+            createProfile();
             return true;
         }
         List<String> list = profiles.list();
         String active = profiles.active();
         for (int i = 0; i < list.size(); i++) {
             int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
-            if (my < y || my >= y + PROFILE_H || my < cy || my > cy + ch) continue;
+            if (my < y || my >= y + PROFILE_H || my < cy || my >= cy + ch) continue;
             String name = list.get(i);
             int by = y + (PROFILE_H - 18) / 2;
             if (my < by || my >= by + 18) return true;
-            for (ProfileButton b : profileButtons(name, name.equals(active), list.size())) {
+            // Lay the buttons out as they were drawn (with the delete still pending), then act.
+            pendingDelete = confirming;
+            List<ProfileButton> buttons = profileButtons(name, name.equals(active), list.size());
+            pendingDelete = null;
+            for (ProfileButton b : buttons) {
                 if (mx < b.x1() || mx >= b.x2()) continue;
                 switch (b.id()) {
                     case "use" -> profiles.switchTo(name);
-                    case "delete" -> profiles.delete(name);
+                    case "delete" -> {
+                        if (name.equals(confirming)) {
+                            if (profiles.delete(name)) Notifications.push("Profile deleted", name, true);
+                        } else {
+                            pendingDelete = name;
+                            pendingDeleteAt = clock.getAsLong();
+                        }
+                    }
                     case "copy" -> {
                         String code = profiles.shareCode(name);
                         if (code != null) {
                             client.keyboard.setClipboard(code);
-                            net.evadeclient.util.Notifications.push("Code copied", "Share it; anyone can paste it into Import", true);
+                            Notifications.push("Code copied", "Share it; anyone can paste it into Import", true);
                         }
                     }
                     case "server" -> {
                         boolean on = profiles.toggleServer(name, currentServer());
-                        net.evadeclient.util.Notifications.push("Profile", on ? name + " will load on this server" : "Unlinked from this server", true);
+                        Notifications.push("Profile", on ? name + " will load on this server" : "Unlinked from this server", true);
                     }
                 }
                 return true;
@@ -519,8 +653,22 @@ public class EvadeMenu extends Screen {
         return true;
     }
 
+    /** Create a profile from the input (or "Profile N" when it is blank) and switch to it. */
+    private void createProfile() {
+        var profiles = EvadeClient.profiles;
+        if (profiles == null) return;
+        String name = profileName(profileInput);
+        if (profiles.create(name)) {
+            profileInput = "";
+            profileFocused = false;
+            Notifications.push("Profile created", name + " is now active", true);
+        } else if (!net.evadeclient.config.ProfileManager.sanitize(profileInput).isEmpty()) {
+            Notifications.push("Name taken", "There's already a profile called " + name, false);
+        }
+    }
+
     /** Fall back to an auto name ("Profile N") when the input is blank. */
-    private String ProfileManagerName(String typed) {
+    private String profileName(String typed) {
         String clean = net.evadeclient.config.ProfileManager.sanitize(typed);
         if (!clean.isEmpty()) return clean;
         var profiles = EvadeClient.profiles;
@@ -537,26 +685,35 @@ public class EvadeMenu extends Screen {
         for (Module mod : EvadeClient.modules.all()) {
             if (mod.getCategory() == Category.CLIENT) continue;
             if (p.category != null && mod.getCategory() != p.category) continue;
-            if (!f.isEmpty() && !matches(mod, f)) continue;
+            if (!f.isBlank() && !matches(mod, f)) continue;
             out.add(mod);
         }
         return out;
     }
 
-    /** Search matches a mod's name, description or any of its settings' names (all words must match). */
+    /** Search matches a mod's name, description or any of its settings' names and descriptions (all words must match). */
     private static boolean matches(Module mod, String f) {
         StringBuilder hay = new StringBuilder(mod.getName()).append(' ').append(mod.getDescription()).append(' ')
                 .append(mod.getCategory().displayName);
-        for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) hay.append(' ').append(st.getName());
+        for (Setting<?> st : mod.getSettings()) {
+            if (st.isHidden()) continue;
+            hay.append(' ').append(st.getName());
+            String d = descriptionOf(st);
+            if (!d.isEmpty()) hay.append(' ').append(d);
+        }
         String h = hay.toString().toLowerCase(Locale.ROOT);
         for (String word : f.trim().split("\\s+")) if (!h.contains(word)) return false;
         return true;
     }
 
-    /** Modules to show, after the search box and the All/Enabled filter. */
+    /** The page whose modules the list shows: a search looks through every category. */
+    private Page listPage() { return search.isBlank() ? page : Page.ALL; }
+
+    /** Modules to show, after the search box, the All/Enabled filter and the A-Z sort. */
     private List<Module> visibleModules() {
-        List<Module> list = modulesFor(page, search);
+        List<Module> list = modulesFor(listPage(), search);
         if (enabledOnly) list.removeIf(mod -> !mod.isEnabled());
+        if (sortAz) list.sort(Comparator.comparing(Module::getName, String.CASE_INSENSITIVE_ORDER));
         return list;
     }
 
@@ -587,17 +744,16 @@ public class EvadeMenu extends Screen {
             else renderListRow(ctx, mod, x, y, cardW, mx, my);
         }
         if (mods.isEmpty()) {
-            String msg = search.isEmpty() ? "Nothing here yet" : "No modules match \"" + search + "\"";
+            String q = search.trim();
+            String msg = !q.isEmpty() ? (enabledOnly ? "No enabled modules match \"" : "No modules match \"") + q + "\""
+                    : enabledOnly ? "No enabled mods here" : "Nothing here yet";
+            msg = trim(msg, cw - 20);
             text(ctx, msg, cx + (cw - width(msg)) / 2, cy + 30, Theme.TEXT_DIM, false);
         }
         ctx.disableScissor();
+        drawScrollbar(ctx, cy, ch, contentH);
 
-        if (contentH > ch) {
-            int barH = Math.max(24, ch * ch / contentH);
-            int barY = cy + (int) ((ch - barH) * (scroll / (contentH - ch)));
-            ctx.fill(cx + cw + 8, cy, cx + cw + 10, cy + ch, Theme.DIVIDER);
-            Theme.round(ctx, cx + cw + 8, barY, cx + cw + 10, barY + barH, Theme.RED);
-        }
+        small(ctx, trimScaled("Click: toggle  ·  Right-click / gear: settings & keybind", cw, 0.8f), cx, cy + ch + 3, Theme.TEXT_FAINT, 0.8f);
     }
 
     /** The premium default: a full-width row with name, description, keybind chip, gear and toggle. */
@@ -614,14 +770,14 @@ public class EvadeMenu extends Screen {
 
         int tx = x + 16;
         text(ctx, trim(mod.getName(), w - 150), tx, y + 11, Theme.TEXT, false);
-        small(ctx, trimScaled(mod.getDescription(), (int) ((w - 150) / 0.78f), 0.78f), tx, y + 26, Theme.TEXT_DIM, 0.78f);
+        small(ctx, trimScaled(mod.getDescription(), w - 150, 0.78f), tx, y + 26, Theme.TEXT_DIM, 0.78f);
 
         int right = x + w - 12;
         // toggle (far right)
         Theme.toggle(ctx, right - 20, y + (LIST_H - 10) / 2, on);
         right -= 34;
-        // gear
-        if (hasVisibleSettings(mod)) {
+        // gear: every module has one, since every module has at least its keybind to set
+        if (hasSettingsPage(mod)) {
             int gy = y + (LIST_H - 16) / 2;
             boolean hg = inView && mx >= right - 16 && mx < right + 2 && my >= gy - 1 && my < gy + 17;
             Theme.roundBordered(ctx, right - 16, gy, right + 2, gy + 16, hg ? Theme.tint(0.12f) : Theme.CONTROL, hg ? Theme.RED : Theme.BORDER);
@@ -649,8 +805,8 @@ public class EvadeMenu extends Screen {
         if (on > 0.01f) ctx.fill(x + 1, y + 3, x + 2, y + CARD_H - 3, Theme.alpha(Theme.RED, on));
 
         int catColor = Theme.lerpColor(Theme.TEXT_FAINT, Theme.RED_BRIGHT, on);
-        icon(ctx, categoryIcon(mod.getCategory()), x + 8, y + 5, 7, catColor);
-        small(ctx, mod.getCategory().displayName.toUpperCase(Locale.ROOT), x + 18, y + 7, catColor, 0.62f);
+        icon(ctx, categoryIcon(mod.getCategory()), x + 7, y + 4, 9, catColor);
+        small(ctx, mod.getCategory().displayName.toUpperCase(Locale.ROOT), x + 19, y + 7, catColor, 0.62f);
         if (mod.getKey() != GLFW.GLFW_KEY_UNKNOWN) {
             String k = KeySetting.keyName(mod.getKey());
             int kw = Math.round(width(k) * 0.65f);
@@ -661,11 +817,11 @@ public class EvadeMenu extends Screen {
         small(ctx, trimScaled(mod.getDescription(), w - 14, 0.7f), x + 8, y + 29, Theme.TEXT_DIM, 0.7f);
 
         Theme.toggle(ctx, x + 8, y + CARD_H - 15, on);
-        if (hasVisibleSettings(mod)) {
+        if (hasSettingsPage(mod)) {
             int gx = x + w - 16, gy = y + CARD_H - 16;
             boolean hg = inView && mx >= gx - 3 && mx < gx + 12 && my >= gy - 2 && my < gy + 12;
             Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : Theme.CONTROL);
-            icon(ctx, "settings", gx, gy, 9, hg ? 0xFFFFFFFF : Theme.TEXT_SOFT);
+            icon(ctx, "settings", gx, gy, 9, hg ? Theme.ON_ACCENT : Theme.TEXT_SOFT);
         }
     }
 
@@ -682,11 +838,45 @@ public class EvadeMenu extends Screen {
         text(ctx, trim(mod.getName(), w - 46), x + 8, y + (COMPACT_H - 8) / 2, Theme.TEXT, false);
 
         Theme.toggle(ctx, x + w - 24, y + (COMPACT_H - 10) / 2, on);
-        if (hasVisibleSettings(mod)) {
+        if (hasSettingsPage(mod)) {
             int gx = x + w - 40, gy = y + (COMPACT_H - 10) / 2;
             boolean hg = inView && mx >= gx - 2 && mx < gx + 11 && my >= gy - 1 && my < gy + 11;
             icon(ctx, "settings", gx, gy, 10, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
         }
+    }
+
+    // ---- scrollbar ----------------------------------------------------
+
+    /** Draw the current page's scrollbar in the gutter right of the content (only when it overflows) and remember
+     *  its geometry for dragging. */
+    private void drawScrollbar(DrawContext ctx, int top, int viewH, int contentH) {
+        sbTop = top;
+        sbViewH = viewH;
+        sbContentH = contentH;
+        if (!hasScrollbar()) return;
+        int barH = thumbH(), barY = thumbY();
+        ctx.fill(cx + cw + 8, top, cx + cw + 10, top + viewH, Theme.DIVIDER);
+        Theme.round(ctx, cx + cw + 8, barY, cx + cw + 10, barY + barH, sbDrag ? Theme.RED_BRIGHT : Theme.RED);
+    }
+
+    private boolean hasScrollbar() { return sbViewH > 0 && sbContentH > sbViewH; }
+    private int maxScroll() { return Math.max(0, sbContentH - sbViewH); }
+    private int thumbH() { return Math.max(24, sbViewH * sbViewH / Math.max(1, sbContentH)); }
+
+    private int thumbY() {
+        int max = maxScroll();
+        return sbTop + (int) ((sbViewH - thumbH()) * (max == 0 ? 0 : Math.max(0, Math.min(1, scroll / max))));
+    }
+
+    /** Whether (mx, my) is in the scrollbar's grab zone (8 px around the 2 px bar). */
+    private boolean onScrollbar(double mx, double my) {
+        return hasScrollbar() && mx >= cx + cw + 5 && mx < cx + cw + 13 && my >= sbTop && my < sbTop + sbViewH;
+    }
+
+    private void dragScrollbar(double my) {
+        int range = sbViewH - thumbH();
+        double t = range <= 0 ? 0 : (my - sbGrab - sbTop) / range;
+        scrollTarget = scroll = Math.max(0, Math.min(1, t)) * maxScroll();
     }
 
     // ---- settings page ------------------------------------------------
@@ -698,15 +888,20 @@ public class EvadeMenu extends Screen {
         return rows;
     }
 
+    /** Whether the module gets a gear: anything the settings page can show, its keybind included. */
+    private boolean hasSettingsPage(Module mod) { return !rowsFor(mod).isEmpty(); }
+
     private int settingsTop() { return cy; }
 
+    /** Right edge of the settings rows' controls, and of the header's master toggle that lines up with them. */
+    private int controlRight() { return cx + cw - 10; }
+
     private void renderSettingsPage(DrawContext ctx, int mx, int my, Module mod) {
-        TextRenderer tr = textRenderer;
         // header: Back + title + description + master toggle
         if (selected != null) {
             boolean hb = mx >= cx && mx < cx + 52 && my >= searchY && my < searchY + 18;
             Theme.roundBordered(ctx, cx, searchY, cx + 52, searchY + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
-            text(ctx, "‹ Back", cx + 8, searchY + 5, Theme.TEXT, false);
+            text(ctx, "‹ Back", cx + 8, searchY + 5, hb ? Theme.ON_ACCENT : Theme.TEXT, false);
         }
         var m = ctx.getMatrices();
         m.pushMatrix();
@@ -714,8 +909,8 @@ public class EvadeMenu extends Screen {
         m.scale(1.45f, 1.45f);
         text(ctx, mod.getName(), 0, 0, Theme.TEXT, false);
         m.popMatrix();
-        small(ctx, trimScaled(mod.getDescription(), (int) (cw / 0.85f), 0.85f), cx, headerY + 16, Theme.TEXT_DIM, 0.85f);
-        if (selected != null) Theme.toggle(ctx, cx + cw - 22, headerY, animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14));
+        small(ctx, trimScaled(mod.getDescription(), cw - (selected != null ? 96 : 60), 0.85f), cx, headerY + 16, Theme.TEXT_DIM, 0.85f);
+        if (selected != null) Theme.toggle(ctx, controlRight() - 20, headerY, animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14));
         if (hasChangedSettings(mod)) {
             int rx = resetX(), rw = 52;
             boolean hr = mx >= rx && mx < rx + rw && my >= headerY - 4 && my < headerY + 12;
@@ -729,31 +924,57 @@ public class EvadeMenu extends Screen {
         int contentH = rows.size() * ROW_H;
         int viewH = cy + ch - top;
         scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - viewH)));
+        boolean inList = mx >= cx && mx < cx + cw && my >= top && my < cy + ch;
 
+        Object hovered = null;
         ctx.enableScissor(cx - 2, top, cx + cw + 2, cy + ch);
         int y = top - (int) Math.round(scroll);
         for (Object row : rows) {
-            boolean hover = mx >= cx && mx < cx + cw && my >= y && my < y + ROW_H - 2 && my >= top;
+            if (y + ROW_H <= top || y >= cy + ch) { y += ROW_H; continue; }
+            boolean hover = inList && my >= y && my < y + ROW_H - 2;
+            if (hover) hovered = row;
             Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, hover ? Theme.ROW_HOVER : Theme.ROW);
+            // changed from its default: a small accent dot in the row's left margin
+            if (row instanceof Setting<?> st && changed(st)) Theme.disc(ctx, cx + 3, y + (ROW_H - 3) / 2 - 1, 3, Theme.RED);
             String label = row instanceof Setting<?> st ? st.getName() : "Toggle Key";
             text(ctx, label, cx + 10, y + 7, Theme.TEXT, false);
-            renderControl(ctx, row, mod, cx + cw - 10, y);
+            renderControl(ctx, row, mod, controlRight(), y, mx, my, hover);
             y += ROW_H;
         }
         ctx.disableScissor();
+        drawScrollbar(ctx, top, viewH, contentH);
+
+        // Tooltip for the row under the mouse once it has rested there (not while dragging, typing or binding).
+        long now = clock.getAsLong();
+        if (hovered != tipRow) { tipRow = hovered; tipSince = now; }
+        if (hovered != null && now - tipSince >= TIP_DELAY && dragging == null && editor == null && listening == null && !sbDrag) {
+            List<TipLine> lines = tipFor(hovered, mod);
+            if (!lines.isEmpty()) setTip(mx, my, lines);
+        }
     }
 
     /** Draws the control for a settings row, right-aligned at {@code right}. */
-    private void renderControl(DrawContext ctx, Object row, Module mod, int right, int y) {
-        TextRenderer tr = textRenderer;
+    private void renderControl(DrawContext ctx, Object row, Module mod, int right, int y, int mx, int my, boolean rowHover) {
         int midY = y + (ROW_H - 3) / 2;
         boolean isKeybind = row.equals("keybind");
         if (isKeybind || row instanceof KeySetting) {
-            boolean l = isKeybind ? listening == mod : listening == row;
-            String text = l ? "Press a key..." : isKeybind ? KeySetting.keyName(mod.getKey()) : ((KeySetting) row).display();
+            Object self = isKeybind ? mod : row;
+            boolean l = listening == self;
+            int code = isKeybind ? mod.getKey() : ((KeySetting) row).get();
+            boolean rejected = rejectRow == self && clock.getAsLong() - rejectAt < 1400;
+            boolean conflict = !l && !conflicts(code, self).isEmpty();
+            String text = l ? (acceptsMouse(self) ? "Press a key or mouse button..." : "Press a key...") : KeySetting.keyName(code);
             int w = Math.max(50, width(text) + 14);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, l ? Theme.RED : Theme.BORDER);
-            text(ctx, text, right - w + (w - width(text)) / 2, midY - 4, l ? Theme.RED_BRIGHT : Theme.TEXT, false);
+            int border = rejected || conflict ? Theme.DANGER : l ? Theme.RED : Theme.BORDER;
+            int fill = rejected ? Theme.alpha(Theme.DANGER, 0.16f) : Theme.CONTROL;
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, fill, border);
+            text(ctx, text, right - w + (w - width(text)) / 2, midY - 4, rejected || conflict ? Theme.DANGER : l ? Theme.RED_BRIGHT : Theme.TEXT, false);
+            String hint = rejected ? rejectMsg : l ? (isMenuKey(self) ? "Esc cancel · Del reset" : "Esc cancel · Del clear")
+                    : conflict && rowHover ? "In use elsewhere" : null;
+            if (hint != null) {
+                int hw = Math.round(width(hint) * textScale(0.75f));
+                small(ctx, hint, right - w - 8 - hw, midY - 3, rejected || conflict ? Theme.DANGER : Theme.TEXT_FAINT, 0.75f);
+            }
         } else if (row instanceof BooleanSetting b) {
             Theme.toggle(ctx, right - 20, midY - 5, animate(b, b.get() ? 1 : 0, 14));
         } else if (row instanceof NumberSetting n) {
@@ -764,8 +985,17 @@ public class EvadeMenu extends Screen {
             Theme.round(ctx, sx, midY - 2, sx + Math.max(4, Math.round(SLIDER_W * shown)), midY + 2, Theme.RED);
             int kx = sx + Math.round(SLIDER_W * shown);
             Theme.round(ctx, kx - 4, midY - 4, kx + 4, midY + 4, 0xFFFFFFFF);
-            String v = n.display();
-            text(ctx, v, sx - 8 - width(v), midY - 4, Theme.TEXT_DIM, false);
+            if (editor != null && editor.target == n) {
+                int ew = Math.max(48, width(editor.text) + 14);
+                editor.render(ctx, sx - 8 - ew, midY - 7, sx - 8, midY + 7);
+            } else {
+                String v = n.display();
+                int vx = sx - 8 - width(v);
+                boolean hv = rowHover && mx >= vx - 4 && mx < sx - 4;
+                if (hv) Theme.roundBordered(ctx, vx - 4, midY - 7, sx - 4, midY + 7, Theme.CONTROL, Theme.BORDER);
+                text(ctx, v, vx, midY - 4, hv ? Theme.TEXT : Theme.TEXT_DIM, false);
+            }
+            if (rowHover && mx >= sx - 8 - Math.max(48, width(n.display()) + 14) && mx <= right + 6) hoverSlider = n;
         } else if (row instanceof ModeSetting md) {
             String v = md.get();
             int w = Math.max(70, width(v) + 30);
@@ -773,23 +1003,138 @@ public class EvadeMenu extends Screen {
             text(ctx, "‹", right - w + 5, midY - 4, Theme.RED, false);
             text(ctx, "›", right - 9, midY - 4, Theme.RED, false);
             text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
-        } else if (row instanceof net.evadeclient.setting.StringSetting st) {
+        } else if (row instanceof StringSetting st) {
+            boolean editable = editable(st);
+            if (editor != null && editor.target == st) {
+                int ew = Math.max(90, width(editor.text) + 16);
+                editor.render(ctx, right - ew, midY - 7, right, midY + 7);
+                return;
+            }
             String v = st.get();
             int w = Math.max(60, width(v) + 16);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, Theme.BORDER);
+            boolean hv = editable && rowHover && mx >= right - w && mx < right;
+            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, hv ? Theme.CONTROL_HOVER : Theme.CONTROL, hv ? Theme.BORDER_HOVER : Theme.BORDER);
             text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
-            int hw = Math.round(width(st.hint()) * 0.75f);
-            small(ctx, st.hint(), right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);
+            String hint = editable ? "click to edit" : st.hint();
+            int hw = Math.round(width(hint) * textScale(0.75f));
+            small(ctx, hint, right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);
         } else if (row instanceof ColorSetting c) {
             int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
             int sx = right - n * (sz + gap) + gap;
+            boolean inPalette = false;
             for (int i = 0; i < n; i++) {
                 int col = ColorSetting.PALETTE[i];
                 int x = sx + i * (sz + gap);
-                if ((c.get() | 0xFF000000) == col) Theme.round(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF);
+                if ((c.get() | 0xFF000000) == col) { Theme.round(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF); inPalette = true; }
                 ctx.fill(x, midY - 4, x + sz, midY + 4, col);
             }
+            if (editor != null && editor.target == c) {
+                int ew = Math.max(62, width(editor.text) + 14);
+                editor.render(ctx, sx - 8 - ew, midY - 7, sx - 8, midY + 7);
+                return;
+            }
+            // Left of the palette: the current colour, ringed, when it isn't one of the swatches; otherwise a
+            // small "#" chip. Either one opens a #RRGGBB field.
+            int x = customChipX(sx);
+            boolean hc = rowHover && mx >= x - 2 && mx < x + sz + 2;
+            if (!inPalette) {
+                Theme.round(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF);
+                Theme.fill(ctx, x, midY - 4, x + sz, midY + 4, c.get() | 0xFF000000);
+            } else {
+                Theme.roundBordered(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, hc ? Theme.CONTROL_HOVER : Theme.CONTROL, hc ? Theme.BORDER_HOVER : Theme.BORDER);
+                int hw = width("#");
+                text(ctx, "#", x + (sz - hw) / 2 + 1, midY - 4, hc ? Theme.TEXT : Theme.TEXT_DIM, false);
+            }
         }
+    }
+
+    /** x of the custom-colour chip left of a colour row's palette starting at {@code paletteX}. */
+    private static int customChipX(int paletteX) { return paletteX - 3 - 8 - 9; }
+
+    // ------------------------------------------------------------------ tooltips
+
+    private record TipLine(String text, int color) {}
+
+    /** Show {@code lines} as this frame's tooltip next to the mouse. */
+    private void setTip(int mx, int my, List<TipLine> lines) {
+        tip = lines;
+        tipX = mx;
+        tipY = my;
+    }
+
+    /** What a settings row's tooltip says: its description, any key conflict, and how to use the control. */
+    private List<TipLine> tipFor(Object row, Module mod) {
+        List<TipLine> out = new ArrayList<>();
+        String how = null;
+        boolean resettable = false;
+        if (row instanceof Setting<?> st) {
+            String d = descriptionOf(st);
+            if (!d.isBlank()) out.add(new TipLine(d, Theme.TEXT_SOFT));
+            resettable = changed(st);
+        }
+        if (row.equals("keybind") || row instanceof KeySetting) {
+            Object self = row.equals("keybind") ? mod : row;
+            int code = self instanceof Module m ? m.getKey() : ((KeySetting) self).get();
+            List<String> users = conflicts(code, self);
+            if (!users.isEmpty()) out.add(new TipLine("Also used by: " + String.join(", ", users), Theme.DANGER));
+            how = isMenuKey(self) ? "Click to change · right-click resets to Right Shift"
+                    : acceptsMouse(self) ? "Click, then press a key or a middle/side mouse button · right-click clears"
+                    : "Click to change · right-click clears";
+        } else if (row instanceof NumberSetting) {
+            how = "Drag, scroll or use ←/→ (Shift: ×10) · click the value to type it";
+        } else if (row instanceof ModeSetting) {
+            how = "Click the right half for the next option, the left half for the previous";
+        } else if (row instanceof ColorSetting) {
+            how = "Pick a swatch, or click # for any #RRGGBB colour";
+        } else if (row instanceof StringSetting st && editable(st)) {
+            how = "Click to edit · Enter saves, Esc cancels";
+        }
+        if (resettable) how = how == null ? "Middle-click to reset to default" : how + " · middle-click resets";
+        if (how != null) out.add(new TipLine(how, Theme.TEXT_FAINT));
+        return out;
+    }
+
+    /** Draw this frame's tooltip, if any: wrapped to 200 px, kept inside the window. */
+    private void drawTip(DrawContext ctx) {
+        if (tip == null || tip.isEmpty()) return;
+        float sc = 0.85f, s = textScale(sc);
+        int maxW = 200, lineH = Math.max(8, Math.round(9 * s) + 2);
+        List<TipLine> lines = new ArrayList<>();
+        for (TipLine t : tip) for (String part : wrap(t.text(), maxW, sc)) lines.add(new TipLine(part, t.color()));
+        int w = 0;
+        for (TipLine t : lines) w = Math.max(w, Math.round(width(t.text()) * s));
+        int bw = w + 12, bh = lines.size() * lineH + 8;
+        int x = tipX + 10, y = tipY + 12;
+        if (x + bw > wx + ww - 4) x = tipX - 6 - bw;
+        if (y + bh > wy + wh - 4) y = tipY - 6 - bh;
+        x = Math.max(wx + 4, x);
+        y = Math.max(wy + 4, y);
+        Theme.roundBordered(ctx, x, y, x + bw, y + bh, Theme.CARD, Theme.BORDER_HOVER);
+        int ty = y + 5;
+        for (TipLine t : lines) {
+            small(ctx, t.text(), x + 6, ty, t.color(), sc);
+            ty += lineH;
+        }
+    }
+
+    /** {@code s} broken into lines at most {@code maxW} wide when drawn at {@code scale}. */
+    private List<String> wrap(String s, int maxW, float scale) {
+        int limit = Math.round(maxW / textScale(scale));
+        List<String> out = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : s.split(" ")) {
+            String next = line.isEmpty() ? word : line + " " + word;
+            if (width(next) <= limit || line.isEmpty()) {
+                line.setLength(0);
+                line.append(width(next) <= limit ? next : trim(word, limit));
+            } else {
+                out.add(line.toString());
+                line.setLength(0);
+                line.append(width(word) <= limit ? word : trim(word, limit));
+            }
+        }
+        if (!line.isEmpty()) out.add(line.toString());
+        return out;
     }
 
     // ------------------------------------------------------------------ input
@@ -804,18 +1149,53 @@ public class EvadeMenu extends Screen {
     private boolean clicked(Click click, boolean doubled) {
         double mx = click.x(), my = click.y();
         int button = click.button();
-        if (listening != null) { listening = null; return true; }
+        if (menuKeyDown) menuKeyUsed = true;
+
+        // An open text field: a click inside places the caret; anywhere else applies it, then the click goes on.
+        if (editor != null) {
+            if (editor.contains(mx, my)) { editor.clickAt(mx); return true; }
+            commitEditor();
+        }
+
+        // Binding a key: middle/side buttons bind (where mouse buttons are allowed), right clears, left cancels.
+        if (listening != null) {
+            Object target = listening;
+            if (button >= GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+                if (!acceptsMouse(target)) reject(target, "Keys only here");
+                else if (bindKey(target, KeySetting.mouseCode(button))) listening = null;
+                return true;
+            }
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) clearKey(target);
+            listening = null;
+            return true;
+        }
 
         // close button
         if (mx >= wx + ww - 24 && mx < wx + ww - 10 && my >= wy + 12 && my < wy + 26) { close(); return true; }
 
+        // scrollbar: drag the thumb, or page toward a click on the track
+        if (button == 0 && onScrollbar(mx, my)) {
+            int ty = thumbY();
+            if (my >= ty && my < ty + thumbH()) {
+                sbDrag = true;
+                sbGrab = my - ty;
+            } else {
+                scrollTarget = Math.max(0, Math.min(maxScroll(), scrollTarget + (my < ty ? -sbViewH : sbViewH)));
+            }
+            return true;
+        }
+
         // sidebar
         if (mx >= wx && mx < wx + SIDEBAR && my >= wy && my < wy + wh) {
-            for (NavHit hit : navLayout()) {
-                if (my >= hit.y && my < hit.y + NAV_ITEM_H) {
-                    if (hit.nav.hud) client.setScreen(new HudEditorScreen(this));
-                    else go(hit.nav.page);
-                    return true;
+            if (my >= navTop() && my < navBottom()) {
+                for (NavHit hit : navLayout()) {
+                    if (my >= hit.y && my < hit.y + NAV_ITEM_H) {
+                        if (hit.nav.hud) {
+                            returnTo = null; // the editor comes back to this menu, not to where the menu came from
+                            client.setScreen(new HudEditorScreen(this));
+                        } else go(hit.nav.page);
+                        return true;
+                    }
                 }
             }
             return true;
@@ -825,11 +1205,15 @@ public class EvadeMenu extends Screen {
 
         if (selected != null || page == Page.SETTINGS) {
             // back button / master toggle on settings header
-            if (selected != null && my >= searchY && my < searchY + 18 && mx >= cx && mx < cx + 52) { back(); return true; }
-            if (selected != null && my >= headerY - 4 && my < headerY + 14 && mx >= cx + cw - 24) { selected.toggle(); return true; }
+            if (selected != null && my >= searchY && my < searchY + 18 && mx >= cx && mx < cx + 52) { leaveModulePage(); return true; }
+            if (selected != null && my >= headerY - 4 && my < headerY + 14 && mx >= controlRight() - 22 && mx < controlRight() + 2) {
+                selected.toggle();
+                return true;
+            }
             Module rm = selected != null ? selected : settings();
             if (hasChangedSettings(rm) && my >= headerY - 4 && my < headerY + 12 && mx >= resetX() && mx < resetX() + 52) {
                 for (Setting<?> st : rm.getSettings()) st.reset();
+                if (rm instanceof HudElementModule hem) resetPosition(hem);
                 return true;
             }
             return clickSettings(mx, my, button);
@@ -840,16 +1224,21 @@ public class EvadeMenu extends Screen {
         searchFocused = mx >= cx && mx < cx + sw && my >= searchY && my < searchY + 24;
         if (searchFocused) return true;
 
-        // All / Enabled toggle
-        int segW = 150, segX = cx + cw - segW, segY = headerY - 3;
-        if (my >= segY && my < segY + 22 && mx >= segX && mx < segX + segW) {
-            enabledOnly = mx >= segX + segW / 2;
+        // All / Enabled toggle, and the A-Z sort chip
+        int segY = headerY - 3;
+        if (my >= segY && my < segY + 22 && mx >= segX() && mx < segX() + SEG_W) {
+            enabledOnly = mx >= segX() + SEG_W / 2;
+            scrollTarget = 0;
+            return true;
+        }
+        if (my >= segY && my < segY + 22 && mx >= azX() && mx < azX() + AZ_W) {
+            sortAz = !sortAz;
             scrollTarget = 0;
             return true;
         }
 
         // module list
-        if (my < cy || my > cy + ch || mx < cx || mx > cx + cw) return super.mouseClicked(click, doubled);
+        if (my < cy || my >= cy + ch || mx < cx || mx >= cx + cw) return super.mouseClicked(click, doubled);
         List<Module> mods = visibleModules();
         int cols = columns();
         int rh = rowH(), rg = rowGap();
@@ -859,9 +1248,8 @@ public class EvadeMenu extends Screen {
             int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
             if (mx < x || mx >= x + cardW || my < y || my >= y + rh) continue;
             Module mod = mods.get(i);
-            if ((hasVisibleSettings(mod) && gearHit(mx, my, x, y, cardW)) || button == 1) {
-                selected = mod;
-                scroll = scrollTarget = 0;
+            if (hasSettingsPage(mod) && (gearHit(mx, my, x, y, cardW) || button == 1)) {
+                openModule(mod);
             } else if (button == 0) {
                 mod.toggle();
             }
@@ -881,32 +1269,56 @@ public class EvadeMenu extends Screen {
     private boolean clickSettings(double mx, double my, int button) {
         Module mod = selected != null ? selected : settings();
         int top = settingsTop();
-        if (my < top) return true;
+        // Only the visible list: the window padding, the backdrop and rows scrolled out of view never react.
+        if (mx < cx || mx >= cx + cw || my < top || my >= cy + ch) return true;
         int y = top - (int) Math.round(scroll);
-        int right = cx + cw - 10;
+        int right = controlRight();
         for (Object row : rowsFor(mod)) {
             if (my >= y && my < y + ROW_H - 2) {
+                // Middle-click puts one setting back to its default.
+                if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+                    if (row instanceof Setting<?> st && changed(st)) st.reset();
+                    return true;
+                }
                 if (row.equals("keybind")) {
-                    if (button == 1) mod.setKey(GLFW.GLFW_KEY_UNKNOWN); else listening = mod;
+                    if (button == 1) clearKey(mod); else if (button == 0) listening = mod;
                 } else if (row instanceof KeySetting k) {
-                    if (button == 1) k.set(GLFW.GLFW_KEY_UNKNOWN); else listening = k;
-                } else if (row instanceof net.evadeclient.setting.StringSetting st && st.clickAction() != null) {
-                    st.clickAction().run();
+                    if (button == 1) clearKey(k); else if (button == 0) listening = k;
+                } else if (row instanceof StringSetting st) {
+                    if (button != 0) return true;
+                    if (st.clickAction() != null) st.clickAction().run();
+                    else if (editable(st)) openEditor(st, st.get(), stringLimit(st), StringHelper::isValidChar);
                 } else if (row instanceof BooleanSetting b) {
-                    b.toggle();
+                    if (button == 0 || button == 1) b.toggle();
                 } else if (row instanceof NumberSetting n) {
-                    dragging = n;
-                    dragX = right - SLIDER_W;
-                    dragW = SLIDER_W;
-                    updateSlider(mx);
+                    int sx = right - SLIDER_W;
+                    int vx = sx - 8 - width(n.display());
+                    if (button != 0) return true;
+                    if (mx >= sx - 6 && mx <= right + 6) {
+                        // Only the track and knob drag: a click on the label must not jump the value to its minimum.
+                        dragging = n;
+                        dragX = sx;
+                        dragW = SLIDER_W;
+                        updateSlider(mx);
+                    } else if (mx >= vx - 4 && mx < sx - 4) {
+                        openEditor(n, n.display(), 12, cp -> Character.isDigit(cp) || cp == '.' || cp == ',' || cp == '-');
+                    }
                 } else if (row instanceof ModeSetting md) {
                     int w = Math.max(70, width(md.get()) + 30);
-                    md.cycle(button != 1 && mx >= right - w / 2.0);
+                    // Only the chip cycles: right half forward, left half (or a right-click) back.
+                    if ((button == 0 || button == 1) && mx >= right - w && mx <= right) md.cycle(button == 0 && mx >= right - w / 2.0);
                 } else if (row instanceof ColorSetting c) {
+                    if (button != 0) return true;
                     int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
                     int sx = right - n * (sz + gap) + gap;
-                    int i = (int) Math.floor((mx - sx) / (sz + gap));
-                    if (i >= 0 && i < n) c.set(ColorSetting.PALETTE[i]);
+                    int chip = customChipX(sx);
+                    if (mx >= chip - 2 && mx < chip + sz + 2) {
+                        openEditor(c, String.format("#%06X", c.get() & 0xFFFFFF), 7,
+                                cp -> cp == '#' || Character.digit(cp, 16) >= 0);
+                        return true;
+                    }
+                    int i = (int) Math.floor((mx - sx + gap / 2.0) / (sz + gap));
+                    if (mx >= sx - 2 && i >= 0 && i < n) c.set(ColorSetting.PALETTE[i]);
                 }
                 return true;
             }
@@ -923,17 +1335,33 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
         if (dragging != null) { updateSlider(click.x() / vs); return true; }
+        if (sbDrag) { dragScrollbar(click.y() / vs); return true; }
         return super.mouseDragged(click, dx, dy);
     }
 
     @Override
     public boolean mouseReleased(Click click) {
         dragging = null;
+        sbDrag = false;
         return super.mouseReleased(click);
     }
 
     @Override
-    public boolean mouseScrolled(double mx, double my, double h, double v) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        double mx = mouseX / vs, my = mouseY / vs;
+        if (menuKeyDown) menuKeyUsed = true;
+        // Shift + wheel arrives as horizontal scrolling on macOS.
+        double amount = v != 0 ? v : h;
+        if (amount == 0) return true;
+        if (mx >= wx && mx < wx + SIDEBAR && my >= wy && my < wy + wh) {
+            navScroll = Math.max(0, Math.min(navMaxScroll(), navScroll - amount * 20));
+            return true;
+        }
+        // Over a slider (or its value) the wheel steps the number: one step, ten with Shift.
+        if (hoverSlider != null && editor == null && dragging == null) {
+            nudge(hoverSlider, amount > 0 ? 1 : -1, client != null && client.isShiftPressed() ? 10 : 1);
+            return true;
+        }
         scrollTarget = Math.max(0, scrollTarget - v * 32);
         return true;
     }
@@ -941,48 +1369,111 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         int key = input.key();
+        // An open text field takes every key (Enter applies, Escape cancels).
+        if (editor != null) { editor.key(input); return true; }
         if (listening != null) {
-            boolean clear = key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE;
-            int value = clear ? GLFW.GLFW_KEY_UNKNOWN : key;
-            if (listening instanceof Module m) m.setKey(value);
-            else if (listening instanceof KeySetting k) k.set(value);
-            listening = null;
+            if (key == GLFW.GLFW_KEY_ESCAPE) { listening = null; return true; } // cancel: the key stays as it was
+            if (key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE) { clearKey(listening); listening = null; return true; }
+            if (bindKey(listening, key)) listening = null;
             return true;
         }
-        if (key == GLFW.GLFW_KEY_F && (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0) {
-            // Ctrl+F: jump to the search box from anywhere in the menu.
+        int menuKey = settings().menuKey.get();
+        if (menuKeyDown && key != menuKey) menuKeyUsed = true;
+        if (key == GLFW.GLFW_KEY_F && (input.modifiers() & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0) {
+            // Ctrl+F (Cmd+F): jump to the search box from anywhere in the menu.
+            returnTo = null;
             if (selected != null) back();
             if (page == Page.SETTINGS || page == Page.PROFILES) page = Page.ALL;
             searchFocused = true;
             return true;
         }
+        boolean profiles = page == Page.PROFILES && selected == null;
+        boolean listPage = selected == null && page != Page.SETTINGS && page != Page.PROFILES;
         if (key == GLFW.GLFW_KEY_ESCAPE) {
-            if (selected != null) { back(); return true; }
-            if (!search.isEmpty()) { search = ""; searchFocused = false; return true; }
+            if (profiles && (profileFocused || !profileInput.isEmpty())) { profileInput = ""; profileFocused = false; return true; }
+            if (selected != null) { leaveModulePage(); return true; }
+            if (!search.isEmpty()) { search = ""; searchFocused = false; scrollTarget = 0; return true; }
             close();
             return true;
         }
-        if (page == Page.PROFILES && selected == null) {
+        if (input.isPaste() && (profiles || listPage)) {
+            String clip = client != null ? clean(client.keyboard.getClipboard()) : "";
+            if (profiles) {
+                profileFocused = true;
+                profileInput = cap(profileInput + clip, 24);
+            } else {
+                searchFocused = true;
+                search = cap(search + clip, 32);
+                scrollTarget = 0;
+            }
+            return true;
+        }
+        if (profiles) {
             if (key == GLFW.GLFW_KEY_BACKSPACE) {
-                if (!profileInput.isEmpty()) profileInput = profileInput.substring(0, profileInput.length() - 1);
+                if (!profileInput.isEmpty()) { profileInput = profileInput.substring(0, profileInput.length() - 1); profileFocused = true; }
                 return true;
             }
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-                if (EvadeClient.profiles != null && EvadeClient.profiles.create(ProfileManagerName(profileInput))) profileInput = "";
+                if (profileFocused) createProfile();
                 return true;
             }
         }
-        if (searchFocused && key == GLFW.GLFW_KEY_BACKSPACE) {
-            if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
+        if (listPage && key == GLFW.GLFW_KEY_BACKSPACE && !search.isEmpty()) {
+            search = search.substring(0, search.length() - 1);
+            searchFocused = true;
             scrollTarget = 0;
             return true;
         }
-        if (!searchFocused && key == settings().menuKey.get()) { close(); return true; }
+        if (listPage && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) && !search.isBlank()) {
+            // Enter toggles the module when the search has narrowed the list down to one.
+            List<Module> vis = visibleModules();
+            if (vis.size() == 1) vis.get(0).toggle();
+            return true;
+        }
+        if (hoverSlider != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
+            nudge(hoverSlider, key == GLFW.GLFW_KEY_RIGHT ? 1 : -1, input.hasShift() ? 10 : 1);
+            return true;
+        }
+        if (hasScrollbar()) {
+            switch (key) {
+                case GLFW.GLFW_KEY_PAGE_UP -> { scrollTarget = Math.max(0, scrollTarget - sbViewH); return true; }
+                case GLFW.GLFW_KEY_PAGE_DOWN -> { scrollTarget = Math.min(maxScroll(), scrollTarget + sbViewH); return true; }
+                case GLFW.GLFW_KEY_HOME -> { scrollTarget = 0; return true; }
+                case GLFW.GLFW_KEY_END -> { scrollTarget = maxScroll(); return true; }
+                default -> { }
+            }
+        }
+        if (key == menuKey) {
+            boolean typing = searchFocused || profileFocused;
+            if (isModifier(key)) {
+                // Decided on release: a tap closes, Shift + letter (or + wheel, + click) doesn't. Held keys repeat,
+                // so only the first press starts the tap.
+                if (!menuKeyDown) {
+                    menuKeyDown = true;
+                    menuKeyUsed = typing;
+                }
+                return true;
+            }
+            if (!typing && !profiles) { close(); return true; }
+        }
         return super.keyPressed(input);
     }
 
     @Override
+    public boolean keyReleased(KeyInput input) {
+        if (menuKeyDown && input.key() == settings().menuKey.get()) {
+            menuKeyDown = false;
+            if (!menuKeyUsed && editor == null && listening == null) close();
+            return true;
+        }
+        return super.keyReleased(input);
+    }
+
+    @Override
     public boolean charTyped(CharInput input) {
+        if (menuKeyDown) menuKeyUsed = true;
+        if (editor != null) { if (input.isValidChar()) editor.insert(input.asString()); return true; }
+        if (listening != null) return true;
         if (selected != null || page == Page.SETTINGS || !input.isValidChar()) return false;
         if (page == Page.PROFILES) {
             profileFocused = true;
@@ -996,25 +1487,301 @@ public class EvadeMenu extends Screen {
         return true;
     }
 
+    private static boolean isModifier(int key) {
+        return key >= GLFW.GLFW_KEY_LEFT_SHIFT && key <= GLFW.GLFW_KEY_RIGHT_SUPER;
+    }
+
+    /** Clipboard text as one line of valid characters. */
+    private static String clean(String s) {
+        if (s == null) return "";
+        StringBuilder b = new StringBuilder();
+        s.codePoints().forEach(cp -> {
+            if (cp == '\n' || cp == '\r' || cp == '\t') b.append(' ');
+            else if (StringHelper.isValidChar(cp)) b.appendCodePoint(cp);
+        });
+        return b.toString().replaceAll(" {2,}", " ").strip();
+    }
+
+    private static String cap(String s, int max) { return s.length() > max ? s.substring(0, max) : s; }
+
+    /** A number without a trailing ".0" (1024, 0.5). */
+    private static String plain(double d) {
+        return d == Math.rint(d) && Math.abs(d) < 1e15 ? String.valueOf((long) d) : String.valueOf(d);
+    }
+
+    // ---- key binding --------------------------------------------------
+
+    private boolean isMenuKey(Object target) { return target == settings().menuKey; }
+
+    /** Whether a mouse button can be bound here: module toggles and hold keys that allow it (never the Menu Key). */
+    private static boolean acceptsMouse(Object target) {
+        return target instanceof Module || (target instanceof KeySetting k && k.allowMouse);
+    }
+
+    /** Bind {@code code} to a module toggle or KeySetting. Refuses (and flashes the row) what can't work there. */
+    private boolean bindKey(Object target, int code) {
+        boolean valid = KeySetting.isMouse(code) ? KeySetting.isValidMouse(code) : code != GLFW.GLFW_KEY_UNKNOWN && KeySetting.isValidKey(code);
+        if (!valid) { reject(target, "Can't bind that"); return false; }
+        if (!isMenuKey(target) && code == settings().menuKey.get()) { reject(target, "That's the Menu Key"); return false; }
+        if (target instanceof Module m) {
+            m.setKey(code);
+        } else if (target instanceof KeySetting k) {
+            if (!k.accepts(code)) { reject(target, "Keys only here"); return false; }
+            k.set(code);
+        }
+        rejectRow = null;
+        return true;
+    }
+
+    /** Unbind (right-click, Delete). The Menu Key can't be unbound: it goes back to its default instead. */
+    private void clearKey(Object target) {
+        if (target instanceof Module m) m.setKey(GLFW.GLFW_KEY_UNKNOWN);
+        else if (target instanceof KeySetting k) {
+            if (isMenuKey(k)) k.reset(); else k.set(GLFW.GLFW_KEY_UNKNOWN);
+        }
+    }
+
+    private void reject(Object target, String why) {
+        rejectRow = target;
+        rejectAt = clock.getAsLong();
+        rejectMsg = why;
+    }
+
+    /** Everything else bound to {@code code}, for the red conflict chip and its tooltip. */
+    private static List<String> conflicts(int code, Object self) {
+        if (code == GLFW.GLFW_KEY_UNKNOWN) return List.of();
+        return EvadeClient.modules.usersOf(code, self);
+    }
+
+    // ---- inline text fields -------------------------------------------
+
+    private static boolean editable(StringSetting st) { return !(st instanceof StatusSetting) && st.clickAction() == null; }
+
+    /** Longest value a text setting takes from the menu: the Nick Hider name is capped like {@code .nick}. */
+    private static int stringLimit(StringSetting st) {
+        var nh = EvadeClient.modules.get(net.evadeclient.module.visuals.NickHider.class);
+        return nh != null && nh.nick == st ? 16 : 32;
+    }
+
+    private void openEditor(Setting<?> target, String initial, int max, IntPredicate allowed) {
+        editor = new Editor(target, initial, max, allowed);
+    }
+
+    /** Apply the open field (Enter, or a click anywhere else) and save. An unchanged field changes nothing. */
+    private void commitEditor() {
+        Editor e = editor;
+        editor = null;
+        if (e == null || e.text.equals(e.initial)) return;
+        boolean applied = false;
+        switch (e.target) {
+            case NumberSetting n -> {
+                try {
+                    double d = Double.parseDouble(e.text.trim().replace(',', '.'));
+                    if (Double.isFinite(d)) {
+                        n.set(d);
+                        applied = true;
+                        if (d < n.getMin() || d > n.getMax())
+                            Notifications.push(n.getName(), "Allowed " + plain(n.getMin()) + " to " + plain(n.getMax()) + ": set to " + n.display(), false);
+                    }
+                } catch (NumberFormatException ignored) { }
+            }
+            case ColorSetting c -> {
+                String hex = e.text.trim().replace("#", "");
+                if (hex.length() == 3) hex = "" + hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+                if (hex.length() == 6) {
+                    int rgb = Integer.parseInt(hex, 16);
+                    int a = c.get() >>> 24 == 0 ? 0xFF000000 : c.get() & 0xFF000000;
+                    c.set(a | rgb);
+                    applied = true;
+                }
+            }
+            case StringSetting st -> {
+                String v = e.text.strip();
+                if (!v.isEmpty()) { st.set(cap(v, e.max)); applied = true; }
+            }
+            default -> { }
+        }
+        if (applied) EvadeClient.config.save();
+        else Notifications.push(e.target.getName(), "Not a valid value: kept " + e.target.display(), false);
+    }
+
+    /**
+     * A one-line text field drawn in the menu's own font, opened on a settings row to type a number, a colour or a
+     * short text value. Starts with everything selected, so typing replaces the value.
+     */
+    private final class Editor {
+        final Setting<?> target;
+        final String initial;
+        final int max;
+        final IntPredicate allowed;
+        String text;
+        int caret;
+        boolean all = true;
+        long typedAt = clock.getAsLong();
+        int x1, y1, x2, y2;
+
+        Editor(Setting<?> target, String initial, int max, IntPredicate allowed) {
+            this.target = target;
+            this.initial = initial;
+            this.max = max;
+            this.allowed = allowed;
+            this.text = initial;
+            this.caret = initial.length();
+        }
+
+        void render(DrawContext ctx, int x1, int y1, int x2, int y2) {
+            this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
+            Theme.roundBordered(ctx, x1, y1, x2, y2, Theme.INPUT, Theme.RED);
+            int tx = x1 + 6, ty = (y1 + y2) / 2 - 4;
+            if (all && !text.isEmpty()) Theme.fill(ctx, tx - 1, ty - 1, tx + width(text) + 1, ty + 9, Theme.alpha(Theme.RED, 0.45f));
+            text(ctx, text, tx, ty, Theme.TEXT, false);
+            long now = clock.getAsLong();
+            if (!all && ((now - typedAt) / 500) % 2 == 0) {
+                int cxp = tx + width(text.substring(0, caret));
+                Theme.fill(ctx, cxp, ty - 1, cxp + 1, ty + 9, Theme.TEXT);
+            }
+        }
+
+        boolean contains(double mx, double my) { return mx >= x1 && mx < x2 && my >= y1 && my < y2; }
+
+        /** Put the caret at the gap nearest to {@code mx}. */
+        void clickAt(double mx) {
+            all = false;
+            int tx = x1 + 6, best = 0;
+            double bestD = Double.MAX_VALUE;
+            for (int i = 0; i <= text.length(); i++) {
+                double d = Math.abs(tx + width(text.substring(0, i)) - mx);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            caret = best;
+            typedAt = clock.getAsLong();
+        }
+
+        void insert(String s) {
+            StringBuilder ok = new StringBuilder();
+            s.codePoints().filter(allowed).forEach(ok::appendCodePoint);
+            if (ok.isEmpty()) return;
+            if (all) { text = ""; caret = 0; all = false; }
+            String add = cap(ok.toString(), Math.max(0, max - text.length()));
+            text = text.substring(0, caret) + add + text.substring(caret);
+            caret += add.length();
+            typedAt = clock.getAsLong();
+        }
+
+        void key(KeyInput in) {
+            int k = in.key();
+            typedAt = clock.getAsLong();
+            if (in.isEscape()) { editor = null; return; }
+            if (in.isEnter()) { commitEditor(); return; }
+            if (in.isSelectAll()) { all = true; return; }
+            if (in.isCopy() || in.isCut()) {
+                if (client != null) client.keyboard.setClipboard(text);
+                if (in.isCut()) { text = ""; caret = 0; all = false; }
+                return;
+            }
+            if (in.isPaste()) { if (client != null) insert(clean(client.keyboard.getClipboard())); return; }
+            switch (k) {
+                case GLFW.GLFW_KEY_BACKSPACE -> {
+                    if (all) { text = ""; caret = 0; all = false; }
+                    else if (caret > 0) {
+                        int from = in.hasCtrlOrCmd() ? 0 : caret - 1;
+                        text = text.substring(0, from) + text.substring(caret);
+                        caret = from;
+                    }
+                }
+                case GLFW.GLFW_KEY_DELETE -> {
+                    if (all) { text = ""; caret = 0; all = false; }
+                    else if (caret < text.length()) text = text.substring(0, caret) + text.substring(caret + 1);
+                }
+                case GLFW.GLFW_KEY_LEFT -> { caret = all ? 0 : Math.max(0, caret - 1); all = false; }
+                case GLFW.GLFW_KEY_RIGHT -> { caret = all ? text.length() : Math.min(text.length(), caret + 1); all = false; }
+                case GLFW.GLFW_KEY_HOME -> { caret = 0; all = false; }
+                case GLFW.GLFW_KEY_END -> { caret = text.length(); all = false; }
+                default -> { }
+            }
+        }
+    }
+
+    // ---- number steps -------------------------------------------------
+
+    /**
+     * Move {@code n} by {@code steps} of its step size in direction {@code dir}. The step is found by asking the
+     * setting itself: the smallest offset it doesn't snap back is exactly one step (it rounds to the nearest step).
+     */
+    private static void nudge(NumberSetting n, int dir, int steps) {
+        double range = n.getMax() - n.getMin();
+        if (!(range > 0)) return;
+        for (int s = 0; s < steps; s++) {
+            double v0 = n.get();
+            boolean moved = false;
+            for (double d = range * 1e-7; d <= range * 2; d *= 2) {
+                n.set(v0 + dir * d);
+                if (Math.abs(n.get() - v0) > range * 1e-9) { moved = true; break; }
+            }
+            if (!moved) { n.set(v0); return; }
+        }
+    }
+
+    // ---- navigation -----------------------------------------------------
+
+    private void openModule(Module mod) {
+        commitEditor();
+        listening = null;
+        selected = mod;
+        scroll = scrollTarget = 0;
+    }
+
     private void go(Page p) {
+        commitEditor();
+        listening = null;
         page = p;
         selected = null;
+        returnTo = null;
         search = "";
         searchFocused = false;
         profileInput = "";
         profileFocused = false;
+        pendingDelete = null;
         scroll = scrollTarget = 0;
     }
 
     private void back() {
+        commitEditor();
+        listening = null;
         selected = null;
         scroll = scrollTarget = 0;
     }
 
+    /** Escape or Back on a module page: back to the screen that opened it (the HUD editor), else to the list. */
+    private void leaveModulePage() {
+        if (returnTo != null && client != null) {
+            commitEditor();
+            EvadeClient.config.save();
+            Screen to = returnTo;
+            returnTo = null;
+            client.setScreen(to);
+            return;
+        }
+        back();
+    }
+
     @Override
     public void close() {
+        commitEditor();
         EvadeClient.config.save();
+        if (returnTo != null && client != null) {
+            Screen to = returnTo;
+            returnTo = null;
+            client.setScreen(to);
+            return;
+        }
         super.close();
+    }
+
+    @Override
+    public void removed() {
+        commitEditor(); // e.g. the HUD editor opened over a half-typed value
+        super.removed();
     }
 
     @Override
@@ -1058,6 +1825,7 @@ public class EvadeMenu extends Screen {
         m.popMatrix();
     }
 
+    /** {@code s} cut to fit {@code maxW} on-screen pixels when drawn at {@code scale}, with "..." when cut. */
     private String trimScaled(String s, int maxW, float scale) {
         scale = textScale(scale);
         int limit = Math.round(maxW / scale);
@@ -1092,6 +1860,14 @@ public class EvadeMenu extends Screen {
         return s.substring(0, lo);
     }
 
+    /** Longest suffix of {@code s} that fits in {@code max} pixels: a text field keeps the end you are typing in view. */
+    private String trimStart(String s, int max) {
+        if (width(s) <= max) return s;
+        int lo = 0, hi = s.length();
+        while (lo < hi) { int mid = (lo + hi) / 2; if (width(s.substring(mid)) <= max) hi = mid; else lo = mid + 1; }
+        return s.substring(lo);
+    }
+
     // ------------------------------------------------------------------ icons
 
     /** A white line icon from textures/gui/nav, tinted and drawn at {@code size} GUI pixels (see {@link net.evadeclient.util.Icons}). */
@@ -1110,18 +1886,63 @@ public class EvadeMenu extends Screen {
         };
     }
 
-    private int resetX() { return cx + cw - (selected != null ? 84 : 52); }
+    /** x of the header's Reset button: left of the master toggle on a module page, at the right on Settings. */
+    private int resetX() { return cx + cw - (selected != null ? 92 : 52); }
 
     /** Whether a shown setting differs from its default (hidden settings are remembered state, not changes). */
     private static boolean hasChangedSettings(Module mod) {
-        for (Setting<?> st : mod.getSettings())
-            if (!st.isHidden() && !(st instanceof net.evadeclient.setting.StatusSetting) && !st.isDefault()) return true;
+        for (Setting<?> st : mod.getSettings()) if (changed(st)) return true;
         return false;
     }
 
-    /** Whether the mod has any setting the menu shows (hidden ones don't count), i.e. whether it gets a gear. */
-    private static boolean hasVisibleSettings(Module mod) {
-        for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) return true;
-        return false;
+    /** A shown, editable setting that is not at its default value. */
+    private static boolean changed(Setting<?> st) {
+        return !st.isHidden() && !(st instanceof StatusSetting) && !st.isDefault();
+    }
+
+    // ------------------------------------------------------------------ newer APIs, used when present
+    // Setting descriptions, server-address normalisation and HUD position reset are added by other parts of the
+    // client. Looked up once by name so the menu works (without them) on any build; replace with direct calls once
+    // they have landed everywhere.
+
+    private static java.lang.reflect.Method describeMethod, isLinkedMethod, resetPositionMethod;
+    private static boolean describeLooked, isLinkedLooked, resetPositionLooked;
+
+    /** A setting's description ({@code Setting.getDescription()}), or "" when it has none. */
+    private static String descriptionOf(Setting<?> st) {
+        if (!describeLooked) {
+            describeLooked = true;
+            try { describeMethod = Setting.class.getMethod("getDescription"); } catch (ReflectiveOperationException ignored) { }
+        }
+        if (describeMethod == null) return "";
+        try {
+            Object d = describeMethod.invoke(st);
+            return d instanceof String s ? s : "";
+        } catch (ReflectiveOperationException e) {
+            return "";
+        }
+    }
+
+    /** Whether {@code profile} is linked to {@code address}, with addresses compared the way ProfileManager stores them. */
+    private static boolean isLinked(String profile, String address) {
+        var profiles = EvadeClient.profiles;
+        if (!isLinkedLooked) {
+            isLinkedLooked = true;
+            try { isLinkedMethod = profiles.getClass().getMethod("isLinked", String.class, String.class); } catch (ReflectiveOperationException ignored) { }
+        }
+        if (isLinkedMethod != null) {
+            try { return Boolean.TRUE.equals(isLinkedMethod.invoke(profiles, profile, address)); } catch (ReflectiveOperationException ignored) { }
+        }
+        return profiles.serversFor(profile).contains(address.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** Put a HUD element back at its default spot ({@code HudElementModule.resetPosition()}), when available. */
+    private static void resetPosition(HudElementModule hem) {
+        if (!resetPositionLooked) {
+            resetPositionLooked = true;
+            try { resetPositionMethod = HudElementModule.class.getMethod("resetPosition"); } catch (ReflectiveOperationException ignored) { }
+        }
+        if (resetPositionMethod == null) return;
+        try { resetPositionMethod.invoke(hem); } catch (ReflectiveOperationException ignored) { }
     }
 }

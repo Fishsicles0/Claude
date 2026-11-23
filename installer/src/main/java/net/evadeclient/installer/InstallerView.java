@@ -43,7 +43,8 @@ public final class InstallerView extends JPanel {
     // palette
     static final Color BG = new Color(0x0A0A0C), CARD = new Color(0x111115), CARD_2 = new Color(0x17171C),
             BORDER = new Color(0x24242C), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9B9BA6), FAINT = new Color(0x5E5E69), OK = new Color(0x3DDC84);
+            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9B9BA6), FAINT = new Color(0x5E5E69), OK = new Color(0x3DDC84),
+            AMBER = new Color(0xF5A524);
 
     private final Font inter, interBold, chakra;
     private final Image mark, word;
@@ -51,7 +52,10 @@ public final class InstallerView extends JPanel {
     // state (touched on the EDT only)
     State state = State.IDLE;
     Path minecraftDir = InstallerCore.defaultMinecraftDir();
-    int memoryGb = InstallerCore.recommendedMemory();
+    /** This PC's memory facts, read once (the options never change while the installer is open). */
+    private final int recommendedGb = InstallerCore.recommendedMemory(), totalGb = InstallerCore.totalMemoryGb();
+    private final int[] memoryChoices = InstallerCore.memoryOptions();
+    int memoryGb = InstallerCore.clampMemory(recommendedGb);
 
     boolean copySettings = true;
     boolean voiceChat = true;
@@ -66,6 +70,12 @@ public final class InstallerView extends JPanel {
     double progress, shownProgress;
     String status = "";
     String error = "";
+    /** Extras the last install left out (shown on the Done screen). */
+    List<String> skipped = List.of();
+    /** Set when "Open Minecraft Launcher" couldn't start it; shown above the button. */
+    String launcherError;
+    /** While the launcher is being started (the button shows that and ignores clicks). */
+    boolean openingLauncher;
     final List<String> stepsDone = new ArrayList<>();
 
     private final Map<String, Rectangle> hits = new HashMap<>();
@@ -75,6 +85,8 @@ public final class InstallerView extends JPanel {
     private final long start = System.currentTimeMillis();
 
     Runnable onInstall = () -> {};
+    /** Runs the version check again after it failed. */
+    Runnable onRetryRelease = () -> {};
     Runnable onOpenLauncher = () -> {};
     Consumer<Path> onFolderChanged = p -> {};
 
@@ -124,7 +136,8 @@ public final class InstallerView extends JPanel {
 
     private void updateHover(Point p) {
         hovered = hit(p);
-        boolean enabled = hovered != null && !(hovered.equals("install") && release == null);
+        boolean enabled = hovered != null && !(hovered.equals("install") && release == null && releaseError == null)
+                && !(hovered.equals("open") && openingLauncher);
         setCursor(enabled ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
     }
 
@@ -149,15 +162,37 @@ public final class InstallerView extends JPanel {
             case "perf" -> performanceMods = !performanceMods;
             case "shaders" -> shaders = !shaders;
             case "clips" -> installClips = !installClips;
-            case "install", "retry" -> { if (release != null) onInstall.run(); }
-            case "open" -> onOpenLauncher.run();
+            case "install", "retry" -> {
+                if (release != null) onInstall.run();
+                else if (releaseError != null) onRetryRelease.run();
+            }
+            case "open" -> { if (!openingLauncher) onOpenLauncher.run(); }
             case "done-close" -> System.exit(0);
+            case "err-back" -> backToOptions();
             default -> {
-                if (id.startsWith("mem")) memoryGb = Integer.parseInt(id.substring(3));
+                if (id.startsWith("mem")) memoryGb = InstallerCore.clampMemory(Integer.parseInt(id.substring(3)));
             }
         }
         repaint();
     }
+
+    /** From the error screen back to the options, as the player left them. */
+    void backToOptions() {
+        state = State.IDLE;
+        progress = 0;
+        shownProgress = 0;
+        error = "";
+        status = "";
+        skipped = List.of();
+        launcherError = null;
+        refreshInstalled();
+    }
+
+    /** Whether each extra can be installed with the release we found (all of them while it's still unknown). */
+    private boolean voiceAvailable() { return release == null || release.voiceChat() != null; }
+    private boolean perfAvailable() { return release == null || (release.performance() != null && !release.performance().isEmpty()); }
+    private boolean shadersAvailable() { return release == null || release.iris() != null; }
+    private boolean clipsAvailable() { return release == null || release.clipsUrl() != null; }
 
     // ------------------------------------------------------------------ painting
 
@@ -304,11 +339,11 @@ public final class InstallerView extends JPanel {
         hits.put("change", new Rectangle(x + w - 72, y + 50, 64, 26));
 
         label(g, "MEMORY", x, y + 112);
-        int rec = InstallerCore.recommendedMemory();
-        int[] opts = rec == 3 ? new int[]{2, 3, 4, 6} : new int[]{2, 4, 6, 8};
-        int sw = (w - 3 * 6) / 4;
+        // Only amounts this PC can spare; the chips share the row evenly.
+        int[] opts = memoryChoices;
+        int gap = 6, sw = (w - (opts.length - 1) * gap) / Math.max(1, opts.length);
         for (int i = 0; i < opts.length; i++) {
-            int sx = x + i * (sw + 6);
+            int sx = x + i * (sw + gap);
             String id = "mem" + opts[i];
             boolean on = memoryGb == opts[i];
             float t = anim(id, id.equals(hovered));
@@ -325,47 +360,73 @@ public final class InstallerView extends JPanel {
         }
         g.setFont(inter.deriveFont(11f));
         g.setColor(DIM);
-        g.drawString("Recommended for this PC: " + rec + " GB", x, y + 173);
+        String rec = "Recommended for this PC: " + recommendedGb + " GB";
+        g.drawString(rec, x, y + 173);
+        if (totalGb > 0) {
+            g.setColor(FAINT);
+            g.drawString("  \u00b7  " + totalGb + " GB RAM", x + g.getFontMetrics().stringWidth(rec), y + 173);
+        }
 
-        // settings toggle row
-        // option switches
+        // option switches (an extra the release doesn't have right now is greyed out and can't be switched)
         String[][] rows = {
-                {"copy", "Copy my settings & servers"},
-                {"voice", "Voice chat (Simple Voice Chat)"},
-                {"perf", "FPS mods (Sodium & more)"},
-                {"shaders", "Shaders (Iris + Complementary)"},
-                {"clips", "Evade Clips (record & edit clips)"}};
+                {"copy", "Copy my settings & servers", ""},
+                {"voice", "Voice chat (Simple Voice Chat)", "Voice chat"},
+                {"perf", "FPS mods (Sodium & more)", "FPS mods"},
+                {"shaders", "Shaders (Iris + Complementary)", "Shaders"},
+                {"clips", "Evade Clips (record & edit clips)", "Evade Clips"}};
         boolean[] values = {copySettings, voiceChat, performanceMods, shaders, installClips};
+        boolean[] available = {true, voiceAvailable(), perfAvailable(), shadersAvailable(), clipsAvailable()};
         int tx = x + w - 38;
         for (int i = 0; i < rows.length; i++) {
             int ry = y + 186 + i * 30;
-            g.setFont(inter.deriveFont(13f));
-            g.setColor(TEXT);
-            g.drawString(rows[i][1], x, ry + 13);
             float on = anim(rows[i][0] + "-on", values[i]);
-            g.setColor(mix(new Color(0x2A2A31), RED, on));
-            g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
-            g.setColor(Color.WHITE);
-            g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
-            hits.put(rows[i][0], new Rectangle(x, ry - 4, w, 28));
+            if (available[i]) {
+                g.setFont(inter.deriveFont(13f));
+                g.setColor(TEXT);
+                g.drawString(rows[i][1], x, ry + 13);
+                g.setColor(mix(new Color(0x2A2A31), RED, on));
+                g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
+                g.setColor(Color.WHITE);
+                g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
+                hits.put(rows[i][0], new Rectangle(x, ry - 4, w, 28));
+            } else {
+                g.setFont(inter.deriveFont(13f));
+                g.setColor(FAINT);
+                g.drawString(rows[i][2], x, ry + 13);
+                int nx = x + g.getFontMetrics().stringWidth(rows[i][2]) + 8;
+                g.setFont(inter.deriveFont(11.5f));
+                g.drawString(ellipsizeEnd(g, "not available right now", tx - 8 - nx), nx, ry + 13);
+                g.setColor(new Color(0x1C1C22));
+                g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
+                g.setColor(BORDER);
+                g.draw(new RoundRectangle2D.Double(tx + .5, ry + .5, 37, 19, 19, 19));
+                g.setColor(new Color(0x3A3A44));
+                g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
+            }
         }
 
-        // status line
+        // status line (two lines when it needs them, e.g. which site couldn't be reached)
         g.setFont(inter.deriveFont(12f));
         String info;
         Color infoColor = DIM;
-        if (releaseError != null) { info = "Can't reach evadeclient.com. Check your connection."; infoColor = RED_HI; }
-        else if (release == null) info = "Checking for the latest version…";
+        if (releaseError != null) { info = EvadeInstaller.sentence(releaseError) + " Check your connection and press Retry."; infoColor = RED_HI; }
+        else if (release == null) info = "Checking for the latest version\u2026";
         else if (installed == null) info = "Evade isn't installed in this folder yet.";
-        else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " → v" + release.evadeVersion(); infoColor = RED_HI; }
+        else if (!release.evadeVersion().equals(installed.evadeVersion())) { info = "Update available: v" + installed.evadeVersion() + " \u2192 v" + release.evadeVersion(); infoColor = RED_HI; }
         else info = "v" + installed.evadeVersion() + " is installed and up to date.";
+        List<String> infoLines = wrapLines(g, info, w - 14, 2);
+        int iy = infoLines.size() > 1 ? y + 341 : y + 353;
         g.setColor(infoColor);
-        g.fill(new Ellipse2D.Double(x, y + 346, 6, 6));
-        g.drawString(ellipsize(g, info, w - 14), x + 14, y + 353);
+        g.fill(new Ellipse2D.Double(x, iy - 7, 6, 6));
+        for (String line : infoLines) {
+            g.drawString(line, x + 14, iy);
+            iy += 16;
+        }
 
-        String label = installed == null ? "Install Evade Client"
+        boolean retry = release == null && releaseError != null;
+        String label = retry ? "Retry" : installed == null ? "Install Evade Client"
                 : release != null && !release.evadeVersion().equals(installed.evadeVersion()) ? "Update Evade Client" : "Reinstall";
-        bigButton(g, "install", x, y + h - 84, w, 50, label, release != null);
+        bigButton(g, "install", x, y + h - 84, w, 50, label, release != null || retry);
         g.setFont(inter.deriveFont(11f));
         g.setColor(FAINT);
         center(g, "Requires a Minecraft Java Edition account", x, y + h - 30, w, 14);
@@ -394,15 +455,19 @@ public final class InstallerView extends JPanel {
         g.drawString(ellipsize(g, status, w), x, y + 146);
 
         boolean clips = installClips && release != null && release.clipsUrl() != null;
-        String[] steps = clips ? new String[]{"Fabric Loader", "Fabric API", "Evade Client", "Evade Clips", "Launcher profile"}
-                : new String[]{"Fabric Loader", "Fabric API", "Evade Client", "Launcher profile"};
-        double[] at = clips ? new double[]{0.15, 0.55, 0.8, 0.96, 1.0} : new double[]{0.15, 0.55, 0.8, 1.0};
-        int sy = y + 176;
-        for (int i = 0; i < steps.length; i++) {
-            boolean done = progress >= at[i];
-            boolean active = !done && (i == 0 || progress >= at[i - 1]);
-            stepRow(g, x, sy, steps[i], done, active);
-            sy += clips ? 30 : 34;
+        boolean extras = (voiceChat && voiceAvailable()) || (performanceMods && perfAvailable()) || (shaders && shadersAvailable());
+        List<String> steps = new ArrayList<>(List.of("Fabric Loader", "Fabric API", "Evade Client"));
+        List<Double> at = new ArrayList<>(List.of(0.15, 0.55, 0.75));
+        if (extras) { steps.add("Extra mods"); at.add(0.83); }
+        if (clips) { steps.add("Evade Clips"); at.add(0.96); }
+        steps.add("Launcher profile");
+        at.add(1.0);
+        int sy = y + 176, gap = steps.size() >= 6 ? 28 : steps.size() == 5 ? 30 : 34;
+        for (int i = 0; i < steps.size(); i++) {
+            boolean done = progress >= at.get(i);
+            boolean active = !done && (i == 0 || progress >= at.get(i - 1));
+            stepRow(g, x, sy, steps.get(i), done, active);
+            sy += gap;
         }
     }
 
@@ -422,32 +487,103 @@ public final class InstallerView extends JPanel {
         g.draw(check);
         g.setStroke(new BasicStroke(1f));
 
+        boolean partial = !skipped.isEmpty();
+        // The launcher error sits right above the button; everything else fits around it.
+        g.setFont(inter.deriveFont(11.5f));
+        List<String> errLines = launcherError != null ? wrapLines(g, launcherError, w, 2) : List.of();
+        int errTop = y + h - 96 - 15 * Math.max(0, errLines.size() - 1) - 12;
+        int bottom = launcherError != null ? errTop - 8 : y + h - 96;
+
         g.setFont(interBold.deriveFont(20f));
         g.setColor(TEXT);
-        center(g, "You're all set", x, y + 118, w, 26);
-        g.setFont(inter.deriveFont(12.5f));
-        g.setColor(DIM);
-        center(g, "Evade Client v" + (release != null ? release.evadeVersion() : "") + " is installed.", x, y + 144, w, 18);
+        center(g, partial ? "Almost all set" : "You're all set", x, y + 118, w, 26);
+        int sy, rowH, rowGap;
+        if (!partial) {
+            g.setFont(inter.deriveFont(12.5f));
+            g.setColor(DIM);
+            center(g, "Evade Client v" + (release != null ? release.evadeVersion() : "") + " is installed.", x, y + 144, w, 18);
+            sy = y + 182;
+            rowH = 30;
+            rowGap = 36;
+        } else {
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(DIM);
+            center(g, "Installed, but some extras were skipped:", x, y + 142, w, 18);
+            // Amber lines (fewer when the launcher error needs the room); a long item wraps once, and whatever
+            // doesn't fit is counted.
+            int ly = y + 180;
+            g.setColor(AMBER);
+            for (String[] line : skippedLines(g, w - 10, launcherError != null ? 2 : 3)) {
+                if (line[1] != null) g.fill(new Ellipse2D.Double(x + 1, ly - 7, 5, 5));
+                g.drawString(line[0], x + 10, ly);
+                ly += 16;
+            }
+            boolean busy = skipped.contains(InstallerCore.CLIPS_BUSY);
+            g.setFont(inter.deriveFont(11.5f));
+            g.setColor(FAINT);
+            String footer = busy ? "Quit Evade Clips in the tray, then run this again." : "Run the installer again later to add them.";
+            for (String line : wrapLines(g, footer, w, 2)) {
+                g.drawString(line, x, ly + 4);
+                ly += 15;
+            }
+            sy = ly + 12;
+            // Compact step rows, tighter still (or left out) when space is short.
+            int room = bottom - sy;
+            rowGap = room >= 3 * 30 - 4 ? 30 : room >= 3 * 26 - 4 ? 26 : 0;
+            rowH = rowGap - 4;
+        }
 
         String[] steps = {"Open the Minecraft Launcher", "Pick \"Evade Client\" next to Play", "Press Right Shift in game"};
-        int sy = y + 182;
-        for (int i = 0; i < steps.length; i++) {
+        for (int i = 0; i < steps.length && rowGap > 0; i++) {
             g.setColor(CARD_2);
-            g.fill(new RoundRectangle2D.Double(x, sy, w, 30, 9, 9));
+            g.fill(new RoundRectangle2D.Double(x, sy, w, rowH, 9, 9));
+            int base = sy + rowH / 2 + 4;
             g.setFont(interBold.deriveFont(11f));
             g.setColor(RED_HI);
-            g.drawString("0" + (i + 1), x + 12, sy + 19);
+            g.drawString("0" + (i + 1), x + 12, base);
             g.setFont(inter.deriveFont(12.5f));
             g.setColor(TEXT);
-            g.drawString(steps[i], x + 38, sy + 19);
-            sy += 36;
+            g.drawString(steps[i], x + 38, base);
+            sy += rowGap;
         }
-        bigButton(g, "open", x, y + h - 84, w, 50, "Open Minecraft Launcher", true);
+
+        if (!errLines.isEmpty()) {
+            g.setFont(inter.deriveFont(11.5f));
+            g.setColor(RED_HI);
+            int ey = errTop;
+            for (String line : errLines) {
+                center(g, line, x, ey, w, 14);
+                ey += 15;
+            }
+        }
+        bigButton(g, "open", x, y + h - 84, w, 50, openingLauncher ? "Opening the launcher\u2026" : "Open Minecraft Launcher", !openingLauncher);
         g.setFont(inter.deriveFont(12f));
         float t = anim("done-close", "done-close".equals(hovered));
         g.setColor(mix(FAINT, TEXT, t));
         center(g, "Close", x, y + h - 30, w, 14);
         hits.put("done-close", new Rectangle(x + w / 2 - 30, y + h - 32, 60, 18));
+    }
+
+    /**
+     * The skipped extras as lines of at most {@code width}: each item gets a bullet (marked by a non-null second
+     * element) and wraps once if it must; when they don't all fit in {@code budget} lines, the last line counts the rest.
+     */
+    private List<String[]> skippedLines(Graphics2D g, int width, int budget) {
+        List<String[]> out = new ArrayList<>();
+        for (int i = 0; i < skipped.size(); i++) {
+            String item = skipped.get(i).equals(InstallerCore.CLIPS_BUSY) ? "Evade Clips wasn't updated (it may be open)" : skipped.get(i);
+            int rest = skipped.size() - i;
+            int room = budget - out.size() - (rest > 1 ? 1 : 0);
+            List<String> lines = wrapLines(g, item, width, 2);
+            // The first and the last item always show (cut short if need be); others give way to "and N more".
+            if (lines.size() > room && room >= 1 && (out.isEmpty() || rest == 1)) lines = wrapLines(g, item, width, room);
+            if (lines.size() > room || room <= 0) {
+                out.add(new String[]{"and " + rest + " more", "\u2022"});
+                break;
+            }
+            for (int j = 0; j < lines.size(); j++) out.add(new String[]{lines.get(j), j == 0 ? "\u2022" : null});
+        }
+        return out;
     }
 
     private void paintError(Graphics2D g, int x, int y, int w, int h) {
@@ -464,8 +600,18 @@ public final class InstallerView extends JPanel {
         center(g, "Install didn't finish", x, y + 118, w, 26);
         g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
-        wrap(g, error, x, y + 166, w, 19);
+        int ey = y + 166;
+        for (String line : wrapLines(g, error, w, 8)) {
+            g.drawString(line, x, ey);
+            ey += 19;
+        }
         bigButton(g, "retry", x, y + h - 84, w, 50, "Try again", true);
+        g.setFont(inter.deriveFont(12f));
+        float t = anim("err-back", "err-back".equals(hovered));
+        g.setColor(mix(FAINT, TEXT, t));
+        center(g, "Change options", x, y + h - 30, w, 14);
+        int lw = g.getFontMetrics().stringWidth("Change options") + 16;
+        hits.put("err-back", new Rectangle(x + (w - lw) / 2, y + h - 32, lw, 18));
     }
 
     private void stepRow(Graphics2D g, int x, int y, String name, boolean done, boolean active) {
@@ -559,6 +705,47 @@ public final class InstallerView extends JPanel {
             } else line = new StringBuilder(test);
         }
         if (!line.isEmpty()) g.drawString(line.toString(), x, y);
+    }
+
+    /** Word-wraps text to at most maxLines lines of width w; the last line ends in "…" if text is left over. */
+    static List<String> wrapLines(Graphics2D g, String text, int w, int maxLines) {
+        FontMetrics fm = g.getFontMetrics();
+        List<String> lines = new ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder line = new StringBuilder();
+        int i = 0;
+        for (; i < words.length; i++) {
+            String test = line.isEmpty() ? words[i] : line + " " + words[i];
+            if (fm.stringWidth(test) > w && !line.isEmpty()) {
+                if (lines.size() == maxLines - 1) break;
+                lines.add(line.toString());
+                line = new StringBuilder(words[i]);
+            } else line = new StringBuilder(test);
+        }
+        if (i < words.length) {
+            StringBuilder rest = new StringBuilder(line);
+            for (; i < words.length; i++) rest.append(' ').append(words[i]);
+            lines.add(ellipsizeEnd(g, rest.toString(), w, true));
+        } else if (!line.isEmpty()) {
+            lines.add(ellipsizeEnd(g, line.toString(), w));
+        }
+        return lines;
+    }
+
+    /** Cuts the end off text that's wider than w, ending it in "…". */
+    static String ellipsizeEnd(Graphics2D g, String s, int w) {
+        return ellipsizeEnd(g, s, w, false);
+    }
+
+    private static String ellipsizeEnd(Graphics2D g, String s, int w, boolean forceDots) {
+        FontMetrics fm = g.getFontMetrics();
+        if (!forceDots && fm.stringWidth(s) <= w) return s;
+        String e = "\u2026";
+        for (int i = s.length(); i > 0; i--) {
+            String t = s.substring(0, i).stripTrailing() + e;
+            if (fm.stringWidth(t) <= w && (forceDots || i < s.length())) return t;
+        }
+        return e;
     }
 
     private static String ellipsize(Graphics2D g, String s, int w) {

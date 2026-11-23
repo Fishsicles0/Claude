@@ -29,7 +29,8 @@ public final class LiveHighlights {
     /** dB above the recent median that counts as a highlight (low sensitivity = needs a bigger jump). */
     public volatile double threshold = 12;
     private volatile boolean running;
-    private Thread thread;
+    /** The current worker; an old one still finishing a step after stop() sees it was replaced and exits. */
+    private volatile Thread thread;
 
     public LiveHighlights(CaptureEngine engine, AutoClipper clipper, Supplier<String> game, Path workDir) {
         this.engine = engine;
@@ -42,30 +43,51 @@ public final class LiveHighlights {
         return switch (sensitivity == null ? "medium" : sensitivity) { case "high" -> 9; case "low" -> 16; default -> 12; };
     }
 
+    /** Starts analysing in the background. Waits for a step still running from before a stop() to finish. */
     public synchronized void start() {
         if (running) return;
         running = true;
-        thread = new Thread(() -> {
-            while (running) {
+        // A fresh baseline: the last run's loudness says nothing about the game being played now.
+        history.clear();
+        lastSegment = -1;
+        Thread t = new Thread(this::work, "live-highlights");
+        t.setDaemon(true);
+        thread = t;
+        t.start();
+    }
+
+    private void work() {
+        Thread me = Thread.currentThread();
+        try {
+            while (running && thread == me) {
                 try { step(); } catch (Exception e) { /* capture restarting etc.; try again next round */ }
                 try { Thread.sleep(3000); } catch (InterruptedException e) { return; }
             }
-        }, "live-highlights");
-        thread.setDaemon(true);
-        thread.start();
+        } finally {
+            synchronized (this) {
+                if (thread == me) {
+                    history.clear();
+                    lastSegment = -1;
+                    thread = null;
+                }
+            }
+        }
     }
 
-    public synchronized void stop() {
+    /**
+     * Stops analysing. Only flags the worker and wakes it; the worker clears its own state when it leaves, so
+     * a step running right now never sees its history emptied underneath it.
+     */
+    public void stop() {
         running = false;
-        if (thread != null) thread.interrupt();
-        history.clear();
-        lastSegment = -1;
+        Thread t = thread;
+        if (t != null) t.interrupt();
     }
 
     public boolean running() { return running; }
 
     /** Analyses whatever audio arrived since last time. Public for tests. */
-    public void step() throws Exception {
+    public synchronized void step() throws Exception {
         if (!engine.isLive()) { history.clear(); lastSegment = -1; return; }
         Files.createDirectories(work);
         Path tmp = work.resolve("live.ts");
@@ -73,8 +95,12 @@ public final class LiveHighlights {
         if (newest == lastSegment) return;
         boolean first = lastSegment < 0;
         lastSegment = newest;
-        double[] db = Highlights.loudness(tmp, null);
-        Files.deleteIfExists(tmp);
+        double[] db;
+        try {
+            db = Highlights.loudness(tmp, null);
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
         if (first) { for (double d : db) push(d); return; } // first look only builds the baseline
         for (double d : db) {
             double median = median();
