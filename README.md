@@ -65,10 +65,14 @@ video.
   per keyframe), look at or orbit a player or mob, speed keyframes for slow motion and time-lapse. *Scene*: time of
   day, weather, fog, name tags, hide players and mobs, green-screen sky. *Render*: any size up to 4K (or vertical),
   30/60/120 fps, rendered frame by frame to MP4 (ffmpeg from Evade Clips or the PATH), straight into Evade Clips.
+  *Sound*: game sounds (optionally music) heard from the camera, in sync with the picture: while rendering, the
+  game's audio runs on an OpenAL loopback device and exactly 1/fps of a second is mixed after each frame, then muxed in
+  as AAC (a `.wav` beside the video when there's no ffmpeg). Nothing plays through your speakers during a render.
 - Files: `.minecraft/evade/replays/*.evadereplay` (a zip: `meta.json` + the recorded stream), camera paths in
   `*.evadereplay.project.json` beside them, renders in `.minecraft/evade/renders`.
 - `./gradlew runClientGameTest -PreplayTest` records a scene in singleplayer and on a real dedicated server, replays
-  both, plays, seeks both ways, checks green screen and renders a camera path to a 640x360 MP4.
+  both, plays, seeks both ways, checks green screen and renders a camera path to a 640x360 MP4 with sound, checking
+  an explosion lands at the moment it happened.
 
 ## Using it
 

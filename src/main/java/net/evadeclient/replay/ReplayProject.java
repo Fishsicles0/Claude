@@ -52,6 +52,8 @@ public final class ReplayProject {
         public int quality = 18;
         /** Stream ticks; -1 = the camera path's first / last keyframe (or the whole replay). */
         public int from = -1, to = -1;
+        /** "sounds" (game sounds), "music" (game sounds and music) or "off". */
+        public String audio = "sounds";
     }
 
     public List<CamKey> camera = new ArrayList<>();

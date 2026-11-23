@@ -34,6 +34,7 @@ final class ReplayTest {
 
     static void run(ClientGameTestContext ctx) {
         Path saved;
+        int soundAt;
         BlockPos a = new BlockPos(3, -60, 3), b = new BlockPos(-3, -60, 5);
         try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
             sp.getClientWorld().waitForChunksRender();
@@ -58,7 +59,11 @@ final class ReplayTest {
             ctx.waitTicks(10);
             // move, then build a second block: the replay should show the player moving between the two
             server.runCommand("tp @a 6 -60 -4 90 0");
-            ctx.waitTicks(30);
+            ctx.waitTicks(10);
+            // a loud sound at a known moment: the render's audio has to start right there
+            soundAt = ctx.computeOnClient(c -> ReplayRecorder.recordedTicks());
+            server.runCommand("playsound minecraft:entity.generic.explode master @a 0 -59 0 4 1");
+            ctx.waitTicks(20);
             server.runCommand("setblock -3 -60 5 minecraft:diamond_block");
             ctx.waitTicks(40);
             saved = ctx.computeOnClient(c -> ReplayRecorder.save());
@@ -154,6 +159,27 @@ final class ReplayTest {
             int w = Integer.parseInt(f[0]), h = Integer.parseInt(f[1]), frames = Integer.parseInt(f[2]);
             // 60 ticks of path = 3 s at 30 fps
             check(w == 640 && h == 360 && Math.abs(frames - 90) <= 3, "render: " + frames + " frames at " + w + "x" + h + " (3 s at 30 fps), whatever the window size");
+
+            // the sound: an AAC track as long as the video, with the explosion where it happened (it reaches the client a
+            // tick or two after the command; the zombie's groans are quieter than -20 dB)
+            Process pa = new ProcessBuilder("ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
+                    "stream=codec_name,sample_rate,channels,duration", "-of", "csv=p=0", video.toString()).redirectErrorStream(true).start();
+            String[] au = new String(pa.getInputStream().readAllBytes()).trim().split(",");
+            pa.waitFor();
+            check(au.length >= 4 && au[0].equals("aac") && au[1].equals("48000") && au[2].equals("2") && Math.abs(Double.parseDouble(au[3]) - 3.0) < 0.1,
+                    "render sound: " + String.join(" ", au) + " (AAC, 48 kHz stereo, 3 s)");
+            Process ps = new ProcessBuilder("ffmpeg", "-hide_banner", "-i", video.toString(), "-map", "0:a", "-af", "silencedetect=n=-20dB:d=0.05",
+                    "-f", "null", "-").redirectErrorStream(true).start();
+            String log = new String(ps.getInputStream().readAllBytes());
+            ps.waitFor();
+            var m = java.util.regex.Pattern.compile("silence_end: ([0-9.]+)").matcher(log);
+            double heard = m.find() ? Double.parseDouble(m.group(1)) : -1;
+            double expected = (soundAt - 10) / 20.0;
+            check(ReplayRender.lastAudioPeak > 3000 && heard >= expected - 0.05 && heard <= expected + 0.25,
+                    String.format(java.util.Locale.ROOT, "render sound in sync: the explosion starts at %.2f s (expected %.2f s), peak %d",
+                            heard, expected, ReplayRender.lastAudioPeak));
+        } catch (AssertionError e) {
+            throw e;
         } catch (Exception e) {
             throw new AssertionError("render: can't read the video: " + e);
         }

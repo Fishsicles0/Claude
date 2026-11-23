@@ -27,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
  * a second of the replay (following speed keyframes), however long each frame takes to draw. Frames are read
  * straight off the GPU and piped to ffmpeg (Evade Clips' copy, or one on the PATH) as H.264 MP4; without ffmpeg
  * the built-in encoder is used. Any resolution: the game renders at the chosen size even if the window is smaller.
+ * Game audio is mixed in step with the frames (see {@link ReplayAudio}) and muxed into the MP4.
  */
 public final class ReplayRender {
     private static final MinecraftClient mc = MinecraftClient.getInstance();
@@ -35,6 +36,13 @@ public final class ReplayRender {
     private final ReplayPlayer player;
     private final int fps, width, height, from, to, quality;
     private final Path out;
+    /** Sound: "sounds" (game sounds), "music" (game sounds and music) or "off". */
+    private final String audioMode;
+    private boolean audioOn;
+    private ReplayAudio.Capture audio;
+    private Path videoFile;
+    private String ffmpegPath;
+    private String warning;
     private int origW, origH;
     private boolean started;
     private int settled;
@@ -65,6 +73,7 @@ public final class ReplayRender {
         this.to = Math.max(this.from + 1, Math.min(b, player.endTick()));
         this.quality = Math.max(12, Math.min(35, r.quality));
         this.out = out;
+        this.audioMode = r.audio == null ? "sounds" : r.audio;
     }
 
     public static boolean rendering() { return current != null; }
@@ -78,6 +87,11 @@ public final class ReplayRender {
         String name = p.meta.name.replaceAll("[\\\\/:*?\"<>|]+", "_") + " " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH.mm.ss")) + ".mp4";
         ReplayRender r = new ReplayRender(p, p.project.render, dir.resolve(name));
         current = r;
+        // the sound engine moves to the loopback device before the seek, so it's settled by the first frame
+        if (!r.audioMode.equals("off")) {
+            r.audioOn = ReplayAudio.enable();
+            if (!r.audioOn) r.warning = "no sound (your audio system can't render offline)";
+        }
         mc.setScreen(null);
         p.setPlaying(false);
         p.seek(r.from);
@@ -89,6 +103,7 @@ public final class ReplayRender {
     public Path output() { return out; }
     public double progress() { return Math.max(0, Math.min(1, (player.tick() - from) / (double) Math.max(1, to - from))); }
     public long frames() { return frames; }
+    public boolean hasAudio() { return audioOn; }
 
     // ------------------------------------------------------------------ the clock
 
@@ -126,10 +141,19 @@ public final class ReplayRender {
         player.setSpeed(1);
         player.setPlaying(true);
         String ff = findFfmpeg();
+        ffmpegPath = ff;
+        videoFile = out;
+        if (audioOn) {
+            // whatever played while seeking to the start would all come out at once on the first frame
+            mc.getSoundManager().stopAll();
+            String base = out.getFileName().toString().replaceAll("\\.mp4$", "");
+            audio = new ReplayAudio.Capture(out.resolveSibling("." + base + ".audio.pcm"));
+            if (ff != null) videoFile = out.resolveSibling("." + base + ".video.mp4");
+        }
         if (ff != null) {
             List<String> cmd = new ArrayList<>(List.of(ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
                     "-s", width + "x" + height, "-r", String.valueOf(fps), "-i", "-", "-vf", "vflip", "-c:v", "libx264", "-preset", "medium",
-                    "-crf", String.valueOf(quality), "-pix_fmt", "yuv420p", "-movflags", "+faststart", out.toString()));
+                    "-crf", String.valueOf(quality), "-pix_fmt", "yuv420p", "-movflags", "+faststart", videoFile.toString()));
             ffmpeg = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             pipe = ffmpeg.getOutputStream();
         } else {
@@ -146,10 +170,17 @@ public final class ReplayRender {
     /** After each frame is drawn: copy it off the GPU (asynchronously, in order) and queue it for the encoder. */
     public static void onFrameDrawn() {
         ReplayRender r = current;
-        if (r == null || !r.started || r.finishing) return;
+        if (r == null || r.finishing) return;
+        if (ReplayPlayer.current() != r.player) { r.fail("Render stopped: the replay was closed"); return; }
+        if (!r.started) return;
         if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) { r.fail("Render cancelled"); return; }
         if (r.writeError != null) { r.fail("Encoding failed: " + r.writeError.getMessage()); return; }
         r.capture();
+        if (r.audio != null) {
+            if (r.audioMode.equals("sounds")) mc.getMusicTracker().stop();
+            try { r.audio.advance(1.0 / r.fps); }
+            catch (Exception e) { r.fail("Recording the sound failed: " + e.getMessage()); return; }
+        }
         if (r.player.tick() >= r.to) r.finish();
         else if (r.frames % 15 == 0) mc.getWindow().setTitle(String.format(Locale.ROOT, "Evade - rendering %d%% (Esc to cancel)", Math.round(r.progress() * 100)));
     }
@@ -223,10 +254,49 @@ public final class ReplayRender {
                 try { Thread.sleep(20); } catch (InterruptedException ignored) {}
             }
             try { queue.put(new byte[0]); writer.join(120_000); } catch (InterruptedException ignored) {}
-            mc.execute(() -> done(writeError == null ? null : "Encoding failed: " + writeError.getMessage()));
+            String err = writeError == null ? null : "Encoding failed: " + writeError.getMessage();
+            if (err == null && audio != null) err = addAudio();
+            String result = err;
+            mc.execute(() -> done(result));
         }, "Evade replay finish");
         t.setDaemon(true);
         t.start();
+    }
+
+    /** Puts the recorded sound into the video (or next to it as a WAV when there's no ffmpeg). Returns an error, or null. */
+    private String addAudio() {
+        try {
+            audio.close();
+            if (ffmpegPath == null) {
+                audio.toWav(out.resolveSibling(out.getFileName().toString().replaceAll("\\.mp4$", "") + ".wav"));
+                warning = "sound saved next to it as a .wav (install ffmpeg to get it inside the video)";
+                return null;
+            }
+            List<String> cmd = List.of(ffmpegPath, "-hide_banner", "-loglevel", "error", "-y",
+                    "-i", videoFile.toString(),
+                    "-f", "s16le", "-ar", String.valueOf(ReplayAudio.RATE), "-ac", String.valueOf(ReplayAudio.CHANNELS), "-i", audio.file.toString(),
+                    "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+                    "-movflags", "+faststart", out.toString());
+            Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            String log = new String(p.getInputStream().readAllBytes());
+            if (p.waitFor() != 0 || !Files.isRegularFile(out)) {
+                EvadeClient.LOG.warn("Replay audio: muxing failed: {}", log.trim());
+                Files.move(videoFile, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                warning = "no sound (couldn't add it to the video)";
+            }
+            return null;
+        } catch (Exception e) {
+            return "Adding the sound failed: " + e.getMessage();
+        } finally {
+            cleanTemp();
+        }
+    }
+
+    private void cleanTemp() {
+        try {
+            if (audio != null) { audio.close(); Files.deleteIfExists(audio.file); }
+            if (videoFile != null && !videoFile.equals(out)) Files.deleteIfExists(videoFile);
+        } catch (IOException ignored) {}
     }
 
     private void fail(String why) {
@@ -243,6 +313,7 @@ public final class ReplayRender {
 
     private void done(String err) {
         current = null;
+        if (audioOn) ReplayAudio.disable();
         if (started && (width != origW || height != origH)) resize(origW, origH);
         mc.getWindow().setTitle("Minecraft* " + net.minecraft.SharedConstants.getGameVersion().name());
         player.setPlaying(false);
@@ -250,17 +321,23 @@ public final class ReplayRender {
         lastError = err;
         if (err != null) {
             Notifications.push("Render", err, false);
+            if (ffmpeg != null) try { ffmpeg.waitFor(5, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+            cleanTemp();
             try { Files.deleteIfExists(out); } catch (IOException ignored) {}
             return;
         }
         long secs = (System.currentTimeMillis() - startedAt) / 1000;
-        Notifications.push("Render done", frames + " frames in " + secs + " s: " + out.getFileName(), true);
-        EvadeClient.LOG.info("Replay rendered to {} ({} frames, {}x{} at {} fps)", out, frames, width, height, fps);
+        Notifications.push("Render done", frames + " frames in " + secs + " s: " + out.getFileName() + (warning != null ? " — " + warning : ""), warning == null);
+        lastAudioPeak = audio != null ? audio.peak() : -1;
+        EvadeClient.LOG.info("Replay rendered to {} ({} frames, {}x{} at {} fps, sound: {})", out, frames, width, height, fps,
+                audio != null ? audio.samples() + " samples, peak " + audio.peak() : warning != null ? warning : "off");
         sendToClips(out);
     }
 
     public static volatile Path lastResult;
     public static volatile String lastError;
+    /** Loudest sample in the last render's sound (-1 = rendered without sound). */
+    public static volatile long lastAudioPeak = -1;
 
     // ------------------------------------------------------------------ helpers
 

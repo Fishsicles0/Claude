@@ -160,6 +160,16 @@ public final class ReplayEditorScreen extends Screen {
         toggle(x + 96, y, 92, () -> r.from < 0 ? (project().hasPath() ? "Range: path" : "Range: all") : "Range: marked",
                 () -> { if (r.from < 0) { r.from = player.tick(); r.to = player.endTick(); } else { r.from = -1; r.to = -1; } },
                 "Path: from its first to its last keyframe. Marked: from the playhead (when you pressed this) to the end");
+        y += 20;
+        toggle(x, y, 188, () -> "Sound: " + switch (r.audio == null ? "sounds" : r.audio) {
+                    case "music" -> "game sounds + music";
+                    case "off" -> "off";
+                    default -> "game sounds";
+                }, () -> r.audio = switch (r.audio == null ? "sounds" : r.audio) {
+                    case "sounds" -> "music";
+                    case "music" -> "off";
+                    default -> "sounds";
+                }, "Everything you'd hear from the camera's position, in sync with the video. You won't hear it while it renders");
         y += 24;
         action(x, y, 188, "Render video", () -> { save(); ReplayRender.start(); },
                 "Renders frame by frame (smooth whatever your FPS) to an MP4 in .minecraft/evade/renders, and into Evade Clips when it's open");

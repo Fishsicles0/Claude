@@ -42,7 +42,11 @@
     "ReplayCameraMixin",
     "ReplayEntityRendererMixin",
     "ReplaySkyMixin",
-    "ReplayFogMixin"
+    "ReplayFogMixin",
+    "ReplaySoundEngineMixin",
+    "ReplaySoundSystemMixin",
+    "SoundManagerAccessor",
+    "SoundSystemAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
