@@ -72,8 +72,17 @@ export default {
     const store = env.ICONS.get(env.ICONS.idFromName("global"));
     try {
       switch (url.pathname) {
-        case "/api/health":
-          return json({ ok: true });
+        case "/api/health": {
+          if (url.searchParams.get("mojang") !== "1") return json({ ok: true });
+          // Can this worker reach Mojang's session server? An unknown sign-in id should get 204 (no content).
+          const base = env.MOJANG_SESSION_URL || "https://sessionserver.mojang.com";
+          try {
+            const r = await fetch(base + "/session/minecraft/hasJoined?username=Evade&serverId=" + hex(20));
+            return json({ ok: r.status === 204 || r.status === 200, mojang: r.status });
+          } catch (e) {
+            return json({ ok: false, mojang: "unreachable" });
+          }
+        }
 
         case "/api/auth/challenge": {
           await body(req);
@@ -97,7 +106,8 @@ export default {
           } catch {
             throw new HttpError(502, "couldn't reach Mojang; try again");
           }
-          if (r.status !== 200) throw new HttpError(401, "Mojang did not confirm this account");
+          if (r.status === 204) throw new HttpError(401, "Mojang did not confirm this account");
+          if (r.status !== 200) throw new HttpError(502, "Mojang's session server answered " + r.status + "; try again");
           const profile = await r.json();
           const uuid = normUuid(profile.id);
           if (!UUID.test(uuid)) throw new HttpError(401, "Mojang did not confirm this account");
