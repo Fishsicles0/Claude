@@ -448,6 +448,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         String cps = ctx.computeOnClient(c -> {
             var hud = EvadeClient.modules.get(net.evadeclient.module.hud.CpsHud.class);
             boolean wasOn = hud.isEnabled();
+            hud.setEnabled(false); // re-enabling clears the session peak left by the real clicks above
             hud.setEnabled(true);
             StringBuilder p = new StringBuilder();
             try {
