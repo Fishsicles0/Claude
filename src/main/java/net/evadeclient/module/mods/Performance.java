@@ -445,7 +445,7 @@ public class Performance extends Module {
         var type = effect.getType();
         if (CUES.contains(type)) return false;
         if (ambientParticles.get() && AMBIENT.contains(type)) return true;
-        if (lavaDrips.get() && LAVA_DRIPS.contains(type)) return true;
+        if (LAVA_DRIPS.contains(type)) return lavaDrips.get(); // a warning: shown whole unless you hide it
         if (rainSplashes.get() && type == ParticleTypes.RAIN) return true;
         if (tooFar(x, y, z) || dropParticle()) return true;
         return overParticleCap();
