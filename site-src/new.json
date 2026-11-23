@@ -1,7 +1,16 @@
 {
  "_note": "Module classes added in the latest feature release (version below). The features page marks them New. At each x.y.0 release, set version to it and list that release's new classes (an empty list is fine): the site build stops while version belongs to an older x.y series.",
- "version": "1.18.0",
+ "version": "2.0.0",
  "classes": [
-  "ProfilerHud"
+  "WatermarkHud",
+  "TabTweaks",
+  "Replay",
+  "MotionBlur",
+  "ScreenshotTools",
+  "SoundTweaks",
+  "Hitboxes",
+  "Nametags",
+  "CameraClip",
+  "MinimapHud"
  ]
 }

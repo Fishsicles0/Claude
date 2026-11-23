@@ -49,10 +49,11 @@ save(menu.resize((1420, 799), Image.LANCZOS), "menu-hero.webp")
 
 # decorative HUD crops for the index hero floats, cut from the 1080p HUD shot
 hud = Image.open(latest("evade-hud-1080p")).convert("RGB")
-# cooldown stack, top-left
-save(hud.crop((6, 6, 6 + 528, 6 + 340)), "crop-cooldowns.webp")
-# keystrokes, right edge (scaled up with hard pixels so it stays crisp)
-keys = hud.crop((1776, 236, 1920, 408))
+# cooldowns panel, top centre (scaled up with hard pixels so it stays crisp)
+cd = hud.crop((826, 82, 1094, 180))
+save(cd.resize((cd.width * 2, cd.height * 2), Image.NEAREST), "crop-cooldowns.webp")
+# keystrokes, bottom right
+keys = hud.crop((1774, 798, 1920, 976))
 save(keys.resize((keys.width * 3, keys.height * 3), Image.NEAREST), "crop-keys.webp")
 p = f"{OUT}/crop-target.webp"
 if os.path.exists(p):

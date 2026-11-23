@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy · Evade Client</title>
-<meta name="description" content="What Evade Client, its installer, Evade Clips and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
+<meta name="description" content="What Evade Client, its installer, Evade Clips, clips.evadeclient.com and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/privacy">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Privacy policy · Evade Client">
-<meta property="og:description" content="What Evade Client, its installer, Evade Clips and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
+<meta property="og:description" content="What Evade Client, its installer, Evade Clips, clips.evadeclient.com and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
 <meta property="og:url" content="https://evadeclient.com/privacy">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=fee0a6a702">
+<link rel="stylesheet" href="/assets/site.css?v=8ef32a6d55">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="privacy">
@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v1.18.1</span>
+      <span class="nav-ver">v2.0.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -87,7 +87,7 @@
     <div class="doc">
       <div class="doc-sec rv" id="who">
         <h2>Who we are</h2>
-        <p>Evade Client is made and run by the <b>Evade Team</b>. "We" on this page means the Evade Team. Evade is free and has no accounts, ads or analytics. It is not affiliated with Mojang Studios or Microsoft.</p>
+        <p>Evade Client is made and run by the <b>Evade Team</b>. "We" on this page means the Evade Team. Evade is free, needs no sign-up and has no ads or analytics. It is not affiliated with Mojang Studios or Microsoft.</p>
       </div>
 
       <div class="doc-sec rv" id="client">
@@ -112,31 +112,40 @@
 
       <div class="doc-sec rv" id="installer">
         <h2>The installer</h2>
-        <p>The installer downloads Evade from this website, Fabric from <a href="https://fabricmc.net" target="_blank" rel="noopener">fabricmc.net</a>, and Fabric API, Simple Voice Chat and the performance mods from <a href="https://modrinth.com" target="_blank" rel="noopener">Modrinth</a>. Those services see your IP address when you download, as any download does, under their own privacy policies. The installer sends no personal data and has no tracking.</p>
+        <p>The installer downloads Evade and Evade Clips from this website, Fabric from <a href="https://fabricmc.net" target="_blank" rel="noopener">fabricmc.net</a>, Fabric API, Simple Voice Chat, the performance mods and the optional shaders from <a href="https://modrinth.com" target="_blank" rel="noopener">Modrinth</a>, and on Windows ffmpeg (which Evade Clips records with) from <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener">gyan.dev</a>. Those services see your IP address when you download, as any download does, under their own privacy policies. The installer sends no personal data and has no tracking.</p>
       </div>
 
       <div class="doc-sec rv" id="clips">
         <h2>Evade Clips</h2>
-        <p>Evade Clips records and edits on your computer. Nothing is uploaded unless you share a clip.</p>
+        <p>Evade Clips records Minecraft with Evade Client and edits on your computer. Nothing is uploaded unless you share a clip or turn on <b>Send to phone</b> (Settings &rarr; Sharing &amp; phone), which shares new clips for you. Shared clips are stored at <span class="mono">clips.evadeclient.com</span>, which runs on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>. (If you set Evade Clips to use another share server, whoever runs that server looks after what you share there.)</p>
         <ul>
-          <li><b>Sharing:</b> when you share a clip, the video, its thumbnail and title are stored at <span class="mono">clips.evadeclient.com</span> until you delete it (<b>Stop sharing</b> in the app). Sharing creates an anonymous account made of random codes, with no name or email.</li>
-          <li><b>Link or private:</b> "link" clips can be watched by anyone with the link; private clips only through your own gallery link.</li>
-          <li><b>Reports:</b> if someone reports a clip, we keep the reason and the details they type, without their identity, so we can review it. A clip removed for breaking the rules is deleted, and you're told which clip and why.</li>
-          <li><b>Voice commands</b>, when you turn them on, run fully offline on your computer.</li>
+          <li><b>What sharing stores:</b> the video and its thumbnail, plus its title, the game, its length, size and resolution, when you shared it, and whether it's a link clip or private. All of it stays until you stop sharing the clip, and is then deleted. An upload that never finishes is deleted after a day. Deleting a clip in Evade Clips removes its link too, unless you untick that option when you delete it.</li>
+          <li><b>Your anonymous account:</b> the first time you share, Evade Clips creates an account made of random codes, with no name or email. The server keeps those codes (the key only as a one-way hash), when the account was made and how much storage it uses.</li>
+          <li><b>Link or private:</b> a link clip can be watched by anyone who has its link, and plays as a preview when you post it in Discord or other chats. A private clip only opens with its own private link: anyone you give that link to can watch it, but it shows no preview and search engines are asked not to list it. Switching a clip from link to private gives it a new private link.</li>
+          <li><b>Your phone gallery:</b> every clip you share also shows up in a gallery on your phone, opened with the QR code in the app. Anyone with your gallery link can see all your shared clips, private ones included, and upload to it, so keep it to yourself. <b>Reset phone link</b> in Settings &rarr; Sharing &amp; phone replaces it with a new one. Clips you upload from your phone are stored like clips you share.</li>
+          <li><b>Presets:</b> when you share an edit preset, its name, description and the author name you type are public at <span class="mono">clips.evadeclient.com/presets</span>, with the date you shared it and how often it's been downloaded, until it's removed (ask us to remove one, or delete your shared data to remove them all). Which account shared it stays on the server and isn't shown.</li>
+          <li><b>Reports:</b> anyone can report a clip or preset. We keep the reason, the details they type, when it was sent and which clip or preset it's about, but not the sender's name or IP address (see below). Reports are kept until a moderator has reviewed them, and are deleted along with the clip or preset.</li>
+          <li><b>Removed clips:</b> if a moderator removes a clip for breaking the rules, its video, thumbnail and details are deleted. Only a note of which rule was broken, and when, stays on the server, so the link can say why. You get a notice in the app naming the clip and the reason; it stays with your account until you delete your shared data.</li>
+          <li><b>IP addresses:</b> Cloudflare processes your IP address to deliver clips.evadeclient.com, block attacks and limit how quickly new accounts, reports and presets can be sent. The share server doesn't log or store IP addresses. To count each report and preset download once per person, it keeps a salted one-way hash of the address instead: with the report until the report is deleted, and for a day or two for downloads.</li>
+          <li><b>Downloads the app makes:</b> on Windows, Evade Clips downloads ffmpeg from <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener">gyan.dev</a> if you don't have it. The first time you use voice commands or auto-captions, it downloads the speech engine from <a href="https://central.sonatype.com" target="_blank" rel="noopener">Maven Central</a> and the speech model from <a href="https://alphacephei.com/vosk/" target="_blank" rel="noopener">alphacephei.com</a>. Those services see your IP address, as any download does.</li>
+          <li><b>Voice commands and auto-captions</b> run fully offline on your computer. No audio leaves it.</li>
+          <li><b>Game events</b> from Evade Client go to Evade Clips on your own computer and are never sent to us. Evade Clips only accepts them from Evade Client.</li>
+          <li><b>Post to Discord</b> sends the clip's title, game and link from your PC to the Discord channel you set up. The webhook address stays on your PC.</li>
         </ul>
       </div>
 
       <div class="doc-sec rv" id="site">
         <h2>This website</h2>
-        <p>evadeclient.com has no cookies, analytics or ad trackers. It's hosted on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>, which processes visitors' IP addresses to deliver pages and block attacks. Fonts load from Google Fonts, which sees your IP address when your browser fetches them.</p>
+        <p>evadeclient.com and clips.evadeclient.com have no cookies, analytics or ad trackers. They're hosted on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>, which processes visitors' IP addresses to deliver pages and block attacks. Fonts load from Google Fonts, which sees your IP address when your browser fetches them. A shared clip's page remembers whether you turned autoplay off in your own browser's storage; that never leaves your device.</p>
       </div>
 
       <div class="doc-sec rv" id="rights">
         <h2>Your choices</h2>
         <ul>
           <li>Switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, or <b>Evade Icons</b> to stop all contact with us.</li>
-          <li>Delete shared clips from Evade Clips at any time.</li>
-          <li>You can ask us what we hold about your UUID, or ask us to delete it, at the address below. Depending on where you live (for example under the GDPR or CCPA), you may have further rights, including complaining to your data protection authority.</li>
+          <li>Stop sharing any clip in Evade Clips at any time, or delete it together with its link. Shared clips that are no longer in your library can be deleted from the list of clips on the server in Settings &rarr; Sharing &amp; phone.</li>
+          <li><b>Delete my shared data</b> in Evade Clips (Settings &rarr; Sharing &amp; phone) deletes everything sharing has stored for you, all at once: every clip, preset and notice, the reports about your clips, and the anonymous account itself. If you can't use the app any more, email us your phone gallery link (it shows the clips are yours) and we'll delete it all for you.</li>
+          <li>You can ask us what we hold about your UUID or your shared clips, or ask us to delete it, at the address below. Depending on where you live (for example under the GDPR or CCPA), you may have further rights, including complaining to your data protection authority.</li>
           <li>Evade is not directed at children under 13, and we don't knowingly collect data that identifies a child beyond the game's own player ID.</li>
         </ul>
         <p>If this policy changes, we'll update the date at the top and note it in the <a href="/changelog">changelog</a>.</p>
@@ -162,10 +171,10 @@
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/faq#safe">Allowed?</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v1.18.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.0.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>

@@ -338,7 +338,7 @@ main > section.page-body { margin-top: 56px; }
 .doc-sec p + p, .doc-sec p + ul, .doc-sec ul + p, .doc-sec p + ol, .doc-sec .table + p, .doc-sec p + .table { margin-top: 14px; }
 .doc-sec ul, .doc-sec ol { padding-left: 20px; display: grid; gap: 8px; }
 .doc-sec b { color: var(--text); font-weight: 600; }
-.doc-sec pre.code { margin-top: 14px; max-width: 720px; padding: 14px 16px; overflow-x: auto; background: var(--card, rgba(255,255,255,.04)); border: 1px solid var(--line, rgba(255,255,255,.08)); border-radius: 10px; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre; }
+.doc-sec pre.code { margin-top: 14px; max-width: min(720px, 100%); padding: 14px 16px; overflow-x: auto; background: var(--card, rgba(255,255,255,.04)); border: 1px solid var(--line, rgba(255,255,255,.08)); border-radius: 10px; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre; }
 .doc-sec pre.code + p, .doc-sec p + pre.code { margin-top: 14px; }
 .doc-sec a { color: var(--red-2); }
 .table { border: 1px solid var(--stroke); border-radius: 14px; overflow: hidden; }
@@ -596,3 +596,4 @@ html:not(.js) .mod { cursor: default; }
 /* A pair of call-to-action buttons under a section */
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 56px; }
 @media (max-width: 560px) { .cta-row .btn { flex: 1 1 100%; } }
+.faq-layout > .doc { min-width: 0; }
