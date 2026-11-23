@@ -666,7 +666,12 @@ def main() -> None:
         left = re.findall(r"\{\{[A-Z_]+\}\}", body + meta["description"])
         if left:
             raise SystemExit(f"{src.name}: unknown tokens {sorted(set(left))}")
-        out.write_text(page(src.stem, meta, body, ver, keys))
+        html_out = page(src.stem, meta, body, ver, keys)
+        # Downloads carry their checksum, so no cache (browser or Cloudflare) can hand out an old build.
+        for f in sorted((OUT / "downloads").glob("*")):
+            v = hashlib.sha256(f.read_bytes()).hexdigest()[:10]
+            html_out = html_out.replace(f'href="/downloads/{f.name}"', f'href="/downloads/{f.name}?v={v}"')
+        out.write_text(html_out)
         print(f"built {out.relative_to(ROOT)}")
     write_seo_files(ver)
 

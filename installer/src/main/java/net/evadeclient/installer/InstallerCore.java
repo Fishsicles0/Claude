@@ -94,7 +94,7 @@ public final class InstallerCore {
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
 
     /** Reported when Evade Clips is open and its app file can't be replaced. */
-    public static final String CLIPS_BUSY = "Evade Clips couldn't be updated: it's recording (or wouldn't close). Stop the recording or quit it from the tray, then run the installer again.";
+    public static final String CLIPS_BUSY = "Evade Clips couldn't be updated (it may be running). Close it from the tray and run the installer again.";
 
     public interface Progress {
         void update(double fraction, String message);
@@ -232,14 +232,14 @@ public final class InstallerCore {
     public Release fetchRelease() throws IOException, InterruptedException {
         JsonObject site;
         try {
-            site = getJson(SITE + "/version.json").getAsJsonObject();
+            site = getJson(SITE + "/version.json?t=" + System.currentTimeMillis()).getAsJsonObject(); // never a cached copy
         } catch (IOException | RuntimeException e) {
             throw new IOException("Couldn't reach " + host(SITE), e);
         }
         String evadeVersion = str(site, "version"), file0 = str(site, "file");
         if (evadeVersion == null || file0 == null) throw new IOException(host(SITE) + " sent an incomplete version list");
-        String evadeUrl = SITE + "/" + file0;
         String evadeSha = str(site, "sha256");
+        String evadeUrl = SITE + "/" + file0 + bust(evadeSha);
 
         String loader = null;
         try {
@@ -342,7 +342,7 @@ public final class InstallerCore {
             JsonObject c = site.getAsJsonObject("clips");
             clipsVersion = str(c, "version");
             JsonObject pick = WINDOWS && c.has("windows") ? c.getAsJsonObject("windows") : c.getAsJsonObject("jar");
-            if (pick != null && str(pick, "file") != null) { clipsUrl = SITE + "/" + str(pick, "file"); clipsSha = str(pick, "sha256"); }
+            if (pick != null && str(pick, "file") != null) { clipsSha = str(pick, "sha256"); clipsUrl = SITE + "/" + str(pick, "file") + bust(clipsSha); }
             if (WINDOWS && c.has("ffmpeg")) {
                 JsonObject f = c.getAsJsonObject("ffmpeg");
                 ffUrl = str(f, "url");
@@ -414,27 +414,64 @@ public final class InstallerCore {
     void installClips(Release r, Progress p) throws Exception {
         Path app = clipsAppDir();
         Files.createDirectories(app);
-        boolean exe = r.clipsUrl().toLowerCase(Locale.ROOT).endsWith(".exe");
-        Path target = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
+        boolean exe = r.clipsUrl().replaceFirst("[?#].*$", "").toLowerCase(Locale.ROOT).endsWith(".exe");
+        Path standard = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
+        Path target = standard;
         Path fresh = app.resolve(target.getFileName() + ".new");
         p.update(0.84, "Downloading Evade Clips " + r.clipsVersion());
         download(r.clipsUrl(), fresh, r.clipsSha256(), "SHA-256", 0.84, 0.94, p);
 
+        // Old copies set aside by an earlier update (once nothing is running them any more).
+        try (var old = Files.list(app)) {
+            old.filter(f -> f.getFileName().toString().startsWith(standard.getFileName() + ".old"))
+               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
+        } catch (IOException ignored) { }
         FileSystemException busy = null;
         boolean reopen = false;
         try {
-            move(fresh, target);
+            try {
+                move(fresh, target);
+            } catch (FileSystemException first) {
+                // Evade Clips is open (often only in the tray) and Windows keeps its file locked: close it and retry.
+                if (!WINDOWS) throw first;
+                // Never in the middle of a full recording: then the running copy is set aside below instead, and the
+                // recording carries on; the new version is used from the next start.
+                if (clipsRecording(CLIPS_PORT)) throw first;
+                p.update(0.945, "Closing Evade Clips to update it");
+                // Asked first, so it saves and shuts down cleanly; whatever is still running is then closed.
+                askClipsToQuit(CLIPS_PORT, target);
+                closeRunningClips(target);
+                move(fresh, target);
+                reopen = true;
+            }
         } catch (FileSystemException e) {
-            busy = e;
-        }
-        // Running in the tray, Evade Clips keeps its .exe locked on Windows: close it, swap the new one in, reopen it
-        if (busy != null && WINDOWS) {
-            p.update(0.945, "Closing Evade Clips to update it");
-            if (closeRunningClips(target, CLIPS_PORT)) {
-                busy = moveWhenFree(fresh, target, 10_000);
-                reopen = busy == null;
+            // Evade Clips is open (often just in the tray). Windows won't let a running program be replaced, but it
+            // can be renamed: set it aside and put the new one in its place; it's used from the next start.
+            try {
+                Path aside = app.resolve(target.getFileName() + ".old-" + System.currentTimeMillis());
+                Files.move(target, aside);
+                move(fresh, target);
+            } catch (IOException e2) {
+                // Still locked: install the new build under its own name beside the running one and point Evade
+                // Client and the shortcuts at it. Nothing has to be replaced, so no lock can stop the update.
+                String name = exe ? "Evade-Clips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".exe"
+                        : "EvadeClips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".jar";
+                try {
+                    Path side = app.resolve(name);
+                    move(fresh, side);
+                    target = side;
+                } catch (IOException e3) {
+                    busy = e;
+                }
             }
         }
+        // Earlier side-by-side builds that nothing runs any more (a running one stays until next time).
+        final Path current = target;
+        try (var old = Files.list(app)) {
+            String prefix = exe ? "Evade-Clips-" : "EvadeClips-";
+            old.filter(f -> f.getFileName().toString().startsWith(prefix) && !f.equals(current))
+               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
+        } catch (IOException ignored) { }
 
         // Where Evade Client finds the app to start it with Minecraft. Other fields (written by the app) are kept.
         Path locFile = clipsDataDir().resolve("location.json");
@@ -449,7 +486,15 @@ public final class InstallerCore {
         else loc.remove("pendingUpdate");
         Files.createDirectories(clipsDataDir());
         writeAtomic(locFile, GSON.toJson(loc));
-        if (busy != null) throw new ClipsBusyException(busy);
+        if (busy != null) {
+            // Keep the exact reason for support: %APPDATA%\\EvadeClips\\installer-error.log (or ~/.evade-clips).
+            try {
+                java.io.StringWriter sw = new java.io.StringWriter();
+                busy.printStackTrace(new java.io.PrintWriter(sw));
+                Files.writeString(clipsDataDir().resolve("installer-error.log"), java.time.Instant.now() + "\n" + sw);
+            } catch (Exception ignored) { }
+            throw new ClipsBusyException(busy);
+        }
 
         p.update(0.955, "Adding Evade Clips to your apps");
         try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
@@ -1144,6 +1189,93 @@ public final class InstallerCore {
         }
     }
 
+    /**
+     * Windows: closes a running Evade Clips so its file can be replaced. Asks politely first (like closing the
+     * window), then ends it and the Java it started. Waits until the file is free, at most about 8 seconds.
+     */
+    /** Evade Clips' local control port (where Evade Client and the installer talk to it). */
+    static final int CLIPS_PORT = 47821;
+
+    /** Whether a running Evade Clips says it's in the middle of a full recording (false when it doesn't answer). */
+    boolean clipsRecording(int port) {
+        try {
+            HttpResponse<String> st = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/status"))
+                    .timeout(java.time.Duration.ofSeconds(2)).GET().build(), HttpResponse.BodyHandlers.ofString());
+            return st.statusCode() == 200 && st.body().replace(" ", "").contains("\"recording\":true");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Asks a running Evade Clips to quit (it saves and shuts down cleanly) and waits up to 10 s for {@code exe} to be
+     * free. Versions without /quit, or one that doesn't answer, are left to {@link #closeRunningClips}.
+     */
+    boolean askClipsToQuit(int port, Path exe) {
+        try {
+            HttpResponse<String> q = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/quit?client=installer"))
+                    .timeout(java.time.Duration.ofSeconds(3)).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+            if (q.statusCode() != 200) return false;
+            for (int i = 0; i < 40 && locked(exe); i++) Thread.sleep(250);
+            return !locked(exe);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    static void closeRunningClips(Path exe) {
+        String image = exe.getFileName().toString();
+        // Evade-Clips.exe only starts Java (javaw.exe) and exits; that Java keeps the .exe open. So match every
+        // process whose command line or program path mentions the file, not just the image name.
+        String needle = exe.toAbsolutePath().toString().replace("'", "''");
+        String ps = "$n='" + needle + "'; Get-CimInstance Win32_Process | Where-Object { "
+                + "($_.CommandLine -and $_.CommandLine.IndexOf($n, [StringComparison]::OrdinalIgnoreCase) -ge 0) -or "
+                + "($_.ExecutablePath -and $_.ExecutablePath -ieq $n) } | ForEach-Object { %s }";
+        try {
+            run("taskkill", "/T", "/IM", image);
+            powershell(String.format(ps, "$null = $_.CimInstance; try { (Get-Process -Id $_.ProcessId).CloseMainWindow() | Out-Null } catch {}"));
+            for (int i = 0; i < 10 && locked(exe); i++) Thread.sleep(300);
+            if (locked(exe)) {
+                run("taskkill", "/F", "/T", "/IM", image);
+                powershell(String.format(ps, "Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue"));
+            }
+            for (int i = 0; i < 17 && locked(exe); i++) Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception ignored) {
+            // Not fatal: the caller falls back to updating it on the next start.
+        }
+    }
+
+    private static void powershell(String script) throws Exception {
+        String encoded = java.util.Base64.getEncoder().encodeToString(script.getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
+        run("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded);
+    }
+
+    private static void run(String... cmd) throws Exception {
+        Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+        pr.getInputStream().readAllBytes();
+        pr.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    /** True while another program holds {@code file} open (Windows refuses to open it for writing). */
+    private static boolean locked(Path file) {
+        if (!Files.exists(file)) return false;
+        try (var ch = java.nio.channels.FileChannel.open(file, java.nio.file.StandardOpenOption.WRITE)) {
+            return false;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    /** A query naming the file's checksum, so no cache can answer with an older build of it. */
+    private static String bust(String sha) {
+        return sha == null || sha.length() < 10 ? "?t=" + System.currentTimeMillis() : "?v=" + sha.substring(0, 10);
+    }
+
     /** Low-pause G1 settings: short GC pauses, no forced full GCs. */
     private static final String G1_FLAGS = "-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC "
             + "-XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=37 -XX:+DisableExplicitGC -XX:G1NewSizePercent=20 "
@@ -1211,71 +1343,22 @@ public final class InstallerCore {
     }
 
     /** Renames a file into place, atomically where the file system can. */
-    /** Evade Clips' local control port (where Evade Client and the installer talk to it). */
-    static final int CLIPS_PORT = 47821;
-
-    /**
-     * Closes a running Evade Clips so it can be updated, and returns whether it's gone (or wasn't running). Newer
-     * versions are asked to quit over their local control port; they save everything and refuse (keep running)
-     * while a full recording is going, so an update never cuts one short. Older versions without that are closed
-     * as a process, the one running from {@code target}, but also never while they report a recording.
-     */
-    boolean closeRunningClips(Path target, int port) {
-        String base = "http://127.0.0.1:" + port;
-        try {
-            HttpResponse<String> st = http.send(HttpRequest.newBuilder(URI.create(base + "/status")).timeout(java.time.Duration.ofSeconds(2)).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
-            if (st.statusCode() == 200 && st.body().replace(" ", "").contains("\"recording\":true")) return false;
-            HttpResponse<String> q = http.send(HttpRequest.newBuilder(URI.create(base + "/quit?client=installer")).timeout(java.time.Duration.ofSeconds(3))
-                    .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
-            if (q.statusCode() == 409) return false; // recording
-            if (q.statusCode() == 200) return waitForExit(target, 10_000);
-            // an older Evade Clips (no /quit): close its process below
-        } catch (Exception e) {
-            // not answering: close its process below, if there is one
-        }
-        List<ProcessHandle> running = clipsProcesses(target);
-        for (ProcessHandle h : running) h.destroy();
-        if (waitForExit(target, 5_000)) return true;
-        for (ProcessHandle h : clipsProcesses(target)) h.destroyForcibly();
-        return waitForExit(target, 5_000);
-    }
-
-    /** Processes running the Evade Clips program at {@code target}. */
-    static List<ProcessHandle> clipsProcesses(Path target) {
-        String want = target.toAbsolutePath().normalize().toString();
-        return ProcessHandle.allProcesses().filter(h -> h.pid() != ProcessHandle.current().pid() && h.info().command()
-                .map(c -> WINDOWS ? c.equalsIgnoreCase(want) : c.equals(want)).orElse(false)).toList();
-    }
-
-    private static boolean waitForExit(Path target, long millis) {
-        long until = System.currentTimeMillis() + millis;
-        while (System.currentTimeMillis() < until) {
-            if (clipsProcesses(target).isEmpty()) return true;
-            try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return false; }
-        }
-        return clipsProcesses(target).isEmpty();
-    }
-
-    /** Swaps the new file in, retrying while Windows still holds the old one; returns the last error, or null. */
-    static FileSystemException moveWhenFree(Path from, Path to, long millis) throws IOException {
-        long until = System.currentTimeMillis() + millis;
+    static void move(Path from, Path to) throws IOException {
+        // On Windows, antivirus (Defender) briefly locks a program that was just written while it scans it, so a
+        // move right after a download can fail for a second or two. Retry for a while before giving up.
+        long deadline = System.currentTimeMillis() + (WINDOWS ? 8000 : 0);
         while (true) {
             try {
-                move(from, to);
-                return null;
+                try {
+                    Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return;
             } catch (FileSystemException e) {
-                if (System.currentTimeMillis() >= until) return e;
-                try { Thread.sleep(250); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return e; }
+                if (e instanceof java.nio.file.NoSuchFileException || System.currentTimeMillis() >= deadline) throw e;
+                try { Thread.sleep(400); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
             }
-        }
-    }
-
-    static void move(Path from, Path to) throws IOException {
-        try {
-            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -1379,7 +1462,7 @@ public final class InstallerCore {
             Files.deleteIfExists(tmp);
             throw new IOException("Download check failed for " + target.getFileName() + " (file was corrupted or changed). Try again.");
         }
-        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        move(tmp, target);
     }
 
     /** Closes the stream if no bytes arrive for stallMs, so a dead connection fails instead of hanging forever. */

@@ -264,7 +264,8 @@ const os = isPhone ? "phone" : isMac ? "mac" : isLinux ? "linux" : "windows";
 document.documentElement.dataset.os = os;
 const setText = (sel, val) => all(sel).forEach(e => e.textContent = val);
 if (os === "mac" || os === "linux") {
-  all(".js-primary").forEach(a => a.setAttribute("href", "/downloads/EvadeInstaller.jar"));
+  const jar = document.querySelector('a[href^="/downloads/EvadeInstaller.jar"]');
+  all(".js-primary").forEach(a => a.setAttribute("href", jar ? jar.getAttribute("href") : "/downloads/EvadeInstaller.jar?v=" + Date.now()));
   setText(".js-primary-label", os === "mac" ? "Download for macOS" : "Download for Linux");
   setText(".js-primary-meta", "One-click installer · needs Java 17+");
 } else if (os === "phone") {

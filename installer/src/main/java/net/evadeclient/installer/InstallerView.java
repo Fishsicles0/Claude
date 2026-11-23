@@ -622,7 +622,7 @@ public final class InstallerView extends JPanel {
             boolean busy = skipped.contains(InstallerCore.CLIPS_BUSY);
             g.setFont(inter.deriveFont(11.5f));
             g.setColor(FAINT);
-            String footer = busy ? "Stop the recording in Evade Clips, then run this again." : "Run the installer again later to add them.";
+            String footer = busy ? "Quit Evade Clips in the tray, then run this again." : "Run the installer again later to add them.";
             for (String line : wrapLines(g, footer, w, 2)) {
                 g.drawString(line, x, ly + 4);
                 ly += 15;
@@ -672,7 +672,7 @@ public final class InstallerView extends JPanel {
     private List<String[]> skippedLines(Graphics2D g, int width, int budget) {
         List<String[]> out = new ArrayList<>();
         for (int i = 0; i < skipped.size(); i++) {
-            String item = skipped.get(i).equals(InstallerCore.CLIPS_BUSY) ? "Evade Clips wasn't updated (it's recording)" : skipped.get(i);
+            String item = skipped.get(i).equals(InstallerCore.CLIPS_BUSY) ? "Evade Clips wasn't updated (it may be open)" : skipped.get(i);
             int rest = skipped.size() - i;
             int room = budget - out.size() - (rest > 1 ? 1 : 0);
             List<String> lines = wrapLines(g, item, width, 2);
