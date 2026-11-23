@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
  *   POST /marker?label=Kill
  *   POST /open[?clip=<id>|last]   (bring the app forward / open a clip in the editor)
  *   POST /gsi/cs2                 (Counter-Strike 2 Game State Integration)
+ *   POST /import?path=<file>[&title=]   (add a video, e.g. an Evade replay render, to the library)
  * </pre>
  * Requests carrying an Origin header are refused, so web pages can't trigger it. With the API turned off in
  * Settings the server still answers /status and /open (so a second copy of the app finds this one) and, if
@@ -58,6 +59,8 @@ public final class ControlServer {
         default boolean apiEnabled() { return true; }
         /** False while game events from CS2 are off. */
         default boolean gsiEnabled() { return true; }
+        /** Adds a video file to the library (copied in), e.g. a replay render from Evade Client. */
+        default Map<String, Object> importFile(java.nio.file.Path file, String title) throws Exception { return Map.of("ok", false); }
     }
 
     private static final Map<String, Object> API_OFF = Map.of("error",
@@ -101,6 +104,16 @@ public final class ControlServer {
                     case "/open" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
                         send(ex, 200, Map.of("ok", h.open(q.get("clip"))));
+                    }
+                    case "/import" -> {
+                        if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
+                        String p = q.get("path");
+                        java.nio.file.Path f = p == null ? null : java.nio.file.Path.of(p);
+                        if (f == null || !java.nio.file.Files.isRegularFile(f) || !Library.VIDEO_EXT.contains(Library.ext(f))) {
+                            send(ex, 400, Map.of("error", "not a video file"));
+                            return;
+                        }
+                        send(ex, 200, h.importFile(f, q.get("title")));
                     }
                     case "/gsi/cs2" -> {
                         if (!h.gsiEnabled()) { send(ex, 403, Map.of("error", "Counter-Strike 2 events are turned off in Evade Clips")); return; }

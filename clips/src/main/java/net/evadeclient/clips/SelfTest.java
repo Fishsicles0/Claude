@@ -99,6 +99,11 @@ final class SelfTest {
             }
             public java.util.Map<String, Object> record(String a, String g) { return java.util.Map.of(); }
             public void marker() {}
+            public java.util.Map<String, Object> importFile(Path f, String title) {
+                var added = lib.importFiles(List.of(f), false);
+                if (!added.isEmpty() && title != null) { added.get(0).title = title; lib.update(added.get(0)); }
+                return java.util.Map.of("ok", !added.isEmpty(), "id", added.isEmpty() ? "" : added.get(0).id);
+            }
         });
         var http = java.net.http.HttpClient.newHttpClient();
         var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip?seconds=3&title=Kill%20Steve&tag=kill"))
@@ -107,6 +112,20 @@ final class SelfTest {
         var blocked = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/clip"))
                 .header("Origin", "https://evil.example").POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
         check(blocked.statusCode() == 403, "API refuses requests from web pages");
+        // a replay render from Evade Client goes into the library; anything that isn't a video is refused
+        Path render = dir.resolve("replay-render.mp4");
+        Ffmpeg.run(List.of("-y", "-f", "lavfi", "-i", "testsrc2=s=640x360:r=30:d=2", "-c:v", "libx264", "-preset", "ultrafast", render.toString()));
+        java.util.function.Function<String, java.net.http.HttpResponse<String>> imp = path -> {
+            try {
+                return http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/import?path="
+                        + java.net.URLEncoder.encode(path, java.nio.charset.StandardCharsets.UTF_8) + "&title=Replay%20render"))
+                        .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+            } catch (Exception e) { throw new RuntimeException(e); }
+        };
+        var imported = imp.apply(render.toString());
+        var bad = imp.apply(dir.resolve("settings.json").toString());
+        check(imported.statusCode() == 200 && imported.body().contains("\"ok\":true") && lib.all().stream().anyMatch(c -> "Replay render".equals(c.title)) && bad.statusCode() == 400,
+                "API /import adds a replay render to the library and refuses non-videos (" + imported.statusCode() + "/" + bad.statusCode() + ")");
         api.stop();
 
         eventTests();

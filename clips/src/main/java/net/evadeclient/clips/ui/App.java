@@ -361,6 +361,17 @@ public final class App {
                     m.put("lastClip", lastSavedClipId);
                     return m;
                 }
+                @Override public Map<String, Object> importFile(java.nio.file.Path file, String title) {
+                    var added = library.importFiles(List.of(file), false);
+                    if (added.isEmpty()) return Map.of("ok", false);
+                    Clip c = added.get(0);
+                    if (title != null && !title.isBlank()) c.title = title;
+                    c.game = "Minecraft";
+                    if (!c.tags.contains("replay")) c.tags.add("replay");
+                    library.update(c);
+                    App.this.notify("Replay render added", c.title, false);
+                    return Map.of("ok", true, "id", c.id);
+                }
                 @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {
                     return clip(new ControlServer.ClipRequest(seconds, after, title, game, tag, false, 0));
                 }

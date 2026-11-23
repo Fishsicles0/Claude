@@ -12,6 +12,10 @@ repositories {
     mavenCentral()
 }
 
+// Compile-only stand-ins for the Simple Voice Chat API (see src/svcstub/README.md): replays record and play back
+// voice chat when that mod is installed. Never packaged; the real classes come from Simple Voice Chat at runtime.
+sourceSets { svcstub { java.srcDir 'src/svcstub/java' } }
+
 dependencies {
     // Pure-Java H.264/MP4 encoder for Clips, bundled inside the mod jar.
     include(implementation("org.jcodec:jcodec:0.2.5"))
@@ -19,6 +23,7 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly sourceSets.svcstub.output
 }
 
 processResources {
@@ -57,6 +62,7 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
     // `-Pfootage` films gameplay for the Evade Clips screenshots instead of testing (scripts/film-footage.sh)
     // `-PmenuShot` only opens the menu in each theme and screenshots it (quick look at GUI changes)
     if (project.hasProperty('menuShot')) vmArg "-Devade.menushot=true"
+    if (project.hasProperty('replayTest')) vmArg "-Devade.replaytest=true"
     if (project.hasProperty('footage')) {
         vmArg "-Devade.footage=true"
         vmArg "-Devade.footage.dir=${layout.buildDirectory.dir('footage').get().asFile.absolutePath}"

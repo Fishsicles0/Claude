@@ -12,6 +12,9 @@
   "entrypoints": {
     "client": [
       "net.evadeclient.EvadeClient"
+    ],
+    "voicechat": [
+      "net.evadeclient.replay.VoiceChatPlugin"
     ]
   },
   "mixins": [

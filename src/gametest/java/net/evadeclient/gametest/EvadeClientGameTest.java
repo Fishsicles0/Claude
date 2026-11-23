@@ -20,6 +20,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext ctx) {
         if (Boolean.getBoolean("evade.footage")) { Footage.film(ctx); return; } // scripts/film-footage.sh
         if (Boolean.getBoolean("evade.menushot")) { menuShots(ctx); return; }      // ./gradlew runClientGameTest -PmenuShot
+        if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
             sp.getClientWorld().waitForChunksRender();
             var server = sp.getServer();
@@ -50,6 +51,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testIcons(ctx, sp);
             testCustomization(ctx);
         }
+        ReplayTest.run(ctx);
     }
 
     /** The new Lunar-style HUD/info readouts: Item Counter, Saturation, Stopwatch. */
@@ -435,7 +437,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         var server = sp.getServer();
         server.runCommand("kill @e[type=!player]");
         server.runCommand("tp @a 0 -60 0 0 0");
-        for (int x = -20; x < 20; x += 2) for (int z = 70; z < 110; z += 2)
+        // 40-60 blocks: past the culling distance set below, but inside the game's own ~70 blocks for a cow (culling
+        // only counts entities the game would otherwise have drawn)
+        for (int x = -20; x < 20; x += 2) for (int z = 40; z < 60; z += 2)
             server.runCommand("summon cow " + x + " -60 " + z + " {NoAI:1b,Silent:1b}");
         disable(ctx, net.evadeclient.module.mods.Performance.class);
         ctx.waitTicks(100);
@@ -444,12 +448,15 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         var perf = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.mods.Performance.class));
         setBool(ctx, perf, "Low FPS When Tabbed Out", false); // the test window may not have focus
         setBool(ctx, perf, "Lighter Video Settings", false);  // measure culling on its own
+        double distance = ctx.computeOnClient(c -> perf.entityDistance.get());
+        ctx.runOnClient(c -> perf.entityDistance.set(32.0));
         enable(ctx, net.evadeclient.module.mods.Performance.class);
         ctx.runOnClient(c -> perf.takeCulled());
         ctx.waitTicks(100);
         int fpsOn = ctx.computeOnClient(c -> c.getCurrentFps());
         int culled = ctx.computeOnClient(c -> perf.takeCulled());
-        EvadeClient.LOG.info("[gametest] BENCHMARK 400 cows at 70-110 blocks: {} FPS off -> {} FPS on ({} entity draws skipped)", fpsOff, fpsOn, culled);
+        ctx.runOnClient(c -> perf.entityDistance.set(distance));
+        EvadeClient.LOG.info("[gametest] BENCHMARK 200 cows at 40-60 blocks, culling at 32: {} FPS off -> {} FPS on ({} entity draws skipped)", fpsOff, fpsOn, culled);
         ctx.takeScreenshot("evade-performance");
         check(culled > 0, "Performance culls distant entities (" + fpsOff + " -> " + fpsOn + " FPS)");
 

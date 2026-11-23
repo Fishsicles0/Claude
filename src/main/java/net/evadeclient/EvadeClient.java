@@ -85,6 +85,7 @@ public class EvadeClient implements ClientModInitializer {
             if (switched != null) Notifications.push("Profile", "Switched to " + switched + " for this server", true);
         }));
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
+        net.evadeclient.replay.Replays.init();
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
                 net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));
         // Fabric gives a screen fresh per-screen events on every init and resize, so these are added each time.
