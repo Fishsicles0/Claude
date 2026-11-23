@@ -8,6 +8,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(InGameOverlayRenderer.class)
@@ -33,6 +34,14 @@ public abstract class InGameOverlayRendererMixin {
     @Inject(method = "renderFireOverlay", at = @At("RETURN"))
     private static void evade$lowFireTail(MatrixStack matrices, VertexConsumerProvider consumers, Sprite sprite, CallbackInfo ci) {
         if (evade$fireLowered) { matrices.pop(); evade$fireLowered = false; }
+    }
+
+    /** Pack Tweaks Fire Opacity: fade the first-person fire (vanilla draws both flames at 90%). */
+    @ModifyArg(method = "renderFireOverlay", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/render/VertexConsumer;color(FFFF)Lnet/minecraft/client/render/VertexConsumer;"), index = 3)
+    private static float evade$fireOpacity(float alpha) {
+        var pt = net.evadeclient.module.visuals.PackTweaks.active();
+        return pt == null ? alpha : pt.fireOpacity.getFloat() / 100f;
     }
 
     /** Clear Water: skip the blue underwater screen overlay. */
