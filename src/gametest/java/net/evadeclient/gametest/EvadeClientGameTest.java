@@ -1145,10 +1145,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         int inView = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.TntTimer.class).shown());
         check(walled == 0 && inView >= 1, "TNT Timer hides TNT behind a wall (" + walled + " walled, " + inView + " in view)");
         // Primed TNT minecarts too (a cart is only primed on the client when the server primes it).
-        server.runCommand("setblock 1 -61 6 stone");
-        server.runCommand("setblock 1 -60 6 minecraft:activator_rail[powered=true]");
+        // A redstone block underneath keeps the rail powered (a bare powered=true rail turns itself off on placement).
+        server.runCommand("setblock 1 -61 6 redstone_block");
+        server.runCommand("setblock 1 -60 6 minecraft:activator_rail");
         server.runCommand("summon tnt_minecart 1.5 -60 6.5");
-        ctx.waitTicks(5);
+        ctx.waitTicks(10);
         int cartTimers = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.visuals.TntTimer.class).shown());
         server.runCommand("kill @e[type=tnt_minecart]");
         server.runCommand("setblock 1 -60 6 air");
