@@ -56,33 +56,53 @@ public class ConfigManager {
         }
     }
 
-    /** Apply client state from {@code source} if it exists. */
+    /**
+     * Apply client state from {@code source} if it exists. Keys the client doesn't know are ignored; after a
+     * module's settings are applied, {@link Module#onConfigLoaded} gets the raw saved object to migrate old keys.
+     * A broken entry only skips that one module.
+     */
     public void loadFrom(Path source) {
         if (!Files.exists(source)) return;
+        JsonObject root;
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(source)).getAsJsonObject();
-            for (Module m : EvadeClient.modules.all()) {
-                if (!root.has(m.getName())) continue;
-                JsonObject obj = root.getAsJsonObject(m.getName());
-                if (obj.has("key")) m.setKey(obj.get("key").getAsInt());
-                if (obj.has("settings")) {
-                    JsonObject settings = obj.getAsJsonObject("settings");
-                    for (Setting<?> s : m.getSettings()) {
-                        JsonElement v = settings.get(s.getName());
-                        if (v != null) {
-                            try { s.fromJson(v); } catch (Exception ignored) {}
-                        }
-                    }
-                }
-                if (m instanceof HudElementModule h && obj.has("x") && obj.has("y")) {
-                    h.x = obj.get("x").getAsInt();
-                    h.y = obj.get("y").getAsInt();
-                }
-                if (obj.has("enabled")) m.setEnabled(obj.get("enabled").getAsBoolean());
-            }
+            root = JsonParser.parseString(Files.readString(source)).getAsJsonObject();
         } catch (Exception e) {
-            EvadeClient.LOG.error("Failed to load config", e);
+            EvadeClient.LOG.error("Failed to load config {}", source, e);
+            return;
         }
+        for (Module m : EvadeClient.modules.all()) {
+            JsonElement entry = root.get(m.getName());
+            if (entry == null || !entry.isJsonObject()) continue;
+            try {
+                load(m, entry.getAsJsonObject());
+            } catch (Exception e) {
+                EvadeClient.LOG.error("Failed to load config for {}", m.getName(), e);
+            }
+        }
+    }
+
+    private static void load(Module m, JsonObject obj) {
+        if (obj.has("key")) m.setKey(obj.get("key").getAsInt());
+        JsonElement saved = obj.get("settings");
+        if (saved != null && saved.isJsonObject()) {
+            JsonObject settings = saved.getAsJsonObject();
+            for (Setting<?> s : m.getSettings()) {
+                JsonElement v = settings.get(s.getName());
+                if (v != null) {
+                    try { s.fromJson(v); } catch (Exception ignored) {}
+                }
+            }
+            try {
+                m.onConfigLoaded(settings);
+            } catch (Exception e) {
+                EvadeClient.LOG.error("Config migration failed for {}", m.getName(), e);
+            }
+        }
+        if (m instanceof HudElementModule h && obj.has("x") && obj.has("y")) {
+            h.x = obj.get("x").getAsInt();
+            h.y = obj.get("y").getAsInt();
+        }
+        if (obj.has("enabled")) m.setEnabled(obj.get("enabled").getAsBoolean());
     }
 
     public Path file() { return file; }

@@ -9,8 +9,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.evadeclient.render.RenderContext;
+import net.evadeclient.util.Notifications;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.MinecraftClient;
@@ -45,13 +48,25 @@ public class EvadeClient implements ClientModInitializer {
         modules.get(net.evadeclient.module.client.ClientSettings.class).applyTheme();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> { ticks++; modules.onTick(); });
-        HudElementRegistry.addLast(Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));
-        // Custom crosshair and potion HUD replace the vanilla ones while enabled.
-        HudElementRegistry.replaceElement(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CROSSHAIR, vanilla -> (ctx, tc) -> {
-            var ch = modules.get(net.evadeclient.module.mods.Crosshair.class);
-            if (ch != null && ch.isEnabled()) ch.draw(ctx); else vanilla.render(ctx, tc);
+        // Evade's widgets sit just under chat, so chat, the tab list and subtitles stay readable on top of them.
+        HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.of("evade", "hud"), (ctx, tickCounter) -> Hud.render(ctx));
+        // Toasts go over everything in game; while a screen is open they are drawn over the screen instead (below).
+        HudElementRegistry.addLast(Identifier.of("evade", "notifications"), (ctx, tickCounter) -> {
+            if (mc().currentScreen == null) Notifications.render(ctx);
         });
-        HudElementRegistry.replaceElement(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.STATUS_EFFECTS, vanilla -> (ctx, tc) -> {
+        // The low-health vignette goes under the hotbar and hearts, and doesn't vanish with F3.
+        HudElementRegistry.attachElementBefore(VanillaHudElements.HOTBAR, Identifier.of("evade", "damage_tint"), (ctx, tickCounter) -> {
+            var dt = modules.get(net.evadeclient.module.visuals.DamageTint.class);
+            if (dt == null || !dt.isEnabled()) return;
+            try { dt.draw(ctx); } catch (Exception e) { ModuleManager.crashed(dt, e, "HUD"); }
+        });
+        // Custom crosshair and potion HUD replace the vanilla ones while enabled.
+        HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (ctx, tc) -> {
+            var ch = modules.get(net.evadeclient.module.mods.Crosshair.class);
+            if (ch == null || !ch.isEnabled()) { vanilla.render(ctx, tc); return; }
+            try { ch.draw(ctx); } catch (Exception e) { ModuleManager.crashed(ch, e, "HUD"); vanilla.render(ctx, tc); }
+        });
+        HudElementRegistry.replaceElement(VanillaHudElements.STATUS_EFFECTS, vanilla -> (ctx, tc) -> {
             var ph = modules.get(net.evadeclient.module.hud.PotionHud.class);
             if (ph == null || !ph.hidesVanilla()) vanilla.render(ctx, tc);
         });
@@ -67,24 +82,26 @@ public class EvadeClient implements ClientModInitializer {
             var entry = client.getCurrentServerEntry();
             if (entry == null || client.isInSingleplayer()) return;
             String switched = profiles.onJoinServer(entry.address);
-            if (switched != null) net.evadeclient.util.Notifications.push("Profile", "Switched to " + switched + " for this server", true);
+            if (switched != null) Notifications.push("Profile", "Switched to " + switched + " for this server", true);
         }));
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
                 net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));
-        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+        // Fabric gives a screen fresh per-screen events on every init and resize, so these are added each time.
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (screen instanceof net.minecraft.client.gui.screen.DisconnectedScreen)
-                net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) ->
+                ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) ->
                         net.evadeclient.module.misc.AutoReconnect.renderOverlay(ctx, s.width));
+            // Menu feedback ("Code copied", "Profile imported") shows over the menu and its blur.
+            ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) -> Notifications.render(ctx));
         });
+        // Only system (game) messages: end-of-game announcements come this way, ordinary player chat does not.
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 net.evadeclient.module.misc.AutoGG.onMessage(message.getString());
                 net.evadeclient.module.misc.Clips.onMessage(message.getString());
             }
         });
-        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, time) ->
-                net.evadeclient.module.misc.AutoGG.onMessage(message.getString()));
 
         LOG.info("{} {} loaded with {} modules", NAME, VERSION, modules.all().size());
     }

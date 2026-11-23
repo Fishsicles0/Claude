@@ -4,22 +4,16 @@
   "package": "net.evadeclient.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "CameraAccessor",
     "CameraInvoker",
     "CameraMixin",
     "ChatHudMixin",
-    "ClientConnectionMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
-    "FishingBobberAccessor",
     "FogRendererMixin",
     "GameRendererMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
-    "InteractionManagerAccessor",
     "ItemCooldownManagerAccessor",
-    "MinecraftClientAccessor",
-    "MinecraftClientCooldownAccessor",
     "MouseMixin",
     "SimpleOptionAccessor",
     "BossBarHudMixin",
@@ -37,7 +31,10 @@
     "BlockEntityRenderManagerMixin",
     "InactivityFpsLimiterMixin",
     "PlayerListHudMixin",
-    "WeatherRenderingMixin"
+    "WeatherRenderingMixin",
+    "KeybindInputMixin",
+    "KeybindMouseInputMixin",
+    "ToastManagerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

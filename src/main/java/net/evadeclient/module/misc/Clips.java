@@ -285,7 +285,8 @@ public class Clips extends Module {
      * {@code .clip} (or {@code .clips save}) saves a clip now. {@code .clips} opens Evade Clips, or the clips
      * folder without it; {@code .clips last} opens your newest clip in Evade Clips' editor.
      */
-    public static void command(String[] a) {
+    @Override
+    public void command(String[] a) {
         Clips c = EvadeClient.modules == null ? null : EvadeClient.modules.get(Clips.class);
         if (c == null) return;
         String sub = a.length > 1 ? a[1].toLowerCase(java.util.Locale.ROOT) : "";

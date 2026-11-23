@@ -69,6 +69,10 @@ public class EvadeMenu extends Screen {
     private double scroll, scrollTarget;
     private long openedAt;
     private final Map<Object, Float> anim = new HashMap<>();
+    /** Springs by key (see {@link #spring}): highlights, scroll and sliders that chase a moving target. */
+    private final Map<Object, Motion.Spring> springs = new HashMap<>();
+    /** Client Settings' Animations, read once per frame at the top of {@link #render}. */
+    private boolean anims = true;
     /** Milliseconds for animations. Tests swap in a fixed-step clock to record smooth clips for the website. */
     public static java.util.function.LongSupplier clock = System::currentTimeMillis;
     private long lastFrame = clock.getAsLong();
@@ -103,6 +107,7 @@ public class EvadeMenu extends Screen {
     @Override
     protected void init() {
         openedAt = clock.getAsLong();
+        anims = settings().animations.get();
     }
 
     private ClientSettings settings() { return EvadeClient.modules.get(ClientSettings.class); }
@@ -140,6 +145,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        anims = settings().animations.get();
         super.render(ctx, mouseX, mouseY, delta);
         updateScale();
         int realW = width, realH = height;
@@ -174,7 +180,7 @@ public class EvadeMenu extends Screen {
         cy = headerY + 30;
         ch = wy + wh - 16 - cy;
 
-        float open = settings().animations.get() ? ease(Math.min(1, (clock.getAsLong() - openedAt) / 220f)) : 1;
+        float open = anims ? ease(Math.min(1, (clock.getAsLong() - openedAt) / 220f)) : 1;
         var m = ctx.getMatrices();
         m.pushMatrix();
         float s = 0.95f + 0.05f * open;
@@ -259,7 +265,7 @@ public class EvadeMenu extends Screen {
         // Line icon, tinted: accent when active, dim otherwise, brightening on hover.
         int fg = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t);
         int ix = x1 + 8, iy = y + (NAV_ITEM_H - 2 - ICON) / 2;
-        ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, navIcon(n.icon), ix, iy, 0, 0, ICON, ICON, 24, 24, 24, 24, fg);
+        net.evadeclient.util.Icons.draw(ctx, n.icon, ix, iy, ICON, fg);
 
         int textColor = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
         text(ctx, n.label, ix + ICON + 9, y + (NAV_ITEM_H - 9) / 2, textColor, false);
@@ -277,11 +283,6 @@ public class EvadeMenu extends Screen {
     }
 
     private static final int ICON = 12;
-    private static final java.util.Map<String, net.minecraft.util.Identifier> NAV_ICONS = new java.util.HashMap<>();
-
-    private static net.minecraft.util.Identifier navIcon(String name) {
-        return NAV_ICONS.computeIfAbsent(name, k -> net.minecraft.util.Identifier.of("evade", "textures/gui/nav/" + k + ".png"));
-    }
 
     /** Spread a header's letters so it reads as a small-caps label. */
     private static String spaced(String s) {
@@ -546,7 +547,7 @@ public class EvadeMenu extends Screen {
     private static boolean matches(Module mod, String f) {
         StringBuilder hay = new StringBuilder(mod.getName()).append(' ').append(mod.getDescription()).append(' ')
                 .append(mod.getCategory().displayName);
-        for (Setting<?> st : mod.getSettings()) hay.append(' ').append(st.getName());
+        for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) hay.append(' ').append(st.getName());
         String h = hay.toString().toLowerCase(Locale.ROOT);
         for (String word : f.trim().split("\\s+")) if (!h.contains(word)) return false;
         return true;
@@ -620,7 +621,7 @@ public class EvadeMenu extends Screen {
         Theme.toggle(ctx, right - 20, y + (LIST_H - 10) / 2, on);
         right -= 34;
         // gear
-        if (!mod.getSettings().isEmpty()) {
+        if (hasVisibleSettings(mod)) {
             int gy = y + (LIST_H - 16) / 2;
             boolean hg = inView && mx >= right - 16 && mx < right + 2 && my >= gy - 1 && my < gy + 17;
             Theme.roundBordered(ctx, right - 16, gy, right + 2, gy + 16, hg ? Theme.tint(0.12f) : Theme.CONTROL, hg ? Theme.RED : Theme.BORDER);
@@ -660,7 +661,7 @@ public class EvadeMenu extends Screen {
         small(ctx, trimScaled(mod.getDescription(), w - 14, 0.7f), x + 8, y + 29, Theme.TEXT_DIM, 0.7f);
 
         Theme.toggle(ctx, x + 8, y + CARD_H - 15, on);
-        if (!mod.getSettings().isEmpty()) {
+        if (hasVisibleSettings(mod)) {
             int gx = x + w - 16, gy = y + CARD_H - 16;
             boolean hg = inView && mx >= gx - 3 && mx < gx + 12 && my >= gy - 2 && my < gy + 12;
             Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : Theme.CONTROL);
@@ -681,7 +682,7 @@ public class EvadeMenu extends Screen {
         text(ctx, trim(mod.getName(), w - 46), x + 8, y + (COMPACT_H - 8) / 2, Theme.TEXT, false);
 
         Theme.toggle(ctx, x + w - 24, y + (COMPACT_H - 10) / 2, on);
-        if (!mod.getSettings().isEmpty()) {
+        if (hasVisibleSettings(mod)) {
             int gx = x + w - 40, gy = y + (COMPACT_H - 10) / 2;
             boolean hg = inView && mx >= gx - 2 && mx < gx + 11 && my >= gy - 1 && my < gy + 11;
             icon(ctx, "settings", gx, gy, 10, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
@@ -693,7 +694,7 @@ public class EvadeMenu extends Screen {
     private List<Object> rowsFor(Module mod) {
         List<Object> rows = new ArrayList<>();
         if (mod.getCategory() != Category.CLIENT) rows.add("keybind");
-        rows.addAll(mod.getSettings());
+        for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) rows.add(st);
         return rows;
     }
 
@@ -858,7 +859,7 @@ public class EvadeMenu extends Screen {
             int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
             if (mx < x || mx >= x + cardW || my < y || my >= y + rh) continue;
             Module mod = mods.get(i);
-            if ((!mod.getSettings().isEmpty() && gearHit(mx, my, x, y, cardW)) || button == 1) {
+            if ((hasVisibleSettings(mod) && gearHit(mx, my, x, y, cardW)) || button == 1) {
                 selected = mod;
                 scroll = scrollTarget = 0;
             } else if (button == 0) {
@@ -1023,10 +1024,25 @@ public class EvadeMenu extends Screen {
 
     private float animate(Object key, float target, float speed) {
         float v = anim.getOrDefault(key, target);
-        if (!settings().animations.get()) v = target;
+        if (!anims) v = target;
         else v += (target - v) * (1 - (float) Math.exp(-speed * dt));
         anim.put(key, v);
         return v;
+    }
+
+    /**
+     * The spring for {@code key} stepped one frame toward {@code target} ({@code w} stiffness in rad/s, {@code z}
+     * damping ratio; see {@link Motion.Spring}). With Animations off it jumps to the target and returns it.
+     */
+    private float spring(Object key, float target, float w, float z) {
+        Motion.Spring s = springObj(key);
+        if (!anims) { s.set(target); return target; }
+        return s.step(target, w, z, dt);
+    }
+
+    /** The spring for {@code key}, created on first use (it starts on whatever target it is first stepped to). */
+    private Motion.Spring springObj(Object key) {
+        return springs.computeIfAbsent(key, k -> new Motion.Spring());
     }
 
     /** At 1 screen pixel per menu pixel, text can't shrink below the pixel font's own size and stay readable. */
@@ -1078,9 +1094,9 @@ public class EvadeMenu extends Screen {
 
     // ------------------------------------------------------------------ icons
 
-    /** A white line icon from textures/gui/nav, tinted and drawn at {@code size} GUI pixels. */
+    /** A white line icon from textures/gui/nav, tinted and drawn at {@code size} GUI pixels (see {@link net.evadeclient.util.Icons}). */
     private void icon(DrawContext ctx, String name, int x, int y, int size, int color) {
-        ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, navIcon(name), x, y, 0, 0, size, size, 24, 24, 24, 24, color);
+        net.evadeclient.util.Icons.draw(ctx, name, x, y, size, color);
     }
 
     private static String categoryIcon(Category c) {
@@ -1096,8 +1112,16 @@ public class EvadeMenu extends Screen {
 
     private int resetX() { return cx + cw - (selected != null ? 84 : 52); }
 
+    /** Whether a shown setting differs from its default (hidden settings are remembered state, not changes). */
     private static boolean hasChangedSettings(Module mod) {
-        for (Setting<?> st : mod.getSettings()) if (!(st instanceof net.evadeclient.setting.StatusSetting) && !st.isDefault()) return true;
+        for (Setting<?> st : mod.getSettings())
+            if (!st.isHidden() && !(st instanceof net.evadeclient.setting.StatusSetting) && !st.isDefault()) return true;
+        return false;
+    }
+
+    /** Whether the mod has any setting the menu shows (hidden ones don't count), i.e. whether it gets a gear. */
+    private static boolean hasVisibleSettings(Module mod) {
+        for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) return true;
         return false;
     }
 }

@@ -6,14 +6,18 @@ import net.evadeclient.module.Module;
 import net.evadeclient.setting.BooleanSetting;
 import net.minecraft.block.enums.CameraSubmersionType;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 
-/** Removes underwater fog and the blue water overlay so you can see clearly when swimming. */
+/**
+ * Removes the underwater fog (and optionally the blue water overlay) so you can see clearly when swimming. The edge
+ * of your render distance still fades as in vanilla (NoFog removes that), and Blindness and Darkness still apply.
+ * The fog itself is changed in FogRendererMixin.
+ */
 public class ClearWater extends Module {
     public final BooleanSetting overlay = add(new BooleanSetting("Hide Water Overlay", true));
-    public final BooleanSetting lava = add(new BooleanSetting("Clear Lava Too", false));
 
     public ClearWater() {
-        super("Clear Water", "Removes underwater fog for clear visibility.", Category.VISUALS);
+        super("Clear Water", "Removes underwater fog. Blindness and Darkness still apply.", Category.VISUALS);
     }
 
     public static ClearWater active() {
@@ -22,13 +26,26 @@ public class ClearWater extends Module {
         return c != null && c.isEnabled() ? c : null;
     }
 
-    /** True while the camera is in water (or lava, if enabled) and the fog should be removed. */
+    /** True while the camera is underwater and the water fog is being removed (never under Blindness or Darkness). */
     public static boolean clearFog() {
+        if (active() == null) return false;
+        Camera cam = camera();
+        return cam != null && cam.getSubmersionType() == CameraSubmersionType.WATER && !NoFog.effectFog(cam.getFocusedEntity());
+    }
+
+    /**
+     * True when the underwater screen overlay should be skipped: Clear Water and Hide Water Overlay are on and no
+     * Blindness or Darkness is active (the overlay follows the fog). Vanilla only draws it underwater anyway.
+     */
+    public static boolean hideOverlay() {
         ClearWater c = active();
-        if (c == null) return false;
+        if (c == null || !c.overlay.get()) return false;
+        Camera cam = camera();
+        return cam == null || !NoFog.effectFog(cam.getFocusedEntity());
+    }
+
+    private static Camera camera() {
         var mc = MinecraftClient.getInstance();
-        if (mc.gameRenderer == null) return false;
-        var type = mc.gameRenderer.getCamera().getSubmersionType();
-        return type == CameraSubmersionType.WATER || (c.lava.get() && type == CameraSubmersionType.LAVA);
+        return mc.gameRenderer == null ? null : mc.gameRenderer.getCamera();
     }
 }

@@ -106,12 +106,29 @@ public class ProfileManager {
             if (name.equals(active())) config.saveTo(file(name)); // include unsaved tweaks
             var json = new com.google.gson.JsonObject();
             json.addProperty("name", name);
-            json.add("config", com.google.gson.JsonParser.parseString(Files.readString(file(name))));
+            var cfg = com.google.gson.JsonParser.parseString(Files.readString(file(name)));
+            if (cfg.isJsonObject()) stripHidden(cfg.getAsJsonObject());
+            json.add("config", cfg);
             var bytes = new java.io.ByteArrayOutputStream();
             try (var gz = new java.util.zip.GZIPOutputStream(bytes)) { gz.write(json.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
             return CODE_PREFIX + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes.toByteArray());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Drops hidden settings (state a module remembers for you, such as the last server joined) from a config
+     * before it is shared. Whoever imports the code keeps their own values for those.
+     */
+    private static void stripHidden(com.google.gson.JsonObject cfg) {
+        if (EvadeClient.modules == null) return;
+        for (var m : EvadeClient.modules.all()) {
+            var entry = cfg.get(m.getName());
+            if (entry == null || !entry.isJsonObject()) continue;
+            var settings = entry.getAsJsonObject().get("settings");
+            if (settings == null || !settings.isJsonObject()) continue;
+            for (var s : m.getSettings()) if (s.isHidden()) settings.getAsJsonObject().remove(s.getName());
         }
     }
 

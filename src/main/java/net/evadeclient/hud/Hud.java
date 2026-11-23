@@ -3,28 +3,21 @@ package net.evadeclient.hud;
 import net.evadeclient.EvadeClient;
 import net.evadeclient.gui.HudEditorScreen;
 import net.evadeclient.module.HudElementModule;
-import net.evadeclient.module.Module;
-import net.evadeclient.module.client.HudModule;
+import net.evadeclient.module.ModuleManager;
 import net.evadeclient.util.ClickTracker;
-import net.evadeclient.util.ColorUtil;
-import net.evadeclient.util.Notifications;
-import net.evadeclient.util.Theme;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
-import java.util.Comparator;
-import java.util.List;
-
+/**
+ * Draws Evade's HUD: world-anchored labels (waypoints, TNT timers) and every enabled HUD element.
+ * Registered just before vanilla chat, so chat, the tab list and subtitles stay on top of Evade's widgets.
+ * Toasts ({@link net.evadeclient.util.Notifications}) are drawn by their own layer above everything.
+ */
 public final class Hud {
     private Hud() {}
 
     /** Per-element render time, only collected while a test/profile turns it on (null = off, zero cost). */
     public static java.util.Map<String, Long> PROFILE;
-
-    // The module list is re-sorted once per tick, not every frame.
-    private static List<Module> activeCache;
-    private static long activeTick = -1;
 
     /**
      * Evade HUD units to GUI units. Minecraft draws everything at the GUI scale, so with a large GUI scale on a
@@ -51,90 +44,92 @@ public final class Hud {
     private static void renderInner(DrawContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClickTracker.update();
-        if (mc.player == null || mc.getDebugHud().shouldShowDebugHud()) return;
-        float k = scale();
-        int sw = Math.round(ctx.getScaledWindowWidth() / k), sh = Math.round(ctx.getScaledWindowHeight() / k);
+        if (mc.player == null || EvadeClient.modules == null) return;
 
-        // The HUD editor draws the elements itself (with drag handles).
-        if (PROFILE != null) PROFILE.merge("__frames", 1L, Long::sum);
-        ctx.getMatrices().pushMatrix();
-        ctx.getMatrices().scale(k, k);
-        if (!(mc.currentScreen instanceof HudEditorScreen)) {
-            for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (!el.isEnabled() || !el.shouldShow()) continue;
-                if (PROFILE != null) {
-                    long t = System.nanoTime();
-                    el.renderScaled(ctx, sw, sh, false);
-                    PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
-                } else el.renderScaled(ctx, sw, sh, false);
-            }
-        }
-        ctx.getMatrices().popMatrix();
+        // Labels that follow world positions (waypoints, TNT timers) stay visible with F3 open.
         if (!mc.options.hudHidden) {
             float td = mc.getRenderTickCounter().getTickProgress(true);
             for (var m : EvadeClient.modules.all()) {
                 if (!m.isEnabled()) continue;
-                try { m.onHud(ctx, td); } catch (Exception e) { EvadeClient.LOG.error("{} HUD error", m.getName(), e); }
+                try {
+                    m.onHud(ctx, td);
+                } catch (Exception e) {
+                    ModuleManager.crashed(m, e, "HUD");
+                }
             }
         }
+
+        // Corner widgets make way for the full F3 screen only. Pinned debug entries (e.g. the built-in
+        // Performance profile, or FPS set to Always) don't count: those leave the rest of the HUD in place.
+        if (mc.debugHudEntryList.isF3Enabled()) return;
+        // The HUD editor draws the elements itself (with drag handles).
+        if (mc.currentScreen instanceof HudEditorScreen) return;
+
+        float k = scale();
+        int sw = Math.round(ctx.getScaledWindowWidth() / k), sh = Math.round(ctx.getScaledWindowHeight() / k);
+        if (PROFILE != null) PROFILE.merge("__frames", 1L, Long::sum);
         ctx.getMatrices().pushMatrix();
         ctx.getMatrices().scale(k, k);
         try {
-            Notifications.render(ctx);
-            renderList(ctx, mc, sw);
+            for (HudElementModule el : EvadeClient.modules.hudElements()) {
+                if (!el.isEnabled() || !el.shouldShow()) continue;
+                try {
+                    if (PROFILE != null) {
+                        long t = System.nanoTime();
+                        el.renderScaled(ctx, sw, sh, false);
+                        PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
+                    } else el.renderScaled(ctx, sw, sh, false);
+                } catch (Exception e) {
+                    ModuleManager.crashed(el, e, "HUD");
+                }
+            }
         } finally {
             ctx.getMatrices().popMatrix();
         }
     }
 
-    private static void renderList(DrawContext ctx, MinecraftClient mc, int sw) {
-
-        HudModule hud = EvadeClient.modules.get(HudModule.class);
-        if (hud == null || !hud.isEnabled()) return;
-        TextRenderer tr = mc.textRenderer;
-
-        if (hud.watermark.get()) {
-            int mark = 17;
-            net.evadeclient.util.Logo.lockup(ctx, sw - 4 - net.evadeclient.util.Logo.lockupWidth(mark), 3, mark);
-        }
-
-        if (hud.arrayList.get()) {
-            List<Module> active;
-            if (activeCache == null || activeTick != EvadeClient.ticks || net.evadeclient.module.TextHudModule.NO_CACHE) {
-                activeCache = EvadeClient.modules.all().stream()
-                        .filter(m -> m.isEnabled() && m.isVisible())
-                        .sorted(Comparator.comparingInt((Module m) -> tr.getWidth(label(m))).reversed())
-                        .toList();
-                activeTick = EvadeClient.ticks;
-            }
-            active = activeCache;
-            int y = hud.watermark.get() ? 18 : 2;
-            for (int i = 0; i < active.size(); i++) {
-                String text = label(active.get(i));
-                int w = tr.getWidth(text);
-                int x = sw - w - 4;
-                int color = switch (hud.colorMode.get()) {
-                    case "Rainbow" -> ColorUtil.rainbow(i * 150L, 0.6f, 1f);
-                    case "Static Red" -> Theme.RED;
-                    case "White" -> 0xFFFFFFFF;
-                    default -> redWave(i);
-                };
-                ctx.fill(x - 3, y - 1, sw, y + tr.fontHeight, 0x90000000);
-                ctx.fill(sw - 1, y - 1, sw, y + tr.fontHeight, color);
-                ctx.drawTextWithShadow(tr, text, x, y, color);
-                y += tr.fontHeight + 1;
-            }
-        }
+    /**
+     * Bottom edge, in GUI pixels, of the vanilla toasts (advancements, recipes, system messages) in the
+     * top-right corner; 0 when there are none. Each toast slot is 32 GUI pixels tall.
+     */
+    public static int toastBottom() {
+        var tm = MinecraftClient.getInstance().getToastManager();
+        if (tm == null) return 0;
+        return ((net.evadeclient.mixin.ToastManagerAccessor) tm).evade$occupiedSpaces().length() * 32;
     }
 
-    /** Red that pulses between bright and deep red down the list. */
-    private static int redWave(int index) {
-        double t = (Math.sin((System.currentTimeMillis() / 600.0) - index * 0.45) + 1) / 2;
-        return Theme.lerpColor(Theme.lerpColor(Theme.RED, 0xFF000000, 0.37f), Theme.RED_BRIGHT, (float) t);
-    }
+    /** Toasts are 160 GUI pixels wide, flush with the right edge. */
+    private static final int TOAST_WIDTH = 160;
 
-    private static String label(Module m) {
-        String suffix = m.getSuffix();
-        return suffix == null ? m.getName() : m.getName() + " \u00a77" + suffix;
+    /**
+     * Keeps a top-right corner widget clear of vanilla toasts: while a toast covers it, the widget glides down
+     * below the toasts, and back up once they have gone. One per element; call {@link #update} once a frame.
+     */
+    public static final class ToastDodge {
+        private float offset;
+        private long last;
+
+        /** @return how far down (HUD units) to draw {@code el} this frame */
+        public int update(HudElementModule el, int screenW, int screenH) {
+            float target = 0;
+            if (el.x < 0 && el.y >= 0) {
+                int bottomGui = toastBottom();
+                if (bottomGui > 0) {
+                    float k = scale();
+                    float bottom = bottomGui / k;
+                    boolean underToasts = el.resolveY(screenH) < bottom
+                            && el.resolveX(screenW) + el.scaledWidth() > screenW - TOAST_WIDTH / k;
+                    if (underToasts) target = bottom;
+                }
+            }
+            long now = System.nanoTime();
+            float dt = last == 0 ? 1f : Math.min(0.1f, (now - last) / 1_000_000_000f);
+            last = now;
+            var cs = EvadeClient.modules == null ? null : EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
+            if (cs != null && !cs.animations.get()) offset = target;
+            else offset += (target - offset) * (1f - (float) Math.exp(-dt * 14f));
+            if (Math.abs(target - offset) < 0.5f) offset = target;
+            return Math.round(offset);
+        }
     }
 }
