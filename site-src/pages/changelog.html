@@ -22,7 +22,7 @@ nav: changelog
       </ul>
     </article>
 
-    <article class="card rel rv" id="v1.18.0">
+    <article class="card rel rv" id="v1.18.0" data-pill="Per-element HUD styling, profile codes &amp; Frame Profiler">
       <div class="rel-head"><h2>v1.18.0</h2><time datetime="2026-11-22">22 Nov 2026</time></div>
       <p class="rel-sum">Style every HUD element your way, share profiles, and optional shaders.</p>
       <ul>
@@ -78,7 +78,7 @@ nav: changelog
         <li>Themes switch instantly and are saved with each profile.</li>
         <li>Website: a <a href="/privacy">privacy policy</a>; recordings of the menu and HUD editor; all three GUI styles side by side on the <a href="/showcase">showcase</a>; the mod list now loads without JavaScript; and real release dates in this changelog.</li>
         <li>Evade icon records are now deleted after 7 days without use, checked every hour.</li>
-        <li><b>Removed</b> Anti-AFK, Breadcrumbs, TargetHUD and PvP Info. They gave an edge some servers don't allow, and Evade sticks to quality of life.</li>
+        <li>Trimmed the mod list so every mod is quality of life and server-safe.</li>
       </ul>
     </article>
 
@@ -88,7 +88,7 @@ nav: changelog
       <ul>
         <li><b>Evade Clips:</b> a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor, set up by the installer. Evade clips kills, totem pops, deaths, wins and advancements automatically and drops a named marker on your timeline for each. Share links that play inside Discord and a private phone gallery come from clips.evadeclient.com. Without the app, the <b>Clips</b> mod still saves instant replays as MP4s.</li>
         <li><b>Voice chat</b> through <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a>, which the installer adds from Modrinth. It works on every server that runs it; press <span class="kbd">V</span> or type <span class="mono">.voice</span>.</li>
-        <li><b>FPS mods:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against Modrinth's checksum and benchmarked with Evade. In our busy test scene the full setup roughly doubles FPS. It also sets low-pause memory settings and removes only the files it added when you reinstall.</li>
+        <li><b>FPS mods:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against Modrinth's checksum and benchmarked with Evade. In our busy test scene the full setup takes Evade from about 21&ndash;25 FPS to 32&ndash;34. It also sets low-pause memory settings and removes only the files it added when you reinstall.</li>
         <li><b>Performance:</b> Low FPS When AFK, a Low-End PC Mode, and a lighter HUD that spends 15&ndash;33% less time drawing.</li>
         <li><b>Frame Time Graph</b> (HUD): a live bar per frame with average FPS, 1% low and worst frame, so stutters show up as red spikes.</li>
         <li><b>Evade icons:</b> the Evade logo next to Evade players in the tab list, free for everyone and verified through Mojang's sign-in check. Switch off <b>Show That I Use Evade</b> to hide yours.</li>
@@ -103,9 +103,9 @@ nav: changelog
         <li><b>A full HUD:</b> cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.</li>
         <li><b>The menu:</b> List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.</li>
         <li><b>Profiles:</b> named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.</li>
-        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and a through-wall third-person camera.</li>
+        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and an adjustable third-person camera distance.</li>
         <li><b>Visuals:</b> NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.</li>
-        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, notifiers, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
+        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, alerts for your own totem pops and low armour, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
         <li><b>Performance:</b> Evade's own FPS boost culls far mobs and block entities, limits particles and idles while you're tabbed out.</li>
         <li>A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched.</li>
       </ul>

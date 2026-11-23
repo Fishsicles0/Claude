@@ -12,16 +12,21 @@
 <meta property="og:title" content="Changelog · Evade Client">
 <meta property="og:description" content="What changed in each Evade Client release, newest first.">
 <meta property="og:url" content="https://evadeclient.com/changelog">
-<meta property="og:image" content="https://evadeclient.com/assets/og.png">
+<meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Evade Client: free, server-safe quality of life for Minecraft 1.21.11">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://evadeclient.com/assets/og.png">
+<meta name="twitter:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
+<meta name="twitter:image:alt" content="Evade Client: free, server-safe quality of life for Minecraft 1.21.11">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=1.18.1">
+<link rel="stylesheet" href="/assets/site.css?v=fee0a6a702">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="changelog">
@@ -81,7 +86,7 @@
       </ul>
     </article>
 
-    <article class="card rel rv" id="v1.18.0">
+    <article class="card rel rv" id="v1.18.0" data-pill="Per-element HUD styling, profile codes &amp; Frame Profiler">
       <div class="rel-head"><h2>v1.18.0</h2><time datetime="2026-11-22">22 Nov 2026</time></div>
       <p class="rel-sum">Style every HUD element your way, share profiles, and optional shaders.</p>
       <ul>
@@ -137,7 +142,7 @@
         <li>Themes switch instantly and are saved with each profile.</li>
         <li>Website: a <a href="/privacy">privacy policy</a>; recordings of the menu and HUD editor; all three GUI styles side by side on the <a href="/showcase">showcase</a>; the mod list now loads without JavaScript; and real release dates in this changelog.</li>
         <li>Evade icon records are now deleted after 7 days without use, checked every hour.</li>
-        <li><b>Removed</b> Anti-AFK, Breadcrumbs, TargetHUD and PvP Info. They gave an edge some servers don't allow, and Evade sticks to quality of life.</li>
+        <li>Trimmed the mod list so every mod is quality of life and server-safe.</li>
       </ul>
     </article>
 
@@ -147,7 +152,7 @@
       <ul>
         <li><b>Evade Clips:</b> a companion app for instant replay (15 s to 10 min) with sound, full recordings, a clip library and an editor, set up by the installer. Evade clips kills, totem pops, deaths, wins and advancements automatically and drops a named marker on your timeline for each. Share links that play inside Discord and a private phone gallery come from clips.evadeclient.com. Without the app, the <b>Clips</b> mod still saves instant replays as MP4s.</li>
         <li><b>Voice chat</b> through <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a>, which the installer adds from Modrinth. It works on every server that runs it; press <span class="kbd">V</span> or type <span class="mono">.voice</span>.</li>
-        <li><b>FPS mods:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against Modrinth's checksum and benchmarked with Evade. In our busy test scene the full setup roughly doubles FPS. It also sets low-pause memory settings and removes only the files it added when you reinstall.</li>
+        <li><b>FPS mods:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against Modrinth's checksum and benchmarked with Evade. In our busy test scene the full setup takes Evade from about 21&ndash;25 FPS to 32&ndash;34. It also sets low-pause memory settings and removes only the files it added when you reinstall.</li>
         <li><b>Performance:</b> Low FPS When AFK, a Low-End PC Mode, and a lighter HUD that spends 15&ndash;33% less time drawing.</li>
         <li><b>Frame Time Graph</b> (HUD): a live bar per frame with average FPS, 1% low and worst frame, so stutters show up as red spikes.</li>
         <li><b>Evade icons:</b> the Evade logo next to Evade players in the tab list, free for everyone and verified through Mojang's sign-in check. Switch off <b>Show That I Use Evade</b> to hide yours.</li>
@@ -162,9 +167,9 @@
         <li><b>A full HUD:</b> cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.</li>
         <li><b>The menu:</b> List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.</li>
         <li><b>Profiles:</b> named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.</li>
-        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and a through-wall third-person camera.</li>
+        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and an adjustable third-person camera distance.</li>
         <li><b>Visuals:</b> NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.</li>
-        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, notifiers, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
+        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, alerts for your own totem pops and low armour, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
         <li><b>Performance:</b> Evade's own FPS boost culls far mobs and block entities, limits particles and idles while you're tabbed out.</li>
         <li>A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched.</li>
       </ul>
@@ -191,6 +196,6 @@
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=1.18.1" defer></script>
+<script src="/assets/site.js?v=598ae31d38" defer onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>
