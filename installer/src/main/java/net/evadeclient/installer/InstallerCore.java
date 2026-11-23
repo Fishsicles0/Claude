@@ -283,19 +283,6 @@ public final class InstallerCore {
         p.update(0.86, "Downloading Evade Clips " + r.clipsVersion());
         download(r.clipsUrl(), target, r.clipsSha256(), "SHA-256", 0.86, 0.9, p);
 
-        if (r.ffmpegUrl() != null && !Files.exists(app.resolve("ffmpeg").resolve("bin").resolve("ffmpeg.exe"))) {
-            p.update(0.9, "Downloading ffmpeg (records and edits video)");
-            String expected = null;
-            if (r.ffmpegShaUrl() != null) {
-                HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
-                if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
-            }
-            Path zip = app.resolve("ffmpeg-download.zip");
-            download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.9, 0.95, p);
-            unzipFfmpeg(zip, app.resolve("ffmpeg").resolve("bin"));
-            Files.deleteIfExists(zip);
-        }
-
         // Where Evade Client finds the app to start it with Minecraft.
         JsonObject loc = new JsonObject();
         if (exe) loc.addProperty("exe", target.toString());
@@ -308,6 +295,26 @@ public final class InstallerCore {
 
         p.update(0.96, "Adding Evade Clips to your apps");
         try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
+
+        // ffmpeg last: it's big (about 100 MB) and its host can be slow, so it never blocks the rest of the install.
+        // If it fails or stalls, Evade Clips downloads it itself the first time it opens.
+        if (r.ffmpegUrl() != null && !Files.exists(app.resolve("ffmpeg").resolve("bin").resolve("ffmpeg.exe"))) {
+            Path zip = app.resolve("ffmpeg-download.zip");
+            try {
+                p.update(0.965, "Downloading ffmpeg (records and edits video)");
+                String expected = null;
+                if (r.ffmpegShaUrl() != null) {
+                    HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
+                    if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
+                }
+                download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.965, 0.995, p, "Downloading ffmpeg");
+                unzipFfmpeg(zip, app.resolve("ffmpeg").resolve("bin"));
+            } catch (Exception e) {
+                p.update(0.995, "ffmpeg didn't finish downloading. Evade Clips will get it when you open it.");
+            } finally {
+                try { Files.deleteIfExists(zip); Files.deleteIfExists(zip.resolveSibling(zip.getFileName() + ".part")); } catch (Exception ignored) {}
+            }
+        }
     }
 
     /** Pulls ffmpeg.exe and ffprobe.exe out of an ffmpeg build zip (whatever folder they're in). */
@@ -544,12 +551,25 @@ public final class InstallerCore {
 
     private void download(String url, Path target, String expectedHash, String algo,
                           double from, double to, Progress p) throws Exception {
+        download(url, target, expectedHash, algo, from, to, p, null);
+    }
+
+    /** A download stops (instead of hanging forever) if no data arrives for this long. */
+    static final long STALL_MS = 30_000;
+
+    /**
+     * Downloads to target (via a .part file), checking the hash. With a label, the status line shows live
+     * progress ("label · 34 of 101 MB · 2.1 MB/s") so big downloads don't look frozen.
+     */
+    private void download(String url, Path target, String expectedHash, String algo,
+                          double from, double to, Progress p, String label) throws Exception {
         HttpResponse<InputStream> res = http.send(request(url), HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) throw new IOException("HTTP " + res.statusCode() + " downloading from " + host(url));
         long total = res.headers().firstValueAsLong("content-length").orElse(-1);
         MessageDigest md = MessageDigest.getInstance(algo);
         Path tmp = target.resolveSibling(target.getFileName() + ".part");
-        try (InputStream in = res.body(); var out = Files.newOutputStream(tmp)) {
+        long start = System.nanoTime(), lastMsg = 0;
+        try (InputStream in = stallGuard(res.body(), STALL_MS); var out = Files.newOutputStream(tmp)) {
             byte[] buf = new byte[64 * 1024];
             long done = 0;
             int n;
@@ -557,8 +577,20 @@ public final class InstallerCore {
                 out.write(buf, 0, n);
                 md.update(buf, 0, n);
                 done += n;
-                if (total > 0) p.update(from + (to - from) * done / (double) total, null);
+                long now = System.nanoTime();
+                String msg = null;
+                if (label != null && now - lastMsg > 250_000_000L) {
+                    lastMsg = now;
+                    double secs = Math.max(0.001, (now - start) / 1e9);
+                    msg = String.format(Locale.ROOT, "%s \u00b7 %d%s MB \u00b7 %.1f MB/s", label, done >> 20,
+                            total > 0 ? " of " + (total >> 20) : "", done / 1048576.0 / secs);
+                }
+                if (total > 0) p.update(from + (to - from) * done / (double) total, msg);
+                else if (msg != null) p.update(from, msg);
             }
+        } catch (IOException e) {
+            Files.deleteIfExists(tmp);
+            throw new IOException("The download from " + host(url) + " stopped (" + e.getMessage() + "). Check your connection and try again.", e);
         }
         String actual = HexFormat.of().formatHex(md.digest());
         if (expectedHash != null && !expectedHash.isBlank() && !actual.equalsIgnoreCase(expectedHash)) {
@@ -566,6 +598,33 @@ public final class InstallerCore {
             throw new IOException("Download check failed for " + target.getFileName() + " (file was corrupted or changed). Try again.");
         }
         Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /** Closes the stream if no bytes arrive for stallMs, so a dead connection fails instead of hanging forever. */
+    static InputStream stallGuard(InputStream in, long stallMs) {
+        java.util.concurrent.atomic.AtomicLong last = new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
+        Thread watch = new Thread(() -> {
+            while (true) {
+                try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+                if (System.currentTimeMillis() - last.get() > stallMs) {
+                    try { in.close(); } catch (Exception ignored) {}
+                    return;
+                }
+            }
+        }, "download-stall-watch");
+        watch.setDaemon(true);
+        watch.start();
+        return new java.io.FilterInputStream(in) {
+            @Override public int read(byte[] b, int off, int len) throws IOException {
+                int n = super.read(b, off, len);
+                last.set(System.currentTimeMillis());
+                return n;
+            }
+            @Override public void close() throws IOException {
+                watch.interrupt();
+                super.close();
+            }
+        };
     }
 
     private static HttpRequest request(String url) {

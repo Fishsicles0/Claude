@@ -116,9 +116,48 @@ public class EvadeMenu extends Screen {
         ctx.fillGradient(0, 0, width, height, 0xB0000000, (0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF)));
     }
 
+    // ------------------------------------------------------------------ fitting the screen
+    // The menu is laid out for about 820x506 GUI pixels. With a large GUI scale (e.g. Auto on a laptop with Windows
+    // display scaling) the screen can be much smaller, so the menu draws itself at the largest scale that fits:
+    // a whole number of screen pixels per menu pixel when possible, so text stays crisp. Mouse input is mapped the same way.
+    private static final int DESIGN_W = 820, DESIGN_H = 506;
+    /** Menu units to GUI units (1 = no change). */
+    private float vs = 1f;
+    /** Screen pixels per menu pixel. The smooth font needs at least 2; at 1 the pixel font is the crisp choice. */
+    private double menuPx = 2;
+
+    private void updateScale() {
+        if (client == null) { vs = 1f; return; }
+        var win = client.getWindow();
+        double gs = Math.max(1, win.getScaleFactor());
+        double fit = Math.min(win.getFramebufferWidth() / (double) DESIGN_W, win.getFramebufferHeight() / (double) DESIGN_H);
+        double k = fit >= 1 ? Math.min(gs, Math.floor(fit)) : fit; // screen pixels per menu pixel
+        vs = (float) (k / gs);
+        menuPx = k;
+    }
+
+    private Click scaled(Click c) { return vs == 1f ? c : new Click(c.x() / vs, c.y() / vs, c.buttonInfo()); }
+
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
+        updateScale();
+        int realW = width, realH = height;
+        width = Math.round(realW / vs);
+        height = Math.round(realH / vs);
+        var mm = ctx.getMatrices();
+        mm.pushMatrix();
+        mm.scale(vs, vs);
+        try {
+            renderMenu(ctx, (int) Math.floor(mouseX / vs), (int) Math.floor(mouseY / vs), delta);
+        } finally {
+            mm.popMatrix();
+            width = realW;
+            height = realH;
+        }
+    }
+
+    private void renderMenu(DrawContext ctx, int mouseX, int mouseY, float delta) {
         long now = clock.getAsLong();
         dt = Math.max(0f, Math.min(0.1f, (now - lastFrame) / 1000f));
         lastFrame = now;
@@ -756,6 +795,12 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        int realW = width, realH = height;
+        width = Math.round(realW / vs); height = Math.round(realH / vs);
+        try { return clicked(scaled(click), doubled); } finally { width = realW; height = realH; }
+    }
+
+    private boolean clicked(Click click, boolean doubled) {
         double mx = click.x(), my = click.y();
         int button = click.button();
         if (listening != null) { listening = null; return true; }
@@ -876,7 +921,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
-        if (dragging != null) { updateSlider(click.x()); return true; }
+        if (dragging != null) { updateSlider(click.x() / vs); return true; }
         return super.mouseDragged(click, dx, dy);
     }
 
@@ -984,7 +1029,11 @@ public class EvadeMenu extends Screen {
         return v;
     }
 
+    /** At 1 screen pixel per menu pixel, text can't shrink below the pixel font's own size and stay readable. */
+    private float textScale(float scale) { return menuPx < 1.99 ? Math.max(1f, scale) : scale; }
+
     private void small(DrawContext ctx, String s, int x, int y, int color, float scale) {
+        scale = textScale(scale);
         var m = ctx.getMatrices();
         m.pushMatrix();
         m.translate(x, y);
@@ -994,6 +1043,7 @@ public class EvadeMenu extends Screen {
     }
 
     private String trimScaled(String s, int maxW, float scale) {
+        scale = textScale(scale);
         int limit = Math.round(maxW / scale);
         if (width(s) <= limit) return s;
         return trim(s, limit - width("...")) + "...";
@@ -1009,7 +1059,7 @@ public class EvadeMenu extends Screen {
     /** The string in the menu's font: Inter when Smooth Font is on, otherwise Minecraft's own. */
     private net.minecraft.text.Text ui(String s) {
         var t = net.minecraft.text.Text.literal(s);
-        return settings().smoothFont.get() ? t.setStyle(UI_FONT) : t;
+        return settings().smoothFont.get() && menuPx >= 1.99 ? t.setStyle(UI_FONT) : t;
     }
 
     private void text(DrawContext ctx, String s, int x, int y, int color, boolean shadow) {

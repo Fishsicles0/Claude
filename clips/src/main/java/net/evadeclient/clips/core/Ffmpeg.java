@@ -83,6 +83,33 @@ public final class Ffmpeg {
 
     // ------------------------------------------------------------------ first-run download (Windows)
 
+    /** Closes the stream if no bytes arrive for stallMs, so a dead connection fails instead of hanging forever. */
+    static java.io.InputStream stallGuard(java.io.InputStream in, long stallMs) {
+        java.util.concurrent.atomic.AtomicLong last = new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
+        Thread watch = new Thread(() -> {
+            while (true) {
+                try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+                if (System.currentTimeMillis() - last.get() > stallMs) {
+                    try { in.close(); } catch (Exception ignored) {}
+                    return;
+                }
+            }
+        }, "ffmpeg-download-stall-watch");
+        watch.setDaemon(true);
+        watch.start();
+        return new java.io.FilterInputStream(in) {
+            @Override public int read(byte[] b, int off, int len) throws IOException {
+                int n = super.read(b, off, len);
+                last.set(System.currentTimeMillis());
+                return n;
+            }
+            @Override public void close() throws IOException {
+                watch.interrupt();
+                super.close();
+            }
+        };
+    }
+
     static final String FFMPEG_ZIP = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
 
     /**
@@ -90,18 +117,19 @@ public final class Ffmpeg {
      * app folder, where {@link #ffmpeg()} looks for them. About 90 MB.
      */
     public static void downloadForWindows(DoubleConsumer progress) throws IOException, InterruptedException {
-        java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder().followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build();
-        String expected = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP + ".sha256")).build(),
+        java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder().followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                .connectTimeout(java.time.Duration.ofSeconds(15)).build();
+        String expected = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP + ".sha256")).timeout(java.time.Duration.ofSeconds(30)).build(),
                 java.net.http.HttpResponse.BodyHandlers.ofString()).body().trim().split("\\s+")[0];
         Path bin = Settings.appDir().resolve("ffmpeg").resolve("bin");
         Files.createDirectories(bin);
         Path zip = bin.resolveSibling("ffmpeg-download.zip");
-        var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP)).build(), java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+        var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP)).timeout(java.time.Duration.ofSeconds(60)).build(), java.net.http.HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) throw new IOException("Download failed (HTTP " + res.statusCode() + ")");
         long total = res.headers().firstValueAsLong("content-length").orElse(-1);
         java.security.MessageDigest md;
         try { md = java.security.MessageDigest.getInstance("SHA-256"); } catch (java.security.NoSuchAlgorithmException e) { throw new IOException(e); }
-        try (var in = res.body(); var out = Files.newOutputStream(zip)) {
+        try (var in = stallGuard(res.body(), 30_000); var out = Files.newOutputStream(zip)) {
             byte[] buf = new byte[1 << 16];
             long done = 0;
             int n;

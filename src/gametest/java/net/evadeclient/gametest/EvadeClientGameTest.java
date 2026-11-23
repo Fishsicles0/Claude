@@ -498,6 +498,19 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         int dustFull = dust.apply(false), dustLess = dust.apply(true);
         check(dustFull > 200 && dustLess > 0 && dustLess < dustFull / 2,
                 "Less Block Break Dust cuts breaking particles (" + dustFull + " -> " + dustLess + " for 4 broken blocks)");
+        // Fireworks with an aggressive particle budget: the game uses each spark right after creating it, so
+        // filtering must never hand it nothing (that crashed players with "Ticking Particle").
+        ctx.runOnClient(c -> perf.particlePercent.set(10.0));
+        for (int i = 0; i < 4; i++)
+            server.runCommand("summon firework_rocket ~" + (i * 2 - 3) + " ~3 ~4 {LifeTime:2,FireworksItem:{id:\"minecraft:firework_rocket\",count:1,components:{\"minecraft:fireworks\":{explosions:[{shape:\"large_ball\",colors:[I;16711680,65280],has_trail:1b,has_twinkle:1b}]}}}}");
+        ctx.waitTicks(60);
+        int sparks = ctx.computeOnClient(c -> {
+            var m = java.util.regex.Pattern.compile("\\d+").matcher(c.particleManager.getDebugString());
+            return m.find() ? Integer.parseInt(m.group()) : -1;
+        });
+        check(sparks >= 0, "Fireworks explode safely with Performance's particle budget at 10% (" + sparks + " particles live)");
+        ctx.runOnClient(c -> perf.particlePercent.set(100.0));
+
         // Burning mobs: their fire layer is skipped (screenshot), and rain/snow can be hidden.
         server.runCommand("summon zombie 0 -60 4 {NoAI:1b,Silent:1b,Fire:2000s,Rotation:[180f,0f]}");
         ctx.waitTicks(10);
@@ -610,6 +623,17 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             ctx.takeScreenshot("menushot-settings");
             ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
             ctx.runOnClient(c -> { setMode(cs, "Theme", "Modern"); setMode(cs, "Accent Color", "Red"); });
+            // Small / high-scale screens (e.g. a laptop with Windows display scaling and Auto GUI scale).
+            int[][] screens = {{1920, 1080, 4}, {1280, 720, 3}, {1366, 768, 4}};
+            for (int[] sc : screens) {
+                ctx.getInput().resizeWindow(sc[0], sc[1]);
+                ctx.runOnClient(c -> { c.options.getGuiScale().setValue(sc[2]); c.onResolutionChanged(); });
+                ctx.setScreen(EvadeMenu::new);
+                ctx.waitTicks(8);
+                ctx.takeScreenshot("menushot-" + sc[0] + "x" + sc[1] + "-gui" + sc[2]);
+            }
+            ctx.getInput().resizeWindow(1920, 1080);
+            ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });
         }
     }
 

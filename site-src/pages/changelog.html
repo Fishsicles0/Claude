@@ -10,8 +10,19 @@ nav: changelog
 
 <section class="wrap page-body">
   <div class="log">
+    <article class="card rel rv" id="v1.18.1">
+      <div class="rel-head"><h2>v1.18.1</h2><span class="pill-sm">Latest</span><time datetime="2026-11-23">23 Nov 2026</time></div>
+      <p class="rel-sum">Fixes from players on Windows.</p>
+      <ul>
+        <li><b>Fixed a crash</b> ("Ticking Particle") when fireworks went off with Performance's particle limits on, for example when opening crates on servers.</li>
+        <li><b>The menu fits every screen:</b> on laptops with Windows display scaling or a large GUI scale it used to overflow, hiding mod names. It now scales itself to fit and stays sharp, switching to the pixel font when the screen is too small for the smooth one.</li>
+        <li><b>Installer:</b> Evade Clips no longer gets stuck at 92% while downloading ffmpeg. Downloads that stall now stop after 30 seconds, ffmpeg downloads last with live progress (MB and speed), and if it can't finish, Evade Clips fetches it when you open it.</li>
+        <li>Opening the installer or Evade Clips <span class="mono">.jar</span> with an old Java now explains how to fix it instead of doing nothing.</li>
+      </ul>
+    </article>
+
     <article class="card rel rv" id="v1.18.0">
-      <div class="rel-head"><h2>v1.18.0</h2><span class="pill-sm">Latest</span><time datetime="2026-11-22">22 Nov 2026</time></div>
+      <div class="rel-head"><h2>v1.18.0</h2><time datetime="2026-11-22">22 Nov 2026</time></div>
       <p class="rel-sum">Style every HUD element your way, share profiles, and optional shaders.</p>
       <ul>
         <li><b>Per-element HUD styling:</b> Background Style (Evade, Solid, Glass or Outline), Background Opacity, Text Shadow, <b>Chroma</b> rainbow text and the Smooth Font, separately for every element.</li>
