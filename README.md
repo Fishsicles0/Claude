@@ -173,7 +173,6 @@ The tables follow the menu's pages. Each mod has its own settings and keybind.
 | **Chunk Borders** | Chunk boundaries around you without F3+G, in your colour and height. |
 | **Nick Hider** | Shows a nickname instead of your username everywhere on your screen and can hide your skin. Handy for streaming. Set the name with `.nick`. |
 | **Tab Tweaks** | Numeric ping in the player list, and hides its header or footer. |
-| **Nametags** | Shows your own nametag in third person and restyles player nametags (scale, text shadow, background). |
 | **Hit Color** | Changes the colour of the flash when you hit players or mobs. |
 | **1.7 Animations** | Visual 1.7-style swing while eating and held-item position. |
 | **Item Physics** | Dropped items tumble as they fall, tip over flat when they land and float in water, or simply lie flat (Flat mode). |

@@ -58,7 +58,6 @@ public class ModuleManager {
         register(new ChunkBorders());
         register(new NickHider());
         register(new TabTweaks());
-        register(new Nametags());
         register(new HitColor());
         register(new OldAnimations());
         register(new ItemPhysics());

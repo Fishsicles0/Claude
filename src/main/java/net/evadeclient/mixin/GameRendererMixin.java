@@ -139,7 +139,7 @@ public abstract class GameRendererMixin {
 
     /**
      * Projection: the exact matrix the world is drawn with (FOV, view bobbing, hurt tilt, nausea), so HUD labels
-     * from Waypoints, TNT Timer and Nametags stay glued to their targets.
+     * from Waypoints and TNT Timer stay glued to their targets.
      */
     @ModifyArg(method = "renderWorld", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/render/RawProjectionMatrix;set(Lorg/joml/Matrix4f;)Lcom/mojang/blaze3d/buffers/GpuBufferSlice;"))

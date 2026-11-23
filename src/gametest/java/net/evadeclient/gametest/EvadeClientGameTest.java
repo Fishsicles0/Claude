@@ -1279,7 +1279,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(groups, "Inventory Blur blurs only the screen groups it's set to");
     }
 
-    /** Deeper render mods: Nick Hider, Tab Tweaks, Nametags, Hit Color, ShinyPots, EnchantGlint, tooltips, Hitboxes, 1.7 Animations. */
+    /** Deeper render mods: Nick Hider, Tab Tweaks, Hit Color, ShinyPots, EnchantGlint, tooltips, Hitboxes, 1.7 Animations. */
     private void testRenderBatch(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var server = sp.getServer();
         server.runCommand("kill @e[type=!player]");
@@ -1440,30 +1440,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(450) == 0xFFFFAA00
                         && net.evadeclient.module.visuals.TabTweaks.pingColor(900) == 0xFFFF5555),
                 "Tab Tweaks formats and colours ping");
-
-        // Nametags: your own tag shows in third person only, and a third-person frame with it renders fine.
-        boolean[] ownTag = ctx.computeOnClient(c -> {
-            var nt = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
-            nt.setEnabled(true);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
-            boolean third = net.evadeclient.module.visuals.Nametags.showOwnTag(c.player);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.FIRST_PERSON);
-            boolean first = net.evadeclient.module.visuals.Nametags.showOwnTag(c.player);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
-            nt.scale.set(1.5);
-            nt.shadow.set(true);
-            return new boolean[]{third, first};
-        });
-        ctx.waitTicks(3);
-        ctx.takeScreenshot("evade-nametags-own");
-        ctx.runOnClient(c -> {
-            var nt = EvadeClient.modules.get(net.evadeclient.module.visuals.Nametags.class);
-            nt.scale.reset();
-            nt.shadow.reset();
-            nt.setEnabled(false);
-            c.options.setPerspective(net.minecraft.client.option.Perspective.FIRST_PERSON);
-        });
-        check(ownTag[0] && !ownTag[1], "Nametags shows your own tag in third person only");
 
         // Hit Color repaints the hurt overlay (palette blue by default), and restores red when turned off.
         enable(ctx, net.evadeclient.module.visuals.HitColor.class);
