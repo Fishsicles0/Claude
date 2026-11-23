@@ -116,9 +116,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(ctx.computeOnClient(c -> c.player.input.playerInput.sprint()), "ToggleSprint holds sprint");
 
         enable(ctx, net.evadeclient.module.mods.TimeChanger.class);
-        ctx.waitTicks(3);
+        // Smooth Transition (on by default) eases the sky there over up to ~2 s
+        int eased = 0;
+        while (eased < 100 && ctx.computeOnClient(c -> c.world.getTimeOfDay() % 24000) != 6000) { ctx.waitTick(); eased++; }
         long time = ctx.computeOnClient(c -> c.world.getTimeOfDay() % 24000);
-        check(time == 6000, "Time Changer sets client time (" + time + ")");
+        check(time == 6000, "Time Changer sets client time (" + time + ", eased there in " + eased + " ticks)");
         disable(ctx, net.evadeclient.module.mods.TimeChanger.class);
 
         ctx.getInput().holdKey(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
@@ -154,18 +156,18 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(Math.abs(yawAfter - yawBefore) < 0.01 && Math.abs(camYaw - yawBefore) > 5,
                 "Freelook turns the camera but not the player (player " + yawBefore + "->" + yawAfter + ", camera " + camYaw + ")");
 
-        // Fullbright raises the brightness the lightmap is built with, and never writes the Brightness option
+        // Fullbright fades the lightmap up to full (and back down), and never writes the Brightness option
         double g0 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
-        var fullbright = enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
-        ctx.waitTicks(3);
-        float lit = ctx.computeOnClient(c -> fullbright.appliedGamma());
+        enable(ctx, net.evadeclient.module.visuals.Fullbright.class);
+        ctx.waitTicks(20); // past its fade-in (0.4 s by default)
+        float lit = ctx.computeOnClient(c -> net.evadeclient.module.visuals.Fullbright.level());
         double g1 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
         disable(ctx, net.evadeclient.module.visuals.Fullbright.class);
-        ctx.waitTicks(3);
-        float off = ctx.computeOnClient(c -> fullbright.appliedGamma());
+        ctx.waitTicks(20);
+        float off = ctx.computeOnClient(c -> net.evadeclient.module.visuals.Fullbright.level());
         double g2 = ctx.computeOnClient(c -> c.options.getGamma().getValue());
-        check(lit >= 10 && Float.isNaN(off) && Math.abs(g1 - g0) < 0.01 && Math.abs(g2 - g0) < 0.01,
-                "Fullbright lights the world (brightness " + lit + " while on), then stops, leaving the Brightness option at " + g0);
+        check(lit > 0.99f && off < 0.01f && Math.abs(g1 - g0) < 0.01 && Math.abs(g2 - g0) < 0.01,
+                "Fullbright fades fully on (level " + lit + "), then off (" + off + "), leaving the Brightness option at " + g0);
     }
 
 
