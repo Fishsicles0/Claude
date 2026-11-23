@@ -24,8 +24,9 @@ public final class Notifications {
         long now = System.currentTimeMillis();
         toasts.removeIf(t -> now - t.start > LIFE);
         var tr = MinecraftClient.getInstance().textRenderer;
-        int sw = ctx.getScaledWindowWidth();
-        int y = ctx.getScaledWindowHeight() / 2 - 20;
+        float k = net.evadeclient.hud.Hud.scale(); // drawn inside the HUD's scale
+        int sw = Math.round(ctx.getScaledWindowWidth() / k);
+        int y = Math.round(ctx.getScaledWindowHeight() / k) / 2 - 20;
         for (Toast t : toasts) {
             long age = now - t.start;
             float in = Math.min(1, age / 180f), out = Math.min(1, (LIFE - age) / 220f);

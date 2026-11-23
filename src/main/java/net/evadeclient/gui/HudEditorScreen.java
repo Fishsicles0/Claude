@@ -31,8 +31,34 @@ public class HudEditorScreen extends Screen {
         ctx.fill(0, 0, width, height, 0x50000000);
     }
 
+    // The editor works in HUD units (see Hud.scale()), so elements line up with the in-game HUD at any GUI scale.
+    private float k = 1f;
+    private int realW, realH;
+
+    private void enterHudSpace() {
+        k = net.evadeclient.hud.Hud.scale();
+        realW = width; realH = height;
+        width = Math.round(realW / k); height = Math.round(realH / k);
+    }
+
+    private void leaveHudSpace() { width = realW; height = realH; }
+
+    private Click hud(Click c) { return new Click(c.x() / k, c.y() / k, c.buttonInfo()); }
+
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        enterHudSpace();
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().scale(k, k);
+        try {
+            renderHud(ctx, Math.round(mouseX / k), Math.round(mouseY / k), delta);
+        } finally {
+            ctx.getMatrices().popMatrix();
+            leaveHudSpace();
+        }
+    }
+
+    private void renderHud(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         // grid (when snapping to it) and centre guides
         if (grid()) {
@@ -87,6 +113,11 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        enterHudSpace();
+        try { return clicked(hud(click), doubled); } finally { leaveHudSpace(); }
+    }
+
+    private boolean clicked(Click click, boolean doubled) {
         double mx = click.x(), my = click.y();
         int bw = 120, bx = (width - bw) / 2, by = height - 30;
         if (mx >= bx && mx < bx + bw && my >= by && my < by + 18) { close(); return true; }
@@ -104,6 +135,11 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
+        enterHudSpace();
+        try { return dragged(hud(click), dx / k, dy / k); } finally { leaveHudSpace(); }
+    }
+
+    private boolean dragged(Click click, double dx, double dy) {
         if (dragging == null) return super.mouseDragged(click, dx, dy);
         int x = (int) Math.round(click.x() - offX), y = (int) Math.round(click.y() - offY);
         int w = dragging.scaledWidth(), h = dragging.scaledHeight();
@@ -150,6 +186,11 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
+        enterHudSpace();
+        try { return scrolled(mx / k, my / k, h, v); } finally { leaveHudSpace(); }
+    }
+
+    private boolean scrolled(double mx, double my, double h, double v) {
         HudElementModule el = at(mx, my);
         if (el == null) return false;
         el.scale.set(el.scale.get() + (v > 0 ? 0.05 : -0.05));

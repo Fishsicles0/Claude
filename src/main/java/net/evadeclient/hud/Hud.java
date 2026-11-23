@@ -26,6 +26,23 @@ public final class Hud {
     private static List<Module> activeCache;
     private static long activeTick = -1;
 
+    /**
+     * Evade HUD units to GUI units. Minecraft draws everything at the GUI scale, so with a large GUI scale on a
+     * small screen (e.g. Auto on a 1080p laptop with Windows scaling) Evade's widgets got huge and covered the
+     * server's scoreboard. With Auto HUD Scale on, the HUD is drawn at about 2 screen pixels per unit on a 1080p
+     * screen (more on bigger screens), whatever the GUI scale; HUD Size then scales it to taste.
+     */
+    public static float scale() {
+        var mc = MinecraftClient.getInstance();
+        var cs = EvadeClient.modules == null ? null : EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
+        float size = cs == null ? 1f : cs.hudSize.getFloat() / 100f;
+        if (cs == null || !cs.autoHudScale.get() || mc.getWindow() == null) return size;
+        var win = mc.getWindow();
+        double gs = Math.max(1, win.getScaleFactor());
+        double target = Math.max(2, Math.min(Math.floor(win.getFramebufferHeight() / 540.0), Math.floor(win.getFramebufferWidth() / 960.0)));
+        return (float) (Math.min(1.0, target / gs) * size);
+    }
+
     public static void render(DrawContext ctx) {
         long t0 = System.nanoTime();
         try { renderInner(ctx); } finally { net.evadeclient.util.FrameStats.addHudTime(System.nanoTime() - t0); }
@@ -35,10 +52,13 @@ public final class Hud {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClickTracker.update();
         if (mc.player == null || mc.getDebugHud().shouldShowDebugHud()) return;
-        int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
+        float k = scale();
+        int sw = Math.round(ctx.getScaledWindowWidth() / k), sh = Math.round(ctx.getScaledWindowHeight() / k);
 
         // The HUD editor draws the elements itself (with drag handles).
         if (PROFILE != null) PROFILE.merge("__frames", 1L, Long::sum);
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().scale(k, k);
         if (!(mc.currentScreen instanceof HudEditorScreen)) {
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled() || !el.shouldShow()) continue;
@@ -49,6 +69,7 @@ public final class Hud {
                 } else el.renderScaled(ctx, sw, sh, false);
             }
         }
+        ctx.getMatrices().popMatrix();
         if (!mc.options.hudHidden) {
             float td = mc.getRenderTickCounter().getTickProgress(true);
             for (var m : EvadeClient.modules.all()) {
@@ -56,7 +77,17 @@ public final class Hud {
                 try { m.onHud(ctx, td); } catch (Exception e) { EvadeClient.LOG.error("{} HUD error", m.getName(), e); }
             }
         }
-        Notifications.render(ctx);
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().scale(k, k);
+        try {
+            Notifications.render(ctx);
+            renderList(ctx, mc, sw);
+        } finally {
+            ctx.getMatrices().popMatrix();
+        }
+    }
+
+    private static void renderList(DrawContext ctx, MinecraftClient mc, int sw) {
 
         HudModule hud = EvadeClient.modules.get(HudModule.class);
         if (hud == null || !hud.isEnabled()) return;

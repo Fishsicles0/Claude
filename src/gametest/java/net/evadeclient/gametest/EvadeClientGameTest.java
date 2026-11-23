@@ -245,12 +245,27 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         server.runCommand("tp @a 0 -60 0 0 0");
         ctx.waitTicks(5);
 
-        // Particles: a crit is refused while hidden, allowed once the mod is off
+        // Particles: crits are kept out of the world while hidden, shown once the mod is off. (The particle object is
+        // still handed back to the caller either way; returning nothing crashed fireworks.)
+        java.util.function.Supplier<Integer> live = () -> ctx.computeOnClient(c -> {
+            var m = java.util.regex.Pattern.compile("\\d+").matcher(c.particleManager.getDebugString());
+            return m.find() ? Integer.parseInt(m.group()) : -1;
+        });
+        java.util.function.Supplier<Integer> crits = () -> {
+            ctx.runOnClient(c -> {
+                c.particleManager.clearParticles();
+                for (int i = 0; i < 20; i++) c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0);
+            });
+            ctx.waitTicks(1);
+            return live.get();
+        };
         enable(ctx, net.evadeclient.module.visuals.Particles.class);
-        boolean blocked = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) == null);
+        boolean returned = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) != null);
+        int hiddenCount = crits.get();
         disable(ctx, net.evadeclient.module.visuals.Particles.class);
-        boolean allowed = ctx.computeOnClient(c -> c.particleManager.addParticle(net.minecraft.particle.ParticleTypes.CRIT, 0, -59, 2, 0, 0, 0) != null);
-        check(blocked && allowed, "Particles hides crits only while enabled");
+        int shownCount = crits.get();
+        boolean blocked = returned && hiddenCount == 0, allowed = shownCount >= 20;
+        check(blocked && allowed, "Particles hides crits only while enabled (" + hiddenCount + " shown while hidden, " + shownCount + " after)");
 
         // TNT Timer: a primed TNT in front of you gets a countdown
         server.runCommand("summon tnt 0 -60 5 {fuse:200}");
@@ -631,6 +646,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 ctx.setScreen(EvadeMenu::new);
                 ctx.waitTicks(8);
                 ctx.takeScreenshot("menushot-" + sc[0] + "x" + sc[1] + "-gui" + sc[2]);
+                ctx.setScreen(() -> null);
+                ctx.waitTicks(4);
+                ctx.takeScreenshot("hudshot-" + sc[0] + "x" + sc[1] + "-gui" + sc[2]);
             }
             ctx.getInput().resizeWindow(1920, 1080);
             ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });

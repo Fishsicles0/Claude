@@ -16,6 +16,8 @@ public class ClientSettings extends Module {
     public final net.evadeclient.setting.ModeSetting accent =
             add(new net.evadeclient.setting.ModeSetting("Accent Color", "Red", net.evadeclient.util.Theme.ACCENTS));
     public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", true));
+    public final BooleanSetting autoHudScale = add(new BooleanSetting("Auto HUD Scale", true));
+    public final net.evadeclient.setting.NumberSetting hudSize = add(new net.evadeclient.setting.NumberSetting("HUD Size", 100, 50, 200, 5));
     public final BooleanSetting hudGrid = add(new BooleanSetting("HUD Editor Grid", false));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true));
     public final BooleanSetting animations = add(new BooleanSetting("Animations", true));
