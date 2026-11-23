@@ -340,25 +340,9 @@ public class CommandManager {
         throw new CommandError("\"" + v + "\" isn't an option. Options: " + String.join(", ", options));
     }
 
-    /**
-     * A ModeSetting's options in order, read through its public API: an unknown value cycles to the first option,
-     * then cycling walks the rest. The setting's value is restored before returning.
-     */
+    /** A ModeSetting's options in menu order. */
     private static List<String> modeOptions(ModeSetting md) {
-        String start = md.get();
-        List<String> out = new ArrayList<>();
-        try {
-            md.set("\u0000");
-            md.cycle(true);
-            String first = md.get();
-            do {
-                out.add(md.get());
-                md.cycle(true);
-            } while (!md.get().equals(first) && out.size() < 256);
-        } finally {
-            md.set(start);
-        }
-        return out;
+        return md.getModes();
     }
 
     private static int parseColor(String v) {

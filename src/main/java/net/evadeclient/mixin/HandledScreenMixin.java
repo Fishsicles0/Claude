@@ -16,11 +16,11 @@ public abstract class HandledScreenMixin extends Screen {
 
     /**
      * Inventory Blur: vanilla never blurs behind container screens. This asks for the blur directly (not through
-     * Screen.applyBlur, which skips it when Menu Background Blur is 0); its strength comes from GameRendererBlurMixin.
+     * Screen.applyBlur, which skips it when Menu Background Blur is 0), for the screen groups the module covers; its
+     * strength comes from GameRendererBlurMixin, and the dim over it from ScreenMixin.
      */
     @Inject(method = "renderBackground", at = @At("HEAD"))
     private void evade$blur(DrawContext ctx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!InventoryBlur.on() || this.client == null || this.client.world == null) return;
-        try { ctx.applyBlur(); } catch (IllegalStateException ignored) { /* already blurred this frame */ }
+        InventoryBlur.blurBehind(this, ctx);
     }
 }

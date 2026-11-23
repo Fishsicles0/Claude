@@ -44,6 +44,7 @@ public class ModuleManager {
         register(new NoRender());
         register(new BetterTooltips());
         register(new CameraClip());
+        register(new MotionBlur());
         register(new Waypoints());
         register(new Fullbright());
         register(new DamageTint());
@@ -56,11 +57,14 @@ public class ModuleManager {
         register(new TntTimer());
         register(new ChunkBorders());
         register(new NickHider());
+        register(new TabTweaks());
+        register(new Nametags());
         register(new HitColor());
         register(new OldAnimations());
         register(new ItemPhysics());
         register(new ShinyPots());
         register(new EnchantGlint());
+        register(new Hitboxes());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
@@ -72,6 +76,7 @@ public class ModuleManager {
         register(new WeatherChanger());
         register(new FovChanger());
         register(new Performance());
+        register(new SoundTweaks());
         // Chat, interface & convenience
         register(new AutoReconnect());
         register(new BetterChat());
@@ -83,6 +88,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.misc.Replay());
         register(new EvadeIcons());
         register(new VoiceChat());
+        register(new ScreenshotTools());
         // HUD
         register(new WatermarkHud());
         register(new ModuleListHud());
@@ -195,9 +201,9 @@ public class ModuleManager {
         lastWorld = world;
     }
 
-    /** Modules whose onEnable changes the game's own options (gamma, video settings). */
+    /** Modules whose onEnable changes the game's own options (video settings). */
     private static boolean undoesOnLeave(Module m) {
-        return m instanceof Fullbright || m instanceof Performance;
+        return m instanceof Performance;
     }
 
     public void onRender(RenderContext ctx) {

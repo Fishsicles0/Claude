@@ -40,8 +40,10 @@ public abstract class HudElementModule extends Module {
     public final ModeSetting backgroundStyle =
             add(new ModeSetting("Background Style", "Evade", "Evade", "Solid", "Glass", "Outline"));
     public final NumberSetting opacity = add(new NumberSetting("Background Opacity", 100, 10, 100, 5));
-    public final BooleanSetting hideInMenus = add(new BooleanSetting("Hide In Menus", false));
-    public final BooleanSetting combatOnly = add(new BooleanSetting("Only In Combat", false));
+    public final BooleanSetting hideInMenus = add(new BooleanSetting("Hide In Menus", false)
+            .describe("Hides it while a menu or inventory is open. Chat doesn't count."));
+    public final BooleanSetting combatOnly = add(new BooleanSetting("Only In Combat", false)
+            .describe("Shows it only during a fight: for 8 seconds after you hit something or take damage."));
     public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", false)
             .describe("Draw this widget's text in Evade's smooth font instead of the pixel font."));
 

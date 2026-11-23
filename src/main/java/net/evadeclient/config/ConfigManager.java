@@ -230,6 +230,8 @@ public class ConfigManager {
         try {
             double d = e.getAsDouble();
             if (d == def) return def;
+            // An element snapped to the centre line in the HUD editor stays centred, whatever its default.
+            if (d == HudElementModule.CENTER) return HudElementModule.CENTER;
             if (!Double.isFinite(d) || Math.abs(d) > MAX_COORD) return def;
             return (int) Math.round(d);
         } catch (RuntimeException ex) {
@@ -271,18 +273,49 @@ public class ConfigManager {
     void migrate(JsonObject root) {
         if (EvadeClient.modules == null) return;
         int format = format(root);
+        for (Map.Entry<String, String> r : RENAMED_MODULES.entrySet()) {
+            if (root.has(r.getKey()) && !root.has(r.getValue())) root.add(r.getValue(), root.remove(r.getKey()));
+        }
+        renameHiddenModules(root);
         rekeyRenamedModules(root);
         migrateModuleList(root);
         if (format < 2) {
+            // Toggle Sprint's old default (4, -2) sat over the offhand slot: an untouched one moves to the new
+            // default (centred under the Direction HUD).
+            var toggleSprint = EvadeClient.modules.get(net.evadeclient.module.mods.ToggleSprint.class);
+            JsonObject ts = toggleSprint == null ? null : object(root, toggleSprint.getName());
+            if (ts != null && ts.has("x") && ts.has("y")
+                    && coord(ts.get("x"), Integer.MIN_VALUE) == 4 && coord(ts.get("y"), Integer.MIN_VALUE) == -2) {
+                int[] def = defaultPosition(toggleSprint);
+                ts.addProperty("x", def[0]);
+                ts.addProperty("y", def[1]);
+            }
             // The Direction HUD used x == 0 for "centred" (so dragging it to the left edge sent it back to the
-            // middle). Elements whose default is now the Integer.MIN_VALUE sentinel get it for a saved 0.
-            for (Module m : EvadeClient.modules.all()) {
-                if (!(m instanceof HudElementModule h) || defaultPosition(h)[0] != Integer.MIN_VALUE) continue;
-                JsonObject e = object(root, m.getName());
-                if (e != null && e.has("x") && coord(e.get("x"), Integer.MIN_VALUE) == 0) e.addProperty("x", Integer.MIN_VALUE);
+            // middle); its default is now the CENTER sentinel, so a saved 0 becomes that. Only the Direction HUD:
+            // anywhere else a saved 0 meant "dragged to the left edge".
+            var compass = EvadeClient.modules.get(net.evadeclient.module.hud.CompassHud.class);
+            if (compass != null && defaultPosition(compass)[0] == HudElementModule.CENTER) {
+                JsonObject e = object(root, compass.getName());
+                if (e != null && e.has("x") && coord(e.get("x"), Integer.MIN_VALUE) == 0) e.addProperty("x", HudElementModule.CENTER);
             }
         }
         if (format < FORMAT) root.addProperty(FORMAT_KEY, FORMAT);
+    }
+
+    /** Modules whose display name changed beyond spacing or case: old saved key -> current name. */
+    private static final Map<String, String> RENAMED_MODULES = Map.of("CameraClip", "Camera Distance");
+
+    /** The Module List's "Hidden Modules" names renamed modules by their old names: point them at the new ones. */
+    private static void renameHiddenModules(JsonObject root) {
+        JsonObject list = object(root, "Module List");
+        JsonObject s = list == null ? null : object(list, "settings");
+        JsonElement hidden = s == null ? null : s.get("Hidden Modules");
+        if (hidden == null || !hidden.isJsonPrimitive() || !hidden.getAsJsonPrimitive().isString()) return;
+        String v = hidden.getAsString(), was = v;
+        for (Map.Entry<String, String> r : RENAMED_MODULES.entrySet())
+            v = v.replaceAll("(?i)(?<![A-Za-z0-9])" + java.util.regex.Pattern.quote(r.getKey()) + "(?![A-Za-z0-9])",
+                    java.util.regex.Matcher.quoteReplacement(r.getValue()));
+        if (!v.equals(was)) s.addProperty("Hidden Modules", v);
     }
 
     /** The layout version of a parsed config (1 when it has none). */

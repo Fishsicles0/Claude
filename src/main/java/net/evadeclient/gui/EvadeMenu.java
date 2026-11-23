@@ -79,7 +79,14 @@ public class EvadeMenu extends Screen {
 
     private String search = "";
     private boolean searchFocused;
+    /** The content list's scroll: {@code scroll} is where it is drawn this frame (the "scroll" spring, critically
+     *  damped, so wheel notches in a row blend into one glide), {@code scrollTarget} where it is headed. */
     private double scroll, scrollTarget;
+    /** How far the current page's content can scroll, written by its clamp each frame ({@link #clampScroll}). */
+    private int lastMaxScroll;
+    /** When the content was last scrolled by the wheel, keys or the scrollbar ({@link #clock} ms): the scrollbar's
+     *  thumb stays fully lit for {@link #SCROLLBAR_LIT_MS} after. */
+    private double lastScrollAt = -1e9;
     /** When the menu was last put on screen ({@link #clock} ms): the intro animation runs from here. */
     private double openedAt;
     /** When the close fade started ({@link #clock} ms), or -1 while the menu is open. */
@@ -104,8 +111,23 @@ public class EvadeMenu extends Screen {
     private double lastFrame = clock.getAsDouble();
     private float dt;
 
+    /** The button or control under a held mouse press (see {@link #button}), or null: its shape darkens and dips while
+     *  the button is down. Set at each resolved hit in mouseClicked ({@link #press}), cleared in mouseReleased. */
+    private String pressedKey;
+    /** The last press and when it began ({@link #clock} ms): a quick tap still shows its dip for
+     *  {@link #PRESS_MIN_MS}, even when the release comes before the next frame. */
+    private String tapKey;
+    private double pressedAt = -1e9;
+    /** Key boxes that just took a key (or were cleared), by row: when, for their confirming flash. */
+    private final Map<Object, Double> keyFlashAt = new HashMap<>();
+    /** A mode picker's last cycle: the value it left, which way it went (+1 forward, -1 back) and when. */
+    private record ModeSwap(String prev, int dir, double at) {}
+    private final Map<ModeSetting, ModeSwap> modeSwaps = new HashMap<>();
+
     /** The module (keybind) or KeySetting waiting for a key press. */
     private Object listening;
+    /** When {@link #listening} started ({@link #clock} ms): its box's pulse and counting dots start from here. */
+    private double listenAt;
     /** A key the capture refused (e.g. the Menu Key for a module): the row flashes red with {@link #rejectMsg}. */
     private Object rejectRow;
     private double rejectAt;
@@ -122,13 +144,23 @@ public class EvadeMenu extends Screen {
      *  typed, clicked or scrolled meanwhile: Shift + letter types a capital and Shift + wheel steps by 10. */
     private boolean menuKeyDown, menuKeyUsed;
 
-    // scrollbar of the current page (set while drawing it) and its drag state
+    // scrollbar of the current page (set while drawing it) and its drag state: sbGrab is where on the thumb it was
+    // grabbed, so the thumb stays under the cursor
     private int sbTop, sbViewH, sbContentH;
     private boolean sbDrag;
     private double sbGrab;
 
     // sidebar scrolling: only used when the nav list can't fit (it always fits at the menu's design size)
     private double navScroll;
+    /** Whether the sidebar drew its active-page highlight last frame (false on a mod's settings page). */
+    private boolean navPillShown;
+
+    /** When the content last changed page ({@link #clock} ms): it fades through from here (see {@link #PAGE_MS}).
+     *  Far in the past until the first change, so a menu opened on the list shows it at rest. */
+    private double pageAt = -1e9;
+    /** Which way that change went: +1 a mod's settings opened (slides in from the right), -1 Back (from the left),
+     *  0 another page (rises into place). */
+    private int pageDir;
 
     // settings-row hover: the slider under the mouse (wheel and arrow keys), and the row the tooltip is for
     private NumberSetting hoverSlider;
@@ -149,6 +181,22 @@ public class EvadeMenu extends Screen {
     private static final long DELETE_CONFIRM_MS = 3000;
     /** The window's intro (it fades in, then finishes growing and rising into place) and its close fade, in ms. */
     private static final double OPEN_FADE_MS = 140, OPEN_MOVE_MS = 200, CLOSE_MS = 120;
+    /** A page change: the new content fades in over this (ease out) while it slides {@link #PAGE_SLIDE} px sideways
+     *  (a mod's settings, Back) or rises {@link #PAGE_RISE} px (another sidebar page) into place. */
+    private static final double PAGE_MS = 180;
+    private static final float PAGE_SLIDE = 12f, PAGE_RISE = 6f;
+    /** The scroll spring: stiffness (rad/s) and damping ratio. Critically damped: about 95% of the way in 170 ms
+     *  and never past the target, so the list never overshoots its ends. */
+    private static final float SCROLL_W = 28f, SCROLL_Z = 1f;
+    /** How long the scrollbar's thumb stays fully lit after a scroll before it dims, in ms. */
+    private static final double SCROLLBAR_LIT_MS = 800;
+    /** The content list's soft edges: {@link #EDGE_FADE} px tall, fully in once the list is {@link #EDGE_RAMP} px
+     *  from that end. */
+    private static final int EDGE_FADE = 12, EDGE_RAMP = 24;
+    /** Shortest time a press shows its dip, so a quick tap still reads as one (ms). */
+    private static final double PRESS_MIN_MS = 80;
+    /** A key box's confirming flash when it takes a key, and a mode picker's value slide on a cycle (ms). */
+    private static final double KEY_FLASH_MS = 250, MODE_SWAP_MS = 150;
 
     public EvadeMenu() {
         super(Text.literal("Evade"));
@@ -186,6 +234,10 @@ public class EvadeMenu extends Screen {
         lastFrame = openedAt; // springs and fades pick up from here, not from before the menu was away
         closingAt = -1;
         finishing = false;
+        pressedKey = tapKey = null; // a press from before the menu was away never shows
+        // Shown straight onto a mod's settings (open(select), or back from the HUD editor): the page slides in from
+        // the right with the intro, as if it had just been opened from the list.
+        if (selected != null) { pageAt = openedAt; pageDir = 1; }
     }
 
     @Override
@@ -287,7 +339,9 @@ public class EvadeMenu extends Screen {
         double now = clock.getAsDouble();
         dt = (float) Math.max(0, Math.min(0.1, (now - lastFrame) / 1000));
         lastFrame = now;
-        scroll += (scrollTarget - scroll) * (1 - Math.exp(-18 * dt));
+        // The list glides to its target on a critically damped spring (wheel notches in a row blend into one glide,
+        // and it never runs past the end); with Animations off it is simply there.
+        scroll = spring("scroll", (float) scrollTarget, SCROLL_W, SCROLL_Z);
         // Per-frame hover state, filled in by whichever page draws below.
         sbContentH = 0;
         hoverSlider = null;
@@ -330,13 +384,33 @@ public class EvadeMenu extends Screen {
             Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
             renderClose(ctx, mouseX, mouseY);
 
-            if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
-            else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
-            else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
-            else {
-                renderSearch(ctx, mouseX, mouseY);
-                renderHeader(ctx, mouseX, mouseY);
-                renderGrid(ctx, mouseX, mouseY);
+            // The content area fades through on a page change: the new page fades in while it slides in sideways
+            // (a mod's settings from the right, Back from the left) or rises into place (a sidebar page). The old
+            // page is not drawn again and clicks are not held back. The sidebar and close button stay put. The
+            // pages' scissor rects are transformed by the matrix, so their clips slide with them.
+            float pt = pageProgress(now);
+            float pageBase = Theme.fade;
+            boolean moving = pt < 1f;
+            if (moving) {
+                Theme.fade = pageBase * pt;
+                m.pushMatrix();
+                m.translate(Theme.snap(ctx, pageDir * (1f - pt) * PAGE_SLIDE),
+                        pageDir == 0 ? Theme.snap(ctx, (1f - pt) * PAGE_RISE) : 0f);
+            }
+            try {
+                if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
+                else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
+                else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
+                else {
+                    renderSearch(ctx, mouseX, mouseY);
+                    renderHeader(ctx, mouseX, mouseY);
+                    renderGrid(ctx, mouseX, mouseY);
+                }
+            } finally {
+                if (moving) {
+                    m.popMatrix();
+                    Theme.fade = pageBase;
+                }
             }
             drawTip(ctx);
         } finally {
@@ -346,6 +420,21 @@ public class EvadeMenu extends Screen {
 
         // The close fade has played: close for real, after this frame (setScreen must never run mid-render).
         if (closingAt >= 0 && !finishing && now - closingAt >= CLOSE_MS) queueFinishClose();
+    }
+
+    /** How far the current page's fade-through is at {@code now} ({@link #clock} ms): 0 just changed, 1 at rest
+     *  (ease out over {@link #PAGE_MS}). Always 1 with Animations off. */
+    private float pageProgress(double now) {
+        if (!anims) return 1f;
+        if (now < pageAt) pageAt = now - PAGE_MS; // the clock went back (a test swapped it): show the page, never hide it
+        return Motion.cubicOut((float) ((now - pageAt) / PAGE_MS));
+    }
+
+    /** The content just changed page: it fades through from now, sliding in the direction {@code dir} (see
+     *  {@link #pageDir}). */
+    private void pageChanged(int dir) {
+        pageAt = clock.getAsDouble();
+        pageDir = dir;
     }
 
     /**
@@ -401,15 +490,16 @@ public class EvadeMenu extends Screen {
         navScroll = Math.max(0, Math.min(navScroll, navMaxScroll()));
         boolean clip = navMaxScroll() > 0;
         if (clip) ctx.enableScissor(wx + 1, navTop(), wx + SIDEBAR, navBottom());
-        int y = navTop() - (int) Math.round(navScroll);
+        int listTop = navTop() - (int) Math.round(navScroll);
+        renderNavHighlight(ctx, listTop);
+        int y = listTop;
         for (NavGroup g : GROUPS) {
             if (g.header != null) {
                 caps(ctx, g.header, wx + 18, y + 7, Theme.TEXT_HEADER, Role.CAPS, 2f);
                 y += NAV_HEADER_H;
             }
             for (Nav n : g.items) {
-                boolean active = !n.hud && n.page == page && selected == null;
-                navItem(ctx, n, y, mx, my, active);
+                navItem(ctx, n, y, mx, my, navActive(n));
                 y += NAV_ITEM_H;
             }
             y += NAV_GROUP_GAP;
@@ -423,40 +513,93 @@ public class EvadeMenu extends Screen {
         text(ctx, ellipsize(Role.SMALL, "Evade v" + EvadeClient.VERSION, footW), wx + 16, wy + wh - 15, Theme.TEXT_FAINT, Role.SMALL);
     }
 
+    /** Whether {@code n} is the page on screen (none is while a mod's settings are open). */
+    private boolean navActive(Nav n) {
+        return !n.hud && n.page == page && selected == null;
+    }
+
+    /**
+     * The active page's highlight (accent-tinted fill, thin accent outline), drawn once under the items at
+     * {@code listTop} (the nav list's top, scrolled). It glides between items on a spring that is barely underdamped
+     * (about 95% of the way in 125 ms, well under 1% overshoot) and, while a mod's settings are open, fades out where
+     * it is. Coming back it fades in on its item instead of flying in from the old one. The spring runs in list
+     * coordinates, so scrolling the sidebar moves it with the items, not after them.
+     */
+    private void renderNavHighlight(DrawContext ctx, int listTop) {
+        NavHit active = null;
+        for (NavHit h : navLayout()) if (navActive(h.nav)) { active = h; break; }
+        Motion.Spring pill = springObj("navPill");
+        float py;
+        if (active != null) {
+            float target = active.y - listTop;
+            // Back from a mod's settings: start on the item (unless the highlight is still mostly shown, a quick
+            // there-and-back, where it glides on from where it is rather than jump).
+            if (!navPillShown && anim.getOrDefault("navPillA", 0f) < 0.5f) pill.set(target);
+            py = spring("navPill", target, 30f, 0.85f);
+        } else {
+            py = pill.x;
+        }
+        navPillShown = active != null;
+        float pa = settled(animate("navPillA", active != null ? 1 : 0, 18));
+        if (pa <= 0f || !pill.init) return;
+
+        // Whole pixels for the shape, the rest as a device-pixel translation, so it moves smoothly at any GUI scale.
+        float fy = listTop + py;
+        int iy = (int) Math.floor(fy);
+        var m = ctx.getMatrices();
+        float base = Theme.fade;
+        m.pushMatrix();
+        try {
+            Theme.fade = base * pa;
+            m.translate(0, Theme.snap(ctx, fy - iy));
+            Theme.roundBordered(ctx, wx + 10, iy + 1, wx + SIDEBAR - 10, iy + NAV_ITEM_H - 3, Theme.tint(0.11f),
+                    Theme.lerpColor(Theme.BORDER, Theme.RED, 0.62f));
+        } finally {
+            Theme.fade = base;
+            m.popMatrix();
+        }
+    }
+
+    /** A 0..1 fade amount within a fraction of a colour step of either end taken as that end, so a settled sidebar
+     *  draws exactly what a still frame of it should (the eased value only approaches its target). */
+    private static float settled(float v) {
+        return v > 0.998f ? 1f : v < 0.002f ? 0f : v;
+    }
+
     private void navItem(DrawContext ctx, Nav n, int y, int mx, int my, boolean active) {
         int x1 = wx + 10, x2 = wx + SIDEBAR - 10, top = y + 1, bot = y + NAV_ITEM_H - 3;
         boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot && my >= navTop() && my < navBottom();
-        float t = animate("nav:" + n.label, active ? 1 : hover ? 0.4f : 0, 16);
+        float t = animate("nav:" + n.label, hover ? 0.4f : 0, 16);
+        // How active the item looks: its icon, label and count turn to the accent as the highlight arrives.
+        float act = settled(animate("navA:" + n.label, active ? 1 : 0, 22));
 
-        // Active: accent-tinted fill with a thin accent outline. Hover: a soft highlight.
-        if (active) {
-            Theme.roundBordered(ctx, x1, top, x2, bot, Theme.tint(0.11f), Theme.lerpColor(Theme.BORDER, Theme.RED, 0.62f));
-        } else if (t > 0.01f) {
-            Theme.round(ctx, x1, top, x2, bot, Theme.alpha(Theme.CONTROL_HOVER, t));
-        }
+        // The active highlight is drawn by renderNavHighlight; here only the soft hover fill, which gives way to it.
+        float hf = t * (1f - act);
+        if (hf > 0.01f) Theme.round(ctx, x1, top, x2, bot, Theme.alpha(Theme.CONTROL_HOVER, hf));
 
-        // Line icon, tinted: accent when active, dim otherwise, brightening on hover.
-        int fg = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t);
+        // Line icon, tinted: dim, brightening on hover, turning to the accent as the item becomes active.
+        int fg = Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t), Theme.RED_BRIGHT, act);
         int ix = x1 + 8, iy = y + (NAV_ITEM_H - 2 - ICON) / 2;
         net.evadeclient.util.Icons.draw(ctx, n.icon, ix, iy, ICON, fg);
 
-        int textColor = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
+        int textColor = Theme.lerpColor(Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t), Theme.RED_BRIGHT, act);
         text(ctx, n.label, ix + ICON + 9, y + (NAV_ITEM_H - 9) / 2, textColor, false);
 
-        // Count pill, right-aligned (category pages only, not Settings): calm grey, in the accent only when active,
-        // so the sidebar doesn't read as a column of red badges. On hover it lifts with the row, which is about the
-        // pill's own grey there.
+        // Count pill, right-aligned (category pages only, not Settings): calm grey, in the accent only when active
+        // (blending over as the item becomes active), so the sidebar doesn't read as a column of red badges. On hover
+        // it lifts with the row, which is about the pill's own grey there.
         if (n.page != null && n.page.category != null && n.page != Page.SETTINGS) {
             String cnt = String.valueOf(modulesFor(n.page, "").size());
             int tw = width(Role.SMALL, cnt);
             int cw2 = Math.max(13, tw + 8);
             int chipX = x2 - 7 - cw2, chipY = y + (NAV_ITEM_H - 2 - 12) / 2;
-            int chip = active ? Theme.alpha(Theme.RED, 0.3f) : Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, Math.min(1f, t * 2.5f));
+            int chip = Theme.lerpColor(Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, Math.min(1f, t * 2.5f)),
+                    Theme.alpha(Theme.RED, 0.3f), act);
             Theme.pill(ctx, chipX, chipY, chipX + cw2, chipY + 12, chip);
             // The vanilla width counts a trailing pixel column the glyphs don't fill: centre past it. Inter's advances
             // carry their own side bearings, so it centres on the measured width (rounding half up).
             text(ctx, cnt, chipX + (smooth ? (cw2 - tw + 1) / 2 : (cw2 - tw) / 2 + 1), chipY + 3,
-                    active ? Theme.RED_BRIGHT : Theme.TEXT_DIM, Role.SMALL);
+                    Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, act), Role.SMALL);
         }
     }
 
@@ -465,8 +608,8 @@ public class EvadeMenu extends Screen {
     private void renderClose(DrawContext ctx, int mx, int my) {
         int bx = wx + ww - 24, by = wy + 12;
         boolean hc = mx >= bx && mx < bx + 14 && my >= by && my < by + 14;
-        Theme.round(ctx, bx, by, bx + 14, by + 14, hc ? Theme.RED : Theme.CONTROL);
-        icon(ctx, "close", bx + 2, by + 2, 10, hc ? Theme.ON_ACCENT : Theme.TEXT_SOFT);
+        float h = button(ctx, "close", bx, by, bx + 14, by + 14, hc, Theme.CONTROL, Theme.RED, Theme.CONTROL, Theme.RED);
+        icon(ctx, "close", bx + 2, by + 2, 10, Theme.lerpColor(Theme.TEXT_SOFT, Theme.ON_ACCENT, h));
     }
 
     // ---- content header ----------------------------------------------
@@ -479,10 +622,10 @@ public class EvadeMenu extends Screen {
     private void renderSearch(DrawContext ctx, int mx, int my) {
         int sx = cx, sw = searchW();
         boolean hs = mx >= sx && mx < sx + sw && my >= searchY && my < searchY + 24;
-        focusGlow(ctx, "search", searchFocused, sx, searchY, sx + sw, searchY + 24);
-        Theme.roundBordered(ctx, sx, searchY, sx + sw, searchY + 24, Theme.INPUT, searchFocused ? Theme.RED : hs ? Theme.BORDER_HOVER : Theme.BORDER);
+        float focus = focusGlow(ctx, "search", searchFocused, sx, searchY, sx + sw, searchY + 24);
+        Theme.roundBordered(ctx, sx, searchY, sx + sw, searchY + 24, Theme.INPUT, inputBorder("search", hs, focus));
         // magnifier
-        icon(ctx, "search", sx + 7, searchY + 7, 10, searchFocused ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
+        icon(ctx, "search", sx + 7, searchY + 7, 10, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, focus));
 
         boolean caret = searchFocused && blink(0);
         if (search.isEmpty() && !searchFocused) {
@@ -495,10 +638,19 @@ public class EvadeMenu extends Screen {
         }
     }
 
-    /** A soft accent glow around a text field that fades in while it has focus (drawn before the field's box). */
-    private void focusGlow(DrawContext ctx, String id, boolean focused, int x1, int y1, int x2, int y2) {
+    /** A soft accent glow around a text field that fades in while it has focus (drawn before the field's box).
+     *  Returns how focused it looks (0..1), for the field's border and icon to follow. */
+    private float focusGlow(DrawContext ctx, String id, boolean focused, int x1, int y1, int x2, int y2) {
         float focus = animate("focus:" + id, focused ? 1 : 0, 16);
         if (focus > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x2, y2, Theme.alpha(Theme.RED, 0.28f * focus));
+        return focus;
+    }
+
+    /** A text field's border: it cross-fades to the lighter hover border under the mouse and to the accent with
+     *  {@code focus} (from {@link #focusGlow}). The field itself never moves or dips: only its border changes. */
+    private int inputBorder(String id, boolean hover, float focus) {
+        float h = animate("ih:" + id, hover ? 1 : 0, 22);
+        return Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, h), Theme.RED, focus);
     }
 
     // All / Enabled segmented toggle and the A-Z sort chip to its left, right-aligned in the header.
@@ -532,9 +684,14 @@ public class EvadeMenu extends Screen {
 
         int ax = azX();
         boolean ha = mx >= ax && mx < ax + AZ_W && my >= segY && my < segY + 22;
-        Theme.roundBordered(ctx, ax, segY, ax + AZ_W, segY + 22, sortAz ? Theme.tint(0.16f) : ha ? Theme.CONTROL_HOVER : Theme.INPUT,
-                sortAz ? Theme.RED : ha ? Theme.BORDER_HOVER : Theme.BORDER);
-        drawCentered(ctx, "A-Z", ax, ax + AZ_W, segY + 7, sortAz ? Theme.RED_BRIGHT : ha ? Theme.TEXT : Theme.TEXT_DIM);
+        // On (sorted) it is accent-tinted whether hovered or not; turning it on or off cross-fades too.
+        float az = animate("azOn", sortAz ? 1 : 0, 18);
+        int azFill = Theme.tint(0.16f);
+        float h = button(ctx, "az", ax, segY, ax + AZ_W, segY + 22, ha,
+                mix(Theme.INPUT, azFill, az), mix(Theme.CONTROL_HOVER, azFill, az),
+                mix(Theme.BORDER, Theme.RED, az), mix(Theme.BORDER_HOVER, Theme.RED, az));
+        drawCentered(ctx, "A-Z", ax, ax + AZ_W, segY + 7,
+                Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, h), Theme.RED_BRIGHT, az));
         if (ha) setTip(mx, my, List.of(new TipLine(sortAz ? "Sorted A-Z. Click for the usual order" : "Sort A-Z", Theme.TEXT_SOFT)));
     }
 
@@ -567,8 +724,8 @@ public class EvadeMenu extends Screen {
         // new-profile input + Import and Create buttons (kept clear of the window's close button)
         int inW = profileInputW();
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
-        focusGlow(ctx, "profile", profileFocused, cx, searchY, cx + inW, searchY + 24);
-        Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
+        float focus = focusGlow(ctx, "profile", profileFocused, cx, searchY, cx + inW, searchY + 24);
+        Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, inputBorder("profile", hin, focus));
         boolean caret = profileFocused && blink(0);
         if (profileInput.isEmpty() && !profileFocused) {
             text(ctx, "New profile name…", cx + 8, searchY + 8, Theme.TEXT_FAINT, false);
@@ -577,11 +734,11 @@ public class EvadeMenu extends Screen {
         }
         int bx = createButtonX(), br = contentRight();
         boolean hc = mx >= bx && mx < br && my >= searchY && my < searchY + 24;
-        Theme.round(ctx, bx, searchY, br, searchY + 24, hc ? Theme.RED_BRIGHT : Theme.RED);
+        button(ctx, "create", bx, searchY, br, searchY + 24, hc, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
         drawCentered(ctx, "Create", bx, br, searchY + 8, Theme.ON_ACCENT, Role.STRONG);
         int ix = importButtonX();
         boolean hi = mx >= ix && mx < ix + 70 && my >= searchY && my < searchY + 24;
-        Theme.roundBordered(ctx, ix, searchY, ix + 70, searchY + 24, hi ? Theme.CONTROL_HOVER : Theme.CONTROL, hi ? Theme.RED : Theme.BORDER);
+        button(ctx, "import", ix, searchY, ix + 70, searchY + 24, hi, Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.RED);
         drawCentered(ctx, "Import", ix, ix + 70, searchY + 8, Theme.TEXT);
 
         // header
@@ -592,15 +749,22 @@ public class EvadeMenu extends Screen {
         text(ctx, list.size() + (list.size() == 1 ? " profile" : " profiles"), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, Role.LABEL);
 
         int contentH = list.size() * (PROFILE_H + GAP);
-        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - ch)));
+        clampScroll(contentH, ch);
+        int si = scrollPx();
         ctx.enableScissor(cx - 2, cy, cx + cw + 2, cy + ch);
-        for (int i = 0; i < list.size(); i++) {
-            int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
-            if (y + PROFILE_H < cy || y > cy + ch) continue;
-            renderProfileRow(ctx, list.get(i), list.get(i).equals(active), list.size(), y, mx, my);
+        pushScrollFraction(ctx, si);
+        try {
+            for (int i = 0; i < list.size(); i++) {
+                int y = cy + i * (PROFILE_H + GAP) - si;
+                if (y + PROFILE_H < cy || y > cy + ch) continue;
+                renderProfileRow(ctx, list.get(i), list.get(i).equals(active), list.size(), y, mx, my);
+            }
+        } finally {
+            ctx.getMatrices().popMatrix();
         }
         ctx.disableScissor();
-        drawScrollbar(ctx, cy, ch, contentH);
+        edgeFades(ctx, cy, cy + ch);
+        scrollbar(ctx, mx, my, contentH, cy, ch);
 
         text(ctx, ellipsize(Role.SMALL, "Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.", cw),
                 cx, cy + ch + 2, Theme.TEXT_FAINT, Role.SMALL);
@@ -645,10 +809,13 @@ public class EvadeMenu extends Screen {
         boolean inView = my >= cy && my < cy + ch;
         boolean hover = inView && mx >= cx && mx < cx + cw && my >= y && my < y + PROFILE_H;
         float h = animate("ph:" + name, hover ? 1 : 0, 14);
-        int fill = Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h);
-        int border = active ? Theme.RED : Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f);
-        Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? Theme.tint(0.09f) : fill, border);
-        if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED, 1);
+        // How active the row looks: switching profiles cross-fades the tint, ring, accent bar and ACTIVE chip from
+        // the old row to the new one.
+        float pa = settled(animate("pa:" + name, active ? 1 : 0, 16));
+        int fill = mix(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), Theme.tint(0.09f), pa);
+        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f), Theme.RED, pa);
+        Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, fill, border);
+        if (pa > 0.01f) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.alpha(Theme.RED, pa), 1);
 
         List<ProfileButton> buttons = profileButtons(name, active, total);
         int textRight = cx + cw - 12 - (active ? USE_W : 0);
@@ -664,37 +831,48 @@ public class EvadeMenu extends Screen {
         }
 
         int by = y + (PROFILE_H - 18) / 2;
-        if (active) {
-            // The ACTIVE chip sits in the Use button's slot, at the buttons' height.
+        if (active && pa > 0.01f) {
+            // The ACTIVE chip sits in the Use button's slot, at the buttons' height, fading in as the row turns active.
             int right = cx + cw - 12, tw = width(Role.CAPS, "ACTIVE");
-            Theme.pill(ctx, right - USE_W, by, right, by + 18, Theme.alpha(Theme.RED, 0.3f));
-            text(ctx, "ACTIVE", right - USE_W + (USE_W - tw) / 2, by + 6, Theme.RED_BRIGHT, Role.CAPS);
+            Theme.pill(ctx, right - USE_W, by, right, by + 18, Theme.alpha(Theme.RED, 0.3f * pa));
+            text(ctx, "ACTIVE", right - USE_W + (USE_W - tw) / 2, by + 6, Theme.alpha(Theme.RED_BRIGHT, pa), Role.CAPS);
         }
         for (ProfileButton b : buttons) {
             boolean hb = inView && mx >= b.x1() && mx < b.x2() && my >= by && my < by + 18;
+            String id = "pb:" + name + ":" + b.id();
             switch (b.id()) {
                 case "use" -> {
-                    // The row's primary action: a solid accent button (its own border colour, so no ring shows).
-                    int bg = hb ? Theme.RED_BRIGHT : Theme.RED;
-                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, bg);
-                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, Theme.ON_ACCENT, Role.STRONG);
+                    // The row's primary action: a solid accent button (no ring). On the row that just stopped being
+                    // active it fades in as the ACTIVE chip there fades out.
+                    float base = Theme.fade;
+                    Theme.fade = base * (1f - pa);
+                    try {
+                        button(ctx, id, b.x1(), by, b.x2(), by + 18, hb, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
+                        drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, Theme.ON_ACCENT, Role.STRONG);
+                    } finally {
+                        Theme.fade = base;
+                    }
                 }
                 case "delete" -> {
                     boolean confirm = name.equals(pendingDelete);
-                    int bg = confirm ? Theme.alpha(Theme.DANGER, hb ? 0.3f : 0.18f) : hb ? Theme.alpha(Theme.DANGER, 0.15f) : Theme.CONTROL;
-                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, confirm || hb ? Theme.DANGER : Theme.BORDER);
+                    float bh = button(ctx, id, b.x1(), by, b.x2(), by + 18, hb,
+                            confirm ? Theme.alpha(Theme.DANGER, 0.18f) : Theme.CONTROL,
+                            Theme.alpha(Theme.DANGER, confirm ? 0.3f : 0.15f),
+                            confirm ? Theme.DANGER : Theme.BORDER, Theme.DANGER);
                     if (confirm) {
                         drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 6, Theme.DANGER, Role.LABEL);
                     } else {
-                        text(ctx, "×", b.x1() + 6, by + 5, hb ? Theme.DANGER : Theme.TEXT_DIM, false);
+                        text(ctx, "×", b.x1() + 6, by + 5, Theme.lerpColor(Theme.TEXT_DIM, Theme.DANGER, bh), false);
                     }
                     if (hb) setTip(mx, my, List.of(new TipLine(confirm ? "Click again to delete " + name : "Delete " + name, Theme.TEXT_SOFT)));
                 }
                 default -> {
                     boolean linked = b.id().equals("server") && b.label().startsWith("Linked");
-                    int bg = hb ? Theme.CONTROL_HOVER : linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL;
-                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, hb || linked ? Theme.RED : Theme.BORDER);
-                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
+                    float bh = button(ctx, id, b.x1(), by, b.x2(), by + 18, hb,
+                            linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL, Theme.CONTROL_HOVER,
+                            linked ? Theme.RED : Theme.BORDER, Theme.RED);
+                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 6,
+                            linked ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, bh), Role.LABEL);
                 }
             }
         }
@@ -711,19 +889,22 @@ public class EvadeMenu extends Screen {
         profileFocused = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
         if (profileFocused) return true;
         if (mx >= importButtonX() && mx < importButtonX() + 70 && my >= searchY && my < searchY + 24) {
-            String imported = profiles.importCode(client.keyboard.getClipboard());
-            if (imported != null) Notifications.push("Profile imported", imported + " is ready to use", true);
-            else Notifications.push("Nothing to import", "Copy an Evade profile code first", false);
+            press("import");
+            var r = profiles.importProfile(client.keyboard.getClipboard());
+            if (r.ok()) Notifications.push("Profile imported", r.name() + " is ready to use", true);
+            else Notifications.push(r.error().title, r.error().detail, false);
             return true;
         }
         if (mx >= createButtonX() && mx < contentRight() && my >= searchY && my < searchY + 24) {
+            press("create");
             createProfile();
             return true;
         }
         List<String> list = profiles.list();
         String active = profiles.active();
+        int si = scrollPx();
         for (int i = 0; i < list.size(); i++) {
-            int y = cy + i * (PROFILE_H + GAP) - (int) Math.round(scroll);
+            int y = cy + i * (PROFILE_H + GAP) - si;
             if (my < y || my >= y + PROFILE_H || my < cy || my >= cy + ch) continue;
             String name = list.get(i);
             int by = y + (PROFILE_H - 18) / 2;
@@ -734,6 +915,7 @@ public class EvadeMenu extends Screen {
             pendingDelete = null;
             for (ProfileButton b : buttons) {
                 if (mx < b.x1() || mx >= b.x2()) continue;
+                press("pb:" + name + ":" + b.id());
                 switch (b.id()) {
                     case "use" -> profiles.switchTo(name);
                     case "delete" -> {
@@ -841,30 +1023,36 @@ public class EvadeMenu extends Screen {
         int cardW = (cw - rg * (cols - 1)) / cols;
         int rows = (mods.size() + cols - 1) / cols;
         int contentH = rows * (rh + rg);
-        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - ch)));
+        clampScroll(contentH, ch);
+        int si = scrollPx();
 
         // Wider than the rows on both sides (they still end at cx + cw) so a hover glow fades out instead of being
         // cut off; the sidebar edge is 17 px away and the scrollbar is drawn after the scissor.
         ctx.enableScissor(cx - 10, cy, cx + cw + 10, cy + ch);
-        // Hover glows first, under every row, so one never paints over the row before it (Compact rows are 4 px
-        // apart). They use the hover value the rows animated last frame: a frame late, which can't be seen. Enabled
-        // rows get no glow of their own: a list of enabled mods would look like neon.
-        for (int i = 0; i < mods.size(); i++) {
-            Module mod = mods.get(i);
-            int x = cx + (i % cols) * (cardW + rg);
-            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
-            if (y + rh < cy || y > cy + ch) continue;
-            float h = anim.getOrDefault("hover:" + mod.getName(), 0f);
-            if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x, y, x + cardW, y + rh, Theme.alpha(Theme.RED, 0.30f * h));
-        }
-        for (int i = 0; i < mods.size(); i++) {
-            Module mod = mods.get(i);
-            int x = cx + (i % cols) * (cardW + rg);
-            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
-            if (y + rh < cy || y > cy + ch) continue;
-            if (cards()) renderCard(ctx, mod, x, y, cardW, mx, my);
-            else if (compact()) renderCompact(ctx, mod, x, y, cardW, mx, my);
-            else renderListRow(ctx, mod, x, y, cardW, mx, my);
+        pushScrollFraction(ctx, si);
+        try {
+            // Hover glows first, under every row, so one never paints over the row before it (Compact rows are 4 px
+            // apart). They use the hover value the rows animated last frame: a frame late, which can't be seen.
+            // Enabled rows get no glow of their own: a list of enabled mods would look like neon.
+            for (int i = 0; i < mods.size(); i++) {
+                Module mod = mods.get(i);
+                int x = cx + (i % cols) * (cardW + rg);
+                int y = cy + (i / cols) * (rh + rg) - si;
+                if (y + rh < cy || y > cy + ch) continue;
+                float h = anim.getOrDefault("hover:" + mod.getName(), 0f);
+                if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x, y, x + cardW, y + rh, Theme.alpha(Theme.RED, 0.30f * h));
+            }
+            for (int i = 0; i < mods.size(); i++) {
+                Module mod = mods.get(i);
+                int x = cx + (i % cols) * (cardW + rg);
+                int y = cy + (i / cols) * (rh + rg) - si;
+                if (y + rh < cy || y > cy + ch) continue;
+                if (cards()) renderCard(ctx, mod, x, y, cardW, mx, my);
+                else if (compact()) renderCompact(ctx, mod, x, y, cardW, mx, my);
+                else renderListRow(ctx, mod, x, y, cardW, mx, my);
+            }
+        } finally {
+            ctx.getMatrices().popMatrix();
         }
         if (mods.isEmpty()) {
             String q = search.trim();
@@ -874,7 +1062,8 @@ public class EvadeMenu extends Screen {
             text(ctx, msg, cx + (cw - width(msg)) / 2, cy + 30, Theme.TEXT_DIM, false);
         }
         ctx.disableScissor();
-        drawScrollbar(ctx, cy, ch, contentH);
+        edgeFades(ctx, cy, cy + ch);
+        scrollbar(ctx, mx, my, contentH, cy, ch);
 
         text(ctx, ellipsize(Role.SMALL, "Click: toggle  ·  Right-click / gear: settings & keybind", cw), cx, cy + ch + 3, Theme.TEXT_FAINT, Role.SMALL);
     }
@@ -903,8 +1092,9 @@ public class EvadeMenu extends Screen {
         if (hasSettingsPage(mod)) {
             int gy = y + (LIST_H - 16) / 2;
             boolean hg = inView && mx >= right - 16 && mx < right + 2 && my >= gy - 1 && my < gy + 17;
-            Theme.roundBordered(ctx, right - 16, gy, right + 2, gy + 16, hg ? Theme.tint(0.12f) : Theme.CONTROL, hg ? Theme.RED : Theme.BORDER);
-            icon(ctx, "settings", right - 13, gy + 3, 10, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
+            float gh = button(ctx, "gear:" + mod.getName(), right - 16, gy, right + 2, gy + 16, hg,
+                    Theme.CONTROL, Theme.tint(0.12f), Theme.BORDER, Theme.RED);
+            icon(ctx, "settings", right - 13, gy + 3, 10, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, gh));
             right -= 24;
         }
         // keybind chip
@@ -943,8 +1133,9 @@ public class EvadeMenu extends Screen {
         if (hasSettingsPage(mod)) {
             int gx = x + w - 16, gy = y + CARD_H - 16;
             boolean hg = inView && mx >= gx - 3 && mx < gx + 12 && my >= gy - 2 && my < gy + 12;
-            Theme.round(ctx, gx - 3, gy - 2, gx + 12, gy + 12, hg ? Theme.RED : Theme.CONTROL);
-            icon(ctx, "settings", gx, gy, 9, hg ? Theme.ON_ACCENT : Theme.TEXT_SOFT);
+            float gh = button(ctx, "gear:" + mod.getName(), gx - 3, gy - 2, gx + 12, gy + 12, hg,
+                    Theme.CONTROL, Theme.RED, Theme.CONTROL, Theme.RED);
+            icon(ctx, "settings", gx, gy, 9, Theme.lerpColor(Theme.TEXT_SOFT, Theme.ON_ACCENT, gh));
         }
     }
 
@@ -964,42 +1155,152 @@ public class EvadeMenu extends Screen {
         if (hasSettingsPage(mod)) {
             int gx = x + w - 40, gy = y + (COMPACT_H - 10) / 2;
             boolean hg = inView && mx >= gx - 2 && mx < gx + 11 && my >= gy - 1 && my < gy + 11;
-            icon(ctx, "settings", gx, gy, 10, hg ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
+            // A bare icon here (no box): only its colour cross-fades.
+            float gh = animate("bh:gear:" + mod.getName(), hg ? 1 : 0, 22);
+            icon(ctx, "settings", gx, gy, 10, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, gh));
         }
     }
 
     // ---- scrollbar ----------------------------------------------------
 
-    /** Draw the current page's scrollbar in the gutter right of the content (only when it overflows) and remember
-     *  its geometry for dragging. */
-    private void drawScrollbar(DrawContext ctx, int top, int viewH, int contentH) {
-        sbTop = top;
+    // The list scrolls on a spring in fractional pixels: rows are laid out (and hit-tested) at the whole-pixel scroll
+    // scrollPx(), and the rest, under a pixel, is a device-pixel translation while they are drawn, so a glide is
+    // smooth at any GUI scale and text stays on the pixel grid. Clicks land within a pixel of what was drawn.
+
+    /** Clamp the scroll target to a page's content ({@code contentH} tall, shown in {@code viewH}) and remember how
+     *  far it can scroll ({@link #lastMaxScroll}): the wheel and keys clamp to it at once, so the list never heads past
+     *  an end and then springs back. */
+    private void clampScroll(int contentH, int viewH) {
+        lastMaxScroll = Math.max(0, contentH - viewH);
+        scrollTarget = Math.max(0, Math.min(scrollTarget, lastMaxScroll));
+    }
+
+    /** {@code target} clamped to the current page's scroll range. */
+    private double clampTarget(double target) {
+        return Math.max(0, Math.min(lastMaxScroll, target));
+    }
+
+    /** The scroll in whole pixels, for layout and hit tests. */
+    private int scrollPx() { return (int) Math.floor(scroll); }
+
+    /**
+     * Push the rest of the scroll below {@code si} (under a pixel) as an upward translation snapped to a device pixel;
+     * the caller pops it. Call after enableScissor: a scissor rect is transformed by the matrix when it is pushed, so
+     * pushing first would move the clip with the rows.
+     */
+    private void pushScrollFraction(DrawContext ctx, int si) {
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(0, -Theme.snap(ctx, (float) (scroll - si)));
+    }
+
+    /** Jump the list back to the top at once (a new page, filter or search: the old position means nothing there). */
+    private void resetScroll() {
+        scroll = scrollTarget = 0;
+        springObj("scroll").set(0);
+    }
+
+    /**
+     * Soft edges on a scrolling list between {@code top} and {@code bottom}, drawn over its rows after the scissor:
+     * the window colour fades in over the last {@link #EDGE_FADE} px at an end with more content beyond it, so a row
+     * cut by the edge melts into the window instead of stopping in a hard line. Each fade ramps in over the first
+     * {@link #EDGE_RAMP} px of scroll, so there is none at the top of the list, or at the bottom of one that fits.
+     */
+    private void edgeFades(DrawContext ctx, int top, int bottom) {
+        float topA = (float) Math.min(1, scroll / EDGE_RAMP);
+        float botA = (float) Math.min(1, (lastMaxScroll - scroll) / EDGE_RAMP);
+        int solid = Theme.BG | 0xFF000000, clear = Theme.BG & 0xFFFFFF;
+        int x1 = cx - 10, x2 = cx + cw + 10;
+        if (topA > 0.004f)
+            ctx.fillGradient(x1, top, x2, top + EDGE_FADE, Theme.fa(Theme.alpha(solid, topA)), Theme.fa(clear));
+        if (botA > 0.004f)
+            ctx.fillGradient(x1, bottom - EDGE_FADE, x2, bottom, Theme.fa(clear), Theme.fa(Theme.alpha(solid, botA)));
+    }
+
+    /** Right edge of the scrollbar, in the 8 px gutter right of the content; the bar grows leftwards from it. */
+    private int barRight() { return cx + cw + 10; }
+
+    /**
+     * The current page's scrollbar, in the gutter right of the content, when the content ({@code contentH} tall)
+     * overflows its view ({@code viewH} from {@code viewTop}); remembers its geometry for clicks and drags. At rest it
+     * is a slim 2 px thumb, dimmed {@link #SCROLLBAR_LIT_MS} after the last scroll. With the mouse near it (or while
+     * dragging) it widens to 4 px, lights up and shows its track. The thumb follows the fractional scroll, snapped to
+     * a device pixel.
+     */
+    private void scrollbar(DrawContext ctx, int mx, int my, int contentH, int viewTop, int viewH) {
+        sbTop = viewTop;
         sbViewH = viewH;
         sbContentH = contentH;
         if (!hasScrollbar()) return;
-        int barH = thumbH(), barY = thumbY();
-        Theme.fill(ctx, cx + cw + 8, top, cx + cw + 10, top + viewH, Theme.DIVIDER);
-        Theme.round(ctx, cx + cw + 8, barY, cx + cw + 10, barY + barH, sbDrag ? Theme.RED_BRIGHT : Theme.RED);
+        int right = barRight();
+        boolean near = mx >= right - 4 - 10 && mx < right + 10 && my >= viewTop && my < viewTop + viewH;
+        float sh = animate("sbH", near || sbDrag ? 1 : 0, 22);
+        double since = clock.getAsDouble() - lastScrollAt;
+        boolean lit = near || sbDrag || (since >= 0 && since < SCROLLBAR_LIT_MS);
+        // Lights up quickly, dims slowly.
+        float a = animate("sbA", lit ? 1f : 0.45f, lit ? 24 : 7);
+        float w = Theme.snap(ctx, 2 + 2 * sh);
+
+        if (sh > 0.01f) barPill(ctx, right, w, viewTop, viewTop + viewH, Theme.alpha(Theme.DIVIDER, sh));
+        // Whole pixels for the shape, the rest as a device-pixel translation, like the sidebar highlight.
+        float fy = thumbTop();
+        int iy = (int) Math.floor(fy);
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        try {
+            m.translate(0, Theme.snap(ctx, fy - iy));
+            barPill(ctx, right, w, iy, iy + thumbH(), Theme.alpha(sbDrag ? Theme.RED_BRIGHT : Theme.RED, a));
+        } finally {
+            m.popMatrix();
+        }
+    }
+
+    /**
+     * A vertical pill {@code w} px wide (fractional while the bar widens) with its right edge at {@code right}. A whole
+     * width is drawn as it is; in between, the next wider pill is squeezed sideways about its right edge, so the
+     * width changes smoothly instead of in whole-pixel steps.
+     */
+    private static void barPill(DrawContext ctx, int right, float w, int y1, int y2, int color) {
+        int whole = Math.round(w);
+        if (Math.abs(w - whole) < 0.01f) {
+            Theme.pill(ctx, right - whole, y1, right, y2, color);
+            return;
+        }
+        int full = (int) Math.ceil(w);
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        try {
+            m.translate(right, 0);
+            m.scale(w / full, 1f);
+            m.translate(-right, 0);
+            Theme.pill(ctx, right - full, y1, right, y2, color);
+        } finally {
+            m.popMatrix();
+        }
     }
 
     private boolean hasScrollbar() { return sbViewH > 0 && sbContentH > sbViewH; }
     private int maxScroll() { return Math.max(0, sbContentH - sbViewH); }
-    private int thumbH() { return Math.max(24, sbViewH * sbViewH / Math.max(1, sbContentH)); }
+    private int thumbH() { return Math.min(sbViewH, Math.max(24, sbViewH * sbViewH / Math.max(1, sbContentH))); }
 
-    private int thumbY() {
+    /** The thumb's top at the current (fractional) scroll. */
+    private float thumbTop() {
         int max = maxScroll();
-        return sbTop + (int) ((sbViewH - thumbH()) * (max == 0 ? 0 : Math.max(0, Math.min(1, scroll / max))));
+        return sbTop + (float) ((sbViewH - thumbH()) * (max == 0 ? 0 : Math.max(0, Math.min(1, scroll / max))));
     }
 
-    /** Whether (mx, my) is in the scrollbar's grab zone (8 px around the 2 px bar). */
+    /** Whether (mx, my) is in the scrollbar's gutter (cx + cw + 4 .. + 14, the height of its track). */
     private boolean onScrollbar(double mx, double my) {
-        return hasScrollbar() && mx >= cx + cw + 5 && mx < cx + cw + 13 && my >= sbTop && my < sbTop + sbViewH;
+        return hasScrollbar() && mx >= cx + cw + 4 && mx < cx + cw + 14 && my >= sbTop && my < sbTop + sbViewH;
     }
 
+    /** Move the list so the grabbed point of the thumb is under {@code my}: 1:1, with no glide. */
     private void dragScrollbar(double my) {
         int range = sbViewH - thumbH();
         double t = range <= 0 ? 0 : (my - sbGrab - sbTop) / range;
         scrollTarget = scroll = Math.max(0, Math.min(1, t)) * maxScroll();
+        springObj("scroll").set((float) scrollTarget);
+        lastScrollAt = clock.getAsDouble();
     }
 
     // ---- settings page ------------------------------------------------
@@ -1023,47 +1324,70 @@ public class EvadeMenu extends Screen {
         // header: Back + title + description + master toggle
         if (selected != null) {
             boolean hb = mx >= cx && mx < cx + 52 && my >= searchY && my < searchY + 18;
-            Theme.roundBordered(ctx, cx, searchY, cx + 52, searchY + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
-            text(ctx, "‹ Back", cx + 8, searchY + 5, hb ? Theme.ON_ACCENT : Theme.TEXT, false);
+            float bh = button(ctx, "back", cx, searchY, cx + 52, searchY + 18, hb, Theme.CONTROL, Theme.RED, Theme.BORDER, Theme.RED);
+            text(ctx, "‹ Back", cx + 8, searchY + 5, Theme.lerpColor(Theme.TEXT, Theme.ON_ACCENT, bh), false);
         }
-        // The title stops short of the Reset button, or of the master toggle when there is nothing to reset.
+        // Reset fades in (sliding 4 px in from the right) once a setting differs from its default, and out again
+        // once none does. The title stops short of it while it shows, or of the master toggle without it.
         boolean resettable = hasChangedSettings(mod);
-        int titleRight = resettable ? resetX() - 8 : selected != null ? controlRight() - 20 - 8 : cx + cw;
+        float ra = settled(animate(resetKey(mod), resettable ? 1 : 0, 18));
+        boolean resetShown = resettable || ra > 0.01f;
+        int titleRight = resetShown ? resetX() - 8 : selected != null ? controlRight() - 20 - 8 : cx + cw;
         text(ctx, ellipsize(Role.TITLE, mod.getName(), titleRight - cx), cx, headerY, Theme.TEXT, Role.TITLE);
         text(ctx, ellipsize(Role.LABEL, mod.getDescription(), cw), cx, headerY + 16, Theme.TEXT_DIM, Role.LABEL);
         if (selected != null) Theme.toggle(ctx, controlRight() - 20, headerY, animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14));
-        if (resettable) {
+        if (ra > 0.01f) {
             int rx = resetX(), rw = 52;
-            boolean hr = mx >= rx && mx < rx + rw && my >= headerY - 4 && my < headerY + 12;
-            Theme.roundBordered(ctx, rx, headerY - 4, rx + rw, headerY + 12, hr ? Theme.CONTROL_HOVER : Theme.CONTROL, hr ? Theme.RED : Theme.BORDER);
-            icon(ctx, "reset", rx + 6, headerY - 1, 9, hr ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
-            text(ctx, "Reset", rx + 19, headerY, hr ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
+            boolean hr = resettable && ra >= 0.5f && mx >= rx && mx < rx + rw && my >= headerY - 4 && my < headerY + 12;
+            var m = ctx.getMatrices();
+            float base = Theme.fade;
+            m.pushMatrix();
+            try {
+                Theme.fade = base * ra;
+                m.translate(Theme.snap(ctx, (1f - ra) * 4f), 0);
+                float rh = button(ctx, "reset", rx, headerY - 4, rx + rw, headerY + 12, hr,
+                        Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.RED);
+                icon(ctx, "reset", rx + 6, headerY - 1, 9, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, rh));
+                text(ctx, "Reset", rx + 19, headerY, Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, rh), Role.LABEL);
+            } finally {
+                Theme.fade = base;
+                m.popMatrix();
+            }
         }
 
         int top = settingsTop();
         List<Object> rows = rowsFor(mod);
         int contentH = rows.size() * ROW_H;
         int viewH = cy + ch - top;
-        scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - viewH)));
+        clampScroll(contentH, viewH);
         boolean inList = mx >= cx && mx < cx + cw && my >= top && my < cy + ch;
 
         Object hovered = null;
+        int si = scrollPx();
         ctx.enableScissor(cx - 2, top, cx + cw + 2, cy + ch);
-        int y = top - (int) Math.round(scroll);
-        for (Object row : rows) {
-            if (y + ROW_H <= top || y >= cy + ch) { y += ROW_H; continue; }
-            boolean hover = inList && my >= y && my < y + ROW_H - 2;
-            if (hover) hovered = row;
-            Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, hover ? Theme.ROW_HOVER : Theme.ROW);
-            // changed from its default: a small accent dot in the row's left margin
-            if (row instanceof Setting<?> st && changed(st)) Theme.disc(ctx, cx + 3, y + (ROW_H - 3) / 2 - 1, 3, Theme.RED);
-            String label = row instanceof Setting<?> st ? st.getName() : "Toggle Key";
-            text(ctx, label, cx + 10, y + 7, Theme.TEXT, false);
-            renderControl(ctx, row, mod, controlRight(), y, mx, my, hover);
-            y += ROW_H;
+        pushScrollFraction(ctx, si);
+        try {
+            int y = top - si;
+            for (Object row : rows) {
+                // A row starting right at the bottom edge still shows the fraction of a pixel the list is moved up.
+                if (y + ROW_H <= top || y > cy + ch) { y += ROW_H; continue; }
+                boolean hover = inList && my >= y && my < y + ROW_H - 2;
+                if (hover) hovered = row;
+                float rh = animate("row:" + rowId(row, mod), hover ? 1 : 0, 22);
+                Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, rh));
+                // changed from its default: a small accent dot in the row's left margin
+                if (row instanceof Setting<?> st && changed(st)) Theme.disc(ctx, cx + 3, y + (ROW_H - 3) / 2 - 1, 3, Theme.RED);
+                String label = row instanceof Setting<?> st ? st.getName() : "Toggle Key";
+                text(ctx, label, cx + 10, y + 7, Theme.TEXT, false);
+                renderControl(ctx, row, mod, controlRight(), y, mx, my, hover);
+                y += ROW_H;
+            }
+        } finally {
+            ctx.getMatrices().popMatrix();
         }
         ctx.disableScissor();
-        drawScrollbar(ctx, top, viewH, contentH);
+        edgeFades(ctx, top, cy + ch);
+        scrollbar(ctx, mx, my, contentH, top, viewH);
 
         // Tooltip for the row under the mouse once it has rested there (not while dragging, typing or binding).
         double now = clock.getAsDouble();
@@ -1080,21 +1404,56 @@ public class EvadeMenu extends Screen {
         boolean isKeybind = row.equals("keybind");
         if (isKeybind || row instanceof KeySetting) {
             Object self = isKeybind ? mod : row;
+            String rid = rowId(row, mod);
+            double now = clock.getAsDouble();
             boolean l = listening == self;
             int code = isKeybind ? mod.getKey() : ((KeySetting) row).get();
-            boolean rejected = rejectRow == self && clock.getAsDouble() - rejectAt < 1400;
+            boolean rejected = rejectRow == self && now - rejectAt < 1400;
             boolean conflict = !l && !conflicts(code, self).isEmpty();
-            String text = l ? (acceptsMouse(self) ? "Press a key or mouse button..." : "Press a key...") : KeySetting.keyName(code);
-            int w = Math.max(50, width(text) + 14);
-            int border = rejected || conflict ? Theme.DANGER : l ? Theme.RED : Theme.BORDER;
+            // Listening: the prompt's dots count up every 300 ms. The box is sized, and the text placed, for all three,
+            // so neither moves while they count.
+            String label = l ? (acceptsMouse(self) ? "Press a key or mouse button" : "Press a key") : KeySetting.keyName(code);
+            String sized = l ? label + "..." : label;
+            String text = l ? label + ".".repeat(anims ? (int) Math.floorMod((long) Math.floor((now - listenAt) / 300), 4L) : 3) : label;
+            int tw = width(sized);
+            int w = Math.max(50, tw + 14);
+            // The box eases to its new width (key name to prompt and back), growing and shrinking to the left.
+            int bw = Math.round(animate("kw:" + rid, w, 22));
+            int x1 = right - bw;
+            int border, borderHover;
+            if (rejected || conflict) {
+                border = borderHover = Theme.DANGER;
+            } else if (l) {
+                // The accent border breathes 1.2 times a second while it waits, starting fully lit.
+                float pulse = anims ? 0.55f + 0.45f * (0.5f + 0.5f * (float) Math.cos(2 * Math.PI * 1.2 * (now - listenAt) / 1000)) : 1f;
+                border = borderHover = Theme.alpha(Theme.RED, pulse);
+            } else {
+                border = Theme.BORDER;
+                borderHover = Theme.BORDER_HOVER;
+            }
             int fill = rejected ? Theme.alpha(Theme.DANGER, 0.16f) : Theme.CONTROL;
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, fill, border);
-            text(ctx, text, right - w + (w - width(text)) / 2, midY - 4, rejected || conflict ? Theme.DANGER : l ? Theme.RED_BRIGHT : Theme.TEXT, false);
+            int fillHover = rejected ? fill : Theme.CONTROL_HOVER;
+            // Just bound (or cleared): the box flashes accent-tinted and back.
+            float flash = keyFlash(self, now);
+            if (flash > 0f) {
+                fill = mix(fill, Theme.tint(0.25f), flash);
+                fillHover = mix(fillHover, Theme.tint(0.25f), flash);
+            }
+            // The whole row is the control (a click anywhere on it binds), so the box lights up with the row.
+            button(ctx, "key:" + rid, x1, midY - 7, right, midY + 7, rowHover, fill, fillHover, border, borderHover);
+            // Clipped to the box while it is still narrower than its new text.
+            boolean clip = bw < tw + 6;
+            if (clip) ctx.enableScissor(x1 + 2, midY - 7, right - 2, midY + 7);
+            try {
+                text(ctx, text, x1 + (bw - tw) / 2, midY - 4, rejected || conflict ? Theme.DANGER : l ? Theme.RED_BRIGHT : Theme.TEXT, false);
+            } finally {
+                if (clip) ctx.disableScissor();
+            }
             String hint = rejected ? rejectMsg : l ? (isMenuKey(self) ? "Esc cancel · Del reset" : "Esc cancel · Del clear")
                     : conflict && rowHover ? "In use elsewhere" : null;
             if (hint != null) {
                 int hw = width(Role.SMALL, hint);
-                text(ctx, hint, right - w - 8 - hw, midY - 3, rejected || conflict ? Theme.DANGER : Theme.TEXT_FAINT, Role.SMALL);
+                text(ctx, hint, x1 - 8 - hw, midY - 3, rejected || conflict ? Theme.DANGER : Theme.TEXT_FAINT, Role.SMALL);
             }
         } else if (row instanceof BooleanSetting b) {
             Theme.toggle(ctx, right - 20, midY - 5, animate(b, b.get() ? 1 : 0, 14));
@@ -1145,43 +1504,65 @@ public class EvadeMenu extends Screen {
                 String v = n.display();
                 int vx = sx - 8 - width(v);
                 boolean hv = rowHover && mx >= vx - 4 && mx < sx - 4;
-                if (hv) Theme.roundBordered(ctx, vx - 4, midY - 7, sx - 4, midY + 7, Theme.CONTROL, Theme.BORDER);
-                text(ctx, v, vx, midY - 4, hv ? Theme.TEXT : Theme.TEXT_DIM, false);
+                // The value's box (click it to type a value) fades in under the mouse.
+                float vh = animate("bh:num:" + rowId(row, mod), hv ? 1 : 0, 22);
+                if (vh > 0.01f)
+                    Theme.roundBordered(ctx, vx - 4, midY - 7, sx - 4, midY + 7, Theme.alpha(Theme.CONTROL, vh), Theme.alpha(Theme.BORDER, vh));
+                text(ctx, v, vx, midY - 4, Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, vh), false);
             }
             if (rowHover && mx >= sx - 8 - Math.max(48, width(n.display()) + 14) && mx <= right + 6) hoverSlider = n;
         } else if (row instanceof ModeSetting md) {
+            String rid = rowId(row, mod);
             String v = md.get();
-            int w = Math.max(70, width(v) + 30);
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, Theme.BORDER);
-            icon(ctx, "chevron_l", right - w + 4, midY - 4, 7, Theme.RED);
-            icon(ctx, "chevron_r", right - 11, midY - 4, 7, Theme.RED);
-            text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
+            // The chip eases to the new value's width, growing and shrinking to the left.
+            int bw = Math.round(animate("mw:" + rid, modeChipW(v), 20));
+            int x1 = right - bw;
+            boolean hv = rowHover && mx >= x1 && mx <= right;
+            button(ctx, "mode:" + rid, x1, midY - 7, right, midY + 7, hv, Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.BORDER_HOVER);
+            // Each chevron brightens while the half that steps its way is under the mouse (right: next, left: previous).
+            boolean fwd = mx >= x1 + bw / 2.0;
+            float hl = animate("mcl:" + rid, hv && !fwd ? 1 : 0, 22), hr = animate("mcr:" + rid, hv && fwd ? 1 : 0, 22);
+            icon(ctx, "chevron_l", x1 + 4, midY - 4, 7, Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, hl));
+            icon(ctx, "chevron_r", right - 11, midY - 4, 7, Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, hr));
+            modeValue(ctx, md, v, x1, right, midY);
         } else if (row instanceof StringSetting st) {
             boolean editable = editable(st);
+            // Long values (Hidden Modules, custom texts) stop at half the row, so they never run over the label.
+            int maxW = Math.max(90, cw / 2);
             if (editor != null && editor.target == st) {
-                int ew = Math.max(90, width(editor.text) + 16);
+                int ew = Math.min(maxW, Math.max(90, width(editor.text) + 16));
                 editor.render(ctx, right - ew, midY - 7, right, midY + 7);
                 return;
             }
-            String v = st.get();
-            int w = Math.max(60, width(v) + 16);
-            boolean hv = editable && rowHover && mx >= right - w && mx < right;
-            Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, hv ? Theme.CONTROL_HOVER : Theme.CONTROL, hv ? Theme.BORDER_HOVER : Theme.BORDER);
+            String full = st.get();
+            String v = width(full) + 16 > maxW ? ellipsize(Role.BODY, full, maxW - 16) : full;
+            int w = Math.min(maxW, Math.max(60, width(v) + 16));
+            // A click anywhere on the row edits the value (or runs its action), so the box lights up with the row.
+            // A read-only status value never does.
+            boolean hv = (editable || st.clickAction() != null) && rowHover;
+            button(ctx, "str:" + rowId(row, mod), right - w, midY - 7, right, midY + 7, hv,
+                    Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.BORDER_HOVER);
             text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
             String hint = editable ? "click to edit" : st.hint();
             int hw = width(Role.SMALL, hint);
             text(ctx, hint, right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, Role.SMALL);
         } else if (row instanceof ColorSetting c) {
-            int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
+            String rid = rowId(row, mod);
+            int n = ColorSetting.PALETTE.length, sz = SWATCH, gap = SWATCH_GAP;
             int sx = right - n * (sz + gap) + gap;
-            boolean inPalette = false;
+            int sel = -1;
+            // A value of 0 means "follow the theme" (Keystrokes' key colours): no swatch is picked then.
+            boolean themed = c.get() >>> 24 == 0;
+            for (int i = 0; i < n && sel < 0 && !themed; i++) if ((c.get() | 0xFF000000) == ColorSetting.PALETTE[i]) sel = i;
+            // The swatch under the mouse (as a click would pick it) grows a pixel on each side.
+            int hi = rowHover ? swatchAt(mx, sx) : -1;
+            float selGrow = 0f;
             for (int i = 0; i < n; i++) {
-                int col = ColorSetting.PALETTE[i];
-                int x = sx + i * (sz + gap);
-                boolean sel = (c.get() | 0xFF000000) == col;
-                swatch(ctx, x, midY, sz, col, sel);
-                if (sel) inPalette = true;
+                float g = settled(animate("swh:" + rid + ":" + i, i == hi ? 1 : 0, 22));
+                if (i == sel) selGrow = g;
+                swatch(ctx, sx + i * (sz + gap), midY, sz, ColorSetting.PALETTE[i], g);
             }
+            paletteRing(ctx, rid, sx, sel, midY, selGrow);
             if (editor != null && editor.target == c) {
                 int ew = Math.max(62, width(editor.text) + 14);
                 editor.render(ctx, sx - 8 - ew, midY - 7, sx - 8, midY + 7);
@@ -1191,13 +1572,116 @@ public class EvadeMenu extends Screen {
             // small "#" chip. Either one opens a #RRGGBB field.
             int x = customChipX(sx);
             boolean hc = rowHover && mx >= x - 2 && mx < x + sz + 2;
-            if (!inPalette) {
-                swatch(ctx, x, midY, sz, c.get() | 0xFF000000, true);
+            if (themed) {
+                // "Theme": an empty ringed chip marked A (automatic) instead of a black swatch.
+                float h = button(ctx, "hex:" + rid, x - 2, midY - 6, x + sz + 2, midY + 6, hc,
+                        Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.BORDER_HOVER);
+                Theme.stroke(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, Theme.alpha(0xFFFFFFFF, 0.6f + 0.4f * h), 4);
+                int aw = width("A");
+                text(ctx, "A", x + (sz - aw) / 2 + 1, midY - 4, Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, h), false);
+            } else if (sel < 0) {
+                swatch(ctx, x, midY, sz, c.get() | 0xFF000000, 0f);
+                Theme.stroke(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF, 4);
             } else {
-                Theme.roundBordered(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, hc ? Theme.CONTROL_HOVER : Theme.CONTROL, hc ? Theme.BORDER_HOVER : Theme.BORDER);
+                float h = button(ctx, "hex:" + rid, x - 2, midY - 6, x + sz + 2, midY + 6, hc,
+                        Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.BORDER_HOVER);
                 int hw = width("#");
-                text(ctx, "#", x + (sz - hw) / 2 + 1, midY - 4, hc ? Theme.TEXT : Theme.TEXT_DIM, false);
+                text(ctx, "#", x + (sz - hw) / 2 + 1, midY - 4, Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, h), false);
             }
+        }
+    }
+
+    /** A mode chip's width for {@code value}: the text plus room for both chevrons, 70 at least. */
+    private int modeChipW(String value) { return Math.max(70, width(value) + 30); }
+
+    /**
+     * A mode chip's value, centred between {@code x1} and {@code x2}. For {@link #MODE_SWAP_MS} after a cycle the old
+     * value slides 8 px out and fades while the new one slides in from the side the cycle went (forward: from the
+     * right), both clipped to the chip between its chevrons. Snapped to device pixels, so the text stays crisp.
+     */
+    private void modeValue(DrawContext ctx, ModeSetting md, String v, int x1, int x2, int midY) {
+        int bw = x2 - x1;
+        ModeSwap sw = modeSwaps.get(md);
+        float e = 1f;
+        if (sw != null) {
+            double since = clock.getAsDouble() - sw.at();
+            if (anims && since >= 0 && since < MODE_SWAP_MS) e = Motion.cubicOut((float) (since / MODE_SWAP_MS));
+            else modeSwaps.remove(md);
+        }
+        if (sw == null || e >= 1f) {
+            text(ctx, v, x1 + (bw - width(v)) / 2, midY - 4, Theme.TEXT, false);
+            return;
+        }
+        ctx.enableScissor(x1 + 12, midY - 7, x2 - 12, midY + 7);
+        try {
+            slideText(ctx, sw.prev(), x1 + (bw - width(sw.prev())) / 2, midY - 4, -sw.dir() * 8f * e, 1f - e);
+            slideText(ctx, v, x1 + (bw - width(v)) / 2, midY - 4, sw.dir() * 8f * (1f - e), e);
+        } finally {
+            ctx.disableScissor();
+        }
+    }
+
+    /** Body text at (x, y) moved {@code dx} (snapped to a device pixel) and drawn at {@code alpha}. */
+    private void slideText(DrawContext ctx, String s, int x, int y, float dx, float alpha) {
+        if (alpha <= 0.004f) return;
+        var m = ctx.getMatrices();
+        float base = Theme.fade;
+        m.pushMatrix();
+        try {
+            Theme.fade = base * alpha;
+            m.translate(Theme.snap(ctx, dx), 0);
+            text(ctx, s, x, y, Theme.TEXT, false);
+        } finally {
+            Theme.fade = base;
+            m.popMatrix();
+        }
+    }
+
+    /** A colour row's swatch size and the gap between swatches. */
+    private static final int SWATCH = 9, SWATCH_GAP = 3;
+
+    /** Which palette swatch an x picks (a click or the hover), for a palette starting at {@code paletteX}: each takes
+     *  its own width and half the gap on either side. -1 for none. */
+    private static int swatchAt(double mx, int paletteX) {
+        if (mx < paletteX - 2) return -1;
+        int i = (int) Math.floor((mx - paletteX + SWATCH_GAP / 2.0) / (SWATCH + SWATCH_GAP));
+        return i >= 0 && i < ColorSetting.PALETTE.length ? i : -1;
+    }
+
+    /**
+     * The white ring around a colour row's selected swatch (index {@code sel}, -1 for a colour that isn't in the
+     * palette). Picking another swatch slides it there on a spring with a hint of overshoot, drawn at a device-pixel
+     * x; it grows by {@code grow} with the swatch under it, keeping its 1 px gap. A colour outside the palette fades
+     * it out where it is, and the next pick fades it back in on its swatch instead of flying in.
+     */
+    private void paletteRing(DrawContext ctx, String rid, int paletteX, int sel, int midY, float grow) {
+        float a = settled(animate("swa:" + rid, sel >= 0 ? 1 : 0, 18));
+        String key = "sw:" + rid;
+        Motion.Spring s = springObj(key);
+        if (sel >= 0) {
+            float target = sel * (SWATCH + SWATCH_GAP);
+            if (a < 0.5f) s.set(target);
+            spring(key, target, 30f, 0.75f);
+        }
+        if (a <= 0f || !s.init) return;
+        float fx = paletteX + s.x;
+        int ix = (int) Math.floor(fx);
+        var m = ctx.getMatrices();
+        float base = Theme.fade;
+        m.pushMatrix();
+        try {
+            Theme.fade = base * a;
+            m.translate(Theme.snap(ctx, fx - ix), 0);
+            if (grow > 0f) {
+                float c = ix + SWATCH / 2f;
+                m.translate(c, midY);
+                m.scale((SWATCH + 4 + 2 * grow) / (SWATCH + 4), (12 + 2 * grow) / 12f);
+                m.translate(-c, -midY);
+            }
+            Theme.stroke(ctx, ix - 2, midY - 6, ix + SWATCH + 2, midY + 6, 0xFFFFFFFF, 4);
+        } finally {
+            Theme.fade = base;
+            m.popMatrix();
         }
     }
 
@@ -1206,13 +1690,26 @@ public class EvadeMenu extends Screen {
 
     /**
      * One colour swatch, {@code sz} x 8 at x, centred on {@code midY}: a small rounded chip with a faint light
-     * hairline, so near-black colours still show their edge on a dark row. The selected one gets a white ring with a
-     * 1 px gap, in the same footprint the old white plate had.
+     * hairline, so near-black colours still show their edge on a dark row. {@code grow} (0..1, the hover) enlarges it
+     * by up to a pixel on each side about its centre. The selected one's white ring (1 px gap, in the footprint the
+     * old white plate had) is drawn by {@link #paletteRing}, so it can slide between swatches.
      */
-    private static void swatch(DrawContext ctx, int x, int midY, int sz, int color, boolean selected) {
-        Theme.round(ctx, x, midY - 4, x + sz, midY + 4, color, Theme.R_XS);
-        Theme.hairline(ctx, x, midY - 4, x + sz, midY + 4, Theme.alpha(0xFFFFFFFF, 0.12f), 2);
-        if (selected) Theme.stroke(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF, 4);
+    private static void swatch(DrawContext ctx, int x, int midY, int sz, int color, float grow) {
+        var m = ctx.getMatrices();
+        boolean grown = grow > 0f;
+        if (grown) {
+            float c = x + sz / 2f;
+            m.pushMatrix();
+            m.translate(c, midY);
+            m.scale((sz + 2 * grow) / sz, (8 + 2 * grow) / 8f);
+            m.translate(-c, -midY);
+        }
+        try {
+            Theme.round(ctx, x, midY - 4, x + sz, midY + 4, color, Theme.R_XS);
+            Theme.hairline(ctx, x, midY - 4, x + sz, midY + 4, Theme.alpha(0xFFFFFFFF, 0.12f), 2);
+        } finally {
+            if (grown) m.popMatrix();
+        }
     }
 
     // ------------------------------------------------------------------ tooltips
@@ -1329,26 +1826,30 @@ public class EvadeMenu extends Screen {
             Object target = listening;
             if (button >= GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
                 if (!acceptsMouse(target)) reject(target, "Keys only here");
-                else if (bindKey(target, KeySetting.mouseCode(button))) listening = null;
+                else if (bindKey(target, KeySetting.mouseCode(button))) { flashKey(target); listening = null; }
                 return true;
             }
-            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) clearKey(target);
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) { clearKey(target); flashKey(target); }
             listening = null;
             return true;
         }
 
         // close button
-        if (mx >= wx + ww - 24 && mx < wx + ww - 10 && my >= wy + 12 && my < wy + 26) { close(); return true; }
+        if (mx >= wx + ww - 24 && mx < wx + ww - 10 && my >= wy + 12 && my < wy + 26) { press("close"); close(); return true; }
 
         // scrollbar: drag the thumb, or page toward a click on the track
         if (button == 0 && onScrollbar(mx, my)) {
-            int ty = thumbY();
+            float ty = thumbTop();
             if (my >= ty && my < ty + thumbH()) {
                 sbDrag = true;
                 sbGrab = my - ty;
+                // Stop any glide where it is, so the thumb stays under the cursor until the first drag.
+                scrollTarget = scroll;
+                springObj("scroll").set((float) scroll);
             } else {
                 scrollTarget = Math.max(0, Math.min(maxScroll(), scrollTarget + (my < ty ? -sbViewH : sbViewH)));
             }
+            lastScrollAt = clock.getAsDouble();
             return true;
         }
 
@@ -1372,13 +1873,16 @@ public class EvadeMenu extends Screen {
 
         if (selected != null || page == Page.SETTINGS) {
             // back button / master toggle on settings header
-            if (selected != null && my >= searchY && my < searchY + 18 && mx >= cx && mx < cx + 52) { leaveModulePage(); return true; }
+            if (selected != null && my >= searchY && my < searchY + 18 && mx >= cx && mx < cx + 52) { press("back"); leaveModulePage(); return true; }
             if (selected != null && my >= headerY - 4 && my < headerY + 14 && mx >= controlRight() - 22 && mx < controlRight() + 2) {
                 selected.toggle();
                 return true;
             }
             Module rm = selected != null ? selected : settings();
-            if (hasChangedSettings(rm) && my >= headerY - 4 && my < headerY + 12 && mx >= resetX() && mx < resetX() + 52) {
+            // Only once Reset has mostly faded in: a click where it is only just appearing (or fading out) does nothing.
+            if (hasChangedSettings(rm) && anim.getOrDefault(resetKey(rm), 1f) >= 0.5f
+                    && my >= headerY - 4 && my < headerY + 12 && mx >= resetX() && mx < resetX() + 52) {
+                press("reset");
                 for (Setting<?> st : rm.getSettings()) st.reset();
                 if (rm instanceof HudElementModule hem) resetPosition(hem);
                 return true;
@@ -1395,12 +1899,13 @@ public class EvadeMenu extends Screen {
         int segY = headerY - 3;
         if (my >= segY && my < segY + 22 && mx >= segX() && mx < segX() + SEG_W) {
             enabledOnly = mx >= segX() + SEG_W / 2;
-            scrollTarget = 0;
+            resetScroll();
             return true;
         }
         if (my >= segY && my < segY + 22 && mx >= azX() && mx < azX() + AZ_W) {
+            press("az");
             sortAz = !sortAz;
-            scrollTarget = 0;
+            resetScroll();
             return true;
         }
 
@@ -1410,12 +1915,15 @@ public class EvadeMenu extends Screen {
         int cols = columns();
         int rh = rowH(), rg = rowGap();
         int cardW = (cw - rg * (cols - 1)) / cols;
+        int si = scrollPx();
         for (int i = 0; i < mods.size(); i++) {
             int x = cx + (i % cols) * (cardW + rg);
-            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
+            int y = cy + (i / cols) * (rh + rg) - si;
             if (mx < x || mx >= x + cardW || my < y || my >= y + rh) continue;
             Module mod = mods.get(i);
-            if (hasSettingsPage(mod) && (gearHit(mx, my, x, y, cardW) || button == 1)) {
+            boolean gear = hasSettingsPage(mod) && gearHit(mx, my, x, y, cardW);
+            if (gear || (hasSettingsPage(mod) && button == 1)) {
+                if (gear) press("gear:" + mod.getName());
                 openModule(mod);
             } else if (button == 0) {
                 mod.toggle();
@@ -1438,7 +1946,7 @@ public class EvadeMenu extends Screen {
         int top = settingsTop();
         // Only the visible list: the window padding, the backdrop and rows scrolled out of view never react.
         if (mx < cx || mx >= cx + cw || my < top || my >= cy + ch) return true;
-        int y = top - (int) Math.round(scroll);
+        int y = top - scrollPx();
         int right = controlRight();
         for (Object row : rowsFor(mod)) {
             if (my >= y && my < y + ROW_H - 2) {
@@ -1447,12 +1955,20 @@ public class EvadeMenu extends Screen {
                     if (row instanceof Setting<?> st && changed(st)) st.reset();
                     return true;
                 }
-                if (row.equals("keybind")) {
-                    if (button == 1) clearKey(mod); else if (button == 0) listening = mod;
-                } else if (row instanceof KeySetting k) {
-                    if (button == 1) clearKey(k); else if (button == 0) listening = k;
+                String rid = rowId(row, mod);
+                if (row.equals("keybind") || row instanceof KeySetting) {
+                    Object self = row.equals("keybind") ? mod : row;
+                    if (button == 1) {
+                        press("key:" + rid);
+                        clearKey(self);
+                        flashKey(self);
+                    } else if (button == 0) {
+                        press("key:" + rid);
+                        startListening(self);
+                    }
                 } else if (row instanceof StringSetting st) {
                     if (button != 0) return true;
+                    if (st.clickAction() != null || editable(st)) press("str:" + rid);
                     if (st.clickAction() != null) st.clickAction().run();
                     else if (editable(st)) openEditor(st, st.get(), stringLimit(st), StringHelper::isValidChar);
                 } else if (row instanceof BooleanSetting b) {
@@ -1471,21 +1987,27 @@ public class EvadeMenu extends Screen {
                         openEditor(n, n.display(), 12, cp -> Character.isDigit(cp) || cp == '.' || cp == ',' || cp == '-');
                     }
                 } else if (row instanceof ModeSetting md) {
-                    int w = Math.max(70, width(md.get()) + 30);
+                    // The chip as it was drawn (it eases to a new value's width).
+                    int w = Math.round(anim.getOrDefault("mw:" + rid, (float) modeChipW(md.get())));
                     // Only the chip cycles: right half forward, left half (or a right-click) back.
-                    if ((button == 0 || button == 1) && mx >= right - w && mx <= right) md.cycle(button == 0 && mx >= right - w / 2.0);
+                    if ((button == 0 || button == 1) && mx >= right - w && mx <= right) {
+                        boolean forward = button == 0 && mx >= right - w / 2.0;
+                        String prev = md.get();
+                        press("mode:" + rid);
+                        md.cycle(forward);
+                        if (!prev.equals(md.get())) modeSwaps.put(md, new ModeSwap(prev, forward ? 1 : -1, clock.getAsDouble()));
+                    }
                 } else if (row instanceof ColorSetting c) {
                     if (button != 0) return true;
-                    int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
-                    int sx = right - n * (sz + gap) + gap;
+                    int sx = right - ColorSetting.PALETTE.length * (SWATCH + SWATCH_GAP) + SWATCH_GAP;
                     int chip = customChipX(sx);
-                    if (mx >= chip - 2 && mx < chip + sz + 2) {
+                    if (mx >= chip - 2 && mx < chip + SWATCH + 2) {
                         openEditor(c, String.format("#%06X", c.get() & 0xFFFFFF), 7,
                                 cp -> cp == '#' || Character.digit(cp, 16) >= 0);
                         return true;
                     }
-                    int i = (int) Math.floor((mx - sx + gap / 2.0) / (sz + gap));
-                    if (mx >= sx - 2 && i >= 0 && i < n) c.set(ColorSetting.PALETTE[i]);
+                    int i = swatchAt(mx, sx);
+                    if (i >= 0) c.set(ColorSetting.PALETTE[i]);
                 }
                 return true;
             }
@@ -1512,6 +2034,7 @@ public class EvadeMenu extends Screen {
     public boolean mouseReleased(Click click) {
         dragging = null;
         sbDrag = false;
+        pressedKey = null; // the pressed button springs back (a quick tap still shows its dip: see pressed())
         return super.mouseReleased(click);
     }
 
@@ -1532,7 +2055,10 @@ public class EvadeMenu extends Screen {
             nudge(hoverSlider, amount > 0 ? 1 : -1, client != null && client.isShiftPressed() ? 10 : 1);
             return true;
         }
-        scrollTarget = Math.max(0, scrollTarget - v * 32);
+        // Each notch moves the target; the spring blends notches in a row into one glide. Clamped here, not a frame
+        // later, so the list never heads past an end and comes back.
+        scrollTarget = clampTarget(scrollTarget - v * 32);
+        if (v != 0) lastScrollAt = clock.getAsDouble();
         return true;
     }
 
@@ -1544,8 +2070,14 @@ public class EvadeMenu extends Screen {
         if (editor != null) { editor.key(input); return true; }
         if (listening != null) {
             if (key == GLFW.GLFW_KEY_ESCAPE) { listening = null; return true; } // cancel: the key stays as it was
-            if (key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE) { clearKey(listening); listening = null; return true; }
-            if (bindKey(listening, key)) listening = null;
+            // A bound or cleared key flashes its box to confirm it took.
+            if (key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE) {
+                clearKey(listening);
+                flashKey(listening);
+                listening = null;
+                return true;
+            }
+            if (bindKey(listening, key)) { flashKey(listening); listening = null; }
             return true;
         }
         int menuKey = settings().menuKey.get();
@@ -1553,8 +2085,12 @@ public class EvadeMenu extends Screen {
         if (key == GLFW.GLFW_KEY_F && (input.modifiers() & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0) {
             // Ctrl+F (Cmd+F): jump to the search box from anywhere in the menu.
             returnTo = null;
-            if (selected != null) back();
-            if (page == Page.SETTINGS || page == Page.PROFILES) page = Page.ALL;
+            if (selected != null) back(); // slides the list back in from the left
+            else if (page == Page.SETTINGS || page == Page.PROFILES) pageChanged(0);
+            if (page == Page.SETTINGS || page == Page.PROFILES) {
+                page = Page.ALL;
+                resetScroll(); // a new page: its list starts at the top
+            }
             searchFocused = true;
             return true;
         }
@@ -1563,7 +2099,7 @@ public class EvadeMenu extends Screen {
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (profiles && (profileFocused || !profileInput.isEmpty())) { profileInput = ""; profileFocused = false; return true; }
             if (selected != null) { leaveModulePage(); return true; }
-            if (!search.isEmpty()) { search = ""; searchFocused = false; scrollTarget = 0; return true; }
+            if (!search.isEmpty()) { search = ""; searchFocused = false; resetScroll(); return true; }
             close();
             return true;
         }
@@ -1575,7 +2111,7 @@ public class EvadeMenu extends Screen {
             } else {
                 searchFocused = true;
                 search = cap(search + clip, 32);
-                scrollTarget = 0;
+                resetScroll();
             }
             return true;
         }
@@ -1592,7 +2128,7 @@ public class EvadeMenu extends Screen {
         if (listPage && key == GLFW.GLFW_KEY_BACKSPACE && !search.isEmpty()) {
             search = search.substring(0, search.length() - 1);
             searchFocused = true;
-            scrollTarget = 0;
+            resetScroll();
             return true;
         }
         if (listPage && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) && !search.isBlank()) {
@@ -1606,12 +2142,17 @@ public class EvadeMenu extends Screen {
             return true;
         }
         if (hasScrollbar()) {
-            switch (key) {
-                case GLFW.GLFW_KEY_PAGE_UP -> { scrollTarget = Math.max(0, scrollTarget - sbViewH); return true; }
-                case GLFW.GLFW_KEY_PAGE_DOWN -> { scrollTarget = Math.min(maxScroll(), scrollTarget + sbViewH); return true; }
-                case GLFW.GLFW_KEY_HOME -> { scrollTarget = 0; return true; }
-                case GLFW.GLFW_KEY_END -> { scrollTarget = maxScroll(); return true; }
-                default -> { }
+            double to = switch (key) {
+                case GLFW.GLFW_KEY_PAGE_UP -> scrollTarget - sbViewH;
+                case GLFW.GLFW_KEY_PAGE_DOWN -> scrollTarget + sbViewH;
+                case GLFW.GLFW_KEY_HOME -> 0;
+                case GLFW.GLFW_KEY_END -> maxScroll();
+                default -> Double.NaN;
+            };
+            if (!Double.isNaN(to)) {
+                scrollTarget = Math.max(0, Math.min(maxScroll(), to));
+                lastScrollAt = clock.getAsDouble();
+                return true;
             }
         }
         if (key == menuKey) {
@@ -1656,7 +2197,7 @@ public class EvadeMenu extends Screen {
         // Typing anywhere starts a search, like a launcher.
         searchFocused = true;
         if (search.length() < 32) search += input.asString();
-        scrollTarget = 0;
+        resetScroll();
         return true;
     }
 
@@ -1730,10 +2271,11 @@ public class EvadeMenu extends Screen {
 
     private static boolean editable(StringSetting st) { return !(st instanceof StatusSetting) && st.clickAction() == null; }
 
-    /** Longest value a text setting takes from the menu: the Nick Hider name is capped like {@code .nick}. */
+    /** Longest value a text setting takes from the menu: its own cap when it sets one, else 32 (Nick Hider: 16). */
     private static int stringLimit(StringSetting st) {
         var nh = EvadeClient.modules.get(net.evadeclient.module.visuals.NickHider.class);
-        return nh != null && nh.nick == st ? 16 : 32;
+        if (nh != null && nh.nick == st) return Math.min(16, st.getMaxLength());
+        return st.getMaxLength() < StringSetting.DEFAULT_MAX_LENGTH ? st.getMaxLength() : 32;
     }
 
     private void openEditor(Setting<?> target, String initial, int max, IntPredicate allowed) {
@@ -1792,6 +2334,8 @@ public class EvadeMenu extends Screen {
         boolean all = true;
         double typedAt = clock.getAsDouble();
         int x1, y1, x2, y2;
+        /** Pixels the text is scrolled left, so the caret stays in view in a field narrower than its text. */
+        int scroll;
 
         Editor(Setting<?> target, String initial, int max, IntPredicate allowed) {
             this.target = target;
@@ -1805,12 +2349,25 @@ public class EvadeMenu extends Screen {
         void render(DrawContext ctx, int x1, int y1, int x2, int y2) {
             this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
             Theme.roundBordered(ctx, x1, y1, x2, y2, Theme.INPUT, Theme.RED);
-            int tx = x1 + 6, ty = (y1 + y2) / 2 - 4;
-            if (all && !text.isEmpty()) Theme.fill(ctx, tx - 1, ty - 1, tx + width(text) + 1, ty + 9, Theme.alpha(Theme.RED, 0.45f));
-            text(ctx, text, tx, ty, Theme.TEXT, false);
-            if (!all && blink(typedAt)) {
-                int cxp = tx + width(text.substring(0, caret));
-                Theme.fill(ctx, cxp, ty - 1, cxp + 1, ty + 9, Theme.TEXT);
+            int ty = (y1 + y2) / 2 - 4;
+            // Keep the caret (or, with everything selected, the start) inside the field.
+            int caretPx = all ? 0 : width(text.substring(0, Math.min(caret, text.length())));
+            int room = Math.max(1, x2 - x1 - 12);
+            scroll = Math.max(0, Math.min(scroll, caretPx));
+            scroll = Math.max(scroll, caretPx - room);
+            scroll = Math.max(0, Math.min(scroll, Math.max(0, width(text) - room)));
+            int tx = x1 + 6 - scroll;
+            boolean clip = width(text) > room;
+            if (clip) ctx.enableScissor(x1 + 2, y1, x2 - 2, y2);
+            try {
+                if (all && !text.isEmpty()) Theme.fill(ctx, tx - 1, ty - 1, tx + width(text) + 1, ty + 9, Theme.alpha(Theme.RED, 0.45f));
+                text(ctx, text, tx, ty, Theme.TEXT, false);
+                if (!all && blink(typedAt)) {
+                    int cxp = tx + caretPx;
+                    Theme.fill(ctx, cxp, ty - 1, cxp + 1, ty + 9, Theme.TEXT);
+                }
+            } finally {
+                if (clip) ctx.disableScissor();
             }
         }
 
@@ -1819,7 +2376,7 @@ public class EvadeMenu extends Screen {
         /** Put the caret at the gap nearest to {@code mx}. */
         void clickAt(double mx) {
             all = false;
-            int tx = x1 + 6, best = 0;
+            int tx = x1 + 6 - scroll, best = 0;
             double bestD = Double.MAX_VALUE;
             for (int i = 0; i <= text.length(); i++) {
                 double d = Math.abs(tx + width(text.substring(0, i)) - mx);
@@ -1876,22 +2433,11 @@ public class EvadeMenu extends Screen {
 
     // ---- number steps -------------------------------------------------
 
-    /**
-     * Move {@code n} by {@code steps} of its step size in direction {@code dir}. The step is found by asking the
-     * setting itself: the smallest offset it doesn't snap back is exactly one step (it rounds to the nearest step).
-     */
+    /** Move {@code n} by {@code steps} of its step size (a hundredth of its range when it has none) in direction {@code dir}. */
     private static void nudge(NumberSetting n, int dir, int steps) {
-        double range = n.getMax() - n.getMin();
-        if (!(range > 0)) return;
-        for (int s = 0; s < steps; s++) {
-            double v0 = n.get();
-            boolean moved = false;
-            for (double d = range * 1e-7; d <= range * 2; d *= 2) {
-                n.set(v0 + dir * d);
-                if (Math.abs(n.get() - v0) > range * 1e-9) { moved = true; break; }
-            }
-            if (!moved) { n.set(v0); return; }
-        }
+        double step = n.getStep() > 0 ? n.getStep() : (n.getMax() - n.getMin()) / 100;
+        if (!(step > 0)) return;
+        n.set(n.get() + dir * steps * step);
     }
 
     // ---- navigation -----------------------------------------------------
@@ -1899,13 +2445,16 @@ public class EvadeMenu extends Screen {
     private void openModule(Module mod) {
         commitEditor();
         listening = null;
+        if (mod != selected) pageChanged(1);
         selected = mod;
-        scroll = scrollTarget = 0;
+        resetScroll();
     }
 
     private void go(Page p) {
         commitEditor();
         listening = null;
+        // Fade through only when what the content shows changes (not a click on the page already on screen at rest).
+        if (p != page || selected != null || !search.isEmpty() || scrollTarget != 0 || scroll >= 0.5) pageChanged(0);
         page = p;
         selected = null;
         returnTo = null;
@@ -1914,14 +2463,15 @@ public class EvadeMenu extends Screen {
         profileInput = "";
         profileFocused = false;
         pendingDelete = null;
-        scroll = scrollTarget = 0;
+        resetScroll();
     }
 
     private void back() {
         commitEditor();
         listening = null;
+        if (selected != null) pageChanged(-1);
         selected = null;
-        scroll = scrollTarget = 0;
+        resetScroll();
     }
 
     /** Escape or Back on a module page: back to the screen that opened it (the HUD editor), else to the list. */
@@ -2029,6 +2579,119 @@ public class EvadeMenu extends Screen {
     /** The spring for {@code key}, created on first use (it starts on whatever target it is first stepped to). */
     private Motion.Spring springObj(Object key) {
         return springs.computeIfAbsent(key, k -> new Motion.Spring());
+    }
+
+    // ---- buttons: hover and press feedback ---------------------------
+
+    /**
+     * A push button's shape, from x1,y1 to x2,y2. Its fill and border cross-fade to their hover colours (about
+     * 100 ms). While it is held ({@link #pressed}) it darkens a little and dips about 3/4 px on each side (snapped to a
+     * device pixel) on a quick, slightly bouncy spring, and springs back on release. Only the shape is scaled: the
+     * caller draws the label and icon after this returns, so text stays crisp. A button whose border colours equal
+     * its fill colours is drawn without a ring. Returns the hover amount (0..1) for the label and icon to blend with.
+     */
+    private float button(DrawContext ctx, String id, int x1, int y1, int x2, int y2, boolean hover,
+                         int fill, int fillHover, int border, int borderHover) {
+        float h = animate("bh:" + id, hover ? 1 : 0, 22);
+        float p = Math.max(0f, spring("bp:" + id, pressed(id) ? 1 : 0, 40f, 0.7f));
+        float in = Theme.snap(ctx, 0.75f * p);
+        int f = mix(fill, fillHover, h);
+        f = Theme.lerpColor(f, f & 0xFF000000, 0.12f * p); // darker, at the same opacity
+        boolean ring = border != fill || borderHover != fillHover;
+        int w = x2 - x1, ht = y2 - y1;
+        boolean dip = in > 0f && 2 * in < w && 2 * in < ht;
+        var m = ctx.getMatrices();
+        if (dip) {
+            // Scaled about the centre so each edge moves in by exactly `in`: whole device pixels, so no edge blurs.
+            float cxm = (x1 + x2) / 2f, cym = (y1 + y2) / 2f;
+            m.pushMatrix();
+            m.translate(cxm, cym);
+            m.scale(1f - 2f * in / w, 1f - 2f * in / ht);
+            m.translate(-cxm, -cym);
+        }
+        try {
+            if (ring) Theme.roundBordered(ctx, x1, y1, x2, y2, f, mix(border, borderHover, h));
+            else Theme.round(ctx, x1, y1, x2, y2, f);
+        } finally {
+            if (dip) m.popMatrix();
+        }
+        return h;
+    }
+
+    /** A click landed on the button or control {@code id} (see {@link #button}): it shows pressed until the mouse is
+     *  released, and for at least {@link #PRESS_MIN_MS}. */
+    private void press(String id) {
+        pressedKey = id;
+        tapKey = id;
+        pressedAt = clock.getAsDouble();
+    }
+
+    /** Whether {@code id} looks pressed: held down, or tapped less than {@link #PRESS_MIN_MS} ago. */
+    private boolean pressed(String id) {
+        if (id.equals(pressedKey)) return true;
+        if (!id.equals(tapKey)) return false;
+        double since = clock.getAsDouble() - pressedAt;
+        return since >= 0 && since < PRESS_MIN_MS;
+    }
+
+    /**
+     * {@code a} blended toward {@code b} by {@code t}, in premultiplied alpha: a fade between an opaque and a
+     * translucent colour (a grey button and a faint red one) never passes through a colour brighter than both ends,
+     * as a straight per-channel blend does when it carries the translucent colour's full RGB into a mostly opaque mix.
+     * The same as {@link Theme#lerpColor} for two opaque colours.
+     */
+    private static int mix(int a, int b, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        if (t == 0f) return a;
+        if (t == 1f) return b;
+        float aa = (a >>> 24) / 255f, ba = (b >>> 24) / 255f;
+        float oa = aa + (ba - aa) * t;
+        if (oa <= 0f) return 0;
+        int r = mixChannel(a >> 16 & 255, aa, b >> 16 & 255, ba, t, oa);
+        int g = mixChannel(a >> 8 & 255, aa, b >> 8 & 255, ba, t, oa);
+        int bl = mixChannel(a & 255, aa, b & 255, ba, t, oa);
+        return Math.round(oa * 255f) << 24 | r << 16 | g << 8 | bl;
+    }
+
+    private static int mixChannel(int ca, float aa, int cb, float ba, float t, float oa) {
+        float v = (ca * aa + (cb * ba - ca * aa) * t) / oa;
+        return Math.max(0, Math.min(255, Math.round(v)));
+    }
+
+    /** A settings row's id for its control's animations and press state, unique across modules (two modules can
+     *  have settings of the same name, and every module has a Toggle Key row). */
+    private static String rowId(Object row, Module mod) {
+        return mod.getName() + "/" + (row instanceof Setting<?> st ? st.getName() : "keybind");
+    }
+
+    /** The animation key of a module page's Reset button (see renderSettingsPage): one per module, so a page never
+     *  shows another page's Reset fading out. */
+    private static String resetKey(Module mod) { return "reset:" + mod.getName(); }
+
+    /** Start waiting for a key for {@code target} (a module's keybind or a KeySetting). */
+    private void startListening(Object target) {
+        listening = target;
+        listenAt = clock.getAsDouble();
+    }
+
+    /** {@code target}'s key box just took a key (or was cleared): it flashes to confirm (see {@link #keyFlash}). */
+    private void flashKey(Object target) {
+        keyFlashAt.put(target, clock.getAsDouble());
+    }
+
+    /** How strongly {@code row}'s key box is flashing at {@code now}: up to 1 within the first fifth of
+     *  {@link #KEY_FLASH_MS}, then easing back to 0. Never with Animations off. */
+    private float keyFlash(Object row, double now) {
+        Double at = keyFlashAt.get(row);
+        if (at == null) return 0f;
+        double t = (now - at) / KEY_FLASH_MS;
+        if (!anims || t < 0 || t >= 1) {
+            keyFlashAt.remove(row);
+            return 0f;
+        }
+        if (t < 0.2) return Motion.cubicOut((float) (t / 0.2));
+        float u = (float) (1 - (t - 0.2) / 0.8);
+        return u * u;
     }
 
     /** Whether a caret blinking every 500 ms since {@code since} ({@link #clock} ms) is in its shown half. */
@@ -2194,49 +2857,21 @@ public class EvadeMenu extends Screen {
         return !st.isHidden() && !(st instanceof StatusSetting) && !st.isDefault();
     }
 
-    // ------------------------------------------------------------------ newer APIs, used when present
-    // Setting descriptions, server-address normalisation and HUD position reset are added by other parts of the
-    // client. Looked up once by name so the menu works (without them) on any build; replace with direct calls once
-    // they have landed everywhere.
+    // ------------------------------------------------------------------ small API bridges
 
-    private static java.lang.reflect.Method describeMethod, isLinkedMethod, resetPositionMethod;
-    private static boolean describeLooked, isLinkedLooked, resetPositionLooked;
-
-    /** A setting's description ({@code Setting.getDescription()}), or "" when it has none. */
+    /** A setting's description, or "" when it has none. */
     private static String descriptionOf(Setting<?> st) {
-        if (!describeLooked) {
-            describeLooked = true;
-            try { describeMethod = Setting.class.getMethod("getDescription"); } catch (ReflectiveOperationException ignored) { }
-        }
-        if (describeMethod == null) return "";
-        try {
-            Object d = describeMethod.invoke(st);
-            return d instanceof String s ? s : "";
-        } catch (ReflectiveOperationException e) {
-            return "";
-        }
+        String d = st.getDescription();
+        return d == null ? "" : d;
     }
 
     /** Whether {@code profile} is linked to {@code address}, with addresses compared the way ProfileManager stores them. */
     private static boolean isLinked(String profile, String address) {
-        var profiles = EvadeClient.profiles;
-        if (!isLinkedLooked) {
-            isLinkedLooked = true;
-            try { isLinkedMethod = profiles.getClass().getMethod("isLinked", String.class, String.class); } catch (ReflectiveOperationException ignored) { }
-        }
-        if (isLinkedMethod != null) {
-            try { return Boolean.TRUE.equals(isLinkedMethod.invoke(profiles, profile, address)); } catch (ReflectiveOperationException ignored) { }
-        }
-        return profiles.serversFor(profile).contains(address.trim().toLowerCase(Locale.ROOT));
+        return EvadeClient.profiles.isLinked(profile, address);
     }
 
-    /** Put a HUD element back at its default spot ({@code HudElementModule.resetPosition()}), when available. */
+    /** Put a HUD element back at its default spot. */
     private static void resetPosition(HudElementModule hem) {
-        if (!resetPositionLooked) {
-            resetPositionLooked = true;
-            try { resetPositionMethod = HudElementModule.class.getMethod("resetPosition"); } catch (ReflectiveOperationException ignored) { }
-        }
-        if (resetPositionMethod == null) return;
-        try { resetPositionMethod.invoke(hem); } catch (ReflectiveOperationException ignored) { }
+        hem.resetPosition();
     }
 }

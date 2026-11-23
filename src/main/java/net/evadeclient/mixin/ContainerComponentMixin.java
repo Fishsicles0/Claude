@@ -14,8 +14,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.function.Consumer;
 
 /**
- * BetterTooltips "Shulker Contents" lists a container's full contents itself, so vanilla's short list (the first five
- * stacks and "and N more...") is left out instead of showing the same items twice. Only while that setting is on.
+ * BetterTooltips shows a container's full contents itself (grid, list or compact row), so vanilla's short list (the
+ * first five stacks and "and N more...") is left out instead of showing the same items twice. Only while Shulker
+ * Display isn't Off and Hide Vanilla Summary is on.
  */
 @Mixin(ContainerComponent.class)
 public abstract class ContainerComponentMixin {

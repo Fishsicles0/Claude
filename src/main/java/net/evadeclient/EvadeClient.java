@@ -60,11 +60,18 @@ public class EvadeClient implements ClientModInitializer {
             if (dt == null || !dt.isEnabled()) return;
             try { dt.draw(ctx); } catch (Exception e) { ModuleManager.crashed(dt, e, "HUD"); }
         });
-        // Custom crosshair and potion HUD replace the vanilla ones while enabled.
+        // Custom crosshair and potion HUD replace the vanilla ones while enabled. The crosshair hands back to vanilla
+        // when vanilla's own rules apply (F3's 3D crosshair).
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (ctx, tc) -> {
             var ch = modules.get(net.evadeclient.module.mods.Crosshair.class);
-            if (ch == null || !ch.isEnabled()) { vanilla.render(ctx, tc); return; }
-            try { ch.draw(ctx); } catch (Exception e) { ModuleManager.crashed(ch, e, "HUD"); vanilla.render(ctx, tc); }
+            boolean drawn;
+            try {
+                drawn = ch != null && ch.isEnabled() && ch.draw(ctx);
+            } catch (Exception e) {
+                ModuleManager.crashed(ch, e, "HUD");
+                drawn = false;
+            }
+            if (!drawn) vanilla.render(ctx, tc);
         });
         HudElementRegistry.replaceElement(VanillaHudElements.STATUS_EFFECTS, vanilla -> (ctx, tc) -> {
             var ph = modules.get(net.evadeclient.module.hud.PotionHud.class);
@@ -80,29 +87,42 @@ public class EvadeClient implements ClientModInitializer {
         // Profiles linked to a server switch in automatically when you join it.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             var entry = client.getCurrentServerEntry();
+            // AutoTip starts its timer for every connection (it checks the server itself).
+            net.evadeclient.module.misc.AutoTip.onJoin(entry);
             if (entry == null || client.isInSingleplayer()) return;
             String switched = profiles.onJoinServer(entry.address);
             if (switched != null) Notifications.push("Profile", "Switched to " + switched + " for this server", true);
         }));
+        // A real disconnect (not a server switch behind a proxy) ends AutoTip's session count. May come off-thread.
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                client.execute(net.evadeclient.module.misc.AutoTip::onDisconnect));
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
         net.evadeclient.replay.Replays.init();
-        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
-                net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));
         // Fabric gives a screen fresh per-screen events on every init and resize, so these are added each time.
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            if (screen instanceof net.minecraft.client.gui.screen.DisconnectedScreen)
+            if (screen instanceof net.minecraft.client.gui.screen.DisconnectedScreen) {
                 ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) ->
                         net.evadeclient.module.misc.AutoReconnect.renderOverlay(ctx, s.width));
+                net.evadeclient.module.misc.AutoReconnect.addButtons(screen);
+            }
+            if (screen instanceof net.minecraft.client.gui.screen.TitleScreen)
+                net.evadeclient.module.misc.AutoReconnect.addTitleButton(screen);
             // Menu feedback ("Code copied", "Profile imported") shows over the menu and its blur.
             ScreenEvents.afterRender(screen).register((s, ctx, mx, my, delta) -> Notifications.render(ctx));
         });
-        // Only system (game) messages: end-of-game announcements come this way, ordinary player chat does not.
+        // System (game) messages: end-of-game announcements come this way, ordinary player chat does not.
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
-                net.evadeclient.module.misc.AutoGG.onMessage(message.getString());
+                net.evadeclient.module.misc.AutoGG.onGame(message.getString());
                 net.evadeclient.module.misc.Clips.onMessage(message.getString());
             }
         });
+        // Player chat: AutoGG reads it only with Trigger Source set to System + Chat.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.CHAT.register((message, signed, sender, params, at) ->
+                net.evadeclient.module.misc.AutoGG.onChat(message.getString()));
+        // AutoTip can keep the server's replies to its own tip out of chat.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) ->
+                net.evadeclient.module.misc.AutoTip.allow(message, overlay));
 
         LOG.info("{} {} loaded with {} modules", NAME, VERSION, modules.all().size());
     }

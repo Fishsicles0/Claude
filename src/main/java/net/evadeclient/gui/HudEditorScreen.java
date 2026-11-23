@@ -29,10 +29,20 @@ public class HudEditorScreen extends Screen {
     private boolean centred;
     /** Mouse position in HUD units, from the last frame (for the keyboard shortcuts). */
     private double mouseHudX = -1, mouseHudY = -1;
+    /** "Back to Mods" hover cross-fade (0 = rest, 1 = hovered), eased like the menu's buttons (about 100 ms). */
+    private float barHover;
+    /** Clock time of the last frame that drew the bar (NaN after the screen was shown, so no big first step). */
+    private double barFrameAt = Double.NaN;
 
     public HudEditorScreen(Screen parent) {
         super(Text.literal("Edit HUD"));
         this.parent = parent;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        barFrameAt = Double.NaN;
     }
 
     @Override
@@ -133,7 +143,9 @@ public class HudEditorScreen extends Screen {
                 int lw = textRenderer.getWidth(label) + 6;
                 int lx = Math.max(0, Math.min(x - 1, width - lw));
                 int ly = y > 12 ? y - 11 : Math.min(height - 11, y + h + 2);
-                Theme.round(ctx, lx, ly - 1, lx + lw, ly + 10, 0xE0000000);
+                // A soft shadow lifts the tag off whatever is behind it (bright sky, other elements).
+                Theme.shadow(ctx, Theme.SH_HUD, lx, ly - 1, lx + lw, ly + 10, Theme.alpha(0xFF000000, 0.5f));
+                Theme.round(ctx, lx, ly - 1, lx + lw, ly + 10, 0xE0000000, Theme.R_HUD);
                 ctx.drawText(textRenderer, label, lx + 3, ly + 1, Theme.RED_BRIGHT, false);
             }
         }
@@ -144,7 +156,15 @@ public class HudEditorScreen extends Screen {
         if (dragging != null) return;
         int by = barY(mouseX, mouseY), bx = barX();
         boolean hb = hovered == null && onBar(mouseX, mouseY, by);
-        Theme.round(ctx, bx, by, bx + BAR_W, by + BAR_H, hb ? Theme.RED_BRIGHT : Theme.RED);
+        // Cross-fades to the hover colour like the menu's buttons instead of snapping.
+        double now = EvadeMenu.clock.getAsDouble();
+        float dtSec = Double.isNaN(barFrameAt) ? 0f : (float) Math.max(0, Math.min(0.1, (now - barFrameAt) / 1000));
+        barFrameAt = now;
+        var cs = EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
+        boolean anims = cs == null || cs.animations.get();
+        float target = hb ? 1f : 0f;
+        barHover = anims ? barHover + (target - barHover) * (1 - (float) Math.exp(-22 * dtSec)) : target;
+        Theme.round(ctx, bx, by, bx + BAR_W, by + BAR_H, Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, barHover));
         String t = "Back to Mods";
         ctx.drawText(textRenderer, t, bx + (BAR_W - textRenderer.getWidth(t)) / 2, by + 5, Theme.ON_ACCENT, false);
         String[] lines = hintLines();

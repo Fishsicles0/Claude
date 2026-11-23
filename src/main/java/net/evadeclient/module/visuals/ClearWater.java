@@ -10,8 +10,8 @@ import net.minecraft.client.render.Camera;
 
 /**
  * Removes the underwater fog (and optionally the blue water overlay) so you can see clearly when swimming. The edge
- * of your render distance still fades as in vanilla (NoFog removes that), and Blindness and Darkness still apply.
- * The fog itself is changed in FogRendererMixin.
+ * of your render distance still fades as in vanilla, and Blindness and Darkness still apply. Lava, powder snow and
+ * the fog above water are not touched (NoFog handles open air). The fog itself is changed in FogRendererMixin.
  */
 public class ClearWater extends Module {
     public final BooleanSetting overlay = add(new BooleanSetting("Hide Water Overlay", true));
