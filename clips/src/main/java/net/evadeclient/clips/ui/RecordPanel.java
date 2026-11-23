@@ -5,27 +5,35 @@ import net.evadeclient.clips.core.CaptureSource;
 import net.evadeclient.clips.core.Clip;
 import net.evadeclient.clips.core.Ffmpeg;
 
-import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSlider;
 import javax.swing.JSpinner;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.Scrollable;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
@@ -33,13 +41,23 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.Window;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Capture: instant replay status and controls, recording, and every capture setting. */
 public final class RecordPanel extends JPanel {
+    static final Icon REC_ICON = Theme.icon(Theme.Glyph.RECORD, 16, Theme.RED), STOP_ICON = Theme.icon(Theme.Glyph.STOP, 16, Theme.RED);
+    private static final String AUTO_ENCODER = "Automatic (best available)", DETECTING = "Detecting encoders…";
+
     private final App app;
     private Hero hero;
     private final JComboBox<String> source = new JComboBox<>(new String[]{"Entire screen", "Game window", "Region"});
@@ -70,15 +88,38 @@ public final class RecordPanel extends JPanel {
     private final JSlider micVol = new JSlider(0, 200, 100);
     private final JCheckBox voice = new JCheckBox("Record voice chat on its own track");
     private final JComboBox<String> voiceDevice = new JComboBox<>();
-    private final JComboBox<String> replayLen = new JComboBox<>(new String[]{"15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes", "10 minutes"});
-    private static final int[] REPLAY_LENS = {15, 30, 60, 120, 300, 600};
+    /** Replay lengths offered (a length set elsewhere, e.g. by CS2 full rounds, is added to the list). */
+    private static final int[] REPLAY_LENS = {15, 30, 60, 120, 150, 300, 600};
+    private final List<Integer> lenValues = new ArrayList<>();
+    private final JComboBox<String> replayLen = new JComboBox<>();
     private final JComboBox<String> postRoll = new JComboBox<>(new String[]{"+0 s after", "+3 s after", "+5 s after", "+10 s after"});
     private static final int[] POST_ROLLS = {0, 3, 5, 10};
     private final JLabel warn = Theme.label(" ", 12f, false, Theme.GOLD);
+    /** "New capture settings apply when this recording stops". */
+    private final JLabel restartNote = Theme.label(" ", 12f, false, Theme.DIM);
+    private boolean pendingNote;
     private final JPanel recent = new JPanel();
+    private String recentKey = "";
     private final Timer restartLater;
     private boolean loading;
     private Map<String, String> devices = Map.of();
+    /** No desktop-audio device was found (Windows / macOS), so "Default" records no game sound. */
+    private boolean noDefaultSys, noDefaultMic;
+    private boolean devicesLoaded;
+    /** Cached: checking for ffmpeg looks through folders, too slow for every repaint. */
+    private volatile boolean ffmpegOk = Ffmpeg.available();
+    private final ExecutorService background = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "record-page");
+        t.setDaemon(true);
+        return t;
+    });
+    private int rateGen;
+    /** The encoder list has been filled (until then the saved encoder is left alone). */
+    private boolean encodersReady;
+    private final Body body = new Body();
+    private JPanel videoCard, rightColumn;
+    private final JPanel cols = new JPanel();
+    private boolean twoColumns;
 
     public RecordPanel(App app) {
         super(new BorderLayout());
@@ -86,11 +127,16 @@ public final class RecordPanel extends JPanel {
         hero = new Hero();
         setBackground(Theme.PANEL);
         restartLater = new Timer(700, e -> new Thread(() -> {
-            try { app.engine.restart(); } catch (Exception ex) { app.notify("Capture restart failed", ex.getMessage(), true); }
+            try {
+                if (app.engine.isRecording()) { app.engine.restart(); return; } // started meanwhile: applied when it stops
+                boolean wasLive = app.engine.isLive();
+                app.engine.restart();
+                if (wasLive && app.settings.showToast && app.toast != null)
+                    SwingUtilities.invokeLater(() -> app.toast.show("Capture restarted with new settings", "The replay buffer was cleared", false));
+            } catch (Exception ex) { app.notify("Capture restart failed", ex.getMessage(), true); }
         }, "capture-restart").start());
         restartLater.setRepeats(false);
 
-        JPanel body = new JPanel();
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBackground(Theme.PANEL);
         Theme.pad(body, 22, 26, 30, 26);
@@ -103,55 +149,92 @@ public final class RecordPanel extends JPanel {
         warn.setAlignmentX(LEFT_ALIGNMENT);
         Theme.pad(warn, 10, 2, 0, 0);
         body.add(warn);
+        restartNote.setAlignmentX(LEFT_ALIGNMENT);
+        restartNote.setVisible(false);
+        Theme.pad(restartNote, 4, 2, 0, 0);
+        body.add(restartNote);
 
-        JPanel cols = new JPanel(new GridLayout(1, 2, 22, 0));
         cols.setOpaque(false);
         cols.setAlignmentX(LEFT_ALIGNMENT);
-        cols.add(videoCard());
-        JPanel right = new JPanel();
-        right.setOpaque(false);
-        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
-        right.add(audioCard());
-        right.add(Box.createVerticalStrut(18));
-        right.add(recentCard());
-        right.add(Box.createVerticalGlue());
-        cols.add(right);
+        videoCard = videoCard();
+        rightColumn = new JPanel();
+        rightColumn.setOpaque(false);
+        rightColumn.setLayout(new BoxLayout(rightColumn, BoxLayout.Y_AXIS));
+        rightColumn.add(audioCard());
+        rightColumn.add(Box.createVerticalStrut(18));
+        rightColumn.add(recentCard());
+        rightColumn.add(Box.createVerticalGlue());
+        setColumns(true);
         body.add(Box.createVerticalStrut(18));
         body.add(cols);
 
         JScrollPane sp = new JScrollPane(body);
         sp.setBorder(null);
+        sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         sp.getVerticalScrollBar().setUnitIncrement(20);
         add(sp, BorderLayout.CENTER);
+        // Two columns when there's room, one below the other when there isn't (no sideways scrolling).
+        sp.getViewport().addComponentListener(new ComponentAdapter() {
+            @Override public void componentResized(ComponentEvent e) { relayout(sp.getViewport().getWidth()); }
+        });
 
         load();
         wire();
-        app.engine.onStatus(s -> SwingUtilities.invokeLater(hero::repaint));
+        app.engine.onStatus(s -> SwingUtilities.invokeLater(() -> { hero.refreshControls(); hero.repaint(); }));
         app.library.onChange(() -> SwingUtilities.invokeLater(this::refreshRecent));
+        app.onCaptureSettingsChanged(this::load);
+        app.onFfmpegChanged(() -> { ffmpegOk = Ffmpeg.available(); refreshEncoders(); new Thread(this::loadDevices, "audio-devices").start(); hero.refreshControls(); hero.repaint(); });
         new Thread(this::loadDevices, "audio-devices").start();
         refreshRecent();
+        hero.refreshControls();
     }
 
     private static JSpinner spin(int v, int min, int max) {
         JSpinner s = new JSpinner(new SpinnerNumberModel(v, min, max, 1));
-        s.setPreferredSize(new Dimension(80, 30));
+        s.setEditor(new JSpinner.NumberEditor(s, "#"));
+        // Four of them (x, y, w, h) fit on one line in a half-width card.
+        s.setPreferredSize(new Dimension(72, 30));
         return s;
+    }
+
+    /** The page body: as wide as the window, scrolling only up and down. */
+    private static final class Body extends JPanel implements Scrollable {
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 20; }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return Math.max(20, r.height - 40); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return getParent() != null && getParent().getHeight() > getPreferredSize().height; }
+    }
+
+    private void relayout(int viewportWidth) {
+        boolean two = viewportWidth >= 1100;
+        if (two != twoColumns) setColumns(two);
+        hero.setCompact(viewportWidth - 52 < 960);
+    }
+
+    private void setColumns(boolean two) {
+        twoColumns = two;
+        cols.removeAll();
+        if (two) {
+            cols.setLayout(new GridLayout(1, 2, 22, 0));
+            cols.add(videoCard);
+            cols.add(rightColumn);
+        } else {
+            cols.setLayout(new BoxLayout(cols, BoxLayout.Y_AXIS));
+            videoCard.setAlignmentX(LEFT_ALIGNMENT);
+            rightColumn.setAlignmentX(LEFT_ALIGNMENT);
+            cols.add(videoCard);
+            cols.add(Box.createVerticalStrut(18));
+            cols.add(rightColumn);
+        }
+        cols.revalidate();
+        cols.repaint();
     }
 
     // ------------------------------------------------------------------ cards
 
     private JPanel card(String title) {
-        JPanel c = new JPanel(new GridBagLayout()) {
-            @Override protected void paintComponent(Graphics g0) {
-                Graphics2D g = (Graphics2D) g0.create();
-                Theme.hq(g);
-                g.setColor(Theme.CARD);
-                g.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 16, 16));
-                g.dispose();
-            }
-        };
-        c.setOpaque(false);
-        Theme.pad(c, 16, 18, 18, 18);
+        JPanel c = Theme.roundCard(new GridBagLayout());
         c.setAlignmentX(LEFT_ALIGNMENT);
         GridBagConstraints g = gbc(0);
         g.gridwidth = 2;
@@ -175,10 +258,14 @@ public final class RecordPanel extends JPanel {
         a.gridx = 0;
         a.weightx = 0;
         a.insets = new Insets(6, 0, 6, 14);
-        card.add(Theme.label(label, 13f, false, Theme.DIM), a);
+        JLabel l = Theme.label(label, 13f, false, Theme.DIM);
+        l.setLabelFor(c);
+        card.add(l, a);
         GridBagConstraints b = gbc(row++);
         b.gridx = 1;
         b.weightx = 1;
+        // Combos may be narrower than their longest item rather than push the card wider than the window.
+        if (c instanceof JComboBox<?>) c.setMinimumSize(new Dimension(80, c.getPreferredSize().height));
         card.add(c, b);
     }
 
@@ -261,23 +348,31 @@ public final class RecordPanel extends JPanel {
     }
 
     private void refreshRecent() {
-        recent.removeAll();
-        List<Clip> list = app.library.query("", "all", null, "newest");
-        int n = 0;
-        for (Clip c : list) {
+        List<Clip> list = new ArrayList<>();
+        for (Clip c : app.library.query("", "all", null, "newest")) {
             if (c.kind != Clip.Kind.REPLAY && c.kind != Clip.Kind.RECORDING) continue;
-            if (n++ >= 5) break;
+            list.add(c);
+            if (list.size() >= 5) break;
+        }
+        // The library changes often (every new thumbnail): rebuild only when what's listed changed.
+        StringBuilder key = new StringBuilder(app.settings.hotkeySaveClip);
+        for (Clip c : list) key.append('|').append(c.id).append(c.title).append(c.duration).append(Theme.ago(c.created));
+        if (key.toString().equals(recentKey)) return;
+        recentKey = key.toString();
+        recent.removeAll();
+        for (Clip c : list) {
             JButton b = new JButton("<html><b>" + esc(c.title) + "</b>&nbsp;&nbsp;<span style='color:#9B9BA6'>" + Theme.time(c.duration) + " · " + Theme.ago(c.created) + "</span></html>",
                     Theme.icon(c.kind == Clip.Kind.REPLAY ? Theme.Glyph.CLOCK : Theme.Glyph.RECORD, 16, c.kind == Clip.Kind.REPLAY ? Theme.TEXT : Theme.RED));
             b.putClientProperty("JButton.buttonType", "toolBarButton");
             b.setHorizontalAlignment(JButton.LEFT);
-            b.setFocusable(false);
+            b.setRequestFocusEnabled(false); // Tab reaches it; a click doesn't take focus
+            b.getAccessibleContext().setAccessibleName("Open " + (c.title == null ? "clip" : c.title) + " in the editor");
             b.setAlignmentX(LEFT_ALIGNMENT);
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
             b.addActionListener(e -> app.openEditor.accept(c));
             recent.add(b);
         }
-        if (n == 0) recent.add(Theme.label("Nothing yet. Press " + app.settings.hotkeySaveClip + " to save a replay.", 12.5f, false, Theme.FAINT));
+        if (list.isEmpty()) recent.add(Theme.label("Nothing yet. Press " + app.settings.hotkeySaveClip + " to save a replay.", 12.5f, false, Theme.FAINT));
         recent.revalidate();
         recent.repaint();
     }
@@ -286,62 +381,123 @@ public final class RecordPanel extends JPanel {
 
     // ------------------------------------------------------------------ settings binding
 
-    private void load() {
+    /** Shows the settings as they are now (also called when one was changed elsewhere, e.g. the replay length). */
+    void load() {
         loading = true;
-        var s = app.settings;
-        source.setSelectedIndex(switch (s.source) { case "window" -> 1; case "region" -> 2; default -> 0; });
-        List<Rectangle> mons = CaptureSource.monitors();
-        monitor.removeAllItems();
-        for (int i = 0; i < mons.size(); i++) monitor.addItem("Monitor " + (i + 1) + "  (" + mons.get(i).width + "×" + mons.get(i).height + ")");
-        monitor.setSelectedIndex(Math.max(0, Math.min(mons.size() - 1, s.monitor)));
-        window.setText(s.windowTitle);
-        rx.setValue(s.regionX); ry.setValue(s.regionY); rw.setValue(s.regionW); rh.setValue(s.regionH);
-        fps.setSelectedItem(String.valueOf(s.fps));
-        res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 2160 -> 1; case 1440 -> 2; case 720 -> 4; default -> 3; });
-        quality.setSelectedIndex(s.quality - 1);
-        replayRate.setSelectedIndex(Math.max(0, indexOf(REPLAY_RATES, s.replayBitrateMbps)));
-        recordRate.setSelectedIndex(Math.max(0, indexOf(RECORD_RATES, s.recordBitrateMbps)));
-        codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
-        encoder.removeAllItems();
-        encoder.addItem("Automatic (best available)");
-        if (Ffmpeg.available()) {
-            for (String e : Ffmpeg.workingEncoders("h264")) encoder.addItem(Ffmpeg.encoderLabel(e));
-            for (String e : Ffmpeg.workingEncoders("hevc")) encoder.addItem(Ffmpeg.encoderLabel(e));
+        try {
+            var s = app.settings;
+            source.setSelectedIndex(switch (s.source) { case "window" -> 1; case "region" -> 2; default -> 0; });
+            List<Rectangle> mons = CaptureSource.monitors();
+            monitor.removeAllItems();
+            for (int i = 0; i < mons.size(); i++) monitor.addItem("Monitor " + (i + 1) + "  (" + mons.get(i).width + "×" + mons.get(i).height + ")");
+            monitor.setSelectedIndex(Math.max(0, Math.min(mons.size() - 1, s.monitor)));
+            window.setText(s.windowTitle);
+            rx.setValue(s.regionX); ry.setValue(s.regionY); rw.setValue(s.regionW); rh.setValue(s.regionH);
+            fps.setSelectedItem(String.valueOf(s.fps));
+            res.setSelectedIndex(switch (s.resolution) { case 0 -> 0; case 2160 -> 1; case 1440 -> 2; case 720 -> 4; default -> 3; });
+            quality.setSelectedIndex(s.quality - 1);
+            replayRate.setSelectedIndex(Math.max(0, indexOf(REPLAY_RATES, s.replayBitrateMbps)));
+            recordRate.setSelectedIndex(Math.max(0, indexOf(RECORD_RATES, s.recordBitrateMbps)));
+            codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
+            cursor.setSelected(s.captureCursor);
+            sysAudio.setSelected(s.recordSystemAudio);
+            mic.setSelected(s.recordMic);
+            micVol.setValue((int) Math.round(s.micVolume * 100));
+            voice.setSelected(s.recordVoice);
+            loadReplayLengths(s.replaySeconds);
+            for (int i = 0; i < POST_ROLLS.length; i++) if (POST_ROLLS[i] == s.replayAfterSeconds) postRoll.setSelectedIndex(i);
+        } finally {
+            loading = false;
         }
-        if (!s.encoder.isBlank()) encoder.setSelectedItem(Ffmpeg.encoderLabel(s.encoder));
-        cursor.setSelected(s.captureCursor);
-        sysAudio.setSelected(s.recordSystemAudio);
-        mic.setSelected(s.recordMic);
-        micVol.setValue((int) Math.round(s.micVolume * 100));
-        voice.setSelected(s.recordVoice);
-        int li = 1;
-        for (int i = 0; i < REPLAY_LENS.length; i++) if (REPLAY_LENS[i] == s.replaySeconds) li = i;
-        replayLen.setSelectedIndex(li);
-        loading = false;
+        refreshEncoders();
         updateEnabled();
+        if (hero != null) { hero.refreshControls(); hero.repaint(); }
+    }
+
+    /** The replay-length list, with {@code current} added if it isn't one of the usual lengths. */
+    private void loadReplayLengths(int current) {
+        lenValues.clear();
+        for (int v : REPLAY_LENS) lenValues.add(v);
+        if (!lenValues.contains(current)) { lenValues.add(current); lenValues.sort(null); }
+        DefaultComboBoxModel<String> m = new DefaultComboBoxModel<>();
+        for (int v : lenValues) m.addElement(lengthName(v));
+        replayLen.setModel(m);
+        replayLen.setSelectedIndex(lenValues.indexOf(current));
+    }
+
+    /** "30 seconds", "2.5 minutes", "1 minute", or "1 min 45 s" for an unusual length. */
+    static String lengthName(int secs) {
+        if (secs < 60) return secs + " seconds";
+        if (secs % 60 == 0) return secs / 60 + (secs == 60 ? " minute" : " minutes");
+        if (secs % 30 == 0) return String.format(java.util.Locale.ROOT, "%.1f minutes", secs / 60.0);
+        return label(secs);
+    }
+
+    /**
+     * Fills the encoder list without holding up the window: the GPU encoders are tested in the background (a few
+     * seconds the first time), then listed with the saved choice selected.
+     */
+    void refreshEncoders() {
+        encodersReady = false;
+        loading = true;
+        try {
+            encoder.removeAllItems();
+            encoder.addItem(AUTO_ENCODER);
+            if (ffmpegOk) encoder.addItem(DETECTING);
+            encoder.setSelectedIndex(0);
+        } finally {
+            loading = false;
+        }
+        if (!ffmpegOk) return;
+        new SwingWorker<List<String>, Void>() {
+            @Override protected List<String> doInBackground() {
+                List<String> labels = new ArrayList<>();
+                for (String c : List.of("h264", "hevc")) for (String e : Ffmpeg.captureEncoders(c)) labels.add(Ffmpeg.encoderLabel(e));
+                return labels;
+            }
+            @Override protected void done() {
+                List<String> labels;
+                try { labels = get(); } catch (Exception e) { labels = List.of(); }
+                loading = true;
+                try {
+                    encoder.removeAllItems();
+                    encoder.addItem(AUTO_ENCODER);
+                    for (String l : labels) encoder.addItem(l);
+                    String saved = app.settings.encoder;
+                    if (saved != null && !saved.isBlank()) encoder.setSelectedItem(Ffmpeg.encoderLabel(saved));
+                } finally {
+                    loading = false;
+                }
+                encodersReady = true;
+                updateDataRate();
+            }
+        }.execute();
     }
 
     private void loadDevices() {
-        Map<String, String> d = CaptureSource.audioDevices();
+        Map<String, String> d = CaptureSource.audioDevices(true);
         String defSys = CaptureSource.defaultSystemAudio(), defMic = CaptureSource.defaultMic();
         SwingUtilities.invokeLater(() -> {
             devices = d;
             loading = true;
-            sysDevice.removeAllItems();
-            micDevice.removeAllItems();
-            voiceDevice.removeAllItems();
-            voiceDevice.addItem("Choose a device");
-            sysDevice.addItem("Default" + (defSys == null ? " (none found)" : ""));
-            micDevice.addItem("Default" + (defMic == null ? " (none found)" : ""));
-            for (String name : d.keySet()) { sysDevice.addItem(name); micDevice.addItem(name); voiceDevice.addItem(name); }
-            selectDevice(sysDevice, app.settings.systemAudioDevice);
-            selectDevice(micDevice, app.settings.micDevice);
-            selectDevice(voiceDevice, app.settings.voiceDevice);
-            loading = false;
-            if ((Ffmpeg.WINDOWS || Ffmpeg.MAC) && defSys == null && app.settings.systemAudioDevice.isBlank() && app.settings.recordSystemAudio)
-                warn.setText(Ffmpeg.WINDOWS
-                        ? "No desktop-audio device found. Enable \"Stereo Mix\" in Sound settings → Recording, or install VB-Cable, then pick it above."
-                        : "No desktop-audio device found. Install BlackHole to record game audio, then pick it above.");
+            try {
+                sysDevice.removeAllItems();
+                micDevice.removeAllItems();
+                voiceDevice.removeAllItems();
+                voiceDevice.addItem("Choose a device");
+                sysDevice.addItem("Default" + (defSys == null ? " (none found)" : ""));
+                micDevice.addItem("Default" + (defMic == null ? " (none found)" : ""));
+                for (String name : d.keySet()) { sysDevice.addItem(name); micDevice.addItem(name); voiceDevice.addItem(name); }
+                selectDevice(sysDevice, app.settings.systemAudioDevice);
+                selectDevice(micDevice, app.settings.micDevice);
+                selectDevice(voiceDevice, app.settings.voiceDevice);
+            } finally {
+                loading = false;
+            }
+            noDefaultSys = defSys == null;
+            noDefaultMic = defMic == null;
+            devicesLoaded = true;
+            updateEnabled();
         });
     }
 
@@ -353,7 +509,7 @@ public final class RecordPanel extends JPanel {
 
     private String deviceId(JComboBox<String> box) {
         Object sel = box.getSelectedItem();
-        if (sel == null || box.getSelectedIndex() == 0) return "";
+        if (sel == null || box.getSelectedIndex() <= 0) return "";
         return devices.getOrDefault(sel.toString(), "");
     }
 
@@ -361,6 +517,7 @@ public final class RecordPanel extends JPanel {
         Runnable apply = () -> {
             if (loading) return;
             var s = app.settings;
+            String micBefore = s.micDevice;
             s.source = new String[]{"screen", "window", "region"}[source.getSelectedIndex()];
             s.monitor = Math.max(0, monitor.getSelectedIndex());
             s.windowTitle = window.getText().trim();
@@ -371,22 +528,41 @@ public final class RecordPanel extends JPanel {
             s.codec = new String[]{"auto", "h264", "hevc"}[codec.getSelectedIndex()];
             s.replayBitrateMbps = REPLAY_RATES[Math.max(0, replayRate.getSelectedIndex())];
             s.recordBitrateMbps = RECORD_RATES[Math.max(0, recordRate.getSelectedIndex())];
-            s.encoder = "";
-            if (encoder.getSelectedIndex() > 0 && Ffmpeg.available()) {
+            Object enc = encoder.getSelectedItem();
+            if (!encodersReady || DETECTING.equals(enc)) {
+                // still detecting: keep the saved encoder
+            } else if (encoder.getSelectedIndex() <= 0) {
+                s.encoder = "";
+            } else if (ffmpegOk) {
+                // The list is already known (it was tested to fill the box), so this is instant.
                 for (String c2 : List.of("h264", "hevc"))
-                    for (String e : Ffmpeg.workingEncoders(c2)) if (Ffmpeg.encoderLabel(e).equals(encoder.getSelectedItem())) { s.encoder = e; s.codec = c2; }
+                    for (String e : Ffmpeg.captureEncoders(c2)) if (Ffmpeg.encoderLabel(e).equals(enc)) { s.encoder = e; s.codec = c2; }
             }
             s.captureCursor = cursor.isSelected();
             s.recordSystemAudio = sysAudio.isSelected();
-            s.systemAudioDevice = deviceId(sysDevice);
+            if (devicesLoaded) s.systemAudioDevice = deviceId(sysDevice);
             s.recordMic = mic.isSelected();
-            s.micDevice = deviceId(micDevice);
+            if (devicesLoaded) s.micDevice = deviceId(micDevice);
             s.micVolume = micVol.getValue() / 100.0;
             s.recordVoice = voice.isSelected();
-            s.voiceDevice = deviceId(voiceDevice);
+            if (devicesLoaded) s.voiceDevice = deviceId(voiceDevice);
             s.save();
             updateEnabled();
-            if (app.engine.isLive()) restartLater.restart();
+            if (app.engine.isRecording()) {
+                // A restart now would end the recording: the engine applies it when the recording stops.
+                restartLater.stop();
+                restartNote.setText("New capture settings apply when this recording stops");
+                restartNote.setVisible(true);
+                pendingNote = true;
+                new Thread(() -> { try { app.engine.restart(); } catch (Exception ignored) {} }, "capture-restart").start();
+            } else if (app.engine.isLive()) {
+                restartLater.restart();
+            }
+            // Voice commands listen on the microphone chosen here.
+            if (!java.util.Objects.equals(micBefore, s.micDevice) && s.voiceCommands) new Thread(() -> {
+                String err = app.applyVoice();
+                if (err != null) app.notify(err, null, true);
+            }, "voice-mic").start();
         };
         for (JComboBox<?> b : List.of(source, monitor, fps, res, quality, codec, encoder, replayRate, recordRate, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
         for (JCheckBox b : List.of(cursor, sysAudio, mic, voice)) b.addActionListener(e -> apply.run());
@@ -394,31 +570,62 @@ public final class RecordPanel extends JPanel {
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
         window.addActionListener(e -> apply.run());
         window.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { apply.run(); } });
-        for (int i = 0; i < POST_ROLLS.length; i++) if (POST_ROLLS[i] == app.settings.replayAfterSeconds) postRoll.setSelectedIndex(i);
         postRoll.setToolTipText("Keep capturing this long after you press the key, so the clip shows what happens next");
         postRoll.addActionListener(e -> {
+            if (loading) return;
             app.settings.replayAfterSeconds = POST_ROLLS[postRoll.getSelectedIndex()];
             app.settings.save();
         });
         replayLen.addActionListener(e -> {
-            if (loading) return;
-            app.settings.replaySeconds = REPLAY_LENS[replayLen.getSelectedIndex()];
+            if (loading || replayLen.getSelectedIndex() < 0) return;
+            int v = lenValues.get(replayLen.getSelectedIndex());
+            if (!"off".equals(app.settings.cs2FullRounds) && v < 150) {
+                // A whole round has to fit in the buffer.
+                v = 150;
+                int keep = v;
+                SwingUtilities.invokeLater(() -> { loading = true; try { loadReplayLengths(keep); } finally { loading = false; } });
+                app.notify("CS2 full-round clips need at least 2.5 minutes", "Turn off CS2 full-round clips in Settings for a shorter replay", true);
+            }
+            app.settings.replaySeconds = v;
             app.settings.save();
+            updateDataRate();
+            hero.refreshControls();
             hero.repaint();
         });
     }
 
-    /** "Up to 65 MB per minute · 30 s buffer ≈ 33 MB": the worst case, since the bitrate is capped. */
-    private void updateDataRate() {
-        if (!Ffmpeg.available()) return;
+    /** Audio tracks capture will record, from the settings and the devices found (no device scan here). */
+    private int audioTracks() {
         var s = app.settings;
-        String enc = net.evadeclient.clips.core.CaptureEngine.previewEncoder(s);
-        var in = CaptureSource.build(s);
-        long video = s.replayBitrateMbps > 0 ? (long) (s.replayBitrateMbps * 1e6) : Ffmpeg.liveCapBits(enc, s.quality, s.fps, in.outW(), in.outH());
-        long bits = video + 160_000L * in.audioTracks();
-        double mbMin = bits * 60 / 8e6;
-        dataRate.setText(String.format("<html>up to <b>%.0f MB</b> per minute (%dx%d, %s)<br>replay buffer: at most %.0f MB on disk</html>",
-                mbMin, in.outW(), in.outH(), Ffmpeg.isHevc(enc) ? "HEVC" : "H.264", mbMin * (s.replaySeconds + 3) / 60.0));
+        boolean pick = Ffmpeg.WINDOWS || Ffmpeg.MAC;
+        if (s.source.startsWith("test")) return (s.recordSystemAudio ? 1 : 0) + (s.recordMic ? 1 : 0) + (s.recordVoice ? 1 : 0);
+        int n = 0;
+        if (s.recordSystemAudio && (!s.systemAudioDevice.isBlank() || !pick || !noDefaultSys)) n++;
+        if (s.recordMic && (!s.micDevice.isBlank() || !pick || !noDefaultMic)) n++;
+        if (s.recordVoice && !s.voiceDevice.isBlank()) n++;
+        return n;
+    }
+
+    /**
+     * "Up to 65 MB per minute · 30 s buffer ≈ 33 MB": the worst case, since the bitrate is capped. Worked out in
+     * the background (picking the encoder may wait for the encoder tests).
+     */
+    private void updateDataRate() {
+        if (!ffmpegOk) { dataRate.setText(" "); return; }
+        var s = app.settings;
+        int gen = ++rateGen;
+        int tracks = audioTracks();
+        Dimension out = CaptureSource.outputSize(s);
+        int replaySecs = s.replaySeconds;
+        background.submit(() -> {
+            String enc = CaptureEngine.previewEncoder(s);
+            long video = s.replayBitrateMbps > 0 ? (long) (s.replayBitrateMbps * 1e6) : Ffmpeg.liveCapBits(enc, s.quality, s.fps, out.width, out.height);
+            long bits = video + 160_000L * tracks;
+            double mbMin = bits * 60 / 8e6;
+            String text = String.format("<html>up to <b>%.0f MB</b> per minute (%dx%d, %s)<br>replay buffer: at most %.0f MB on disk</html>",
+                    mbMin, out.width, out.height, Ffmpeg.isHevc(enc) ? "HEVC" : "H.264", mbMin * (replaySecs + 3) / 60.0);
+            SwingUtilities.invokeLater(() -> { if (gen == rateGen) dataRate.setText(text); });
+        });
     }
 
     private static int indexOf(double[] a, double v) {
@@ -428,55 +635,145 @@ public final class RecordPanel extends JPanel {
 
     private void updateEnabled() {
         updateDataRate();
-        String s = app.settings.source;
+        var st = app.settings;
+        String s = st.source;
         monitor.setEnabled(s.equals("screen"));
         window.setEnabled(s.equals("window"));
         for (JSpinner sp : List.of(rx, ry, rw, rh)) sp.setEnabled(s.equals("region"));
-        if (s.equals("window") && !Ffmpeg.WINDOWS) warn.setText("Window capture is Windows-only; the whole monitor is captured instead.");
         sysDevice.setEnabled(sysAudio.isSelected());
         micDevice.setEnabled(mic.isSelected());
         micVol.setEnabled(mic.isSelected());
         voiceDevice.setEnabled(voice.isSelected());
+        // The warning always matches the settings now (it clears once the cause is fixed).
+        String w = " ";
+        if (s.equals("window") && !Ffmpeg.WINDOWS) w = "Window capture is Windows-only; the whole monitor is captured instead.";
+        else if ((s.equals("screen") || s.equals("region")) && CaptureSource.linuxWayland())
+            w = "Screen capture on Linux needs an X11 session; on Wayland clips will be black. Choose the 'on Xorg' session at login.";
+        else if ((Ffmpeg.WINDOWS || Ffmpeg.MAC) && noDefaultSys && st.recordSystemAudio && st.systemAudioDevice.isBlank())
+            w = Ffmpeg.WINDOWS
+                    ? "No desktop-audio device found. Enable \"Stereo Mix\" in Sound settings → Recording, or install VB-Cable, then pick it above."
+                    : "No desktop-audio device found. Install BlackHole to record game audio, then pick it above.";
+        warn.setText(w);
+        warn.setVisible(!w.isBlank());
     }
 
     // ------------------------------------------------------------------ hero
+
+    /** Shows the full ffmpeg log of the last capture failure, with a Copy button. */
+    private void showLog() {
+        String log = app.status.lastLog();
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        JDialog d = new JDialog(owner, "Capture error details", java.awt.Dialog.ModalityType.MODELESS);
+        JTextArea area = new JTextArea(log == null || log.isBlank() ? "No log was kept for this error." : log, 22, 90);
+        area.setEditable(false);
+        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        area.setCaretPosition(0);
+        JScrollPane sp = new JScrollPane(area);
+        JButton copy = Theme.button("Copy", Theme.icon(Theme.Glyph.COPY, 16, Theme.TEXT), false);
+        copy.addActionListener(e -> { App.copyText(area.getText()); copy.setText("Copied"); });
+        JButton close = Theme.button("Close", null, false);
+        close.addActionListener(e -> d.dispose());
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttons.add(copy);
+        buttons.add(close);
+        JPanel p = new JPanel(new BorderLayout(0, 10));
+        Theme.pad(p, 14, 14, 14, 14);
+        p.add(Theme.label(app.status.message() == null ? "" : app.status.message(), 13f, true, Theme.TEXT), BorderLayout.NORTH);
+        p.add(sp, BorderLayout.CENTER);
+        p.add(buttons, BorderLayout.SOUTH);
+        d.setContentPane(p);
+        d.pack();
+        d.setLocationRelativeTo(owner);
+        d.setVisible(true);
+    }
 
     /** Big status card: instant replay switch + buffer meter, save button, record button. */
     private final class Hero extends JPanel {
         final JButton replayToggle = Theme.button("", null, false);
         final JButton save = Theme.button("", Theme.icon(Theme.Glyph.CLOCK, 18, Color.WHITE), true);
-        final JButton record = Theme.button("", Theme.icon(Theme.Glyph.RECORD, 16, Theme.RED), false);
+        final JButton record = Theme.button("", REC_ICON, false);
         final JButton marker = Theme.button("Marker", Theme.icon(Theme.Glyph.BOOKMARK, 16, Theme.GOLD), false);
+        /** Narrow windows: the save / record / marker buttons go on a second row. */
+        private boolean compact;
+        private Rectangle detailsHit = new Rectangle();
 
         Hero() {
             setLayout(null);
             setOpaque(false);
-            setPreferredSize(new Dimension(900, 172));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 172));
+            setHeights();
             replayToggle.addActionListener(e -> app.toggleReplay(!app.engine.isLive()));
             save.addActionListener(e -> app.saveClip(0, null, null, null));
             record.addActionListener(e -> app.toggleRecording());
             marker.addActionListener(e -> app.marker());
             marker.setToolTipText("Bookmark this moment (" + app.settings.hotkeyMarker + ")");
             replayLen.setToolTipText("How much the replay buffer keeps");
+            replayLen.getAccessibleContext().setAccessibleName("Replay length");
+            postRoll.getAccessibleContext().setAccessibleName("Seconds kept after the key press");
             add(replayToggle);
             add(save);
             add(record);
             add(marker);
             add(replayLen);
             add(postRoll);
-            new Timer(250, e -> repaint()).start();
+            MouseAdapter ma = new MouseAdapter() {
+                @Override public void mouseClicked(MouseEvent e) { if (detailsHit.contains(e.getPoint())) showLog(); }
+                @Override public void mouseMoved(MouseEvent e) {
+                    setCursor(detailsHit.contains(e.getPoint()) ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+                }
+            };
+            addMouseListener(ma);
+            addMouseMotionListener(ma);
+            // Only the pulsing dot and the buffer meter move; nothing runs while the page isn't on screen.
+            new Timer(250, e -> {
+                if (!isShowing()) return;
+                Window w = SwingUtilities.getWindowAncestor(this);
+                if (w instanceof Frame f && (f.getExtendedState() & Frame.ICONIFIED) != 0) return;
+                refreshControls();
+                repaint();
+            }).start();
         }
+
+        private void setHeights() {
+            int h = compact ? 220 : 172;
+            setPreferredSize(new Dimension(600, h));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
+            setMinimumSize(new Dimension(300, h));
+        }
+
+        void setCompact(boolean c) {
+            if (c == compact) return;
+            compact = c;
+            setHeights();
+            revalidate();
+            repaint();
+        }
+
+        /** Brings the buttons up to date with the engine. Changes only what differs (never from paint). */
+        void refreshControls() {
+            CaptureEngine.Status st = app.status;
+            boolean live = st.state() == CaptureEngine.State.LIVE, starting = st.state() == CaptureEngine.State.STARTING;
+            text(replayToggle, live || starting ? "Turn off" : "Turn on");
+            text(save, "Save last " + label(app.settings.replaySeconds));
+            if (save.isEnabled() != live) save.setEnabled(live);
+            text(record, st.recording() ? "Stop  " + Theme.time(st.recordingSeconds()) : "Start recording");
+            Icon icon = st.recording() ? STOP_ICON : REC_ICON;
+            if (record.getIcon() != icon) record.setIcon(icon);
+            if (record.isEnabled() != ffmpegOk) record.setEnabled(ffmpegOk);
+            if (marker.isEnabled() != live) marker.setEnabled(live);
+            if (pendingNote && !st.recording()) { pendingNote = false; restartNote.setText(" "); restartNote.setVisible(false); }
+        }
+
+        private void text(JButton b, String t) { if (!t.equals(b.getText())) b.setText(t); }
 
         @Override public void doLayout() {
             int w = getWidth();
             replayLen.setBounds(24, 116, 130, 34);
             postRoll.setBounds(160, 116, 124, 34);
             replayToggle.setBounds(290, 116, 110, 34);
-            int bx = w - 24;
-            marker.setBounds(bx -= 110, 112, 110, 40);
-            record.setBounds(bx -= 186, 112, 176, 40);
-            save.setBounds(bx -= 226, 112, 216, 40);
+            int by = compact ? 164 : 112, bx = w - 24;
+            marker.setBounds(bx -= 110, by, 110, 40);
+            record.setBounds(bx -= 186, by, 176, 40);
+            save.setBounds(bx -= 226, by, 216, 40);
         }
 
         @Override protected void paintComponent(Graphics g0) {
@@ -507,9 +804,26 @@ public final class RecordPanel extends JPanel {
             g.drawString(head, 56, 42);
             g.setFont(Theme.inter.deriveFont(13f));
             g.setColor(Theme.DIM);
+            detailsHit = new Rectangle();
+            if (err && ffmpegOk) {
+                // The readable reason (two lines at most), and the full log behind "Details…".
+                String msg = st.message() == null || st.message().isBlank() ? "Capture stopped unexpectedly." : st.message();
+                List<String> lines = Toast.wrap(g.getFontMetrics(), msg, w - 80);
+                if (lines.size() > 2) lines = lines.subList(0, 2);
+                for (int i = 0; i < lines.size(); i++) g.drawString(lines.get(i), 56, 64 + i * 18);
+                g.setFont(Theme.interBold.deriveFont(12.5f));
+                g.setColor(Theme.RED_HI);
+                int dy = 64 + lines.size() * 18;
+                String details = "Details…";
+                int dw = g.getFontMetrics().stringWidth(details);
+                g.drawString(details, 56, dy);
+                detailsHit = new Rectangle(52, dy - 14, dw + 8, 20);
+                g.dispose();
+                return;
+            }
             String sub;
-            if (!Ffmpeg.available()) sub = "ffmpeg wasn't found. Put ffmpeg next to Evade Clips, add it to PATH, or set it in Settings.";
-            else if (err) sub = st.message();
+            if (!ffmpegOk) sub = app.ffmpegDownloading ? "Downloading ffmpeg… " + Math.round(app.ffmpegProgress * 100) + "%. Recording starts working as soon as it's done."
+                    : "ffmpeg wasn't found. Put ffmpeg next to Evade Clips, add it to PATH, or set it in Settings.";
             else if (live && app.currentGame != null) sub = app.currentGame + " detected  ·  " + app.settings.hotkeySaveClip + " saves the last " + label(app.settings.replaySeconds)
                     + "  ·  " + app.settings.hotkeyRecord + " to " + (st.recording() ? "stop" : "start") + " recording";
             else if (live) sub = "Press " + app.settings.hotkeySaveClip + " to save the last " + label(app.settings.replaySeconds) + "  ·  "
@@ -533,16 +847,12 @@ public final class RecordPanel extends JPanel {
             String buf = live ? Math.round(st.bufferedSeconds()) + " s buffered" : "";
             g.drawString(buf, mx + mw - g.getFontMetrics().stringWidth(buf), my + 24);
             g.dispose();
-
-            replayToggle.setText(live || starting ? "Turn off" : "Turn on");
-            save.setText("Save last " + label(app.settings.replaySeconds));
-            save.setEnabled(live);
-            record.setText(st.recording() ? "Stop  " + Theme.time(st.recordingSeconds()) : "Start recording");
-            record.setIcon(Theme.icon(st.recording() ? Theme.Glyph.STOP : Theme.Glyph.RECORD, 16, Theme.RED));
-            record.setEnabled(Ffmpeg.available());
-            marker.setEnabled(live);
         }
     }
 
-    static String label(int secs) { return secs < 60 ? secs + " s" : secs / 60 + " min"; }
+    /** "30 s", "2 min", "2 min 30 s". */
+    static String label(int secs) {
+        if (secs < 60) return secs + " s";
+        return secs % 60 == 0 ? secs / 60 + " min" : secs / 60 + " min " + secs % 60 + " s";
+    }
 }

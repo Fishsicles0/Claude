@@ -67,6 +67,11 @@ public final class Screenshots {
         long t0 = System.currentTimeMillis();
         while (!app.engine.isLive() && System.currentTimeMillis() - t0 < 15000) Thread.sleep(100);
         Thread.sleep(4000);
+        // Start the global hotkey hook as the real app does (App.start() isn't run here), so Settings shows the
+        // hotkeys working instead of "couldn't start". Nothing is bound while the shots are taken, so a stray key
+        // press on this machine can't save a clip into them.
+        app.applyHotkeys();
+        app.hotkeys.clear();
 
         MainWindow[] w = new MainWindow[1];
         SwingUtilities.invokeAndWait(() -> {
@@ -135,8 +140,36 @@ public final class Screenshots {
 
         SwingUtilities.invokeAndWait(() -> w[0].show("settings"));
         Thread.sleep(800);
+        SwingUtilities.invokeAndWait(() -> tidySettings(w[0], app, s.clipsFolder));
+        Thread.sleep(300);
         shot(w[0], out.resolve("settings.png"));
         app.shutdown();
+    }
+
+    /**
+     * Settings as a user sees it. Where the global hotkey hook can't run here (a virtual display, a missing system
+     * library, Wayland), the "couldn't start" note is about this machine, not the app, so it's hidden. The clips
+     * folder shows the default location instead of the build folder the shots use.
+     */
+    private static void tidySettings(MainWindow w, App app, String realFolder) {
+        String shown = "C:\\Users\\you\\Videos\\Evade Clips";
+        walk(w.getContentPane(), c -> {
+            String text = c instanceof javax.swing.JLabel l && l.getText() != null ? l.getText().toLowerCase(java.util.Locale.ROOT) : "";
+            if (!app.hotkeys.active() && text.contains("hotkeys") && (text.contains("couldn") || text.contains("could not"))) {
+                c.setVisible(false);
+            } else if (c instanceof javax.swing.JTextField f && !f.isEditable() && realFolder.equals(f.getText())) {
+                f.setText(shown);
+                f.setCaretPosition(0);
+            }
+        });
+        w.getContentPane().revalidate();
+        w.getContentPane().repaint();
+    }
+
+    /** {@code c} and everything inside it. */
+    private static void walk(java.awt.Component c, java.util.function.Consumer<java.awt.Component> f) {
+        f.accept(c);
+        if (c instanceof java.awt.Container k) for (java.awt.Component child : k.getComponents()) walk(child, f);
     }
 
     /** Replays, a session recording, exports and a montage, all from the filmed Minecraft scenes. */
@@ -233,6 +266,9 @@ public final class Screenshots {
     }
 
     private static void shot(MainWindow w, Path file) throws Exception {
+        // No keyboard focus in the shots: a focused search box or button would wear its focus ring.
+        SwingUtilities.invokeAndWait(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner());
+        Thread.sleep(200);
         BufferedImage[] img = new BufferedImage[1];
         SwingUtilities.invokeAndWait(() -> {
             var root = w.getContentPane();

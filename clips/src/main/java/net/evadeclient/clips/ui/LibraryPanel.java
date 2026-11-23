@@ -77,10 +77,31 @@ public final class LibraryPanel extends JPanel {
     private final JLabel count = Theme.label("", 12f, false, Theme.DIM);
     private final JLabel storage = Theme.label("", 12f, false, Theme.DIM);
     private final Set<String> selected = new LinkedHashSet<>();
-    private final Map<String, Image> thumbCache = new HashMap<>();
-    private final Map<String, BufferedImage> stripCache = new HashMap<>();
+    /** Keyboard position in the grid (lead) and where a Shift selection starts (anchor), as indexes into {@link #shown}. */
+    private int lead = -1, anchor = -1;
+    /**
+     * Pictures read from disk in the background and kept for the clips on screen: thumbnails scaled to the card
+     * (newest 150), hover strips (newest 20). Only touched on the UI thread.
+     */
+    private record Pic(long stamp, int gen, int w, int h, Image img) {}
+    private final Map<String, Pic> thumbCache = lru(150);
+    private final Map<String, Pic> stripCache = lru(20);
+    private final Set<String> loadingPics = new java.util.HashSet<>();
+    /** Bumped on every library change, so cached pictures are checked against their files again. */
+    private int picGen;
+    private final java.util.concurrent.ExecutorService picLoader = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "library-pictures");
+        t.setDaemon(true);
+        return t;
+    });
     private boolean updatingGames;
     private List<Clip> shown = new ArrayList<>();
+
+    private static <V> Map<String, V> lru(int max) {
+        return new java.util.LinkedHashMap<>(64, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(Map.Entry<String, V> e) { return size() > max; }
+        };
+    }
 
     public LibraryPanel(App app) {
         super(new BorderLayout());
@@ -111,42 +132,57 @@ public final class LibraryPanel extends JPanel {
         header.add(top);
         header.add(Box.createVerticalStrut(16));
 
+        // Row 1: search, game and sort. Row 2: the filters (so both fit at the smallest window size).
         JPanel bar = row();
         search.putClientProperty("JTextField.placeholderText", "Search titles, games, tags…");
         search.putClientProperty("JTextField.leadingIcon", Theme.icon(Theme.Glyph.SEARCH, 16, Theme.FAINT));
         search.putClientProperty("JTextField.showClearButton", true);
-        search.setMaximumSize(new Dimension(320, 34));
+        search.getAccessibleContext().setAccessibleName("Search clips");
+        search.setMinimumSize(new Dimension(200, 34));
         search.setPreferredSize(new Dimension(320, 34));
+        search.setMaximumSize(new Dimension(320, 34));
         search.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { refresh(); }
             public void removeUpdate(DocumentEvent e) { refresh(); }
             public void changedUpdate(DocumentEvent e) { refresh(); }
         });
         bar.add(search);
-        bar.add(Box.createHorizontalStrut(12));
+        bar.add(Box.createHorizontalGlue());
+        game.getAccessibleContext().setAccessibleName("Game");
+        game.setPrototypeDisplayValue("Counter-Strike 2   ");
+        game.setMaximumSize(new Dimension(190, 34));
+        game.setMinimumSize(new Dimension(120, 34));
+        game.addActionListener(e -> { if (!updatingGames) refresh(); });
+        bar.add(game);
+        bar.add(Box.createHorizontalStrut(8));
+        sort.getAccessibleContext().setAccessibleName("Sort by");
+        Dimension sortSize = new Dimension(Math.max(120, sort.getPreferredSize().width), 34);
+        sort.setMinimumSize(sortSize);
+        sort.setPreferredSize(sortSize);
+        sort.setMaximumSize(sortSize);
+        sort.addActionListener(e -> refresh());
+        bar.add(sort);
+        header.add(bar);
+        header.add(Box.createVerticalStrut(10));
+
+        JPanel chips = row();
         for (String[] f : new String[][]{{"all", "All"}, {"favorites", "★ Favorites"}, {"replays", "Replays"}, {"recordings", "Recordings"}, {"exports", "Exports"}, {"imports", "Imported"}}) {
             JToggleButton b = new JToggleButton(f[1], f[0].equals("all"));
-            b.setFocusable(false);
+            b.setRequestFocusEnabled(false); // Tab reaches the filters; a click doesn't take focus
             b.putClientProperty("JButton.buttonType", "roundRect");
             b.setFont(Theme.interBold.deriveFont(12f));
+            b.getAccessibleContext().setAccessibleName("Show " + f[1].replace("★ ", ""));
             b.addActionListener(e -> {
                 filter = f[0];
                 filters.values().forEach(x -> x.setSelected(x == b));
                 refresh();
             });
             filters.put(f[0], b);
-            bar.add(b);
-            bar.add(Box.createHorizontalStrut(6));
+            chips.add(b);
+            chips.add(Box.createHorizontalStrut(6));
         }
-        bar.add(Box.createHorizontalGlue());
-        game.setMaximumSize(new Dimension(170, 34));
-        game.addActionListener(e -> { if (!updatingGames) refresh(); });
-        bar.add(game);
-        bar.add(Box.createHorizontalStrut(8));
-        sort.setMaximumSize(new Dimension(120, 34));
-        sort.addActionListener(e -> refresh());
-        bar.add(sort);
-        header.add(bar);
+        chips.add(Box.createHorizontalGlue());
+        header.add(chips);
         add(header, BorderLayout.NORTH);
 
         JScrollPane scroll = new JScrollPane(grid);
@@ -205,6 +241,89 @@ public final class LibraryPanel extends JPanel {
         am.put("all", action(() -> { if (!search.hasFocus()) { shown.forEach(c -> selected.add(c.id)); grid.repaint(); } }));
         im.put(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK), "copy");
         am.put("copy", action(() -> { if (!search.hasFocus()) copyFiles(selectedClips()); }));
+
+        // Moving through the grid (only while it has the keyboard focus).
+        var gim = grid.getInputMap(WHEN_FOCUSED);
+        var gam = grid.getActionMap();
+        Object[][] moves = {{KeyEvent.VK_LEFT, "left"}, {KeyEvent.VK_RIGHT, "right"}, {KeyEvent.VK_UP, "up"}, {KeyEvent.VK_DOWN, "down"},
+                {KeyEvent.VK_HOME, "home"}, {KeyEvent.VK_END, "end"}, {KeyEvent.VK_PAGE_UP, "pgup"}, {KeyEvent.VK_PAGE_DOWN, "pgdn"}};
+        for (Object[] m : moves) {
+            String name = (String) m[1];
+            gim.put(KeyStroke.getKeyStroke((int) m[0], 0), name);
+            gim.put(KeyStroke.getKeyStroke((int) m[0], InputEvent.SHIFT_DOWN_MASK), name + "+");
+            gam.put(name, action(() -> moveLead(name, false)));
+            gam.put(name + "+", action(() -> moveLead(name, true)));
+        }
+        gim.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "toggle");
+        gam.put("toggle", action(() -> {
+            if (lead < 0 || lead >= shown.size()) return;
+            String id = shown.get(lead).id;
+            if (!selected.remove(id)) selected.add(id);
+            anchor = lead;
+            grid.repaint();
+        }));
+        gim.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "select");
+        gam.put("select", action(() -> {
+            if (lead < 0 || lead >= shown.size()) return;
+            selected.clear();
+            selected.add(shown.get(lead).id);
+            anchor = lead;
+            grid.repaint();
+        }));
+        gim.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clear");
+        gam.put("clear", action(() -> { selected.clear(); grid.repaint(); }));
+        gim.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTEXT_MENU, 0), "menu");
+        gim.put(KeyStroke.getKeyStroke(KeyEvent.VK_F10, InputEvent.SHIFT_DOWN_MASK), "menu");
+        gam.put("menu", action(() -> {
+            if (lead < 0 || lead >= shown.size()) return;
+            Component card = grid.getComponent(lead);
+            showMenu(card, card.getWidth() / 2, card.getHeight() / 2, shown.get(lead));
+        }));
+    }
+
+    /** Moves the keyboard position; with {@code extend} the selection runs from the anchor to it. */
+    private void moveLead(String how, boolean extend) {
+        int n = shown.size();
+        if (n == 0) return;
+        int cols = Math.max(1, ((GridFlow) grid.getLayout()).cols(grid));
+        int rowsPerPage = Math.max(1, grid.getVisibleRect().height / Math.max(1, cardHeight() + GAP));
+        int from = lead < 0 || lead >= n ? -1 : lead;
+        int to = switch (how) {
+            case "left" -> from < 0 ? 0 : from - 1;
+            case "right" -> from < 0 ? 0 : from + 1;
+            case "up" -> from < 0 ? 0 : from - cols;
+            case "down" -> from < 0 ? 0 : from + cols;
+            case "home" -> 0;
+            case "end" -> n - 1;
+            case "pgup" -> from < 0 ? 0 : from - cols * rowsPerPage;
+            default -> from < 0 ? 0 : from + cols * rowsPerPage;
+        };
+        to = Math.max(0, Math.min(n - 1, to));
+        lead = to;
+        if (!extend || anchor < 0 || anchor >= n) {
+            anchor = to;
+            selected.clear();
+            selected.add(shown.get(to).id);
+        } else {
+            selected.clear();
+            for (int i = Math.min(anchor, to); i <= Math.max(anchor, to); i++) selected.add(shown.get(i).id);
+        }
+        if (lead < grid.getComponentCount()) {
+            Component c = grid.getComponent(lead);
+            grid.scrollRectToVisible(new Rectangle(c.getX(), c.getY() - 6, c.getWidth(), c.getHeight() + 12));
+        }
+        grid.repaint();
+    }
+
+    private int cardHeight() { return grid.getComponentCount() > 0 ? grid.getComponent(0).getHeight() : CARD_H; }
+
+    /** Puts the keyboard focus on the clip grid (when the Library page opens). Ctrl+F still goes to search. */
+    void focusGrid() { SwingUtilities.invokeLater(grid::requestFocusInWindow); }
+
+    /** Forgets the pictures read for the grid (the window went to the tray). */
+    void clearCaches() {
+        thumbCache.clear();
+        stripCache.clear();
     }
 
     private static javax.swing.AbstractAction action(Runnable r) {
@@ -224,8 +343,18 @@ public final class LibraryPanel extends JPanel {
         updatingGames = false;
 
         String g = game.getSelectedItem() == null || "All games".equals(game.getSelectedItem()) ? null : (String) game.getSelectedItem();
+        String leadId = lead >= 0 && lead < shown.size() ? shown.get(lead).id : null;
+        String anchorId = anchor >= 0 && anchor < shown.size() ? shown.get(anchor).id : null;
         shown = app.library.query(search.getText(), filter, g, ((String) sort.getSelectedItem()).toLowerCase());
         selected.retainAll(shown.stream().map(c -> c.id).toList());
+        lead = indexOfId(leadId);
+        anchor = indexOfId(anchorId);
+        // Pictures are checked against their files again; clips that are gone are forgotten.
+        picGen++;
+        Set<String> ids = new java.util.HashSet<>();
+        for (Clip c : app.library.all()) ids.add(c.id);
+        thumbCache.keySet().retainAll(ids);
+        stripCache.keySet().retainAll(ids);
         int total = app.library.all().size();
         count.setText(shown.size() == total ? total + (total == 1 ? " clip" : " clips") : shown.size() + " of " + total);
         long bytes = app.library.totalBytes();
@@ -239,12 +368,68 @@ public final class LibraryPanel extends JPanel {
         return out;
     }
 
-    private Image thumb(Clip c) {
-        return thumbCache.computeIfAbsent(c.id + "@" + fileStamp(app.library.thumb(c)), k -> read(app.library.thumb(c)));
+    private int indexOfId(String id) {
+        if (id == null) return -1;
+        for (int i = 0; i < shown.size(); i++) if (shown.get(i).id.equals(id)) return i;
+        return -1;
     }
 
-    private BufferedImage strip(Clip c) {
-        return stripCache.computeIfAbsent(c.id + "@" + fileStamp(app.library.strip(c)), k -> read(app.library.strip(c)));
+    /**
+     * The clip's thumbnail at {@code w}×{@code h} device pixels, or null while it's being read (the card is
+     * repainted when it's ready). Never touches the disk on the UI thread.
+     */
+    private Image thumb(Clip c, int w, int h, java.awt.Component card) {
+        Pic p = thumbCache.get(c.id);
+        if (p == null || p.gen() != picGen || p.w() != w || p.h() != h) load(thumbCache, c, app.library.thumb(c), w, h, p, card);
+        return p == null ? null : p.img();
+    }
+
+    /** The clip's hover strip, or null while it's being read. */
+    private BufferedImage strip(Clip c, java.awt.Component card) {
+        Pic p = stripCache.get(c.id);
+        if (p == null || p.gen() != picGen) load(stripCache, c, app.library.strip(c), 0, 0, p, card);
+        return p == null ? null : (BufferedImage) p.img();
+    }
+
+    /** Reads a picture in the background (again only if its file changed) and repaints the card when it's in. */
+    private void load(Map<String, Pic> cache, Clip c, Path file, int w, int h, Pic old, java.awt.Component card) {
+        String key = (cache == thumbCache ? "t" : "s") + c.id;
+        if (!loadingPics.add(key)) return;
+        int gen = picGen;
+        picLoader.submit(() -> {
+            long stamp = fileStamp(file);
+            Image img;
+            if (old != null && old.stamp() == stamp && old.w() == w && old.h() == h) img = old.img();
+            else {
+                BufferedImage raw = read(file);
+                img = raw == null || w <= 0 || h <= 0 ? raw : scaled(raw, w, h);
+            }
+            Image result = img;
+            SwingUtilities.invokeLater(() -> {
+                loadingPics.remove(key);
+                cache.put(c.id, new Pic(stamp, gen, w, h, result));
+                // The grid, not just this card: the grid may have been rebuilt with new cards meanwhile.
+                if (result != (old == null ? null : old.img())) grid.repaint();
+            });
+        });
+    }
+
+    /** {@code src} scaled to w×h in a few halving steps (smooth, unlike one big bilinear step). */
+    private static BufferedImage scaled(BufferedImage src, int w, int h) {
+        BufferedImage cur = src;
+        int cw = src.getWidth(), ch = src.getHeight();
+        do {
+            cw = cw / 2 >= w ? cw / 2 : w;
+            ch = ch / 2 >= h ? ch / 2 : h;
+            BufferedImage next = new BufferedImage(Math.max(1, cw), Math.max(1, ch), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = next.createGraphics();
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(cur, 0, 0, next.getWidth(), next.getHeight(), null);
+            g.dispose();
+            cur = next;
+        } while (cw != w || ch != h);
+        return cur;
     }
 
     private static long fileStamp(Path p) {
@@ -306,15 +491,44 @@ public final class LibraryPanel extends JPanel {
                     "Favorites are locked", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        long del = locked ? list.size() - favs : list.size();
+        List<Clip> doomed = new ArrayList<>();
+        for (Clip c : list) if (!(locked && c.favorite)) doomed.add(c);
+        long del = doomed.size();
         String msg = del == 1 && list.size() == 1 ? "Delete \"" + list.get(0).title + "\"?" : "Delete " + del + " clip" + (del == 1 ? "" : "s") + "?";
         if (favs > 0) msg += locked ? "\n" + favs + " favorite" + (favs == 1 ? " is" : "s are") + " locked and will be kept."
-                : "\n" + favs + " of them " + (favs == 1 ? "is a favourite." : "are favourites.");
-        msg += "\nThey go to the recycle bin where your system has one.";
-        if (JOptionPane.showConfirmDialog(this, msg, "Delete", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
-        app.library.delete(list);
+                : "\n" + favs + " of them " + (favs == 1 ? "is a favorite." : "are favorites.");
+        msg += "\n" + (del == 1 ? "It goes" : "They go") + " to the recycle bin where your system has one.";
+        List<Clip> shared = new ArrayList<>();
+        for (Clip c : doomed) if (c.shareId != null) shared.add(c);
+        // A deleted clip's share link would otherwise stay online.
+        javax.swing.JCheckBox links = new javax.swing.JCheckBox("Also remove " + shared.size() + " share link" + (shared.size() == 1 ? "" : "s")
+                + " (" + (shared.size() == 1 ? "it stops" : "they stop") + " working)", true);
+        Object body = msg;
+        if (!shared.isEmpty()) {
+            JPanel p = new JPanel(new BorderLayout(0, 10));
+            p.setOpaque(false);
+            JLabel text = new JLabel("<html>" + esc(msg).replace("\n", "<br>") + "</html>");
+            p.add(text, BorderLayout.CENTER);
+            links.setOpaque(false);
+            p.add(links, BorderLayout.SOUTH);
+            body = p;
+        }
+        if (JOptionPane.showConfirmDialog(this, body, "Delete", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
         selected.clear();
+        boolean removeLinks = !shared.isEmpty() && links.isSelected();
+        new Thread(() -> {
+            int failed = 0;
+            String why = null;
+            if (removeLinks) for (Clip c : shared) {
+                try { app.cloud.unshare(c, app.library); }
+                catch (Exception e) { failed++; why = e.getMessage(); }
+            }
+            app.library.delete(doomed);
+            if (failed > 0) app.notify("Couldn't remove " + failed + " share link" + (failed == 1 ? "" : "s"), why, true);
+        }, "delete-clips").start();
     }
+
+    private static String esc(String s) { return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
 
     private void toggleFavorite(List<Clip> list) {
         boolean to = !list.stream().allMatch(c -> c.favorite);
@@ -358,7 +572,9 @@ public final class LibraryPanel extends JPanel {
         openFolder(file.getParent());
     }
 
-    private void showMenu(MouseEvent e, Clip c) {
+    private void showMenu(MouseEvent e, Clip c) { showMenu(e.getComponent(), e.getX(), e.getY(), c); }
+
+    private void showMenu(Component at, int atX, int atY, Clip c) {
         if (!selected.contains(c.id)) { selected.clear(); selected.add(c.id); grid.repaint(); }
         List<Clip> list = selectedClips();
         JPopupMenu m = new JPopupMenu();
@@ -375,9 +591,7 @@ public final class LibraryPanel extends JPanel {
             m.add(item("Make montage from " + list.size() + " clips", Theme.Glyph.FILM, () -> {
                 List<Clip> ordered = new ArrayList<>(list);
                 ordered.sort(java.util.Comparator.comparingLong(x -> x.created));
-                String t = (String) JOptionPane.showInputDialog(this, "Montage title (clips are joined oldest first, with their edits)",
-                        "Make montage", JOptionPane.PLAIN_MESSAGE, null, null, "Montage");
-                if (t != null) app.montage(ordered, t.isBlank() ? "Montage" : t, null);
+                montageDialog(ordered);
             }));
         }
         if (list.size() == 1) {
@@ -387,7 +601,20 @@ public final class LibraryPanel extends JPanel {
         m.addSeparator();
         m.add(item("Copy file" + (list.size() > 1 ? "s" : ""), Theme.Glyph.COPY, () -> copyFiles(list)));
         if (list.size() == 1) {
-            m.add(item(c.shareUrl != null ? "Copy share link" : "Share link (paste into Discord)", Theme.Glyph.EXPORT, () -> app.shareClip(c, true)));
+            if (c.shareUrl == null) {
+                m.add(item("Share link (paste into Discord)", Theme.Glyph.EXPORT, () -> app.shareClip(c, true)));
+            } else {
+                // The link as it is: nothing is uploaded again.
+                m.add(item(c.sharePrivate ? "Copy private link (anyone you send it to can watch)" : "Copy share link", Theme.Glyph.EXPORT, () -> {
+                    if (!net.evadeclient.clips.core.CloudShare.needsNewLink(c)) { copyLink(c, c.shareUrl); return; }
+                    // Saved by an older version with the gallery token in it: get the clip's own link first.
+                    new Thread(() -> {
+                        try { copyLink(c, app.cloud.currentLink(c, app.library)); }
+                        catch (Exception ex) { app.notify("Couldn't get the link", ex.getMessage(), true); }
+                    }, "share-link").start();
+                }));
+            }
+            m.add(discordMenu(c));
             if (c.shareId != null) m.add(item(c.sharePrivate ? "Make the link public (anyone with the link)" : "Make private (only you)", null, () -> new Thread(() -> {
                 try { app.cloud.setVisibility(c, app.library, !c.sharePrivate); app.notify(c.sharePrivate ? "Now private" : "Anyone with the link can watch", c.title, false); }
                 catch (Exception ex) { app.notify("Couldn't change who can see it", ex.getMessage(), true); }
@@ -429,7 +656,66 @@ public final class LibraryPanel extends JPanel {
         if (list.size() == 1) m.add(item("Show in folder", Theme.Glyph.FOLDER, () -> reveal(c.path(app.library.root()))));
         m.addSeparator();
         m.add(item("Delete" + (list.size() > 1 ? " " + list.size() + " clips" : ""), Theme.Glyph.TRASH, this::deleteSelected));
-        m.show(e.getComponent(), e.getX(), e.getY());
+        m.show(at, atX, atY);
+    }
+
+    private void copyLink(Clip c, String url) {
+        App.copyText(url);
+        app.notify("Link copied", c.sharePrivate ? "Private link: anyone you send it to can watch" : url, false);
+    }
+
+    /** Montage title and how the clips join; the transition is remembered for next time. */
+    private void montageDialog(List<Clip> ordered) {
+        String[] ids = {"none", "dip", "fade", "slideleft", "zoomin", "fadewhite"};
+        String[] names = {"None (straight cut)", "Dip to black", "Crossfade", "Slide", "Zoom", "Flash"};
+        JTextField title = new JTextField("Montage", 24);
+        JComboBox<String> transition = new JComboBox<>(names);
+        int at = java.util.Arrays.asList(ids).indexOf(app.settings.montageTransition);
+        transition.setSelectedIndex(at < 0 ? 1 : at);
+        JPanel p = new JPanel(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints g = new java.awt.GridBagConstraints();
+        g.anchor = java.awt.GridBagConstraints.WEST;
+        g.insets = new Insets(4, 0, 4, 10);
+        g.gridx = 0; g.gridy = 0; g.gridwidth = 2;
+        p.add(new JLabel("Clips are joined oldest first, each with its edits."), g);
+        g.gridwidth = 1; g.gridy = 1;
+        JLabel tl = new JLabel("Title");
+        tl.setLabelFor(title);
+        p.add(tl, g);
+        g.gridx = 1; g.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        p.add(title, g);
+        g.gridx = 0; g.gridy = 2; g.fill = java.awt.GridBagConstraints.NONE;
+        JLabel trl = new JLabel("Transition");
+        trl.setLabelFor(transition);
+        p.add(trl, g);
+        g.gridx = 1; g.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        p.add(transition, g);
+        SwingUtilities.invokeLater(title::selectAll);
+        if (JOptionPane.showConfirmDialog(this, p, "Make montage", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+        String tr = ids[Math.max(0, transition.getSelectedIndex())];
+        if (!tr.equals(app.settings.montageTransition)) { app.settings.montageTransition = tr; app.settings.save(); }
+        String t = title.getText().trim();
+        app.montage(ordered, t.isBlank() ? "Montage" : t, tr, null);
+    }
+
+    /** "Post to Discord": one item per channel set up in Settings. Nothing is ever posted automatically. */
+    private JComponent discordMenu(Clip c) {
+        List<net.evadeclient.clips.core.Settings.Webhook> hooks = new ArrayList<>(app.settings.discordWebhooks);
+        if (hooks.isEmpty()) {
+            JMenuItem none = item("Post to Discord", Theme.Glyph.EXPORT, () -> {});
+            none.setEnabled(false);
+            none.setToolTipText("Add a Discord channel in Settings → Sharing & phone");
+            return none;
+        }
+        JMenu menu = new JMenu("Post to Discord");
+        menu.setIcon(Theme.icon(Theme.Glyph.EXPORT, 16, Theme.DIM));
+        for (var h : hooks) menu.add(item(h.name, null, () -> {
+            boolean wouldBePrivate = c.shareId != null ? c.sharePrivate : app.settings.sharePrivateByDefault;
+            if (wouldBePrivate && JOptionPane.showConfirmDialog(this, "Posting to " + h.name + " makes this clip viewable by anyone with the link. Continue?",
+                    "Post to Discord", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE) != JOptionPane.OK_OPTION) return;
+            app.shareToWebhook(c, h, wouldBePrivate);
+        }));
+        return menu;
     }
 
     private static JMenuItem item(String text, Theme.Glyph g, Runnable r) {
@@ -454,6 +740,11 @@ public final class LibraryPanel extends JPanel {
                 }
             });
             setFocusable(true);
+            getAccessibleContext().setAccessibleName("Clips");
+            addFocusListener(new java.awt.event.FocusAdapter() {
+                @Override public void focusGained(java.awt.event.FocusEvent e) { repaint(); }
+                @Override public void focusLost(java.awt.event.FocusEvent e) { repaint(); }
+            });
         }
 
         void rebuild() {
@@ -477,7 +768,7 @@ public final class LibraryPanel extends JPanel {
         public void removeLayoutComponent(Component c) {}
         public Dimension minimumLayoutSize(Container p) { return new Dimension(CARD_W, CARD_H); }
 
-        private int cols(Container p) {
+        int cols(Container p) {
             Insets in = p.getInsets();
             int w = Math.max(CARD_W, p.getWidth() - in.left - in.right);
             return Math.max(1, (w + GAP) / (CARD_W + GAP));
@@ -526,6 +817,13 @@ public final class LibraryPanel extends JPanel {
             Theme.icon(Theme.Glyph.FILM, 56, Theme.FAINT).paintIcon(this, g, cx - 28, 90);
             g.setFont(Theme.interBold.deriveFont(20f));
             g.setColor(Theme.TEXT);
+            if (!app.library.loaded() && !filtered) {
+                g.setFont(Theme.interBold.deriveFont(20f));
+                g.setColor(Theme.TEXT);
+                String l = "Loading your clips…";
+                g.drawString(l, cx - g.getFontMetrics().stringWidth(l) / 2, 190);
+                return;
+            }
             String a = filtered ? "No clips match" : "No clips yet";
             g.drawString(a, cx - g.getFontMetrics().stringWidth(a) / 2, 190);
             g.setFont(Theme.inter.deriveFont(14f));
@@ -568,15 +866,19 @@ public final class LibraryPanel extends JPanel {
                             app.library.update(clip);
                             return;
                         }
+                        int here = shown.indexOf(clip);
                         if (e.isControlDown() || e.isMetaDown()) {
                             if (!selected.remove(clip.id)) selected.add(clip.id);
+                            anchor = here;
                         } else if (e.isShiftDown() && !selected.isEmpty()) {
-                            int a = indexOf(selected.iterator().next()), b = shown.indexOf(clip);
-                            for (int i = Math.min(a, b); i <= Math.max(a, b); i++) if (i >= 0) selected.add(shown.get(i).id);
+                            int a = anchor >= 0 && anchor < shown.size() ? anchor : indexOf(selected.iterator().next());
+                            for (int i = Math.min(a, here); i <= Math.max(a, here); i++) if (i >= 0) selected.add(shown.get(i).id);
                         } else if (!selected.contains(clip.id) || e.getClickCount() == 1) {
                             selected.clear();
                             selected.add(clip.id);
+                            anchor = here;
                         }
+                        lead = here;
                         grid.repaint();
                         if (e.getClickCount() == 2) app.openEditor.accept(clip);
                     }
@@ -597,6 +899,21 @@ public final class LibraryPanel extends JPanel {
             return -1;
         }
 
+        /** Screen readers hear the clip's title, then its game, length, age and whether it's selected. */
+        @Override public javax.accessibility.AccessibleContext getAccessibleContext() {
+            if (accessibleContext == null) {
+                accessibleContext = new AccessibleJComponent() {
+                    @Override public javax.accessibility.AccessibleRole getAccessibleRole() { return javax.accessibility.AccessibleRole.LIST_ITEM; }
+                    @Override public String getAccessibleName() { return clip.title == null ? "Clip" : clip.title; }
+                    @Override public String getAccessibleDescription() {
+                        return (clip.game == null || clip.game.isBlank() ? "" : clip.game + ", ") + Theme.time(clip.duration) + ", " + Theme.ago(clip.created)
+                                + (clip.favorite ? ", favorite" : "") + (selected.contains(clip.id) ? ", selected" : "");
+                    }
+                };
+            }
+            return accessibleContext;
+        }
+
         void animate() {
             if (anim != null) anim.stop();
             anim = new Timer(15, e -> {
@@ -612,8 +929,12 @@ public final class LibraryPanel extends JPanel {
         boolean starHit(int x, int y) { return x > getWidth() - 40 && y < 40; }
 
         @Override public String getToolTipText(MouseEvent e) {
-            return starHit(e.getX(), e.getY()) ? (clip.favorite ? "Unfavorite" + (app.settings.protectFavorites ? " (favorites are locked against deletion)" : "")
-                    : "Favorite (locks it against deletion)") : null;
+            if (starHit(e.getX(), e.getY())) return clip.favorite ? "Unfavorite" + (app.settings.protectFavorites ? " (favorites are locked against deletion)" : "")
+                    : "Favorite (locks it against deletion)";
+            // The full title (it's cut short on the card), and whether it's shared.
+            String t = clip.title == null ? "" : clip.title;
+            if (clip.shareUrl != null) t += clip.sharePrivate ? "  ·  shared privately" : "  ·  shared";
+            return t.isBlank() ? null : t;
         }
 
         @Override protected void paintComponent(Graphics g0) {
@@ -630,14 +951,15 @@ public final class LibraryPanel extends JPanel {
             g.clipRect(0, 0, w, th);
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, w, th);
-            BufferedImage strip = scrub >= 0 ? strip(clip) : null;
+            BufferedImage strip = scrub >= 0 ? strip(clip, this) : null;
             if (strip != null) {
                 int n = Library.STRIP_FRAMES;
                 int fw = strip.getWidth() / n;
                 int i = (int) (scrub * n);
                 g.drawImage(strip, 0, 0, w, th, i * fw, 0, (i + 1) * fw, strip.getHeight(), null);
             } else {
-                Image t = thumb(clip);
+                double scale = g.getTransform().getScaleX();
+                Image t = thumb(clip, (int) Math.round(w * scale), (int) Math.round(th * scale), this);
                 if (t != null) {
                     double z = 1 + hoverAnim * 0.03;
                     int dw = (int) (w * z), dh = (int) (th * z);
@@ -705,6 +1027,12 @@ public final class LibraryPanel extends JPanel {
                 g.setColor(Theme.RED);
                 g.setStroke(new java.awt.BasicStroke(2.5f));
                 g.draw(new RoundRectangle2D.Double(1.25, 1.25, w - 2.5, getHeight() - 2.5, 14, 14));
+            }
+            // Where the keyboard is (arrows move it), while the grid has the focus.
+            if (grid.isFocusOwner() && lead >= 0 && lead < shown.size() && shown.get(lead) == clip) {
+                g.setColor(new Color(0x8A8A96));
+                g.setStroke(new java.awt.BasicStroke(1.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND, 1f, new float[]{4f, 3f}, 0f));
+                g.draw(new RoundRectangle2D.Double(5, 5, w - 10, getHeight() - 10, 10, 10));
             }
             g.dispose();
         }

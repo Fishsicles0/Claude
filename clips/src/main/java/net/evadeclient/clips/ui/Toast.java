@@ -5,53 +5,125 @@ import javax.swing.JWindow;
 import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Small always-on-top notification in the corner of the screen (shows over windowed/borderless games). */
+/**
+ * Small always-on-top notification in the corner of the screen (shows over windowed/borderless games). Errors
+ * stay up longer, nothing fades while the pointer is on it, and a click dismisses it.
+ */
 public final class Toast {
+    private static final int W = 340, TEXT_X = 54, LINE = 17, MAX_LINES = 3;
+    private static final long HOLD_MS = 2600, ERROR_HOLD_MS = 8000;
     private JWindow window;
-    private String title = "", body;
+    private String title = "";
+    private List<String> lines = List.of();
     private boolean error;
     private Timer hide;
     private float alpha;
+    private volatile boolean hovered;
+    private long shownAt, holdMs;
 
     public void show(String title, String body, boolean error) {
         if (GraphicsEnvironment.isHeadless()) return;
-        this.title = title;
-        this.body = body;
         this.error = error;
         if (window == null) {
             window = new JWindow();
             window.setAlwaysOnTop(true);
             window.setFocusableWindowState(false);
             window.setBackground(new Color(0, 0, 0, 0));
-            window.setContentPane(new JComponent() {
+            JComponent content = new JComponent() {
                 @Override protected void paintComponent(Graphics g0) { paintToast((Graphics2D) g0, getWidth(), getHeight()); }
-            });
+            };
+            MouseAdapter ma = new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) { hovered = true; alpha = 1; setOpacity(1); }
+                @Override public void mouseExited(MouseEvent e) { hovered = false; shownAt = System.currentTimeMillis(); }
+                @Override public void mouseClicked(MouseEvent e) { dismiss(); }
+            };
+            content.addMouseListener(ma);
+            window.setContentPane(content);
         }
-        int w = 320, h = body == null || body.isBlank() ? 54 : 72;
+        FontMetrics tf = window.getFontMetrics(Theme.interBold.deriveFont(14f));
+        FontMetrics bf = window.getFontMetrics(Theme.inter.deriveFont(12f));
+        int textW = W - TEXT_X - 18;
+        this.title = ellipsize(tf, title == null ? "" : title, textW);
+        this.lines = wrap(bf, body, textW);
+        int h = lines.isEmpty() ? 54 : 72 + (lines.size() - 1) * LINE;
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        window.setSize(new Dimension(w, h));
-        window.setLocation(screen.x + screen.width - w - 24, screen.y + 24);
+        window.setSize(new Dimension(W, h));
+        window.setLocation(screen.x + screen.width - W - 24, screen.y + 24);
         alpha = 1;
-        try { window.setOpacity(1f); } catch (Exception ignored) {}
+        setOpacity(1f);
         window.setVisible(true);
         window.repaint();
         if (hide != null) hide.stop();
-        long shownAt = System.currentTimeMillis();
+        shownAt = System.currentTimeMillis();
+        holdMs = error ? ERROR_HOLD_MS : HOLD_MS;
         hide = new Timer(30, e -> {
-            long age = System.currentTimeMillis() - shownAt;
-            if (age > 2600) {
+            if (hovered) return;
+            if (System.currentTimeMillis() - shownAt > holdMs) {
                 alpha -= 0.08f;
-                if (alpha <= 0) { window.setVisible(false); ((Timer) e.getSource()).stop(); return; }
-                try { window.setOpacity(Math.max(0, alpha)); } catch (Exception ignored) {}
+                if (alpha <= 0) { dismiss(); return; }
+                setOpacity(Math.max(0, alpha));
             }
         });
         hide.start();
+    }
+
+    private void dismiss() {
+        if (hide != null) hide.stop();
+        if (window != null) window.setVisible(false);
+        hovered = false;
+    }
+
+    private void setOpacity(float a) {
+        try { window.setOpacity(a); } catch (Exception ignored) {} // no translucency on this system
+    }
+
+    /** Word-wraps {@code text} to {@code max} px, at most {@link #MAX_LINES} lines (the last one ellipsized). */
+    static List<String> wrap(FontMetrics fm, String text, int max) {
+        List<String> out = new ArrayList<>();
+        if (text == null || text.isBlank()) return out;
+        String[] words = text.strip().split("\\s+");
+        StringBuilder line = new StringBuilder();
+        int i = 0;
+        for (; i < words.length; i++) {
+            String w = words[i];
+            String next = line.isEmpty() ? w : line + " " + w;
+            if (fm.stringWidth(next) <= max) { line.setLength(0); line.append(next); continue; }
+            if (line.isEmpty()) {
+                out.add(ellipsize(fm, w, max)); // one word wider than the toast
+                if (out.size() == MAX_LINES) { i++; break; }
+                continue;
+            }
+            out.add(line.toString());
+            line.setLength(0);
+            line.append(w);
+            if (out.size() == MAX_LINES) break; // w isn't placed yet
+        }
+        if (i >= words.length && !line.isEmpty() && out.size() < MAX_LINES) out.add(line.toString());
+        if (i < words.length && !out.isEmpty()) {
+            // More text than fits: the last line ends with an ellipsis.
+            StringBuilder rest = new StringBuilder(out.get(out.size() - 1));
+            for (int j = i; j < words.length; j++) rest.append(' ').append(words[j]);
+            out.set(out.size() - 1, ellipsize(fm, rest.toString(), max));
+        }
+        return out;
+    }
+
+    static String ellipsize(FontMetrics fm, String s, int max) {
+        if (fm.stringWidth(s) <= max) return s;
+        while (s.length() > 1 && fm.stringWidth(s + "…") > max) s = s.substring(0, s.length() - 1);
+        return s.stripTrailing() + "…";
     }
 
     private void paintToast(Graphics2D g, int w, int h) {
@@ -62,17 +134,15 @@ public final class Toast {
         g.draw(new RoundRectangle2D.Double(0.5, 0.5, w - 1, h - 1, 14, 14));
         g.setColor(error ? Theme.GOLD : Theme.RED);
         g.fill(new RoundRectangle2D.Double(0, 0, 5, h, 4, 4));
-        if (Theme.mark != null) g.drawImage(Theme.mark, 16, (h - 26) / 2, 26, 26, null);
-        g.setFont(Theme.interBold.deriveFont(14f));
+        if (Theme.mark != null) g.drawImage(Theme.mark, 16, lines.isEmpty() ? (h - 26) / 2 : 17, 26, 26, null);
+        Font tf = Theme.interBold.deriveFont(14f);
+        g.setFont(tf);
         g.setColor(Theme.TEXT);
-        boolean hasBody = body != null && !body.isBlank();
-        g.drawString(title, 54, hasBody ? 30 : 32);
-        if (hasBody) {
+        g.drawString(title, TEXT_X, lines.isEmpty() ? 32 : 30);
+        if (!lines.isEmpty()) {
             g.setFont(Theme.inter.deriveFont(12f));
             g.setColor(Theme.DIM);
-            String b = body;
-            while (g.getFontMetrics().stringWidth(b) > w - 70 && b.length() > 4) b = b.substring(0, b.length() - 4) + "…";
-            g.drawString(b, 54, 50);
+            for (int i = 0; i < lines.size(); i++) g.drawString(lines.get(i), TEXT_X, 50 + i * LINE);
         }
     }
 }

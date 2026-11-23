@@ -32,12 +32,12 @@
   </div>
   <div class="steps">
     <div class="card step rv"><h4>Instant replay</h4><p>The last 15 seconds to 10 minutes, always ready. Saving is instant because nothing is re-encoded.</p></div>
-    <div class="card step rv d1"><h4>Near-zero FPS cost</h4><p>Encoding runs on your graphics card (NVIDIA, AMD or Intel), and instant replay only runs while a game is open.</p></div>
-    <div class="card step rv d2"><h4>Auto-clips</h4><p>Kills, aces, wins and whole rounds in supported games, and big moments in any other game, detected from the sound of the action.</p></div>
-    <div class="card step rv d3"><h4>Hands-free</h4><p>Press <span class="kbd">F8</span>, or just say &ldquo;clip that&rdquo;. Voice commands are recognised on your PC, and only the exact phrases count.</p></div>
+    <div class="card step rv d1"><h4>Near-zero FPS cost</h4><p>Encoding runs on your graphics card where it can (NVIDIA, AMD, Intel or Apple), and instant replay only runs while a game is open.</p></div>
+    <div class="card step rv d2"><h4>Auto-clips</h4><p>Kills, aces, wins and whole rounds in supported games (Minecraft via Evade Client), and big moments in any other game, detected from the sound of the action.</p></div>
+    <div class="card step rv d3"><h4>Hands-free</h4><p><span class="kbd">F8</span> saves a clip, <span class="kbd">F9</span> starts or stops a full recording and <span class="kbd">F7</span> drops a marker (change the keys in Settings). Or turn on voice commands in Settings (a one-time 70 MB download) and say &ldquo;clip that&rdquo;, &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;. Speech is recognised offline on your PC, and only commands count, not chat.</p></div>
     <div class="card step rv"><h4>Full sessions</h4><p>Record whole matches while instant replay keeps running. Every kill, death and ace is a named marker on the timeline.</p></div>
     <div class="card step rv d1"><h4>Separate audio</h4><p>Game, microphone and voice chat each record to their own track, so you can turn any of them down afterwards.</p></div>
-    <div class="card step rv d2"><h4>Small files</h4><p>Hard bitrate limits and HEVC keep a busy minute of 1080p60 under 70 MB. Discord exports always fit in 10 MB.</p></div>
+    <div class="card step rv d2"><h4>Small files</h4><p>Hard bitrate limits keep a busy minute of 1080p60 under 70 MB on the default Balanced setting, and about 40 MB with HEVC. Discord exports always fit in 10 MB.</p></div>
     <div class="card step rv d3"><h4>Your watermark, or none</h4><p>Evade Clips never adds its own. Add your channel name or logo if you want, anywhere on the frame.</p></div>
   </div>
 </section>
@@ -97,7 +97,7 @@
     </div>
     <div class="card shot-card w3 rv d1">
       <div class="img"><img src="/assets/clips-phone-clip.webp" alt="A shared clip" width="780" height="1328" style="object-fit:contain;background:#050506"></div>
-      <div class="txt"><span class="tag">Links</span><h3>Links that just play</h3><p>No watermark, no ads, no expiry. Keep a clip private, or let anyone with the link watch it.</p></div>
+      <div class="txt"><span class="tag">Links</span><h3>Links that just play</h3><p>No watermark, no ads, no expiry. Private clips get a secret link of their own and never show a preview.</p></div>
     </div>
   </div>
 </section>
@@ -109,12 +109,13 @@
   </div>
   <div class="faq-group rv">
     <details open><summary>Is it free?</summary><p>Yes. Recording, editing and sharing are free, with no watermark, no ads and no account needed to record or edit. Shared clips get 25 GB of free storage.</p></details>
-    <details><summary>What do I need to run it?</summary><p>A Windows 10/11, macOS or Linux PC. On Windows, Evade Clips offers to download the video engine it uses (ffmpeg) on first launch, and it needs Java 17 or newer, free from <a href="https://adoptium.net" target="_blank" rel="noopener">adoptium.net</a>. On macOS and Linux, install Java and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager), then open the .jar.</p></details>
-    <details><summary>Will it slow my game down?</summary><p>Barely. It encodes on your graphics card's dedicated video chip, saving a clip copies data that's already encoded, and instant replay only runs while a game is open.</p></details>
-    <details><summary>Which games does it work with?</summary><p>Any game you can see on your screen. Automatic clips for kills, aces, wins and rounds work in Counter-Strike 2, League of Legends and Minecraft, using each game's official interface where it has one. In every other game, Evade Clips clips the big moments it hears: fights, explosions, clutches.</p></details>
+    <details><summary>What do I need to run it?</summary><p>A Windows 10/11, macOS or Linux PC. On Windows, Evade Clips uses the Java that comes with the Minecraft Launcher (or Java 17+ from <a href="https://adoptium.net" target="_blank" rel="noopener">adoptium.net</a> if you don't have it) and offers to download the video engine it uses (ffmpeg) on first launch. On macOS and Linux, install Java 17+ and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager), then open the .jar.</p></details>
+    <details><summary>Will it slow my game down?</summary><p>Barely. It encodes on your graphics card's dedicated video chip where it can, saving a clip copies data that's already encoded, and instant replay only runs while a game is open.</p></details>
+    <details><summary>Which games does it work with?</summary><p>Any game you can see on your screen. Automatic clips for kills, aces, wins and rounds work in Counter-Strike 2 and League of Legends, using each game's official interface, and in Minecraft with the free <a href="https://evadeclient.com" target="_blank" rel="noopener">Evade Client</a>. In every other game, and in Minecraft without Evade Client, Evade Clips clips the big moments it hears: fights, explosions, clutches.</p></details>
     <details><summary>Does it work with After Effects or Premiere?</summary><p>Yes. Export &rarr; <b>Export project folder</b> gives you an After Effects script that builds the comp (each part time-remapped, so Twixtor and Timewarp work on it, plus zooms, captions and markers) and an XML that Premiere Pro and DaVinci Resolve import, with every audio track separate.</p></details>
-    <details><summary>Where are my clips kept?</summary><p>On your PC, as ordinary MP4 files in a folder you choose. Nothing is uploaded unless you share a clip or turn on phone sync.</p></details>
-    <details><summary>Do share links expire?</summary><p>No. A shared clip stays until you stop sharing it. You choose whether anyone with the link can watch it or only you can.</p></details>
+    <details><summary>Where are my clips kept?</summary><p>On your PC, as ordinary MP4 files in a folder you choose. Nothing is uploaded unless you share a clip or turn on <b>Send to phone</b> in Settings.</p></details>
+    <details id="privacy"><summary>What does sharing store?</summary><p>The video and its thumbnail, title, game, length, size and resolution, when you shared it, and whether it's a link clip or private, until you stop sharing it. Sharing needs no sign-up: Evade Clips makes an anonymous account of random codes, with no name or email. Shared clips that are no longer in your library can be removed in Settings &rarr; Sharing &amp; phone, and <b>Delete my shared data</b> there deletes everything at once. The full details are in the <a href="https://evadeclient.com/privacy#clips" target="_blank" rel="noopener">privacy policy</a>.</p></details>
+    <details><summary>Do share links expire?</summary><p>No. A shared clip stays until you stop sharing it. Deleting a clip in Evade Clips removes its link too, unless you untick that option when you delete it. A link clip plays for anyone with its link, right inside Discord; a private clip only opens with its own secret link and shows no preview.</p></details>
     <details id="report"><summary>How do I report a clip?</summary><p>Open the clip and tap <b>Report this clip</b>. A moderator reviews every report. If one of your clips is ever removed, the app tells you which clip and why.</p></details>
   </div>
 </section>

@@ -16,8 +16,13 @@ public final class Settings {
 
     // storage
     public String clipsFolder = defaultClipsFolder().toString();
-    /** Oldest non-favourite clips are deleted when the library goes over this. 0 = no limit. */
+    /**
+     * When the library goes over this, the oldest replays (then recordings) that aren't favourites, exports,
+     * imports or shared are deleted. 0 = no limit.
+     */
     public double storageLimitGb = 50;
+    /** Unfavourited instant replays older than this many days are deleted. 0 = keep them forever. */
+    public int replayMaxAgeDays = 0;
     /** Favourites can't be deleted (bulk or single) until they're unfavourited. */
     public boolean protectFavorites = true;
     /** Hovering a clip in the library scrubs through it. */
@@ -79,6 +84,11 @@ public final class Settings {
     public boolean playSound = true;
     public boolean showToast = true;
     public boolean minimizeToTray = true;
+    /** The "still running in the tray" balloon has been shown once (it isn't shown again). */
+    public boolean shownTrayHint = false;
+    /** Main window position and size on the virtual desktop (x, y, w, h), or null for the default. */
+    public int[] windowBounds;
+    public boolean windowMaximized = false;
     /** Lets Evade Client (and other local tools) save clips: http://127.0.0.1:{port}. */
     public boolean controlServer = true;
     public int controlPort = 47821;
@@ -101,7 +111,22 @@ public final class Settings {
     public String cloudUrl = "https://clips.evadeclient.com";
     /** Only needed if the server is private (REGISTER_SECRET set). */
     public String cloudRegisterSecret = "";
+    /**
+     * The account on the share server in use ({@link #cloudBase}). Accounts on other servers this PC has used are
+     * kept in {@link #cloudAccounts}, so switching servers (and back) doesn't lose the links shared there.
+     */
     public String cloudAccount = "", cloudKey = "", cloudViewToken = "", cloudBase = "";
+    /** Accounts on every share server this PC has used, keyed by {@link #normBase(String)} of the server. */
+    public java.util.Map<String, Creds> cloudAccounts = new java.util.LinkedHashMap<>();
+    /**
+     * Clips uploaded from the phone gallery that were deleted here but stay on the server: they aren't
+     * downloaded again.
+     */
+    public java.util.Set<String> deletedPhoneIds = new java.util.LinkedHashSet<>();
+    /** Discord channels shared clips can be posted to (webhook links stay on this PC). */
+    public java.util.List<Webhook> discordWebhooks = new java.util.ArrayList<>();
+    /** Transition between montage clips: "none", "dip", "fade", "slideleft", "zoomin" or "fadewhite". */
+    public String montageTransition = "dip";
     /** "off", "favorites" (favourites + exports) or "all" new clips go to the phone gallery automatically. */
     public String cloudSync = "off";
     /** New shares are private (only you) instead of anyone-with-the-link. */
@@ -110,6 +135,11 @@ public final class Settings {
     public boolean pullPhoneUploads = true;
     /** Folders to import new videos from automatically: console captures on a USB drive, a phone sync folder… */
     public java.util.List<String> watchFolders = new java.util.ArrayList<>();
+    /**
+     * Every file a watched folder has imported ({@link WatchFolders#key}), kept after the clip is deleted so it
+     * isn't imported again.
+     */
+    public java.util.Set<String> watchImported = new java.util.LinkedHashSet<>();
 
     // automatic clips from game events
     public int autoClipBefore = 20;
@@ -128,6 +158,108 @@ public final class Settings {
     /** Shared secret CS2 sends with every update, so other programs can't fake events. */
     public String gsiToken = java.util.UUID.randomUUID().toString().replace("-", "");
     public String defaultGame = "Minecraft";
+
+    /** This PC's account on one share server. */
+    public static final class Creds {
+        public String account = "", key = "", viewToken = "";
+
+        public Creds() {}
+        public Creds(String account, String key, String viewToken) {
+            this.account = account == null ? "" : account;
+            this.key = key == null ? "" : key;
+            this.viewToken = viewToken == null ? "" : viewToken;
+        }
+
+        public boolean present() { return account != null && !account.isBlank() && key != null && !key.isBlank(); }
+    }
+
+    /** A Discord channel webhook shared clips can be posted to. */
+    public static final class Webhook {
+        public String name = "", url = "";
+
+        public Webhook() {}
+        public Webhook(String name, String url) { this.name = name; this.url = url; }
+
+        /** The link with its secret part hidden, for showing in Settings. */
+        public String masked() {
+            String u = url == null ? "" : url;
+            int cut = u.lastIndexOf('/');
+            return cut > 0 && cut < u.length() - 1 ? u.substring(0, cut + 1) + "•••••" : u;
+        }
+
+        @Override public String toString() { return name; }
+    }
+
+    /** True for a Discord channel webhook link (only those are accepted in Settings). */
+    public static boolean validWebhook(String url) {
+        if (url == null) return false;
+        String u = url.trim();
+        return (u.startsWith("https://discord.com/api/webhooks/") || u.startsWith("https://discordapp.com/api/webhooks/")
+                || u.startsWith("https://ptb.discord.com/api/webhooks/") || u.startsWith("https://canary.discord.com/api/webhooks/"))
+                && u.matches("https://[a-z.]+/api/webhooks/\\d+/[A-Za-z0-9_\\-]+/?");
+    }
+
+    /** A share server address in the form credentials are kept under: lower case, no trailing slash. */
+    public static String normBase(String url) {
+        String u = url == null ? "" : url.trim().toLowerCase(java.util.Locale.ROOT);
+        while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+        return u;
+    }
+
+    /** This PC's account on {@code base}, or null if it has none there yet. */
+    public synchronized Creds credsFor(String base) {
+        String b = normBase(base);
+        if (b.isEmpty()) return null;
+        if (normBase(cloudBase).equals(b) && !cloudAccount.isBlank()) return new Creds(cloudAccount, cloudKey, cloudViewToken);
+        Creds c = cloudAccounts.get(b);
+        return c != null && c.present() ? c : null;
+    }
+
+    /** Remembers the account on {@code base}; it also becomes the account in use when {@code base} is the server in use. */
+    public synchronized void putCreds(String base, Creds c) {
+        String b = normBase(base);
+        if (b.isEmpty() || c == null) return;
+        cloudAccounts.put(b, c);
+        if (normBase(cloudBase).equals(b) || cloudAccount.isBlank()) {
+            cloudAccount = c.account;
+            cloudKey = c.key;
+            cloudViewToken = c.viewToken;
+            cloudBase = base;
+        }
+    }
+
+    /** Forgets this PC's account on {@code base} (after "Reset sharing" or "Delete my shared data"). */
+    public synchronized void forgetCreds(String base) {
+        String b = normBase(base);
+        cloudAccounts.remove(b);
+        if (normBase(cloudBase).equals(b)) {
+            cloudAccount = "";
+            cloudKey = "";
+            cloudViewToken = "";
+            cloudBase = "";
+        }
+    }
+
+    /**
+     * Makes the account on {@code base} the one in use (the active slot keeps working for code that reads
+     * cloudAccount directly). Returns false when this PC has no account there yet.
+     */
+    public synchronized boolean useCredsFor(String base) {
+        if (!cloudAccount.isBlank() && !cloudBase.isBlank()) cloudAccounts.put(normBase(cloudBase), new Creds(cloudAccount, cloudKey, cloudViewToken));
+        Creds c = cloudAccounts.get(normBase(base));
+        if (c == null || !c.present()) {
+            cloudAccount = "";
+            cloudKey = "";
+            cloudViewToken = "";
+            cloudBase = "";
+            return false;
+        }
+        cloudAccount = c.account;
+        cloudKey = c.key;
+        cloudViewToken = c.viewToken;
+        cloudBase = base;
+        return true;
+    }
 
     public static Path appDir() {
         if (appDirOverride != null) return appDirOverride;
@@ -189,6 +321,19 @@ public final class Settings {
         if (cloudBase == null) cloudBase = "";
         if (cloudSync == null) cloudSync = "off";
         if (watchFolders == null) watchFolders = new java.util.ArrayList<>();
+        if (watchImported == null) watchImported = new java.util.LinkedHashSet<>();
+        if (deletedPhoneIds == null) deletedPhoneIds = new java.util.LinkedHashSet<>();
+        if (discordWebhooks == null) discordWebhooks = new java.util.ArrayList<>();
+        discordWebhooks.removeIf(w -> w == null || !validWebhook(w.url));
+        for (Webhook w : discordWebhooks) if (w.name == null || w.name.isBlank()) w.name = "Discord";
+        if (montageTransition == null || montageTransition.isBlank()) montageTransition = "dip";
+        replayMaxAgeDays = Math.max(0, Math.min(3650, replayMaxAgeDays));
+        if (windowBounds != null && windowBounds.length != 4) windowBounds = null;
+        if (cloudAccounts == null) cloudAccounts = new java.util.LinkedHashMap<>();
+        cloudAccounts.values().removeIf(c -> c == null || !c.present());
+        // Older versions kept one account; it moves into the per-server list (and stays the one in use).
+        if (!cloudAccount.isBlank() && !cloudBase.isBlank())
+            cloudAccounts.put(normBase(cloudBase), new Creds(cloudAccount, cloudKey, cloudViewToken));
         if (liveSensitivity == null) liveSensitivity = "medium";
         if (cs2FullRounds == null) cs2FullRounds = "off";
         if (watermarkText == null) watermarkText = "";

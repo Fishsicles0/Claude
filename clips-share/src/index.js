@@ -292,19 +292,30 @@ async function uploadPart(req, a, env, clip, n, url) {
 
 async function completeUpload(req, a, env, ctx, clip) {
   const meta = await ownedMeta(env, a, clip, true);
-  if (meta.done) return json(finished(meta)); // a retried request: it already went through
+  if (meta.done) {
+    // A retried request: it already went through. Make sure the clip made it into the list (the earlier try may
+    // have stopped just before that step).
+    await reindex(env, a.account, (list) => (list.some((c) => c && c.id === clip) ? undefined : [entry(meta), ...list]), true);
+    return json(finished(meta));
+  }
   const b = await body(req);
   const uploadId = meta.uploadId || str(b.uploadId, 2048);
   if (!uploadId || (meta.uploadId && b.uploadId != null && b.uploadId !== meta.uploadId)) return json({ error: "wrong upload" }, 400);
   const raw = Array.isArray(b.parts) ? b.parts : [];
   const parts = raw.filter((p) => p && Number.isInteger(+p.partNumber) && typeof p.etag === "string").map((p) => ({ partNumber: +p.partNumber, etag: p.etag }));
   if (!parts.length || parts.length !== raw.length || parts.length > PART_COUNT_MAX) return json({ error: "bad parts" }, 400);
-  let obj;
+  let obj, recovered = false;
   try {
     obj = await env.CLIPS.resumeMultipartUpload(`v/${clip}.mp4`, uploadId).complete(parts);
   } catch (e) {
-    console.error("complete upload", clip, e);
-    return json({ error: "The upload couldn't be finished (a part is missing or the upload expired). Share the clip again." }, 400);
+    // An earlier try may have put the video together and then failed before recording it (or its reply was
+    // lost). Only finishing this upload writes v/<clip>.mp4, so if it's there, carry on from where that try stopped.
+    obj = meta.uploadId ? await env.CLIPS.head(`v/${clip}.mp4`) : null;
+    if (!obj) {
+      console.error("complete upload", clip, e);
+      return json({ error: "The upload couldn't be finished (a part is missing or the upload expired). Share the clip again." }, 400);
+    }
+    recovered = true;
   }
   const q = quota(env);
   const bigger = meta.size > 0 && obj.size > meta.size;
@@ -313,6 +324,8 @@ async function completeUpload(req, a, env, ctx, clip) {
     // Count the clip and drop its reservation in one step, so parallel uploads can't overrun the quota.
     await mutate(env, `a/${a.account}.json`, (acc) => {
       if (!acc) { fits = false; return undefined; }
+      // The earlier try already counted it (that's when the reservation went).
+      if (recovered && !(acc.pending && acc.pending[clip])) { fits = true; return undefined; }
       const pending = prunePending(acc.pending, Date.now());
       delete pending[clip];
       fits = (acc.used || 0) + reservedOf(pending) + obj.size <= q;
@@ -1173,12 +1186,25 @@ async function mutate(env, key, fn) {
     const cur = o ? await o.json() : null;
     const next = await fn(cur);
     if (next === undefined) return cur;
-    const put = await env.CLIPS.put(key, JSON.stringify(next), { onlyIf: o ? { etagMatches: o.etag } : new Headers({ "If-None-Match": "*" }) });
+    let put;
+    try {
+      put = await env.CLIPS.put(key, JSON.stringify(next), { onlyIf: o ? { etagMatches: o.etag } : new Headers({ "If-None-Match": "*" }) });
+    } catch (e) {
+      // R2 takes about one write per second to the same key and refuses the rest (nothing is written then), so
+      // wait and go again. Other errors may or may not have written, so they aren't retried.
+      if (i === 5 || !writeRateLimited(e)) throw e;
+      await sleep(1000 + Math.random() * 500);
+      continue;
+    }
     if (put) return next;
-    await new Promise((r) => setTimeout(r, 15 + Math.random() * 40 * (i + 1)));
+    await sleep(15 + Math.random() * 40 * (i + 1));
   }
   throw json({ error: "The server is busy. Try again." }, 503);
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** R2's "too many writes to this key" error (code 10058, HTTP 429). */
+const writeRateLimited = (e) => /10058|concurrent request rate|too many requests|\b429\b/i.test(String((e && e.message) || e));
 
 /** Every object under a prefix (follows the list cursor). */
 async function* listAll(env, opts) {

@@ -22,42 +22,81 @@ public final class WatchFolders {
 
     private WatchFolders() {}
 
+    /**
+     * What identifies one imported file: its path, size and modification time. Kept in
+     * {@link Settings#watchImported} for good, so a capture you delete isn't imported again (a file replaced by
+     * a new capture under the same name is).
+     */
+    static String key(Path f) throws IOException {
+        return f.toAbsolutePath().normalize() + "|" + Files.size(f) + "|" + Files.getLastModifiedTime(f).toMillis();
+    }
+
     /** Imports new videos from every watched folder. Returns what was added. */
     public static List<Clip> scan(Settings s, Library lib) {
         List<Clip> added = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
+        Set<String> seen;
+        synchronized (s) { seen = new HashSet<>(s.watchImported); }
+        // Older versions only remembered the path, on the clip itself.
         for (Clip c : lib.all()) if (c.importedFrom != null) seen.add(c.importedFrom);
-        for (String folder : s.watchFolders) {
-            Path root = Path.of(folder);
+        for (String folder : new ArrayList<>(s.watchFolders)) {
+            Path root;
+            try { root = Path.of(folder); } catch (RuntimeException e) { continue; }
             if (!Files.isDirectory(root)) continue; // drive not plugged in
             List<Path> files;
             try (Stream<Path> st = Files.walk(root, 6)) {
                 files = st.filter(Files::isRegularFile).filter(p -> Library.VIDEO_EXT.contains(Library.ext(p)) && !Library.ext(p).equals("gif")).toList();
-            } catch (IOException e) { continue; }
+            } catch (IOException | java.io.UncheckedIOException e) { continue; }
             for (Path f : files) {
-                String key = f.toAbsolutePath().normalize().toString();
-                if (seen.contains(key)) continue;
+                String path = f.toAbsolutePath().normalize().toString();
+                if (seen.contains(path)) continue;
                 try {
                     if (System.currentTimeMillis() - Files.getLastModifiedTime(f).toMillis() < 5000) continue; // still being written
+                    String key = key(f);
+                    if (seen.contains(key)) continue;
                     String[] gc = gameAndConsole(f);
                     Path dir = lib.folder(Clip.Kind.IMPORT).resolve("Console");
                     Files.createDirectories(dir);
                     Path dest = Library.unique(dir, f.getFileName().toString());
                     Files.copy(f, dest);
-                    Clip c = lib.addNew(dest, Clip.Kind.IMPORT, null, gc[0], null, null);
-                    c.importedFrom = key;
+                    Clip c;
+                    try {
+                        c = lib.addNew(dest, Clip.Kind.IMPORT, null, gc[0], null, null);
+                    } catch (IOException e) {
+                        Files.deleteIfExists(dest);
+                        throw e;
+                    }
+                    c.importedFrom = path;
                     c.created = Files.getLastModifiedTime(f).toMillis();
                     if (gc[1] != null && !c.tags.contains(gc[1])) c.tags.add(gc[1]);
                     if (!c.tags.contains("console") && gc[1] != null) c.tags.add("console");
                     lib.update(c);
                     added.add(c);
                     seen.add(key);
+                    synchronized (s) { s.watchImported.add(key); }
+                    s.save();
                 } catch (IOException e) {
                     System.err.println("[clips] couldn't import " + f + ": " + e.getMessage());
                 }
             }
         }
         return added;
+    }
+
+    /**
+     * Lets everything in a watched folder be imported again on the next scan ("Re-import"), except files whose
+     * clip is still in the library. Returns how many files were forgotten.
+     */
+    public static int forgetFolder(Settings s, String folder) {
+        String prefix = Path.of(folder).toAbsolutePath().normalize().toString();
+        String sep = prefix.endsWith(java.io.File.separator) ? prefix : prefix + java.io.File.separator;
+        int before;
+        synchronized (s) {
+            before = s.watchImported.size();
+            s.watchImported.removeIf(k -> k.startsWith(sep));
+            before -= s.watchImported.size();
+        }
+        if (before > 0) s.save();
+        return before;
     }
 
     /** {game, console tag} from where a capture lives and how it's named. */

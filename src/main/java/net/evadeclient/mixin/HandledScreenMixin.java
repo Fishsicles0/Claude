@@ -14,9 +14,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class HandledScreenMixin extends Screen {
     protected HandledScreenMixin(Text title) { super(title); }
 
+    /**
+     * Inventory Blur: vanilla never blurs behind container screens. This asks for the blur directly (not through
+     * Screen.applyBlur, which skips it when Menu Background Blur is 0); its strength comes from GameRendererBlurMixin.
+     */
     @Inject(method = "renderBackground", at = @At("HEAD"))
     private void evade$blur(DrawContext ctx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!InventoryBlur.on() || this.client == null || this.client.world == null) return;
-        try { this.applyBlur(ctx); } catch (IllegalStateException ignored) { /* already blurred this frame */ }
+        try { ctx.applyBlur(); } catch (IllegalStateException ignored) { /* already blurred this frame */ }
     }
 }

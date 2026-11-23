@@ -4,7 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.util.math.Vec3d;
 
-/** Draws a small dark label on the HUD at a world position (used by Waypoints and LogoutSpots). */
+/** Draws a small dark label on the HUD at a world position (used by Waypoints). */
 public final class Label {
     private Label() {}
 

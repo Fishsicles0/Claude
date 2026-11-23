@@ -11,7 +11,7 @@ public class CpsHud extends TextHudModule {
     private final BooleanSetting right = add(new BooleanSetting("Show Right", true));
 
     public CpsHud() {
-        super("CPS", "Clicks per second.", 4, 136);
+        super("CPS", "Clicks per second.", 4, 20);
         setEnabled(true);
     }
 

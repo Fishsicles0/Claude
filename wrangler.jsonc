@@ -11,8 +11,11 @@
     "not_found_handling": "404-page",
     "run_worker_first": ["/api/*"]
   },
-  // One SQLite-backed Durable Object holds icon state; Cloudflare creates it on deploy (free plan supports it).
+  // One SQLite-backed Durable Object holds icon state and the one-time sign-in ids; Cloudflare creates it on
+  // deploy (free plan supports it).
   "durable_objects": { "bindings": [{ "name": "ICONS", "class_name": "EvadeIcons" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EvadeIcons"] }]
-  // Optional secret for granting supporter icons: npx wrangler secret put ADMIN_TOKEN
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EvadeIcons"] }],
+  // Sign-in requests (/api/auth/challenge and /api/auth/verify together), per IP address and Cloudflare location.
+  // One sign-in is two requests and lasts a day. Needs Wrangler 4.36 or later; without this binding nothing is limited.
+  "ratelimits": [{ "name": "AUTH_RL", "namespace_id": "7001", "simple": { "limit": 10, "period": 60 } }]
 }

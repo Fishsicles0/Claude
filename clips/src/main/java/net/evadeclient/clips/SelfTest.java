@@ -1,21 +1,30 @@
 package net.evadeclient.clips;
 
+import com.github.kwhat.jnativehook.NativeInputEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import net.evadeclient.clips.core.CaptureEngine;
 import net.evadeclient.clips.core.Clip;
 import net.evadeclient.clips.core.EditSpec;
 import net.evadeclient.clips.core.Exporter;
 import net.evadeclient.clips.core.Ffmpeg;
+import net.evadeclient.clips.core.Hotkeys;
 import net.evadeclient.clips.core.Library;
 import net.evadeclient.clips.core.Settings;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * End-to-end check without a screen: captures ffmpeg's test pattern + tone through the real capture engine,
  * saves instant replays, records a session and runs every export preset, then verifies each file with ffprobe.
+ * Regression checks for fixed bugs (capture recovery, hotkeys, game detection, CS2 rounds, the library index and
+ * storage limit, watch folders) run alongside; checks for features a build doesn't have yet print SKIP.
  */
 final class SelfTest {
     private final List<String> failures = new ArrayList<>();
@@ -230,10 +239,18 @@ final class SelfTest {
         mo.preset = Exporter.Preset.YOUTUBE;
         Exporter.montage(mclips, lib.root(), mo, mout, null, null);
         Ffmpeg.MediaInfo mi = Ffmpeg.probe(mout);
-        check(mi.width() == 1280 && mi.height() == 720 && Math.abs(mi.duration() - want) < 0.6 && mi.hasAudio(),
-                "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s (want " + String.format("%.2f", want) + ")");
+        // Exactly one audio stream, the default one, as long as the video: an unused mixer output must not end up in
+        // the file as a stray track that players pick instead of the real mix.
+        var mstreams = RegressionSupport.audioStreams(mout);
+        boolean oneMix = mi.audioTracks() == 1 && mstreams.size() == 1 && mstreams.get(0).isDefault()
+                && Math.abs(mstreams.get(0).duration() - want) < 0.6;
+        check(mi.width() == 1280 && mi.height() == 720 && Math.abs(mi.duration() - want) < 0.6 && oneMix,
+                "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s, "
+                        + mstreams.size() + " audio stream" + (mstreams.size() == 1 ? "" : "s") + " (want 1, default, "
+                        + String.format("%.2f", want) + " s; got " + mstreams + ")");
         upgradeTests(lib, dir, src);
         shareTests(lib, dir);
+        regressionTests(dir);
         // the editor's creative tools (ramps, layouts, zoom, effects, captions, presets, project export)
         System.setProperty("clips.editTestOwnAppDir", "true");
         int editFailures = EditTests.run(dir.resolve("edit"));
@@ -300,6 +317,7 @@ final class SelfTest {
         Thread.sleep(300);
         check(saved.isEmpty() && marks.equals(List.of("Death", "Death")), "deaths in League and CS2 become timeline markers, not clips, by default (" + marks + ")");
         clipper.shutdown();
+        cs2RoundTests();
 
         // Game detection from process paths.
         String[][] cases = {
@@ -315,6 +333,24 @@ final class SelfTest {
         int ok = 0;
         for (String[] c : cases) if (java.util.Objects.equals(net.evadeclient.clips.core.GameDetector.identify(c[0], c[1]), c[2])) ok++;
         check(ok == cases.length, "game detection: " + ok + "/" + cases.length + " paths identified correctly (libraries, known games, Minecraft, launchers ignored)");
+        // Programs that run in the background next to games (Store apps, launcher helpers, Steam tools, a Minecraft
+        // server) must never count as a game: replay would start at login and never stop.
+        String[][] notGames = {
+                {"C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_524.34401.20.0_x64__cw5n1h2txyewy\\Dashboard\\Widgets.exe", ""},
+                {"C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2410.21.0_x64__8wekyb3d8bbwe\\Notepad\\Notepad.exe", ""},
+                {"C:\\Program Files\\Epic Games\\Fortnite\\Engine\\Binaries\\Win64\\UnrealCEFSubProcess.exe", ""},
+                {"C:\\Riot Games\\Riot Client\\UX\\RiotClientUxRender.exe", ""},
+                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe", ""},
+                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Lossless Scaling\\LosslessScaling.exe", ""},
+                {"C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe", ""},
+                {"/usr/lib/jvm/java-21-openjdk/bin/java", "-Xmx4G -Xms1G -jar minecraft_server.1.21.1.jar nogui"}};
+        List<String> wrong = new ArrayList<>();
+        for (String[] c : notGames) {
+            String got = net.evadeclient.clips.core.GameDetector.identify(c[0], c[1]);
+            if (got != null) wrong.add(Path.of(c[0].replace('\\', '/')).getFileName() + " → " + got);
+        }
+        check(wrong.isEmpty(), "game detection ignores Store apps, launcher helpers, Steam tools and a Minecraft server ("
+                + (notGames.length - wrong.size()) + "/" + notGames.length + (wrong.isEmpty() ? ")" : "; taken for games: " + wrong + ")"));
 
         // Live: a program running from a Steam library folder is found among the running processes.
         Path fake = Files.createDirectories(Path.of(System.getProperty("java.io.tmpdir"), "evadeclips-detect", "steamapps", "common", "Test Arena"));
@@ -349,7 +385,12 @@ final class SelfTest {
                 {"stop recording", "en-us", "", "RECORD_STOP"}, {"mark that", "en-us", "", "MARKER"},
                 {"clip that", "en-gb", "", "CLIP"}, {"clip that", "en-us", "noise", "CLIP"}, {"save clip", "en-us", "noise", "CLIP"},
                 {"I went to the store to buy some bread", "en-us", "", ""}, {"nice shot, he is one HP, push B", "en-us", "", ""},
-                {"can you clip my nails later", "en-us", "", ""}, {"", "en-us", "noise", ""}};
+                {"can you clip my nails later", "en-us", "", ""}, {"", "en-us", "noise", ""},
+                // the other accepted phrases
+                {"clip it", "en-us", "", "CLIP"}, {"save that", "en-us", "", "CLIP"},
+                // a lone word, or one that sounds like a command, is ordinary talk
+                {"mark", "en-us", "", ""}, {"clip", "en-us", "", ""}, {"marker", "en-us", "", ""}, {"click", "en-us", "", ""},
+                {"nice clip", "en-us", "", ""}};
         int ok = 0;
         List<String> bad = new ArrayList<>();
         try (var vc = new net.evadeclient.clips.core.VoiceCommands(net.evadeclient.clips.core.VoiceCommands.modelDir())) {
@@ -489,9 +530,494 @@ final class SelfTest {
         boolean psOk = imported.stream().anyMatch(x -> x.game.equals("Call of Duty® Black Ops 6") && x.tags.contains("ps5"));
         boolean xbOk = imported.stream().anyMatch(x -> x.game.equals("Halo Infinite") && x.tags.contains("xbox"));
         check(imported.size() == 2 && psOk && xbOk && again.isEmpty(), "console captures from a PS5 / Xbox USB drive import once, named after their game");
+        // Deleting an imported capture must not bring it back on the next scan (it came back every minute).
+        int deletedImports = lib.delete(imported);
+        var afterDelete = net.evadeclient.clips.core.WatchFolders.scan(ws, lib);
+        check(deletedImports == imported.size() && afterDelete.isEmpty(),
+                "console captures you delete aren't imported again (" + deletedImports + " deleted, " + afterDelete.size() + " came back)");
 
         check(rs.size() == 1 && rs.get(0).startsWith("Round 7 · won · 1K|") && Integer.parseInt(rs.get(0).split("\\|")[1]) >= 5
                 && Integer.parseInt(rs.get(0).split("\\|")[1]) <= 6, "CS2 full-round clip covers the whole round (" + rs + ")");
+    }
+
+    // ------------------------------------------------------------------ regression checks for fixed bugs
+
+    /** Checks for bugs that were found and fixed, so they stay fixed. One failing group doesn't stop the others. */
+    private void regressionTests(Path dir) {
+        guard("capture recovery", () -> captureRecoveryTests(dir));
+        guard("global hotkeys", this::hotkeyTests);
+        guard("library", () -> libraryTests(dir));
+        guard("Discord webhook", this::webhookTest);
+    }
+
+    private interface Step { void run() throws Exception; }
+
+    private void guard(String what, Step step) {
+        try {
+            step.run();
+        } catch (Throwable e) {
+            Throwable t = e instanceof java.lang.reflect.InvocationTargetException && e.getCause() != null ? e.getCause() : e;
+            check(false, what + ": " + t);
+        }
+    }
+
+    private static final String CS2_ME = "76561198000000001", CS2_MATE = "76561198000000002";
+
+    /** A CS2 game-state update: round and match state, and the player CS2 reports (you, or who you're spectating). */
+    private static String cs2(String player, int round, String mapPhase, String roundPhase, int kills, int health) {
+        return "{\"auth\":{\"token\":\"tok\"},\"provider\":{\"steamid\":\"" + CS2_ME + "\"},\"map\":{\"round\":" + round + ",\"phase\":\"" + mapPhase
+                + "\",\"team_ct\":{\"score\":13},\"team_t\":{\"score\":10}},\"round\":{\"phase\":\"" + roundPhase + "\",\"win_team\":\"CT\"},"
+                + "\"player\":{\"steamid\":\"" + player + "\",\"team\":\"CT\",\"state\":{\"health\":" + health + ",\"round_kills\":" + kills
+                + ",\"round_killhs\":0},\"match_stats\":{\"mvps\":0}}}";
+    }
+
+    /** CS2 rounds: one clip per kill, round clips next to the match win and a death, spectating after dying. */
+    private void cs2RoundTests() throws Exception {
+        List<String> got = new CopyOnWriteArrayList<>();
+        var ac = new net.evadeclient.clips.events.AutoClipper((sec, title, game, tags) -> got.add(title));
+        try {
+            ac.after = 0;
+            // A kill; then the round ends (the round number goes up while round_kills still says 1); freezetime resets it.
+            var c = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
+            c.handle(cs2(CS2_ME, 3, "live", "live", 0, 100));
+            c.handle(cs2(CS2_ME, 3, "live", "live", 1, 100));
+            Thread.sleep(300);
+            c.handle(cs2(CS2_ME, 4, "live", "over", 1, 100));
+            Thread.sleep(300);
+            c.handle(cs2(CS2_ME, 4, "live", "freezetime", 0, 100));
+            c.handle(cs2(CS2_ME, 4, "live", "live", 0, 100));
+            Thread.sleep(300);
+            check(got.equals(List.of("Kill")), "CS2: a kill is clipped once, not again when the round ends (" + got + ")");
+            got.clear();
+
+            // Connecting mid-round: kills already on the scoreboard are the starting point, not new kills.
+            var joined = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
+            joined.handle(cs2(CS2_ME, 9, "live", "live", 2, 100));
+            Thread.sleep(300);
+            check(got.isEmpty(), "CS2: kills made before Evade Clips was listening aren't clipped (" + got + ")");
+            got.clear();
+
+            ac.after = 1;
+            // Full rounds: the round that wins the match is clipped as well as the match win.
+            var win = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
+            win.fullRounds = "kills";
+            win.handle(cs2(CS2_ME, 23, "live", "freezetime", 0, 100));
+            win.handle(cs2(CS2_ME, 23, "live", "live", 0, 100));
+            win.handle(cs2(CS2_ME, 23, "live", "live", 1, 100));
+            win.handle(cs2(CS2_ME, 24, "live", "over", 1, 100));
+            win.handle(cs2(CS2_ME, 24, "gameover", "over", 1, 100));
+            Thread.sleep(1600);
+            check(sorted(got).equals(List.of("Match win", "Round 24 · won · 1K")),
+                    "CS2 full rounds: the match-winning round and the match win are both clipped (" + got + ")");
+            got.clear();
+
+            // A kill, then dying and spectating a teammate who gets 3: the round is still clipped, with only your kill.
+            var spec = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
+            spec.fullRounds = "kills";
+            spec.handle(cs2(CS2_ME, 5, "live", "freezetime", 0, 100));
+            spec.handle(cs2(CS2_ME, 5, "live", "live", 0, 100));
+            spec.handle(cs2(CS2_ME, 5, "live", "live", 1, 100));
+            spec.handle(cs2(CS2_ME, 5, "live", "live", 1, 0));
+            spec.handle(cs2(CS2_MATE, 6, "live", "over", 3, 100));
+            Thread.sleep(1600);
+            check(got.equals(List.of("Round 6 · won · 1K")), "CS2 full rounds: dying and spectating doesn't lose the round or count the teammate's kills (" + got + ")");
+            got.clear();
+
+            // Dying after the round is over (with death clips on): the round clip and the death clip are both saved.
+            var late = new net.evadeclient.clips.events.Cs2Integration(ac, "tok");
+            late.fullRounds = "kills";
+            late.deaths = true;
+            late.handle(cs2(CS2_ME, 7, "live", "freezetime", 0, 100));
+            late.handle(cs2(CS2_ME, 7, "live", "live", 0, 100));
+            late.handle(cs2(CS2_ME, 7, "live", "live", 1, 100));
+            late.handle(cs2(CS2_ME, 8, "live", "over", 1, 100));
+            late.handle(cs2(CS2_ME, 8, "live", "over", 1, 0));
+            Thread.sleep(1600);
+            check(sorted(got).equals(List.of("Death", "Round 8 · won · 1K")), "CS2 full rounds: a death after the round ends doesn't cancel the round clip (" + got + ")");
+        } finally {
+            ac.shutdown();
+        }
+    }
+
+    private static List<String> sorted(List<String> l) {
+        List<String> s = new ArrayList<>(l);
+        s.sort(null);
+        return s;
+    }
+
+    /** Global hotkeys: modifiers held in game don't block the key, holding it saves once, and Ctrl+F8 differs from F8. */
+    private void hotkeyTests() throws Exception {
+        int f8 = NativeKeyEvent.VC_F8;
+        AtomicInteger saves = new AtomicInteger();
+        Hotkeys h = new Hotkeys();
+        h.bind("F8", saves::incrementAndGet);
+        // Ctrl (crouch) or Shift (sprint) held while pressing F8.
+        key(h, true, f8, NativeInputEvent.CTRL_L_MASK);
+        key(h, false, f8, NativeInputEvent.CTRL_L_MASK);
+        key(h, true, f8, NativeInputEvent.SHIFT_L_MASK);
+        key(h, false, f8, NativeInputEvent.SHIFT_L_MASK);
+        Thread.sleep(400);
+        int withMods = saves.getAndSet(0);
+        check(withMods == 2, "F8 saves a clip while Ctrl or Shift is held (crouching, sprinting): " + withMods + " of 2 saved");
+        // Held down, the keyboard repeats the key press: one clip. After letting go, the next press saves again.
+        for (int i = 0; i < 3; i++) key(h, true, f8, 0);
+        Thread.sleep(400);
+        int held = saves.getAndSet(0);
+        key(h, false, f8, 0);
+        key(h, true, f8, 0);
+        key(h, false, f8, 0);
+        Thread.sleep(400);
+        int next = saves.get();
+        check(held == 1 && next == 1, "holding F8 down saves one clip, the next press another (" + held + " while held, " + next + " after letting go)");
+        // A binding with modifiers wins over the plain key, so both can be used.
+        AtomicInteger plain = new AtomicInteger(), ctrl = new AtomicInteger();
+        Hotkeys both = new Hotkeys();
+        both.bind("F8", plain::incrementAndGet);
+        both.bind("Ctrl+F8", ctrl::incrementAndGet);
+        key(both, true, f8, NativeInputEvent.CTRL_L_MASK);
+        key(both, false, f8, NativeInputEvent.CTRL_L_MASK);
+        key(both, true, f8, 0);
+        key(both, false, f8, 0);
+        Thread.sleep(400);
+        check(plain.get() == 1 && ctrl.get() == 1, "F8 and Ctrl+F8 can be bound to different actions (one press each: F8 ran "
+                + plain.get() + "x, Ctrl+F8 " + ctrl.get() + "x)");
+    }
+
+    private static void key(Hotkeys h, boolean down, int code, int mods) {
+        NativeKeyEvent e = new NativeKeyEvent(down ? NativeKeyEvent.NATIVE_KEY_PRESSED : NativeKeyEvent.NATIVE_KEY_RELEASED, mods, 0, code,
+                NativeKeyEvent.CHAR_UNDEFINED, NativeKeyEvent.KEY_LOCATION_STANDARD);
+        if (down) h.nativeKeyPressed(e); else h.nativeKeyReleased(e);
+    }
+
+    /**
+     * The capture's ffmpeg dying mid-recording, the recording's own encoder dying, and a post-roll as long as the
+     * replay. Uses its own small captures (360p).
+     */
+    private void captureRecoveryTests(Path dir) throws Exception {
+        Settings s = captureSettings(dir.resolve("recovery"));
+        s.replaySeconds = 6;
+        Library lib = new Library(s);
+        lib.load();
+        CaptureEngine e = new CaptureEngine(s, lib);
+        List<String> messages = new CopyOnWriteArrayList<>();
+        AtomicReference<CaptureEngine.Status> last = new AtomicReference<>();
+        e.onStatus(st -> { last.set(st); remember(messages, st.message()); });
+        try {
+            long t0 = System.currentTimeMillis();
+            e.start();
+            boolean live = waitFor(() -> isLive(last.get()), 20_000);
+            // The engine restarts a capture that dies after running for more than 5 s.
+            Thread.sleep(Math.max(0, 7000 - (System.currentTimeMillis() - t0)));
+            long pressed = System.currentTimeMillis();
+            e.startRecording("Test");
+            Thread.sleep(3000);
+            Path pidFile = lib.bufferDir().resolve("ffmpeg.pid");
+            long dead = pid(pidFile);
+            if (dead > 0) ProcessHandle.of(dead).ifPresent(ProcessHandle::destroyForcibly);
+            boolean back = dead > 0 && waitFor(() -> pid(pidFile) > 0 && pid(pidFile) != dead && isLive(last.get()), 20_000);
+            Thread.sleep(3000);
+            double wall = (System.currentTimeMillis() - pressed) / 1000.0;
+            Clip rec = e.stopRecording();
+            boolean told = messages.stream().anyMatch(m -> m.contains("recording continues"));
+            check(live && back && rec != null && Math.abs(rec.duration - wall) < 2 && told,
+                    String.format("a recording keeps going when the capture restarts mid-way: %.1f s clip for %.1f s pressed (capture %s, notice %s)",
+                            rec == null ? 0 : rec.duration, wall, back ? "restarted" : "didn't come back", told ? "shown" : "missing"));
+
+            // A post-roll as long as the replay: the start of the clip must still be in the buffer when it's saved.
+            Thread.sleep(4000);
+            Clip post = e.saveReplay(6, 6, "Post-roll", null);
+            check(Math.abs(post.duration - 12) < 1.2,
+                    String.format("post-roll as long as the replay buffer: 6 s before + 6 s after = %.2f s (want ~12)", post.duration));
+        } finally {
+            e.shutdown();
+            lib.shutdown();
+        }
+
+        // Recordings with their own bitrate run a second encoder; if it dies, the recording carries on from the buffer.
+        Settings rs = captureSettings(dir.resolve("recovery-encoder"));
+        rs.codec = "h264";
+        rs.replayBitrateMbps = 2;
+        rs.recordBitrateMbps = 6;
+        Library rlib = new Library(rs);
+        rlib.load();
+        CaptureEngine re = new CaptureEngine(rs, rlib);
+        List<String> notes = new CopyOnWriteArrayList<>();
+        AtomicReference<CaptureEngine.Status> rlast = new AtomicReference<>();
+        re.onStatus(st -> { rlast.set(st); remember(notes, st.message()); });
+        try {
+            re.start();
+            boolean live = waitFor(() -> isLive(rlast.get()), 20_000);
+            Thread.sleep(2000);
+            long pressed = System.currentTimeMillis();
+            re.startRecording("Test");
+            Thread.sleep(3000);
+            long encoder = pid(rlib.bufferDir().resolve("ffmpeg-rec.pid"));
+            if (encoder > 0) ProcessHandle.of(encoder).ifPresent(ProcessHandle::destroyForcibly);
+            Thread.sleep(4000);
+            double wall = (System.currentTimeMillis() - pressed) / 1000.0;
+            Clip rec = re.stopRecording();
+            boolean told = notes.stream().anyMatch(m -> m.startsWith("Recording encoder stopped"));
+            long recordings = rlib.all().stream().filter(c -> c.kind == Clip.Kind.RECORDING).count();
+            check(live && encoder > 0 && rec != null && recordings == 1 && rec.duration >= wall - 1 && rec.duration <= wall + 2.2 && told,
+                    String.format("a recording keeps going when its own encoder dies: one %.1f s clip for %.1f s pressed (error %s)",
+                            rec == null ? 0 : rec.duration, wall, told ? "shown" : "not shown"));
+        } finally {
+            re.shutdown();
+            rlib.shutdown();
+        }
+    }
+
+    private static Settings captureSettings(Path root) {
+        Settings s = new Settings();
+        s.clipsFolder = root.resolve("clips").toString();
+        s.source = "test";
+        s.fps = 30;
+        s.resolution = 360;
+        s.recordSystemAudio = true;
+        s.recordMic = false;
+        s.storageLimitGb = 0;
+        return s;
+    }
+
+    private static boolean isLive(CaptureEngine.Status st) { return st != null && st.state() == CaptureEngine.State.LIVE; }
+
+    private static void remember(List<String> messages, String m) {
+        if (m != null && !m.isBlank() && (messages.isEmpty() || !messages.get(messages.size() - 1).equals(m))) messages.add(m);
+    }
+
+    /** The pid at the start of one of the engine's pid files, or -1. */
+    private static long pid(Path file) {
+        try { return Long.parseLong(Files.readString(file).trim().split("\\s+")[0]); } catch (Exception e) { return -1; }
+    }
+
+    private static boolean waitFor(java.util.function.BooleanSupplier ok, long ms) throws InterruptedException {
+        long t0 = System.currentTimeMillis();
+        while (!ok.getAsBoolean()) {
+            if (System.currentTimeMillis() - t0 > ms) return false;
+            Thread.sleep(100);
+        }
+        return true;
+    }
+
+    /** The library index, the storage limit, cleaning up old replays and the cover frame, each in its own folder. */
+    private void libraryTests(Path dir) throws Exception {
+        Path root = Files.createDirectories(dir.resolve("library-checks"));
+        // One small busy clip, copied for every entry: all the same size, so the storage sums are exact.
+        Path sample = root.resolve("sample.mp4");
+        Ffmpeg.run(List.of("-f", "lavfi", "-i", "testsrc2=s=320x180:r=15:d=2,noise=alls=20:allf=t", "-f", "lavfi", "-i", "sine=f=440:d=2",
+                "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", sample.toString()));
+        guard("library index", () -> indexTests(root.resolve("index"), sample));
+        guard("storage limit", () -> storageLimitTests(root.resolve("limit"), sample));
+        guard("old replay clean-up", () -> ageCleanTests(root.resolve("age"), sample));
+        guard("cover frame", () -> coverTests(root.resolve("cover")));
+    }
+
+    private static Settings librarySettings(Path root) {
+        Settings s = new Settings();
+        s.clipsFolder = root.resolve("clips").toString();
+        s.storageLimitGb = 0;
+        return s;
+    }
+
+    private void indexTests(Path root, Path sample) throws Exception {
+        Library lib = new Library(librarySettings(root));
+        try {
+            Path replays = Files.createDirectories(lib.folder(Clip.Kind.REPLAY));
+            for (String n : List.of("a", "b", "c")) Files.copy(sample, replays.resolve(n + ".mp4"), StandardCopyOption.REPLACE_EXISTING);
+            Path index = Files.createDirectories(lib.metaDir()).resolve("library.json");
+            String good = "{\"id\":\"clip-%s\",\"file\":\"Replays/%s.mp4\",\"title\":\"%s\",\"kind\":\"REPLAY\",\"favorite\":true,\"duration\":2.0,\"tags\":[\"keep\"]}";
+            // The middle entry has a field of the wrong type (as a newer or damaged version could write).
+            Files.writeString(index, "[" + String.format(good, "a", "a", "Alpha") + ","
+                    + "{\"id\":\"clip-b\",\"file\":\"Replays/b.mp4\",\"title\":\"Beta\",\"kind\":\"REPLAY\",\"markers\":{\"not\":\"a list\"}},"
+                    + String.format(good, "c", "c", "Gamma") + "]");
+            lib.load();
+            Clip a = lib.get("clip-a"), c = lib.get("clip-c");
+            check(a != null && c != null && "Alpha".equals(a.title) && "Gamma".equals(c.title) && a.favorite && c.favorite && c.tags.contains("keep")
+                            && lib.all().size() == 3,
+                    "one broken entry in library.json doesn't wipe the other clips' titles, tags and favourites (" + titles(lib) + ")");
+            // Cut off mid-write: the clips are found again, and the unreadable index is kept instead of overwritten.
+            Files.writeString(index, "[{\"id\":\"clip-a\",\"file\":\"Repl");
+            lib.load();
+            boolean backup;
+            try (var files = Files.list(lib.metaDir())) {
+                backup = files.anyMatch(p -> p.getFileName().toString().startsWith("library.json.broken"));
+            }
+            check(backup && lib.all().size() == 3, "an unreadable library.json is kept as a backup and the clips are found again ("
+                    + lib.all().size() + " clips, backup " + (backup ? "kept" : "missing") + ")");
+        } finally {
+            lib.shutdown();
+        }
+    }
+
+    private void storageLimitTests(Path root, Path sample) throws Exception {
+        Settings s = librarySettings(root);
+        Library lib = new Library(s);
+        try {
+            lib.load();
+            long size = Files.size(sample);
+            double gb = 1024.0 * 1024 * 1024;
+            Clip ex1 = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.EXPORT), "export.mp4"), Clip.Kind.EXPORT, "Export 1", null, null, null);
+            Clip ex2 = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.EXPORT), "export.mp4"), Clip.Kind.EXPORT, "Export 2", null, null, null);
+            Clip imp = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.IMPORT), "import.mp4"), Clip.Kind.IMPORT, "Import", null, null, null);
+            Clip old = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "old.mp4"), Clip.Kind.REPLAY, "Old replay", null, null, null);
+            old.created = System.currentTimeMillis() - 3_600_000;
+            // The exports alone are over the limit: they're never deleted, and nothing else is deleted to make room.
+            s.storageLimitGb = size * 1.5 / gb;
+            Clip fresh = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "fresh.mp4"), Clip.Kind.REPLAY, "New replay", null, null, null);
+            check(present(lib, ex1, ex2, imp, old, fresh),
+                    "storage limit: when exports alone fill it, no export, import or replay is deleted (left: " + titles(lib) + ")");
+            // Room for exports, the import and 1.5 replays: the oldest replay goes, the rest stay.
+            s.storageLimitGb = size * 5.5 / gb;
+            Clip newest = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "newest.mp4"), Clip.Kind.REPLAY, "Newest replay", null, null, null);
+            boolean oldGone = lib.get(old.id) == null && !Files.exists(old.path(lib.root()));
+            check(oldGone && present(lib, ex1, ex2, imp, fresh, newest),
+                    "storage limit: the oldest replay makes room; exports, imports and newer replays stay (left: " + titles(lib) + ")");
+        } finally {
+            lib.shutdown();
+        }
+    }
+
+    private void ageCleanTests(Path root, Path sample) throws Exception {
+        java.lang.reflect.Method sweep = RegressionSupport.method(Library.class, "sweepOldReplays");
+        if (sweep == null || !RegressionSupport.hasField(Settings.class, "replayMaxAgeDays")) {
+            RegressionSupport.skip("auto-clean of old replays", "Settings.replayMaxAgeDays / Library.sweepOldReplays() aren't in this build");
+            return;
+        }
+        Settings s = librarySettings(root);
+        Library lib = new Library(s);
+        try {
+            lib.load();
+            long day = 86_400_000L, now = System.currentTimeMillis();
+            Clip oldPlain = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "old.mp4"), Clip.Kind.REPLAY, "Old replay", null, null, null);
+            Clip oldFav = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "old-fav.mp4"), Clip.Kind.REPLAY, "Old favourite", null, null, null);
+            Clip recent = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.REPLAY), "recent.mp4"), Clip.Kind.REPLAY, "Recent replay", null, null, null);
+            Clip oldRec = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.RECORDING), "old-rec.mp4"), Clip.Kind.RECORDING, "Old recording", null, null, null);
+            Clip oldExport = lib.addNew(copyInto(sample, lib.folder(Clip.Kind.EXPORT), "old-export.mp4"), Clip.Kind.EXPORT, "Old export", null, null, null);
+            oldPlain.created = oldFav.created = oldRec.created = oldExport.created = now - 40 * day;
+            recent.created = now - day;
+            oldFav.favorite = true;
+            RegressionSupport.set(s, "replayMaxAgeDays", 30);
+            Object freed = RegressionSupport.invoke(sweep, lib);
+            boolean gone = lib.get(oldPlain.id) == null && !Files.exists(oldPlain.path(lib.root()));
+            boolean bytes = !(freed instanceof Number n) || n.longValue() >= Files.size(sample);
+            check(gone && bytes && present(lib, oldFav, recent, oldRec, oldExport),
+                    "replays older than 30 days are cleaned up; favourites, recent replays, recordings and exports stay (left: " + titles(lib)
+                            + (freed instanceof Number n ? ", freed " + n.longValue() + " bytes" : "") + ")");
+        } finally {
+            lib.shutdown();
+        }
+    }
+
+    private void coverTests(Path root) throws Exception {
+        java.lang.reflect.Method setCover = RegressionSupport.method(Library.class, "setCover", Clip.class, double.class);
+        if (setCover == null || !RegressionSupport.hasField(Clip.class, "coverAt")) {
+            RegressionSupport.skip("cover frame", "Clip.coverAt / Library.setCover(Clip, double) aren't in this build");
+            return;
+        }
+        Library lib = new Library(librarySettings(root));
+        try {
+            // Red for the first second, blue after it: the default cover (further in) is blue, a cover at 0.2 s is red.
+            Path video = Files.createDirectories(lib.folder(Clip.Kind.IMPORT)).resolve("red-then-blue.mp4");
+            Ffmpeg.run(List.of("-f", "lavfi", "-i", "color=c=red:s=320x180:r=30:d=1", "-f", "lavfi", "-i", "color=c=blue:s=320x180:r=30:d=3",
+                    "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", video.toString()));
+            lib.load();
+            Clip c = lib.all().get(0);
+            Path thumb = lib.thumb(c);
+            boolean blue = waitFor(() -> near(centre(thumb), 0x0000ff), 20_000);
+            long before = Files.exists(thumb) ? Files.getLastModifiedTime(thumb).toMillis() : 0;
+            Thread.sleep(50);
+            RegressionSupport.invoke(setCover, lib, c, 0.2);
+            boolean red = waitFor(() -> near(centre(thumb), 0xff0000), 20_000);
+            long after = Files.exists(thumb) ? Files.getLastModifiedTime(thumb).toMillis() : 0;
+            Object at = RegressionSupport.get(c, "coverAt");
+            check(blue && red && after > before && at instanceof Number n && Math.abs(n.doubleValue() - 0.2) < 1e-9,
+                    "choosing the frame at 0.2 s as the cover redraws the library thumbnail from it (default cover " + (blue ? "blue" : "not found")
+                            + ", after choosing " + (red ? "red" : "unchanged") + ", coverAt " + at + ")");
+        } finally {
+            lib.shutdown();
+        }
+    }
+
+    /** Posting a shared clip to a Discord webhook (a local server stands in for Discord). */
+    private void webhookTest() throws Exception {
+        java.lang.reflect.Method post = RegressionSupport.methodNamed(net.evadeclient.clips.core.CloudShare.class, "postWebhook", 3);
+        if (post == null) {
+            RegressionSupport.skip("posting to a Discord webhook", "CloudShare.postWebhook(url, clip, link) isn't in this build");
+            return;
+        }
+        Class<?>[] types = post.getParameterTypes();
+        if (types[0] != String.class || types[1] != Clip.class || types[2] != String.class) {
+            RegressionSupport.skip("posting to a Discord webhook", "postWebhook takes " + java.util.Arrays.toString(types) + ", not (url, clip, link)");
+            return;
+        }
+        List<String> got = new CopyOnWriteArrayList<>();
+        var server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", ex -> {
+            got.add(ex.getRequestMethod());
+            got.add(String.valueOf(ex.getRequestURI().getRawQuery()));
+            got.add(new String(ex.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            byte[] reply = "{\"id\":\"1\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            ex.getResponseHeaders().set("Content-Type", "application/json");
+            ex.sendResponseHeaders(200, reply.length);
+            ex.getResponseBody().write(reply);
+            ex.close();
+        });
+        server.start();
+        try {
+            Clip c = new Clip();
+            c.id = "hook";
+            c.title = "Clutch 1v3";
+            c.game = "Counter-Strike 2";
+            c.shareId = "abc123";
+            c.shareUrl = "https://clips.evadeclient.com/c/abc123?k=k3yS3cret";
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/api/webhooks/123/token";
+            Object cloud = java.lang.reflect.Modifier.isStatic(post.getModifiers()) ? null : new net.evadeclient.clips.core.CloudShare(new Settings());
+            RegressionSupport.invoke(post, cloud, url, c, c.shareUrl);
+            String method = got.size() > 0 ? got.get(0) : "", query = got.size() > 1 ? got.get(1) : "", body = got.size() > 2 ? got.get(2) : "";
+            String content = "";
+            boolean noPings = false;
+            try {
+                var j = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
+                content = j.has("content") ? j.get("content").getAsString() : "";
+                noPings = j.has("allowed_mentions") && j.getAsJsonObject("allowed_mentions").getAsJsonArray("parse").isEmpty();
+            } catch (RuntimeException ignored) {}
+            check("POST".equals(method) && query.contains("wait=true") && content.contains("Clutch 1v3") && content.contains("/c/abc123")
+                            && !body.contains("k3yS3cret") && noPings,
+                    "a shared clip posts to a Discord webhook with its title and link, no private key and no pings (\"" + content.replace("\n", " / ") + "\")");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static Path copyInto(Path file, Path dir, String name) throws java.io.IOException {
+        Files.createDirectories(dir);
+        Path p = Library.unique(dir, name);
+        Files.copy(file, p);
+        return p;
+    }
+
+    private static boolean present(Library lib, Clip... clips) {
+        for (Clip c : clips) if (lib.get(c.id) == null || !Files.exists(c.path(lib.root()))) return false;
+        return true;
+    }
+
+    private static String titles(Library lib) {
+        return lib.all().stream().map(c -> c.title).sorted().toList().toString();
+    }
+
+    /** The colour at the centre of an image file (-1 while it's missing or half-written). */
+    private static int centre(Path img) {
+        try {
+            var im = javax.imageio.ImageIO.read(img.toFile());
+            return im == null ? -1 : im.getRGB(im.getWidth() / 2, im.getHeight() / 2) & 0xffffff;
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private static boolean near(int rgb, int want) {
+        return rgb >= 0 && Math.abs((rgb >> 16 & 255) - (want >> 16 & 255)) < 60 && Math.abs((rgb >> 8 & 255) - (want >> 8 & 255)) < 60
+                && Math.abs((rgb & 255) - (want & 255)) < 60;
     }
 
     private static int code(java.net.http.HttpClient http, String url) throws Exception {

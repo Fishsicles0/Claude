@@ -73,10 +73,10 @@ public final class AutoCaptions {
         return words;
     }
 
+    /** The audio track with this name (unnamed tracks count as Game, Mic, Voice chat by position), or -1. */
     private static int trackIndex(Clip clip, String name) {
-        if (clip.trackNames == null) return clip.audioTracks >= 2 && name.equals("Mic") ? 1 : -1;
-        for (int i = 0; i < clip.trackNames.size(); i++) if (clip.trackNames.get(i).equalsIgnoreCase(name)) return i;
-        return clip.audioTracks >= 2 && name.equals("Mic") && clip.trackNames.isEmpty() ? 1 : -1;
+        for (int i = 0; i < clip.audioTracks; i++) if (Exporter.trackName(clip, i).equalsIgnoreCase(name)) return i;
+        return -1;
     }
 
     static void parse(String json, double offset, List<Word> out) {

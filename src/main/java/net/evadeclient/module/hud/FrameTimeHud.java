@@ -28,11 +28,12 @@ public class FrameTimeHud extends HudElementModule {
 
     private float[] summary;
     private String header = "";
+    private net.minecraft.text.Text headerText = net.minecraft.text.Text.empty();
     private long cacheTick = -1;
     private NativeImageBackedTexture texture;
     private int texW;
 
-    public FrameTimeHud() { super("Frame Time Graph", "Live frame times with average FPS, 1% low and worst frame.", 4, 66); }
+    public FrameTimeHud() { super("Frame Time Graph", "Live frame times with average FPS, 1% low and worst frame.", -1, 130); }
 
     @Override
     protected void onDisable() {
@@ -46,15 +47,16 @@ public class FrameTimeHud extends HudElementModule {
         long tick = EvadeClient.ticks;
         if (summary == null || tick != cacheTick || preview) {
             summary = FrameStats.summary(FrameStats.SIZE);
-            header = preview && FrameStats.count() == 0 ? "144 FPS  1% 98  max 12.4ms"
-                    : String.format(Locale.ROOT, "%d FPS  1%% %d  max %.1fms", Math.round(summary[0]), Math.round(summary[1]), summary[2]);
+            header = preview && FrameStats.count() == 0 ? "avg 144 FPS  1% low 98  max 12.4ms"
+                    : String.format(Locale.ROOT, "avg %d FPS  1%% low %d  max %.1fms", Math.round(summary[0]), Math.round(summary[1]), summary[2]);
+            headerText = styled(header);
             paintGraph(n);
             cacheTick = tick;
         }
-        width = Math.max(n + 8, tr.getWidth(header) + 8);
+        width = Math.max(n + 8, tr.getWidth(headerText) + 8);
         height = 50;
         if (background.get()) Theme.hudBox(ctx, left, top, width, height);
-        ctx.drawTextWithShadow(tr, header, left + 4, top + 3, 0xFFFFFFFF);
+        ctx.drawTextWithShadow(tr, headerText, left + 4, top + 3, 0xFFFFFFFF);
         // One draw call per frame (measured ~4x cheaper than drawing a bar per frame).
         int gx = left + (width - n) / 2;
         if (texture != null) ctx.drawTexture(RenderPipelines.GUI_TEXTURED, TEX_ID, gx, top + 14, 0, 0, n, GRAPH_H, n, GRAPH_H);

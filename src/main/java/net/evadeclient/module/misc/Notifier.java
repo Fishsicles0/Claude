@@ -7,56 +7,50 @@ import net.evadeclient.module.Module;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.util.Notifications;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
-/** Tells you when players pop totems (with a running count) and when players come into or leave render distance. */
+/**
+ * Tells you when your own totem pops, with how many you have popped since your last death. Only ever looks at you:
+ * other players' pops and whereabouts are none of its business.
+ */
 public class Notifier extends Module {
-    private final BooleanSetting pops = add(new BooleanSetting("Totem Pops", true));
-    private final BooleanSetting visualRange = add(new BooleanSetting("Visual Range", true));
-    private final Map<UUID, Integer> popCount = new HashMap<>();
-    private final Set<UUID> inRange = new HashSet<>();
+    private final BooleanSetting pops = add(new BooleanSetting("Totem Pops", true)
+            .describe("A chat line and a toast each time your own totem pops."));
+    /** Your pops since you last died or changed world. */
+    private int popCount;
     private Object world;
 
     public Notifier() {
-        super("Notifier", "Totem pop counter and player join/leave alerts.", Category.MISC);
+        super("Notifier", "Tells you when your own totem pops.", Category.MISC);
     }
 
-    /** Called from the network mixin when an entity plays the totem-pop status (35). */
+    /** Called from the network mixin when the local player plays the totem-pop status (35). */
     public static void onPop(Entity e) {
-        if (EvadeClient.modules == null || !(e instanceof PlayerEntity p)) return;
+        if (EvadeClient.modules == null || e == null || e != EvadeClient.mc().player) return;
         Notifier n = EvadeClient.modules.get(Notifier.class);
         if (n == null || !n.isEnabled() || !n.pops.get()) return;
-        int c = n.popCount.merge(p.getUuid(), 1, Integer::sum);
-        String who = p == EvadeClient.mc().player ? "You" : p.getName().getString();
-        CommandManager.print("§c" + who + "§7 popped " + (c == 1 ? "a totem" : c + " totems"));
-        Notifications.push("Totem pop", who + " (" + c + ")", false);
+        n.syncWorld();
+        int c = ++n.popCount;
+        String what = c == 1 ? "a totem" : c + " totems";
+        CommandManager.print("§cYou§7 popped " + what);
+        Notifications.push("Totem pop", "You popped " + what, false);
     }
 
-    public int pops(UUID id) { return popCount.getOrDefault(id, 0); }
+    /** How many totems you have popped since your last death or world change (for the tests). */
+    public int pops() { return popCount; }
+
+    @Override
+    protected void onDisable() { popCount = 0; }
 
     @Override
     public void onTick() {
-        if (world != mc.world) { inRange.clear(); popCount.clear(); world = mc.world; }
-        Set<UUID> now = new HashSet<>();
-        for (PlayerEntity p : mc.world.getPlayers()) {
-            if (p == mc.player) continue;
-            now.add(p.getUuid());
-            if (p.isDead()) popCount.remove(p.getUuid()); // counts reset on death
-            if (visualRange.get() && inRange.add(p.getUuid()) && mc.player.age > 40)
-                CommandManager.print("§d" + p.getName().getString() + "§7 entered render distance");
-        }
-        for (UUID id : new HashSet<>(inRange)) {
-            if (!now.contains(id)) {
-                inRange.remove(id);
-                var entry = mc.getNetworkHandler() == null ? null : mc.getNetworkHandler().getPlayerListEntry(id);
-                if (visualRange.get() && entry != null) CommandManager.print("§d" + entry.getProfile().name() + "§7 left render distance");
-            }
+        syncWorld();
+        if (mc.player != null && mc.player.isDead()) popCount = 0; // the count restarts with each life
+    }
+
+    private void syncWorld() {
+        if (world != mc.world) {
+            world = mc.world;
+            popCount = 0;
         }
     }
 }

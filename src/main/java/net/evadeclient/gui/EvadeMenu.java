@@ -15,11 +15,14 @@ import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.setting.StringSetting;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.UiFont;
+import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.StringHelper;
 import org.lwjgl.glfw.GLFW;
@@ -83,6 +86,9 @@ public class EvadeMenu extends Screen {
     private final Map<Object, Motion.Spring> springs = new HashMap<>();
     /** Client Settings' Animations, read once per frame at the top of {@link #render}. */
     private boolean anims = true;
+    /** Client Settings' Smooth Font, read once per frame at the top of {@link #render}, so clicks measure text the
+     *  way the frame they land on drew it. */
+    private boolean smooth = true;
     /** Milliseconds for animations. Tests swap in a fixed-step clock to record smooth clips for the website. */
     public static java.util.function.LongSupplier clock = System::currentTimeMillis;
     private long lastFrame = clock.getAsLong();
@@ -96,6 +102,9 @@ public class EvadeMenu extends Screen {
     private String rejectMsg = "";
     private NumberSetting dragging;
     private int dragX, dragW;
+    /** Where the cursor is along the dragged slider (0..1), unstepped: the thumb follows it exactly while the value
+     *  snaps to its step, then glides onto the stepped value on release. */
+    private float dragPct;
     /** The text field open on a settings row (a number, a colour or a short text value), or null. */
     private Editor editor;
 
@@ -157,6 +166,7 @@ public class EvadeMenu extends Screen {
     protected void init() {
         openedAt = clock.getAsLong();
         anims = settings().animations.get();
+        smooth = settings().smoothFont.get();
     }
 
     private ClientSettings settings() { return EvadeClient.modules.get(ClientSettings.class); }
@@ -177,7 +187,8 @@ public class EvadeMenu extends Screen {
     private static final int DESIGN_W = 820, DESIGN_H = 506;
     /** Menu units to GUI units (1 = no change). */
     private float vs = 1f;
-    /** Screen pixels per menu pixel. The smooth font needs at least 2; at 1 the pixel font is the crisp choice. */
+    /** Screen pixels per menu pixel. Picks the smooth font files rasterised for it (see {@link #fontG}); at 1 the
+     *  smallest text roles step up a size so they stay readable (see {@link #shown}). */
     private double menuPx = 2;
 
     private void updateScale() {
@@ -195,6 +206,7 @@ public class EvadeMenu extends Screen {
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         anims = settings().animations.get();
+        smooth = settings().smoothFont.get();
         super.render(ctx, mouseX, mouseY, delta);
         updateScale();
         int realW = width, realH = height;
@@ -242,10 +254,13 @@ public class EvadeMenu extends Screen {
         m.scale(s, s);
         m.translate(-width / 2f, -height / 2f);
 
-        // window with a soft red glow
-        Theme.round(ctx, wx - 3, wy - 3, wx + ww + 3, wy + wh + 3, Theme.alpha(Theme.RED, 0.19f));
-        Theme.roundBordered(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.BORDER);
+        // Window: a soft drop shadow and a faint accent halo behind the body, then the sidebar, then the 1 px ring
+        // over both, so it also covers the sidebar's rounded corners.
+        windowShadow(ctx, wx, wy + 6, wx + ww, wy + wh + 6, Theme.alpha(0xFF000000, 0.6f));
+        windowShadow(ctx, wx, wy, wx + ww, wy + wh, Theme.alpha(Theme.RED, 0.2f));
+        Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
         renderSidebar(ctx, mouseX, mouseY);
+        Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
         renderClose(ctx, mouseX, mouseY);
 
         if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
@@ -259,6 +274,18 @@ public class EvadeMenu extends Screen {
         drawTip(ctx);
 
         m.popMatrix();
+    }
+
+    /**
+     * A {@link Theme#SH_WINDOW} shadow (or halo) around the window rect, with the middle that the nine-slice leaves
+     * out filled in the same colour. The window body is slightly translucent, so an empty middle would show through
+     * it as a faint frame where the edge slices end.
+     */
+    private static void windowShadow(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
+        Theme.Shadow s = Theme.SH_WINDOW;
+        Theme.shadow(ctx, s, x1, y1, x2, y2, color);
+        int in = s.slice() - s.pad(); // how far the edge slices reach inside the rect (they are opaque there)
+        Theme.fill(ctx, x1 + in, y1 + in, x2 - in, y2 - in, color);
     }
 
     // ---- sidebar ------------------------------------------------------
@@ -289,12 +316,14 @@ public class EvadeMenu extends Screen {
     }
 
     private void renderSidebar(DrawContext ctx, int mx, int my) {
-        ctx.fill(wx + 1, wy + 1, wx + SIDEBAR, wy + wh - 1, Theme.SIDEBAR);
-        ctx.fill(wx + SIDEBAR, wy + 1, wx + SIDEBAR + 1, wy + wh - 1, Theme.BORDER);
+        // Rounded on the left, one radius smaller and one pixel in, so it sits inside the window's corner ring
+        // instead of poking a square corner through it.
+        Theme.round(ctx, wx + 1, wy + 1, wx + SIDEBAR, wy + wh - 1, Theme.SIDEBAR, Theme.R_WIN - 1, Theme.TL | Theme.BL);
+        Theme.fill(ctx, wx + SIDEBAR, wy + 1, wx + SIDEBAR + 1, wy + wh - 1, Theme.BORDER);
 
         net.evadeclient.util.Logo.lockup(ctx, wx + 16, wy + 15, 22);
-        small(ctx, "C L I E N T", wx + 44, wy + 35, Theme.TEXT_FAINT, 0.65f);
-        ctx.fill(wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, Theme.DIVIDER);
+        caps(ctx, "Client", wx + 44, wy + 35, Theme.TEXT_FAINT, Role.CAPS_SM, 1.5f);
+        Theme.fill(ctx, wx + 16, wy + 46, wx + SIDEBAR - 16, wy + 47, Theme.DIVIDER);
 
         // On a screen too short for the whole list (it fits at the design size) the list clips and scrolls.
         navScroll = Math.max(0, Math.min(navScroll, navMaxScroll()));
@@ -303,7 +332,7 @@ public class EvadeMenu extends Screen {
         int y = navTop() - (int) Math.round(navScroll);
         for (NavGroup g : GROUPS) {
             if (g.header != null) {
-                small(ctx, spaced(g.header), wx + 18, y + 7, Theme.TEXT_HEADER, 0.78f);
+                caps(ctx, g.header, wx + 18, y + 7, Theme.TEXT_HEADER, Role.CAPS, 2f);
                 y += NAV_HEADER_H;
             }
             for (Nav n : g.items) {
@@ -316,9 +345,10 @@ public class EvadeMenu extends Screen {
         if (clip) ctx.disableScissor();
 
         String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
-        ctx.fill(wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, Theme.DIVIDER);
-        small(ctx, user.isEmpty() ? "Player" : user, wx + 16, wy + wh - 25, Theme.TEXT_DIM, 0.85f);
-        small(ctx, "Evade v" + EvadeClient.VERSION, wx + 16, wy + wh - 15, Theme.TEXT_FAINT, 0.78f);
+        Theme.fill(ctx, wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, Theme.DIVIDER);
+        int footW = SIDEBAR - 32;
+        text(ctx, ellipsize(Role.LABEL, user.isEmpty() ? "Player" : user, footW), wx + 16, wy + wh - 25, Theme.TEXT_DIM, Role.LABEL);
+        text(ctx, ellipsize(Role.SMALL, "Evade v" + EvadeClient.VERSION, footW), wx + 16, wy + wh - 15, Theme.TEXT_FAINT, Role.SMALL);
     }
 
     private void navItem(DrawContext ctx, Nav n, int y, int mx, int my, boolean active) {
@@ -341,26 +371,24 @@ public class EvadeMenu extends Screen {
         int textColor = active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t);
         text(ctx, n.label, ix + ICON + 9, y + (NAV_ITEM_H - 9) / 2, textColor, false);
 
-        // Count pill, right-aligned (category pages only, not Settings), tinted in the accent colour.
+        // Count pill, right-aligned (category pages only, not Settings): calm grey, in the accent only when active,
+        // so the sidebar doesn't read as a column of red badges. On hover it lifts with the row, which is about the
+        // pill's own grey there.
         if (n.page != null && n.page.category != null && n.page != Page.SETTINGS) {
             String cnt = String.valueOf(modulesFor(n.page, "").size());
-            int cw2 = Math.max(13, Math.round(width(cnt) * 0.8f) + 8);
+            int tw = width(Role.SMALL, cnt);
+            int cw2 = Math.max(13, tw + 8);
             int chipX = x2 - 7 - cw2, chipY = y + (NAV_ITEM_H - 2 - 12) / 2;
-            Theme.round(ctx, chipX, chipY, chipX + cw2, chipY + 12, Theme.alpha(Theme.RED, active ? 0.3f : 0.14f));
-            int tw = Math.round(width(cnt) * 0.8f);
-            small(ctx, cnt, chipX + (cw2 - tw) / 2 + 1, chipY + 3,
-                    active ? Theme.RED_BRIGHT : Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, 0.45f), 0.8f);
+            int chip = active ? Theme.alpha(Theme.RED, 0.3f) : Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, Math.min(1f, t * 2.5f));
+            Theme.pill(ctx, chipX, chipY, chipX + cw2, chipY + 12, chip);
+            // The vanilla width counts a trailing pixel column the glyphs don't fill: centre past it. Inter's advances
+            // carry their own side bearings, so it centres on the measured width (rounding half up).
+            text(ctx, cnt, chipX + (smooth ? (cw2 - tw + 1) / 2 : (cw2 - tw) / 2 + 1), chipY + 3,
+                    active ? Theme.RED_BRIGHT : Theme.TEXT_DIM, Role.SMALL);
         }
     }
 
     private static final int ICON = 12;
-
-    /** Spread a header's letters so it reads as a small-caps label. */
-    private static String spaced(String s) {
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) { if (i > 0) b.append(' '); b.append(s.charAt(i)); }
-        return b.toString();
-    }
 
     private void renderClose(DrawContext ctx, int mx, int my) {
         int bx = wx + ww - 24, by = wy + 12;
@@ -379,6 +407,7 @@ public class EvadeMenu extends Screen {
     private void renderSearch(DrawContext ctx, int mx, int my) {
         int sx = cx, sw = searchW();
         boolean hs = mx >= sx && mx < sx + sw && my >= searchY && my < searchY + 24;
+        focusGlow(ctx, "search", searchFocused, sx, searchY, sx + sw, searchY + 24);
         Theme.roundBordered(ctx, sx, searchY, sx + sw, searchY + 24, Theme.INPUT, searchFocused ? Theme.RED : hs ? Theme.BORDER_HOVER : Theme.BORDER);
         // magnifier
         icon(ctx, "search", sx + 7, searchY + 7, 10, searchFocused ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
@@ -386,10 +415,18 @@ public class EvadeMenu extends Screen {
         boolean caret = searchFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (search.isEmpty() && !searchFocused) {
             text(ctx, "Search modules", sx + 22, searchY + 8, Theme.TEXT_FAINT, false);
-            small(ctx, "Ctrl+F  ·  searches every mod and setting", sx + 22 + width("Search modules") + 14, searchY + 9, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 0.85f);
+            int hx = sx + 22 + width("Search modules") + 14;
+            text(ctx, ellipsize(Role.LABEL, "Ctrl+F  ·  searches every mod and setting", sx + sw - 8 - hx), hx, searchY + 9,
+                    Theme.alpha(Theme.TEXT_FAINT, 0.7f), Role.LABEL);
         } else {
             text(ctx, trimStart(search, sw - 30) + (caret ? "_" : ""), sx + 22, searchY + 8, Theme.TEXT, false);
         }
+    }
+
+    /** A soft accent glow around a text field that fades in while it has focus (drawn before the field's box). */
+    private void focusGlow(DrawContext ctx, String id, boolean focused, int x1, int y1, int x2, int y2) {
+        float focus = animate("focus:" + id, focused ? 1 : 0, 16);
+        if (focus > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x2, y2, Theme.alpha(Theme.RED, 0.28f * focus));
     }
 
     // All / Enabled segmented toggle and the A-Z sort chip to its left, right-aligned in the header.
@@ -401,23 +438,23 @@ public class EvadeMenu extends Screen {
     private void renderHeader(DrawContext ctx, int mx, int my) {
         // title + module count; while searching the list covers every category
         String title = search.isBlank() ? page.label : "Search";
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(cx, headerY);
-        m.scale(1.45f, 1.45f);
-        text(ctx, title, 0, 0, Theme.TEXT, false);
-        m.popMatrix();
-        int tw = Math.round(width(title) * 1.45f);
+        text(ctx, title, cx, headerY, Theme.TEXT, Role.TITLE);
+        int tw = width(Role.TITLE, title);
         int total = modulesFor(listPage(), "").size();
         String noun = total == 1 ? " module" : " modules";
         String count = !search.isBlank() || enabledOnly ? visibleModules().size() + " of " + total + noun : total + noun;
-        small(ctx, trimScaled(count, azX() - 10 - (cx + tw + 10), 0.9f), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, 0.9f);
+        text(ctx, ellipsize(Role.LABEL, count, azX() - 10 - (cx + tw + 10)), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, Role.LABEL);
 
         int segX = segX(), segY = headerY - 3, half = SEG_W / 2;
         Theme.roundBordered(ctx, segX, segY, segX + SEG_W, segY + 22, Theme.INPUT, Theme.BORDER);
         float sel = animate("seg", enabledOnly ? 1 : 0, 18);
-        int knobX = segX + 2 + Math.round((half - 2) * sel);
-        Theme.round(ctx, knobX, segY + 2, knobX + half - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f));
+        // The knob glides in device pixels (a whole-pixel step would visibly jump at GUI scale 2 and up).
+        int knobX = segX + 2;
+        var km = ctx.getMatrices();
+        km.pushMatrix();
+        km.translate(Theme.snap(ctx, (half - 2) * sel), 0);
+        Theme.round(ctx, knobX, segY + 2, knobX + half - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f), Theme.R_XS);
+        km.popMatrix();
         drawCentered(ctx, "All", segX, segX + half, segY + 7, Theme.lerpColor(Theme.ON_ACCENT, Theme.TEXT_DIM, sel));
         drawCentered(ctx, "Enabled", segX + half, segX + SEG_W, segY + 7, Theme.lerpColor(Theme.TEXT_DIM, Theme.ON_ACCENT, sel));
 
@@ -430,7 +467,12 @@ public class EvadeMenu extends Screen {
     }
 
     private void drawCentered(DrawContext ctx, String s, int x1, int x2, int y, int color) {
-        text(ctx, s, x1 + (x2 - x1 - width(s)) / 2, y, color, false);
+        drawCentered(ctx, s, x1, x2, y, color, Role.BODY);
+    }
+
+    /** {@code s} in role {@code r}, centred between {@code x1} and {@code x2}. */
+    private void drawCentered(DrawContext ctx, String s, int x1, int x2, int y, int color, Role r) {
+        text(ctx, s, x1 + (x2 - x1 - width(r, s)) / 2, y, color, r);
     }
 
     // ---- profiles page ------------------------------------------------
@@ -453,6 +495,7 @@ public class EvadeMenu extends Screen {
         // new-profile input + Import and Create buttons (kept clear of the window's close button)
         int inW = profileInputW();
         boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
+        focusGlow(ctx, "profile", profileFocused, cx, searchY, cx + inW, searchY + 24);
         Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, profileFocused ? Theme.RED : hin ? Theme.BORDER_HOVER : Theme.BORDER);
         boolean caret = profileFocused && (clock.getAsLong() / 500) % 2 == 0;
         if (profileInput.isEmpty() && !profileFocused) {
@@ -462,24 +505,19 @@ public class EvadeMenu extends Screen {
         }
         int bx = createButtonX(), br = contentRight();
         boolean hc = mx >= bx && mx < br && my >= searchY && my < searchY + 24;
-        Theme.round(ctx, bx, searchY, br, searchY + 24, hc ? Theme.RED : Theme.RED_DARK);
-        drawCentered(ctx, "Create", bx, br, searchY + 8, hc ? Theme.ON_ACCENT : Theme.TEXT);
+        Theme.round(ctx, bx, searchY, br, searchY + 24, hc ? Theme.RED_BRIGHT : Theme.RED);
+        drawCentered(ctx, "Create", bx, br, searchY + 8, Theme.ON_ACCENT, Role.STRONG);
         int ix = importButtonX();
         boolean hi = mx >= ix && mx < ix + 70 && my >= searchY && my < searchY + 24;
         Theme.roundBordered(ctx, ix, searchY, ix + 70, searchY + 24, hi ? Theme.CONTROL_HOVER : Theme.CONTROL, hi ? Theme.RED : Theme.BORDER);
         drawCentered(ctx, "Import", ix, ix + 70, searchY + 8, Theme.TEXT);
 
         // header
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(cx, headerY);
-        m.scale(1.45f, 1.45f);
-        text(ctx, "Profiles", 0, 0, Theme.TEXT, false);
-        m.popMatrix();
+        text(ctx, "Profiles", cx, headerY, Theme.TEXT, Role.TITLE);
         List<String> list = profiles.list();
         String active = profiles.active();
-        int tw = Math.round(width("Profiles") * 1.45f);
-        small(ctx, list.size() + (list.size() == 1 ? " profile" : " profiles"), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, 0.9f);
+        int tw = width(Role.TITLE, "Profiles");
+        text(ctx, list.size() + (list.size() == 1 ? " profile" : " profiles"), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, Role.LABEL);
 
         int contentH = list.size() * (PROFILE_H + GAP);
         scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - ch)));
@@ -492,8 +530,8 @@ public class EvadeMenu extends Screen {
         ctx.disableScissor();
         drawScrollbar(ctx, cy, ch, contentH);
 
-        small(ctx, trimScaled("Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.", cw, 0.8f),
-                cx, cy + ch + 2, Theme.TEXT_FAINT, 0.8f);
+        text(ctx, ellipsize(Role.SMALL, "Each profile remembers its mods, settings, keybinds and HUD layout. Copy a code to share one; Import adds a copied code.", cw),
+                cx, cy + ch + 2, Theme.TEXT_FAINT, Role.SMALL);
     }
 
     private record ProfileButton(String id, String label, int x1, int x2) {}
@@ -510,7 +548,7 @@ public class EvadeMenu extends Screen {
             out.add(new ProfileButton("use", "Use", right - USE_W, right)); right -= USE_W + 6;
             if (total > 1) {
                 boolean confirm = name.equals(pendingDelete);
-                int dw = confirm ? Math.round(width("Delete?") * 0.85f) + 14 : DELETE_W;
+                int dw = confirm ? width(Role.LABEL, "Delete?") + 14 : DELETE_W;
                 out.add(new ProfileButton("delete", confirm ? "Delete?" : "×", right - dw, right)); right -= dw + 6;
             }
         } else {
@@ -520,7 +558,7 @@ public class EvadeMenu extends Screen {
         String srv = currentServer();
         if (srv != null) {
             String label = isLinked(name, srv) ? "Linked here" : "Use on this server";
-            int w = width(label) * 85 / 100 + 14;
+            int w = width(Role.LABEL, label) + 14;
             out.add(new ProfileButton("server", label, right - w, right));
         }
         return out;
@@ -538,7 +576,7 @@ public class EvadeMenu extends Screen {
         int fill = Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h);
         int border = active ? Theme.RED : Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f);
         Theme.roundBordered(ctx, cx, y, cx + cw, y + PROFILE_H, active ? Theme.tint(0.09f) : fill, border);
-        if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED);
+        if (active) Theme.round(ctx, cx + 1, y + 6, cx + 3, y + PROFILE_H - 6, Theme.RED, 1);
 
         List<ProfileButton> buttons = profileButtons(name, active, total);
         int textRight = cx + cw - 12 - (active ? USE_W : 0);
@@ -550,30 +588,31 @@ public class EvadeMenu extends Screen {
             text(ctx, trim(name, textW), cx + 16, y + (PROFILE_H - 8) / 2, Theme.TEXT, false);
         } else {
             text(ctx, trim(name, textW), cx + 16, y + 11, Theme.TEXT, false);
-            small(ctx, trimScaled("Auto on " + String.join(", ", servers), textW, 0.8f), cx + 16, y + 25, Theme.TEXT_DIM, 0.8f);
+            text(ctx, ellipsize(Role.SMALL, "Auto on " + String.join(", ", servers), textW), cx + 16, y + 25, Theme.TEXT_DIM, Role.SMALL);
         }
 
         int by = y + (PROFILE_H - 18) / 2;
         if (active) {
             // The ACTIVE chip sits in the Use button's slot, at the buttons' height.
-            int right = cx + cw - 12, tw = Math.round(width("ACTIVE") * textScale(0.8f));
-            Theme.round(ctx, right - USE_W, by, right, by + 18, Theme.alpha(Theme.RED, 0.3f));
-            small(ctx, "ACTIVE", right - USE_W + (USE_W - tw) / 2, by + 6, Theme.RED_BRIGHT, 0.8f);
+            int right = cx + cw - 12, tw = width(Role.CAPS, "ACTIVE");
+            Theme.pill(ctx, right - USE_W, by, right, by + 18, Theme.alpha(Theme.RED, 0.3f));
+            text(ctx, "ACTIVE", right - USE_W + (USE_W - tw) / 2, by + 6, Theme.RED_BRIGHT, Role.CAPS);
         }
         for (ProfileButton b : buttons) {
             boolean hb = inView && mx >= b.x1() && mx < b.x2() && my >= by && my < by + 18;
             switch (b.id()) {
                 case "use" -> {
-                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
-                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, hb ? Theme.ON_ACCENT : Theme.TEXT);
+                    // The row's primary action: a solid accent button (its own border colour, so no ring shows).
+                    int bg = hb ? Theme.RED_BRIGHT : Theme.RED;
+                    Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, bg);
+                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 5, Theme.ON_ACCENT, Role.STRONG);
                 }
                 case "delete" -> {
                     boolean confirm = name.equals(pendingDelete);
                     int bg = confirm ? Theme.alpha(Theme.DANGER, hb ? 0.3f : 0.18f) : hb ? Theme.alpha(Theme.DANGER, 0.15f) : Theme.CONTROL;
                     Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, confirm || hb ? Theme.DANGER : Theme.BORDER);
                     if (confirm) {
-                        int tw = Math.round(width(b.label()) * textScale(0.85f));
-                        small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, Theme.DANGER, 0.85f);
+                        drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 6, Theme.DANGER, Role.LABEL);
                     } else {
                         text(ctx, "×", b.x1() + 6, by + 5, hb ? Theme.DANGER : Theme.TEXT_DIM, false);
                     }
@@ -583,8 +622,7 @@ public class EvadeMenu extends Screen {
                     boolean linked = b.id().equals("server") && b.label().startsWith("Linked");
                     int bg = hb ? Theme.CONTROL_HOVER : linked ? Theme.alpha(Theme.RED, 0.22f) : Theme.CONTROL;
                     Theme.roundBordered(ctx, b.x1(), by, b.x2(), by + 18, bg, hb || linked ? Theme.RED : Theme.BORDER);
-                    int tw = Math.round(width(b.label()) * 0.85f);
-                    small(ctx, b.label(), b.x1() + (b.x2() - b.x1() - tw) / 2, by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, 0.85f);
+                    drawCentered(ctx, b.label(), b.x1(), b.x2(), by + 6, linked ? Theme.RED_BRIGHT : hb ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
                 }
             }
         }
@@ -733,7 +771,20 @@ public class EvadeMenu extends Screen {
         int contentH = rows * (rh + rg);
         scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, contentH - ch)));
 
-        ctx.enableScissor(cx - 2, cy, cx + cw + 2, cy + ch);
+        // Wider than the rows on both sides (they still end at cx + cw) so a hover glow fades out instead of being
+        // cut off; the sidebar edge is 17 px away and the scrollbar is drawn after the scissor.
+        ctx.enableScissor(cx - 10, cy, cx + cw + 10, cy + ch);
+        // Hover glows first, under every row, so one never paints over the row before it (Compact rows are 4 px
+        // apart). They use the hover value the rows animated last frame: a frame late, which can't be seen. Enabled
+        // rows get no glow of their own: a list of enabled mods would look like neon.
+        for (int i = 0; i < mods.size(); i++) {
+            Module mod = mods.get(i);
+            int x = cx + (i % cols) * (cardW + rg);
+            int y = cy + (i / cols) * (rh + rg) - (int) Math.round(scroll);
+            if (y + rh < cy || y > cy + ch) continue;
+            float h = anim.getOrDefault("hover:" + mod.getName(), 0f);
+            if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x, y, x + cardW, y + rh, Theme.alpha(Theme.RED, 0.30f * h));
+        }
         for (int i = 0; i < mods.size(); i++) {
             Module mod = mods.get(i);
             int x = cx + (i % cols) * (cardW + rg);
@@ -753,7 +804,7 @@ public class EvadeMenu extends Screen {
         ctx.disableScissor();
         drawScrollbar(ctx, cy, ch, contentH);
 
-        small(ctx, trimScaled("Click: toggle  ·  Right-click / gear: settings & keybind", cw, 0.8f), cx, cy + ch + 3, Theme.TEXT_FAINT, 0.8f);
+        text(ctx, ellipsize(Role.SMALL, "Click: toggle  ·  Right-click / gear: settings & keybind", cw), cx, cy + ch + 3, Theme.TEXT_FAINT, Role.SMALL);
     }
 
     /** The premium default: a full-width row with name, description, keybind chip, gear and toggle. */
@@ -766,11 +817,11 @@ public class EvadeMenu extends Screen {
         int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), Theme.tint(0.09f), on * 0.55f);
         int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.tint(0.25f), on), Theme.RED, h * 0.7f);
         Theme.roundBordered(ctx, x, y, x + w, y + LIST_H, fill, border);
-        if (on > 0.01f) Theme.round(ctx, x + 1, y + 6, x + 3, y + LIST_H - 6, Theme.alpha(Theme.RED, on));
+        if (on > 0.01f) Theme.round(ctx, x + 1, y + 6, x + 3, y + LIST_H - 6, Theme.alpha(Theme.RED, on), 1);
 
         int tx = x + 16;
-        text(ctx, trim(mod.getName(), w - 150), tx, y + 11, Theme.TEXT, false);
-        small(ctx, trimScaled(mod.getDescription(), w - 150, 0.78f), tx, y + 26, Theme.TEXT_DIM, 0.78f);
+        text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 150), tx, y + 11, Theme.TEXT, Role.STRONG);
+        text(ctx, ellipsize(Role.SMALL, mod.getDescription(), w - 150), tx, y + 26, Theme.TEXT_DIM, Role.SMALL);
 
         int right = x + w - 12;
         // toggle (far right)
@@ -802,19 +853,19 @@ public class EvadeMenu extends Screen {
 
         int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.tint(0.32f), on), Theme.RED, h * 0.8f);
         Theme.roundBordered(ctx, x, y, x + w, y + CARD_H, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), border);
-        if (on > 0.01f) ctx.fill(x + 1, y + 3, x + 2, y + CARD_H - 3, Theme.alpha(Theme.RED, on));
+        if (on > 0.01f) Theme.fill(ctx, x + 1, y + 3, x + 2, y + CARD_H - 3, Theme.alpha(Theme.RED, on));
 
         int catColor = Theme.lerpColor(Theme.TEXT_FAINT, Theme.RED_BRIGHT, on);
         icon(ctx, categoryIcon(mod.getCategory()), x + 7, y + 4, 9, catColor);
-        small(ctx, mod.getCategory().displayName.toUpperCase(Locale.ROOT), x + 19, y + 7, catColor, 0.62f);
+        caps(ctx, mod.getCategory().displayName, x + 19, y + 7, catColor, Role.CAPS_SM, 0f);
         if (mod.getKey() != GLFW.GLFW_KEY_UNKNOWN) {
             String k = KeySetting.keyName(mod.getKey());
-            int kw = Math.round(width(k) * 0.65f);
-            Theme.round(ctx, x + w - kw - 12, y + 5, x + w - 5, y + 14, Theme.CONTROL_HOVER);
-            small(ctx, k, x + w - kw - 9, y + 7, Theme.TEXT_DIM, 0.65f);
+            int kw = width(Role.TINY, k);
+            Theme.pill(ctx, x + w - kw - 12, y + 5, x + w - 5, y + 14, Theme.CONTROL_HOVER);
+            text(ctx, k, x + w - kw - 9, y + 7, Theme.TEXT_DIM, Role.TINY);
         }
-        text(ctx, trim(mod.getName(), w - 14), x + 8, y + 16, Theme.TEXT, false);
-        small(ctx, trimScaled(mod.getDescription(), w - 14, 0.7f), x + 8, y + 29, Theme.TEXT_DIM, 0.7f);
+        text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 14), x + 8, y + 16, Theme.TEXT, Role.STRONG);
+        text(ctx, ellipsize(Role.TINY, mod.getDescription(), w - 14), x + 8, y + 29, Theme.TEXT_DIM, Role.TINY);
 
         Theme.toggle(ctx, x + 8, y + CARD_H - 15, on);
         if (hasSettingsPage(mod)) {
@@ -834,8 +885,8 @@ public class EvadeMenu extends Screen {
         int fill = Theme.lerpColor(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, hv), Theme.tint(0.1f), on * 0.7f);
         int border = Theme.lerpColor(Theme.BORDER, Theme.RED, hv * 0.7f);
         Theme.roundBordered(ctx, x, y, x + w, y + COMPACT_H, fill, border);
-        if (on > 0.01f) ctx.fill(x + 1, y + 2, x + 2, y + COMPACT_H - 2, Theme.alpha(Theme.RED, on));
-        text(ctx, trim(mod.getName(), w - 46), x + 8, y + (COMPACT_H - 8) / 2, Theme.TEXT, false);
+        if (on > 0.01f) Theme.fill(ctx, x + 1, y + 2, x + 2, y + COMPACT_H - 2, Theme.alpha(Theme.RED, on));
+        text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 46), x + 8, y + (COMPACT_H - 8) / 2, Theme.TEXT, Role.STRONG);
 
         Theme.toggle(ctx, x + w - 24, y + (COMPACT_H - 10) / 2, on);
         if (hasSettingsPage(mod)) {
@@ -855,7 +906,7 @@ public class EvadeMenu extends Screen {
         sbContentH = contentH;
         if (!hasScrollbar()) return;
         int barH = thumbH(), barY = thumbY();
-        ctx.fill(cx + cw + 8, top, cx + cw + 10, top + viewH, Theme.DIVIDER);
+        Theme.fill(ctx, cx + cw + 8, top, cx + cw + 10, top + viewH, Theme.DIVIDER);
         Theme.round(ctx, cx + cw + 8, barY, cx + cw + 10, barY + barH, sbDrag ? Theme.RED_BRIGHT : Theme.RED);
     }
 
@@ -903,20 +954,18 @@ public class EvadeMenu extends Screen {
             Theme.roundBordered(ctx, cx, searchY, cx + 52, searchY + 18, hb ? Theme.RED : Theme.CONTROL, hb ? Theme.RED : Theme.BORDER);
             text(ctx, "‹ Back", cx + 8, searchY + 5, hb ? Theme.ON_ACCENT : Theme.TEXT, false);
         }
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(cx, headerY);
-        m.scale(1.45f, 1.45f);
-        text(ctx, mod.getName(), 0, 0, Theme.TEXT, false);
-        m.popMatrix();
-        small(ctx, trimScaled(mod.getDescription(), cw - (selected != null ? 96 : 60), 0.85f), cx, headerY + 16, Theme.TEXT_DIM, 0.85f);
+        // The title stops short of the Reset button, or of the master toggle when there is nothing to reset.
+        boolean resettable = hasChangedSettings(mod);
+        int titleRight = resettable ? resetX() - 8 : selected != null ? controlRight() - 20 - 8 : cx + cw;
+        text(ctx, ellipsize(Role.TITLE, mod.getName(), titleRight - cx), cx, headerY, Theme.TEXT, Role.TITLE);
+        text(ctx, ellipsize(Role.LABEL, mod.getDescription(), cw), cx, headerY + 16, Theme.TEXT_DIM, Role.LABEL);
         if (selected != null) Theme.toggle(ctx, controlRight() - 20, headerY, animate("on:" + mod.getName(), mod.isEnabled() ? 1 : 0, 14));
-        if (hasChangedSettings(mod)) {
+        if (resettable) {
             int rx = resetX(), rw = 52;
             boolean hr = mx >= rx && mx < rx + rw && my >= headerY - 4 && my < headerY + 12;
             Theme.roundBordered(ctx, rx, headerY - 4, rx + rw, headerY + 12, hr ? Theme.CONTROL_HOVER : Theme.CONTROL, hr ? Theme.RED : Theme.BORDER);
             icon(ctx, "reset", rx + 6, headerY - 1, 9, hr ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
-            small(ctx, "Reset", rx + 19, headerY, hr ? Theme.TEXT : Theme.TEXT_SOFT, 0.85f);
+            text(ctx, "Reset", rx + 19, headerY, hr ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
         }
 
         int top = settingsTop();
@@ -972,19 +1021,51 @@ public class EvadeMenu extends Screen {
             String hint = rejected ? rejectMsg : l ? (isMenuKey(self) ? "Esc cancel · Del reset" : "Esc cancel · Del clear")
                     : conflict && rowHover ? "In use elsewhere" : null;
             if (hint != null) {
-                int hw = Math.round(width(hint) * textScale(0.75f));
-                small(ctx, hint, right - w - 8 - hw, midY - 3, rejected || conflict ? Theme.DANGER : Theme.TEXT_FAINT, 0.75f);
+                int hw = width(Role.SMALL, hint);
+                text(ctx, hint, right - w - 8 - hw, midY - 3, rejected || conflict ? Theme.DANGER : Theme.TEXT_FAINT, Role.SMALL);
             }
         } else if (row instanceof BooleanSetting b) {
             Theme.toggle(ctx, right - 20, midY - 5, animate(b, b.get() ? 1 : 0, 14));
         } else if (row instanceof NumberSetting n) {
             int sx = right - SLIDER_W;
-            float pct = (float) ((n.get() - n.getMin()) / (n.getMax() - n.getMin()));
-            float shown = animate(n, pct, 20);
-            Theme.round(ctx, sx, midY - 2, sx + SLIDER_W, midY + 2, Theme.TRACK);
-            Theme.round(ctx, sx, midY - 2, sx + Math.max(4, Math.round(SLIDER_W * shown)), midY + 2, Theme.RED);
-            int kx = sx + Math.round(SLIDER_W * shown);
-            Theme.round(ctx, kx - 4, midY - 4, kx + 4, midY + 4, 0xFFFFFFFF);
+            double range = n.getMax() - n.getMin();
+            float pct = range > 0 ? (float) Math.max(0, Math.min(1, (n.get() - n.getMin()) / range)) : 0f;
+            boolean drag = dragging == n;
+            // Hovering the track or thumb (or just past either end), or dragging, lifts the control: a brighter
+            // fill, an accent halo and a slightly larger thumb.
+            float g = animate(new AnimKey("sg", n), drag || (rowHover && mx >= sx - 6 && mx <= right + 6) ? 1 : 0, 22);
+            // While dragging, the thumb follows the cursor exactly (the value still snaps to its step); otherwise
+            // it glides onto the stepped value, so a release, a wheel step or a reset all ease into place.
+            float shown;
+            if (drag) {
+                shown = dragPct;
+                springObj(n).set(dragPct);
+            } else {
+                shown = spring(n, pct, 32f, 0.8f);
+            }
+            shown = Math.max(0f, Math.min(1f, shown));
+            Theme.pill(ctx, sx, midY - 2, right, midY + 2, Theme.TRACK);
+            Theme.pill(ctx, sx, midY - 2, sx + Math.max(4, Math.round(SLIDER_W * shown)), midY + 2,
+                    Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, 0.4f * g));
+            // Thumb: whole-pixel geometry around kx, moved the remaining fraction in device pixels.
+            float fx = sx + SLIDER_W * shown;
+            int kx = (int) Math.floor(fx);
+            var km = ctx.getMatrices();
+            km.pushMatrix();
+            km.translate(Theme.snap(ctx, fx - kx), 0);
+            if (!Theme.square) {
+                Theme.disc(ctx, kx - 7, midY - 7, 14, Theme.alpha(Theme.RED, 0.22f * g));
+                Theme.knobShadow(ctx, kx - 4, midY - 3, Theme.alpha(0xFF000000, 0.35f));
+            }
+            float ks = (8 + 2 * g) / 8f;
+            km.pushMatrix();
+            km.translate(kx, midY);
+            km.scale(ks, ks);
+            km.translate(-kx, -midY);
+            Theme.disc(ctx, kx - 4, midY - 4, 8, 0xFFFFFFFF);
+            km.popMatrix();
+            if (drag) Theme.stroke(ctx, kx - 4, midY - 4, kx + 4, midY + 4, Theme.RED, 4);
+            km.popMatrix();
             if (editor != null && editor.target == n) {
                 int ew = Math.max(48, width(editor.text) + 14);
                 editor.render(ctx, sx - 8 - ew, midY - 7, sx - 8, midY + 7);
@@ -1000,8 +1081,8 @@ public class EvadeMenu extends Screen {
             String v = md.get();
             int w = Math.max(70, width(v) + 30);
             Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, Theme.CONTROL, Theme.BORDER);
-            text(ctx, "‹", right - w + 5, midY - 4, Theme.RED, false);
-            text(ctx, "›", right - 9, midY - 4, Theme.RED, false);
+            icon(ctx, "chevron_l", right - w + 4, midY - 4, 7, Theme.RED);
+            icon(ctx, "chevron_r", right - 11, midY - 4, 7, Theme.RED);
             text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
         } else if (row instanceof StringSetting st) {
             boolean editable = editable(st);
@@ -1016,8 +1097,8 @@ public class EvadeMenu extends Screen {
             Theme.roundBordered(ctx, right - w, midY - 7, right, midY + 7, hv ? Theme.CONTROL_HOVER : Theme.CONTROL, hv ? Theme.BORDER_HOVER : Theme.BORDER);
             text(ctx, v, right - w + (w - width(v)) / 2, midY - 4, Theme.TEXT, false);
             String hint = editable ? "click to edit" : st.hint();
-            int hw = Math.round(width(hint) * textScale(0.75f));
-            small(ctx, hint, right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, 0.75f);
+            int hw = width(Role.SMALL, hint);
+            text(ctx, hint, right - w - 8 - hw, midY - 3, Theme.TEXT_FAINT, Role.SMALL);
         } else if (row instanceof ColorSetting c) {
             int n = ColorSetting.PALETTE.length, sz = 9, gap = 3;
             int sx = right - n * (sz + gap) + gap;
@@ -1025,8 +1106,9 @@ public class EvadeMenu extends Screen {
             for (int i = 0; i < n; i++) {
                 int col = ColorSetting.PALETTE[i];
                 int x = sx + i * (sz + gap);
-                if ((c.get() | 0xFF000000) == col) { Theme.round(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF); inPalette = true; }
-                ctx.fill(x, midY - 4, x + sz, midY + 4, col);
+                boolean sel = (c.get() | 0xFF000000) == col;
+                swatch(ctx, x, midY, sz, col, sel);
+                if (sel) inPalette = true;
             }
             if (editor != null && editor.target == c) {
                 int ew = Math.max(62, width(editor.text) + 14);
@@ -1038,8 +1120,7 @@ public class EvadeMenu extends Screen {
             int x = customChipX(sx);
             boolean hc = rowHover && mx >= x - 2 && mx < x + sz + 2;
             if (!inPalette) {
-                Theme.round(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF);
-                Theme.fill(ctx, x, midY - 4, x + sz, midY + 4, c.get() | 0xFF000000);
+                swatch(ctx, x, midY, sz, c.get() | 0xFF000000, true);
             } else {
                 Theme.roundBordered(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, hc ? Theme.CONTROL_HOVER : Theme.CONTROL, hc ? Theme.BORDER_HOVER : Theme.BORDER);
                 int hw = width("#");
@@ -1050,6 +1131,17 @@ public class EvadeMenu extends Screen {
 
     /** x of the custom-colour chip left of a colour row's palette starting at {@code paletteX}. */
     private static int customChipX(int paletteX) { return paletteX - 3 - 8 - 9; }
+
+    /**
+     * One colour swatch, {@code sz} x 8 at x, centred on {@code midY}: a small rounded chip with a faint light
+     * hairline, so near-black colours still show their edge on a dark row. The selected one gets a white ring with a
+     * 1 px gap, in the same footprint the old white plate had.
+     */
+    private static void swatch(DrawContext ctx, int x, int midY, int sz, int color, boolean selected) {
+        Theme.round(ctx, x, midY - 4, x + sz, midY + 4, color, Theme.R_XS);
+        Theme.hairline(ctx, x, midY - 4, x + sz, midY + 4, Theme.alpha(0xFFFFFFFF, 0.12f), 2);
+        if (selected) Theme.stroke(ctx, x - 2, midY - 6, x + sz + 2, midY + 6, 0xFFFFFFFF, 4);
+    }
 
     // ------------------------------------------------------------------ tooltips
 
@@ -1097,12 +1189,12 @@ public class EvadeMenu extends Screen {
     /** Draw this frame's tooltip, if any: wrapped to 200 px, kept inside the window. */
     private void drawTip(DrawContext ctx) {
         if (tip == null || tip.isEmpty()) return;
-        float sc = 0.85f, s = textScale(sc);
-        int maxW = 200, lineH = Math.max(8, Math.round(9 * s) + 2);
+        Role r = Role.LABEL;
+        int maxW = 200, lineH = Math.max(8, Math.round(9 * (smooth ? r.scale : shown(r).scale)) + 2);
         List<TipLine> lines = new ArrayList<>();
-        for (TipLine t : tip) for (String part : wrap(t.text(), maxW, sc)) lines.add(new TipLine(part, t.color()));
+        for (TipLine t : tip) for (String part : wrap(r, t.text(), maxW)) lines.add(new TipLine(part, t.color()));
         int w = 0;
-        for (TipLine t : lines) w = Math.max(w, Math.round(width(t.text()) * s));
+        for (TipLine t : lines) w = Math.max(w, width(r, t.text()));
         int bw = w + 12, bh = lines.size() * lineH + 8;
         int x = tipX + 10, y = tipY + 12;
         if (x + bw > wx + ww - 4) x = tipX - 6 - bw;
@@ -1112,25 +1204,24 @@ public class EvadeMenu extends Screen {
         Theme.roundBordered(ctx, x, y, x + bw, y + bh, Theme.CARD, Theme.BORDER_HOVER);
         int ty = y + 5;
         for (TipLine t : lines) {
-            small(ctx, t.text(), x + 6, ty, t.color(), sc);
+            text(ctx, t.text(), x + 6, ty, t.color(), r);
             ty += lineH;
         }
     }
 
-    /** {@code s} broken into lines at most {@code maxW} wide when drawn at {@code scale}. */
-    private List<String> wrap(String s, int maxW, float scale) {
-        int limit = Math.round(maxW / textScale(scale));
+    /** {@code s} broken into lines at most {@code maxW} wide in role {@code r}. */
+    private List<String> wrap(Role r, String s, int maxW) {
         List<String> out = new ArrayList<>();
         StringBuilder line = new StringBuilder();
         for (String word : s.split(" ")) {
             String next = line.isEmpty() ? word : line + " " + word;
-            if (width(next) <= limit || line.isEmpty()) {
+            if (width(r, next) <= maxW || line.isEmpty()) {
                 line.setLength(0);
-                line.append(width(next) <= limit ? next : trim(word, limit));
+                line.append(width(r, next) <= maxW ? next : trim(r, word, maxW));
             } else {
                 out.add(line.toString());
                 line.setLength(0);
-                line.append(width(word) <= limit ? word : trim(word, limit));
+                line.append(width(r, word) <= maxW ? word : trim(r, word, maxW));
             }
         }
         if (!line.isEmpty()) out.add(line.toString());
@@ -1329,6 +1420,7 @@ public class EvadeMenu extends Screen {
 
     private void updateSlider(double mx) {
         double pct = Math.max(0, Math.min(1, (mx - dragX) / dragW));
+        dragPct = (float) pct;
         dragging.set(dragging.getMin() + pct * (dragging.getMax() - dragging.getMin()));
     }
 
@@ -1789,6 +1881,10 @@ public class EvadeMenu extends Screen {
 
     // ------------------------------------------------------------------ helpers
 
+    /** An animation key for one control part of a setting (e.g. a slider's hover glow): unlike a "kind:" + name
+     *  string it never collides with a same-named setting of another module. */
+    private record AnimKey(String kind, Object target) {}
+
     private float animate(Object key, float target, float speed) {
         float v = anim.getOrDefault(key, target);
         if (!anims) v = target;
@@ -1812,52 +1908,124 @@ public class EvadeMenu extends Screen {
         return springs.computeIfAbsent(key, k -> new Motion.Spring());
     }
 
-    /** At 1 screen pixel per menu pixel, text can't shrink below the pixel font's own size and stay readable. */
-    private float textScale(float scale) { return menuPx < 1.99 ? Math.max(1f, scale) : scale; }
-
-    private void small(DrawContext ctx, String s, int x, int y, int color, float scale) {
-        scale = textScale(scale);
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(x, y);
-        m.scale(scale, scale);
-        text(ctx, s, 0, 0, color, false);
-        m.popMatrix();
-    }
-
-    /** {@code s} cut to fit {@code maxW} on-screen pixels when drawn at {@code scale}, with "..." when cut. */
-    private String trimScaled(String s, int maxW, float scale) {
-        scale = textScale(scale);
-        int limit = Math.round(maxW / scale);
-        if (width(s) <= limit) return s;
-        return trim(s, limit - width("...")) + "...";
-    }
-
     private static float ease(float t) { return 1 - (float) Math.pow(1 - t, 3); }
 
-    // ------------------------------------------------------------------ text: Evade's smooth UI font (Inter)
+    // ------------------------------------------------------------------ text: UI roles (see UiFont)
+    // Every string the menu draws goes through these, in a UiFont role, and no text is matrix-scaled. Smooth Font on:
+    // each role is Inter at its own size, rasterised 1:1 with the screen pixels the menu is drawn at. Off: each role
+    // is Minecraft's font at the scale the menu always drew it. A role's font shift puts its baseline where the old
+    // scaled line had it, so every (x, y) here is a top-left as before.
 
-    private static final net.minecraft.text.Style UI_FONT = net.minecraft.text.Style.EMPTY
-            .withFont(new net.minecraft.text.StyleSpriteSource.Font(net.minecraft.util.Identifier.of("evade", "ui")));
-
-    /** The string in the menu's font: Inter when Smooth Font is on, otherwise Minecraft's own. */
-    private net.minecraft.text.Text ui(String s) {
-        var t = net.minecraft.text.Text.literal(s);
-        return settings().smoothFont.get() && menuPx >= 1.99 ? t.setStyle(UI_FONT) : t;
+    /** Device pixels per menu pixel as the smooth font files to use (1..6): the GUI scale, or less while the menu is
+     *  drawn smaller to fit the screen. Its glyphs then map one texel to one screen pixel. */
+    private int fontG() {
+        return Math.max(UiFont.MIN_G, Math.min(UiFont.MAX_G, (int) Math.round(menuPx)));
     }
 
+    /**
+     * The role drawn for {@code r}. At one screen pixel per menu pixel (a small or high-DPI screen) the smallest
+     * roles would be too small to read: Inter's 6 px roles step up to their 7 px siblings, and the vanilla font never
+     * shrinks below its own size, since a scaled pixel font drops rows there.
+     */
+    private Role shown(Role r) {
+        if (menuPx >= 1.99) return r;
+        if (!smooth) return r.scale < 1f ? Role.BODY : r;
+        return r == Role.TINY ? Role.SMALL : r == Role.CAPS_SM ? Role.CAPS : r;
+    }
+
+    /** {@code s} in role {@code r}'s Inter font for the menu's screen pixels. */
+    private Text smoothText(String s, Role r) {
+        return Text.literal(s).setStyle(UiFont.style(shown(r), fontG()));
+    }
+
+    /** Draw {@code s} in role {@code r} with its top-left at (x, y). */
+    private void text(DrawContext ctx, String s, int x, int y, int color, Role r) {
+        if (s == null || s.isEmpty()) return;
+        if (!smooth) {
+            UiFont.draw(ctx, textRenderer, s, x, y, color, shown(r), false);
+            return;
+        }
+        int c = Theme.fa(color);
+        if (c >>> 24 != 0) ctx.drawText(textRenderer, smoothText(s, r), x, y, c, false);
+    }
+
+    /** Draw {@code s} as body text (nav labels, setting rows, control values). */
     private void text(DrawContext ctx, String s, int x, int y, int color, boolean shadow) {
-        ctx.drawText(textRenderer, ui(s), x, y, color, shadow);
+        if (!shadow) {
+            text(ctx, s, x, y, color, Role.BODY);
+            return;
+        }
+        if (s == null || s.isEmpty()) return;
+        int c = Theme.fa(color);
+        if (c >>> 24 != 0) ctx.drawText(textRenderer, smooth ? smoothText(s, Role.BODY) : Text.literal(s), x, y, c, true);
     }
 
-    private int width(String s) { return textRenderer.getWidth(ui(s)); }
+    /** The width {@code s} takes in role {@code r}, in menu pixels. */
+    private int width(Role r, String s) {
+        if (s == null || s.isEmpty()) return 0;
+        return smooth ? textRenderer.getWidth(smoothText(s, r)) : UiFont.width(textRenderer, s, shown(r), false);
+    }
 
-    /** Longest prefix of {@code s} that fits in {@code max} pixels. */
-    private String trim(String s, int max) {
-        if (width(s) <= max) return s;
+    private int width(String s) { return width(Role.BODY, s); }
+
+    /**
+     * Draw {@code s} upper-cased in role {@code r} with {@code tracking} extra pixels between letters: a small-caps
+     * header. Smooth: each letter at its true advance plus the tracking, snapped to a screen pixel so none is blurred
+     * across two. Otherwise the letters spaced out in the vanilla font, as the menu always spaced its headers. With
+     * no tracking it is plain upper-case text.
+     */
+    private void caps(DrawContext ctx, String s, int x, int y, int color, Role r, float tracking) {
+        if (s == null || s.isEmpty()) return;
+        String up = s.toUpperCase(Locale.ROOT);
+        if (tracking == 0f) {
+            text(ctx, up, x, y, color, r);
+            return;
+        }
+        if (!smooth) {
+            UiFont.draw(ctx, textRenderer, UiFont.spaced(up), x, y, color, shown(r), false);
+            return;
+        }
+        int c = Theme.fa(color);
+        if (c >>> 24 == 0) return;
+        Style st = UiFont.style(shown(r), fontG());
+        double px = Math.max(0.25, menuPx);
+        var m = ctx.getMatrices();
+        float pen = 0;
+        for (int i = 0; i < up.length(); ) {
+            int cp = up.codePointAt(i);
+            i += Character.charCount(cp);
+            Text ch = Text.literal(Character.toString(cp)).setStyle(st);
+            if (!Character.isWhitespace(cp)) {
+                m.pushMatrix();
+                try {
+                    m.translate((float) (Math.round((x + pen) * px) / px), y);
+                    ctx.drawText(textRenderer, ch, 0, 0, c, false);
+                } finally {
+                    m.popMatrix();
+                }
+            }
+            pen += textRenderer.getTextHandler().getWidth(ch) + tracking;
+        }
+    }
+
+    /** Longest prefix of {@code s} that fits in {@code max} pixels in role {@code r} (never splitting a surrogate pair). */
+    private String trim(Role r, String s, int max) {
+        if (width(r, s) <= max) return s;
         int lo = 0, hi = s.length();
-        while (lo < hi) { int mid = (lo + hi + 1) / 2; if (width(s.substring(0, mid)) <= max) lo = mid; else hi = mid - 1; }
+        while (lo < hi) { int mid = (lo + hi + 1) / 2; if (width(r, s.substring(0, mid)) <= max) lo = mid; else hi = mid - 1; }
+        if (lo > 0 && Character.isHighSurrogate(s.charAt(lo - 1))) lo--;
         return s.substring(0, lo);
+    }
+
+    /** Longest prefix of {@code s} that fits in {@code max} pixels as body text. */
+    private String trim(String s, int max) { return trim(Role.BODY, s, max); }
+
+    /** {@code s} cut to fit {@code max} pixels in role {@code r}, ending in "..." when it had to be cut. */
+    private String ellipsize(Role r, String s, int max) {
+        if (s == null || width(r, s) <= max) return s;
+        int dots = width(r, "...");
+        if (max <= dots) return "";
+        return trim(r, s, max - dots).stripTrailing() + "...";
     }
 
     /** Longest suffix of {@code s} that fits in {@code max} pixels: a text field keeps the end you are typing in view. */

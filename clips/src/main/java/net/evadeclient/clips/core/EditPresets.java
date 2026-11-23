@@ -71,14 +71,14 @@ public final class EditPresets {
         p.atMarker.effects.add(new FxSpec("hitmarker", "Sniper shot"));
         out.add(p);
 
-        p = make("Montage punch", "Vibrant colour; every marker hits with a flash, a zoom punch and a boom.");
+        p = make("Montage punch", "Vibrant color; every marker hits with a flash, a zoom punch and a boom.");
         p.effect = "vibrant";
         p.atMarker = new AtMarker();
         p.atMarker.effects.add(new FxSpec("flash", ""));
         p.atMarker.effects.add(new FxSpec("punch", "Boom"));
         out.add(p);
 
-        p = make("TikTok facecam", "Vertical with your facecam on top and the gameplay below. Punchy colour.");
+        p = make("TikTok facecam", "Vertical with your facecam on top and the gameplay below. Punchy color.");
         p.aspect = "9:16"; p.fitMode = "split"; p.effect = "vibrant"; p.captionStyle = "pop";
         out.add(p);
 
@@ -148,11 +148,18 @@ public final class EditPresets {
                     e.effects.add(fx);
                 }
                 if (a.zoom > 1.01) {
+                    // The whole zoom stays inside the kept part with the marker: when a cut comes soon after it,
+                    // the hold and the glide back out get shorter instead of running on into the next part.
                     double z = clampD(a.zoom, 1, 4);
-                    e.zooms.add(new EditSpec.ZoomKey(Math.max(0, m - 0.6), 1, 0.5, 0.5));
-                    e.zooms.add(new EditSpec.ZoomKey(m, z, 0.5, 0.5));
-                    e.zooms.add(new EditSpec.ZoomKey(Math.min(clip.duration, m + 0.8), z, 0.5, 0.5));
-                    e.zooms.add(new EditSpec.ZoomKey(Math.min(clip.duration, m + 1.4), 1, 0.5, 0.5));
+                    EditSpec.Segment seg = e.segments.get(e.segmentAt(m));
+                    double lo = seg.start, hi = Math.max(seg.start, seg.end - 0.05);
+                    double peak = clampD(m, lo, hi), in = clampD(m - 0.6, lo, peak);
+                    double out1 = clampD(m + 1.4, peak, hi);
+                    double out0 = clampD(Math.min(m + 0.8, out1 - Math.min(0.6, (out1 - peak) * 0.45)), peak, out1);
+                    e.zooms.add(new EditSpec.ZoomKey(in, 1, 0.5, 0.5));
+                    e.zooms.add(new EditSpec.ZoomKey(peak, z, 0.5, 0.5));
+                    e.zooms.add(new EditSpec.ZoomKey(out0, z, 0.5, 0.5));
+                    e.zooms.add(new EditSpec.ZoomKey(out1, 1, 0.5, 0.5));
                 }
                 if (a.rampSpeed > 0.05 && a.rampSpeed < 1) e.rampAround(m, clampD(a.rampSpeed, 0.1, 0.95), clampD(a.rampBefore, 0.3, 3), clampD(a.rampAfter, 0.3, 3));
             }

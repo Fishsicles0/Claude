@@ -11,12 +11,17 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
-/** Your armour with durability, held items, and counts of your PvP supplies. */
+/**
+ * Your armour with durability, held items, and counts of your PvP supplies. Supplies wrap into extra rows (or
+ * columns) instead of growing sideways, so the panel keeps its size at its corner. Hidden while you have nothing
+ * to show.
+ */
 public class ArmorHud extends HudElementModule {
     private final ModeSetting layout = add(new ModeSetting("Layout", "Horizontal", "Horizontal", "Vertical"));
     private final BooleanSetting percent = add(new BooleanSetting("Durability %", true));
@@ -35,15 +40,23 @@ public class ArmorHud extends HudElementModule {
             new Supply(new ItemStack(Items.SPLASH_POTION), s -> s.isOf(Items.SPLASH_POTION)),
             new Supply(new ItemStack(Items.END_CRYSTAL), s -> s.isOf(Items.END_CRYSTAL)),
             new Supply(new ItemStack(Items.OBSIDIAN), s -> s.isOf(Items.OBSIDIAN)));
+    /** Counts shown for the editor's sample supplies when you carry none. */
+    private static final int[] SAMPLE_COUNTS = {1, 12, 3};
+
+    /** A supply cell: icon, count label and its width (icon, gap, label, padding). */
+    private record Cell(ItemStack icon, Text label, int width) {}
 
     public ArmorHud() {
-        super("ArmorHUD", "Shows your armour durability and supplies.", -1, -1);
+        super("ArmorHUD", "Shows your armour durability and supplies.", -1, -24);
         setEnabled(true);
     }
 
     @Override
     public void render(DrawContext ctx, int left, int top, boolean preview) {
         var p = mc.player;
+        if (p == null) { empty = true; return; }
+        var tr = mc.textRenderer;
+        boolean smooth = smoothFont.get();
         List<ItemStack> items = new ArrayList<>();
         for (EquipmentSlot slot : HudDraw.ARMOR_TOP_DOWN) items.add(p.getEquippedStack(slot));
         if (hands.get()) {
@@ -51,24 +64,56 @@ public class ArmorHud extends HudElementModule {
             items.add(p.getOffHandStack());
         }
 
-        boolean vertical = layout.is("Vertical");
-        int step = vertical ? 20 : 18;
-        int mainLen = items.size() * step;
-
-        List<int[]> counts = new ArrayList<>();
-        List<ItemStack> icons = new ArrayList<>();
+        List<Cell> cells = new ArrayList<>();
         if (supplies.get()) {
             for (Supply s : SUPPLIES) {
                 int n = InvUtil.count(s.match);
-                if (n > 0 || preview && icons.size() < 3) {
-                    icons.add(s.icon);
-                    counts.add(new int[]{n});
-                }
+                if (n > 0) cells.add(cell(s.icon, n, smooth));
             }
+            if (preview && cells.isEmpty())
+                for (int i = 0; i < SAMPLE_COUNTS.length; i++) cells.add(cell(SUPPLIES.get(i).icon, SAMPLE_COUNTS[i], smooth));
         }
+        if (!preview && cells.isEmpty() && items.stream().allMatch(ItemStack::isEmpty)) { empty = true; return; }
 
-        width = vertical ? 22 + (icons.isEmpty() ? 0 : 40) : Math.max(mainLen, icons.size() * 30) + 4;
-        height = vertical ? Math.max(mainLen, icons.size() * 18) + 4 : (icons.isEmpty() ? 28 : 46);
+        var absorb = p.getStatusEffect(StatusEffects.ABSORPTION);
+        Text hint = absorb == null ? null : HudDraw.styled("Absorb " + HudDraw.seconds(absorb.getDuration()), smooth);
+        int hintW = hint == null ? 0 : tr.getWidth(hint);
+
+        boolean vertical = layout.is("Vertical");
+        int step = vertical ? 20 : 18;
+        int mainLen = items.size() * step;
+        // Supply positions relative to the panel, wrapped so the block is never longer than the item row/column.
+        int[][] at = new int[cells.size()][];
+        int suppliesW = 0, suppliesH = 0;
+        if (!vertical) {
+            int cx = 0, cy = 0;
+            for (int i = 0; i < cells.size(); i++) {
+                int w = cells.get(i).width;
+                if (cx > 0 && cx + w > mainLen) { cx = 0; cy += 18; }
+                at[i] = new int[]{2 + cx, 27 + cy};
+                cx += w;
+                suppliesW = Math.max(suppliesW, cx);
+            }
+            suppliesH = cells.isEmpty() ? 0 : cy + 18;
+            width = Math.max(mainLen, suppliesW) + 4;
+            height = 28 + suppliesH;
+        } else {
+            int perCol = Math.max(1, mainLen / 18);
+            int colX = 24, colW = 0;
+            for (int i = 0; i < cells.size(); i++) {
+                if (i > 0 && i % perCol == 0) { colX += colW; colW = 0; }
+                at[i] = new int[]{colX, 3 + (i % perCol) * 18};
+                colW = Math.max(colW, cells.get(i).width);
+            }
+            suppliesW = cells.isEmpty() ? 0 : colX + colW - 22;
+            suppliesH = Math.min(cells.size(), perCol) * 18;
+            width = 22 + suppliesW;
+            height = Math.max(mainLen, suppliesH) + 4;
+        }
+        if (hint != null) {
+            height += 10;
+            width = Math.max(width, hintW + 6);
+        }
         if (background.get()) HudDraw.panel(ctx, left, top, width, height);
 
         for (int i = 0; i < items.size(); i++) {
@@ -76,7 +121,7 @@ public class ArmorHud extends HudElementModule {
             int x = vertical ? left + 3 : left + 2 + i * step;
             int y = vertical ? top + 3 + i * step : top + 3;
             if (s.isEmpty()) ctx.fill(x + 3, y + 3, x + 13, y + 13, 0x30FFFFFF);
-            else HudDraw.itemWithDurability(ctx, s, x, y, percent.get());
+            else HudDraw.itemWithDurability(ctx, s, x, y, percent.get(), smooth);
         }
 
         // Low durability warning: flash the panel border.
@@ -89,19 +134,19 @@ public class ArmorHud extends HudElementModule {
             }
         }
 
-        var tr = mc.textRenderer;
-        for (int i = 0; i < icons.size(); i++) {
-            int x = vertical ? left + 24 : left + 2 + i * 30;
-            int y = vertical ? top + 3 + i * 18 : top + 27;
-            ctx.drawItem(icons.get(i), x, y);
-            int n = counts.get(i)[0];
-            ctx.drawTextWithShadow(tr, String.valueOf(n), x + 17, y + 5, n == 0 ? 0xFFFF5555 : ColorUtil.TEXT);
+        for (int i = 0; i < cells.size(); i++) {
+            Cell c = cells.get(i);
+            int x = left + at[i][0], y = top + at[i][1];
+            ctx.drawItem(c.icon, x, y);
+            ctx.drawTextWithShadow(tr, c.label, x + 18, y + 5, ColorUtil.TEXT);
         }
 
-        // Absorption hint for gapple timing.
-        var absorb = p.getStatusEffect(StatusEffects.ABSORPTION);
-        if (absorb != null && !vertical && !supplies.get()) {
-            ctx.drawTextWithShadow(tr, "§6Absorb " + HudDraw.seconds(absorb.getDuration()), left + 2, top + height + 2, ColorUtil.TEXT);
-        }
+        // Absorption hint for gapple timing, inside the panel along its bottom.
+        if (hint != null) ctx.drawTextWithShadow(tr, hint, left + 3, top + height - 11, 0xFFFFAA00);
+    }
+
+    private Cell cell(ItemStack icon, int count, boolean smooth) {
+        Text label = HudDraw.styled(HudDraw.shortCount(count), smooth);
+        return new Cell(icon, label, 16 + 2 + mc.textRenderer.getWidth(label) + 3);
     }
 }

@@ -4,9 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A clip's edits: which parts to keep (each at its own speed, or ramping between two), framing for vertical and
- * square video (including a facecam-on-top split), zoom keyframes, blurred areas, effects with sounds, audio,
- * captions and a title. Nothing touches the original file until export.
+ * A clip's edits: which parts to keep (each at its own speed, or ramping between two, with an optional freeze
+ * frame or rewind), framing for vertical and square video (including a facecam-on-top split), zoom keyframes,
+ * blurred areas, effects with sounds, audio (levels, mic clean-up, background music), captions and a title.
+ * Nothing touches the original file until export.
  */
 public final class EditSpec {
     /** A kept part of the source, in source seconds. */
@@ -18,17 +19,35 @@ public final class EditSpec {
          * E.g. 1 → 0.25 slows smoothly into a shot.
          */
         public double rampTo;
+        /** Seconds to hold the part's last frame once it ends (a freeze frame); 0 = none, otherwise 0.25..3 s. */
+        public double holdAfter;
+        /** Play the part, then backwards, then forwards again (a rewind moment). Only for parts up to {@link #MAX_REWIND} s. */
+        public boolean rewind;
 
         public Segment() {}
         public Segment(double start, double end, double speed) { this.start = start; this.end = end; this.speed = speed; }
         public double length() { return Math.max(0, end - start); }
         public boolean ramped() { return rampTo > 0 && Math.abs(rampTo - speed) > 1e-3; }
+        /** The freeze-frame length actually used (0, or {@link #holdAfter} clamped to 0.25..3 s). */
+        public double hold() { return holdAfter > 0 && !Double.isNaN(holdAfter) ? Math.max(MIN_HOLD, Math.min(MAX_HOLD, holdAfter)) : 0; }
+        /** Whether the part is rewound (it's short enough for that). */
+        public boolean rewinds() { return rewind && length() <= MAX_REWIND + 1e-6; }
         public double outputLength() {
             double d = 0;
             for (Piece p : pieces()) d += p.outputLength();
             return d;
         }
-        public Segment copy() { Segment s = new Segment(start, end, speed); s.rampTo = rampTo; return s; }
+        /** Output length of the first forward pass only (no rewind, no freeze frame). */
+        public double forwardLength() {
+            double d = 0;
+            for (Piece p : forwardPieces()) d += p.outputLength();
+            return d;
+        }
+        public Segment copy() {
+            Segment s = new Segment(start, end, speed);
+            s.rampTo = rampTo; s.holdAfter = holdAfter; s.rewind = rewind;
+            return s;
+        }
 
         /** Speed at source time t inside this part (eased in and out across a ramp). */
         public double speedAt(double t) {
@@ -39,10 +58,25 @@ public final class EditSpec {
         }
 
         /**
-         * The part as constant-speed pieces: one for a plain part; for a ramp, short steps (about 0.15 s of source
-         * each) that follow the curve closely enough to look and sound continuous.
+         * The part as constant-speed pieces, in play order: one for a plain part; for a ramp, short steps (about
+         * 0.15 s of source each) that follow the curve closely enough to look and sound continuous. A rewound part
+         * plays forwards, backwards (the same pieces reversed) and forwards again; a freeze frame is held after the
+         * last piece.
          */
         public List<Piece> pieces() {
+            List<Piece> fwd = forwardPieces();
+            List<Piece> out = new ArrayList<>(fwd);
+            if (rewinds()) {
+                for (int i = fwd.size() - 1; i >= 0; i--) out.add(fwd.get(i).reversed());
+                out.addAll(fwd);
+            }
+            double h = hold();
+            if (h > 0 && !out.isEmpty()) out.set(out.size() - 1, out.get(out.size() - 1).withHold(h));
+            return out;
+        }
+
+        /** The first forward pass as constant-speed pieces (no rewind, no freeze frame). */
+        public List<Piece> forwardPieces() {
             List<Piece> out = new ArrayList<>();
             if (!ramped()) { out.add(new Piece(start, end, speed)); return out; }
             int n = (int) Math.max(4, Math.min(40, Math.round(length() / 0.15)));
@@ -54,9 +88,22 @@ public final class EditSpec {
         }
     }
 
-    /** A constant-speed stretch of the source. */
-    public record Piece(double start, double end, double speed) {
-        public double outputLength() { return Math.max(0, end - start) / speed; }
+    /** Longest part that can be rewound, in source seconds (the reversed frames are held in memory while exporting). */
+    public static final double MAX_REWIND = 10;
+    /** Freeze-frame length limits, in seconds. */
+    public static final double MIN_HOLD = 0.25, MAX_HOLD = 3;
+
+    /**
+     * A constant-speed stretch of the source: played backwards when {@code reverse}, and followed by {@code hold}
+     * seconds of its last frame (a freeze frame).
+     */
+    public record Piece(double start, double end, double speed, boolean reverse, double hold) {
+        public Piece(double start, double end, double speed) { this(start, end, speed, false, 0); }
+        public double outputLength() { return Math.max(0, end - start) / speed + hold; }
+        /** Output length without the freeze frame. */
+        public double playLength() { return Math.max(0, end - start) / speed; }
+        public Piece reversed() { return new Piece(start, end, speed, !reverse, 0); }
+        public Piece withHold(double h) { return new Piece(start, end, speed, reverse, h); }
     }
 
     /** Text on screen between two source times. */
@@ -149,6 +196,28 @@ public final class EditSpec {
         }
     }
 
+    /**
+     * Background music under the whole export: a song file played from {@code inPoint}, looping if the clip is
+     * longer, faded out at the end, and (with {@code duck}) turned down whenever the clip's own sound is loud.
+     */
+    public static final class Music {
+        public String file = "";
+        /** Where in the song to start, in seconds. */
+        public double inPoint;
+        /** 0..2. */
+        public double volume = 0.5;
+        /** Turn the music down under the game and your mic. */
+        public boolean duck = true;
+        /** Fade-out at the end of the export, in seconds. */
+        public double fadeOut = 1.5;
+
+        public Music copy() {
+            Music m = new Music();
+            m.file = file; m.inPoint = inPoint; m.volume = volume; m.duck = duck; m.fadeOut = fadeOut;
+            return m;
+        }
+    }
+
     public List<Segment> segments = new ArrayList<>();
     public List<Overlay> overlays = new ArrayList<>();
     public List<Caption> captions = new ArrayList<>();
@@ -180,10 +249,19 @@ public final class EditSpec {
     public double camX = 0.72, camY = 0.04, camW = 0.26, camH = 0.3, camShare = 0.38;
     /** Split layout: a separate webcam recording to use on top instead of an area of the gameplay ("" = none). */
     public String camFile = "";
+    /**
+     * Split layout with a webcam file: where the webcam recording is when the gameplay is at 0, in seconds (a
+     * webcam started 2 s after the game recording has an offset of -2).
+     */
+    public double camOffset;
 
     public double volume = 1;
     /** Mic level for clips with a separate mic track (0 mutes your voice, keeps the game). */
     public double micVolume = 1;
+    /** Clean up the mic track: cut low rumble and reduce steady hiss and fan noise. */
+    public boolean micCleanup;
+    /** Background music (null = none). */
+    public Music music;
     public boolean mute;
     public double fadeIn, fadeOut;
 
@@ -210,6 +288,15 @@ public final class EditSpec {
         if (smoothing == null) smoothing = "blend";
         if (camFile == null) camFile = "";
         if (camShare <= 0) { camX = 0.72; camY = 0.04; camW = 0.26; camH = 0.3; camShare = 0.38; }
+        camOffset = Double.isNaN(camOffset) ? 0 : Math.max(-3600, Math.min(3600, camOffset));
+        if (music != null) {
+            if (music.file == null || music.file.isBlank()) music = null;
+            else {
+                music.inPoint = Double.isNaN(music.inPoint) ? 0 : Math.max(0, Math.min(36000, music.inPoint));
+                music.volume = Double.isNaN(music.volume) ? 0.5 : Math.max(0, Math.min(2, music.volume));
+                music.fadeOut = Double.isNaN(music.fadeOut) ? 0 : Math.max(0, Math.min(10, music.fadeOut));
+            }
+        }
         return this;
     }
 
@@ -228,17 +315,19 @@ public final class EditSpec {
 
     public boolean isUntouched(double duration) {
         return segments.size() == 1 && segments.get(0).start <= 0.01 && segments.get(0).end >= duration - 0.01
-                && segments.get(0).speed == 1 && !segments.get(0).ramped() && aspect.equals("original") && zoom == 1 && volume == 1 && micVolume == 1 && !mute
+                && segments.get(0).speed == 1 && !segments.get(0).ramped() && segments.get(0).hold() == 0 && !segments.get(0).rewinds()
+                && aspect.equals("original") && zoom == 1 && volume == 1 && micVolume == 1 && !mute && !micCleanup
                 && fadeIn == 0 && fadeOut == 0 && titleText.isBlank() && captions.isEmpty() && overlays.isEmpty() && "none".equals(effect) && voiceVolume == 1
-                && zooms.isEmpty() && masks.isEmpty() && effects.isEmpty();
+                && zooms.isEmpty() && masks.isEmpty() && effects.isEmpty() && music == null;
     }
 
     public EditSpec copy() {
         EditSpec e = new EditSpec();
         for (Segment s : segments) e.segments.add(s.copy());
         e.aspect = aspect; e.fitMode = fitMode; e.cropX = cropX; e.zoom = zoom;
-        e.camX = camX; e.camY = camY; e.camW = camW; e.camH = camH; e.camShare = camShare; e.camFile = camFile;
-        e.volume = volume; e.micVolume = micVolume; e.voiceVolume = voiceVolume; e.mute = mute;
+        e.camX = camX; e.camY = camY; e.camW = camW; e.camH = camH; e.camShare = camShare; e.camFile = camFile; e.camOffset = camOffset;
+        e.volume = volume; e.micVolume = micVolume; e.voiceVolume = voiceVolume; e.mute = mute; e.micCleanup = micCleanup;
+        e.music = music == null ? null : music.copy();
         e.effect = effect; e.smoothing = smoothing;
         for (Caption c : captions) e.captions.add(c.copy());
         for (Overlay o : overlays) e.overlays.add(o.copy());
@@ -268,6 +357,10 @@ public final class EditSpec {
         double mid = s.speedAt(t);
         Segment right = new Segment(t, s.end, s.ramped() ? mid : s.speed);
         if (s.ramped()) { right.rampTo = s.rampTo; s.rampTo = mid; }
+        // a freeze frame stays at the end of the (right-hand) part; a rewind no longer covers the same moment
+        right.holdAfter = s.holdAfter;
+        s.holdAfter = 0;
+        s.rewind = false;
         s.end = t;
         segments.add(i + 1, right);
         return true;
@@ -296,15 +389,18 @@ public final class EditSpec {
         return true;
     }
 
-    /** Where source time t lands in the export (cut parts collapse, speed changes stretch). */
+    /**
+     * Where source time t lands in the export (cut parts collapse to the cut, speed changes stretch). Inside a
+     * rewound part it's the first, forward pass; freeze frames and rewinds add their time after the part.
+     */
     public double toOutput(double t) {
         double out = 0;
         for (Segment s : segments) {
             if (t >= s.end) { out += s.outputLength(); continue; }
             if (t < s.start) break;
-            for (Piece p : s.pieces()) {
+            for (Piece p : s.forwardPieces()) {
                 if (t >= p.end()) out += p.outputLength();
-                else { out += (t - p.start()) / p.speed(); break; }
+                else { out += Math.max(0, t - p.start()) / p.speed(); break; }
             }
             break;
         }

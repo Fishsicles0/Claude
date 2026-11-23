@@ -10,7 +10,7 @@ import net.evadeclient.setting.NumberSetting;
 /** Changes the colour mobs and players flash when they're hit (vanilla is red). */
 public class HitColor extends Module {
     private static final int VANILLA = 0xB2FF0000;
-    public final ColorSetting color = add(new ColorSetting("Color", 0xFF3B82F6));
+    public final ColorSetting color = add(new ColorSetting("Color", 0xFF3D7BFF));
     public final NumberSetting opacity = add(new NumberSetting("Opacity %", 70, 10, 100, 5));
     private int applied = 0;
 

@@ -1,10 +1,11 @@
 package net.evadeclient.module.misc;
 
 import net.evadeclient.EvadeClient;
+import net.evadeclient.command.CommandManager;
+import net.evadeclient.mixin.KeyBindingAccessor;
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;
 import net.evadeclient.setting.StatusSetting;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.option.KeyBinding;
@@ -38,17 +39,29 @@ public class VoiceChat extends Module {
         return serverHasVoice() ? "On this server" : "Not on this server";
     }
 
-    /** Open Simple Voice Chat's menu by triggering its own "Voice Chat Menu" keybinding. */
+    /**
+     * Open Simple Voice Chat's menu by pressing its own "Voice Chat Menu" key binding, and only that binding (its
+     * public API has no way to open the menu). Simple Voice Chat opens it on its next tick, after its own checks.
+     */
     public static void openMenu() {
         var mc = EvadeClient.mc();
         KeyBinding menu = null;
         if (mc.options != null) for (KeyBinding k : mc.options.allKeys) if ("key.voice_chat".equals(k.getId())) menu = k;
         if (menu == null) {
-            net.evadeclient.command.CommandManager.print("§7Voice chat isn't installed. Run the Evade Installer with §cVoice chat§7 on to add Simple Voice Chat.");
+            CommandManager.print("§7Voice chat isn't installed. Run the Evade Installer with §cVoice chat§7 on to add Simple Voice Chat.");
+            return;
+        }
+        if (menu.isUnbound()) {
+            CommandManager.print("§7Bind Simple Voice Chat's §cVoice Chat Menu§7 key in Options > Controls first.");
+            return;
+        }
+        if (!(menu instanceof KeyBindingAccessor press)) {
+            // Never press the key itself: that would also press every other binding on it (cinematic camera, ...).
+            CommandManager.print("§7Press §c" + menu.getBoundKeyLocalizedText().getString() + "§7 to open the voice chat menu.");
             return;
         }
         if (mc.currentScreen != null) mc.setScreen(null);
-        KeyBinding.onKeyPressed(KeyBindingHelper.getBoundKeyOf(menu));
+        press.evade$setTimesPressed(press.evade$getTimesPressed() + 1);
     }
 
     @Override

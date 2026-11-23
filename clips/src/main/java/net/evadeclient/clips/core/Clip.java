@@ -37,14 +37,33 @@ public final class Clip {
     public String label(double t) { return markerLabels == null ? null : markerLabels.get(key(t)); }
     /** Non-destructive edits. Null until the clip is first opened in the editor. */
     public EditSpec edit;
-    /** Set once the clip has been shared: id and public link on the share server. */
+    /**
+     * Set once the clip has been shared: id and link on the share server. A private clip's link carries its own
+     * key ({@code ?k=...}), never the account's gallery token.
+     */
     public String shareId, shareUrl;
+    /** The share server the clip was uploaded to (its credentials manage the link, even after switching servers). */
+    public String shareBase;
     /** Edits the shared copy was rendered with, so a changed clip gets re-uploaded. */
     public int shareEditHash;
     /** Shared privately: only visible through your own gallery link. */
     public boolean sharePrivate;
     /** For clips imported from a watched folder: the original file, so it's imported once. */
     public String importedFrom;
+    /** Time (s) of the frame used as the cover (library thumbnail, share-link picture); -1 = picked automatically. */
+    public double coverAt = -1;
+
+    /** True for a clip that was uploaded from the phone gallery and downloaded into the library. */
+    public boolean fromPhone() {
+        return shareId != null && ((file != null && file.startsWith("Imported/Phone/")) || (tags != null && tags.contains("phone")));
+    }
+
+    /** The share link without its private key, safe to post publicly (or null when the clip isn't shared). */
+    public String publicShareUrl() {
+        if (shareUrl == null) return null;
+        int q = shareUrl.indexOf('?');
+        return q < 0 ? shareUrl : shareUrl.substring(0, q);
+    }
 
     @Override public String toString() { return (title == null ? file : title) + (game == null || game.isBlank() ? "" : "  ·  " + game); }
 

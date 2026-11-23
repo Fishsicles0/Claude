@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MemoryHud extends TextHudModule {
-    public MemoryHud() { super("Memory", "Java memory usage.", 4, 232); }
+    public MemoryHud() { super("Memory", "Java memory usage.", 4, 104); }
 
     @Override
     protected List<String> lines(boolean preview) {

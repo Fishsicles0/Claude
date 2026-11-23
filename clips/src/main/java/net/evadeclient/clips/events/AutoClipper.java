@@ -35,7 +35,13 @@ public final class AutoClipper {
     private String best = "";
     private String game;
     private long first;
+    /** The merged event clip waiting for its aftermath. */
     private ScheduledFuture<?> pending;
+    /**
+     * A whole-span clip (a CS2 round) waiting to be saved. Kept apart from {@link #pending} so an event right after
+     * it (the match win, a death once the round is over) starts its own clip instead of cancelling the round.
+     */
+    private ScheduledFuture<?> pendingSpan;
 
     public AutoClipper(Sink sink) { this.sink = sink; }
 
@@ -56,7 +62,8 @@ public final class AutoClipper {
 
     /**
      * A clip of an exact length (a whole CS2 round), saved after the usual short wait. Pending merged events are
-     * folded in, since the round covers them.
+     * folded in, since the round covers them. Events that come after it (a match win, a death after the round
+     * ended) make a clip of their own; they never cancel this one.
      */
     public synchronized void clipSpan(String game, String title, String tag, int seconds) {
         onMarker.accept(title);
@@ -64,10 +71,13 @@ public final class AutoClipper {
         tags.clear();
         priority = -1;
         if (pending != null) pending.cancel(false);
-        pending = timer.schedule(() -> {
-            try { sink.save(Math.min(600, seconds + Math.max(0, after)), title, game, tag); }
+        pending = null;
+        if (pendingSpan != null) pendingSpan.cancel(false);
+        int wait = Math.max(0, after);
+        pendingSpan = timer.schedule(() -> {
+            try { sink.save(Math.min(600, seconds + wait), title, game, tag); }
             catch (Exception e) { System.err.println("[clips] round clip failed: " + e.getMessage()); }
-        }, Math.max(0, after) * 1000L, TimeUnit.MILLISECONDS);
+        }, wait * 1000L, TimeUnit.MILLISECONDS);
     }
 
     /** Saves the merged clip now (used by tests and when a match ends). */

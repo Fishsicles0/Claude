@@ -13,7 +13,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,16 +42,42 @@ public final class VideoPlayer {
     private volatile double speed = 1;
     private volatile float volume = 1;
     private volatile boolean muted;
+    /** The edit's own sound settings (its Volume and Mute), on top of the preview's monitor volume and mute. */
+    private volatile float editGain = 1;
+    private volatile boolean editMute;
+    /** Level of each audio track (game, mic, voice chat), as the export mixes them; null = all at 1. */
+    private volatile double[] trackGains;
+    /** Extra gain at a source time (the edit's fades), or null. */
+    private volatile java.util.function.DoubleUnaryOperator gainAt;
     private final List<Process> procs = new ArrayList<>();
+    /** Restarts playback a moment after rapid changes (track levels, seeks while playing) instead of on every one. */
+    private final javax.swing.Timer restart = new javax.swing.Timer(250, e -> resume());
+    private final javax.swing.Timer seekLater = new javax.swing.Timer(120, e -> resume());
+    private long lastStart;
+    /** Where a debounced seek will restart playback (-1 = none). */
+    private volatile double pendingSeek = -1;
 
     // still-frame requests while paused (only the newest one runs)
     private final Object stillLock = new Object();
     private Double pendingStill;
     private boolean stillBusy;
 
-    public VideoPlayer(Listener listener) { this.listener = listener; }
+    public VideoPlayer(Listener listener) {
+        this.listener = listener;
+        restart.setRepeats(false);
+        seekLater.setRepeats(false);
+    }
+
+    private void resume() {
+        double t = pendingSeek >= 0 ? pendingSeek : time;
+        if (playing) play(t, speed);
+        pendingSeek = -1;
+    }
 
     public void open(Path file, double duration, double fps, boolean hasAudio, int srcW, int srcH) {
+        restart.stop();
+        seekLater.stop();
+        pendingSeek = -1;
         stop();
         this.file = file;
         this.duration = duration;
@@ -67,7 +92,9 @@ public final class VideoPlayer {
     }
 
     public boolean isPlaying() { return playing; }
-    public double time() { return time; }
+    /** Whether a file is loaded (false after {@link #close()}). */
+    public boolean isOpen() { return file != null; }
+    public double time() { double p = pendingSeek; return p >= 0 ? p : time; }
     public double duration() { return duration; }
     public double speed() { return speed; }
     public void setVolume(float v) { volume = v; }
@@ -82,9 +109,30 @@ public final class VideoPlayer {
     }
     public void setMuted(boolean m) { muted = m; }
 
+    /** The edit's Volume (1 = as recorded) and Mute, so the preview sounds like the export. */
+    public void setEditGain(float master, boolean mute) { editGain = Math.max(0, master); editMute = mute; }
+
+    /** The edit's fades as a gain at each source time (null = none). */
+    public void setGainAt(java.util.function.DoubleUnaryOperator f) { gainAt = f; }
+
+    /**
+     * Each audio track's level (game, mic, voice chat), as the export mixes them. Changing them while playing
+     * restarts the sound a moment later, so dragging a slider doesn't restart it on every step.
+     */
+    public void setTrackGains(double[] g) {
+        double[] old = trackGains;
+        if (java.util.Arrays.equals(old, g)) return;
+        trackGains = g == null ? null : g.clone();
+        if (playing && audioTracks >= 2) restart.restart();
+    }
+
     /** Starts playing from {@code from} at {@code speed} (0.25 .. 4). */
     public void play(double from, double speed) {
         if (file == null) return;
+        restart.stop();
+        seekLater.stop();
+        pendingSeek = -1;
+        lastStart = System.nanoTime();
         stop();
         this.speed = speed;
         time = Math.max(0, Math.min(from, duration - 0.02));
@@ -106,7 +154,12 @@ public final class VideoPlayer {
     }
 
     public void pause() {
+        restart.stop();
+        seekLater.stop();
+        double p = pendingSeek;
+        pendingSeek = -1;
         stop();
+        if (p >= 0) { time = p; showFrame(p); }
     }
 
     private void stop() {
@@ -118,12 +171,20 @@ public final class VideoPlayer {
         }
     }
 
-    public void close() { stop(); file = null; }
+    public void close() { restart.stop(); seekLater.stop(); pendingSeek = -1; stop(); file = null; }
 
-    /** Seeks; keeps playing if it was playing, otherwise shows the frame at {@code t}. */
+    /**
+     * Seeks; keeps playing if it was playing, otherwise shows the frame at {@code t}. While playing, seeks that
+     * come faster than every 120 ms (dragging) restart playback once they settle instead of each time.
+     */
     public void seek(double t) {
         t = Math.max(0, Math.min(t, Math.max(0, duration - 0.02)));
-        if (playing) play(t, speed);
+        if (playing) {
+            if (System.nanoTime() - lastStart < 120_000_000L) {
+                pendingSeek = t;
+                seekLater.restart();
+            } else play(t, speed);
+        }
         else { time = t; showFrame(t); }
     }
 
@@ -143,10 +204,14 @@ public final class VideoPlayer {
                     "-f", "rawvideo", "-pix_fmt", "bgr24", "-"));
             DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(p.getInputStream(), 1 << 20));
             int frameBytes = w * h * 3;
-            ArrayDeque<BufferedImage> pool = new ArrayDeque<>();
+            // Three frames, reused in turn: the UI paints one while the next is decoded into another.
+            BufferedImage[] ring = new BufferedImage[3];
+            for (int i = 0; i < ring.length; i++) ring[i] = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+            int slot = 0;
             long n = 0;
             while (generation.get() == gen) {
-                BufferedImage img = pool.isEmpty() ? new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR) : pool.poll();
+                BufferedImage img = ring[slot];
+                slot = (slot + 1) % ring.length;
                 byte[] dst = ((DataBufferByte) img.getRaster().getDataBuffer()).getData();
                 try { in.readFully(dst, 0, frameBytes); } catch (EOFException eof) { break; }
                 double ft = start + n / fps;
@@ -163,8 +228,6 @@ public final class VideoPlayer {
                 if (clock - ft > 0.25) continue; // way behind: drop the frame
                 time = ft;
                 listener.frame(img, ft);
-                // Recycle two frames back so the UI never paints a frame being overwritten.
-                if (pool.size() < 3) pool.add(new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR));
             }
             if (generation.get() == gen) {
                 // Let the audio drain, then report the end.
@@ -196,9 +259,15 @@ public final class VideoPlayer {
             if (Math.abs(s - 1) > 1e-6) af.append(",atempo=").append(Library.fmt(s));
             List<String> args = new ArrayList<>(List.of("-loglevel", "error", "-ss", Library.fmt(start), "-i", file.toString(), "-vn"));
             if (audioTracks >= 2) {
-                StringBuilder in = new StringBuilder();
-                for (int i = 0; i < audioTracks; i++) in.append("[0:a:").append(i).append("]");
-                args.addAll(List.of("-filter_complex", in + "amix=inputs=" + audioTracks + ":normalize=0," + af + "[pa]", "-map", "[pa]"));
+                // every track at the edit's level for it, mixed the way the export mixes them
+                double[] g = trackGains;
+                StringBuilder graph = new StringBuilder(), in = new StringBuilder();
+                for (int i = 0; i < audioTracks; i++) {
+                    double v = g != null && i < g.length ? Math.max(0, g[i]) : 1;
+                    graph.append("[0:a:").append(i).append("]volume=").append(Library.fmt(v)).append("[t").append(i).append("];");
+                    in.append("[t").append(i).append("]");
+                }
+                args.addAll(List.of("-filter_complex", graph + in.toString() + "amix=inputs=" + audioTracks + ":normalize=0," + af + "[pa]", "-map", "[pa]"));
             }
             else args.addAll(List.of("-af", af.toString()));
             args.addAll(List.of("-f", "s16le", "-ac", "2", "-ar", String.valueOf(RATE), "-"));
@@ -209,10 +278,15 @@ public final class VideoPlayer {
             InputStream in = p.getInputStream();
             byte[] buf = new byte[4096];
             boolean started = false;
+            long frames = 0;
             int r;
             while (generation.get() == gen && (r = in.readNBytes(buf, 0, buf.length)) > 0) {
                 r -= r % 4;
-                float v = muted ? 0 : volume;
+                // monitor volume x the edit's volume, mute and fades (at this buffer's moment of the source)
+                float v = muted || editMute ? 0 : volume * editGain;
+                java.util.function.DoubleUnaryOperator env = gainAt;
+                if (env != null && v > 0) v *= (float) Math.max(0, Math.min(1, env.applyAsDouble(start + frames / (double) RATE * speed)));
+                frames += r / 4;
                 if (v != 1f) {
                     for (int i = 0; i + 1 < r; i += 2) {
                         int sample = (short) ((buf[i] & 0xff) | (buf[i + 1] << 8));

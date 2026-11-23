@@ -1,9 +1,26 @@
 # Evade Client
 
-A Fabric PvP client for **Minecraft 1.21.11** (Java 21).
+A free, server-safe quality-of-life client for **Minecraft Java 1.21.11** (Fabric, Java 21). Evade gives you a
+customisable HUD, visual and camera tweaks, a built-in FPS boost, instant-replay clips and shareable profiles,
+all from one menu. Get it at [evadeclient.com](https://evadeclient.com).
 
-> Most multiplayer servers ban modified clients like this one. Use it in singleplayer,
-> on your own server, or on servers that allow it.
+## Server-safe by design
+
+Evade changes what you see and how your own controls feel, and nothing else:
+
+- No combat or movement advantages: nothing clicks, aims, builds or plays for you.
+- Nothing hidden is revealed: no seeing through walls, no x-ray and no tracking of other players.
+- Evade never changes, delays or cancels the packets your game sends.
+- The few mods that send anything to the server for you, like saying gg after a match or rejoining after a
+  disconnect, are grouped on their own *Server-facing* page in the menu and start switched off.
+
+Every server still sets its own rules, so check them before using something like Freelook.
+
+## Installing
+
+The easiest way is **Evade Installer** from [evadeclient.com](https://evadeclient.com) (see [Installer](#installer)).
+To install by hand, put the Evade jar and [Fabric API](https://modrinth.com/mod/fabric-api) into `.minecraft/mods`
+and launch Minecraft 1.21.11 with Fabric Loader 0.20.1 or newer.
 
 ## Building
 
@@ -12,126 +29,212 @@ A Fabric PvP client for **Minecraft 1.21.11** (Java 21).
 ./gradlew runClient      # launches a dev Minecraft with the client loaded
 ```
 
-Install by dropping the jar plus [Fabric API](https://modrinth.com/mod/fabric-api) into
-`.minecraft/mods` with Fabric Loader 0.18+ for 1.21.11.
-
 ### In-game tests
 
 ```bash
+python3 scripts/fetch-test-mods.py     # once: the mods the installer can add (Sodium, Iris, Simple Voice Chat...)
 xvfb-run ./gradlew runClientGameTest
 ```
 
-Launches the real game, builds a test world and checks each module works: AutoTotem equips, AutoPot heals,
-AutoMend repairs, Reach/Hitbox extend, TriggerBot kills, AimAssist locks on, Zoom/Freelook/Fullbright/
-ToggleSprint/Time Changer work, and clicking a card in the menu toggles it. Screenshots land in
-`build/run/clientGameTest/screenshots/`.
+This launches the real game next to those mods, builds a test world and checks that each mod does what it says.
+ToggleSprint holds sprint, Time Changer sets the time you see, Zoom narrows the FOV, Freelook turns the camera
+but not the player, and Fullbright raises gamma and then puts it back. Item Counter, Saturation and Stopwatch
+show real values, and the whole HUD costs less than 4 ms a frame with every element on. Particles, TNT Timer,
+Chunk Borders, Clear Water, Nick Hider, Hit Color, ShinyPots and EnchantGlint do their job and undo it when
+switched off. Performance culls far entities and block entities, applies and restores its video settings,
+trims particles and idles when you're AFK. Clips saves a playable MP4, Evade Icons marks Evade users in the tab
+list, and the Voice Chat shortcut opens Simple Voice Chat. Profiles keep separate settings and their share codes
+round-trip. HUD visibility rules and theme presets work, and clicking a mod in the menu toggles it.
+Screenshots land in `build/run/clientGameTest/screenshots/`.
+
+`./gradlew runClientGameTest -PmenuShot` skips the tests and only screenshots the menu (each GUI style) and the
+HUD at several screen sizes, for a quick look at GUI changes.
 
 ## Installer
 
 `installer/` is **Evade Installer**, a standalone Swing app (no Minecraft dependencies) that players download
 from evadeclient.com. It installs Fabric Loader, Fabric API and Evade into `.minecraft/evade` and adds an
 "Evade Client" profile (with icon) to the official Minecraft Launcher, which handles login and launching.
+Optional extras are Sodium and other performance mods, Simple Voice Chat, Evade Clips, and shaders (Iris with a
+shader pack). All of them come from Modrinth or evadeclient.com.
 
 ```bash
 ./gradlew :installer:jar :installer:createExe   # EvadeInstaller.jar + Evade-Installer.exe (Launch4j)
-java -jar installer/build/libs/EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings]
+java -jar installer/build/libs/EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] \
+    [--no-performance-mods] [--no-voice-chat] [--no-clips] [--shaders]
 java -jar installer/build/libs/EvadeInstaller.jar --screenshots OUTDIR   # render every screen to PNG
 ```
 
 It reads `https://evadeclient.com/version.json` for the current Evade version and checksum, gets the newest
 stable Fabric Loader from meta.fabricmc.net and Fabric API from Modrinth, and verifies every download.
-`scripts/build-site.sh` builds both and publishes them to `site/downloads/`.
+`scripts/build-site.sh` builds the client, the installer and Evade Clips and publishes them to `site/downloads/`.
 
 ## Evade Clips
 
-`clips/` is **Evade Clips**, a desktop app that records, stores and edits gameplay clips for any game: free
-instant replays, recording while the replay buffer keeps running, automatic highlight detection, a timeline
-editor and Discord/Shorts/GIF exports. Evade Client's **Clips** mod saves clips through it automatically on kills,
-pops, deaths, wins and advancements. See [clips/README.md](clips/README.md). `clips-share/` is the optional
-share-link and phone-sync server for it (Cloudflare Worker + R2).
+`clips/` is **Evade Clips**, a desktop app that records, stores and edits gameplay clips for any game. It has
+free instant replays, recording while the replay buffer keeps running, automatic highlight detection, a
+timeline editor, and Discord/Shorts/GIF exports. Evade Client's **Clips** mod saves clips through it
+automatically on kills, totem pops, deaths, wins and advancements. See [clips/README.md](clips/README.md).
+`clips-share/` is the optional share-link and phone-sync server for it (Cloudflare Worker + R2).
 
 ## Using it
 
-![Menu](docs/menu.png)
-
 | Action | How |
 |---|---|
-| Open the menu | **Right Shift** (change it under *Settings*) |
-| Toggle a mod | Click its card |
-| Mod settings + keybind | Click the gear, or right-click the card |
-| Search | Just start typing |
-| Move / resize HUD | *Edit HUD Layout*: drag (snaps to edges, centre and other elements), scroll to resize, right-click for settings |
+| Open the menu | **Right Shift** (change it under *Settings*), or type `.menu` in chat |
+| Toggle a mod | Click it |
+| Mod settings and keybind | Click the gear, or right-click the mod |
+| Search every mod and setting | Start typing, or press **Ctrl+F** |
+| Move or resize HUD elements | *Edit HUD Layout*: drag (snaps to edges, the centre and other elements; **G** toggles a grid), scroll to resize, right-click for settings |
+| Profiles | *Profiles*: separate setups, switched automatically per server and shared as a code |
+| Look and feel | *Settings*: theme (Modern, Midnight, OLED, Classic), accent colour, GUI style (List, Cards, Compact), smooth font, HUD size, blur, animations |
 
-Keybind toggles show a slide-in notification. Chat commands (never sent to the server): `.help`, `.toggle`,
-`.bind`, `.set`, `.modules`, `.save`, `.load`. Config: `config/evade/config.json`.
+Keybinds can use keyboard keys or extra mouse buttons, and the menu warns you when a key is already in use.
+Toggling a mod with its key shows a small notification.
 
-## Modules
+Chat commands are handled by Evade and never sent to the server. Mod and setting names work with or without
+spaces (`.toggle Nick Hider` or `.toggle nickhider`). Anything that isn't a command goes to chat as typed, and
+starting a message with `..` sends a command-looking message as normal chat.
 
-### Combat
-| Module | What it does |
+| Command | Does |
 |---|---|
-| **AutoPot** | Throws splash healing below a health threshold (falls back to regen), and re-buffs strength/speed when they run out and fire res when burning. Looks down, throws, restores your slot and rotation in the same tick. Refills the hotbar from your inventory. |
-| **AutoTotem** | *Always*: re-equips the offhand totem instantly after a pop. *Smart*: only takes the offhand when you're low, falling or flying with an elytra, so you keep your shield/gapple otherwise. Optional backup totem in a hotbar slot. |
-| **AutoMend** | Throws XP bottles at your feet when Mending armour drops below a threshold and keeps going until it's full. *Strip Repaired* takes off finished pieces so all the XP goes to damaged ones, then puts them back. Pauses when enemies are near or your health is low. |
-| **AimAssist** | Per-frame, frame-rate-independent easing towards the nearest point of the target's hitbox. Movement is snapped to your mouse sensitivity like real input. FOV, range, priority (angle/distance/health), sticky lock, wall check. |
-| **AutoCritical** | *Jump*: hops when you're about to hit and holds TriggerBot/AutoClicker swings until you're falling, so they land as real crits. *Packet*: tiny fake hop before each hit. Drops sprint before the hit, since sprinting cancels crits. |
-| **AutoClicker** | Runs per frame for accurate CPS, with gaussian-randomised gaps and occasional pauses. Left and/or right click, *Smart Cooldown* for 1.9+ combat, doesn't interfere with mining. |
-| **Reach** | Extends entity reach (3.0–6.0) with per-tick variance; optional block reach. |
-| **TriggerBot** | Attacks when your crosshair is on a valid target and your weapon is charged. Random reaction delay and charge threshold, skips shield-blocking players unless you hold an axe. |
-| **Hitbox** | Expands targets' hitboxes for your crosshair; optional outline display. |
+| `.help` | Lists every command |
+| `.menu` | Opens the menu |
+| `.toggle <mod>` (`.t`) | Turns a mod on or off |
+| `.bind <mod> <key\|mouse4\|none>` | Sets a mod's keybind |
+| `.set <mod> <setting> [value]` | Changes a setting, or shows it (`.set Zoom Level 4`) |
+| `.modules` | Lists the mods |
+| `.wp` | Waypoints: add, del, list, near, color, hide, show, rename, share, target, clear |
+| `.nick <name>` | Sets your Nick Hider name |
+| `.clip` / `.clips` | Saves a clip now, or opens Evade Clips (`.clips last` edits your last clip) |
+| `.voice` | Opens the voice chat menu |
+| `.save` / `.load` | Saves or reloads the config |
 
-All targeting modules share filters: players / mobs / animals, ignore teammates, ignore invisible.
+Config lives in `config/evade/`: `config.json`, profiles in `profiles/` and waypoints in `waypoints.json`.
 
-### Render (all drawn through walls)
-| Module | What it does |
-|---|---|
-| **ChestESP** | Chests (double chests merged), trapped chests, ender chests, shulkers in their own colour, barrels, hoppers, spawners. Outline/fill, tracers, distance fade. |
-| **ChunkLocator** | Flags chunks that show signs of a base: stashes of storage, shulker boxes, rotated deepslate (natural deepslate is always vertical) and player-made blocks below y=0. Highlights the chunk, pings and posts the coordinates in chat. Uses palette checks, so scanning is cheap. |
-| **PlayerTracers** | Lines from your crosshair to every player, coloured by distance or team. Optional boxes; your current fight target is highlighted. |
+## Mods
 
-### HUD (drag and resize in *Edit HUD Layout*)
-| Element | What it shows |
-|---|---|
-| **ArmorHUD** | Your armour and held items with durability %, a flashing warning at low durability, and counts of totems, gapples, pearls, wind charges, XP, pots, crystals, obsidian. |
-| **TargetHUD** | Whoever you're fighting (last hit) or looking at (up to 64 blocks): face, name, animated health + absorption bar, distance, their armour with durability, held items, blocking/using status, and Winning/Losing. |
-| **Cooldowns** | Timers for every item cooldown: ender pearl, wind charge, spear, chorus fruit, shield disabled by an axe, goat horn, and gapple cooldowns on servers that add them. Also shows weapon charge and effect timers (gapple absorption, regen, strength, speed, fire res, resistance). Flashes READY and pings when something comes off cooldown. |
-| **Module List** | EVADE watermark and active cheats list (red wave, rainbow, static or white). |
-| **Keystrokes** | WASD, LMB/RMB with CPS, space bar; keys flash red when pressed. |
-| **CPS / FPS / Ping** | Clicks per second (left and right), frame rate, server latency. |
-| **Coordinates** | XYZ, facing with axis, biome, optional Nether/Overworld conversion. |
-| **Potion Effects** | Icons, levels and time left; blinks when about to expire; can hide the vanilla one. |
-| **Direction HUD** | Compass strip with heading. |
-| **Clock / Server Address / Memory / Speed** | Real time (12h/24h), server IP, RAM use, blocks per second. |
-| **Reach Display / Combo Counter** | Distance of your last hit; hits in a row without being hit. |
+The tables follow the menu's pages. Each mod has its own settings and keybind.
 
-Every HUD element has Scale and Background settings; text elements also have text colour and brackets.
+### Visuals
 
-### Mods (quality of life)
 | Mod | What it does |
 |---|---|
-| **ToggleSprint** | Tap sprint (and optionally sneak) to toggle; shows the state on screen. |
-| **Zoom** | Hold **C**; scroll to change the level; smooth zoom, lower sensitivity while zoomed, optional cinematic camera. |
-| **Freelook** | Hold **Left Alt** to look around your player without turning. |
-| **Fullbright** | See in the dark without touching your gamma setting. |
-| **Crosshair** | Cross, dot, circle, cross + dot or T; size, gap, thickness, outline, colour; turns red on targets. |
+| **NoFog** | Removes distance fog so you see out to your full render distance. Fog from Blindness, Darkness, lava and powder snow stays. |
+| **NoRender** | Hides overlays you don't need: fire on screen, pumpkin blur, nausea and portal warping, the totem animation and the vignette, each on its own switch. |
+| **BetterTooltips** | Shulker box contents, durability and food values in item tooltips. |
+| **CameraClip** | Sets how far back the third-person camera sits. |
+| **Waypoints** | Saved locations per server and dimension, drawn as a beam with the name and distance. Adds a point where you die. Manage them with `.wp`. |
+| **Fullbright** | Lights up caves and nights as if gamma were maxed, without touching your brightness setting. |
+| **Damage Tint** | A red vignette at the screen edges when your health gets low. |
+| **Clear Water** | Removes underwater fog and can hide the water overlay. Blindness and Darkness still apply. |
+| **Particles** | Hides crits, sharpness sparks, damage hearts, sweeps, explosions, totem pops, fireworks, mining particles or your own potion particles, each on its own switch. |
+| **Pack Tweaks** | Lowers the fire overlay and hides pumpkin blur. |
+| **Inventory Blur** | Blurs the world behind open inventories. |
+| **Boss Bar** | Hides or resizes the boss health bar. |
+| **Scoreboard** | Hides the red numbers, or resizes or hides the whole sidebar. |
+| **TNT Timer** | A countdown above primed TNT. |
+| **Chunk Borders** | Chunk boundaries around you without F3+G, in your colour and height. |
+| **Nick Hider** | Shows a nickname instead of your username everywhere on your screen and can hide your skin. Handy for streaming. Set the name with `.nick`. |
+| **Tab Tweaks** | Numeric ping in the player list, and hides its header or footer. |
+| **Nametags** | Shows your own nametag in third person and restyles player nametags (scale, text shadow, background). |
+| **Hit Color** | Changes the colour of the flash when you hit players or mobs. |
+| **1.7 Animations** | Visual 1.7-style swing while eating and held-item position. |
+| **Item Physics** | Dropped items lie flat on the ground instead of spinning. |
+| **ShinyPots** | Makes potions glint in your inventory and hotbar. |
+| **EnchantGlint** | Recolours the enchantment glint. |
+
+### Controls
+
+| Mod | What it does |
+|---|---|
+| **ToggleSprint** | Tap sprint (and optionally sneak) to toggle it. Shows the state on screen. |
+| **Zoom** | Hold **C** to zoom and scroll to change the level. Zooms smoothly and lowers mouse sensitivity while zoomed, with an optional cinematic camera. |
+| **Freelook** | Hold **Left Alt** to look around your player without turning. Some servers don't allow it, so check their rules. |
+| **Crosshair** | Cross, dot, circle, cross + dot or T. Set the size, gap, thickness, outline and colour, with a second colour while it's over a mob or player. Can also show in third person. |
 | **No Hurt Cam** | Removes the screen shake when you're hit. |
-| **Block Outline** | Colour, thickness and translucent fill for the block you're looking at. |
-| **Time / Weather Changer** | Client-side time of day and weather. |
-| **Clips** | Saves clips in Evade Clips on a key, or automatically on kills (multi-kills become one clip), totem pops of your target, deaths and wins. |
+| **Block Outline** | Colour, thickness and a translucent fill for the block you're looking at. |
+| **Time Changer** / **Weather Changer** | Client-side time of day and weather. Only you see them. |
+| **FOV Changer** | Keeps your field of view fixed so speed, sprinting and status effects don't stretch it. |
+| **Performance** | Evade's built-in FPS boost. It culls far entities and block entities, caps particles, uses lighter video settings, offers a Low-End PC Mode, and drops the frame rate while you're AFK or tabbed out. It works alongside Sodium and the other performance mods the installer adds. |
+
+### Server-facing
+
+These send something to the server for you, so they have their own page and start switched off.
+
+| Mod | What it does |
+|---|---|
+| **AutoGG** | Says gg in chat when a match ends. |
+| **AutoReconnect** | Rejoins the server a few seconds after you're disconnected. |
+| **AutoTip** | Sends Hypixel's `/tip all` on a timer. |
+
+### Misc
+
+| Mod | What it does |
+|---|---|
+| **BetterChat** | Timestamps on chat lines, and repeated messages stacked into one with a count. |
+| **Notifier** | Tells you when your own totem pops. |
+| **Protection** | Warns you when your armour or held item is about to break. |
+| **Clips** | Instant replay and automatic clips. Press **F8** to save what just happened, or let it clip kills (close ones become one clip), totem pops, deaths, wins and advancements. It uses Evade Clips when that's installed, and otherwise saves an MP4 itself. |
+| **Evade Icons** | Puts an Evade logo next to tab-list players who also use Evade, checked through evadeclient.com. Turn off *Show That I Use Evade* to keep yours hidden. |
+| **Voice Chat** | Opens Simple Voice Chat's menu and shows whether the server supports it. |
+
+### HUD (drag and resize in *Edit HUD Layout*)
+
+| Element | What it shows |
+|---|---|
+| **Watermark** | The Evade logo or your own text in a corner, optionally with FPS, ping and time. |
+| **Module List** | The mods you have on, listed down the side of the screen. Colours can be an accent wave, gradient, rainbow, per category, custom or plain, with slide or fade animations. |
+| **ArmorHUD** | Your armour and held items with durability %, and a warning when something is about to break. Also counts supplies: totems, gapples, pearls, wind charges, XP bottles, splash potions, crystals and obsidian. |
+| **Cooldowns** | Timers for your item cooldowns: ender pearls, wind charges, spears, chorus fruit, a shield disabled by an axe, goat horns and any cooldown a server adds. Also shows your weapon charge and effect timers, and flashes and pings when something is ready. |
+| **Keystrokes** | WASD, mouse buttons with CPS, and the space bar, lighting up as you press them. |
+| **CPS** / **FPS** / **Ping** | Clicks per second (left and right), frame rate, and your latency to the server. |
+| **Coordinates** | Your position, facing and biome, with optional Nether/Overworld conversion. |
+| **Potion Effects** | Your effects with icon, level and time left. Blinks when one is about to run out, and can replace the vanilla display. |
+| **Direction HUD** | A compass strip with your heading. |
+| **Clock** / **Server Address** / **Memory** / **Speed** | Real-world time (12h/24h), the server you're on, Java memory use, and your horizontal speed in blocks per second. |
+| **Reach Display** / **Combo Counter** | Distance of your last hit, and hits in a row without being hit. |
+| **Inventory Viewer** | Your main inventory on screen. |
+| **Item Counter** | How many of an item you carry: what you're holding, blocks, arrows, food, gapples or pearls. |
+| **Saturation** | Your hunger saturation. |
+| **Stopwatch** | A stopwatch that runs while it's on. |
+| **Pack Display** | Your active resource pack. |
+| **Frame Time Graph** | Live frame times with average FPS, 1% low and worst frame. |
+| **Frame Profiler** | FPS, 1% low, frame time, HUD cost and garbage-collection pauses, once a second. |
+
+Every HUD element has Scale, a background style (Evade, Solid, Glass or Outline) with opacity, *Hide In Menus*
+and *Only In Combat* (shown for a few seconds after you hit something or take damage). Text elements also have
+text colour, chroma, brackets, text shadow and smooth font.
 
 ## Layout
 
 ```
 net.evadeclient
-├── EvadeClient          entrypoint: tick, HUD and world-render hooks
-├── module/              Module, HudElementModule, TextHudModule, ModuleManager,
-│                        combat/ render/ hud/ mods/ client/
-├── setting/             Boolean / Number / Mode settings
-├── gui/                 EvadeMenu (sidebar, search, cards, settings) and HudEditorScreen
-├── hud/                 HUD rendering helpers
-├── render/              through-wall line/box drawing (custom no-depth pipelines)
-├── util/                inventory, rotations, targets, cooldowns, target tracking
-├── command/ config/
-└── mixin/               attack hook, reach, hitbox margin, cooldown + input access
-src/gametest/            in-game automated tests
+├── EvadeClient          entrypoint: tick, HUD layers, world-render, chat and screen hooks
+├── module/              Module, HudElementModule, TextHudModule, ModuleManager, Category
+│   ├── visuals/         visual tweaks (NoFog, Waypoints, Nick Hider, Particles...)
+│   ├── mods/            controls and camera (Zoom, Freelook, Crosshair, Performance...)
+│   ├── misc/            chat, server-facing and convenience mods (Clips, BetterChat, AutoGG...)
+│   ├── hud/             HUD readouts (FPS, Coordinates, Keystrokes...)
+│   └── client/          Client Settings, Watermark, Module List, ArmorHUD, Cooldowns
+├── setting/             Boolean, Number, Mode, Color, Key, String and Status settings
+├── gui/                 EvadeMenu (sidebar, search, mods, settings, profiles), HudEditorScreen, Motion
+├── hud/                 Hud (draw order and visibility rules) and HudDraw (shared panels and text)
+├── render/              render layers for world overlays (block outline, chunk borders, waypoint beams)
+├── util/                theme, fonts, icons, notifications, frame stats, click and cooldown tracking
+├── command/             chat commands (handled locally, never sent to the server)
+├── config/              config, profiles, share codes and per-server profiles
+└── mixin/               client-side hooks into rendering, the HUD, input, camera and chat
+src/gametest/            in-game automated tests, menu screenshots and footage for the Evade Clips site
+installer/               Evade Installer
+clips/                   Evade Clips desktop app
+clips-share/             clips.evadeclient.com share server (Cloudflare Worker)
+worker/                  evadeclient.com Worker
+site-src/, site/         evadeclient.com pages (built by scripts/build-pages.py) and assets
 ```
+
+## License
+
+Evade Client is released under the [MIT License](LICENSE). The bundled Inter font is under the SIL Open Font
+License ([src/main/resources/LICENSE-Inter-OFL.txt](src/main/resources/LICENSE-Inter-OFL.txt)).
+Evade is not affiliated with Mojang or Microsoft.

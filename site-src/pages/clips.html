@@ -13,7 +13,7 @@ nav: clips
     <a class="btn btn-ghost btn-lg" href="/downloads/EvadeClips.jar" download>macOS / Linux (.jar)</a>
     <a class="btn btn-ghost btn-lg" href="https://clips.evadeclient.com">Open clips.evadeclient.com &rarr;</a>
   </div>
-  <p class="cta-meta rv d3">Evade-Clips.exe &middot; {{SIZE_CLIPS_EXE}} &middot; EvadeClips.jar &middot; {{SIZE_CLIPS_JAR}} &middot; Java 17+ and ffmpeg. Playing Minecraft? The <a href="/download" class="link-inline">Evade Installer</a> sets up both, ffmpeg included.</p>
+  <p class="cta-meta rv d3">Evade-Clips.exe &middot; {{SIZE_CLIPS_EXE}} &middot; EvadeClips.jar &middot; {{SIZE_CLIPS_JAR}}<br>Windows: nothing else to install. It uses the Java that comes with the Minecraft Launcher and offers to download ffmpeg on first launch. macOS/Linux: Java 17+ and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager). Playing Minecraft? The <a href="/download" class="link-inline">Evade Installer</a> sets up Evade Clips too (ffmpeg included on Windows).</p>
 </header>
 
 <section class="wrap">
@@ -36,13 +36,13 @@ nav: clips
     <p>Everything runs on your PC. Nothing is uploaded unless you share it.</p>
   </div>
   <div class="steps">
-    <div class="card step rv"><h4>Instant replay</h4><p>The last 15 s to 10 min, always ready. Saving is instant because nothing is re-encoded, and it barely touches your FPS: encoding runs on your GPU (NVENC, AMF, Quick Sync).</p></div>
-    <div class="card step rv d1"><h4>Auto-clips</h4><p>Kills, multi-kills, totem pops, wins and advancements in Minecraft. Kills, aces and full rounds in CS2. Kills to pentakills and steals in League. Loud moments in any other game.</p></div>
-    <div class="card step rv d2"><h4>Hands-free</h4><p>Press <span class="kbd">F8</span>, or just say &ldquo;clip that&rdquo;. Voice commands are recognised offline on your PC, and only the exact phrases count.</p></div>
+    <div class="card step rv"><h4>Instant replay</h4><p>The last 15 s to 10 min, always ready. Saving is instant because nothing is re-encoded, and it barely touches your FPS: encoding runs on your GPU where supported (NVENC, AMF and Quick Sync on Windows; VideoToolbox on macOS; VA-API on Linux).</p></div>
+    <div class="card step rv d1"><h4>Auto-clips</h4><p>Kills, multi-kills, totem pops, wins and advancements in Minecraft with Evade Client. Kills, aces and full rounds in CS2. Kills to pentakills and steals in League. Loud moments in any other game.</p></div>
+    <div class="card step rv d2"><h4>Hands-free</h4><p><span class="kbd">F8</span> saves a clip, <span class="kbd">F9</span> starts or stops a full recording and <span class="kbd">F7</span> drops a marker (change the keys in Settings). Or turn on voice commands in Settings (a one-time 70 MB download) and say &ldquo;clip that&rdquo;, &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;. Speech is recognised offline on your PC, and only commands count, not chat.</p></div>
     <div class="card step rv d3"><h4>Full sessions</h4><p>Record whole matches while the replay buffer keeps running. Every kill, death and ace is a named marker on the timeline.</p></div>
     <div class="card step rv"><h4>Separate audio</h4><p>Game, mic and voice chat each record to their own track, so you can turn your voice or your friends' voices down later.</p></div>
-    <div class="card step rv d1"><h4>Small files</h4><p>Hard bitrate ceilings and HEVC: a busy minute of 1080p60 stays under 70 MB. Discord exports always fit in 10 MB.</p></div>
-    <div class="card step rv d2"><h4>Share links</h4><p>Links that play inside Discord, with no watermark, ads or expiry. Keep a clip private, or let anyone with the link watch it.</p></div>
+    <div class="card step rv d1"><h4>Small files</h4><p>Hard bitrate ceilings and HEVC: on the default Balanced setting, a busy minute of 1080p60 stays under 70 MB (about 40 MB with HEVC). Discord exports always fit in 10 MB.</p></div>
+    <div class="card step rv d2"><h4>Share links</h4><p>Links that play inside Discord, with no watermark, ads or expiry. Private clips get a secret link of their own and never show a preview.</p></div>
     <div class="card step rv d3"><h4>Your phone</h4><p>Scan a QR code to see your shared clips on your phone. Upload console captures from it, or plug in your PS5 or Xbox USB drive.</p></div>
   </div>
 </section>

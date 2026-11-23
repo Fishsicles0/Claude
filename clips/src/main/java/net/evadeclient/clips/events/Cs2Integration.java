@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 
 /**
  * Counter-Strike 2 through Valve's official Game State Integration: CS2 itself posts its state to Evade Clips
- * (no memory reading, nothing anti-cheat cares about). Clips kills, headshots, 3k/4k/aces, MVPs and match wins,
- * only for your own player (not whoever you're spectating).
+ * (no memory reading). Clips kills, headshots, 3k/4k/aces, MVPs and match wins, only for your own player (not
+ * whoever you're spectating).
  */
 public final class Cs2Integration {
     public static final String GAME = "Counter-Strike 2";
@@ -29,8 +29,11 @@ public final class Cs2Integration {
     private String roundPhase = "";
     private int killsThisRound;
 
+    /** Your kill and headshot counters as CS2 last reported them (-1 until the first update). */
     private int roundKills = -1, roundHs = -1, mvpCount = -1, roundNo = -1;
     private String lastMapPhase = "";
+    /** Your side ("CT" / "T"), remembered for while you're dead and spectating a teammate. */
+    private String myTeam;
 
     public Cs2Integration(AutoClipper clipper, String token) {
         this.clipper = clipper;
@@ -45,28 +48,27 @@ public final class Cs2Integration {
         if (token != null && !token.equals(tok)) return false;
         JsonObject player = obj(root, "player"), provider = obj(root, "provider"), map = obj(root, "map");
         String me = str(provider, "steamid"), who = str(player, "steamid");
-        if (me != null && who != null && !me.equals(who)) return true; // spectating someone else
-        int round = map != null && map.has("round") ? map.get("round").getAsInt() : roundNo;
+        // Spectating someone else (after dying, or in a demo): their kills and health aren't yours, but the
+        // round and match info still is.
+        if (me != null && who != null && !me.equals(who)) player = null;
+        String team = str(player, "team");
+        if (team != null) myTeam = team;
+        if (map != null && map.has("round")) roundNo = num(map, "round");
         JsonObject state = obj(player, "state"), stats = obj(player, "match_stats");
 
-        if (round != roundNo) { roundNo = round; roundKills = 0; roundHs = 0; }
         JsonObject rnd = obj(root, "round");
         String rp = str(rnd, "phase");
-        if (rp != null && !rp.equals(roundPhase)) {
-            if (rp.equals("live")) { roundStartWall = System.currentTimeMillis(); killsThisRound = 0; }
-            if (rp.equals("over") && roundStartWall > 0 && !"off".equals(fullRounds) && (fullRounds.equals("all") || killsThisRound > 0)) {
-                int secs = (int) Math.ceil((System.currentTimeMillis() - roundStartWall) / 1000.0) + 2;
-                String team = player != null ? str(player, "team") : null;
-                String result = team != null && team.equals(str(rnd, "win_team")) ? "won" : "lost";
-                clipper.clipSpan(GAME, "Round " + Math.max(1, roundNo) + " · " + result + (killsThisRound > 0 ? " · " + killsThisRound + "K" : ""),
-                        "round", secs);
-            }
-            roundPhase = rp;
-        }
+        boolean phaseChanged = rp != null && !rp.equals(roundPhase);
+        if (phaseChanged && rp.equals("live")) { roundStartWall = System.currentTimeMillis(); killsThisRound = 0; }
+
+        // Kills first, so a kill in the same update as the round's end still counts towards the round clip.
         if (state != null) {
             int k = num(state, "round_kills"), hs = num(state, "round_killhs");
-            if (roundKills >= 0 && k > roundKills) killsThisRound += k - roundKills;
+            // The first update, or the counter going back to 0 for a new round, only sets the baseline: kills are
+            // the counter going up, never "the counter is above zero" (that re-clipped a kill when the round number
+            // changed at the end of the round).
             if (roundKills >= 0 && k > roundKills) {
+                killsThisRound += k - roundKills;
                 boolean headshot = hs > roundHs;
                 // With full-round clips on, the round clip covers every kill: kills only get timeline markers.
                 boolean rounds = !"off".equals(fullRounds);
@@ -92,11 +94,23 @@ public final class Cs2Integration {
             if (mvpCount >= 0 && m > mvpCount && mvps) { if (!"off".equals(fullRounds)) clipper.mark("Round MVP"); else clipper.event(GAME, "Round MVP", "mvp", 3); }
             mvpCount = m;
         }
+
+        if (phaseChanged) {
+            String mode = fullRounds;
+            if (rp.equals("over") && roundStartWall > 0 && !"off".equals(mode) && (mode.equals("all") || killsThisRound > 0)) {
+                int secs = (int) Math.ceil((System.currentTimeMillis() - roundStartWall) / 1000.0) + 2;
+                String result = myTeam != null && myTeam.equals(str(rnd, "win_team")) ? "won" : "lost";
+                clipper.clipSpan(GAME, "Round " + Math.max(1, roundNo) + " · " + result + (killsThisRound > 0 ? " · " + killsThisRound + "K" : ""),
+                        "round", secs);
+            }
+            if (rp.equals("over")) roundStartWall = 0; // one clip per round; the next "live" starts the clock again
+            roundPhase = rp;
+        }
+
         String phase = str(map, "phase");
-        if ("gameover".equals(phase) && !"gameover".equals(lastMapPhase) && wins && player != null) {
-            String team = str(player, "team");
+        if ("gameover".equals(phase) && !"gameover".equals(lastMapPhase) && wins && myTeam != null) {
             int ct = num(obj(map, "team_ct"), "score"), t = num(obj(map, "team_t"), "score");
-            boolean won = "CT".equals(team) ? ct > t : "T".equals(team) && t > ct;
+            boolean won = "CT".equals(myTeam) ? ct > t : "T".equals(myTeam) && t > ct;
             if (won) clipper.event(GAME, "Match win", "win", 6);
         }
         if (phase != null) lastMapPhase = phase;

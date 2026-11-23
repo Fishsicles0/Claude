@@ -59,6 +59,14 @@ public final class Theme {
         UIManager.put("ProgressBar.arc", 999);
         UIManager.put("Component.focusWidth", 1);
         UIManager.put("Component.innerFocusWidth", 0);
+        // A neutral focus ring: the red accent made focused fields look like errors.
+        Color focus = new Color(0x8A8A96);
+        UIManager.put("Component.focusColor", focus);
+        UIManager.put("Component.focusedBorderColor", focus);
+        UIManager.put("Button.focusedBorderColor", focus);
+        UIManager.put("CheckBox.icon.focusedBorderColor", focus);
+        UIManager.put("CheckBox.icon.focusColor", focus);
+        UIManager.put("ToggleButton.focusedBorderColor", focus);
         UIManager.put("ScrollBar.thumbArc", 999);
         UIManager.put("ScrollBar.thumbInsets", new java.awt.Insets(2, 2, 2, 2));
         UIManager.put("ScrollBar.width", 10);
@@ -125,10 +133,14 @@ public final class Theme {
         return l;
     }
 
+    /**
+     * A standard button. It can be reached with Tab and pressed with Space, but a mouse click doesn't move the
+     * keyboard focus onto it (so a click doesn't leave a ring behind or steal focus from the field being edited).
+     */
     public static JButton button(String text, Icon icon, boolean primary) {
         JButton b = new JButton(text, icon);
         b.setFont(interBold.deriveFont(13f));
-        b.setFocusable(false);
+        b.setRequestFocusEnabled(false);
         b.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         if (primary) {
             b.putClientProperty("JButton.buttonType", null);
@@ -142,13 +154,33 @@ public final class Theme {
     public static JButton iconButton(Icon icon, String tooltip) {
         JButton b = new JButton(icon);
         b.setToolTipText(tooltip);
-        b.setFocusable(false);
+        b.getAccessibleContext().setAccessibleName(tooltip);
+        b.setRequestFocusEnabled(false);
         b.putClientProperty("JButton.buttonType", "toolBarButton");
         b.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         return b;
     }
 
     public static void pad(JComponent c, int t, int l, int b, int r) { c.setBorder(BorderFactory.createEmptyBorder(t, l, b, r)); }
+
+    /** Fills a component with the rounded card surface (16 px corners) used by the Record and Settings pages. */
+    public static void paintCard(Graphics g0, int w, int h) {
+        Graphics2D g = (Graphics2D) g0.create();
+        hq(g);
+        g.setColor(CARD);
+        g.fill(new RoundRectangle2D.Double(0, 0, w, h, 16, 16));
+        g.dispose();
+    }
+
+    /** A see-through panel drawn as a rounded card, padded 16/18/18/18. */
+    public static javax.swing.JPanel roundCard(java.awt.LayoutManager layout) {
+        javax.swing.JPanel c = new javax.swing.JPanel(layout) {
+            @Override protected void paintComponent(Graphics g) { paintCard(g, getWidth(), getHeight()); }
+        };
+        c.setOpaque(false);
+        pad(c, 16, 18, 18, 18);
+        return c;
+    }
 
     // ------------------------------------------------------------------ formatting
 

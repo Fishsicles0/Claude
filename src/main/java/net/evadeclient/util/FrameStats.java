@@ -24,14 +24,26 @@ public final class FrameStats {
     public static int count() { return count; }
 
     // ---- Evade's own HUD cost per frame (so we can keep it near zero)
-    private static long hudNanos, hudFrames;
+    // Two independent accumulators: one for tests and tools (takeHudMicros), one for the Frame Profiler, so the
+    // profiler's once-a-second reading never resets a measurement someone else is taking.
+    private static long hudNanos, hudFrames, profNanos, profFrames;
 
-    public static void addHudTime(long nanos) { hudNanos += nanos; hudFrames++; }
+    public static void addHudTime(long nanos) {
+        hudNanos += nanos; hudFrames++;
+        profNanos += nanos; profFrames++;
+    }
 
     /** Average time Evade's HUD took per frame since the last call, in microseconds (resets). */
     public static double takeHudMicros() {
         double us = hudFrames == 0 ? 0 : hudNanos / 1000.0 / hudFrames;
         hudNanos = 0; hudFrames = 0;
+        return us;
+    }
+
+    /** Like {@link #takeHudMicros} but with the Frame Profiler's own accumulator (resets only that one). */
+    public static double takeHudMicrosForProfiler() {
+        double us = profFrames == 0 ? 0 : profNanos / 1000.0 / profFrames;
+        profNanos = 0; profFrames = 0;
         return us;
     }
 

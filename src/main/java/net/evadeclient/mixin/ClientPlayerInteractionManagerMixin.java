@@ -11,8 +11,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPlayerInteractionManager.class)
 public abstract class ClientPlayerInteractionManagerMixin {
+    /**
+     * Your own attacks, for the combat timer, Combo Counter and Reach Display. A spectator's "attack" only switches
+     * the camera to that entity, so it is not a hit and isn't reported.
+     */
     @Inject(method = "attackEntity", at = @At("HEAD"))
     private void evade$onAttack(PlayerEntity player, Entity target, CallbackInfo ci) {
+        if (player == null || player.isSpectator()) return;
         if (EvadeClient.modules != null) EvadeClient.modules.onAttack(target);
     }
 }

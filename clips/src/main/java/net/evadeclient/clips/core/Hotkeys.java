@@ -12,13 +12,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * System-wide hotkeys, so clips can be saved while a fullscreen game has focus. Hotkeys are written like
- * "F8", "Alt+F10" or "Ctrl+Shift+S".
+ * "F8", "Alt+F10" or "Ctrl+Shift+S". A hotkey also works while other modifiers are held (Ctrl to crouch, Shift
+ * to sprint); when several bindings match, the one naming the most modifiers wins, so F8 and Ctrl+F8 can do
+ * different things. Holding a key down runs its action once.
  */
 public final class Hotkeys implements NativeKeyListener {
     private static final Map<String, Integer> CODES = new LinkedHashMap<>();
@@ -47,6 +50,12 @@ public final class Hotkeys implements NativeKeyListener {
     private record Binding(int code, int mods, Runnable action) {}
 
     private final List<Binding> bindings = new ArrayList<>();
+    /**
+     * Keys that are down, with when they last reported a press. A press within a second of the last one for the
+     * same key is the keyboard's auto-repeat (a missed release can't block a key for longer than that).
+     */
+    private final Map<Integer, Long> held = new ConcurrentHashMap<>();
+    private static final long REPEAT_MS = 1000;
     private boolean registered;
     private String error;
     /** While set, the next key press is reported here instead of triggering hotkeys (for the settings "press a key" box). */
@@ -90,9 +99,17 @@ public final class Hotkeys implements NativeKeyListener {
         return true;
     }
 
+    /**
+     * Reports the next key press (as text {@link #parse} accepts, or null for Esc) instead of running hotkeys, for
+     * the settings "press a key" box. {@code null} cancels a pending capture.
+     */
     public void captureNext(Consumer<String> c) { capture = c; }
 
-    static int[] parse(String text) {
+    /** True if {@code text} names a key the global hook can use. */
+    public static boolean valid(String text) { return parse(text) != null; }
+
+    /** {key code, modifier mask} for hotkey text such as "Ctrl+F8", or null if it isn't a key the hook knows. */
+    public static int[] parse(String text) {
         if (text == null || text.isBlank()) return null;
         int mods = 0;
         Integer code = null;
@@ -103,7 +120,12 @@ public final class Hotkeys implements NativeKeyListener {
                 case "ALT" -> mods |= NativeInputEvent.ALT_MASK;
                 case "SHIFT" -> mods |= NativeInputEvent.SHIFT_MASK;
                 case "WIN", "META", "CMD" -> mods |= NativeInputEvent.META_MASK;
-                default -> code = CODES.get(p.replace(" ", ""));
+                default -> {
+                    String k = p.replace(" ", "");
+                    code = CODES.get(k);
+                    // describe() names keys without a constant "Key<code>".
+                    if (code == null && k.matches("KEY\\d{1,6}")) code = Integer.parseInt(k.substring(3));
+                }
             }
         }
         return code == null ? null : new int[]{code, mods};
@@ -136,22 +158,30 @@ public final class Hotkeys implements NativeKeyListener {
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
-        if (isModifier(e.getKeyCode())) return;
+        int code = e.getKeyCode();
+        if (isModifier(code)) return;
+        long now = System.currentTimeMillis();
+        Long last = held.put(code, now);
+        if (last != null && now - last < REPEAT_MS) return; // auto-repeat while the key is held down
         Consumer<String> c = capture;
         if (c != null) {
             capture = null;
-            c.accept(e.getKeyCode() == NativeKeyEvent.VC_ESCAPE ? null : describe(e.getKeyCode(), e.getModifiers()));
+            c.accept(code == NativeKeyEvent.VC_ESCAPE ? null : describe(code, e.getModifiers()));
             return;
         }
         int mods = normMods(e.getModifiers());
-        List<Binding> snapshot;
-        synchronized (this) { snapshot = new ArrayList<>(bindings); }
-        for (Binding b : snapshot) {
-            if (b.code == e.getKeyCode() && b.mods == mods) {
-                Thread t = new Thread(b.action, "hotkey");
-                t.setDaemon(true);
-                t.start();
-            }
+        Binding best = null;
+        synchronized (this) {
+            for (Binding b : bindings)
+                if (b.code == code && (mods & b.mods) == b.mods && (best == null || Integer.bitCount(b.mods) > Integer.bitCount(best.mods))) best = b;
+        }
+        if (best != null) {
+            Thread t = new Thread(best.action, "hotkey");
+            t.setDaemon(true);
+            t.start();
         }
     }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) { held.remove(e.getKeyCode()); }
 }

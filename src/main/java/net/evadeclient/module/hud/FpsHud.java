@@ -7,7 +7,7 @@ import java.util.List;
 
 public class FpsHud extends TextHudModule {
     public FpsHud() {
-        super("FPS", "Frames per second.", 4, 120);
+        super("FPS", "Frames per second.", 4, 4);
         setEnabled(true);
     }
 

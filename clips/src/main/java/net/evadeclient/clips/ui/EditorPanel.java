@@ -6,6 +6,7 @@ import net.evadeclient.clips.core.EditPresets;
 import net.evadeclient.clips.core.EditSpec;
 import net.evadeclient.clips.core.Exporter;
 import net.evadeclient.clips.core.Ffmpeg;
+import net.evadeclient.clips.core.Highlights;
 import net.evadeclient.clips.core.Library;
 import net.evadeclient.clips.core.ProjectExport;
 import net.evadeclient.clips.core.Sounds;
@@ -54,19 +55,27 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * The clip editor: preview player, timeline (trim, split, delete parts, slow-mo / speed-up per part, markers),
- * framing for vertical and square video, audio, a title card, and export. Edits are saved with the clip as you
- * go and never touch the original file.
+ * The clip editor: preview player, timeline (trim, split, delete parts, slow-mo / speed-up per part, freeze
+ * frames and rewinds, markers), framing for vertical and square video, audio and music, a title card, and
+ * export. Edits are saved with the clip as you go and never touch the original file.
  */
 public final class EditorPanel extends JPanel {
     private final App app;
     private Clip clip;
     private EditSpec edit;
-    private final Deque<EditSpec> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+    /** One undo step: the edit and the clip's markers (with their names) as they were. */
+    private record UndoState(EditSpec edit, List<Double> markers, Map<String, String> labels) {}
+    private final Deque<UndoState> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+    /** The last undo step pushed, as text, so a step that changed nothing isn't pushed twice. */
+    private String undoTopKey;
+    private static final com.google.gson.Gson UNDO_GSON = new com.google.gson.GsonBuilder().serializeSpecialFloatingPointValues().create();
 
     private final VideoView view = new VideoView();
     private final VideoPlayer player;
@@ -83,7 +92,7 @@ public final class EditorPanel extends JPanel {
     private final JButton redoBtn = Theme.iconButton(Theme.icon(Theme.Glyph.REDO, 18, Theme.TEXT), "Redo (Ctrl+Y)");
 
     // inspector controls
-    private final JComboBox<String> speed = new JComboBox<>(new String[]{"0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×", "4×"});
+    private final JComboBox<String> speed = new JComboBox<>(new String[]{"0.25×", "0.3×", "0.5×", "0.75×", "1×", "1.5×", "2×", "4×"});
     private final ButtonGroup aspectGroup = new ButtonGroup();
     private final java.util.Map<String, JToggleButton> aspectBtns = new java.util.LinkedHashMap<>();
     private final JComboBox<String> fitMode = new JComboBox<>(new String[]{"Crop to fill", "Blurred background", "Facecam on top"});
@@ -92,8 +101,7 @@ public final class EditorPanel extends JPanel {
     // edit tab
     private final javax.swing.DefaultListModel<EditPresets.Preset> presetModel = new javax.swing.DefaultListModel<>();
     private final javax.swing.JList<EditPresets.Preset> presetList = new javax.swing.JList<>(presetModel);
-    private final JComboBox<String> rampTo = new JComboBox<>(new String[]{"Steady speed", "Ramp to 0.25×", "Ramp to 0.5×", "Ramp to 0.75×", "Ramp to 1×", "Ramp to 1.5×", "Ramp to 2×", "Ramp to 4×"});
-    private static final double[] RAMP_TO = {0, 0.25, 0.5, 0.75, 1, 1.5, 2, 4};
+    private final JComboBox<String> rampTo = new JComboBox<>(new String[]{"Steady speed", "Ramp to 0.25×", "Ramp to 0.3×", "Ramp to 0.5×", "Ramp to 0.75×", "Ramp to 1×", "Ramp to 1.5×", "Ramp to 2×", "Ramp to 4×"});
     private final JComboBox<String> smoothing = new JComboBox<>(new String[]{"Off (repeat frames)", "Frame blending", "Optical flow (smoothest)"});
     private static final String[] SMOOTH = {"off", "blend", "flow"};
     // frame tab
@@ -101,7 +109,7 @@ public final class EditorPanel extends JPanel {
     private final JSlider camShare = new JSlider(20, 60, 38);
     private final JLabel camFileLabel = Theme.label("", 11.5f, false, Theme.FAINT);
     private final JPanel camBox = new JPanel();
-    private final JComboBox<String> zoomTarget = new JComboBox<>(new String[]{"Centre / crosshair", "Kill feed (top right)", "Chat (bottom left)", "Minimap (top left)", "Health (bottom centre)", "Click on the video..."});
+    private final JComboBox<String> zoomTarget = new JComboBox<>(new String[]{"Center / crosshair", "Kill feed (top right)", "Chat (bottom left)", "Minimap (top left)", "Health (bottom center)", "Click on the video..."});
     private static final double[][] TARGETS = {{0.5, 0.5}, {0.86, 0.12}, {0.17, 0.78}, {0.12, 0.15}, {0.5, 0.88}};
     private final JSlider zoomAmount = new JSlider(110, 300, 160);
     private final javax.swing.DefaultListModel<String> zkModel = new javax.swing.DefaultListModel<>();
@@ -124,6 +132,17 @@ public final class EditorPanel extends JPanel {
     private final JComboBox<String> fxSoundSel = new JComboBox<>();
     // export tab
     private final JCheckBox prores = new JCheckBox("Edit-friendly ProRes copy (big files, smooth scrubbing)");
+    private final JCheckBox normalize = new JCheckBox("Normalize loudness", true);
+    // frame tab: webcam file timing
+    private final javax.swing.JSpinner camOffset = new javax.swing.JSpinner(new javax.swing.SpinnerNumberModel(0.0, -3600.0, 3600.0, 0.1));
+    // audio tab: mic clean-up and music
+    private final JCheckBox micCleanup = new JCheckBox("Clean up mic (reduce hiss and rumble)");
+    private final JLabel musicLabel = Theme.label("No music", 11.5f, false, Theme.FAINT);
+    private final JSlider musicVol = new JSlider(0, 200, 50);
+    private JComponent musicVolRow, musicStartRow;
+    private final JCheckBox musicDuck = new JCheckBox("Duck under game and mic", true);
+    private final javax.swing.JSpinner musicStart = new javax.swing.JSpinner(new javax.swing.SpinnerNumberModel(0.0, 0.0, 36000.0, 0.5));
+    private final JButton musicRemove = small("Remove", "Take the music out");
     // drawing on the video
     private enum Pick { NONE, CAM, MASK, ZOOM }
     private Pick pick = Pick.NONE;
@@ -137,13 +156,18 @@ public final class EditorPanel extends JPanel {
     private JComponent voiceRow;
     private static final String[] EFFECTS = {"none", "vibrant", "cinematic", "bw", "retro", "warm", "cool"};
     private final JComboBox<String> effect = new JComboBox<>(new String[]{"None", "Vibrant", "Cinematic", "Black & white", "Retro", "Warm", "Cool"});
+    private JComponent micCleanupRow;
     private final javax.swing.DefaultListModel<String> capModel = new javax.swing.DefaultListModel<>();
     private final javax.swing.JList<String> capList = new javax.swing.JList<>(capModel);
     private final JTextField capText = new JTextField();
     private final JComboBox<String> capStyle = new JComboBox<>(new String[]{"Clean", "Subtitle", "Meme", "Pop", "Highlight"});
     private static final String[] CAP_STYLES = {"clean", "subtitle", "meme", "pop", "highlight"};
     private final JComboBox<String> capPos = new JComboBox<>(new String[]{"Bottom", "Center", "Top"});
-    private final java.util.Map<String, BufferedImage> capPreview = new java.util.HashMap<>();
+    /** Caption pictures for the preview, cropped to the text, most recently used last; at most ~32 MB. */
+    private final java.util.LinkedHashMap<String, Exporter.Sprite> capPreview = new java.util.LinkedHashMap<>(16, 0.75f, true);
+    private long capPreviewBytes;
+    private int capPreviewW, capPreviewH;
+    private BufferedImage hitPreview;
     private final javax.swing.DefaultListModel<String> ovModel = new javax.swing.DefaultListModel<>();
     private final javax.swing.JList<String> ovList = new javax.swing.JList<>(ovModel);
     private final JComboBox<String> ovPos = new JComboBox<>(new String[]{"Top right", "Top left", "Bottom right", "Bottom left", "Center"});
@@ -164,10 +188,23 @@ public final class EditorPanel extends JPanel {
     private final JPanel exportDone = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
     private App.ExportJob currentJob;
 
+    /** Set while controls are being filled in from the edit, so their listeners don't count it as an edit. */
     private boolean loading;
+    /** Set while an undo step (or a newly opened clip) is being shown, so nothing records an undo step for it. */
+    private boolean restoring;
+    /** A text field's typing goes in one undo step: set at its first change, cleared when it loses focus. */
+    private boolean capTextSnap, titleTextSnap;
     private BufferedImage titlePreview;
     private String titlePreviewKey = "";
     private final Timer saveLater;
+    /** Drives the playhead, part skipping in edit preview and the clock; runs only while a clip is open. */
+    private final Timer ticker = new Timer(30, e -> tick());
+    // what tick() last showed, so it only updates what changed
+    private double lastT = -1, lastSegSpeed = Double.NaN, lastSegRamp = Double.NaN;
+    private int lastSeg = -2;
+    private boolean resumeAfterScrub;
+    /** Inspector lists and what Delete does in each. */
+    private final Map<javax.swing.JList<?>, Runnable> listRemovers = new HashMap<>();
 
     public EditorPanel(App app) {
         super(new BorderLayout());
@@ -177,7 +214,8 @@ public final class EditorPanel extends JPanel {
             @Override public void frame(BufferedImage img, double time) { view.setFrame(img); }
             @Override public void ended() { SwingUtilities.invokeLater(() -> updatePlayIcon()); }
         });
-        saveLater = new Timer(400, e -> { if (clip != null) { clip.edit = edit; app.library.update(clip); } });
+        // The library gets its own copy: later edits (and a capture finishing in the background) never share it.
+        saveLater = new Timer(400, e -> { if (clip != null && edit != null) { clip.edit = edit.copy(); app.library.update(clip); } });
         saveLater.setRepeats(false);
 
         add(topBar(), BorderLayout.NORTH);
@@ -207,11 +245,59 @@ public final class EditorPanel extends JPanel {
         timeline.beforeEdit = this::snapshot;
         timeline.afterEdit = this::edited;
         timeline.extraMenu = this::timelineMenu;
+        // Scrubbing or dragging a part's edge while playing: pause for the drag (one still frame per move instead
+        // of restarting playback each time), then play on from where it was let go.
+        timeline.onScrubStart = () -> {
+            resumeAfterScrub = player.isPlaying();
+            if (resumeAfterScrub) { player.pause(); updatePlayIcon(); }
+        };
+        timeline.onScrubEnd = () -> {
+            if (resumeAfterScrub && clip != null && edit != null) {
+                double t = player.time();
+                int i = edit.segmentAt(t);
+                player.play(t, previewEdits.isSelected() && i >= 0 ? edit.segments.get(i).speedAt(t) : 1);
+                updatePlayIcon();
+            }
+            resumeAfterScrub = false;
+        };
+        timeline.onDeleteMarker = this::deleteMarker;
+        timeline.onRenameMarker = this::renameMarker;
+        timeline.onMoveMarker = this::moveMarker;
 
-        // Drives playhead, segment skipping during edit preview, and the clock label.
-        new Timer(30, e -> tick()).start();
+        // Inspector controls never keep the keyboard: Space, Home, Delete and the rest stay editor shortcuts.
+        for (JComponent c : new JComponent[]{speed, rampTo, smoothing, fitMode, camCorner, zoomTarget, maskKind, acSource, acLayout, acPos, fxSound,
+                fxSoundSel, effect, capStyle, capPos, ovPos, titlePos, titleSecs, preset, mute, ovAudio, prores, gpu, watermark, normalize, micCleanup, musicDuck})
+            c.setFocusable(false);
+        quietList(capList, () -> removeCaption());
+        quietList(fxList, () -> { EditSpec.Effect f = selectedEffect(); if (f != null) { snapshot(); edit.effects.remove(f); edited(); refreshEffects(); } });
+        quietList(maskList, () -> { EditSpec.Mask m = selectedMask(); if (m != null) { snapshot(); edit.masks.remove(m); edited(); refreshMasks(); } });
+        quietList(zkList, () -> { EditSpec.ZoomKey k = selectedZoomKey(); if (k != null) { snapshot(); edit.zooms.remove(k); edited(); refreshZoomKeys(); } });
+        quietList(ovList, () -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { snapshot(); edit.overlays.remove(o); edited(); refreshOverlays(); } });
+        quietList(presetList, this::deletePresetAsk);
+
+        // Coming back to the editor (Back, another page, or the window from the tray closed the player): reopen it.
+        addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && isShowing()) resume();
+        });
         bindKeys();
         app.onJobs(() -> SwingUtilities.invokeLater(this::updateJob));
+    }
+
+    /**
+     * An inspector list that leaves the editor's keys alone: Space, Home, End and the arrows sideways still play
+     * and move the playhead while it has focus (Up and Down still move through it), typing doesn't jump around
+     * in it, and Delete removes its selected item.
+     */
+    private void quietList(javax.swing.JList<?> list, Runnable remove) {
+        javax.swing.InputMap im = new javax.swing.InputMap();
+        im.setParent(list.getInputMap(WHEN_FOCUSED));
+        for (int k : new int[]{KeyEvent.VK_SPACE, KeyEvent.VK_HOME, KeyEvent.VK_END, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_DELETE, KeyEvent.VK_BACK_SPACE})
+            for (int mod : new int[]{0, InputEvent.SHIFT_DOWN_MASK}) im.put(KeyStroke.getKeyStroke(k, mod), "none");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, InputEvent.CTRL_DOWN_MASK), "none");
+        list.setInputMap(WHEN_FOCUSED, im);
+        // its type-to-find (a letter jumps to an item) would fight the one-key shortcuts
+        for (java.awt.event.KeyListener kl : list.getKeyListeners()) list.removeKeyListener(kl);
+        listRemovers.put(list, remove);
     }
 
     // ------------------------------------------------------------------ layout pieces
@@ -265,7 +351,8 @@ public final class EditorPanel extends JPanel {
         share.addActionListener(e -> {
             if (clip == null) return;
             commitMeta();
-            clip.edit = edit;
+            saveLater.stop();
+            clip.edit = edit.copy();
             app.library.update(clip);
             app.shareClip(clip, true);
         });
@@ -289,6 +376,14 @@ public final class EditorPanel extends JPanel {
         left.add(next);
         left.add(Box.createHorizontalStrut(10));
         left.add(timeLabel);
+        JButton cover = Theme.button("Set cover", null, false);
+        cover.setFont(Theme.interBold.deriveFont(11.5f));
+        cover.setMargin(new java.awt.Insets(2, 8, 2, 8));
+        cover.setToolTipText("Use this frame as the clip's picture in the library and on share links");
+        cover.addActionListener(e -> setCover(player.time()));
+        cover.setVisible(coverSupported());
+        left.add(Box.createHorizontalStrut(10));
+        left.add(cover);
         p.add(left, BorderLayout.WEST);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
@@ -386,7 +481,7 @@ public final class EditorPanel extends JPanel {
         tabs.addTab("Audio", tabScroll(audioTab()));
         tabs.addTab("Export", tabScroll(exportTab()));
         String[] tips = {"Presets, details, speed and speed ramps", "Shape, facecam layout, zoom & pan, blur areas", "Auto-captions, captions and the title",
-                "Shake, zoom punch, flash, hitmarker, sounds, colour, video overlays", "Volume of the game, your mic and voice chat; fades",
+                "Shake, zoom punch, flash, hitmarker, sounds, color, video overlays", "Volume of the game, your mic and voice chat; music; fades",
                 "Export for Discord, TikTok, YouTube...; After Effects / Premiere project"};
         for (int i = 0; i < tips.length; i++) tabs.setToolTipTextAt(i, tips[i]);
         return tabs;
@@ -425,7 +520,8 @@ public final class EditorPanel extends JPanel {
     private JPanel editTab() {
         JPanel p = tabPanel();
         section(p, "Presets");
-        add(p, hint("One click for a whole style. Ones with marker effects act at every marker (kills, aces, pops, or press M)."));
+        add(p, hint("One click for a whole style. Ones with marker effects act at every marker (kills, aces, pops, or press M). "
+                + "Right-click a marker to delete or rename it."));
         presetList.setVisibleRowCount(5);
         presetList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         presetList.setCellRenderer(new PresetRenderer());
@@ -464,8 +560,8 @@ public final class EditorPanel extends JPanel {
         speed.addActionListener(e -> {
             if (loading || edit == null) return;
             int i = edit.segmentAt(player.time());
-            if (i < 0) return;
-            double v = Double.parseDouble(((String) speed.getSelectedItem()).replace("×", ""));
+            double v = parseSpeed(speed.getSelectedItem());
+            if (i < 0 || v <= 0) return;
             if (edit.segments.get(i).speed == v) return;
             snapshot();
             edit.segments.get(i).speed = v;
@@ -476,8 +572,11 @@ public final class EditorPanel extends JPanel {
             if (loading || edit == null) return;
             int i = edit.segmentAt(player.time());
             if (i < 0) return;
+            double v = Math.max(0, parseSpeed(rampTo.getSelectedItem()));
+            EditSpec.Segment seg = edit.segments.get(i);
+            if (Math.abs((seg.ramped() ? seg.rampTo : 0) - v) < 1e-3 || (v > 0 && Math.abs(v - seg.speed) < 1e-3 && !seg.ramped())) return;
             snapshot();
-            edit.segments.get(i).rampTo = RAMP_TO[rampTo.getSelectedIndex()];
+            seg.rampTo = v;
             edited();
         });
         field(p, "Ends at", rampTo);
@@ -491,7 +590,7 @@ public final class EditorPanel extends JPanel {
         field(p, "Smooth", smoothing);
 
         JButton reset = Theme.button("Reset all edits", null, false);
-        reset.addActionListener(e -> { if (edit != null) { snapshot(); edit = EditSpec.whole(clip.duration); edited(); loadControls(); } });
+        reset.addActionListener(e -> { if (edit != null) { snapshot(); edit = EditSpec.whole(clip.duration); loadControls(); edited(); } });
         add(p, Box.createVerticalStrut(18));
         add(p, reset);
         p.add(Box.createVerticalGlue());
@@ -546,9 +645,19 @@ public final class EditorPanel extends JPanel {
         JButton camFile = small("Webcam file...", "Use a separate webcam recording on top instead of a part of the gameplay");
         camFile.addActionListener(e -> chooseCamFile());
         JButton camClear = small("Use gameplay", "Go back to the facecam area of the gameplay");
-        camClear.addActionListener(e -> { if (edit != null) { snapshot(); edit.camFile = ""; edited(); loadControls(); } });
+        camClear.addActionListener(e -> { if (edit != null) { snapshot(); edit.camFile = ""; loadControls(); edited(); } });
         add(camBox, buttonRow(camFile, camClear));
         add(camBox, camFileLabel);
+        camOffset.setToolTipText("Where the webcam recording is when the gameplay starts, in seconds. If the webcam started 2 s after the game, use -2.");
+        camOffset.addChangeListener(e -> {
+            if (loading || edit == null) return;
+            double v = ((Number) camOffset.getValue()).doubleValue();
+            if (Math.abs(v - edit.camOffset) < 1e-9) return;
+            snapshot();
+            edit.camOffset = v;
+            edited();
+        });
+        field(camBox, "Webcam at", camOffset);
         add(p, camBox);
 
         section(p, "Zoom & pan");
@@ -628,7 +737,7 @@ public final class EditorPanel extends JPanel {
         JButton capAdd = small("Add", "Add a caption at the playhead (C)"), capDel = small("Remove", null),
                 capFrom = small("Start", "Caption starts at the playhead"), capTo = small("End", "Caption ends at the playhead"), capClear = small("Clear all", null);
         capAdd.addActionListener(e -> addCaption());
-        capDel.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); edit.captions.remove(c); edited(); refreshCaptions(); } });
+        capDel.addActionListener(e -> removeCaption());
         capFrom.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.start = Math.min(player.time(), c.end - 0.2); edited(); refreshCaptions(); } });
         capTo.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (c != null) { snapshot(); c.end = Math.max(player.time(), c.start + 0.2); edited(); refreshCaptions(); } });
         capClear.addActionListener(e -> { if (edit != null && !edit.captions.isEmpty()) { snapshot(); edit.captions.clear(); edited(); refreshCaptions(); } });
@@ -636,34 +745,71 @@ public final class EditorPanel extends JPanel {
         add(p, Box.createVerticalStrut(6));
         capText.putClientProperty("JTextField.placeholderText", "Caption text");
         capText.getDocument().addDocumentListener(new DocumentListener() {
-            void ch() { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.text = capText.getText(); edited(); updateCaptionRow(); } }
+            void ch() {
+                EditSpec.Caption c = selectedCaption();
+                if (loading || c == null) return;
+                // one undo step for the whole of the typing
+                if (!capTextSnap) { snapshot(); capTextSnap = true; }
+                c.text = capText.getText();
+                edited();
+                updateCaptionRow();
+            }
             public void insertUpdate(DocumentEvent e) { ch(); }
             public void removeUpdate(DocumentEvent e) { ch(); }
             public void changedUpdate(DocumentEvent e) { ch(); }
         });
+        capText.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { capTextSnap = false; } });
         add(p, capText);
         add(p, Box.createVerticalStrut(6));
-        capStyle.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.style = CAP_STYLES[capStyle.getSelectedIndex()]; edited(); } });
+        capStyle.addActionListener(e -> {
+            EditSpec.Caption c = selectedCaption();
+            if (loading || c == null || c.style.equals(CAP_STYLES[capStyle.getSelectedIndex()])) return;
+            snapshot();
+            c.style = CAP_STYLES[capStyle.getSelectedIndex()];
+            edited();
+        });
         field(p, "Style", capStyle);
-        capPos.addActionListener(e -> { EditSpec.Caption c = selectedCaption(); if (!loading && c != null) { c.position = ((String) capPos.getSelectedItem()).toLowerCase(); edited(); } });
+        capPos.addActionListener(e -> {
+            EditSpec.Caption c = selectedCaption();
+            String pos = ((String) capPos.getSelectedItem()).toLowerCase(java.util.Locale.ROOT);
+            if (loading || c == null || c.position.equals(pos)) return;
+            snapshot();
+            c.position = pos;
+            edited();
+        });
         field(p, "Position", capPos);
         add(p, capClear);
 
         section(p, "Title");
         titleText.putClientProperty("JTextField.placeholderText", "e.g. 1v4 clutch");
         titleText.getDocument().addDocumentListener(new DocumentListener() {
-            void ch() { if (!loading) { edit.titleText = titleText.getText(); edited(); } }
+            void ch() {
+                if (loading || edit == null) return;
+                if (!titleTextSnap) { snapshot(); titleTextSnap = true; }
+                edit.titleText = titleText.getText();
+                edited();
+            }
             public void insertUpdate(DocumentEvent e) { ch(); }
             public void removeUpdate(DocumentEvent e) { ch(); }
             public void changedUpdate(DocumentEvent e) { ch(); }
         });
+        titleText.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { titleTextSnap = false; } });
         add(p, titleText);
         add(p, Box.createVerticalStrut(6));
-        titlePos.addActionListener(e -> { if (!loading) { edit.titlePosition = ((String) titlePos.getSelectedItem()).toLowerCase(); edited(); } });
+        titlePos.addActionListener(e -> {
+            String pos = ((String) titlePos.getSelectedItem()).toLowerCase(java.util.Locale.ROOT);
+            if (loading || edit == null || pos.equals(edit.titlePosition)) return;
+            snapshot();
+            edit.titlePosition = pos;
+            edited();
+        });
         field(p, "Position", titlePos);
         titleSecs.addActionListener(e -> {
-            if (loading) return;
-            edit.titleSeconds = new double[]{2, 3, 5, 0}[titleSecs.getSelectedIndex()];
+            if (loading || edit == null) return;
+            double v = new double[]{2, 3, 5, 0}[titleSecs.getSelectedIndex()];
+            if (v == edit.titleSeconds) return;
+            snapshot();
+            edit.titleSeconds = v;
             edited();
         });
         field(p, "Show", titleSecs);
@@ -685,7 +831,7 @@ public final class EditorPanel extends JPanel {
         sr.add(play, BorderLayout.EAST);
         field(p, "Sound", sr);
         JButton shake = small("Shake", "Screen shake (1)"), punch = small("Zoom punch", "Quick zoom in and out (2)"), flash = small("Flash", "White flash (3)"),
-                hit = small("Hitmarker", "Hitmarker in the centre (4)"), sound = small("Sound only", "Just the sound (5)");
+                hit = small("Hitmarker", "Hitmarker in the center (4)"), sound = small("Sound only", "Just the sound (5)");
         shake.addActionListener(e -> addEffect("shake", player.time()));
         punch.addActionListener(e -> addEffect("punch", player.time()));
         flash.addActionListener(e -> addEffect("flash", player.time()));
@@ -728,7 +874,7 @@ public final class EditorPanel extends JPanel {
         });
         field(p, "Sound", fxSoundSel);
 
-        section(p, "Colour");
+        section(p, "Color");
         effect.addActionListener(e -> {
             if (loading || edit == null) return;
             snapshot();
@@ -760,19 +906,12 @@ public final class EditorPanel extends JPanel {
             EditSpec.Overlay o = selectedOverlay();
             if (loading || o == null) return;
             snapshot();
-            double m = 0.03, half = o.scale / 2;
-            double hh = o.scale / 2; // same aspect as the frame: height fraction = width fraction
-            switch (ovPos.getSelectedIndex()) {
-                case 0 -> { o.x = 1 - m - half; o.y = m + hh; }
-                case 1 -> { o.x = m + half; o.y = m + hh; }
-                case 2 -> { o.x = 1 - m - half; o.y = 1 - m - hh; }
-                case 3 -> { o.x = m + half; o.y = 1 - m - hh; }
-                default -> { o.x = 0.5; o.y = 0.5; }
-            }
+            placeOverlay(o, ovPos.getSelectedIndex());
             edited();
         });
         field(p, "Position", ovPos);
-        slider(p, "Size", ovSize, v -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { o.scale = v / 100.0; ovPos.setSelectedIndex(ovPos.getSelectedIndex()); } });
+        // resizing keeps it in its corner (or around its centre when it was placed somewhere else)
+        slider(p, "Size", ovSize, v -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) { int at = overlayCorner(o); o.scale = v / 100.0; placeOverlay(o, at); } });
         slider(p, "Opacity", ovOpacity, v -> { EditSpec.Overlay o = selectedOverlay(); if (o != null) o.opacity = v / 100.0; });
         ovAudio.setOpaque(false);
         ovAudio.addActionListener(e -> { EditSpec.Overlay o = selectedOverlay(); if (!loading && o != null) { snapshot(); o.audio = ovAudio.isSelected(); edited(); } });
@@ -789,16 +928,64 @@ public final class EditorPanel extends JPanel {
         slider(p, "Volume", volume, v -> edit.volume = v / 100.0);
         slider(p, "Your mic", micVol, v -> edit.micVolume = v / 100.0);
         micRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        micCleanup.setOpaque(false);
+        micCleanup.setToolTipText("Cuts low rumble (desk bumps, fans) and evens out steady hiss on your mic track. Only in the export.");
+        micCleanup.addActionListener(e -> { if (!loading && edit != null) { snapshot(); edit.micCleanup = micCleanup.isSelected(); edited(); } });
+        add(p, micCleanup);
+        micCleanupRow = micCleanup;
         slider(p, "Voice chat", voiceVol, v -> edit.voiceVolume = v / 100.0);
         voiceRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
         mute.setOpaque(false);
         mute.addActionListener(e -> { if (!loading) { snapshot(); edit.mute = mute.isSelected(); edited(); } });
         add(p, mute);
+
+        section(p, "Music");
+        add(p, hint("A song under the whole clip, faded out at the end. It's only in the export: the preview plays the clip's own sound."));
+        JButton addMusic = small("Add music...", "Pick a song (MP3, WAV, OGG, M4A, FLAC or AAC)");
+        addMusic.addActionListener(e -> chooseMusic());
+        musicRemove.addActionListener(e -> { if (edit != null && edit.music != null) { snapshot(); edit.music = null; loadControls(); edited(); } });
+        add(p, buttonRow(addMusic, musicRemove));
+        add(p, Box.createVerticalStrut(4));
+        add(p, musicLabel);
+        add(p, Box.createVerticalStrut(4));
+        slider(p, "Music vol", musicVol, v -> { if (edit.music != null) edit.music.volume = v / 100.0; });
+        musicVolRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        musicStart.setToolTipText("Where in the song to start, in seconds");
+        musicStart.addChangeListener(e -> {
+            if (loading || edit == null || edit.music == null) return;
+            double v = ((Number) musicStart.getValue()).doubleValue();
+            if (Math.abs(v - edit.music.inPoint) < 1e-9) return;
+            snapshot();
+            edit.music.inPoint = v;
+            edited();
+        });
+        field(p, "Song from", musicStart);
+        musicStartRow = (JComponent) p.getComponent(p.getComponentCount() - 1);
+        musicDuck.setOpaque(false);
+        musicDuck.setToolTipText("Turns the music down while the game or your mic is loud");
+        musicDuck.addActionListener(e -> { if (!loading && edit != null && edit.music != null) { snapshot(); edit.music.duck = musicDuck.isSelected(); edited(); } });
+        add(p, musicDuck);
+
         section(p, "Fades");
         slider(p, "Fade in", fadeIn, v -> edit.fadeIn = v / 10.0);
         slider(p, "Fade out", fadeOut, v -> edit.fadeOut = v / 10.0);
         p.add(Box.createVerticalGlue());
         return p;
+    }
+
+    private void chooseMusic() {
+        if (edit == null) return;
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Music (MP3, WAV, OGG, M4A, FLAC, AAC)", "mp3", "wav", "ogg", "m4a", "flac", "aac", "opus"));
+        if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+        snapshot();
+        EditSpec.Music m = edit.music != null ? edit.music.copy() : new EditSpec.Music();
+        m.file = fc.getSelectedFile().getAbsolutePath();
+        m.inPoint = 0;
+        edit.music = m;
+        loadControls();
+        edited();
+        app.notify("Music added", fc.getSelectedFile().getName() + " · it plays in the export; the preview keeps the clip's own sound", false);
     }
 
     // ---- Export
@@ -814,6 +1001,9 @@ public final class EditorPanel extends JPanel {
         gpu.setOpaque(false);
         gpu.setToolTipText("Much faster. Size-targeted presets always use x264 for an exact file size.");
         add(p, gpu);
+        normalize.setOpaque(false);
+        normalize.setToolTipText("Evens out the sound to the loudness YouTube, TikTok and Discord play at (-14 LUFS), so quiet clips aren't lost and loud ones don't clip");
+        add(p, normalize);
         watermark.setOpaque(false);
         watermark.setSelected(app.settings.watermarkEnabled);
         watermark.setToolTipText("Your own text or logo, set up in Settings. Evade Clips never adds a watermark of its own.");
@@ -895,17 +1085,22 @@ public final class EditorPanel extends JPanel {
 
     public void open(Clip c) {
         player.close();
+        ticker.stop();
+        flushSave();
         commitMeta();
         clip = c;
         undo.clear();
         redo.clear();
+        undoTopKey = null;
         if (c == null) return;
+        if (c.markerLabels == null) c.markerLabels = new HashMap<>();
         edit = c.editOrDefault().copy();
         // A clip that was edited and then trimmed externally could carry stale segments; clamp them.
         for (EditSpec.Segment s : edit.segments) { s.end = Math.min(s.end, c.duration); s.start = Math.min(s.start, s.end); }
         edit.segments.removeIf(s -> s.length() < 0.05);
         if (edit.segments.isEmpty()) edit = EditSpec.whole(c.duration);
-        loadControls();
+        restoring = true;
+        try { loadControls(); } finally { restoring = false; }
         Path file = c.path(app.library.root());
         view.setFrame(null);
         view.setSource(c.width, c.height);
@@ -913,22 +1108,56 @@ public final class EditorPanel extends JPanel {
         try { if (Files.exists(app.library.strip(c))) strip = ImageIO.read(app.library.strip(c).toFile()); } catch (Exception ignored) {}
         timeline.setClip(c.duration, edit, c.markers, strip, Library.STRIP_FRAMES);
         timeline.labelOf = c::label;
+        timeline.setMusic(musicName());
         timeline.setPlayhead(0);
         player.open(file, c.duration, c.fps, c.hasAudio, c.width, c.height);
         player.setAudioTracks(c.audioTracks);
+        applyPreviewAudio();
         updateTime(0);
         updatePlayIcon();
         loadWaveform(c, file);
+        loadDenseStrip(c, file);
         exportDone.setVisible(false);
         exportStatus.setText(" ");
         currentJob = null;
         updateJob();
+        resetTickCache();
+        ticker.start();
         SwingUtilities.invokeLater(view::requestFocusInWindow);
     }
 
     public void close() {
+        flushSave();
         commitMeta();
         player.close();
+        ticker.stop();
+        updatePlayIcon();
+    }
+
+    /** Saves edits that are waiting for the save timer now (before another clip opens or the editor closes). */
+    private void flushSave() {
+        if (!saveLater.isRunning()) return;
+        saveLater.stop();
+        if (clip != null && edit != null) { clip.edit = edit.copy(); app.library.update(clip); }
+    }
+
+    /**
+     * Opens the player again when the editor shows after it was closed (Back or Esc, another page, or the window
+     * closed to the tray) while the clip is still loaded, where the timeline's playhead is.
+     */
+    public void resume() {
+        if (clip == null || player.isOpen()) return;
+        Clip c = clip;
+        // the closed player still knows where it was
+        double t = Math.max(0, Math.min(c.duration, player.time()));
+        player.open(c.path(app.library.root()), c.duration, c.fps, c.hasAudio, c.width, c.height);
+        player.setAudioTracks(c.audioTracks);
+        if (edit != null) player.setVideoFilter(Exporter.effectFilter(edit.effect));
+        applyPreviewAudio();
+        player.seek(t);
+        resetTickCache();
+        ticker.start();
+        updatePlayIcon();
     }
 
     public Clip clip() { return clip; }
@@ -942,26 +1171,78 @@ public final class EditorPanel extends JPanel {
     public void seek(double t) { seekTo(t); }
 
     /** Re-reads the clip's edit into the controls (after it was changed outside the editor). */
-    public void reload() { if (clip != null) { edit = clip.editOrDefault().copy(); loadControls(); edited(); } }
+    public void reload() {
+        if (clip == null) return;
+        edit = clip.editOrDefault().copy();
+        restoring = true;
+        try { loadControls(); } finally { restoring = false; }
+        edited();
+    }
 
+    /** The waveform, wide enough that zooming in on a long clip still shows the shape (200 px a second, 2400..16000). */
     private void loadWaveform(Clip c, Path file) {
         if (!c.hasAudio) return;
-        Path wav = app.library.thumbsDir().resolve(c.id + "-wave.png");
-        new Thread(() -> {
+        int w = (int) Math.max(2400, Math.min(16000, c.duration * 200));
+        Path wav = app.library.thumbsDir().resolve(c.id + "-wave-" + w + ".png");
+        Thread t = new Thread(() -> {
             try {
                 if (!Files.exists(wav)) {
                     Files.createDirectories(wav.getParent());
                     Ffmpeg.run(List.of("-i", file.toString(), "-filter_complex",
-                            "aformat=channel_layouts=mono,compand=gain=4,showwavespic=s=2400x120:colors=0xE11D2E", "-frames:v", "1", wav.toString()));
+                            "aformat=channel_layouts=mono,compand=gain=4,showwavespic=s=" + w + "x120:colors=0xE11D2E", "-frames:v", "1", wav.toString()));
                 }
                 BufferedImage img = ImageIO.read(wav.toFile());
                 SwingUtilities.invokeLater(() -> { if (clip == c) timeline.setWave(img); });
             } catch (Exception ignored) {}
-        }, "waveform").start();
+        }, "waveform");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
+     * A denser filmstrip for the timeline (a frame every 2 s, 10..300 frames), made in the background the first
+     * time a clip opens, so zooming in shows real detail instead of ten stretched frames.
+     */
+    private void loadDenseStrip(Clip c, Path file) {
+        if (c.duration <= 0) return;
+        int frames = (int) Math.max(10, Math.min(300, Math.ceil(c.duration / 2)));
+        if (frames <= Library.STRIP_FRAMES) return;
+        Path out = app.library.thumbsDir().resolve(c.id + "-estrip-" + frames + ".jpg");
+        Thread t = new Thread(() -> {
+            try {
+                if (!Files.exists(out)) {
+                    Files.createDirectories(out.getParent());
+                    Path tmp = out.resolveSibling(c.id + "-estrip-" + frames + ".tmp.jpg");
+                    List<String> args = new ArrayList<>();
+                    // long recordings: key frames only, which is plenty for a filmstrip and far quicker
+                    if (c.duration > 60) args.addAll(List.of("-skip_frame", "nokey"));
+                    args.addAll(List.of("-i", file.toString(), "-an", "-vf", "fps=" + Library.fmt(frames / c.duration)
+                            + ",scale=96:54:force_original_aspect_ratio=decrease,pad=96:54:(ow-iw)/2:(oh-ih)/2:color=black,tile=" + frames + "x1",
+                            "-frames:v", "1", "-q:v", "6", tmp.toString()));
+                    Ffmpeg.run(args);
+                    Files.move(tmp, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                BufferedImage img = ImageIO.read(out.toFile());
+                if (img != null) SwingUtilities.invokeLater(() -> { if (clip == c) timeline.setStrip(img, frames); });
+            } catch (Exception ignored) {}
+        }, "dense-strip");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
     }
 
     private void loadControls() {
+        boolean was = loading;
         loading = true;
+        try { fillControls(); } finally { loading = was; }
+        capTextSnap = false;
+        titleTextSnap = false;
+        updateControlsEnabled();
+        updatePresetInfo();
+        updateUndo();
+    }
+
+    private void fillControls() {
         titleField.setText(clip.title);
         gameField.setText(clip.game == null ? "" : clip.game);
         tagsField.setText(String.join(", ", clip.tags));
@@ -985,9 +1266,20 @@ public final class EditorPanel extends JPanel {
         zoom.setValue((int) Math.round(edit.zoom * 100));
         volume.setValue((int) Math.round(edit.volume * 100));
         micVol.setValue((int) Math.round(edit.micVolume * 100));
-        micRow.setVisible(clip.audioTracks >= 2);
+        boolean micTrack = java.util.stream.IntStream.range(0, clip.audioTracks).anyMatch(i -> Exporter.trackName(clip, i).equalsIgnoreCase("Mic"));
+        micRow.setVisible(micTrack);
+        micCleanup.setSelected(edit.micCleanup);
+        micCleanupRow.setVisible(micTrack);
         voiceVol.setValue((int) Math.round(edit.voiceVolume * 100));
-        voiceRow.setVisible(clip.trackNames.contains("Voice chat"));
+        voiceRow.setVisible(java.util.stream.IntStream.range(0, clip.audioTracks).anyMatch(i -> Exporter.trackName(clip, i).equalsIgnoreCase("Voice chat")));
+        boolean hasMusic = edit.music != null;
+        musicLabel.setText(hasMusic ? "Song: " + musicName() : "No music");
+        musicVol.setValue((int) Math.round((hasMusic ? edit.music.volume : 0.5) * 100));
+        musicStart.setValue(hasMusic ? edit.music.inPoint : 0.0);
+        musicDuck.setSelected(!hasMusic || edit.music.duck);
+        for (JComponent c : new JComponent[]{musicVolRow, musicStartRow, musicDuck}) c.setVisible(hasMusic);
+        musicRemove.setEnabled(hasMusic);
+        camOffset.setValue(edit.camOffset);
         effect.setSelectedIndex(Math.max(0, java.util.Arrays.asList(EFFECTS).indexOf(edit.effect)));
         player.setVideoFilter(Exporter.effectFilter(edit.effect));
         refreshCaptions();
@@ -999,16 +1291,38 @@ public final class EditorPanel extends JPanel {
         titleText.setText(edit.titleText);
         titlePos.setSelectedIndex(switch (edit.titlePosition) { case "center" -> 1; case "top" -> 2; default -> 0; });
         titleSecs.setSelectedIndex(edit.titleSeconds == 2 ? 0 : edit.titleSeconds == 5 ? 2 : edit.titleSeconds == 0 ? 3 : 1);
-        loading = false;
-        updateControlsEnabled();
-        updatePresetInfo();
-        updateUndo();
+    }
+
+    /** The music's file name, or null when there's none. */
+    private String musicName() {
+        if (edit == null || edit.music == null || edit.music.file == null || edit.music.file.isBlank()) return null;
+        try { return Path.of(edit.music.file).getFileName().toString(); } catch (RuntimeException e) { return edit.music.file; }
+    }
+
+    /** The edit's volume, mute, track levels and fades on the preview's sound, so it sounds like the export. */
+    private void applyPreviewAudio() {
+        if (clip == null || edit == null) return;
+        player.setEditGain((float) edit.volume, edit.mute);
+        double[] g = new double[Math.max(0, clip.audioTracks)];
+        for (int i = 0; i < g.length; i++) g[i] = Exporter.trackGain(clip, edit, i);
+        player.setTrackGains(g);
+        if (edit.fadeIn <= 0 && edit.fadeOut <= 0) { player.setGainAt(null); return; }
+        // the audio thread reads its own copy, never the edit being changed
+        EditSpec e = edit.copy();
+        double fi = e.fadeIn, fo = e.fadeOut, total = e.outputDuration();
+        player.setGainAt(t -> {
+            double o = e.toOutput(t), v = 1;
+            if (fi > 0) v = Math.min(v, o / fi);
+            if (fo > 0) v = Math.min(v, (total - o) / fo);
+            return Math.max(0, Math.min(1, v));
+        });
     }
 
     private void updateControlsEnabled() {
         boolean framed = !edit.aspect.equals("original");
         fitMode.setEnabled(true);
         camBox.setVisible(edit.fitMode.equals("split"));
+        camOffset.setEnabled(!edit.camFile.isBlank());
         cropX.setEnabled((framed && edit.fitMode.equals("crop")) || edit.zoom > 1.001);
     }
 
@@ -1028,9 +1342,28 @@ public final class EditorPanel extends JPanel {
 
     // ------------------------------------------------------------------ editing
 
+    /** The edit and the clip's markers as they are now, as an undo step. */
+    private UndoState state() {
+        Map<String, String> labels = clip.markerLabels == null ? new HashMap<>() : new HashMap<>(clip.markerLabels);
+        return new UndoState(edit.copy(), new ArrayList<>(clip.markers), labels);
+    }
+
+    private static String key(UndoState s) { return UNDO_GSON.toJson(s.edit()) + "|" + s.markers() + "|" + new java.util.TreeMap<>(s.labels()); }
+
+    /**
+     * Records an undo step before a change. Nothing is recorded while controls are being filled in or an undo
+     * step is being shown, nor when nothing changed since the last step.
+     */
     private void snapshot() {
-        if (edit == null) return;
-        undo.push(edit.copy());
+        if (edit == null || clip == null || restoring || loading) return;
+        pushUndo(state());
+    }
+
+    private void pushUndo(UndoState s) {
+        String k = key(s);
+        if (k.equals(undoTopKey) && !undo.isEmpty()) return;
+        undo.push(s);
+        undoTopKey = k;
         if (undo.size() > 100) undo.removeLast();
         redo.clear();
         updateUndo();
@@ -1040,26 +1373,46 @@ public final class EditorPanel extends JPanel {
         edit.sort();
         player.setVideoFilter(Exporter.effectFilter(edit.effect));
         timeline.setEdit(edit);
+        timeline.setMusic(musicName());
+        applyPreviewAudio();
         updateControlsEnabled();
         updatePresetInfo();
         updateUndo();
+        resetTickCache();
         view.repaint();
         saveLater.restart();
     }
 
     private void undo() {
-        if (undo.isEmpty()) return;
-        redo.push(edit.copy());
-        edit = undo.pop();
-        loadControls();
-        edited();
+        if (undo.isEmpty() || edit == null) return;
+        redo.push(state());
+        restore(undo.pop());
+        undoTopKey = undo.isEmpty() ? null : key(undo.peek());
     }
 
     private void redo() {
-        if (redo.isEmpty()) return;
-        undo.push(edit.copy());
-        edit = redo.pop();
-        loadControls();
+        if (redo.isEmpty() || edit == null) return;
+        UndoState now = state();
+        undo.push(now);
+        undoTopKey = key(now);
+        restore(redo.pop());
+    }
+
+    /** Shows an undo step: its edit, and the clip's markers as they were. */
+    private void restore(UndoState s) {
+        edit = s.edit();
+        boolean markersChanged = !s.markers().equals(clip.markers) || !s.labels().equals(clip.markerLabels);
+        if (markersChanged) {
+            clip.markers.clear();
+            clip.markers.addAll(s.markers());
+            if (clip.markerLabels == null) clip.markerLabels = new HashMap<>();
+            clip.markerLabels.clear();
+            clip.markerLabels.putAll(s.labels());
+            timeline.setMarkers(clip.markers);
+            app.library.update(clip);
+        }
+        restoring = true;
+        try { loadControls(); } finally { restoring = false; }
         edited();
     }
 
@@ -1070,8 +1423,8 @@ public final class EditorPanel extends JPanel {
 
     private void split() {
         if (edit == null) return;
-        EditSpec before = edit.copy();
-        if (edit.splitAt(player.time())) { undo.push(before); redo.clear(); edited(); }
+        UndoState before = state();
+        if (edit.splitAt(player.time())) { pushUndo(before); edited(); }
     }
 
     private void deletePart() {
@@ -1140,12 +1493,39 @@ public final class EditorPanel extends JPanel {
         o.file = file.toAbsolutePath().toString();
         o.start = player.time();
         try { o.length = Ffmpeg.probe(file).duration(); } catch (Exception ignored) {}
+        placeOverlay(o, 0);
         edit.overlays.add(o);
         edited();
         refreshOverlays();
         ovList.setSelectedIndex(edit.overlays.size() - 1);
-        ovPos.setSelectedIndex(0);
         loadOverlayFrame(o.file);
+    }
+
+    /**
+     * Puts an overlay in a corner of the frame (0 top right, 1 top left, 2 bottom right, 3 bottom left) or the
+     * centre (4); -1 keeps it where it is.
+     */
+    private static void placeOverlay(EditSpec.Overlay o, int corner) {
+        double m = 0.03, half = o.scale / 2;
+        double hh = o.scale / 2; // same aspect as the frame: height fraction = width fraction
+        switch (corner) {
+            case 0 -> { o.x = 1 - m - half; o.y = m + hh; }
+            case 1 -> { o.x = m + half; o.y = m + hh; }
+            case 2 -> { o.x = 1 - m - half; o.y = 1 - m - hh; }
+            case 3 -> { o.x = m + half; o.y = 1 - m - hh; }
+            case 4 -> { o.x = 0.5; o.y = 0.5; }
+            default -> {}
+        }
+    }
+
+    /** Which of {@link #placeOverlay}'s spots an overlay is in, or -1 when it was put somewhere else. */
+    private static int overlayCorner(EditSpec.Overlay o) {
+        for (int i = 0; i <= 4; i++) {
+            EditSpec.Overlay t = o.copy();
+            placeOverlay(t, i);
+            if (Math.abs(t.x - o.x) < 0.005 && Math.abs(t.y - o.y) < 0.005) return i;
+        }
+        return -1;
     }
 
     /** Grabs a frame of an overlay video for the preview (once per file). */
@@ -1164,10 +1544,12 @@ public final class EditorPanel extends JPanel {
 
     private void refreshOverlays() {
         int sel = ovList.getSelectedIndex();
+        boolean was = loading;
         loading = true;
-        ovModel.clear();
-        for (EditSpec.Overlay o : edit.overlays) ovModel.addElement(Theme.timeFine(o.start) + "  " + Path.of(o.file).getFileName());
-        loading = false;
+        try {
+            ovModel.clear();
+            for (EditSpec.Overlay o : edit.overlays) ovModel.addElement(Theme.timeFine(o.start) + "  " + Path.of(o.file).getFileName());
+        } finally { loading = was; }
         if (sel >= 0 && sel < ovModel.size()) ovList.setSelectedIndex(sel);
         loadOverlay();
     }
@@ -1175,14 +1557,18 @@ public final class EditorPanel extends JPanel {
     private void loadOverlay() {
         EditSpec.Overlay o = selectedOverlay();
         boolean on = o != null;
+        boolean was = loading;
         loading = true;
-        ovPos.setEnabled(on); ovSize.setEnabled(on); ovOpacity.setEnabled(on); ovAudio.setEnabled(on);
-        if (on) {
-            ovSize.setValue((int) Math.round(o.scale * 100));
-            ovOpacity.setValue((int) Math.round(o.opacity * 100));
-            ovAudio.setSelected(o.audio);
-        }
-        loading = false;
+        try {
+            ovPos.setEnabled(on); ovSize.setEnabled(on); ovOpacity.setEnabled(on); ovAudio.setEnabled(on);
+            if (on) {
+                ovSize.setValue((int) Math.round(o.scale * 100));
+                ovOpacity.setValue((int) Math.round(o.opacity * 100));
+                ovAudio.setSelected(o.audio);
+                int at = overlayCorner(o);
+                if (at >= 0) ovPos.setSelectedIndex(at);
+            }
+        } finally { loading = was; }
     }
 
     private EditSpec.Caption selectedCaption() {
@@ -1205,12 +1591,23 @@ public final class EditorPanel extends JPanel {
 
     private void refreshCaptions() {
         int sel = capList.getSelectedIndex();
+        boolean was = loading;
         loading = true;
-        capModel.clear();
-        for (EditSpec.Caption c : edit.captions) capModel.addElement(captionRow(c));
-        loading = false;
+        try {
+            capModel.clear();
+            for (EditSpec.Caption c : edit.captions) capModel.addElement(captionRow(c));
+        } finally { loading = was; }
         if (sel >= 0 && sel < capModel.size()) capList.setSelectedIndex(sel);
         loadCaption();
+    }
+
+    private void removeCaption() {
+        EditSpec.Caption c = selectedCaption();
+        if (c == null) return;
+        snapshot();
+        edit.captions.remove(c);
+        edited();
+        refreshCaptions();
     }
 
     private static String captionRow(EditSpec.Caption c) {
@@ -1225,46 +1622,64 @@ public final class EditorPanel extends JPanel {
     private void loadCaption() {
         EditSpec.Caption c = selectedCaption();
         boolean on = c != null;
+        boolean was = loading;
         loading = true;
-        capText.setEnabled(on); capStyle.setEnabled(on); capPos.setEnabled(on);
-        capText.setText(on ? c.text : "");
-        if (on) {
-            capStyle.setSelectedIndex(Math.max(0, java.util.Arrays.asList(CAP_STYLES).indexOf(c.style)));
-            capPos.setSelectedIndex(switch (c.position) { case "center" -> 1; case "top" -> 2; default -> 0; });
-        }
-        loading = false;
+        try {
+            capText.setEnabled(on); capStyle.setEnabled(on); capPos.setEnabled(on);
+            if (!capText.getText().equals(on ? c.text : "")) capText.setText(on ? c.text : "");
+            if (on) {
+                capStyle.setSelectedIndex(Math.max(0, java.util.Arrays.asList(CAP_STYLES).indexOf(c.style)));
+                capPos.setSelectedIndex(switch (c.position) { case "center" -> 1; case "top" -> 2; default -> 0; });
+            }
+        } finally { loading = was; }
+        // typing into another caption is a new undo step
+        capTextSnap = false;
     }
 
-    /** Scans the audio for the action, marks it, and cuts the clip down to just those moments. */
+    /**
+     * Finds the action (game-event markers like kills and aces first, then the loudest moments of the game and
+     * your mic), marks it, and cuts the clip down to just those moments.
+     */
     private void highlightReel() {
-        if (clip == null || !clip.hasAudio) { app.notify("No audio to scan", "Highlights are found from the sound of the action", false); return; }
+        if (clip == null) return;
+        boolean events = clip.markers.stream().anyMatch(m -> Highlights.isEvent(clip.label(m)));
+        if (!clip.hasAudio && !events) { app.notify("No audio to scan", "Highlights are found from game events (kills, aces) and the sound of the action", false); return; }
         Clip c = clip;
         app.notify("Finding highlights…", null, false);
-        new Thread(() -> {
+        Thread th = new Thread(() -> {
             try {
-                var moments = net.evadeclient.clips.core.Highlights.detect(c.path(app.library.root()), c.duration, 0, null);
+                var moments = Highlights.detect(c, c.path(app.library.root()), 0, null);
                 SwingUtilities.invokeLater(() -> {
-                    if (clip != c) return;
+                    if (clip != c || edit == null) return;
                     if (moments.isEmpty()) { app.notify("No highlights found", "Nothing stood out from the background", false); return; }
+                    // one undo step brings back the markers and the whole clip
+                    snapshot();
                     for (var m : moments) if (c.markers.stream().noneMatch(x -> Math.abs(x - m.time()) < 2)) c.markers.add(m.time());
                     c.markers.sort(Double::compare);
                     timeline.setMarkers(c.markers);
-                    snapshot();
-                    EditSpec cut = net.evadeclient.clips.core.Highlights.cut(moments, c.duration, 5, 3);
+                    app.library.update(c);
+                    // a kill needs its build-up; a loud moment its aftermath too
+                    EditSpec cut = Highlights.cut(moments, c.duration, 5, 3, 6, 2);
                     cut.aspect = edit.aspect; cut.fitMode = edit.fitMode; cut.cropX = edit.cropX; cut.zoom = edit.zoom;
-                    cut.volume = edit.volume; cut.micVolume = edit.micVolume; cut.titleText = edit.titleText;
+                    cut.volume = edit.volume; cut.micVolume = edit.micVolume; cut.micCleanup = edit.micCleanup; cut.titleText = edit.titleText;
                     cut.titlePosition = edit.titlePosition; cut.titleSeconds = edit.titleSeconds;
-                    cut.effect = edit.effect; cut.voiceVolume = edit.voiceVolume;
+                    cut.effect = edit.effect; cut.voiceVolume = edit.voiceVolume; cut.smoothing = edit.smoothing;
+                    cut.camX = edit.camX; cut.camY = edit.camY; cut.camW = edit.camW; cut.camH = edit.camH; cut.camShare = edit.camShare;
+                    cut.camFile = edit.camFile; cut.camOffset = edit.camOffset; cut.mute = edit.mute;
+                    cut.music = edit.music == null ? null : edit.music.copy();
                     for (EditSpec.Caption cc : edit.captions) cut.captions.add(cc.copy());
                     edit = cut;
                     loadControls();
                     edited();
                     seekTo(edit.segments.get(0).start);
-                    app.notify(moments.size() + " highlight" + (moments.size() == 1 ? "" : "s") + " kept",
+                    long kills = moments.stream().filter(Highlights.Moment::event).count();
+                    app.notify(moments.size() + " highlight" + (moments.size() == 1 ? "" : "s") + " kept" + (kills > 0 ? " (" + kills + " from game events)" : ""),
                             Theme.timeFine(c.duration) + " → " + Theme.timeFine(edit.outputDuration()) + " · Ctrl+Z to undo", false);
                 });
             } catch (Exception ex) { app.notify("Highlight scan failed", ex.getMessage(), true); }
-        }, "highlights").start();
+        }, "highlights");
+        th.setDaemon(true);
+        th.start();
     }
 
     private void frameGrab() {
@@ -1286,8 +1701,46 @@ public final class EditorPanel extends JPanel {
 
     private void addMarker() {
         if (clip == null) return;
-        clip.markers.add(player.time());
+        double t = player.time();
+        if (clip.markers.stream().anyMatch(x -> Math.abs(x - t) < 0.01)) return;
+        snapshot();
+        clip.markers.add(t);
         clip.markers.sort(Double::compare);
+        markersChanged();
+    }
+
+    private void deleteMarker(int i) {
+        if (clip == null || i < 0 || i >= clip.markers.size()) return;
+        snapshot();
+        double t = clip.markers.remove(i);
+        clip.markerLabels.remove(Clip.key(t));
+        markersChanged();
+    }
+
+    private void renameMarker(int i, String name) {
+        if (clip == null || i < 0 || i >= clip.markers.size()) return;
+        String k = Clip.key(clip.markers.get(i));
+        String now = clip.markerLabels.get(k);
+        if (name.isBlank() ? now == null : name.equals(now)) return;
+        snapshot();
+        if (name.isBlank()) clip.markerLabels.remove(k); else clip.markerLabels.put(k, name);
+        markersChanged();
+    }
+
+    private void moveMarker(int i) {
+        if (clip == null || i < 0 || i >= clip.markers.size()) return;
+        double to = player.time(), from = clip.markers.get(i);
+        if (Math.abs(to - from) < 0.01) return;
+        snapshot();
+        clip.markers.remove(i);
+        String label = clip.markerLabels.remove(Clip.key(from));
+        if (clip.markers.stream().noneMatch(x -> Math.abs(x - to) < 0.01)) clip.markers.add(to);
+        if (label != null) clip.markerLabels.put(Clip.key(to), label);
+        clip.markers.sort(Double::compare);
+        markersChanged();
+    }
+
+    private void markersChanged() {
         timeline.setMarkers(clip.markers);
         app.library.update(clip);
     }
@@ -1382,6 +1835,14 @@ public final class EditorPanel extends JPanel {
         try { EditPresets.delete(p); refreshPresets(); } catch (Exception ex) { app.notify("Couldn't delete it", ex.getMessage(), true); }
     }
 
+    /** Delete in the preset list: one of your presets goes after you say so (it's a file, not part of the edit). */
+    private void deletePresetAsk() {
+        EditPresets.Preset p = presetList.getSelectedValue();
+        if (p == null || p.builtIn) return;
+        int r = javax.swing.JOptionPane.showConfirmDialog(this, "Delete your preset \"" + p.name + "\"?", "Delete preset", javax.swing.JOptionPane.OK_CANCEL_OPTION);
+        if (r == javax.swing.JOptionPane.OK_OPTION) deletePreset();
+    }
+
     /** Community presets: browse, apply, keep, and share yours. */
     private void communityDialog() {
         javax.swing.JDialog d = new javax.swing.JDialog(SwingUtilities.getWindowAncestor(this), "Community presets", java.awt.Dialog.ModalityType.MODELESS);
@@ -1473,7 +1934,7 @@ public final class EditorPanel extends JPanel {
 
     // ------------------------------------------------------------------ speed ramps, zoom, masks, effects
 
-    /** Right-click on the timeline: effects, ramps and zoom at the clicked time. */
+    /** Right-click on the timeline: effects, ramps, zoom, freeze frames, rewinds and the cover at the clicked time. */
     private void timelineMenu(javax.swing.JPopupMenu m, Double t) {
         m.add(menuItem("Slow-mo ramp here", () -> rampAt(t, 0.3)));
         m.add(menuItem("Zoom in here", () -> zoomInAt(t)));
@@ -1481,6 +1942,107 @@ public final class EditorPanel extends JPanel {
         for (String[] f : new String[][]{{"shake", "Shake"}, {"punch", "Zoom punch"}, {"flash", "Flash"}, {"hitmarker", "Hitmarker"}, {"sound", "Sound only"}})
             fx.add(menuItem(f[1], () -> addEffect(f[0], t)));
         m.add(fx);
+        int i = edit == null ? -1 : edit.segmentAt(t);
+        if (i >= 0) {
+            EditSpec.Segment s = edit.segments.get(i);
+            m.addSeparator();
+            m.add(menuItem("Freeze frame here (F)", () -> freezeAt(t)));
+            if (s.hold() > 0) {
+                javax.swing.JMenu len = new javax.swing.JMenu("Freeze frame length (" + Timeline.fmtSecs(s.hold()) + ")");
+                for (double v : new double[]{0.5, 1, 2, 3}) len.add(menuItem(Timeline.fmtSecs(v), () -> setHold(i, v)));
+                m.add(len);
+                m.add(menuItem("Remove freeze frame", () -> setHold(i, 0)));
+            }
+            javax.swing.JMenuItem rw = menuItem(s.rewind ? "Stop rewinding this part" : "Rewind this part", () -> toggleRewind(i));
+            if (!s.rewind && s.length() > EditSpec.MAX_REWIND) {
+                rw.setEnabled(false);
+                rw.setToolTipText("Parts up to " + (int) EditSpec.MAX_REWIND + " s can be rewound: split around the moment first (S)");
+            }
+            m.add(rw);
+        }
+        m.addSeparator();
+        javax.swing.JMenuItem cover = menuItem("Use this frame as cover", () -> setCover(t));
+        cover.setEnabled(coverSupported());
+        m.add(cover);
+    }
+
+    /** Freezes the picture at t: the part is split there and holds its last frame for a second. */
+    private void freezeAt(double t) {
+        if (edit == null) return;
+        int i = edit.segmentAt(t);
+        if (i < 0) { app.notify("That's in a cut part", "Freeze frames go on kept parts", false); return; }
+        EditSpec.Segment s = edit.segments.get(i);
+        UndoState before = state();
+        int at;
+        if (s.end - t < 0.1) at = i;                       // at the end of the part: hold its last frame
+        else if (t - s.start < 0.1) {
+            // at its very start: hold the end of the part just before, if it runs straight into this one
+            if (i > 0 && Math.abs(edit.segments.get(i - 1).end - s.start) < 0.05) at = i - 1;
+            else { app.notify("Move the playhead a little into the part", "A freeze frame holds the picture where the part is split", false); return; }
+        } else {
+            edit.splitAt(t);
+            at = i;
+        }
+        EditSpec.Segment seg = edit.segments.get(at);
+        if (seg.hold() <= 0) seg.holdAfter = 1;
+        pushUndo(before);
+        edited();
+        app.notify("Freeze frame added", "Holds " + Timeline.fmtSecs(seg.hold()) + " in the export (right-click it to change the length). The preview doesn't pause for it.", false);
+    }
+
+    private void setHold(int i, double v) {
+        if (edit == null || i < 0 || i >= edit.segments.size()) return;
+        snapshot();
+        edit.segments.get(i).holdAfter = v;
+        edited();
+    }
+
+    private void toggleRewind(int i) {
+        if (edit == null || i < 0 || i >= edit.segments.size()) return;
+        EditSpec.Segment s = edit.segments.get(i);
+        if (!s.rewind && s.length() > EditSpec.MAX_REWIND) return;
+        snapshot();
+        s.rewind = !s.rewind;
+        edited();
+        if (s.rewind) app.notify("Rewind added", "This part plays, rewinds and plays again in the export. The preview plays it once.", false);
+    }
+
+    // The cover frame is kept by the library (Library.setCover, and CloudShare.uploadThumb for a shared clip's
+    // link preview). They're looked up by name, so the editor works with a library that doesn't have them yet:
+    // the cover controls simply don't show there.
+    private static final java.lang.reflect.Method SET_COVER = lookup(Library.class, "setCover", Clip.class, double.class);
+    private static final java.lang.reflect.Method UPLOAD_THUMB = lookup(net.evadeclient.clips.core.CloudShare.class, "uploadThumb", Clip.class, Library.class);
+
+    private static java.lang.reflect.Method lookup(Class<?> c, String name, Class<?>... params) {
+        try { return c.getMethod(name, params); } catch (NoSuchMethodException | RuntimeException e) { return null; }
+    }
+
+    private static boolean coverSupported() { return SET_COVER != null; }
+
+    /** Makes the frame at t the clip's cover (library thumbnail and share-link picture). */
+    private void setCover(double t) {
+        if (clip == null || edit == null || SET_COVER == null) return;
+        if (edit.segmentAt(t) < 0) { app.notify("That frame is cut from the clip", "Pick a frame in a part you're keeping", false); return; }
+        Clip c = clip;
+        try {
+            SET_COVER.invoke(app.library, c, t);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            Throwable why = ex.getCause() != null ? ex.getCause() : ex;
+            app.notify("Couldn't set the cover", why.getMessage(), true);
+            return;
+        }
+        boolean shared = c.shareId != null && UPLOAD_THUMB != null;
+        app.notify("Cover set", "The frame at " + Theme.timeFine(t) + (shared ? " · updating your share link's picture" : ""), false);
+        if (!shared) return;
+        Thread th = new Thread(() -> {
+            try { UPLOAD_THUMB.invoke(app.cloud, c, app.library); }
+            catch (Exception ex) {
+                Throwable why = ex.getCause() != null ? ex.getCause() : ex;
+                app.notify("Couldn't update the share link's picture", why.getMessage(), true);
+            }
+        }, "cover-upload");
+        th.setDaemon(true);
+        th.start();
     }
 
     private static javax.swing.JMenuItem menuItem(String label, Runnable r) {
@@ -1491,9 +2053,9 @@ public final class EditorPanel extends JPanel {
 
     private void rampAt(double t, double slow) {
         if (edit == null) return;
-        EditSpec before = edit.copy();
+        UndoState before = state();
         if (edit.rampAround(t, slow, 1.2, 1.0)) {
-            undo.push(before); redo.clear();
+            pushUndo(before);
             edited();
             app.notify("Slow-mo ramp added", "Eases into " + Timeline.fmtSpeed(slow) + " and back out · smoothing: " + smoothing.getSelectedItem(), false);
         } else app.notify("Can't ramp here", "Put the playhead inside a kept part", false);
@@ -1530,16 +2092,18 @@ public final class EditorPanel extends JPanel {
 
     private void refreshZoomKeys() {
         int sel = zkList.getSelectedIndex();
+        boolean was = loading;
         loading = true;
-        zkModel.clear();
-        for (EditSpec.ZoomKey k : edit.sortedZooms())
-            zkModel.addElement(Theme.timeFine(k.t) + "   " + (k.zoom <= 1.001 ? "full frame" : Timeline.fmtSpeed(k.zoom).replace("×", "x zoom") + " · " + targetName(k)));
-        loading = false;
+        try {
+            zkModel.clear();
+            for (EditSpec.ZoomKey k : edit.sortedZooms())
+                zkModel.addElement(Theme.timeFine(k.t) + "   " + (k.zoom <= 1.001 ? "full frame" : Timeline.fmtSpeed(k.zoom).replace("×", "x zoom") + " · " + targetName(k)));
+        } finally { loading = was; }
         if (sel >= 0 && sel < zkModel.size()) zkList.setSelectedIndex(sel);
     }
 
     private static String targetName(EditSpec.ZoomKey k) {
-        String[] names = {"centre", "kill feed", "chat", "minimap", "health"};
+        String[] names = {"center", "kill feed", "chat", "minimap", "health"};
         for (int i = 0; i < TARGETS.length; i++) if (Math.abs(TARGETS[i][0] - k.cx) < 0.02 && Math.abs(TARGETS[i][1] - k.cy) < 0.02) return names[i];
         return "custom spot";
     }
@@ -1547,10 +2111,12 @@ public final class EditorPanel extends JPanel {
     private void loadZoomKey() {
         EditSpec.ZoomKey k = selectedZoomKey();
         if (k == null) return;
+        boolean was = loading;
         loading = true;
-        if (k.zoom > 1.001) zoomAmount.setValue((int) Math.round(k.zoom * 100));
-        for (int i = 0; i < TARGETS.length; i++) if (Math.abs(TARGETS[i][0] - k.cx) < 0.02 && Math.abs(TARGETS[i][1] - k.cy) < 0.02) zoomTarget.setSelectedIndex(i);
-        loading = false;
+        try {
+            if (k.zoom > 1.001) zoomAmount.setValue((int) Math.round(k.zoom * 100));
+            for (int i = 0; i < TARGETS.length; i++) if (Math.abs(TARGETS[i][0] - k.cx) < 0.02 && Math.abs(TARGETS[i][1] - k.cy) < 0.02) zoomTarget.setSelectedIndex(i);
+        } finally { loading = was; }
     }
 
     private double[] target() {
@@ -1605,33 +2171,37 @@ public final class EditorPanel extends JPanel {
 
     private void refreshMasks() {
         int sel = maskList.getSelectedIndex();
+        boolean was = loading;
         loading = true;
-        maskModel.clear();
-        for (EditSpec.Mask m : edit.masks) maskModel.addElement(Theme.timeFine(m.start) + "–" + Theme.timeFine(m.end) + "   " + maskKind.getItemAt(java.util.Arrays.asList(MASKS).indexOf(m.kind)));
-        loading = false;
+        try {
+            maskModel.clear();
+            for (EditSpec.Mask m : edit.masks)
+                maskModel.addElement(Theme.timeFine(m.start) + "–" + Theme.timeFine(m.end) + "   " + maskKind.getItemAt(Math.max(0, java.util.Arrays.asList(MASKS).indexOf(m.kind))));
+        } finally { loading = was; }
         if (sel >= 0 && sel < maskModel.size()) maskList.setSelectedIndex(sel);
     }
 
     private void loadMask() {
         EditSpec.Mask m = selectedMask();
         if (m == null) return;
+        boolean was = loading;
         loading = true;
-        maskKind.setSelectedIndex(Math.max(0, java.util.Arrays.asList(MASKS).indexOf(m.kind)));
-        loading = false;
+        try { maskKind.setSelectedIndex(Math.max(0, java.util.Arrays.asList(MASKS).indexOf(m.kind))); } finally { loading = was; }
     }
 
     private void refreshSoundBoxes() {
         Object a = fxSound.getSelectedItem(), b = fxSoundSel.getSelectedItem();
         boolean was = loading;
         loading = true;
-        fxSound.removeAllItems();
-        fxSoundSel.removeAllItems();
-        fxSound.addItem("No sound");
-        fxSoundSel.addItem("No sound");
-        for (String n : Sounds.list()) { fxSound.addItem(n); fxSoundSel.addItem(n); }
-        if (a != null) fxSound.setSelectedItem(a);
-        if (b != null) fxSoundSel.setSelectedItem(b);
-        loading = was;
+        try {
+            fxSound.removeAllItems();
+            fxSoundSel.removeAllItems();
+            fxSound.addItem("No sound");
+            fxSoundSel.addItem("No sound");
+            for (String n : Sounds.list()) { fxSound.addItem(n); fxSoundSel.addItem(n); }
+            if (a != null) fxSound.setSelectedItem(a);
+            if (b != null) fxSoundSel.setSelectedItem(b);
+        } finally { loading = was; }
     }
 
     private void previewSound(String name) {
@@ -1676,13 +2246,15 @@ public final class EditorPanel extends JPanel {
 
     private void refreshEffects() {
         int sel = fxList.getSelectedIndex();
+        boolean was = loading;
         loading = true;
-        fxModel.clear();
-        for (EditSpec.Effect f : edit.effects) {
-            String name = switch (f.type) { case "shake" -> "Shake"; case "punch" -> "Zoom punch"; case "flash" -> "Flash"; case "hitmarker" -> "Hitmarker"; default -> "Sound"; };
-            fxModel.addElement(Theme.timeFine(f.t) + "   " + name + (f.sound.isBlank() ? "" : "  ·  sound: " + f.sound));
-        }
-        loading = false;
+        try {
+            fxModel.clear();
+            for (EditSpec.Effect f : edit.effects) {
+                String name = switch (f.type) { case "shake" -> "Shake"; case "punch" -> "Zoom punch"; case "flash" -> "Flash"; case "hitmarker" -> "Hitmarker"; default -> "Sound"; };
+                fxModel.addElement(Theme.timeFine(f.t) + "   " + name + (f.sound.isBlank() ? "" : "  ·  sound: " + f.sound));
+            }
+        } finally { loading = was; }
         if (sel >= 0 && sel < fxModel.size()) fxList.setSelectedIndex(sel);
         loadEffect();
     }
@@ -1690,16 +2262,18 @@ public final class EditorPanel extends JPanel {
     private void loadEffect() {
         EditSpec.Effect f = selectedEffect();
         boolean on = f != null;
+        boolean was = loading;
         loading = true;
-        fxStrength.setEnabled(on && !f.type.equals("sound") && !f.type.equals("hitmarker"));
-        fxVolume.setEnabled(on && !f.sound.isBlank());
-        fxSoundSel.setEnabled(on);
-        if (on) {
-            fxStrength.setValue((int) Math.round(f.strength * 100));
-            fxVolume.setValue((int) Math.round(f.volume * 100));
-            fxSoundSel.setSelectedItem(f.sound.isBlank() ? "No sound" : f.sound);
-        }
-        loading = false;
+        try {
+            fxStrength.setEnabled(on && !f.type.equals("sound") && !f.type.equals("hitmarker"));
+            fxVolume.setEnabled(on && !f.sound.isBlank());
+            fxSoundSel.setEnabled(on);
+            if (on) {
+                fxStrength.setValue((int) Math.round(f.strength * 100));
+                fxVolume.setValue((int) Math.round(f.volume * 100));
+                fxSoundSel.setSelectedItem(f.sound.isBlank() ? "No sound" : f.sound);
+            }
+        } finally { loading = was; }
     }
 
     // ------------------------------------------------------------------ auto-captions
@@ -1722,11 +2296,14 @@ public final class EditorPanel extends JPanel {
             }, "speech-download").start();
             return;
         }
+        // Nothing changes until the words are in: the captions are only replaced (or added to) once listening worked.
+        boolean replace = false;
         if (!edit.captions.isEmpty()) {
             int r = javax.swing.JOptionPane.showConfirmDialog(this, "Replace the captions this clip already has?", "Auto-captions", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
             if (r == javax.swing.JOptionPane.CANCEL_OPTION || r == javax.swing.JOptionPane.CLOSED_OPTION) return;
-            if (r == javax.swing.JOptionPane.YES_OPTION) { snapshot(); edit.captions.clear(); }
+            replace = r == javax.swing.JOptionPane.YES_OPTION;
         }
+        boolean replaceAll = replace;
         Clip c = clip;
         AutoCaptions.Source src = (AutoCaptions.Source) acSource.getSelectedItem();
         AutoCaptions.Layout layout = (AutoCaptions.Layout) acLayout.getSelectedItem();
@@ -1741,9 +2318,23 @@ public final class EditorPanel extends JPanel {
                 var caps = AutoCaptions.build(words, layout, pos);
                 SwingUtilities.invokeLater(() -> {
                     acBtn.setEnabled(true);
-                    if (clip != c) return;
-                    if (caps.isEmpty()) { acStatus.setText("No speech found. Try another source above."); return; }
+                    if (caps.isEmpty()) {
+                        if (clip == c) acStatus.setText("No speech found. Try another source above.");
+                        return;
+                    }
+                    if (clip != c || edit == null) {
+                        // Another clip was opened while listening: the captions still go on the clip they're for.
+                        EditSpec e2 = c.editOrDefault().copy();
+                        if (replaceAll) e2.captions.clear();
+                        e2.captions.addAll(caps);
+                        e2.captions.sort(java.util.Comparator.comparingDouble(x -> x.start));
+                        c.edit = e2;
+                        app.library.update(c);
+                        app.notify("Captions added to " + (c.title == null ? "a clip" : c.title), caps.size() + " captions · open it to check the words", false);
+                        return;
+                    }
                     snapshot();
+                    if (replaceAll) edit.captions.clear();
                     edit.captions.addAll(caps);
                     edit.captions.sort(java.util.Comparator.comparingDouble(x -> x.start));
                     edited();
@@ -1761,7 +2352,8 @@ public final class EditorPanel extends JPanel {
     private void exportProject() {
         if (clip == null || edit == null) return;
         commitMeta();
-        clip.edit = edit;
+        saveLater.stop();
+        clip.edit = edit.copy();
         app.library.update(clip);
         Clip c = clip;
         EditSpec e = edit.copy();
@@ -1779,17 +2371,21 @@ public final class EditorPanel extends JPanel {
     // ------------------------------------------------------------------ playback
 
     private void togglePlay() {
-        if (clip == null) return;
+        if (clip == null || edit == null) return;
+        if (!player.isOpen()) resume();
         if (player.isPlaying()) player.pause();
         else {
             double t = player.time();
             if (previewEdits.isSelected()) {
+                // at (or just before) the end of the last kept part, or in the cut after it: from the top
+                double lastEnd = edit.segments.get(edit.segments.size() - 1).end;
                 int i = edit.segmentAt(t);
                 if (i < 0) t = nextSegmentStart(t);
-                if (t >= clip.duration - 0.05 || (edit.segmentAt(t) < 0)) t = edit.segments.get(0).start;
+                if (t >= lastEnd - 0.05 || edit.segmentAt(t) < 0) t = edit.segments.get(0).start;
             } else if (t >= clip.duration - 0.05) t = 0;
             int i = edit.segmentAt(t);
             player.play(t, previewEdits.isSelected() && i >= 0 ? edit.segments.get(i).speedAt(t) : 1);
+            timeline.follow();
         }
         updatePlayIcon();
     }
@@ -1801,6 +2397,7 @@ public final class EditorPanel extends JPanel {
 
     private void seekTo(double t) {
         player.seek(t);
+        timeline.follow();
         timeline.setPlayhead(t);
         updateTime(t);
     }
@@ -1833,24 +2430,69 @@ public final class EditorPanel extends JPanel {
                 }
             }
         }
-        timeline.setPlayhead(t);
-        updateTime(t);
+        // Only what changed: an idle editor repaints nothing.
+        if (t != lastT) {
+            lastT = t;
+            timeline.setPlayhead(t);
+            updateTime(t);
+        }
         if (!player.isPlaying() && playBtnShowsPause) updatePlayIcon();
         // Speed box follows the part under the playhead.
         if (edit != null) {
             int i = edit.segmentAt(t);
-            loading = true;
-            speed.setEnabled(i >= 0);
-            if (i >= 0) {
-                speed.setSelectedItem(Timeline.fmtSpeed(edit.segments.get(i).speed));
-                double rt = edit.segments.get(i).ramped() ? edit.segments.get(i).rampTo : 0;
-                int ri = 0;
-                for (int k = 0; k < RAMP_TO.length; k++) if (Math.abs(RAMP_TO[k] - rt) < 1e-3) ri = k;
-                rampTo.setSelectedIndex(ri);
+            EditSpec.Segment s = i >= 0 ? edit.segments.get(i) : null;
+            double sp = s == null ? 0 : s.speed, rt = s != null && s.ramped() ? s.rampTo : 0;
+            if (i != lastSeg || sp != lastSegSpeed || rt != lastSegRamp) {
+                lastSeg = i;
+                lastSegSpeed = sp;
+                lastSegRamp = rt;
+                boolean was = loading;
+                loading = true;
+                try {
+                    speed.setEnabled(i >= 0);
+                    rampTo.setEnabled(i >= 0);
+                    if (i >= 0) {
+                        selectSpeed(speed, sp, "", "");
+                        if (rt <= 0) rampTo.setSelectedIndex(0);
+                        else selectSpeed(rampTo, rt, "Ramp to ", "");
+                    }
+                } finally { loading = was; }
             }
-            rampTo.setEnabled(i >= 0);
-            loading = false;
         }
+    }
+
+    private void resetTickCache() {
+        lastT = -1;
+        lastSeg = -2;
+        lastSegSpeed = Double.NaN;
+        lastSegRamp = Double.NaN;
+    }
+
+    /** A speed from a combo entry ("0.5×", "Ramp to 2×"); 0 for "Steady speed", -1 if it isn't one. */
+    private static double parseSpeed(Object item) {
+        if (item == null) return -1;
+        String s = item.toString();
+        if (s.startsWith("Steady")) return 0;
+        s = s.replace("Ramp to", "").replace("×", "").trim();
+        try { return Double.parseDouble(s); } catch (NumberFormatException e) { return -1; }
+    }
+
+    /**
+     * Selects a speed in a combo, adding it in order when the list doesn't have it (an R ramp's 0.3×, or a speed
+     * from a preset), so the box always shows the part's real speed.
+     */
+    private static void selectSpeed(JComboBox<String> box, double v, String prefix, String suffix) {
+        javax.swing.DefaultComboBoxModel<String> m = (javax.swing.DefaultComboBoxModel<String>) box.getModel();
+        int at = m.getSize();
+        for (int k = 0; k < m.getSize(); k++) {
+            double x = parseSpeed(m.getElementAt(k));
+            if (x <= 0) continue;
+            if (Math.abs(x - v) < 1e-3) { box.setSelectedIndex(k); return; }
+            if (x > v && at == m.getSize()) at = k;
+        }
+        String label = prefix + Timeline.fmtSpeed(v) + suffix;
+        m.insertElementAt(label, at);
+        box.setSelectedIndex(at);
     }
 
     private boolean playBtnShowsPause;
@@ -1883,8 +2525,8 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_HOME, 0), "home", () -> seekTo(0));
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_END, 0), "end", () -> seekTo(clip.duration));
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "split", this::split);
-        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "del", this::deletePart);
-        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "del2", this::deletePart);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "del", this::deleteKey);
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "del2", this::deleteKey);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_I, 0), "in", this::setIn);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_O, 0), "out", this::setOut);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_M, 0), "mark", this::addMarker);
@@ -1893,6 +2535,7 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_C, 0), "caption", this::addCaption);
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "ramp", () -> rampAt(player.time(), 0.3));
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_Z, 0), "zoomin", () -> zoomInAt(player.time()));
+        key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_F, 0), "freeze", () -> freezeAt(player.time()));
         String[] fxKeys = {"shake", "punch", "flash", "hitmarker", "sound"};
         for (int i = 0; i < fxKeys.length; i++) {
             String type = fxKeys[i];
@@ -1905,14 +2548,28 @@ public final class EditorPanel extends JPanel {
         key(im, am, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "esc", () -> { if (pick != Pick.NONE) endPick(); else app.openEditor.accept(null); });
     }
 
-    /** Bound keys that would otherwise type into text fields are skipped while one has focus. */
+    /** Delete: removes the selected item of the inspector list in use, otherwise cuts out the part under the playhead. */
+    private void deleteKey() {
+        Component f = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        if (f instanceof javax.swing.JList<?> list && list.getSelectedIndex() >= 0 && listRemovers.containsKey(list)) {
+            listRemovers.get(list).run();
+            return;
+        }
+        deletePart();
+    }
+
+    /**
+     * Bound keys that would otherwise type into text fields are skipped while one has focus; so are undo and redo,
+     * so Ctrl+Z in a text box doesn't undo the edit behind it.
+     */
     private void key(javax.swing.InputMap im, javax.swing.ActionMap am, KeyStroke ks, String name, Runnable r) {
         im.put(ks, name);
+        boolean undoKey = name.equals("undo") || name.equals("redo") || name.equals("redo2");
         am.put(name, new javax.swing.AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) {
                 Component f = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
                 boolean typing = f instanceof javax.swing.text.JTextComponent;
-                if (typing && ks.getModifiers() == 0 && ks.getKeyCode() != KeyEvent.VK_ESCAPE) return;
+                if (typing && (ks.getModifiers() == 0 || undoKey) && ks.getKeyCode() != KeyEvent.VK_ESCAPE) return;
                 if (typing && ks.getKeyCode() == KeyEvent.VK_ESCAPE) { view.requestFocusInWindow(); return; }
                 if (clip != null) r.run();
             }
@@ -1927,23 +2584,25 @@ public final class EditorPanel extends JPanel {
         Exporter.Options o = options();
         String info = p.description;
         if (p == Exporter.Preset.QUICK_TRIM) {
-            boolean simple = edit.segments.stream().allMatch(s -> s.speed == 1 && !s.ramped()) && edit.aspect.equals("original") && edit.zoom == 1
-                    && edit.zooms.isEmpty() && edit.effects.isEmpty() && edit.masks.isEmpty()
-                    && edit.titleText.isBlank() && edit.volume == 1 && !edit.mute && edit.fadeIn == 0 && edit.fadeOut == 0
-                    && edit.captions.isEmpty() && "none".equals(edit.effect);
-            if (!simple) info += " Only cuts are applied: speed, framing, zoom, audio, captions, effects and title need another preset.";
+            boolean simple = edit.segments.stream().allMatch(s -> s.speed == 1 && !s.ramped() && s.hold() == 0 && !s.rewinds()) && edit.aspect.equals("original")
+                    && edit.zoom == 1 && edit.zooms.isEmpty() && edit.effects.isEmpty() && edit.masks.isEmpty() && edit.overlays.isEmpty()
+                    && edit.titleText.isBlank() && edit.volume == 1 && edit.micVolume == 1 && edit.voiceVolume == 1 && !edit.micCleanup && !edit.mute
+                    && edit.fadeIn == 0 && edit.fadeOut == 0 && edit.music == null && edit.captions.isEmpty() && "none".equals(edit.effect);
+            if (!simple) info += " Only cuts are applied: speed, freeze frames, rewinds, framing, zoom, audio, music, captions, effects and title need another preset.";
         } else {
             int[] sz = Exporter.outputSize(clip, edit, o);
             info += "<br><span style='color:#F4F4F6'>" + sz[0] + "×" + sz[1] + " · " + Theme.timeFine(edit.outputDuration()) + "</span>";
         }
         presetInfo.setText("<html><body style='width:250px'>" + info + "</body></html>");
         gpu.setVisible(p != Exporter.Preset.QUICK_TRIM && p != Exporter.Preset.GIF && p.targetMb == 0);
+        normalize.setVisible(p != Exporter.Preset.QUICK_TRIM && p != Exporter.Preset.GIF);
     }
 
     private Exporter.Options options() {
         Exporter.Options o = new Exporter.Options();
         o.preset = (Exporter.Preset) preset.getSelectedItem();
         o.gpu = gpu.isSelected();
+        o.normalize = normalize.isSelected() && o.preset != Exporter.Preset.QUICK_TRIM && o.preset != Exporter.Preset.GIF;
         if (watermark.isSelected()) {
             boolean was = app.settings.watermarkEnabled;
             app.settings.watermarkEnabled = true;
@@ -1957,7 +2616,8 @@ public final class EditorPanel extends JPanel {
         if (clip == null) return;
         if (currentJob != null && !currentJob.done) { currentJob.job.cancel(); return; }
         commitMeta();
-        clip.edit = edit;
+        saveLater.stop();
+        clip.edit = edit.copy();
         app.library.update(clip);
         currentJob = app.export(clip, edit, options(), j -> updateJob());
         exportDone.setVisible(false);
@@ -2001,6 +2661,8 @@ public final class EditorPanel extends JPanel {
         private double fx, fy, fw = 1, fh = 1;
         private Rectangle2D area = new Rectangle2D.Double();
         private java.awt.Point dragFrom, dragTo;
+        /** The current press started a pick (a spot or box on the video), so its click doesn't also play. */
+        private boolean pickPress;
 
         VideoView() {
             setFocusable(true);
@@ -2008,6 +2670,7 @@ public final class EditorPanel extends JPanel {
             MouseAdapter ma = new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent e) {
                     requestFocusInWindow();
+                    pickPress = pick != Pick.NONE;
                     if (pick != Pick.NONE) { dragFrom = e.getPoint(); dragTo = e.getPoint(); }
                 }
                 @Override public void mouseDragged(MouseEvent e) { if (dragFrom != null) { dragTo = e.getPoint(); repaint(); } }
@@ -2016,7 +2679,10 @@ public final class EditorPanel extends JPanel {
                     picked(dragFrom, e.getPoint());
                     dragFrom = dragTo = null;
                 }
-                @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 1 && pick == Pick.NONE) togglePlay(); }
+                @Override public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 1 && pick == Pick.NONE && !pickPress && javax.swing.SwingUtilities.isLeftMouseButton(e)) togglePlay();
+                    pickPress = false;
+                }
             };
             addMouseListener(ma);
             addMouseMotionListener(ma);
@@ -2141,10 +2807,8 @@ public final class EditorPanel extends JPanel {
                     if (c.text.isBlank() || now < c.start || now > c.end) continue;
                     int tw = (int) area2.getWidth(), th = (int) area2.getHeight();
                     if (tw < 4 || th < 4) continue;
-                    String key = c.text + "|" + c.style + "|" + c.position + "|" + tw + "x" + th;
-                    BufferedImage im = capPreview.computeIfAbsent(key, kk -> Exporter.renderCaption(c.text, c.position, c.style, tw, th));
-                    if (capPreview.size() > 64) capPreview.clear();
-                    g.drawImage(im, (int) area2.getX(), (int) area2.getY(), null);
+                    Exporter.Sprite sp = captionPreview(c, tw, th);
+                    g.drawImage(sp.image(), (int) area2.getX() + sp.x(), (int) area2.getY() + sp.y(), null);
                 }
                 area = area2;
                 // facecam area (split layout)
@@ -2173,8 +2837,10 @@ public final class EditorPanel extends JPanel {
                 for (EditSpec.Effect fxe : edit.effects) {
                     if (now < fxe.t || now > fxe.t + Math.max(0.12, fxe.length)) continue;
                     if (fxe.type.equals("hitmarker")) {
-                        BufferedImage hm = Exporter.renderHitmarker((int) area2.getWidth(), (int) area2.getHeight());
-                        g.drawImage(hm, (int) area2.getX(), (int) area2.getY(), null);
+                        int hw = (int) area2.getWidth(), hh = (int) area2.getHeight();
+                        if (hw < 4 || hh < 4) continue;
+                        if (hitPreview == null || hitPreview.getWidth() != hw || hitPreview.getHeight() != hh) hitPreview = Exporter.renderHitmarker(hw, hh);
+                        g.drawImage(hitPreview, (int) area2.getX(), (int) area2.getY(), null);
                     } else if (fxe.type.equals("flash")) {
                         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) (0.6 * (1 - (now - fxe.t) / Math.max(0.1, fxe.length)))));
                         g.setColor(Color.WHITE);
@@ -2249,4 +2915,31 @@ public final class EditorPanel extends JPanel {
 
     /** Where source time t lands in the exported clip. */
     private double outputTimeAt(double t) { return edit.toOutput(t); }
+
+    /**
+     * A caption's picture for the preview, cropped to the text and cached (most recently used kept, about 32 MB
+     * at most; all dropped when the preview changes size).
+     */
+    private Exporter.Sprite captionPreview(EditSpec.Caption c, int tw, int th) {
+        if (tw != capPreviewW || th != capPreviewH) {
+            capPreview.clear();
+            capPreviewBytes = 0;
+            capPreviewW = tw;
+            capPreviewH = th;
+        }
+        String key = c.text + "|" + c.style + "|" + c.position;
+        Exporter.Sprite sp = capPreview.get(key);
+        if (sp != null) return sp;
+        sp = Exporter.captionSprite(c.text, c.position, c.style, tw, th);
+        capPreview.put(key, sp);
+        capPreviewBytes += (long) sp.width() * sp.height() * 4;
+        var it = capPreview.entrySet().iterator();
+        while (capPreviewBytes > (32L << 20) && it.hasNext()) {
+            var en = it.next();
+            if (en.getKey().equals(key)) continue;
+            capPreviewBytes -= (long) en.getValue().width() * en.getValue().height() * 4;
+            it.remove();
+        }
+        return sp;
+    }
 }

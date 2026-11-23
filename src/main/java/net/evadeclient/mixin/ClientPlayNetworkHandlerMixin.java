@@ -44,13 +44,16 @@ public abstract class ClientPlayNetworkHandlerMixin {
         }
     }
 
-    /** Notifier: totem pops (entity status 35), after vanilla has handled the packet on the main thread. */
+    /**
+     * Totem pops (entity status 35), after vanilla has handled the packet on the main thread. Notifier only hears
+     * about your own pops; Clips decides for itself which pops are worth a clip.
+     */
     @Inject(method = "onEntityStatus", at = @At("TAIL"))
     private void evade$pop(net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket packet, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (packet.getStatus() == 35 && mc.world != null && mc.isOnThread()) {
             var e = packet.getEntity(mc.world);
-            net.evadeclient.module.misc.Notifier.onPop(e);
+            if (e != null && e == mc.player) net.evadeclient.module.misc.Notifier.onPop(e);
             net.evadeclient.module.misc.Clips.onPop(e);
         }
     }

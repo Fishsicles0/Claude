@@ -46,11 +46,14 @@ public final class ProjectExport {
             footage = media.resolve(base + "." + Library.ext(src));
             Files.copy(src, footage);
         }
-        // every audio track on its own, so mic, game and voice chat can be mixed in the editor
+        // every audio track on its own, so mic, game and voice chat can be mixed in the editor; numbered, so two
+        // tracks with the same (or no usable) name never share a file
         List<String[]> wavs = new ArrayList<>();
         for (int i = 0; i < clip.audioTracks; i++) {
-            String name = clip.trackNames != null && i < clip.trackNames.size() ? clip.trackNames.get(i) : (i == 0 ? "Game" : i == 1 ? "Mic" : "Track " + (i + 1));
-            Path wav = media.resolve(Library.safe(name) + ".wav");
+            String name = Exporter.trackName(clip, i);
+            String safe = Library.safe(name);
+            if (safe.isBlank()) safe = "Track " + (i + 1);
+            Path wav = media.resolve((i + 1) + " - " + safe + ".wav");
             Ffmpeg.run(List.of("-y", "-i", src.toString(), "-map", "0:a:" + i, "-c:a", "pcm_s16le", "-ar", "48000", wav.toString()));
             wavs.add(new String[]{name, wav.toString()});
         }
@@ -72,9 +75,10 @@ public final class ProjectExport {
         Files.writeString(dir.resolve("HOW TO OPEN.txt"), """
                 After Effects
                   File > Scripts > Run Script File... and pick the .jsx file in this folder.
-                  You get a comp with every kept part as its own layer. Speed changes and ramps are time-remap
-                  keyframes (apply Twixtor or Timewarp to a layer for optical-flow slow motion), zooms are scale and
-                  position keyframes, captions are text layers, and your markers and effects are comp markers.
+                  You get a comp with every kept part as its own layer. Speed changes, ramps, rewinds and freeze
+                  frames are time-remap keyframes (apply Twixtor or Timewarp to a layer for optical-flow slow motion),
+                  zooms are scale and position keyframes, captions are text layers, and your markers and effects are
+                  comp markers.
 
                 Premiere Pro
                   File > Import... and pick the .xml file. It opens as a sequence with the cuts, speeds, audio
@@ -112,21 +116,30 @@ public final class ProjectExport {
         js.append("      if (!keep) tr.removeKey(k); }\n");
         js.append("    for (var m = 1; m <= tr.numKeys; m++) tr.setInterpolationTypeAtKey(m, KeyframeInterpolationType.LINEAR);\n");
         js.append("  }\n");
-        // one layer per kept part, time remapped (cuts are layer edges, speed and ramps are the remap curve)
+        // one layer per kept part, time remapped (cuts are layer edges; speed, ramps, rewinds and freeze frames
+        // are the remap curve)
         double out = 0;
         int n = 0;
         for (EditSpec.Segment s : e.segments) {
             double segOut = s.outputLength();
             if (segOut <= 0.01) continue;
             n++;
+            String what = s.rewinds() ? " (rewind)" : s.ramped() ? " (ramp)" : s.speed != 1 ? " (" + Library.fmt(s.speed) + "x)" : "";
+            if (s.hold() > 0) what += " (freeze frame)";
             js.append("  var L").append(n).append(" = comp.layers.add(footage);\n");
-            js.append("  L").append(n).append(".name = ").append(jsq("Part " + n + (s.ramped() ? " (ramp)" : s.speed != 1 ? " (" + Library.fmt(s.speed) + "x)" : ""))).append(";\n");
+            js.append("  L").append(n).append(".name = ").append(jsq("Part " + n + what)).append(";\n");
             StringBuilder keys = new StringBuilder("[");
             double t = out;
             keys.append("[").append(num(t)).append(",").append(num(s.start)).append("]");
             for (EditSpec.Piece p : s.pieces()) {
-                t += p.outputLength();
-                keys.append(",[").append(num(t)).append(",").append(num(p.end())).append("]");
+                // a reversed piece runs from its end back to its start; a freeze frame holds where it stopped
+                double to = p.reverse() ? p.start() : p.end();
+                t += p.playLength();
+                keys.append(",[").append(num(t)).append(",").append(num(to)).append("]");
+                if (p.hold() > 0) {
+                    t += p.hold();
+                    keys.append(",[").append(num(t)).append(",").append(num(to)).append("]");
+                }
             }
             keys.append("]");
             js.append("  remap(L").append(n).append(", ").append(keys).append(");\n");
@@ -138,7 +151,7 @@ public final class ProjectExport {
         if (!zk.isEmpty()) {
             js.append("  for (var z = 1; z <= ").append(n).append("; z++) { var L = comp.layer(z);\n");
             for (EditSpec.ZoomKey k : zk) {
-                if (e.segmentAt(k.t) < 0) continue;
+                // a key inside a cut part counts at the cut (a zoom-out there still happens)
                 double t = e.toOutput(k.t), zf = Math.max(1, k.zoom);
                 double px = w / 2.0 + (0.5 - k.cx) * w * zf, py = h / 2.0 + (0.5 - k.cy) * h * zf;
                 js.append("    L.property('Scale').setValueAtTime(").append(num(t)).append(", [").append(num(zf * 100)).append(", ").append(num(zf * 100)).append("]);\n");
@@ -186,10 +199,30 @@ public final class ProjectExport {
 
     // ------------------------------------------------------------------ Premiere / Resolve (FCP 7 XML)
 
+    /**
+     * A clip on the timeline: source frames in..out played over len frames (speed = how fast, reverse =
+     * backwards). A freeze frame is its own item: one frame stretched over the hold.
+     */
+    private record Item(long in, long out, long len, double speed, boolean reverse, boolean still) {}
+
+    private static List<Item> items(EditSpec e, int fps) {
+        List<Item> out = new ArrayList<>();
+        for (EditSpec.Piece p : e.pieces()) {
+            long len = frames(p.playLength(), fps);
+            if (len > 0) out.add(new Item(frames(p.start(), fps), frames(p.end(), fps), len, p.speed(), p.reverse(), false));
+            long hold = frames(p.hold(), fps);
+            if (hold > 0) {
+                long last = Math.max(0, frames(p.reverse() ? p.start() : p.end(), fps) - (p.reverse() ? 0 : 1));
+                out.add(new Item(last, last + 1, hold, 1.0 / hold, false, true));
+            }
+        }
+        return out;
+    }
+
     static String fcpXml(Clip clip, EditSpec e, String title, Path footage, List<String[]> wavs, int w, int h, int fps) {
-        List<EditSpec.Piece> pieces = e.pieces();
+        List<Item> pieces = items(e, fps);
         long total = 0;
-        for (EditSpec.Piece p : pieces) total += frames(p.outputLength(), fps);
+        for (Item p : pieces) total += p.len();
         long srcFrames = frames(clip.duration, fps);
         StringBuilder x = new StringBuilder();
         x.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE xmeml>\n<xmeml version=\"5\">\n");
@@ -199,16 +232,15 @@ public final class ProjectExport {
                 .append("</height><pixelaspectratio>square</pixelaspectratio>").append(rate(fps, "")).append("</samplecharacteristics></format>\n    <track>\n");
         long pos = 0;
         int id = 0;
-        for (EditSpec.Piece p : pieces) {
-            long len = frames(p.outputLength(), fps);
-            if (len <= 0) continue;
+        for (Item p : pieces) {
+            long len = p.len();
             id++;
-            x.append("     <clipitem id=\"v").append(id).append("\">\n      <name>").append(xml(title)).append("</name>\n");
+            x.append("     <clipitem id=\"v").append(id).append("\">\n      <name>").append(xml(p.still() ? title + " (freeze frame)" : title)).append("</name>\n");
             x.append("      <duration>").append(srcFrames).append("</duration>\n").append(rate(fps, "      "));
             x.append("      <start>").append(pos).append("</start><end>").append(pos + len).append("</end>\n");
-            x.append("      <in>").append(frames(p.start(), fps)).append("</in><out>").append(frames(p.end(), fps)).append("</out>\n");
+            x.append("      <in>").append(p.in()).append("</in><out>").append(p.out()).append("</out>\n");
             x.append(id == 1 ? file(footage, clip, srcFrames, w, h, fps) : "      <file id=\"file-1\"/>\n");
-            if (Math.abs(p.speed() - 1) > 1e-3) x.append(speed(p.speed()));
+            if (Math.abs(p.speed() - 1) > 1e-3 || p.reverse()) x.append(speed(p.speed(), p.reverse()));
             x.append("     </clipitem>\n");
             pos += len;
         }
@@ -218,18 +250,19 @@ public final class ProjectExport {
             x.append("    <track>\n");
             pos = 0;
             int aid = 0;
-            for (EditSpec.Piece p : pieces) {
-                long len = frames(p.outputLength(), fps);
-                if (len <= 0) continue;
+            for (Item p : pieces) {
+                long len = p.len();
+                // a freeze frame is silent
+                if (p.still()) { pos += len; continue; }
                 aid++;
                 x.append("     <clipitem id=\"a").append(t).append("-").append(aid).append("\">\n      <name>").append(xml(wavs.isEmpty() ? title : wavs.get(t)[0])).append("</name>\n");
                 x.append("      <duration>").append(srcFrames).append("</duration>\n").append(rate(fps, "      "));
                 x.append("      <start>").append(pos).append("</start><end>").append(pos + len).append("</end>\n");
-                x.append("      <in>").append(frames(p.start(), fps)).append("</in><out>").append(frames(p.end(), fps)).append("</out>\n");
+                x.append("      <in>").append(p.in()).append("</in><out>").append(p.out()).append("</out>\n");
                 if (wavs.isEmpty()) x.append("      <file id=\"file-1\"/>\n      <sourcetrack><mediatype>audio</mediatype><trackindex>1</trackindex></sourcetrack>\n");
                 else if (aid == 1) x.append(wavFile(t, wavs.get(t), srcFrames, fps));
                 else x.append("      <file id=\"wav-").append(t).append("\"/>\n");
-                if (Math.abs(p.speed() - 1) > 1e-3) x.append(speed(p.speed()));
+                if (Math.abs(p.speed() - 1) > 1e-3 || p.reverse()) x.append(speed(p.speed(), p.reverse()));
                 x.append("     </clipitem>\n");
                 pos += len;
             }
@@ -257,10 +290,11 @@ public final class ProjectExport {
                 + rate(fps, "       ") + "       <duration>" + srcFrames + "</duration>\n       <media><audio><channelcount>2</channelcount></audio></media>\n      </file>\n";
     }
 
-    private static String speed(double speed) {
+    private static String speed(double speed, boolean reverse) {
         return "      <filter><effect><name>Time Remap</name><effectid>timeremap</effectid><effectcategory>motion</effectcategory><effecttype>motion</effecttype>"
                 + "<mediatype>video</mediatype><parameter><parameterid>speed</parameterid><name>speed</name><value>" + num(speed * 100)
-                + "</value></parameter><parameter><parameterid>reverse</parameterid><name>reverse</name><value>FALSE</value></parameter></effect></filter>\n";
+                + "</value></parameter><parameter><parameterid>reverse</parameterid><name>reverse</name><value>" + (reverse ? "TRUE" : "FALSE")
+                + "</value></parameter></effect></filter>\n";
     }
 
     private static String rate(int fps, String indent) {

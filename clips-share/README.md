@@ -99,7 +99,7 @@ library, the landing page's downloads, and that *Stop sharing* removes everythin
 | `POST /api/register` | new account → `{account, key, viewToken}` |
 | `POST /api/uploads` | start an upload `{title, game, duration, width, height, size, visibility}` (size required) → `{clip, uploadId, partSize, url, key?}` |
 | `PUT /api/uploads/<clip>/<n>?uploadId=` | upload part *n* (every part but the last the same size, at least 5 MiB, at most `partSize`) |
-| `POST /api/uploads/<clip>/complete` | `{uploadId, parts}` → `{clip, url, video, size, key?}` |
+| `POST /api/uploads/<clip>/complete` | `{uploadId, parts}` → `{clip, url, video, size, key?}`; safe to send again if the reply got lost |
 | `POST /api/uploads/<clip>/abort` | `{uploadId}`: cancel an upload and free its space |
 | `PUT /api/clips/<clip>/thumb` | JPEG thumbnail (the cover) |
 | `PATCH /api/clips/<clip>` | `{title, visibility}` → `{visibility, url, key?}` |

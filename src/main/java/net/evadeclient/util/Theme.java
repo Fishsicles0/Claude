@@ -399,13 +399,38 @@ public final class Theme {
         }
     }
 
-    /** Pill-shaped on/off switch. {@code t} is the animation progress 0..1. */
+    /**
+     * The 20 x 10 on/off switch at (x, y). {@code t} is the animation progress 0..1: the capsule track blends from
+     * {@link #TRACK} to the accent while the round knob (with a soft contact shadow) slides across in device pixels.
+     * Classic keeps its square track and knob, which step a whole GUI pixel at a time like vanilla widgets.
+     */
     public static void toggle(DrawContext ctx, int x, int y, float t) {
         int w = 20, h = 10;
+        t = Math.max(0f, Math.min(1f, t));
         int track = lerpColor(TRACK, RED, t);
-        round(ctx, x, y, x + w, y + h, track);
-        int knobX = x + 1 + Math.round((w - h) * t);
-        round(ctx, knobX, y + 1, knobX + h - 2, y + h - 1, 0xFFFFFFFF);
+        if (square) {
+            round(ctx, x, y, x + w, y + h, track);
+            int knobX = x + 1 + Math.round((w - h) * t);
+            round(ctx, knobX, y + 1, knobX + h - 2, y + h - 1, 0xFFFFFFFF);
+            return;
+        }
+        pill(ctx, x, y, x + w, y + h, track);
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        m.translate(snap(ctx, (w - h) * t), 0);
+        knobShadow(ctx, x + 1, y + 2, alpha(0xFF000000, 0.35f));
+        disc(ctx, x + 1, y + 1, h - 2, 0xFFFFFFFF);
+        m.popMatrix();
+    }
+
+    /**
+     * {@code v} (a length in the current matrix's units) rounded to the nearest device pixel at that matrix's scale:
+     * like {@link #snap(float)}, but also right inside a scaled group (the menu drawn smaller to fit the screen, a
+     * scaled HUD element). Use it for fractional offsets of animated parts.
+     */
+    public static float snap(DrawContext ctx, float v) {
+        float k = deviceScale(ctx);
+        return k > 0f && Float.isFinite(k) ? Math.round(v * k) / k : v;
     }
 
     public static int lerpColor(int a, int b, float t) {
