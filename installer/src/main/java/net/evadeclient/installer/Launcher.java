@@ -46,13 +46,24 @@ final class Launcher {
         String javaPath = "";         // blank: the Minecraft Launcher's own Java
         boolean closeOnPlay = true;
         boolean checkUpdates = true;
-        boolean clips = true;         // keep Evade Clips installed and up to date
-        String clipsVersion;          // the Evade Clips version installed last
+        boolean clips = true;         // ffmpeg for the built-in Evade Clips (older launchers: install the separate app)
+        String clipsVersion;          // the separate Evade Clips version installed last (older launchers)
+        boolean sidebarCollapsed;     // the sidebar shows icons only
+        /** The player's servers (Servers row on Home), also put at the top of each instance's Multiplayer list. */
+        List<Server> servers = new ArrayList<>();
+        /** The player was told about (or removed) the old separate Evade Clips app. */
+        boolean legacyClipsHandled;
 
         Path minecraftDir() {
             return minecraftDir != null && !minecraftDir.isBlank() ? Paths.get(minecraftDir) : InstallerCore.defaultMinecraftDir();
         }
     }
+
+    /** At most this many servers in the Servers row. */
+    static final int MAX_SERVERS = 8;
+
+    /** A server in the Servers row. */
+    record Server(String name, String address) {}
 
     /** Where the launcher keeps its settings (overridable with -Devade.launcherData=...). */
     static Path dataDir() {
@@ -76,6 +87,17 @@ final class Launcher {
         s.checkUpdates = bool(o, "checkUpdates", true);
         s.clips = bool(o, "clips", true);
         s.clipsVersion = InstallerCore.str(o, "clipsVersion");
+        s.sidebarCollapsed = bool(o, "sidebarCollapsed", false);
+        s.legacyClipsHandled = bool(o, "legacyClipsHandled", false);
+        try {
+            if (o.has("servers") && o.get("servers").isJsonArray()) for (var e : o.getAsJsonArray("servers")) {
+                if (!e.isJsonObject()) continue;
+                String addr = InstallerCore.str(e.getAsJsonObject(), "address");
+                if (addr == null || addr.isBlank() || s.servers.size() >= MAX_SERVERS) continue;
+                String name = InstallerCore.str(e.getAsJsonObject(), "name");
+                s.servers.add(new Server(name == null || name.isBlank() ? addr : name, addr.strip()));
+            }
+        } catch (RuntimeException ignored) { }
         return s;
     }
 
@@ -89,6 +111,16 @@ final class Launcher {
         o.addProperty("checkUpdates", s.checkUpdates);
         o.addProperty("clips", s.clips);
         if (s.clipsVersion != null) o.addProperty("clipsVersion", s.clipsVersion);
+        o.addProperty("sidebarCollapsed", s.sidebarCollapsed);
+        o.addProperty("legacyClipsHandled", s.legacyClipsHandled);
+        com.google.gson.JsonArray servers = new com.google.gson.JsonArray();
+        for (Server sv : s.servers) {
+            JsonObject x = new JsonObject();
+            x.addProperty("name", sv.name());
+            x.addProperty("address", sv.address());
+            servers.add(x);
+        }
+        o.add("servers", servers);
         try {
             Files.createDirectories(dataDir());
             InstallerCore.writeAtomic(dataDir().resolve("settings.json"), InstallerCore.GSON.toJson(o));
