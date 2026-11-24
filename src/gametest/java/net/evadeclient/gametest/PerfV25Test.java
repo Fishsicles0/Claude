@@ -207,6 +207,9 @@ public final class PerfV25Test {
         String[] keys = {"extra:animationSettings.water", "extra:animationSettings.lava", "extra:animationSettings.fire",
                 "extra:animationSettings.portal", "extra:detailSettings.stars", "sodium:performance.chunkBuildDeferMode",
                 "sodium:performance.chunkBuilderThreads", "sodium:performance.animateOnlyVisibleTextures"};
+        // Your own Sodium values: with the bridge off (the laptop profile above switched Performance to Max FPS).
+        ctx.runOnClient(c -> EvadeClient.modules.get(Performance.class).tuneSodium.set(false));
+        ctx.waitTicks(3);
         Map<String, String> before = ctx.computeOnClient(c -> {
             Map<String, String> m = new LinkedHashMap<>();
             for (String k : keys) m.put(k, String.valueOf(sodiumField(k.substring(0, k.indexOf(':')), k.substring(k.indexOf(':') + 1))));

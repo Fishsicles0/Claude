@@ -142,7 +142,7 @@ MODULES = JAVA / "module"
 CATEGORY_ORDER = ["SERVER", "VISUALS", "HUD", "MODS", "MISC"]
 CATEGORY_LABEL = {"SERVER": "Server-facing", "VISUALS": "Visuals", "HUD": "HUD", "MODS": "Controls", "MISC": "Misc"}
 
-SETTING_TYPES = ("NumberSetting", "BooleanSetting", "ModeSetting", "ColorSetting", "KeySetting", "StringSetting")
+SETTING_TYPES = ("NumberSetting", "BooleanSetting", "ModeSetting", "ColorSetting", "KeySetting", "StringSetting", "ItemListSetting")
 # `new ModeSetting(` and fully qualified `new net.evadeclient.setting.ModeSetting(` alike.
 SETTING_START = re.compile(r"\bnew\s+(?:[\w.]+\.)?(" + "|".join(SETTING_TYPES) + r")\s*\(")
 STRING_LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
@@ -552,7 +552,7 @@ def scan_settings(src: str, srcs: list, where: str) -> list:
                 st |= {"type": "color", "default": c}
             elif kind == "KeySetting":
                 st |= {"type": "key", "default": key_name(vals[0])}
-            elif kind == "StringSetting":
+            elif kind in ("StringSetting", "ItemListSetting"):
                 text = java_string(vals[0])
                 if text is None:
                     raise ValueError
