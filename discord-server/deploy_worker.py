@@ -19,7 +19,7 @@ from pathlib import Path
 
 import layout
 from common import HERE, load_state
-from setup_rest import Discord
+from discord_api import Discord
 
 WORKER = HERE / "worker"
 DIST = WORKER / ("dist" if os.environ.get("SERVER", "evade") == "evade" else f"dist-{os.environ['SERVER']}")

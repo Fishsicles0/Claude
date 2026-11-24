@@ -7,8 +7,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import discord
-
 import layout
 
 HERE = Path(__file__).resolve().parent
@@ -34,7 +32,8 @@ def role_spec(key: str) -> dict:
     return next(r for r in layout.ROLES if r["key"] == key)
 
 
-def permissions(names) -> discord.Permissions:
+def permissions(names):
+    import discord  # only the setup tools need this; the hourly sync doesn't
     p = discord.Permissions.none()
     for n in names:
         setattr(p, n, True)
@@ -42,6 +41,7 @@ def permissions(names) -> discord.Permissions:
 
 
 def valid_permission(name: str) -> bool:
+    import discord
     try:
         discord.PermissionOverwrite(**{name: True})
         return True

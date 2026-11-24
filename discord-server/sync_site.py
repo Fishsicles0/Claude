@@ -18,7 +18,7 @@ import sys
 import layout
 import site_content
 from common import load_state
-from setup_rest import MARKER, Discord
+from discord_api import MARKER, Discord
 
 NAME = layout.CLIENT["name"]
 
