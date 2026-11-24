@@ -127,6 +127,18 @@ final class Screenshots {
         save(v, out, "15-settings");
         v.legacyClips = false;
 
+        // ---- small screens: 1366×768 at 125% (about 1092×582 usable) and a 1280×720 laptop with a taskbar
+        v.page = LauncherView.Page.HOME;
+        v.setUiScale(LauncherView.fitScale(1092, 582));
+        save(v, out, "21-small-1366x768-125pct");
+        v.setUiScale(LauncherView.fitScale(1280, 680));
+        save(v, out, "22-small-1280x720");
+        v.page = LauncherView.Page.INSTANCES;
+        v.setUiScale(LauncherView.fitScale(1092, 582));
+        save(v, out, "23-small-instances");
+        v.setUiScale(1f);
+        v.page = LauncherView.Page.SETTINGS;
+
         // ---- clips (the real Clips pages, with the self-test's sample library when it's there)
         clipsPages(v, out);
         v.page = LauncherView.Page.HOME;
@@ -207,18 +219,34 @@ final class Screenshots {
             v.add(pages);
             v.page = LauncherView.Page.CLIPS;
             Thread.sleep(1500); // thumbnails
-            save(v, out, "17-clips-library");
+            saveEdt(v, out, "17-clips-library");
             javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("record"));
-            save(v, out, "18-clips-record");
+            saveEdt(v, out, "18-clips-record");
             javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("settings"));
-            save(v, out, "19-clips-settings");
+            saveEdt(v, out, "19-clips-settings");
             v.page = LauncherView.Page.HOME;
-            save(v, out, "20-home-with-clips");
+            saveEdt(v, out, "20-home-with-clips");
+            v.page = LauncherView.Page.CLIPS;
+            javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("library"));
+            v.setUiScale(LauncherView.fitScale(1092, 582));
+            saveEdt(v, out, "24-small-clips-library");
+            v.setUiScale(1f);
             app.shutdown();
         } catch (Throwable e) {
             System.err.println("Clips pages not rendered: " + e);
             e.printStackTrace();
         }
+    }
+
+    /** Like {@link #save}, on the UI thread, letting the Clips pages' background work (thumbnails) land between passes. */
+    private static void saveEdt(LauncherView v, Path dir, String name) throws Exception {
+        for (int i = 0; i < 6; i++) {
+            javax.swing.SwingUtilities.invokeAndWait(() -> v.snapshot(1f));
+            Thread.sleep(250);
+        }
+        java.awt.image.BufferedImage[] img = new java.awt.image.BufferedImage[1];
+        javax.swing.SwingUtilities.invokeAndWait(() -> { v.snapshot(2f); img[0] = v.snapshot(2f); });
+        ImageIO.write(img[0], "png", dir.resolve(name + ".png").toFile());
     }
 
     private static Launcher.Instance instance(String id, Path dir, String name, InstallerCore.Installed installed, int mem, int mods) {

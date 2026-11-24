@@ -160,13 +160,34 @@ final class LauncherApp implements LauncherView.Actions {
                 }
             });
         }
+        view.setUiScale(screenScale());
         frame.pack();
         frame.setResizable(false);
         if (!perPixel) {
-            try { frame.setShape(new RoundRectangle2D.Double(0, 0, LauncherView.W, LauncherView.H, 22, 22)); } catch (Exception ignored) { }
+            float k = view.uiScale;
+            try { frame.setShape(new RoundRectangle2D.Double(0, 0, LauncherView.W * k, LauncherView.H * k, 22 * k, 22 * k)); } catch (Exception ignored) { }
         }
         frame.setIconImages(List.of(LauncherView.image("/evade/icon-128.png")));
         frame.setLocationRelativeTo(null);
+    }
+
+    /**
+     * How big the window can be drawn: it fits the usable area of the screen (its bounds minus the taskbar), e.g.
+     * 1366×768 at 125% leaves about 1092×582. {@code -Devade.uiScale=0.8} forces a scale.
+     */
+    private static float screenScale() {
+        String forced = System.getProperty("evade.uiScale");
+        if (forced != null) {
+            try { return Math.max(0.5f, Math.min(1f, Float.parseFloat(forced))); } catch (NumberFormatException ignored) { }
+        }
+        try {
+            java.awt.GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+            java.awt.Rectangle b = gc.getBounds();
+            java.awt.Insets in = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(gc);
+            return LauncherView.fitScale(b.width - in.left - in.right, b.height - in.top - in.bottom);
+        } catch (RuntimeException e) {
+            return 1f;
+        }
     }
 
     private static boolean perPixelTranslucency() {

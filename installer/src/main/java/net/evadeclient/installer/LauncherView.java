@@ -224,6 +224,39 @@ public final class LauncherView extends JPanel {
     private Rectangle clip;
     private String hovered;
     private Point dragFrom;
+    /**
+     * The whole window drawn smaller on small screens (1 = full size): everything is laid out in the 1180×720
+     * design size and painted through this scale, so it stays sharp (vector shapes and text, no bitmap stretch).
+     */
+    float uiScale = 1f;
+    /** The smallest scale used: below it text gets too small to read. */
+    static final float MIN_SCALE = 0.7f;
+
+    /** Picks the scale that fits a usable screen area of {@code w}×{@code h} (from 1 down to {@link #MIN_SCALE}). */
+    static float fitScale(int w, int h) {
+        float s = Math.min(1f, Math.min((w - 12) / (float) W, (h - 12) / (float) H));
+        return Math.max(MIN_SCALE, s);
+    }
+
+    void setUiScale(float s) {
+        uiScale = s;
+        setPreferredSize(new java.awt.Dimension(Math.round(W * s), Math.round(H * s)));
+        for (JTextField f : new JTextField[]{searchField, modalField, modalField2, javaField}) f.setFont(inter.deriveFont(13f * s));
+        bgLayer = null;
+        revalidate();
+        repaint();
+    }
+
+    /** A mouse position in design coordinates. */
+    private Point logical(MouseEvent e) {
+        return new Point(Math.round(e.getX() / uiScale), Math.round(e.getY() / uiScale));
+    }
+
+    private Rectangle toScreen(Rectangle r) {
+        if (r == null || uiScale == 1f) return r;
+        int x = Math.round(r.x * uiScale), y = Math.round(r.y * uiScale);
+        return new Rectangle(x, y, Math.round((r.x + r.width) * uiScale) - x, Math.round((r.y + r.height) * uiScale) - y);
+    }
     private final long start = System.currentTimeMillis();
     private boolean animating;
 
@@ -292,11 +325,11 @@ public final class LauncherView extends JPanel {
         }
 
         MouseAdapter ma = new MouseAdapter() {
-            @Override public void mouseMoved(MouseEvent e) { updateHover(e.getPoint()); }
+            @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
             @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
             @Override public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
-                if (e.getY() < 44 && hit(e.getPoint()) == null) dragFrom = e.getPoint();
+                if (logical(e).y < 44 && hit(logical(e)) == null) dragFrom = e.getPoint();
             }
             @Override public void mouseReleased(MouseEvent e) { dragFrom = null; }
             @Override public void mouseDragged(MouseEvent e) {
@@ -305,9 +338,9 @@ public final class LauncherView extends JPanel {
                 if (w != null) w.setLocation(e.getXOnScreen() - dragFrom.x, e.getYOnScreen() - dragFrom.y);
             }
             @Override public void mouseClicked(MouseEvent e) {
-                if (e.getButton() == MouseEvent.BUTTON1) click(hit(e.getPoint()));
+                if (e.getButton() == MouseEvent.BUTTON1) click(hit(logical(e)));
             }
-            @Override public void mouseWheelMoved(MouseWheelEvent e) { wheel(e.getPoint(), e.getPreciseWheelRotation()); }
+            @Override public void mouseWheelMoved(MouseWheelEvent e) { wheel(logical(e), e.getPreciseWheelRotation()); }
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
@@ -703,6 +736,7 @@ public final class LauncherView extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        if (uiScale != 1f) g.scale(uiScale, uiScale);
         hitMap.clear();
         scrollAreas.clear();
         animating = false;
@@ -761,7 +795,8 @@ public final class LauncherView extends JPanel {
                 : new Rectangle(modalBox.x, modalBox.y + 78, modalBox.width, modalBox.height), pop);
         if (clipsHost != null) {
             boolean show = clipsBox != null && modal == null && popup == null && overlay == null;
-            if (show && !clipsBox.equals(clipsHost.getBounds())) { clipsHost.setBounds(clipsBox); clipsHost.revalidate(); }
+            Rectangle cb = toScreen(clipsBox);
+            if (show && !cb.equals(clipsHost.getBounds())) { clipsHost.setBounds(cb); clipsHost.revalidate(); }
             if (clipsHost.isVisible() != show) clipsHost.setVisible(show);
         }
         g.dispose();
@@ -770,17 +805,20 @@ public final class LauncherView extends JPanel {
     /** The toast goes over everything, the embedded Clips pages included. */
     @Override protected void paintChildren(Graphics g0) {
         super.paintChildren(g0);
-        if (toast == null) return;
+        if (toast == null && sideTip == null) return;
         Graphics2D g = (Graphics2D) g0.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        paintToast(g);
+        if (uiScale != 1f) g.scale(uiScale, uiScale);
+        paintSideTip(g);
+        if (toast != null) paintToast(g);
         g.dispose();
     }
 
     private void place(JTextField f, Rectangle r, Rectangle covered) {
         boolean show = r != null && (covered == null || !covered.intersects(r));
+        r = toScreen(r);
         if (show && !r.equals(f.getBounds())) f.setBounds(r);
         if (f.isVisible() != show) f.setVisible(show);
     }
@@ -994,6 +1032,17 @@ public final class LauncherView extends JPanel {
             String v = "v" + version;
             g.drawString(v, SIDE - 18 - g.getFontMetrics().stringWidth(v), H - 22);
         }
+        sideTip = tip;
+        sideTipY = tipY;
+    }
+
+    /** The collapsed sidebar's label bubble (painted after the children, so it shows over the Clips pages). */
+    private String sideTip;
+    private int sideTipY;
+
+    private void paintSideTip(Graphics2D g) {
+        String tip = sideTip;
+        int tipY = sideTipY;
         if (tip != null) {
             // collapsed: the label as a small bubble next to the icon
             g.setFont(interBold.deriveFont(12f));
@@ -3122,6 +3171,16 @@ public final class LauncherView extends JPanel {
         overlay = null;
     }
 
+    /** Keeps scrolled lists inside their content (headless layout doesn't do it). */
+    private static void clampViewports(java.awt.Component c) {
+        if (c instanceof javax.swing.JViewport v && v.getView() != null) {
+            Point p = v.getViewPosition();
+            int maxY = Math.max(0, v.getView().getHeight() - v.getExtentSize().height);
+            if (p.y > maxY || p.y < 0) v.setViewPosition(new Point(0, Math.max(0, Math.min(p.y, maxY))));
+        }
+        if (c instanceof java.awt.Container k) for (java.awt.Component ch : k.getComponents()) clampViewports(ch);
+    }
+
     /** Lays out a component tree without a window (screenshots run headless, where validate() does nothing). */
     private static void layoutTree(java.awt.Component c) {
         if (c instanceof java.awt.Container k) {
@@ -3132,18 +3191,24 @@ public final class LauncherView extends JPanel {
 
     /** Renders the current state to an image (screenshots and tests). */
     BufferedImage snapshot(float scale) {
-        BufferedImage img = new BufferedImage(Math.round(W * scale), Math.round(H * scale), BufferedImage.TYPE_INT_ARGB);
+        int vw = Math.round(W * uiScale), vh = Math.round(H * uiScale);
+        BufferedImage img = new BufferedImage(Math.round(vw * scale), Math.round(vh * scale), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
         g.scale(scale, scale);
         g.setComposite(AlphaComposite.SrcOver);
-        setSize(W, H);
+        setSize(vw, vh);
         shownProgress = progress;
         for (float[] s : scroll.values()) s[1] = s[0];
         boolean was = roundCorners;
         roundCorners = true;
         // Lay the text fields out first (they're positioned while painting), then paint everything with them.
         paintComponent(img.createGraphics());
-        if (clipsHost != null && clipsHost.isVisible()) layoutTree(clipsHost);
+        if (clipsHost != null && clipsHost.isVisible()) {
+            // twice: a scrolling list sizes itself from its width, which the first pass sets
+            layoutTree(clipsHost);
+            layoutTree(clipsHost);
+            clampViewports(clipsHost);
+        }
         paint(g);
         roundCorners = was;
         g.dispose();
