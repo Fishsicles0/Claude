@@ -1,0 +1,15 @@
+name = "mw4-dmz-bot"
+main = "bot.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+# Closes squad cards older than 3 hours.
+[triggers]
+crons = ["17 * * * *"]
+
+# Create with: npx wrangler kv namespace create KV   and paste the id here.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_ID"
+
+# Secret (not in this file): npx wrangler secret put DISCORD_TOKEN
