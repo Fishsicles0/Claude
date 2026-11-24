@@ -114,6 +114,12 @@ public final class HudCache {
 
     private record Content(long tick, Object text) {}
 
+    private static final Map<HudElementModule, Long> elementSigs = new IdentityHashMap<>();
+    private static String lastChanged = "";
+
+    /** The widget whose change caused the latest redraw (tests and tuning). */
+    public static String lastChanged() { return lastChanged; }
+
     private static final Map<HudElementModule, Content> contents = new IdentityHashMap<>();
 
     /** Text widgets' text, read once a tick (the rate they rebuild it at); null for other widgets. */
@@ -146,11 +152,14 @@ public final class HudCache {
         sig = sig * 31 + fw; sig = sig * 31 + fh; sig = sig * 31 + sw; sig = sig * 31 + sh;
         sig = sig * 31 + Float.floatToIntBits(k); sig = sig * 31 + win.getScaleFactor();
         for (HudElementModule el : widgets) {
-            sig = sig * 31 + System.identityHashCode(el);
-            sig = sig * 31 + el.resolveX(sw); sig = sig * 31 + el.resolveY(sh);
-            sig = sig * 31 + Float.floatToIntBits(el.scale.getFloat());
-            sig = sig * 31 + el.getWidth() * 7919L + el.getHeight();
-            sig = sig * 31 + Objects.hashCode(content(el));
+            long e = System.identityHashCode(el);
+            e = e * 31 + el.resolveX(sw); e = e * 31 + el.resolveY(sh);
+            e = e * 31 + Float.floatToIntBits(el.scale.getFloat());
+            e = e * 31 + el.getWidth() * 7919L + el.getHeight();
+            e = e * 31 + Objects.hashCode(content(el));
+            Long before = elementSigs.put(el, e);
+            if (before != null && before != e) lastChanged = el.getName();
+            sig = sig * 31 + e;
         }
         long now = System.nanoTime();
         try {
@@ -213,6 +222,7 @@ public final class HudCache {
     public static void release() {
         lastSignature = 0;
         contents.clear();
+        elementSigs.clear();
         if (fb != null) { fb.delete(); fb = null; }
         if (renderer != null) {
             try { renderer.close(); } catch (RuntimeException ignored) {}
