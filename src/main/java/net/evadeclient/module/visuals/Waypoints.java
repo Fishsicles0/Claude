@@ -73,17 +73,30 @@ public class Waypoints extends Module {
      * drawn; {@code created} is when it was made (epoch ms, 0 if unknown). Files written before these fields existed
      * load with 0, false and 0.
      */
-    public record Point(String name, String dim, int x, int y, int z, int color, boolean hidden, long created) {
+    public record Point(String name, String dim, int x, int y, int z, int color, boolean hidden, long created,
+                        String icon, int beam, int range) {
+        /** {@link #beam}: follow the Beams setting, always draw one, never draw one. */
+        public static final int BEAM_DEFAULT = 0, BEAM_ON = 1, BEAM_OFF = 2;
+
         public Point(String name, String dim, int x, int y, int z) { this(name, dim, x, y, z, 0, false, 0L); }
 
         public Point(String name, String dim, int x, int y, int z, int color, boolean hidden) {
             this(name, dim, x, y, z, color, hidden, 0L);
         }
 
-        public Point withColor(int argb) { return new Point(name, dim, x, y, z, argb, hidden, created); }
-        public Point withHidden(boolean hide) { return new Point(name, dim, x, y, z, color, hide, created); }
-        public Point withName(String newName) { return new Point(newName, dim, x, y, z, color, hidden, created); }
-        public Point at(String newDim, int nx, int ny, int nz) { return new Point(name, newDim, nx, ny, nz, color, hidden, created); }
+        public Point(String name, String dim, int x, int y, int z, int color, boolean hidden, long created) {
+            this(name, dim, x, y, z, color, hidden, created, null, BEAM_DEFAULT, 0);
+        }
+
+        public Point withColor(int argb) { return new Point(name, dim, x, y, z, argb, hidden, created, icon, beam, range); }
+        public Point withHidden(boolean hide) { return new Point(name, dim, x, y, z, color, hide, created, icon, beam, range); }
+        public Point withName(String newName) { return new Point(newName, dim, x, y, z, color, hidden, created, icon, beam, range); }
+        public Point at(String newDim, int nx, int ny, int nz) { return new Point(name, newDim, nx, ny, nz, color, hidden, created, icon, beam, range); }
+        /** An icon from {@link net.evadeclient.util.WaypointIcons} (null for none). */
+        public Point withIcon(String newIcon) { return new Point(name, dim, x, y, z, color, hidden, created, newIcon, beam, range); }
+        public Point withBeam(int newBeam) { return new Point(name, dim, x, y, z, color, hidden, created, icon, newBeam, range); }
+        /** Hide this point further than {@code blocks} away (0: use Max Distance). */
+        public Point withRange(int blocks) { return new Point(name, dim, x, y, z, color, hidden, created, icon, beam, blocks); }
     }
 
     /**
@@ -110,6 +123,8 @@ public class Waypoints extends Module {
     /** Points converted from the other dimension are drawn at this alpha. */
     private static final int CONVERTED_ALPHA = 0x99;
     private static final int MAX_XZ = 30_000_000, MAX_Y = 20_000;
+    /** Longest per-point visibility range, in blocks. */
+    public static final int MAX_RANGE = 100_000;
     private static final String[] COMPASS8 = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
     /** Colour names for {@code .wp color}, all swatches of {@link ColorSetting#PALETTE}. */
@@ -137,6 +152,11 @@ public class Waypoints extends Module {
     /** The registered instance, for {@link #color(Point)} (static so the Direction HUD can colour points too). */
     private static Waypoints instance;
 
+    /** Opens the Waypoint Manager (a read-only row: never saved). */
+    private final net.evadeclient.setting.StatusSetting manager = add((net.evadeclient.setting.StatusSetting)
+            new net.evadeclient.setting.StatusSetting("Waypoint Manager", Waypoints::managerLabel, "click: open")
+                    .onClick(() -> mc.setScreen(new net.evadeclient.gui.WaypointManagerScreen(mc.currentScreen)))
+                    .describe("Search, edit, sort, share and delete your waypoints (also .wp gui)."));
     // -- deaths
     private final BooleanSetting deaths = add(new BooleanSetting("Death Points", true)
             .describe("Save a point where you die."));
@@ -302,7 +322,9 @@ public class Waypoints extends Module {
             Point p = GSON.fromJson(el, Point.class);
             if (p == null || p.name() == null || p.dim() == null || p.name().isBlank()) return null;
             int color = p.color() == 0 ? 0 : p.color() | 0xFF000000;
-            return new Point(p.name().strip(), p.dim(), p.x(), p.y(), p.z(), color, p.hidden(), Math.max(0, p.created()));
+            int beam = p.beam() >= Point.BEAM_DEFAULT && p.beam() <= Point.BEAM_OFF ? p.beam() : Point.BEAM_DEFAULT;
+            return new Point(p.name().strip(), p.dim(), p.x(), p.y(), p.z(), color, p.hidden(), Math.max(0, p.created()),
+                    net.evadeclient.util.WaypointIcons.canonical(p.icon()), beam, Math.max(0, Math.min(MAX_RANGE, p.range())));
         } catch (RuntimeException e) {
             return null;
         }
@@ -450,7 +472,10 @@ public class Waypoints extends Module {
         return out;
     }
 
-    private boolean coordsHidden() { return mc.player != null && mc.player.hasReducedDebugInfo(); }
+    /** Coordinates are kept out of labels, lists and shares where the server hides them, and in Streamer Mode. */
+    public boolean coordsHidden() {
+        return (mc.player != null && mc.player.hasReducedDebugInfo()) || net.evadeclient.module.misc.StreamerMode.hidesCoordinates();
+    }
 
     /**
      * Where {@code p} is in the current dimension, as {x, y, z, converted (0 or 1)}: its own spot, the matching spot
@@ -535,6 +560,7 @@ public class Waypoints extends Module {
             double dx = at[0] + 0.5 - me.x, dy = at[1] - me.y, dz = at[2] + 0.5 - me.z;
             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (!isTarget && ((max > 0 && dist > max) || dist < min)) continue;
+            if (!isTarget && p.range() > 0 && dist > p.range()) continue;
             out.add(new Shown(p, at[0], at[1], at[2], at[3] == 1, color(p), dist, isTarget));
         }
         // Points the server added: same filters, never saved, never a target.
@@ -803,6 +829,107 @@ public class Waypoints extends Module {
         for (String n : reached) CommandManager.print("Reached §d" + n + "§7, removed it.");
     }
 
+    // ------------------------------------------------------------------ Waypoint Manager API
+
+    private static String managerLabel() {
+        Waypoints w = instance;
+        if (w == null || mc.world == null) return "Open";
+        int n = w.allInWorld().size();
+        return n + " point" + (n == 1 ? "" : "s") + " here";
+    }
+
+    /** Every saved point of this world or server, all dimensions, in saved order (a copy). Empty outside a world. */
+    public List<Point> allInWorld() {
+        if (mc.world == null) return List.of();
+        return List.copyOf(list());
+    }
+
+    /** The current dimension's id, or "" outside a world. */
+    public String currentDim() { return mc.world == null ? "" : dim(); }
+
+    /** Distance in blocks from you to {@code p} (to its matching spot for the paired dimension), or -1 when it can't be reached from here. */
+    public double distanceTo(Point p) {
+        if (mc.player == null || mc.world == null) return -1;
+        int[] at = spotHere(p, dim());
+        if (at == null) return -1;
+        Vec3d me = mc.player.getEntityPos();
+        double dx = at[0] + 0.5 - me.x, dy = at[1] - me.y, dz = at[2] + 0.5 - me.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /** Replace {@code old} (the same instance from {@link #allInWorld}) with {@code updated}, and save. False if it's gone. */
+    public boolean replacePoint(Point old, Point updated) {
+        if (mc.world == null || old == null || updated == null) return false;
+        List<Point> list = list();
+        for (int i = 0; i < list.size(); i++) {
+            if (!list.get(i).equals(old)) continue;
+            setAt(list, i, updated);
+            save();
+            return true;
+        }
+        return false;
+    }
+
+    /** Delete {@code p}; returns where it was (for {@link #restorePoint}), or -1 if it wasn't there. */
+    public int deletePoint(Point p) {
+        if (mc.world == null || p == null) return -1;
+        List<Point> list = list();
+        int i = list.indexOf(p);
+        if (i < 0) return -1;
+        list.remove(i);
+        forget(p);
+        if (isDeath(p)) renumberDeaths(list);
+        save();
+        return i;
+    }
+
+    /** Put a deleted point back at {@code index} (undo). */
+    public void restorePoint(Point p, int index) {
+        if (mc.world == null || p == null) return;
+        List<Point> list = list();
+        list.add(Math.max(0, Math.min(index, list.size())), p);
+        shownDirty = true;
+        save();
+    }
+
+    /** Make {@code p} the target (null clears it). */
+    public void setTarget(Point p) {
+        target = p;
+        shownDirty = true;
+    }
+
+    /** {@code base}, or "base 2", "base 3"... whichever isn't taken in this world yet. */
+    public String freeName(String base) {
+        String b = clip(base == null || base.isBlank() ? "Waypoint" : base.strip());
+        if (DEATH_NAME.matcher(b).matches()) b = "Point " + b;
+        List<Point> list = list();
+        if (!hasName(list, b)) return b;
+        for (int n = 2; ; n++) {
+            String c = clip(b + " " + n);
+            if (!hasName(list, c)) return c;
+        }
+    }
+
+    /** Save a new point in {@code dim} (null: this dimension). Returns it, or null outside a world. */
+    public Point addAt(String name, String dim, BlockPos pos) {
+        if (mc.world == null) return null;
+        String d = dim == null ? dim() : dim;
+        List<Point> list = list();
+        int color = randomColors.get() ? randomColor(list) : 0;
+        Point added = new Point(clip(name), d, pos.getX(), pos.getY(), pos.getZ(), color, false, stamp());
+        list.add(added);
+        save();
+        return added;
+    }
+
+    /** "[Overworld] Base: X 1, Y 64, Z -3", the plain text a share puts in the chat box. */
+    public static String shareText(Point p) {
+        return "[" + dimName(p.dim()) + "] " + p.name() + ": X " + p.x() + ", Y " + p.y() + ", Z " + p.z();
+    }
+
+    /** "Overworld", "Nether", "End" or a tidied custom dimension name. */
+    public static String dimensionName(String dim) { return dimName(dim); }
+
     // ------------------------------------------------------------------ commands
 
     public void command(String[] a) {
@@ -856,9 +983,10 @@ public class Waypoints extends Module {
             case "near", "nearest" -> commandNear(t);
             case "share" -> {
                 Point p = find(need(t, "Usage: .wp share <name>"));
-                if (coordsHidden()) throw new CommandError("This server hides coordinates.");
+                if (coordsHidden()) throw new CommandError(net.evadeclient.module.misc.StreamerMode.hidesCoordinates()
+                        ? "Streamer Mode is on: waypoint coordinates stay off chat." : "This server hides coordinates.");
                 // Typed into chat for you to send (or not); after the chat this was typed in has closed.
-                String text = "[" + dimName(p.dim()) + "] " + p.name() + ": X " + p.x() + ", Y " + p.y() + ", Z " + p.z();
+                String text = shareText(p);
                 mc.send(() -> mc.setScreen(new ChatScreen(text, false)));
             }
             case "target", "goto", "go" -> commandTarget(t);
@@ -882,8 +1010,9 @@ public class Waypoints extends Module {
                 }
             }
             case "list" -> commandList();
+            case "gui", "manager", "menu", "edit" -> mc.send(() -> mc.setScreen(new net.evadeclient.gui.WaypointManagerScreen(null)));
             default -> throw new CommandError("Unknown: .wp " + a[1]
-                    + ". Try add, del, list, near, color, hide, show, rename, share, target or clear.");
+                    + ". Try add, del, list, near, color, hide, show, rename, share, target, clear or gui.");
         }
     }
 
@@ -1261,7 +1390,8 @@ public class Waypoints extends Module {
                 ctx.boxFilled(new Box(x, y, z, x + 1, y + 1, z + 1), ColorUtil.withAlpha(c, a));
             }
             if (outline) ctx.boxOutline(x, y, z, x + 1, y + 1, z + 1, c, width);
-            if (!beam || s.converted() || !s.beam()) continue;
+            int own = s.server() ? Point.BEAM_DEFAULT : s.point().beam();
+            if (own == Point.BEAM_OFF || (own == Point.BEAM_DEFAULT && !beam) || s.converted() || !s.beam()) continue;
             double top = height == 0 ? buildTop : y + 1 + height;
             if (top <= y + 1) continue;
             if (pillar) ctx.boxFilled(new Box(x + .375, y + 1, z + .375, x + .625, top, z + .625), ColorUtil.withAlpha(c, 0x60));
@@ -1291,6 +1421,12 @@ public class Waypoints extends Module {
             if (onScreen) {
                 boolean full = allDetails || s.target() || lookingAt(look, cam, ax, ay, az, cosLook);
                 Label.drawAt(ctx, sp[0], sp[1], labelText(s, full, myY), color, scale);
+                String icon = s.point().icon();
+                if (icon != null && net.evadeclient.util.WaypointIcons.has(icon)) {
+                    int px = scale >= 1.5f ? 2 : 1;
+                    net.evadeclient.util.WaypointIcons.draw(ctx, icon, (int) sp[0] - 9 * px / 2,
+                            (int) (sp[1] - 8 * scale) - 9 * px - 2, px, color);
+                }
             } else if (arrows.equals("All") || (arrows.equals("Target") && s.target())) {
                 drawArrow(ctx, s, cam, camera.getYaw(), sw, sh, color);
             }

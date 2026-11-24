@@ -89,6 +89,7 @@ public final class SocialClient {
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(SocialClient::tick);
         ClientLifecycleEvents.CLIENT_STOPPING.register(c -> stop("Off"));
+        SocialJoin.init();
     }
 
     public static SocialState state() { return state; }
@@ -210,6 +211,7 @@ public final class SocialClient {
         link = Link.OFF;
         status = why;
         sentServer = null;
+        SocialChat.clear();
     }
 
     private static void closeSocket(int code, String reason) {
@@ -297,6 +299,15 @@ public final class SocialClient {
             nextPollAt = now + POLL_MS;
             if (polling) { link = Link.POLLING; status = "Connected (checking every 15 s)"; }
             for (JsonElement e : SocialState.arr(res, "pings")) if (e.isJsonObject()) deliverPing(e.getAsJsonObject());
+            // Messages, party chat and summons relayed while we were between polls.
+            for (JsonElement e : SocialState.arr(res, "events")) {
+                if (!e.isJsonObject()) continue;
+                JsonObject ev = e.getAsJsonObject();
+                if (ev.has("type") && ev.get("type").isJsonPrimitive()
+                        && List.of("msg", "party.msg", "party.summon").contains(ev.get("type").getAsString())) {
+                    try { handle(ev.toString()); } catch (RuntimeException ex) { EvadeClient.LOG.warn("Friends: bad event", ex); }
+                }
+            }
         });
     }
 
@@ -467,9 +478,14 @@ public final class SocialClient {
                 SocialState before = state;
                 boolean wasOn = before.friends().stream().anyMatch(p -> p.uuid().equals(u) && p.online());
                 setState(before.withFriendStatus(u, SocialState.str(o, "name"), on, server));
+                String wasServer = before.friends().stream().filter(p -> p.uuid().equals(u)).findFirst().map(SocialState.Person::server).orElse(null);
+                String name = MojangNames.shown(u, SocialState.str(o, "name"));
                 if (online && before.isFriend(u) && on != wasOn) {
-                    String name = MojangNames.shown(u, SocialState.str(o, "name"));
                     Notifications.push("Friends", name + (on ? " is online" + (server != null ? " on " + server : "") : " went offline"), on);
+                }
+                // A [Join] button in chat when a friend starts playing on a server they share (you still confirm).
+                if (before.isFriend(u) && on && server != null && !server.equals(wasServer) && (f == null || f.joinPrompts.get())) {
+                    MinecraftClient.getInstance().execute(() -> SocialJoin.postOffer(name, server, false));
                 }
             }
             case "friend.request" -> {
@@ -498,6 +514,9 @@ public final class SocialClient {
                 }
             }
             case "ping" -> deliverPing(o);
+            case "msg" -> SocialChat.receive(false, o);
+            case "party.msg" -> SocialChat.receive(true, o);
+            case "party.summon" -> SocialJoin.summoned(o);
             default -> { /* newer server: ignore what we don't know */ }
         }
     }
@@ -575,6 +594,19 @@ public final class SocialClient {
                 ev.add("from", from);
                 ev.remove("server");
                 handle(ev.toString());
+            }
+            if (op.equals("msg") || op.equals("party.msg")) {
+                // Loopback answers every message with the same text, as if it had written it.
+                JsonObject ev = new JsonObject();
+                ev.addProperty("type", op);
+                JsonObject from = new JsonObject();
+                from.addProperty("uuid", SocialState.hex(BUDDY));
+                from.addProperty("name", "Loopback");
+                ev.add("from", from);
+                ev.addProperty("text", SocialState.str(args, "text"));
+                ev.addProperty("at", System.currentTimeMillis());
+                handle(ev.toString());
+                ok.addProperty("delivered", 1);
             }
             return CompletableFuture.completedFuture(ok);
         }

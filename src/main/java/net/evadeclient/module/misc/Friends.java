@@ -7,6 +7,10 @@ import net.evadeclient.command.CommandManager.CommandError;
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;
 import net.evadeclient.setting.BooleanSetting;
+import net.evadeclient.setting.ColorSetting;
+import net.evadeclient.setting.StringSetting;
+import net.evadeclient.social.SocialChat;
+import net.evadeclient.social.SocialJoin;
 import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.social.MojangNames;
 import net.evadeclient.social.SocialClient;
@@ -34,6 +38,19 @@ public class Friends extends Module {
             .describe("A toast when a friend comes online or goes offline."));
     public final BooleanSetting requestToasts = add(new BooleanSetting("Request Toasts", true)
             .describe("Toasts for friend requests, party invites and people joining or leaving your party."));
+    public final BooleanSetting joinPrompts = add(new BooleanSetting("Join Prompts", true)
+            .describe("When a friend starts playing on a server they share, a [Join] button in chat. You always confirm before joining."));
+    public final BooleanSetting messageToasts = add(new BooleanSetting("Message Toasts", true)
+            .describe("A toast when a friend or your party sends you a message."));
+    public final BooleanSetting messagesInChat = add(new BooleanSetting("Messages In Chat", true)
+            .describe("Also show friend and party messages in your chat, marked [Evade]. Click one to reply. Only you see them."));
+    public final BooleanSetting friendColors = add(new BooleanSetting("Friend Colours", true)
+            .describe("Shows your friends' names in their own colour in chat and the tab list. Only on your screen."));
+    public final ColorSetting friendColor = add(new ColorSetting("Friend Colour", 0xFF5CE6B0)
+            .describe("The colour of friends' names."));
+    public final StringSetting highlightedPlayers = add(new StringSetting("Highlighted Players", "", "names, separated by ,")
+            .maxLength(400)
+            .describe("Other players whose names also get the friend colour (they don't need Evade). Kept on this PC only."));
     public final StatusSetting connection = add(new StatusSetting("Connection", SocialClient::status, "auto"));
     /** Set the first time you use Friends: until then nothing is sent to evadeclient.com. */
     private final BooleanSetting activated = add(new BooleanSetting("Activated", false).hidden());
@@ -106,24 +123,46 @@ public class Friends extends Module {
 
     // ------------------------------------------------------------------ commands
 
-    @Override public List<String> commandAliases() { return List.of("friend", "friends", "party"); }
+    @Override public List<String> commandAliases() { return List.of("friend", "friends", "party", "msg", "pc", "reply", "join"); }
 
     @Override
     public List<String> commandHelp() {
         return List.of("§d.friend§7 add|remove|accept|decline|block|unblock <name>, list, requests - friends",
-                "§d.party§7 invite|kick|leader <name>, accept|decline [name], leave, list - parties");
+                "§d.party§7 invite|kick|leader <name>, accept|decline [name], leave, list, bring - parties",
+                "§d.msg§7 <friend> <text>, §d.reply§7 <text>, §d.pc§7 <text> - message a friend or your party (through Evade, not the server)",
+                "§d.join§7 <friend> - join the server a friend is on (you confirm first)");
     }
 
     @Override
     public void command(String[] a) {
         activate();
-        boolean party = a[0].equalsIgnoreCase("party");
-        String sub = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "list";
-        String arg = a.length > 2 ? a[2] : null;
+        String word = a[0].toLowerCase(Locale.ROOT);
         if (!SocialClient.ready()) {
             CommandManager.print("§7Friends: " + SocialClient.status() + (SocialClient.link() == SocialClient.Link.OFF ? "" : " §8(try again in a moment)"));
             return;
         }
+        switch (word) {
+            case "msg", "reply" -> { message(a, word.equals("reply")); return; }
+            case "pc" -> {
+                if (a.length < 2) throw new CommandError("Usage: .pc <message>");
+                String text = String.join(" ", Arrays.copyOfRange(a, 1, a.length));
+                sendMessage(SocialChat.PARTY, "Party", text);
+                return;
+            }
+            case "join" -> {
+                SocialState s = SocialClient.state();
+                UUID u = friend(s, need(a.length > 1 ? a[1] : null, ".join <friend>"));
+                SocialState.Person p = s.friends().stream().filter(x -> x.uuid().equals(u)).findFirst().orElse(null);
+                if (p == null || !p.online() || p.server() == null) throw new CommandError(a[1] + " isn't sharing a server right now");
+                String name = shown(u, p.name()), server = p.server();
+                MinecraftClient.getInstance().send(() -> SocialJoin.ask(name, server)); // once chat has closed
+                return;
+            }
+            default -> { }
+        }
+        boolean party = a[0].equalsIgnoreCase("party");
+        String sub = a.length > 1 ? a[1].toLowerCase(Locale.ROOT) : "list";
+        String arg = a.length > 2 ? a[2] : null;
         SocialState s = SocialClient.state();
         if (party) partyCommand(sub, arg, s); else friendCommand(sub, arg, a, s);
     }
@@ -147,7 +186,7 @@ public class Friends extends Module {
                             if (id != null) b.addProperty("uuid", SocialState.hex(id)); else b.addProperty("name", n);
                             return SocialClient.call("block", b);
                         });
-                say(f, r -> "Blocked " + n + ": no requests, invites or pings from them");
+                say(f, r -> "Blocked " + n + ": no requests, invites, messages or pings from them");
             }
             case "unblock" -> say(withUuid("unblock", known(s, need(arg, ".friend unblock <name>"))), r -> "Unblocked " + arg);
             case "report" -> {
@@ -190,6 +229,8 @@ public class Friends extends Module {
                 say(SocialClient.call("party.decline", b), r -> "Declined");
             }
             case "leave" -> say(SocialClient.call("party.leave", new JsonObject()), r -> "You left the party");
+            case "bring", "summon" -> say(SocialJoin.summonParty(), r -> "Asked your party to join you ("
+                    + SocialState.num(r, "delivered") + " online)");
             case "kick" -> say(withUuid("party.kick", member(s, need(arg, ".party kick <name>"))), r -> "Removed " + arg + " from the party");
             case "leader", "transfer" -> say(withUuid("party.transfer", member(s, need(arg, ".party leader <name>"))), r -> arg + " leads the party now");
             case "list" -> {
@@ -204,6 +245,36 @@ public class Friends extends Module {
             }
             default -> throw new CommandError("Usage: .party invite|kick|leader <name>, .party accept|decline [name], .party leave|list");
         }
+    }
+
+    /** {@code .msg <friend> <text>} or {@code .reply <text>} (to whoever messaged you last). */
+    private void message(String[] a, boolean reply) {
+        SocialState s = SocialClient.state();
+        UUID u;
+        int from;
+        if (reply) {
+            u = SocialChat.lastFrom();
+            if (u == null) throw new CommandError("Nobody has messaged you yet");
+            from = 1;
+        } else {
+            u = friend(s, need(a.length > 1 ? a[1] : null, ".msg <friend> <message>"));
+            from = 2;
+        }
+        if (a.length <= from) throw new CommandError(reply ? "Usage: .reply <message>" : "Usage: .msg <friend> <message>");
+        String name = s.friends().stream().filter(p -> p.uuid().equals(u)).map(p -> shown(p.uuid(), p.name())).findFirst().orElse("them");
+        sendMessage(u, name, String.join(" ", Arrays.copyOfRange(a, from, a.length)));
+    }
+
+    /** Sends a message and echoes it in chat, or prints why it couldn't go. */
+    private static void sendMessage(UUID to, String name, String text) {
+        String t = SocialChat.clean(text);
+        if (t.isEmpty()) throw new CommandError("Type a message");
+        if (text.strip().codePointCount(0, text.strip().length()) > SocialChat.MAX_CHARS)
+            throw new CommandError("Messages are " + SocialChat.MAX_CHARS + " characters at most");
+        SocialChat.send(to, t).whenComplete((r, e) -> MinecraftClient.getInstance().execute(() -> {
+            if (e != null) CommandManager.print("§c" + SocialClient.message(e));
+            else SocialChat.echo(to, name, t);
+        }));
     }
 
     private static String need(String arg, String usage) {

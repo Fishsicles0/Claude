@@ -128,7 +128,7 @@ public final class SocialTest {
             ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });
             ctx.runOnClient(c -> Friends.get().activate());
             run(ctx, sp);
-            String[] tabs = {"friends", "requests", "party", "settings"};
+            String[] tabs = {"friends", "requests", "party", "chat", "settings"};
             for (int t = 0; t < tabs.length; t++) {
                 int tab = t;
                 ctx.setScreen(() -> { EvadeMenu.openFriendsForTest(tab); return new EvadeMenu(); });

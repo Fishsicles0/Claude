@@ -34,7 +34,9 @@ public class ModuleManager {
 
     private final List<Module> modules = new ArrayList<>();
     /** Key and mouse-button presses seen by the input mixins while no screen was open; drained every tick. */
-    private final ConcurrentLinkedQueue<Integer> bindPresses = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<Long> bindPresses = new ConcurrentLinkedQueue<>();
+    /** Hold-mode mods switched on by their key that turn off again when it is let go. */
+    private final List<Module> heldOn = new ArrayList<>();
     /** The world the enable hooks were last applied for (null outside a world). */
     private ClientWorld lastWorld;
 
@@ -90,6 +92,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.misc.PartyPing());
         register(new VoiceChat());
         register(new ScreenshotTools());
+        register(new StreamerMode());
         // HUD
         register(new WatermarkHud());
         register(new ModuleListHud());
@@ -118,6 +121,10 @@ public class ModuleManager {
         register(new TotemCounterHud());
         register(new DayCounterHud());
         register(new net.evadeclient.module.hud.BedWarsHud());
+        for (int i = 1; i <= net.evadeclient.module.hud.CustomTextHud.COUNT; i++) register(new net.evadeclient.module.hud.CustomTextHud(i));
+        register(new net.evadeclient.module.hud.TitlesHud());
+        register(new net.evadeclient.module.hud.ActionBarHud());
+        register(new net.evadeclient.module.hud.SoundSubtitlesHud());
         register(new MenuBlur());
         register(new Snaplook());
         register(new TextHotkeys());
@@ -265,7 +272,8 @@ public class ModuleManager {
     /** Called by the input mixins for a key (GLFW code) or mouse button ({@link KeySetting#mouseCode}) press. */
     public void queueBindPress(int code) {
         if (code == GLFW.GLFW_KEY_UNKNOWN || bindPresses.size() >= 64) return;
-        bindPresses.add(code);
+        // The modifiers held at the moment of the press travel with it (packed under the code).
+        bindPresses.add(((long) code << 8) | net.evadeclient.util.Keybinds.heldMods());
     }
 
     /**
@@ -280,19 +288,54 @@ public class ModuleManager {
             cs.menuKey.reset();
             menuKey = cs.menuKey.get();
         }
-        Integer code;
-        while ((code = bindPresses.poll()) != null) {
+        Long packed;
+        while ((packed = bindPresses.poll()) != null) {
+            int code = (int) (packed >> 8), held = (int) (packed & 0xFF);
             if (code == menuKey) {
                 if (mc.currentScreen == null) mc.setScreen(new EvadeMenu());
                 continue;
             }
+            // Binds whose modifiers are all held; only the most specific of them fire, so Ctrl + K doesn't also
+            // toggle a mod bound to plain K.
+            int best = -1;
+            for (Module m : modules)
+                if (m.getKey() == code && (m.getBindMods() & ~held) == 0) best = Math.max(best, Integer.bitCount(m.getBindMods()));
+            if (best < 0) continue;
             for (Module m : modules) {
-                if (m.getKey() != code) continue;
+                if (m.getKey() != code || (m.getBindMods() & ~held) != 0 || Integer.bitCount(m.getBindMods()) != best) continue;
+                if (m.isHoldBind()) {
+                    if (m.isEnabled() || heldOn.contains(m)) continue;
+                    m.setEnabled(true);
+                    if (m.isEnabled()) heldOn.add(m);
+                    continue;
+                }
                 m.toggle();
                 if (cs.toggleMessages.get()) Notifications.push(m.getName(), m.isEnabled() ? "Enabled" : "Disabled", m.isEnabled());
             }
         }
+        releaseHeld(mc);
     }
+
+    /** Hold-mode mods turn off once their key is let go, the bind changes, or a screen opens. */
+    private void releaseHeld(MinecraftClient mc) {
+        if (heldOn.isEmpty()) return;
+        for (java.util.Iterator<Module> it = heldOn.iterator(); it.hasNext(); ) {
+            Module m = it.next();
+            boolean down = m.isHoldBind() && mc.currentScreen == null && physicallyDown(mc, m.getKey());
+            if (down && m.isEnabled()) continue;
+            it.remove();
+            if (m.isEnabled() && m.isHoldBind()) m.setEnabled(false);
+        }
+    }
+
+    private static boolean physicallyDown(MinecraftClient mc, int code) {
+        if (code == GLFW.GLFW_KEY_UNKNOWN || mc.getWindow() == null) return false;
+        if (KeySetting.isMouse(code)) return GLFW.glfwGetMouseButton(mc.getWindow().getHandle(), KeySetting.mouseButton(code)) == GLFW.GLFW_PRESS;
+        return InputUtil.isKeyPressed(mc.getWindow(), code);
+    }
+
+    /** Hold-mode mods currently held on (for tests). */
+    public List<Module> heldOn() { return List.copyOf(heldOn); }
 
     /**
      * Everything else bound to {@code code}: module toggle keys, key settings (the menu key included) and the

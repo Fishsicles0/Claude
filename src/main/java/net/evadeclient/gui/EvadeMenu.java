@@ -43,7 +43,7 @@ public class EvadeMenu extends Screen {
     private enum Page {
         ALL("All Mods", null), MODS("Controls", Category.MODS), SERVER("Server-facing", Category.SERVER),
         MISC("Misc", Category.MISC), HUD("HUD", Category.HUD), VISUALS("Visuals", Category.VISUALS),
-        PROFILES("Profiles", null), FRIENDS("Friends", null), SETTINGS("Settings", Category.CLIENT);
+        PROFILES("Profiles", null), FRIENDS("Friends", null), SETTINGS("Settings", Category.CLIENT), PINNED("Pinned", null);
 
         final String label;
         final Category category;
@@ -70,6 +70,8 @@ public class EvadeMenu extends Screen {
                     new Nav("Edit HUD Layout", null, "edit", true),
                     new Nav("Profiles", Page.PROFILES, "profiles", false),
                     new Nav("Settings", Page.SETTINGS, "settings", false),
+                    new Nav("Keybinds", null, "keyboard", false, KeybindsScreen::openFromCurrent),
+                    new Nav("Pinned", Page.PINNED, "star", false),
                     new Nav("Mod Browser", null, "mods", false, net.evadeclient.gui.ModBrowserScreen::open),
                     new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open),
                     new Nav("Friends", Page.FRIENDS, "friends", false))));
@@ -144,6 +146,8 @@ public class EvadeMenu extends Screen {
     private float dragPct;
     /** The text field open on a settings row (a number, a colour or a short text value), or null. */
     private Editor editor;
+    /** The colour picker pop-over (open over a colour row's custom chip); it gets input before everything else. */
+    public final ColorPicker picker = new ColorPicker();
 
     /** A modifier Menu Key (e.g. Right Shift) closes the menu when it is released, if nothing else was pressed,
      *  typed, clicked or scrolled meanwhile: Shift + letter types a capital and Shift + wheel steps by 10. */
@@ -210,8 +214,10 @@ public class EvadeMenu extends Screen {
 
     /** Test hook: jump the menu straight to the Profiles page. */
     public static void openProfilesForTest() { page = Page.PROFILES; selected = null; }
+    /** Test hook: back to the All mods page (what a fresh menu shows). */
+    public static void openAllForTest() { page = Page.ALL; selected = null; }
 
-    /** Test hook: jump the menu straight to the Friends page, on one of its tabs (0 Friends, 1 Requests, 2 Party, 3 Settings). */
+    /** Test hook: jump the menu straight to the Friends page, on one of its tabs (0 Friends, 1 Requests, 2 Party, 3 Chat, 4 Settings). */
     public static void openFriendsForTest(int tab) {
         page = Page.FRIENDS;
         selected = null;
@@ -339,12 +345,15 @@ public class EvadeMenu extends Screen {
         mm.pushMatrix();
         mm.scale(vs, vs);
         try {
-            renderMenu(ctx, (int) Math.floor(mouseX / vs), (int) Math.floor(mouseY / vs), delta);
+            // Under the colour picker nothing reacts to the mouse.
+            int hx = picker.isOpen() ? -10000 : mouseX, hy = picker.isOpen() ? -10000 : mouseY;
+            renderMenu(ctx, (int) Math.floor(hx / vs), (int) Math.floor(hy / vs), delta);
         } finally {
             mm.popMatrix();
             width = realW;
             height = realH;
         }
+        picker.render(ctx, mouseX, mouseY, width, height);
     }
 
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -985,7 +994,7 @@ public class EvadeMenu extends Screen {
     // clicks lay out the same way, like the profiles page. Opened from the account footer at the bottom of the sidebar.
 
     private enum FTab {
-        FRIENDS("Friends"), REQUESTS("Requests"), PARTY("Party"), SETTINGS("Settings");
+        FRIENDS("Friends"), REQUESTS("Requests"), PARTY("Party"), CHAT("Chat"), SETTINGS("Settings");
         final String label;
         FTab(String label) { this.label = label; }
     }
@@ -999,8 +1008,10 @@ public class EvadeMenu extends Screen {
     private double friendConfirmAt;
     /** Buttons whose request is on its way: they show "..." until the answer comes. */
     private final java.util.Set<String> friendBusy = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private static final int FRIEND_ROW_H = 40, FRIEND_HEAD_H = 24, FRIEND_NOTE_H = 16, FRIEND_EMPTY_H = 84, FTAB_W = 74;
-    private static final int FR_HEAD = 0, FR_ROW = 1, FR_TOGGLE = 2, FR_NOTE = 3, FR_EMPTY = 4;
+    private static final int FRIEND_ROW_H = 40, FRIEND_HEAD_H = 24, FRIEND_NOTE_H = 16, FRIEND_EMPTY_H = 84, FTAB_W = 68;
+    private static final int FR_HEAD = 0, FR_ROW = 1, FR_TOGGLE = 2, FR_NOTE = 3, FR_EMPTY = 4, FR_MSG = 5, FRIEND_MSG_H = 12;
+    /** The message being typed on the Chat tab (the top field turns into the message box there). */
+    private String chatDraft = "";
 
     /** A button on a friends row. {@code style}: 0 plain, 1 accent, 2 danger (asks twice). Listed right to left. */
     private record FBtn(String id, String label, int style, Runnable action) {}
@@ -1014,6 +1025,7 @@ public class EvadeMenu extends Screen {
                 case FR_TOGGLE -> ROW_H;
                 case FR_NOTE -> FRIEND_NOTE_H;
                 case FR_EMPTY -> FRIEND_EMPTY_H;
+                case FR_MSG -> FRIEND_MSG_H;
                 default -> FRIEND_ROW_H + GAP / 2;
             };
         }
@@ -1044,22 +1056,29 @@ public class EvadeMenu extends Screen {
         var s = net.evadeclient.social.SocialClient.state();
         boolean ready = on && net.evadeclient.social.SocialClient.ready() && s.loaded();
 
-        // Add-a-friend field and button (only once Friends is on).
+        // Add-a-friend field and button (only once Friends is on); on the Chat tab with a conversation open, the message box.
         if (on) {
+            boolean chat = chatInput();
             int inW = friendInputW();
             boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
             float focus = focusGlow(ctx, "friend", friendFocused, cx, searchY, cx + inW, searchY + 24);
             Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, inputBorder("friend", hin, focus));
             icon(ctx, "friends", cx + 7, searchY + 6, 11, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, focus));
-            if (friendInput.isEmpty() && !friendFocused) {
-                text(ctx, "Add a friend by Minecraft name", cx + 24, searchY + 8, Theme.TEXT_FAINT, false);
+            String typed = chat ? chatDraft : friendInput;
+            if (typed.isEmpty() && !friendFocused) {
+                text(ctx, chat ? "Message " + chatTitle(s, net.evadeclient.social.SocialChat.open()) + " (Enter to send)" : "Add a friend by Minecraft name",
+                        cx + 24, searchY + 8, Theme.TEXT_FAINT, false);
             } else {
-                text(ctx, friendInput + (friendFocused && blink(0) ? "_" : ""), cx + 24, searchY + 8, Theme.TEXT, false);
+                String shown = typed + (friendFocused && blink(0) ? "_" : "");
+                int room = inW - 30;
+                // Long messages show their end, where you're typing.
+                while (shown.length() > 1 && width(shown) > room) shown = shown.substring(1);
+                text(ctx, shown, cx + 24, searchY + 8, Theme.TEXT, false);
             }
             int bx = friendAddX(), br = contentRight();
             boolean hb = mx >= bx && mx < br && my >= searchY && my < searchY + 24;
             button(ctx, "fadd", bx, searchY, br, searchY + 24, hb, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
-            drawCentered(ctx, friendBusy.contains("fadd") ? "..." : "Add", bx, br, searchY + 8, Theme.ON_ACCENT, Role.STRONG);
+            drawCentered(ctx, friendBusy.contains("fadd") ? "..." : chat ? "Send" : "Add", bx, br, searchY + 8, Theme.ON_ACCENT, Role.STRONG);
         }
 
         // Title, a status line and the tabs.
@@ -1105,7 +1124,7 @@ public class EvadeMenu extends Screen {
         km.translate(Theme.snap(ctx, kx), 0);
         Theme.round(ctx, x + 2, segY + 2, x + FTAB_W - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f), Theme.R_XS);
         km.popMatrix();
-        int waiting = s.incoming().size() + s.invites().size();
+        int waiting = s.incoming().size() + s.invites().size(), unread = net.evadeclient.social.SocialChat.totalUnread();
         for (FTab t : tabs) {
             int tx = x + t.ordinal() * FTAB_W;
             float sel = settled(animate("ftabA:" + t, t == friendsTab ? 1 : 0, 18));
@@ -1113,9 +1132,9 @@ public class EvadeMenu extends Screen {
             float h = animate("ftabH:" + t, hover ? 1 : 0, 22);
             int color = Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, h), Theme.ON_ACCENT, sel);
             String label = t.label;
-            if (t == FTab.REQUESTS && waiting > 0) {
+            if ((t == FTab.REQUESTS && waiting > 0) || (t == FTab.CHAT && unread > 0)) {
                 // A count pill after the label.
-                String cnt = String.valueOf(waiting);
+                String cnt = String.valueOf(t == FTab.CHAT ? Math.min(99, unread) : waiting);
                 int lw = width(label), cwid = Math.max(11, width(Role.SMALL, cnt) + 6), total = lw + 4 + cwid;
                 int lx = tx + (FTAB_W - total) / 2;
                 text(ctx, label, lx, segY + 7, color, false);
@@ -1162,7 +1181,10 @@ public class EvadeMenu extends Screen {
                     boolean inMyParty = s.party() != null && s.party().has(p.uuid());
                     if (!inMyParty && p.online()) b.add(new FBtn("finv:" + p.uuid(), "Invite", 0, () -> friendAct("finv:" + p.uuid(),
                             net.evadeclient.module.misc.Friends.withUuid("party.invite", p.uuid()), "Party", "Invited " + name)));
-                    String sub = p.online() ? (p.server() != null ? "Online  ·  " + p.server() : "Online") : "Last seen " + ago(p.lastSeen());
+                    if (p.online()) b.add(new FBtn("fmsg:" + p.uuid(), "Message", 0, () -> openChat(p.uuid())));
+                    if (p.online() && p.server() != null && !net.evadeclient.social.SocialJoin.onServer(p.server()))
+                        b.add(new FBtn("fjoin:" + p.uuid(), "Join", 1, () -> net.evadeclient.social.SocialJoin.ask(name, p.server())));
+                    String sub = p.online() ? (p.server() != null ? "Online  ·  " + net.evadeclient.module.misc.StreamerMode.friendServer(p.server()) : "Online") : "Last seen " + ago(p.lastSeen());
                     rows.add(fPerson("f:" + p.uuid(), name, sub, p.online() ? Theme.OK : Theme.TEXT_FAINT, inMyParty ? "PARTY" : null, b));
                 }
             }
@@ -1228,13 +1250,25 @@ public class EvadeMenu extends Screen {
                             b.add(new FBtn("plead:" + p.uuid(), "Make leader", 0, () -> friendAct("plead:" + p.uuid(),
                                     net.evadeclient.module.misc.Friends.withUuid("party.transfer", p.uuid()), "Party", name + " leads the party now")));
                         }
-                        String sub = p.online() ? (p.server() != null ? "Online  ·  " + p.server() : "Online") : "Offline";
+                        String sub = p.online() ? (p.server() != null ? "Online  ·  " + net.evadeclient.module.misc.StreamerMode.friendServer(p.server()) : "Online") : "Offline";
                         rows.add(fPerson("m:" + p.uuid(), name, sub, p.online() ? Theme.OK : Theme.TEXT_FAINT, p.leader() ? "LEADER" : null, b));
                     }
                     for (var p : party.invited()) {
                         String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
                         rows.add(fPerson("pi:" + p.uuid(), name, "Invited  ·  waiting for them", Theme.TEXT_FAINT, null, List.of()));
                     }
+                    String here = net.evadeclient.social.SocialClient.currentServer(client);
+                    if (lead && party.members().size() > 1) rows.add(fPerson("pbring", "Bring party here", here != null
+                            ? "Asks your party to join you on " + here + " (they choose)" : "Join a multiplayer server first", 0, null,
+                            here == null ? List.of() : List.of(new FBtn("pbring", "Bring", 1, () -> friendAct("pbring",
+                                    net.evadeclient.social.SocialJoin.summonParty(), "Party", "Asked your party to join you")))));
+                    var offer = net.evadeclient.social.SocialJoin.pendingSummon();
+                    if (offer != null) rows.add(fPerson("psum", offer.who() + " wants the party on " + offer.address(), "You choose: Join asks first", 0, null, List.of(
+                            new FBtn("psumd", "Dismiss", 0, net.evadeclient.social.SocialJoin::dismissSummon),
+                            new FBtn("psumj", "Join", 1, () -> net.evadeclient.social.SocialJoin.ask(offer.who(), offer.address())))));
+                    int pu = net.evadeclient.social.SocialChat.unread(net.evadeclient.social.SocialChat.PARTY);
+                    rows.add(fPerson("pchat", "Party chat", pu > 0 ? pu + " new" : "Talk to your party through Evade", 0, pu > 0 ? "NEW" : null,
+                            List.of(new FBtn("pchat", "Open", 0, () -> openChat(net.evadeclient.social.SocialChat.PARTY)))));
                     rows.add(fPerson("pleave", "Leave party", lead && party.members().size() > 1 ? "The next member who joined leads after you"
                             : "Your party ends when its last member leaves", 0, null, List.of(
                             new FBtn("pleave", "Leave", 2, () -> friendAct("pleave",
@@ -1246,7 +1280,7 @@ public class EvadeMenu extends Screen {
                     rows.add(fHead("Invite friends"));
                     for (var p : invitable) {
                         String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
-                        rows.add(fPerson("pinv:" + p.uuid(), name, p.server() != null ? "Online  ·  " + p.server() : "Online", Theme.OK, null, List.of(
+                        rows.add(fPerson("pinv:" + p.uuid(), name, p.server() != null ? "Online  ·  " + net.evadeclient.module.misc.StreamerMode.friendServer(p.server()) : "Online", Theme.OK, null, List.of(
                                 new FBtn("pinvb:" + p.uuid(), "Invite", 1, () -> friendAct("pinvb:" + p.uuid(),
                                         net.evadeclient.module.misc.Friends.withUuid("party.invite", p.uuid()), "Party", "Invited " + name)))));
                     }
@@ -1254,6 +1288,7 @@ public class EvadeMenu extends Screen {
                 var pp = net.evadeclient.module.misc.PartyPing.get();
                 if (pp != null) rows.add(fNote("Ping a spot: " + KeySetting.keyName(pp.pingKey.get()) + " (Party Ping), Sneak for danger, or .ping. Only your party on the same server sees it."));
             }
+            case CHAT -> chatRows(rows, s);
             case SETTINGS -> {
                 var f = net.evadeclient.module.misc.Friends.get();
                 var pp = net.evadeclient.module.misc.PartyPing.get();
@@ -1266,6 +1301,13 @@ public class EvadeMenu extends Screen {
                 rows.add(fHead("Notifications"));
                 rows.add(fToggle("otoast", "Friend online toasts", null, f.onlineToasts::get, () -> f.onlineToasts.set(!f.onlineToasts.get()), true));
                 rows.add(fToggle("rtoast", "Request and party toasts", null, f.requestToasts::get, () -> f.requestToasts.set(!f.requestToasts.get()), true));
+                rows.add(fToggle("mtoast", "Message toasts", null, f.messageToasts::get, () -> f.messageToasts.set(!f.messageToasts.get()), true));
+                rows.add(fToggle("mchat", "Messages in chat", "Marked [Evade]; only you see them", f.messagesInChat::get, () -> f.messagesInChat.set(!f.messagesInChat.get()), true));
+                rows.add(fToggle("jprompt", "Join buttons in chat", "When a friend starts playing on a server", f.joinPrompts::get, () -> f.joinPrompts.set(!f.joinPrompts.get()), true));
+                rows.add(fHead("Friend colours"));
+                rows.add(fToggle("fcol", "Colour friends' names", "In chat and the tab list, on your screen", f.friendColors::get, () -> f.friendColors.set(!f.friendColors.get()), true));
+                rows.add(fPerson("fcolp", "Colour and highlighted players", "Pick the colour, or add players who aren't on Evade", 0, null, List.of(
+                        new FBtn("fcolp", "Open", 0, () -> { selected = f; pageChanged(1); resetScroll(); }))));
                 if (pp != null) {
                     rows.add(fHead("Party Ping"));
                     rows.add(fToggle("pping", "Party Ping", null, pp::isEnabled, pp::toggle, true));
@@ -1277,7 +1319,7 @@ public class EvadeMenu extends Screen {
                     rows.add(fHead("Blocked"));
                     for (var p : s.blocked()) {
                         String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
-                        rows.add(fPerson("b:" + p.uuid(), name, "No requests, invites or pings from them", 0, null, List.of(
+                        rows.add(fPerson("b:" + p.uuid(), name, "No requests, invites, messages or pings from them", 0, null, List.of(
                                 new FBtn("unb:" + p.uuid(), "Unblock", 0, () -> friendAct("unb:" + p.uuid(),
                                         net.evadeclient.module.misc.Friends.withUuid("unblock", p.uuid()), "Friends", "Unblocked " + name)))));
                     }
@@ -1291,6 +1333,115 @@ public class EvadeMenu extends Screen {
             }
         }
         return rows;
+    }
+
+    /** Whether the top field is the message box (Chat tab, a conversation open). */
+    private boolean chatInput() {
+        return page == Page.FRIENDS && friendsTab == FTab.CHAT && net.evadeclient.social.SocialChat.open() != null;
+    }
+
+    /** Opens a conversation on the Chat tab (a friend's UUID, or party chat). */
+    private void openChat(java.util.UUID convo) {
+        net.evadeclient.social.SocialChat.setOpen(convo);
+        friendsTab = FTab.CHAT;
+        friendFocused = true;
+        pageChanged(0);
+        resetScroll();
+        scrollTarget = 1e9; // the newest messages, at the bottom (clamped when laid out)
+    }
+
+    /** "Party chat", or the friend's name. */
+    private static String chatTitle(net.evadeclient.social.SocialState s, java.util.UUID convo) {
+        if (convo == null) return "";
+        if (net.evadeclient.social.SocialChat.PARTY.equals(convo)) return "your party";
+        for (var p : s.friends()) if (p.uuid().equals(convo)) return net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+        return "them";
+    }
+
+    /** The Chat tab: conversations, or one conversation's messages (wrapped to the page, newest at the bottom). */
+    private void chatRows(List<FRow> rows, net.evadeclient.social.SocialState s) {
+        java.util.UUID cur = net.evadeclient.social.SocialChat.open();
+        if (cur != null && net.evadeclient.social.SocialChat.PARTY.equals(cur) && !s.inParty()) cur = null;
+        if (cur != null && !net.evadeclient.social.SocialChat.PARTY.equals(cur) && !s.isFriend(cur)) cur = null;
+        final java.util.UUID open = cur;
+        if (open == null) {
+            net.evadeclient.social.SocialChat.setOpen(null);
+            if (s.inParty()) {
+                int u = net.evadeclient.social.SocialChat.unread(net.evadeclient.social.SocialChat.PARTY);
+                rows.add(fPerson("c:party", "Party chat", chatPreview(net.evadeclient.social.SocialChat.PARTY, "Everyone in your party who's online"), 0, u > 0 ? u + " NEW" : null,
+                        List.of(new FBtn("copen:party", "Open", u > 0 ? 1 : 0, () -> openChat(net.evadeclient.social.SocialChat.PARTY)))));
+            }
+            if (s.friends().isEmpty() && !s.inParty()) {
+                rows.add(fEmpty("No one to message yet", "Add friends first. Messages go through Evade, not the server you're on.", null));
+                return;
+            }
+            for (var p : s.friends()) {
+                String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                int u = net.evadeclient.social.SocialChat.unread(p.uuid());
+                rows.add(fPerson("c:" + p.uuid(), name, chatPreview(p.uuid(), p.online() ? "Online" : "Offline: can't get messages now"),
+                        p.online() ? Theme.OK : Theme.TEXT_FAINT, u > 0 ? u + " NEW" : null,
+                        List.of(new FBtn("copen:" + p.uuid(), "Open", u > 0 ? 1 : 0, () -> openChat(p.uuid())))));
+            }
+            rows.add(fNote("Plain text, 256 characters. Relayed to whoever is online and not kept. Block someone to stop their messages."));
+            return;
+        }
+        net.evadeclient.social.SocialChat.viewing(open);
+        boolean party = net.evadeclient.social.SocialChat.PARTY.equals(open);
+        String title = party ? "Party chat" : chatTitle(s, open);
+        boolean online = party || s.friends().stream().anyMatch(p -> p.uuid().equals(open) && p.online());
+        rows.add(fPerson("chead", title, party ? "Your party: " + s.party().members().size() + " players" : online ? "Online" : "Offline: they won't get messages now",
+                party ? 0 : online ? Theme.OK : Theme.TEXT_FAINT, null, List.of(new FBtn("cback", "Back", 0, () -> { net.evadeclient.social.SocialChat.setOpen(null); resetScroll(); }))));
+        var lines = net.evadeclient.social.SocialChat.lines(open);
+        if (lines.isEmpty()) rows.add(fNote(party ? "Say hi to your party: type below, or .pc <message> in chat." : "No messages yet. Type above, or .msg " + title + " <message> in chat."));
+        int room = cw - 16;
+        for (var l : lines) {
+            String who = (l.mine() ? "You" : l.name()) + ": ";
+            int color = l.mine() ? Theme.TEXT_DIM : Theme.TEXT;
+            int whoW = width(who);
+            List<String> wrapped = wrapWords(l.text(), room - whoW, room);
+            for (int i = 0; i < wrapped.size(); i++) {
+                rows.add(new FRow("cm:" + l.at() + ":" + i + ":" + rows.size(), FR_MSG, wrapped.get(i), null, color, i == 0 ? who : null,
+                        List.of(), null, null, l.mine()));
+            }
+        }
+    }
+
+    /** The newest message of a conversation, or {@code fallback}. */
+    private static String chatPreview(java.util.UUID convo, String fallback) {
+        var lines = net.evadeclient.social.SocialChat.lines(convo);
+        if (lines.isEmpty()) return fallback;
+        var l = lines.get(lines.size() - 1);
+        return (l.mine() ? "You: " : "") + l.text();
+    }
+
+    /** {@code text} broken at spaces into lines: the first {@code first} pixels wide, the rest {@code rest}. */
+    private List<String> wrapWords(String text, int first, int rest) {
+        List<String> out = new ArrayList<>();
+        String line = "";
+        for (String w : text.split(" ")) {
+            String next = line.isEmpty() ? w : line + " " + w;
+            int room = out.isEmpty() ? first : rest;
+            if (width(next) <= room) { line = next; continue; }
+            if (!line.isEmpty()) { out.add(line); line = ""; room = rest; }
+            while (width(w) > room && w.length() > 1) { // one long word: cut it
+                int n = w.length();
+                while (n > 1 && width(w.substring(0, n)) > room) n--;
+                out.add(w.substring(0, n));
+                w = w.substring(n);
+            }
+            line = w;
+        }
+        if (!line.isEmpty() || out.isEmpty()) out.add(line);
+        return out;
+    }
+
+    /** Sends the message box's text to the open conversation. */
+    private void sendChatDraft() {
+        java.util.UUID to = net.evadeclient.social.SocialChat.open();
+        String text = chatDraft;
+        if (to == null || net.evadeclient.social.SocialChat.clean(text).isEmpty()) { friendFocused = true; return; }
+        chatDraft = "";
+        friendAct("fadd", net.evadeclient.social.SocialChat.send(to, text), "Message", null, r -> scrollTarget = 1e9);
     }
 
     private void friendSetting(String key, Object value) {
@@ -1344,6 +1495,14 @@ public class EvadeMenu extends Screen {
         switch (r.kind()) {
             case FR_HEAD -> caps(ctx, r.title(), cx + 2, y + 10, Theme.TEXT_HEADER, Role.CAPS, 1.5f);
             case FR_NOTE -> text(ctx, ellipsize(Role.SMALL, r.title(), cw - 4), cx + 2, y + 4, Theme.TEXT_FAINT, Role.SMALL);
+            case FR_MSG -> {
+                int tx = cx + 8;
+                if (r.chip() != null) {
+                    text(ctx, r.chip(), tx, y + 2, r.enabled() ? Theme.TEXT_DIM : Theme.RED_BRIGHT, false);
+                    tx += width(r.chip());
+                }
+                text(ctx, r.title(), tx, y + 2, r.dot(), false);
+            }
             case FR_EMPTY -> {
                 Theme.roundBordered(ctx, cx, y + 4, cx + cw, y + FRIEND_EMPTY_H - 8, Theme.CARD, Theme.BORDER);
                 drawCentered(ctx, ellipsize(Role.STRONG, r.title(), cw - 20), cx, cx + cw, y + 16, Theme.TEXT, Role.STRONG);
@@ -1437,7 +1596,7 @@ public class EvadeMenu extends Screen {
             if (friendFocused) return true;
             if (mx >= friendAddX() && mx < contentRight() && my >= searchY && my < searchY + 24) {
                 press("fadd");
-                addFriendFromInput();
+                if (chatInput()) sendChatDraft(); else addFriendFromInput();
                 return true;
             }
             int tabsX = cx + cw - FTab.values().length * FTAB_W, segY = headerY - 3;
@@ -1536,7 +1695,7 @@ public class EvadeMenu extends Screen {
 
         var s = net.evadeclient.social.SocialClient.state();
         boolean on = friendsOn();
-        int waiting = on ? s.incoming().size() + s.invites().size() : 0;
+        int waiting = on ? s.incoming().size() + s.invites().size() + net.evadeclient.social.SocialChat.totalUnread() : 0;
         int pillW = 0;
         if (waiting > 0) {
             String cnt = String.valueOf(waiting);
@@ -1564,6 +1723,7 @@ public class EvadeMenu extends Screen {
         for (Module mod : EvadeClient.modules.all()) {
             if (mod.getCategory() == Category.CLIENT) continue;
             if (p.category != null && mod.getCategory() != p.category) continue;
+            if (p == Page.PINNED && !net.evadeclient.config.MenuState.isPinned(mod)) continue;
             if (!f.isBlank() && !matches(mod, f)) continue;
             out.add(mod);
         }
@@ -1644,7 +1804,8 @@ public class EvadeMenu extends Screen {
         if (mods.isEmpty()) {
             String q = search.trim();
             String msg = !q.isEmpty() ? (enabledOnly ? "No enabled modules match \"" : "No modules match \"") + q + "\""
-                    : enabledOnly ? "No enabled mods here" : "Nothing here yet";
+                    : enabledOnly ? "No enabled mods here"
+                    : listPage() == Page.PINNED ? "Click the star next to a mod's name to pin it here" : "Nothing here yet";
             msg = trim(msg, cw - 20);
             text(ctx, msg, cx + (cw - width(msg)) / 2, cy + 30, Theme.TEXT_DIM, false);
         }
@@ -1669,6 +1830,7 @@ public class EvadeMenu extends Screen {
 
         int tx = x + 16;
         text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 150), tx, y + 11, Theme.TEXT, Role.STRONG);
+        renderStar(ctx, mod, x, y, w, hover, mx, my);
         text(ctx, ellipsize(Role.SMALL, blurb(mod), w - 150), tx, y + 26, blurbColor(mod), Role.SMALL);
 
         int right = x + w - 12;
@@ -1714,6 +1876,7 @@ public class EvadeMenu extends Screen {
             text(ctx, k, x + w - kw - 9, y + 7, Theme.TEXT_DIM, Role.TINY);
         }
         text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 14), x + 8, y + 16, Theme.TEXT, Role.STRONG);
+        renderStar(ctx, mod, x, y, w, hover, mx, my);
         text(ctx, ellipsize(Role.TINY, blurb(mod), w - 14), x + 8, y + 29, blurbColor(mod), Role.TINY);
 
         Theme.toggle(ctx, x + 8, y + CARD_H - 15, on);
@@ -1737,6 +1900,7 @@ public class EvadeMenu extends Screen {
         Theme.roundBordered(ctx, x, y, x + w, y + COMPACT_H, fill, border);
         if (on > 0.01f) Theme.fill(ctx, x + 1, y + 2, x + 2, y + COMPACT_H - 2, Theme.alpha(Theme.RED, on));
         text(ctx, ellipsize(Role.STRONG, mod.getName(), w - 46), x + 8, y + (COMPACT_H - 8) / 2, Theme.TEXT, Role.STRONG);
+        renderStar(ctx, mod, x, y, w, hover, mx, my);
 
         Theme.toggle(ctx, x + w - 24, y + (COMPACT_H - 10) / 2, on);
         if (hasSettingsPage(mod)) {
@@ -1894,8 +2058,9 @@ public class EvadeMenu extends Screen {
 
     private List<Object> rowsFor(Module mod) {
         List<Object> rows = new ArrayList<>();
-        if (mod.getCategory() != Category.CLIENT) rows.add("keybind");
+        if (mod.getCategory() != Category.CLIENT) { rows.add("keybind"); rows.add("bindmode"); }
         for (Setting<?> st : mod.getSettings()) if (!st.isHidden()) rows.add(st);
+        if (mod.getCategory() != Category.CLIENT) rows.add("share");
         return rows;
     }
 
@@ -1964,7 +2129,8 @@ public class EvadeMenu extends Screen {
                 Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, rh));
                 // changed from its default: a small accent dot in the row's left margin
                 if (row instanceof Setting<?> st && changed(st)) Theme.disc(ctx, cx + 3, y + (ROW_H - 3) / 2 - 1, 3, Theme.RED);
-                String label = row instanceof Setting<?> st ? st.getName() : "Toggle Key";
+                String label = row instanceof Setting<?> st ? st.getName()
+                        : row.equals("bindmode") ? "Key Mode" : row.equals("share") ? "Share Settings" : "Toggle Key";
                 text(ctx, label, cx + 10, y + 7, Theme.TEXT, false);
                 renderControl(ctx, row, mod, controlRight(), y, mx, my, hover);
                 y += ROW_H;
@@ -1988,6 +2154,18 @@ public class EvadeMenu extends Screen {
     /** Draws the control for a settings row, right-aligned at {@code right}. */
     private void renderControl(DrawContext ctx, Object row, Module mod, int right, int y, int mx, int my, boolean rowHover) {
         int midY = y + (ROW_H - 3) / 2;
+        if (row.equals("bindmode") || row.equals("share")) {
+            for (Chip c : chips(row, mod, right)) {
+                boolean hv = rowHover && mx >= c.x1 && mx < c.x2 && my >= midY - 7 && my < midY + 7;
+                int fill = c.active ? Theme.tint(0.22f) : Theme.CONTROL;
+                int border = c.active ? Theme.alpha(Theme.RED, 0.8f) : Theme.BORDER;
+                button(ctx, "chip:" + rowId(row, mod) + ":" + c.id, c.x1, midY - 7, c.x2, midY + 7, hv,
+                        fill, c.active ? fill : Theme.CONTROL_HOVER, border, Theme.RED);
+                text(ctx, c.label, c.x1 + (c.x2 - c.x1 - width(Role.SMALL, c.label)) / 2, midY - 3,
+                        c.active ? Theme.TEXT : Theme.TEXT_SOFT, Role.SMALL);
+            }
+            return;
+        }
         boolean isKeybind = row.equals("keybind");
         if (isKeybind || row instanceof KeySetting) {
             Object self = isKeybind ? mod : row;
@@ -1999,7 +2177,9 @@ public class EvadeMenu extends Screen {
             boolean conflict = !l && !conflicts(code, self).isEmpty();
             // Listening: the prompt's dots count up every 300 ms. The box is sized, and the text placed, for all three,
             // so neither moves while they count.
-            String label = l ? (acceptsMouse(self) ? "Press a key or mouse button" : "Press a key") : KeySetting.keyName(code);
+            String label = l ? (acceptsMouse(self) ? "Press a key or mouse button" : "Press a key")
+                    : isKeybind ? net.evadeclient.util.Keybinds.comboName(code, mod.getBindMods()) + (mod.isHoldBind() && code != GLFW.GLFW_KEY_UNKNOWN ? " (hold)" : "")
+                    : KeySetting.keyName(code);
             String sized = l ? label + "..." : label;
             String text = l ? label + ".".repeat(anims ? (int) Math.floorMod((long) Math.floor((now - listenAt) / 300), 4L) : 3) : label;
             int tw = width(sized);
@@ -2333,11 +2513,18 @@ public class EvadeMenu extends Screen {
         } else if (row instanceof ModeSetting) {
             how = "Click the right half for the next option, the left half for the previous";
         } else if (row instanceof ColorSetting) {
-            how = "Pick a swatch, or click # for any #RRGGBB colour";
+            how = "Pick a swatch, or click # (or the custom colour) for the full colour picker";
         } else if (row instanceof StringSetting st && editable(st)) {
             how = "Click to edit · Enter saves, Esc cancels";
         }
-        if (resettable) how = how == null ? "Middle-click to reset to default" : how + " · middle-click resets";
+        if (row.equals("bindmode")) {
+            out.add(new TipLine("Toggle: each press turns the mod on or off. Hold: on only while the key is held.", Theme.TEXT_SOFT));
+            how = "Ctrl, Shift and Alt make the bind need that key held too";
+        } else if (row.equals("share")) {
+            out.add(new TipLine("A code (" + net.evadeclient.config.ModShare.PREFIX + "...) with this mod's settings, to paste into chat or a message.", Theme.TEXT_SOFT));
+            how = "Copy puts it on your clipboard · Paste applies a code you copied";
+        }
+        if (resettable) how = how == null ? "Right-click the name or middle-click to reset to default" : how + " · right-click the name resets";
         if (how != null) out.add(new TipLine(how, Theme.TEXT_FAINT));
         return out;
     }
@@ -2392,6 +2579,7 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
         if (closing()) return true;
+        if (picker.isOpen()) return picker.mouseClicked(click.x(), click.y(), click.button());
         int realW = width, realH = height;
         width = Math.round(realW / vs); height = Math.round(realH / vs);
         try { return clicked(scaled(click), doubled); } finally { width = realW; height = realH; }
@@ -2515,6 +2703,13 @@ public class EvadeMenu extends Screen {
             int y = cy + (i / cols) * (rh + rg) - si;
             if (mx < x || mx >= x + cardW || my < y || my >= y + rh) continue;
             Module mod = mods.get(i);
+            int[] star = starRect(mod, x, y, cardW);
+            if (button == 0 && mx >= star[0] && mx < star[2] && my >= star[1] && my < star[3]) {
+                press("star:" + mod.getName());
+                boolean pinned = net.evadeclient.config.MenuState.togglePin(mod);
+                Notifications.push(mod.getName(), pinned ? "Pinned" : "Unpinned", pinned);
+                return true;
+            }
             boolean gear = hasSettingsPage(mod) && gearHit(mx, my, x, y, cardW);
             if (gear || (hasSettingsPage(mod) && button == 1)) {
                 if (gear) press("gear:" + mod.getName());
@@ -2525,6 +2720,30 @@ public class EvadeMenu extends Screen {
             return true;
         }
         return true;
+    }
+
+    /** The pin star's hit box {x1, y1, x2, y2} on a row/card at (x, y), just after the mod's name. */
+    private int[] starRect(Module mod, int x, int y, int w) {
+        int nameX, nameY, maxW;
+        if (cards()) { nameX = x + 8; nameY = y + 16; maxW = w - 14; }
+        else if (compact()) { nameX = x + 8; nameY = y + (COMPACT_H - 8) / 2; maxW = w - 46; }
+        else { nameX = x + 16; nameY = y + 11; maxW = w - 150; }
+        int sx = nameX + Math.min(maxW, width(Role.STRONG, ellipsize(Role.STRONG, mod.getName(), maxW))) + 5;
+        if (cards()) sx = Math.min(sx, x + w - 14);
+        return new int[]{sx - 2, nameY - 2, sx + 10, nameY + 10};
+    }
+
+    /** The pin star after a mod's name: gold when pinned, a faint outline while the row is hovered. */
+    private void renderStar(DrawContext ctx, Module mod, int x, int y, int w, boolean rowHover, int mx, int my) {
+        boolean pinned = net.evadeclient.config.MenuState.isPinned(mod);
+        float hv = animate("starRow:" + mod.getName(), rowHover ? 1 : 0, 16);
+        if (!pinned && hv < 0.01f) return;
+        int[] r = starRect(mod, x, y, w);
+        boolean over = rowHover && mx >= r[0] && mx < r[2] && my >= r[1] && my < r[3];
+        int color = pinned ? Theme.WARN : over ? Theme.TEXT_SOFT : Theme.alpha(Theme.TEXT_FAINT, hv);
+        // Pixel font: the smooth font has no star glyph.
+        ctx.drawText(textRenderer, Text.literal(pinned ? "★" : "☆"), r[0] + 2, r[1] + 2, Theme.fa(color), false);
+        if (over) setTip(mx, my, List.of(new TipLine(pinned ? "Unpin" : "Pin to the Pinned page", Theme.TEXT_SOFT)));
     }
 
     /** Whether the click landed on a card/row's gear button. */
@@ -2544,6 +2763,21 @@ public class EvadeMenu extends Screen {
         int right = controlRight();
         for (Object row : rowsFor(mod)) {
             if (my >= y && my < y + ROW_H - 2) {
+                if (row.equals("bindmode") || row.equals("share")) {
+                    if (button != 0) return true;
+                    for (Chip c : chips(row, mod, right)) {
+                        if (mx < c.x1 || mx >= c.x2) continue;
+                        press("chip:" + rowId(row, mod) + ":" + c.id);
+                        chipClicked(mod, c.id);
+                        return true;
+                    }
+                    return true;
+                }
+                // Right-click on a changed setting's name puts it back to its default (as middle-click does anywhere).
+                if (button == 1 && row instanceof Setting<?> rs && changed(rs) && mx < cx + 10 + width(rs.getName()) + 6) {
+                    rs.reset();
+                    return true;
+                }
                 // Middle-click puts one setting back to its default.
                 if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
                     if (row instanceof Setting<?> st && changed(st)) st.reset();
@@ -2596,8 +2830,7 @@ public class EvadeMenu extends Screen {
                     int sx = right - ColorSetting.PALETTE.length * (SWATCH + SWATCH_GAP) + SWATCH_GAP;
                     int chip = customChipX(sx);
                     if (mx >= chip - 2 && mx < chip + SWATCH + 2) {
-                        openEditor(c, String.format("#%06X", c.get() & 0xFFFFFF), 7,
-                                cp -> cp == '#' || Character.digit(cp, 16) >= 0);
+                        picker.open(c, (chip - 2) * vs, my * vs); // the full colour picker (ColorPicker)
                         return true;
                     }
                     int i = swatchAt(mx, sx);
@@ -2619,6 +2852,7 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
         if (closing()) return true;
+        if (picker.isOpen()) return picker.mouseDragged(click.x(), click.y());
         if (dragging != null) { updateSlider(click.x() / vs); return true; }
         if (sbDrag) { dragScrollbar(click.y() / vs); return true; }
         return super.mouseDragged(click, dx, dy);
@@ -2626,6 +2860,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public boolean mouseReleased(Click click) {
+        picker.mouseReleased();
         dragging = null;
         sbDrag = false;
         pressedKey = null; // the pressed button springs back (a quick tap still shows its dip: see pressed())
@@ -2635,6 +2870,7 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
         if (closing()) return true;
+        if (picker.isOpen()) return true;
         double mx = mouseX / vs, my = mouseY / vs;
         if (menuKeyDown) menuKeyUsed = true;
         // Shift + wheel arrives as horizontal scrolling on macOS.
@@ -2659,6 +2895,7 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (closing()) return true;
+        if (picker.isOpen()) return picker.keyPressed(input);
         int key = input.key();
         // An open text field takes every key (Enter applies, Escape cancels).
         if (editor != null) { editor.key(input); return true; }
@@ -2693,6 +2930,7 @@ public class EvadeMenu extends Screen {
         boolean listPage = selected == null && page != Page.SETTINGS && page != Page.PROFILES && page != Page.FRIENDS;
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (profiles && (profileFocused || !profileInput.isEmpty())) { profileInput = ""; profileFocused = false; return true; }
+            if (friends && chatInput() && (friendFocused || !chatDraft.isEmpty())) { chatDraft = ""; friendFocused = false; return true; }
             if (friends && (friendFocused || !friendInput.isEmpty())) { friendInput = ""; friendFocused = false; return true; }
             if (selected != null) { leaveModulePage(); return true; }
             if (!search.isEmpty()) { search = ""; searchFocused = false; resetScroll(); return true; }
@@ -2701,7 +2939,10 @@ public class EvadeMenu extends Screen {
         }
         if (input.isPaste() && (profiles || listPage || friends)) {
             String clip = client != null ? clean(client.keyboard.getClipboard()) : "";
-            if (friends) {
+            if (friends && chatInput()) {
+                friendFocused = true;
+                chatDraft = cap(chatDraft + clip, net.evadeclient.social.SocialChat.MAX_CHARS);
+            } else if (friends) {
                 friendFocused = true;
                 friendInput = cap(friendInput + clip.replaceAll("[^A-Za-z0-9_]", ""), 16);
             } else if (profiles) {
@@ -2724,7 +2965,16 @@ public class EvadeMenu extends Screen {
                 return true;
             }
         }
-        if (friends) {
+        if (friends && chatInput()) {
+            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!chatDraft.isEmpty()) { chatDraft = chatDraft.substring(0, chatDraft.length() - 1); friendFocused = true; }
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+                sendChatDraft();
+                return true;
+            }
+        } else if (friends) {
             if (key == GLFW.GLFW_KEY_BACKSPACE) {
                 if (!friendInput.isEmpty()) { friendInput = friendInput.substring(0, friendInput.length() - 1); friendFocused = true; }
                 return true;
@@ -2794,6 +3044,7 @@ public class EvadeMenu extends Screen {
     @Override
     public boolean charTyped(CharInput input) {
         if (closing()) return true;
+        if (picker.isOpen()) return picker.charTyped(input);
         if (menuKeyDown) menuKeyUsed = true;
         if (editor != null) { if (input.isValidChar()) editor.insert(input.asString()); return true; }
         if (listening != null) return true;
@@ -2801,6 +3052,12 @@ public class EvadeMenu extends Screen {
         if (page == Page.PROFILES) {
             profileFocused = true;
             if (profileInput.length() < 24) profileInput += input.asString();
+            return true;
+        }
+        if (page == Page.FRIENDS && friendsOn() && chatInput()) {
+            // A message: any text, 256 characters at most.
+            friendFocused = true;
+            if (chatDraft.length() < net.evadeclient.social.SocialChat.MAX_CHARS) chatDraft += input.asString();
             return true;
         }
         if (page == Page.FRIENDS) {
@@ -2879,9 +3136,65 @@ public class EvadeMenu extends Screen {
         rejectMsg = why;
     }
 
+    // ---- Key Mode and Share rows ---------------------------------------
+
+    /** A small button on a Key Mode or Share Settings row. */
+    private record Chip(String id, String label, int x1, int x2, boolean active) {}
+
+    /** The row's chips, laid out right to left from {@code right}. */
+    private List<Chip> chips(Object row, Module mod, int right) {
+        List<String[]> spec = new ArrayList<>();
+        if (row.equals("bindmode")) {
+            int mods = mod.getBindMods();
+            spec.add(new String[]{"alt", "Alt", (mods & net.evadeclient.util.Keybinds.ALT) != 0 ? "1" : ""});
+            spec.add(new String[]{"shift", "Shift", (mods & net.evadeclient.util.Keybinds.SHIFT) != 0 ? "1" : ""});
+            spec.add(new String[]{"ctrl", "Ctrl", (mods & net.evadeclient.util.Keybinds.CTRL) != 0 ? "1" : ""});
+            spec.add(null); // gap
+            spec.add(new String[]{"hold", "Hold", mod.isHoldBind() ? "1" : ""});
+            spec.add(new String[]{"toggle", "Toggle", mod.isHoldBind() ? "" : "1"});
+        } else {
+            spec.add(new String[]{"paste", "Paste code", ""});
+            spec.add(new String[]{"copy", "Copy code", ""});
+        }
+        List<Chip> out = new ArrayList<>();
+        int x2 = right;
+        for (String[] c : spec) {
+            if (c == null) { x2 -= 8; continue; }
+            int w = width(Role.SMALL, c[1]) + 14;
+            out.add(new Chip(c[0], c[1], x2 - w, x2, !c[2].isEmpty()));
+            x2 -= w + 4;
+        }
+        return out;
+    }
+
+    private void chipClicked(Module mod, String id) {
+        switch (id) {
+            case "toggle" -> mod.setHoldBind(false);
+            case "hold" -> mod.setHoldBind(true);
+            case "ctrl" -> mod.setBindMods(mod.getBindMods() ^ net.evadeclient.util.Keybinds.CTRL);
+            case "shift" -> mod.setBindMods(mod.getBindMods() ^ net.evadeclient.util.Keybinds.SHIFT);
+            case "alt" -> mod.setBindMods(mod.getBindMods() ^ net.evadeclient.util.Keybinds.ALT);
+            case "copy" -> {
+                String code = net.evadeclient.config.ModShare.code(mod);
+                if (code == null) { Notifications.push(mod.getName(), "Couldn't make a code", false); return; }
+                client.keyboard.setClipboard(code);
+                Notifications.push(mod.getName(), "Settings code copied", true);
+                return;
+            }
+            case "paste" -> {
+                var r = net.evadeclient.config.ModShare.apply(client.keyboard.getClipboard(), mod);
+                Notifications.push(mod.getName(), r.ok() ? "Settings pasted from the code" : r.error(), r.ok());
+                return;
+            }
+            default -> { return; }
+        }
+        EvadeClient.config.save();
+    }
+
     /** Everything else bound to {@code code}, for the red conflict chip and its tooltip. */
     private static List<String> conflicts(int code, Object self) {
         if (code == GLFW.GLFW_KEY_UNKNOWN) return List.of();
+        if (self instanceof Module m) return net.evadeclient.util.Keybinds.conflictNames(code, m.getBindMods(), m);
         return EvadeClient.modules.usersOf(code, self);
     }
 
@@ -3163,6 +3476,7 @@ public class EvadeMenu extends Screen {
     @Override
     public void removed() {
         commitEditor(); // e.g. the HUD editor opened over a half-typed value
+        picker.close();
         // Replaced in the middle of the close fade (a disconnect): still save, as the close would have.
         if (closingAt >= 0 && !finishing) {
             finishing = true;
@@ -3283,7 +3597,7 @@ public class EvadeMenu extends Screen {
     /** A settings row's id for its control's animations and press state, unique across modules (two modules can
      *  have settings of the same name, and every module has a Toggle Key row). */
     private static String rowId(Object row, Module mod) {
-        return mod.getName() + "/" + (row instanceof Setting<?> st ? st.getName() : "keybind");
+        return mod.getName() + "/" + (row instanceof Setting<?> st ? st.getName() : row instanceof String r ? r : "keybind");
     }
 
     /** The animation key of a module page's Reset button (see renderSettingsPage): one per module, so a page never

@@ -1,6 +1,8 @@
 package net.evadeclient.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import net.evadeclient.social.FriendColors;
 import net.evadeclient.module.misc.EvadeIcons;
 import net.evadeclient.module.visuals.TabTweaks;
 import net.minecraft.client.MinecraftClient;
@@ -8,6 +10,8 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.PlayerListHud;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.text.Text;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,8 +19,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.List;
 
 @Mixin(PlayerListHud.class)
 public abstract class PlayerListHudMixin {
@@ -26,7 +33,8 @@ public abstract class PlayerListHudMixin {
      */
     @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
     private void evade$icon(PlayerListEntry entry, CallbackInfoReturnable<Text> cir) {
-        Text decorated = EvadeIcons.decorate(entry.getProfile().id(), cir.getReturnValue());
+        // Friend Colours first (only the player's own name inside the entry), then the icon in front.
+        Text decorated = EvadeIcons.decorate(entry.getProfile().id(), FriendColors.tab(entry, cir.getReturnValue()));
         if (decorated != cir.getReturnValue()) cir.setReturnValue(decorated);
     }
 
@@ -40,7 +48,7 @@ public abstract class PlayerListHudMixin {
         if (ms < 0 || !TabTweaks.numeric()) return;
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         String text = TabTweaks.pingText(ms);
-        ctx.drawTextWithShadow(tr, text, x + width - 1 - tr.getWidth(text), y, TabTweaks.pingColor(ms));
+        ctx.drawTextWithShadow(tr, text, x + width - 1 - tr.getWidth(text), y, TabTweaks.shownPingColor(ms));
         ci.cancel();
     }
 
@@ -54,11 +62,40 @@ public abstract class PlayerListHudMixin {
         return TabTweaks.numeric() ? Math.max(vanilla, TabTweaks.pingSpace()) : vanilla;
     }
 
-    /** Tab Tweaks "Hide Header": render reads the field as null; the server's header itself is kept. */
+    /**
+     * Tab Tweaks "Hide Header" and "Player Count": render reads the field as null, or with "12 players" above it; the
+     * server's header itself is kept.
+     */
     @ModifyExpressionValue(method = "render", at = @At(value = "FIELD",
             target = "Lnet/minecraft/client/gui/hud/PlayerListHud;header:Lnet/minecraft/text/Text;", opcode = Opcodes.GETFIELD))
     private Text evade$hideHeader(Text header) {
-        return header != null && TabTweaks.headerHidden() ? null : header;
+        return TabTweaks.header(header);
+    }
+
+    /** Tab Tweaks "Yourself First", "Friends First" and "Hide NPC Entries": the order (and entries) the list shows. */
+    @ModifyReturnValue(method = "collectPlayerEntries", at = @At("RETURN"))
+    private List<PlayerListEntry> evade$arrange(List<PlayerListEntry> entries) {
+        return TabTweaks.arrange(entries);
+    }
+
+    /** Tab Tweaks "Scale": the list is drawn scaled about the top centre of the screen. */
+    @Inject(method = "render", at = @At("HEAD"))
+    private void evade$scaleStart(DrawContext ctx, int width, Scoreboard scoreboard, ScoreboardObjective objective, CallbackInfo ci) {
+        ctx.getMatrices().pushMatrix();
+        float k = TabTweaks.listScale();
+        if (k != 1f) ctx.getMatrices().scale(k, k);
+    }
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void evade$scaleEnd(DrawContext ctx, int width, Scoreboard scoreboard, ScoreboardObjective objective, CallbackInfo ci) {
+        ctx.getMatrices().popMatrix();
+    }
+
+    /** Scale: the list lays itself out in a screen {@code 1 / scale} as wide, so it stays centred once scaled. */
+    @ModifyVariable(method = "render", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private int evade$scaledWidth(int width) {
+        float k = TabTweaks.listScale();
+        return k == 1f ? width : Math.round(width / k);
     }
 
     /** Tab Tweaks "Hide Footer": render reads the field as null; the server's footer itself is kept. */

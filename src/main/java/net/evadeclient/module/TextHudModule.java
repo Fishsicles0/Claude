@@ -25,13 +25,19 @@ public abstract class TextHudModule extends HudElementModule {
     public final BooleanSetting chroma = add(new BooleanSetting("Chroma", false));
     public final ModeSetting textAlign = add(new ModeSetting("Text Align", "Auto", "Auto", "Left", "Center", "Right")
             .describe("Auto lines text up with the screen edge the widget is anchored to, so changing numbers don't jitter."));
+    public final BooleanSetting splitColors = add(new BooleanSetting("Label/Value Colors", false)
+            .describe("In lines like \"Ping: 42 ms\", draw the label in Text Color and the value in Value Color."));
+    public final ColorSetting valueColor = add(new ColorSetting("Value Color", 0xFFFFD21F)
+            .describe("Colour of the value after the label, with Label/Value Colors on."));
 
     protected TextHudModule(String name, String description, int x, int y) {
         super(name, description, x, y);
+        color.chroma(chroma);
     }
 
     protected TextHudModule(String name, String description, Category category, int x, int y) {
         super(name, description, category, x, y);
+        color.chroma(chroma);
     }
 
     /** Lines to show; return an empty list to hide the element. */
@@ -111,8 +117,19 @@ public abstract class TextHudModule extends HudElementModule {
             } else {
                 List<String> raw = lines(preview);
                 lines = new java.util.ArrayList<>(raw.size());
+                boolean split = splitColors.get();
+                int vc = valueColor.get() & 0xFFFFFF;
                 for (String r : raw) {
-                    var t = Text.literal(br ? "[" + r + "]" : r);
+                    int at = split ? labelEnd(r) : -1;
+                    MutableText t;
+                    if (at > 0) {
+                        // "Label: " in the line's colour, the value in Value Color.
+                        t = Text.literal(br ? "[" + r.substring(0, at) : r.substring(0, at));
+                        t.append(Text.literal(r.substring(at)).withColor(vc));
+                        if (br) t.append(Text.literal("]"));
+                    } else {
+                        t = Text.literal(br ? "[" + r + "]" : r);
+                    }
                     if (smooth) t.setStyle(font);
                     lines.add(t);
                 }
@@ -130,6 +147,17 @@ public abstract class TextHudModule extends HudElementModule {
             cachedLines = lines; cachedWidths = widths; cachedLead = lead; cachedTick = tick; cachedFont = fontKey;
         }
         draw(ctx, left, top, cachedLines, cachedWidths, cachedLead);
+    }
+
+    /**
+     * Where the value starts in a "Label: value" line (just after ": "), or -1 when the line has no label: no ": ",
+     * or the part before it is long or holds digits (then it is a value itself, like a time "12:30").
+     */
+    public static int labelEnd(String line) {
+        int at = line.indexOf(": ");
+        if (at <= 0 || at > 24) return -1;
+        for (int i = 0; i < at; i++) if (Character.isDigit(line.charAt(i))) return -1;
+        return at + 2;
     }
 
     private void draw(DrawContext ctx, int left, int top, List<Text> lines, int[] widths, int lead) {

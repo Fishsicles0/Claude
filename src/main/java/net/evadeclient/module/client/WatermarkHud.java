@@ -49,8 +49,9 @@ public class WatermarkHud extends HudElementModule {
     public final ModeSetting style = add(new ModeSetting("Watermark Style", "Logo", "Logo", "Text", "Logo + Info")
             .describe("The Evade logo, your own text, or the logo with FPS, ping or the time beside it."));
     public final StringSetting text = add(new StringSetting("Watermark Text", "Evade", "used by the Text style")
-            .maxLength(24)
-            .describe("What the Text style shows; its first letter takes the accent colour."));
+            .maxLength(64)
+            .describe("What the Text style shows; its first letter takes the accent colour. Placeholders like {fps} "
+                    + "or {time:HH:mm} and colour tags like <red> work here too."));
     public final ModeSetting info = add(new ModeSetting("Watermark Info", "FPS + Ping", "None", "FPS", "FPS + Ping", "FPS + Ping + Time")
             .describe("What Logo + Info and Text show after the name."));
     public final NumberSetting size = add(new NumberSetting("Watermark Size", 17, 10, 32, 1)
@@ -161,10 +162,15 @@ public class WatermarkHud extends HudElementModule {
         if (withName) {
             String s = text.get() == null ? "" : text.get().strip();
             if (s.isEmpty()) s = "Evade";
-            int split = s.offsetByCodePoints(0, 1);
             MutableText t = Text.empty().setStyle(UiFont.style(UiFont.Role.STRONG, gName));
-            t.append(Text.literal(s.substring(0, split)).withColor(Logo.markTint() & 0xFFFFFF));
-            t.append(Text.literal(s.substring(split)));
+            if (net.evadeclient.util.Placeholders.isTemplate(s)) {
+                // Live values and colour tags (Placeholders); the accent letter is left to your own tags.
+                t.append(net.evadeclient.util.Placeholders.text(s));
+            } else {
+                int split = s.offsetByCodePoints(0, 1);
+                t.append(Text.literal(s.substring(0, split)).withColor(Logo.markTint() & 0xFFFFFF));
+                t.append(Text.literal(s.substring(split)));
+            }
             nameText = t;
             nameW = tr.getWidth(t);
         } else {

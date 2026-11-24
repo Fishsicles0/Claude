@@ -16,6 +16,8 @@ import net.evadeclient.setting.StringSetting;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.StatusSetting;
+import net.evadeclient.util.BenchmarkAll;
+import net.evadeclient.util.Borderless;
 import net.evadeclient.util.FrameStats;
 import net.evadeclient.util.RenderScale;
 import net.evadeclient.util.ShaderSwitch;
@@ -26,6 +28,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
+import net.minecraft.client.option.TextureFilteringMode;
 import net.minecraft.client.particle.BlockDustParticle;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleManager;
@@ -123,7 +126,13 @@ public class Performance extends Module {
     public final StatusSetting adaptiveNow = add(new StatusSetting("Adaptive Now", this::adaptiveNowText, "live"));
     /** One-click presets that set the options below. Changing any of them afterwards is fine: the preset only applies when picked. */
     public final ModeSetting fpsMode = add(new ModeSetting("FPS Mode", "Balanced", "Max FPS", "Balanced", "Quality", "Custom")
-            .describe("Max FPS: the highest frame rate, render distance up to 8. Balanced: big gains while it still looks good, render distance up to 12. Quality: only unlocks the frame rate and keeps your visuals. Custom: set everything yourself."));
+            .describe("Max FPS: the highest frame rate, render distance up to 8. Balanced: big gains while it still looks good, render distance up to 12. Quality: unlocks the frame rate, keeps your visuals and sharpens distant textures. Custom: set everything yourself."));
+    public final StatusSetting benchmarkAll = add((StatusSetting) new StatusSetting("Benchmark Every FPS Mode", BenchmarkAll::status,
+            "click: run").onClick(() -> {
+                if (BenchmarkAll.running()) BenchmarkAll.cancel();
+                else BenchmarkAll.start(BenchmarkAll.DEFAULT_SECONDS);
+            })
+            .describe("Measures Max FPS, Balanced and Quality on this PC (about 45 seconds, in a world) and recommends the best-looking one that keeps up with your monitor. Your FPS Mode is put back afterwards. Also: .bench all"));
     /** The preset last applied (so a saved config isn't re-applied over your own changes on every start). */
     private final StringSetting appliedMode = add(new StringSetting("Applied FPS Mode", "", "").hidden());
     public final BooleanSetting unlockFps = add(new BooleanSetting("Unlock FPS", true)
@@ -143,10 +152,18 @@ public class Performance extends Module {
     /** Iris shader packs the installer adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
     public final ModeSetting shaders = add(new ModeSetting("Shaders", "Leave Alone", "Leave Alone", "Off", "Photon", "Complementary")
             .describe("Switch shaders without opening Iris. Photon looks the best; Complementary is lighter for laptops. Shaders cost a lot of FPS, so they're best left Off for the highest frame rates."));
-    public final StatusSetting shadersNow = add(new StatusSetting("Shaders Now", net.evadeclient.util.ShaderSwitch::status, "Iris"));
+    public final StatusSetting shadersNow = add((StatusSetting) new StatusSetting("Shaders Now", net.evadeclient.util.ShaderSwitch::status, "click: pick a pack")
+            .onClick(() -> mc.setScreen(new net.evadeclient.gui.ShaderPackScreen(mc.currentScreen)))
+            .describe("Click to pick any shader pack in your shaderpacks folder, turn shaders off, or get more packs from Modrinth."));
     private String shadersApplied = "Leave Alone";
-    public final BooleanSetting lighterOptions = add(new BooleanSetting("Lighter Video Settings", true));
-    public final BooleanSetting lowEnd = add(new BooleanSetting("Low-End PC Mode", false));
+    public final BooleanSetting lighterOptions = add(new BooleanSetting("Lighter Video Settings", true)
+            .describe("Clouds and entity shadows off, fewer particles, a smaller rain and snow area, shorter cloud distance and Improved Transparency off. Your own values come back when you turn this off."));
+    public final BooleanSetting lowEnd = add(new BooleanSetting("Low-End PC Mode", false)
+            .describe("Also solid leaves, no smooth lighting, no chunk fade-in, no biome blending, no vignette, plain texture filtering and the smallest rain and snow area. Your own values come back when you turn this off."));
+    public final BooleanSetting sharperTextures = add(new BooleanSetting("Sharper Distant Textures", false)
+            .describe("Turns on anisotropic texture filtering when yours is off, so floors and walls stay crisp at a distance. Costs very little on most graphics cards. Ignored while Low-End PC Mode is on."));
+    public final BooleanSetting borderless = add(new BooleanSetting("Borderless Fullscreen", false)
+            .describe("Fills the screen with a frameless window instead of the game's own fullscreen: instant Alt-Tab and no flicker on a second monitor. While F11 fullscreen is on, that one is used."));
     public final StatusSetting addons = add(new StatusSetting("FPS Mods Installed", Performance::installedAddons, "via installer"));
 
     private static final String[][] ADDONS = {
@@ -177,6 +194,7 @@ public class Performance extends Module {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             tickBackgroundAudio();
             tickRenderScale();
+            Borderless.follow(isEnabled() && borderless.get());
         });
     }
 
@@ -578,16 +596,20 @@ public class Performance extends Module {
             Map.entry("enableVsync", GameOptions::getEnableVsync),
             Map.entry("maxFps", GameOptions::getMaxFps),
             Map.entry("renderDistance", GameOptions::getViewDistance),
-            Map.entry("simulationDistance", GameOptions::getSimulationDistance));
+            Map.entry("simulationDistance", GameOptions::getSimulationDistance),
+            Map.entry("textureFiltering", GameOptions::getTextureFiltering),
+            Map.entry("vignette", GameOptions::getVignette),
+            Map.entry("cloudRenderDistance", GameOptions::getCloudRenderDistance));
 
     /** One option Evade changed: your value, and the value Evade put in its place. */
     private record Changed(String id, SimpleOption<Object> option, Object original, Object applied) {}
 
     private final List<Changed> lighterChanged = new ArrayList<>();
     private final List<Changed> lowEndChanged = new ArrayList<>();
+    private final List<Changed> sharperChanged = new ArrayList<>();
     private final List<Changed> unlockChanged = new ArrayList<>();
     private final List<Changed> distanceChanged = new ArrayList<>();
-    private boolean lighterApplied, lowEndApplied, unlockApplied;
+    private boolean lighterApplied, lowEndApplied, unlockApplied, sharperApplied;
     private int distanceApplied;
     /** The game's "Unlimited" Max Framerate. */
     private static final int UNLIMITED_FPS = 260;
@@ -595,15 +617,17 @@ public class Performance extends Module {
     /** Applies an FPS Mode preset to the settings (Custom changes nothing). */
     private void applyPreset(String mode) {
         switch (mode) {
-            case "Max FPS" -> preset(true, true, true, 8, 40, 48, 24, 60);
-            case "Balanced" -> preset(true, true, false, 12, 60, 64, 32, 80);
-            case "Quality" -> preset(true, false, false, 0, 100, 96, 48, 100);
+            case "Max FPS" -> preset(true, true, true, 8, 40, 48, 24, 60, false);
+            case "Balanced" -> preset(true, true, false, 12, 60, 64, 32, 80, false);
+            case "Quality" -> preset(true, false, false, 0, 100, 96, 48, 100, true);
             default -> { }
         }
     }
 
-    private void preset(boolean unlock, boolean lighter, boolean low, int cap, int particles, int entities, int particleDist, int scale) {
+    private void preset(boolean unlock, boolean lighter, boolean low, int cap, int particles, int entities, int particleDist, int scale,
+                        boolean sharper) {
         unlockFps.set(unlock);
+        sharperTextures.set(sharper);
         lighterOptions.set(lighter);
         lowEnd.set(low);
         renderCap.set((double) cap);
@@ -631,7 +655,7 @@ public class Performance extends Module {
         appliedMode.set(key);
     }
 
-    private static final String PRESET_VERSION = "#2";
+    private static final String PRESET_VERSION = "#3";
 
     /** Unlock FPS: VSync off and the cap at Unlimited. Your own values come back when it's turned off. */
     private void applyUnlock(boolean on) {
@@ -703,6 +727,8 @@ public class Performance extends Module {
             change(lighterChanged, "entityShadows", false);
             if (o.getParticles().getValue() == ParticlesMode.ALL) change(lighterChanged, "particles", ParticlesMode.DECREASED);
             if (o.getWeatherRadius().getValue() > 5) change(lighterChanged, "weatherRadius", 5);
+            if (o.getCloudRenderDistance().getValue() > 8) change(lighterChanged, "cloudRenderDistance", 8);
+            change(lighterChanged, "improvedTransparency", false); // the game's Fast preset leaves it off too
         } else {
             restored = putBack(lighterChanged);
         }
@@ -722,11 +748,42 @@ public class Performance extends Module {
             change(lowEndChanged, "chunkFade", 0.0);               // no chunk fade-in
             change(lowEndChanged, "biomeBlendRadius", 0);
             if (o.getEntityDistanceScaling().getValue() > 0.75) change(lowEndChanged, "entityDistanceScaling", 0.75);
+            change(lowEndChanged, "textureFiltering", TextureFilteringMode.NONE); // RGSS and anisotropic cost GPU time
+            change(lowEndChanged, "vignette", false);
+            if (o.getWeatherRadius().getValue() > 3) change(lowEndChanged, "weatherRadius", 3);
         } else {
             restored = putBack(lowEndChanged);
         }
         lowEndApplied = on;
         videoChanged(restored);
+    }
+
+    /** Sharper Distant Textures: anisotropic filtering when texture filtering is off. Never overrides RGSS. */
+    private void applySharper(boolean on) {
+        if (on == sharperApplied || mc.options == null) return;
+        boolean restored = false;
+        if (on) {
+            if (mc.options.getTextureFiltering().getValue() == TextureFilteringMode.NONE)
+                change(sharperChanged, "textureFiltering", TextureFilteringMode.ANISOTROPIC);
+        } else {
+            restored = putBack(sharperChanged);
+        }
+        sharperApplied = on;
+        videoChanged(restored);
+    }
+
+    /**
+     * Lighter Video Settings, Sharper Distant Textures and Low-End PC Mode share some options, so they're handed back
+     * newest first before any is applied, and applied in one fixed order: your own values always come back right.
+     */
+    private void applyVideo() {
+        boolean lo = lowEnd.get(), li = lighterOptions.get(), sh = sharperTextures.get() && !lo;
+        if (!lo) applyLowEnd(false);
+        if (!sh) applySharper(false);
+        if (!li) applyLighter(false);
+        applyLighter(li);
+        applySharper(sh);
+        applyLowEnd(lo);
     }
 
     /** Keep the restore file in step, and rewrite options.txt after putting your values back. */
@@ -739,12 +796,12 @@ public class Performance extends Module {
     @Override
     public void onTick() {
         // follow the settings while Performance is on
+        BenchmarkAll.tick();
         followPreset();
         followShaders();
         applyUnlock(unlockFps.get());
         applyDistance((int) Math.round(renderCap.get()));
-        applyLighter(lighterOptions.get());
-        applyLowEnd(lowEnd.get());
+        applyVideo();
         // Max Particles: start the tick from what's actually alive (render thread, after the particles ticked).
         liveParticles = countLiveParticles(mc.particleManager);
         addedSinceTick = 0;
@@ -757,14 +814,15 @@ public class Performance extends Module {
         followPreset();
         applyUnlock(unlockFps.get());
         applyDistance((int) Math.round(renderCap.get()));
-        applyLighter(lighterOptions.get());
-        applyLowEnd(lowEnd.get());
+        applyVideo();
         resetRuntime();
     }
 
     @Override
     protected void onDisable() {
+        BenchmarkAll.cancel();
         applyLowEnd(false);
+        applySharper(false);
         applyLighter(false);
         applyDistance(0);
         applyUnlock(false);
@@ -786,8 +844,9 @@ public class Performance extends Module {
     /** On quit: hand every option back before the game shuts down, and save them as yours. */
     private void restoreVideoOptions() {
         try {
-            boolean restored = putBack(lowEndChanged) | putBack(lighterChanged) | putBack(distanceChanged) | putBack(unlockChanged);
+            boolean restored = putBack(lowEndChanged) | putBack(sharperChanged) | putBack(lighterChanged) | putBack(distanceChanged) | putBack(unlockChanged);
             lowEndApplied = false;
+            sharperApplied = false;
             lighterApplied = false;
             unlockApplied = false;
             distanceApplied = 0;
@@ -806,17 +865,19 @@ public class Performance extends Module {
     private void saveRestoreFile() {
         Path file = restoreFile();
         try {
-            if (lighterChanged.isEmpty() && lowEndChanged.isEmpty() && unlockChanged.isEmpty() && distanceChanged.isEmpty()) {
+            if (lighterChanged.isEmpty() && lowEndChanged.isEmpty() && sharperChanged.isEmpty() && unlockChanged.isEmpty() && distanceChanged.isEmpty()) {
                 Files.deleteIfExists(file);
                 return;
             }
             JsonObject root = new JsonObject();
-            for (List<Changed> list : List.of(lighterChanged, lowEndChanged, unlockChanged, distanceChanged)) {
+            for (List<Changed> list : List.of(lighterChanged, sharperChanged, lowEndChanged, unlockChanged, distanceChanged)) {
                 for (Changed c : list) {
                     Optional<JsonElement> original = encode(c.option(), c.original()), applied = encode(c.option(), c.applied());
                     if (original.isEmpty() || applied.isEmpty()) continue;
                     JsonObject entry = new JsonObject();
-                    entry.add("original", original.get());
+                    // Two lists can change one option (in the order listed): your value is the first one's original.
+                    JsonObject earlier = root.has(c.id()) ? root.getAsJsonObject(c.id()) : null;
+                    entry.add("original", earlier != null ? earlier.get("original") : original.get());
                     entry.add("applied", applied.get());
                     root.add(c.id(), entry);
                 }

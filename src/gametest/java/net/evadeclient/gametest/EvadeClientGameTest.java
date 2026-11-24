@@ -63,6 +63,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
                     "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
+            MenuUpgradesTest.run(ctx, sp); // TEMP-MENU-EARLY
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -79,6 +80,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
             SocialTest.run(ctx, sp);
+            GraphicsUpgradesTest.run(ctx, sp);
+            MenuUpgradesTest.run(ctx, sp);
+            HudUpgradesTest.run(ctx, sp);
+            SocialUpgradesTest.run(ctx, sp);
+            LauncherBridgeTest.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);

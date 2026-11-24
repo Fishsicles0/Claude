@@ -48,6 +48,8 @@ public final class App {
     public Consumer<Clip> openEditor = c -> {};
     /** Brings the main window forward (set by the window). */
     public Runnable showWindow = () -> {};
+    /** Folders of game screenshots the library's Screenshots view shows (the launcher lists each instance's). */
+    public volatile java.util.function.Supplier<java.util.List<ShotsGrid.Source>> screenshotSources = ShotsGrid.defaultSources();
     /** The main window, as the parent of dialogs the app asks from background work (null until it exists). */
     public volatile java.awt.Window window;
     /**

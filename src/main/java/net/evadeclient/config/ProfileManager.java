@@ -428,11 +428,11 @@ public class ProfileManager {
     }
 
     /** Whether a setting goes into share codes: not hidden state and not a keybind (those stay with the importer). */
-    private static boolean travels(Setting<?> s) {
+    static boolean travels(Setting<?> s) {
         return !s.isHidden() && !(s instanceof KeySetting);
     }
 
-    private static byte[] gzip(String text) throws IOException {
+    static byte[] gzip(String text) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (GZIPOutputStream gz = new GZIPOutputStream(bytes) {
             { def.setLevel(Deflater.BEST_COMPRESSION); }
@@ -507,7 +507,7 @@ public class ProfileManager {
     }
 
     /** The base64 pieces after a code's prefix, split where there was whitespace, up to the first other character. */
-    private static List<String> payloadParts(String text, int from) {
+    static List<String> payloadParts(String text, int from) {
         List<String> parts = new ArrayList<>();
         StringBuilder cur = new StringBuilder();
         for (int i = from; i < text.length() && parts.size() < 64; i++) {
@@ -555,7 +555,7 @@ public class ProfileManager {
     }
 
     /** Base64url (what codes use), falling back to standard Base64 for codes that went through other tools. */
-    private static byte[] decodeBase64(String payload) {
+    static byte[] decodeBase64(String payload) {
         try {
             return Base64.getUrlDecoder().decode(payload);
         } catch (IllegalArgumentException e) {
@@ -582,6 +582,8 @@ public class ProfileManager {
             JsonObject e = new JsonObject();
             e.addProperty("enabled", ConfigManager.bool(src == null ? null : src.get("enabled"), config.defaultEnabled(m)));
             e.addProperty("key", m.getKey()); // codes never carry keybinds: yours stay
+            if (m.isHoldBind()) e.addProperty("bindMode", "hold");
+            if (m.getBindMods() != 0) e.addProperty("bindMods", m.getBindMods());
             JsonObject from = ConfigManager.object(src, "settings");
             JsonObject settings = new JsonObject();
             Set<String> known = new HashSet<>();
@@ -622,7 +624,7 @@ public class ProfileManager {
     }
 
     /** {@code v} if it is a short plain value (a boolean, a number, or text up to 256 characters), else null. */
-    private static JsonElement bounded(JsonElement v) {
+    static JsonElement bounded(JsonElement v) {
         if (v == null || !v.isJsonPrimitive()) return null;
         JsonPrimitive p = v.getAsJsonPrimitive();
         if (p.isString()) return p.getAsString().length() <= MAX_IMPORTED_STRING ? p : null;

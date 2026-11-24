@@ -12,6 +12,8 @@ import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.StringSetting;
 import net.evadeclient.util.Notifications;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.evadeclient.util.Hypixel;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
@@ -41,8 +43,11 @@ import java.util.regex.PatternSyntaxException;
 /**
  * Chat upgrades: timestamps, repeated messages stacked into one line with a (x3) counter, a longer history, click to
  * copy a message, highlighted mentions of your name (or your own keywords) with a ping, a filter that hides or
- * collapses lines you don't want to read, and chat that survives a server switch or a disconnect. Everything here only
- * changes how chat is shown to you; nothing is ever sent.
+ * collapses lines you don't want to read (plus a ready-made Hypixel clean-up list), and chat that survives a server
+ * switch or a disconnect. Everything here only changes how chat is shown to you; nothing is ever sent.
+ *
+ * <p>Coords Guard is the one thing that touches what you send: it holds back, once, a chat message that contains your
+ * own current coordinates, so you don't leak your base by accident. Sending the same message again sends it unchanged.
  */
 public class BetterChat extends Module {
     // -- timestamps and copy
@@ -95,6 +100,15 @@ public class BetterChat extends Module {
     private final ModeSetting filterAction = add(new ModeSetting("Filter Action", "Hide", "Hide", "Collapse")
             .describe("Hide drops the line. Collapse shows [filtered] instead; hover it to read the line."));
 
+    // -- server presets
+    private final BooleanSetting hypixelCleanup = add(new BooleanSetting("Hypixel Clean-up", false)
+            .describe("On Hypixel only: hides lobby join announcements, Mystery Box and Soul Well finds, Watchdog reports "
+                    + "and store adverts."));
+    // -- coords guard
+    private final BooleanSetting coordsGuard = add(new BooleanSetting("Coords Guard", true)
+            .describe("Holds back a chat message that contains your current X and Z (within 3 blocks) once, with a warning. "
+                    + "Send it again to send it anyway. Off in singleplayer and near spawn."));
+
     private static final Text COPY_TOOLTIP = Text.literal("Click to copy");
     private static final Text MENTION_TOOLTIP = Text.literal("Mentions you");
     private static final Text FILTERED = Text.literal("[filtered]").formatted(Formatting.DARK_GRAY);
@@ -141,6 +155,8 @@ public class BetterChat extends Module {
         // Filter: Hide drops matching lines before they reach chat. Action-bar (overlay) text is left alone.
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> overlay || !hides(message));
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signed, sender, params, receivedAt) -> !hides(message));
+        // Coords Guard: outgoing chat only (commands like /tp are left alone).
+        ClientSendMessageEvents.ALLOW_CHAT.register(this::allowSend);
     }
 
     public static BetterChat active() {
@@ -425,13 +441,119 @@ public class BetterChat extends Module {
 
     // ------------------------------------------------------------------ filter
 
-    /** Whether Hide should keep {@code message} out of chat altogether. */
+    /** Whether Hide (or the Hypixel clean-up) should keep {@code message} out of chat altogether. */
     private boolean hides(Text message) {
         try {
-            return message != null && isEnabled() && filter.get() && filterAction.is("Hide")
-                    && filtered(Formatting.strip(message.getString()));
+            if (message == null || !isEnabled()) return false;
+            String plain = Formatting.strip(message.getString());
+            if (hypixelCleanup.get() && Hypixel.connected() && hypixelNoise(plain)) return true;
+            return filter.get() && filterAction.is("Hide") && filtered(plain);
         } catch (RuntimeException e) {
             return false; // never lose a line to a broken pattern
+        }
+    }
+
+    // ------------------------------------------------------------------ Hypixel clean-up
+
+    /**
+     * Hypixel's routine noise, matched on whole system lines (never on a player's chat, which has "name: text"):
+     * lobby join banners, Mystery Box / Soul Well finds, Watchdog reports and store adverts.
+     */
+    private static final List<Pattern> HYPIXEL_NOISE = List.of(
+            // "[MVP+] Steve joined the lobby!", ">>> [MVP++] Steve slid into the lobby! <<<"
+            Pattern.compile("^\\s*(?:>>>\\s*)?\\[[^\\]]{1,20}] [A-Za-z0-9_]{1,16} [A-Za-z' ]{2,30} lobby!(?:\\s*<<<)?\\s*$"),
+            Pattern.compile("^\\[Mystery Box] "),
+            Pattern.compile("^(?:\\[[^\\]]{1,20}] )?[A-Za-z0-9_]{1,16} found an? .{1,80} in an? (?:Mystery Box|Soul Well)!?$"),
+            Pattern.compile("^\\[WATCHDOG ANNOUNCEMENT]$"),
+            Pattern.compile("^Watchdog has banned [\\d,]+ players? in the last 7 days\\.$"),
+            Pattern.compile("^Staff have banned an additional [\\d,]+ in the last 7 days\\.$"),
+            Pattern.compile("^Blacklisted modifications are a bannable offen[cs]e!$"),
+            Pattern.compile("(?i)^(?!.*: ).*\\bstore\\.hypixel\\.net\\b"));
+
+    /** Whether {@code plain} is one of Hypixel's routine lines (public for the tests). */
+    public static boolean hypixelNoise(String plain) {
+        if (plain == null || plain.isBlank() || isEvadeLine(plain)) return false;
+        for (Pattern p : HYPIXEL_NOISE) if (p.matcher(plain).find()) return true;
+        return false;
+    }
+
+    // ------------------------------------------------------------------ Coords Guard
+
+    /** The message Coords Guard held back last, and when: sending it again within a minute lets it through. */
+    private String heldBack;
+    private long heldBackAt;
+
+    /** ClientSendMessageEvents.ALLOW_CHAT: false holds the message back (once). */
+    private boolean allowSend(String message) {
+        try {
+            if (mc.player == null || mc.isInSingleplayer()) return true;
+            return guard(message, mc.player.getX(), mc.player.getZ());
+        } catch (RuntimeException e) {
+            return true; // never eat a message to a bug
+        }
+    }
+
+    /**
+     * Coords Guard for a message sent while standing at ({@code x}, {@code z}): false (and a warning in chat) the first
+     * time it leaks them, true for anything else, including the same message sent again within a minute. Public for
+     * the tests.
+     */
+    public boolean guard(String message, double x, double z) {
+        if (!isEnabled() || !coordsGuard.get() || message == null) return true;
+        if (isEvadeCommand(message)) return true; // .msg and friends never reach the server
+        if (!leaksCoords(message, x, z)) return true;
+        long now = System.currentTimeMillis();
+        if (message.equals(heldBack) && now - heldBackAt < 60_000) {
+            heldBack = null;
+            return true;
+        }
+        heldBack = message;
+        heldBackAt = now;
+        warnHeldBack(message);
+        return false;
+    }
+
+    private static boolean isEvadeCommand(String message) {
+        if (!message.startsWith(".") || message.startsWith("..")) return false;
+        String[] w = message.substring(1).strip().split("\\s+", 2);
+        return EvadeClient.commands != null && !w[0].isEmpty() && EvadeClient.commands.isCommand(w[0].toLowerCase(Locale.ROOT));
+    }
+
+    private static final Pattern NUMBER = Pattern.compile("(?<![\\w.])-?\\d{1,8}(?:\\.\\d+)?(?![\\w])");
+
+    /**
+     * Whether {@code message} gives away a position within 3 blocks of ({@code x}, {@code z}): two different numbers in
+     * it, one near X and one near Z. Never near spawn (both within 100 blocks of 0), where that means nothing and
+     * small numbers are everywhere. Public for the tests.
+     */
+    public static boolean leaksCoords(String message, double x, double z) {
+        if (message == null || (Math.abs(x) < 100 && Math.abs(z) < 100)) return false;
+        List<Double> nums = new ArrayList<>();
+        Matcher m = NUMBER.matcher(message);
+        while (m.find() && nums.size() < 32) {
+            try { nums.add(Double.parseDouble(m.group())); } catch (NumberFormatException ignored) { }
+        }
+        for (int i = 0; i < nums.size(); i++) {
+            if (Math.abs(nums.get(i) - x) > 3) continue;
+            for (int j = 0; j < nums.size(); j++) if (j != i && Math.abs(nums.get(j) - z) <= 3) return true;
+        }
+        return false;
+    }
+
+    /** "Held back: that message has your coordinates. [Send anyway]" (the button puts it back in the chat box). */
+    private void warnHeldBack(String message) {
+        if (mc.inGameHud == null) return;
+        MutableText line = Text.literal("EVADE » ").formatted(Formatting.RED, Formatting.BOLD);
+        line.append(Text.literal("Held back: your message has your coordinates in it. Send it again to send it anyway. ")
+                .setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
+        line.append(Text.literal("[Send anyway]").setStyle(Style.EMPTY.withColor(Formatting.YELLOW).withBold(true)
+                .withClickEvent(new ClickEvent.SuggestCommand(message))
+                .withHoverEvent(new HoverEvent.ShowText(Text.literal("Puts the message back in the chat box: press Enter to send")))));
+        ownLine++;
+        try {
+            mc.inGameHud.getChatHud().addMessage(line);
+        } finally {
+            ownLine--;
         }
     }
 

@@ -77,6 +77,25 @@ public final class ModrinthApi {
         Sort(String index, String label) { this.index = index; this.label = label; }
     }
 
+    /**
+     * What the browser looks for. Each has its Modrinth project type, the loader its versions are tagged with, and the
+     * search facet that keeps results to ones that work here (Fabric mods; shader packs Iris can load; data packs).
+     */
+    public enum ContentType {
+        MOD("mod", LOADER, "categories:" + LOADER),
+        RESOURCE_PACK("resourcepack", "minecraft", null),
+        SHADER("shader", "iris", "categories:iris|categories:optifine"),
+        DATA_PACK("datapack", "datapack", "categories:datapack");
+
+        public final String projectType, loader, facet;
+
+        ContentType(String projectType, String loader, String facet) {
+            this.projectType = projectType;
+            this.loader = loader;
+            this.facet = facet;
+        }
+    }
+
     /** One search result. */
     public record Hit(String projectId, String slug, String title, String author, String description, long downloads,
                       String iconUrl, List<String> categories, String dateModified) {}
@@ -110,9 +129,21 @@ public final class ModrinthApi {
 
     /** Search Fabric mods for this game version. {@code category} is a Modrinth category slug, or null for all. */
     public SearchPage search(String query, Sort sort, String category, int offset, int limit) throws IOException {
+        return search(ContentType.MOD, query, sort, category, offset, limit);
+    }
+
+    /**
+     * Search one kind of content for this game version. Data packs are searched by their "datapack" loader tag, since
+     * many are listed as mods that also come as a data pack.
+     */
+    public SearchPage search(ContentType type, String query, Sort sort, String category, int offset, int limit) throws IOException {
         JsonArray facets = new JsonArray();
-        facets.add(facet("project_type:mod"));
-        facets.add(facet("categories:" + LOADER));
+        if (type != ContentType.DATA_PACK) facets.add(facet("project_type:" + type.projectType));
+        if (type.facet != null) {
+            JsonArray any = new JsonArray();
+            for (String f : type.facet.split("\\|")) any.add(f);
+            facets.add(any);
+        }
         facets.add(facet("versions:" + GAME_VERSION));
         if (category != null && !category.isBlank()) facets.add(facet("categories:" + category));
         String url = API + "/search?limit=" + limit + "&offset=" + offset + "&index=" + sort.index
@@ -147,12 +178,17 @@ public final class ModrinthApi {
 
     /** Versions of a project for this game version on Fabric, newest first. */
     public List<Version> versions(String projectId) throws IOException {
+        return versions(projectId, ContentType.MOD);
+    }
+
+    /** Versions of a project for this game version, tagged with {@code type}'s loader, newest first. */
+    public List<Version> versions(String projectId, ContentType type) throws IOException {
         String url = API + "/project/" + pathSeg(projectId) + "/version?game_versions=" + enc("[\"" + GAME_VERSION + "\"]")
-                + "&loaders=" + enc("[\"" + LOADER + "\"]");
+                + "&loaders=" + enc("[\"" + type.loader + "\"]");
         List<Version> out = new ArrayList<>();
         for (JsonElement e : get(url).getAsJsonArray()) {
             Version v = version(e.getAsJsonObject());
-            if (v.compatible() && v.primaryFile() != null) out.add(v);
+            if (v.gameVersions().contains(GAME_VERSION) && v.loaders().contains(type.loader) && v.primaryFile() != null) out.add(v);
         }
         return out;
     }

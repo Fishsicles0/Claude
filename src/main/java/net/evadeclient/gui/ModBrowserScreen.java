@@ -2,11 +2,13 @@ package net.evadeclient.gui;
 
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.client.ClientSettings;
+import net.evadeclient.mods.ContentInstaller;
 import net.evadeclient.mods.IconCache;
 import net.evadeclient.mods.InstalledMod;
 import net.evadeclient.mods.ModBrowser;
 import net.evadeclient.mods.ModManager;
 import net.evadeclient.mods.ModrinthApi;
+import net.evadeclient.mods.ModrinthApi.ContentType;
 import net.evadeclient.mods.ModrinthApi.Hit;
 import net.evadeclient.mods.ModrinthApi.Project;
 import net.evadeclient.mods.ModrinthApi.Sort;
@@ -57,6 +59,25 @@ public class ModBrowserScreen extends Screen {
             {"Library", "library"}, {"Adventure", "adventure"}, {"Magic", "magic"}, {"Technology", "technology"},
             {"Food", "food"}, {"Mobs", "mobs"}, {"Transportation", "transportation"}, {"Worldgen", "worldgen"},
             {"Management", "management"}, {"Economy", "economy"}, {"Minigame", "minigame"}};
+    /** Resource pack chips: style, resolution and what the pack changes. */
+    private static final String[][] PACK_CATEGORIES = {
+            {"All", null}, {"Combat", "combat"}, {"Vanilla-like", "vanilla-like"}, {"Simplistic", "simplistic"},
+            {"Realistic", "realistic"}, {"Tweaks", "tweaks"}, {"Utility", "utility"}, {"Themed", "themed"},
+            {"16x", "16x"}, {"32x", "32x"}, {"64x", "64x"}, {"Blocks", "blocks"}, {"Items", "items"},
+            {"Entities", "entities"}, {"GUI", "gui"}, {"Fonts", "fonts"}, {"Audio", "audio"}, {"Models", "models"}};
+    /** Shader pack chips: look, features and how heavy they are. */
+    private static final String[][] SHADER_CATEGORIES = {
+            {"All", null}, {"Potato", "potato"}, {"Low", "low"}, {"Medium", "medium"}, {"High", "high"},
+            {"Vanilla-like", "vanilla-like"}, {"Semi-realistic", "semi-realistic"}, {"Realistic", "realistic"},
+            {"Fantasy", "fantasy"}, {"Cartoon", "cartoon"}, {"Shadows", "shadows"}, {"Reflections", "reflections"},
+            {"Colored Lighting", "colored-lighting"}, {"Path Tracing", "path-tracing"}};
+    /** Data pack chips. */
+    private static final String[][] DATAPACK_CATEGORIES = {
+            {"All", null}, {"Utility", "utility"}, {"Game Mechanics", "game-mechanics"}, {"Worldgen", "worldgen"},
+            {"Adventure", "adventure"}, {"Equipment", "equipment"}, {"Decoration", "decoration"}, {"Mobs", "mobs"},
+            {"Magic", "magic"}, {"Technology", "technology"}, {"Food", "food"}, {"Storage", "storage"}};
+    /** The type tabs: label and content type. */
+    private static final ContentType[] TYPES = {ContentType.MOD, ContentType.RESOURCE_PACK, ContentType.SHADER, ContentType.DATA_PACK};
 
     private static final String WARNING = "Mods come from Modrinth and aren't checked by Evade. Some servers don't allow certain mods: check their rules first.";
     private static final int PAGE = 20;
@@ -66,6 +87,15 @@ public class ModBrowserScreen extends Screen {
     private static String query = "";
     private static Sort sort = Sort.RELEVANCE;
     private static String category;
+    /** Which kind of content Browse shows: mods, resource packs, shader packs or data packs. */
+    private static ContentType type = ContentType.MOD;
+    /** Resource packs, shaders and data packs installed this session ("type:projectId"). */
+    private static final Set<String> contentInstalledNow = new HashSet<>();
+    /** The world a data pack goes into (folder name), picked in the detail panel. */
+    private static String datapackWorld;
+    /** Singleplayer worlds for data packs, re-read every couple of seconds (not every frame). */
+    private List<ContentInstaller.World> worldsCache;
+    private double worldsAt;
     /** Install progress by Modrinth project id ("Installing 40%"), while an install runs. */
     private static final Map<String, String> installing = new HashMap<>();
     /** Projects installed this session (shown as Installed straight away). */
@@ -150,6 +180,16 @@ public class ModBrowserScreen extends Screen {
         open();
     }
 
+    /** Test hook: browse another kind of content (mods, resource packs, shaders, data packs). */
+    public static void setContentTypeForTest(ContentType t) {
+        type = t;
+        category = null;
+        tab = Tab.BROWSE;
+    }
+
+    /** The kind of content Browse shows. */
+    public static ContentType contentType() { return type; }
+
     /** Test hook: run a search right away with these settings. */
     public static void setSearchForTest(String q, String sortIndex, String cat) {
         query = q == null ? "" : q;
@@ -205,7 +245,8 @@ public class ModBrowserScreen extends Screen {
         String q = query;
         Sort s = sort;
         String c = category;
-        ModBrowser.async(() -> browser.manager.api().search(q, s, c, offset, PAGE), page -> {
+        ContentType t = type;
+        ModBrowser.async(() -> browser.manager.api().search(t, q, s, c, offset, PAGE), page -> {
             if (gen != searchGen) return;
             loading = loadingMore = false;
             if (page.offset() != hits.size()) return;
@@ -230,9 +271,10 @@ public class ModBrowserScreen extends Screen {
         detailLoading = true;
         detailScroll.reset();
         int gen = ++detailGen;
+        ContentType t = type;
         ModBrowser.async(() -> {
             ModrinthApi api = browser.manager.api();
-            return new Object[]{api.project(h.projectId()), api.versions(h.projectId())};
+            return new Object[]{api.project(h.projectId()), api.versions(h.projectId(), t)};
         }, r -> {
             if (gen != detailGen) return;
             detailLoading = false;
@@ -285,7 +327,77 @@ public class ModBrowserScreen extends Screen {
     }
 
     private boolean isInstalled(String projectId) {
+        if (type != ContentType.MOD) return contentInstalledNow.contains(type + ":" + projectId);
         return installedNow.contains(projectId) || installedProjects.contains(projectId);
+    }
+
+    /** Switch Browse to another kind of content: a fresh search with that kind's categories. */
+    private void switchType(ContentType t) {
+        if (t == type) return;
+        type = t;
+        category = null;
+        chipScroll = 0;
+        selected = null;
+        detailGen++;
+        plan = null;
+        search(false);
+    }
+
+    private static String[][] categories() {
+        return switch (type) {
+            case RESOURCE_PACK -> PACK_CATEGORIES;
+            case SHADER -> SHADER_CATEGORIES;
+            case DATA_PACK -> DATAPACK_CATEGORIES;
+            default -> CATEGORIES;
+        };
+    }
+
+    private static String typeLabel(ContentType t) {
+        return switch (t) {
+            case RESOURCE_PACK -> "Resource Packs";
+            case SHADER -> "Shaders";
+            case DATA_PACK -> "Data Packs";
+            default -> "Mods";
+        };
+    }
+
+    /** "mods", "resource packs", ... for sentences. */
+    private static String noun(ContentType t) {
+        return typeLabel(t).toLowerCase(Locale.ROOT);
+    }
+
+    /** The project's page on modrinth.com. */
+    private static String pageUrl(ContentType t, String slug) {
+        String kind = switch (t) {
+            case RESOURCE_PACK -> "resourcepack";
+            case SHADER -> "shader";
+            case DATA_PACK -> "datapack";
+            default -> "mod";
+        };
+        return "https://modrinth.com/" + kind + "/" + slug;
+    }
+
+    /** Install a resource pack, shader pack or data pack (one zip, no dependencies). */
+    private void runContentInstall(Hit hit, Version v, String world) {
+        String pid = hit.projectId();
+        ContentType t = type;
+        installing.put(pid, "Starting");
+        ModBrowser.async(() -> ContentInstaller.install(browser.manager.api(), t, world, v, frac -> {
+            String s = (int) Math.round(frac * 100) + "%";
+            MinecraftClient.getInstance().execute(() -> installing.put(pid, s));
+        }), file -> {
+            installing.remove(pid);
+            contentInstalledNow.add(t + ":" + pid);
+            Notifications.push("Installed " + hit.title(), switch (t) {
+                case RESOURCE_PACK -> "Turn it on in Options > Resource Packs";
+                case SHADER -> net.evadeclient.util.ShaderSwitch.irisLoaded() ? "Pick it in Performance > Shader Pack" : "Shaders need Iris: run the Evade installer with Shaders on";
+                default -> "In " + world + ". It loads the next time you open the world (or after /reload)";
+            }, true);
+        }, msg -> {
+            installing.remove(pid);
+            if (msg.equals("Already installed")) contentInstalledNow.add(t + ":" + pid);
+            Notifications.push("Couldn't install " + hit.title(), msg, false);
+        });
     }
 
     private void planInstall(String projectId) {
@@ -516,7 +628,27 @@ public class ModBrowserScreen extends Screen {
         hot(sx + half, sy, sx + segW, sy + 22, () -> { tab = Tab.INSTALLED; rescan(false); });
 
         int subX = bx + 32 + tw + 10;
-        text(ctx, ellipsize(Role.LABEL, sub, sx - 10 - subX), subX, y + 8, Theme.TEXT_DIM, Role.LABEL);
+        if (tab == Tab.BROWSE) {
+            // what to browse: Mods | Resource Packs | Shaders | Data Packs
+            int tx = sx - 10;
+            for (int i = TYPES.length - 1; i >= 0; i--) tx -= width(Role.LABEL, typeLabel(TYPES[i])) + 16;
+            if (tx >= subX) {
+                Theme.roundBordered(ctx, tx - 2, sy, sx - 8, sy + 22, Theme.INPUT, Theme.BORDER);
+                int x = tx;
+                for (ContentType t : TYPES) {
+                    String label = typeLabel(t);
+                    int w = width(Role.LABEL, label) + 16;
+                    boolean on = t == type, hv = hover(x, sy, x + w, sy + 22);
+                    float onA = animate("type:" + t, on ? 1 : 0, 18), hvA = animate("typeH:" + t, hv ? 1 : 0, 22);
+                    if (onA > 0.01f) Theme.round(ctx, x, sy + 2, x + w - 2, sy + 20, Theme.alpha(Theme.RED, 0.9f * onA), Theme.R_XS);
+                    centered(ctx, label, x, x + w - 2, sy + 8, Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, hvA), Theme.ON_ACCENT, onA), Role.LABEL);
+                    hot(x, sy, x + w, sy + 22, () -> switchType(t));
+                    x += w;
+                }
+                sub = null;
+            }
+        }
+        if (sub != null) text(ctx, ellipsize(Role.LABEL, sub, sx - 10 - subX), subX, y + 8, Theme.TEXT_DIM, Role.LABEL);
         Theme.fill(ctx, wx + 16, wy + 44, wx + ww - 16, wy + 45, Theme.DIVIDER);
     }
 
@@ -543,7 +675,7 @@ public class ModBrowserScreen extends Screen {
                 Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, ih), Theme.RED, focus));
         Icons.draw(ctx, "search", cx + 7, cy + 7, 10, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, focus));
         boolean caret = searchFocused && Math.floorMod((long) (now() / 500), 2L) == 0;
-        if (query.isEmpty() && !searchFocused) text(ctx, "Search Modrinth", cx + 22, cy + 8, Theme.TEXT_FAINT, Role.BODY);
+        if (query.isEmpty() && !searchFocused) text(ctx, "Search Modrinth " + noun(type), cx + 22, cy + 8, Theme.TEXT_FAINT, Role.BODY);
         else text(ctx, trimStart(query, inW - 34) + (caret ? "_" : ""), cx + 22, cy + 8, Theme.TEXT, Role.BODY);
         hot(cx, cy, cx + inW, cy + 24, () -> searchFocused = true);
 
@@ -564,13 +696,14 @@ public class ModBrowserScreen extends Screen {
         // category chips (wheel scrolls them sideways)
         int chipY = cy + 32, chipH = 18;
         int chipsW = 0;
-        for (String[] c : CATEGORIES) chipsW += width(Role.LABEL, c[0]) + 18 + 6;
+        String[][] cats = categories();
+        for (String[] c : cats) chipsW += width(Role.LABEL, c[0]) + 18 + 6;
         int maxChip = Math.max(0, chipsW - 6 - cw);
         chipScroll = Math.max(0, Math.min(maxChip, chipScroll));
         overChips = hover(cx, chipY, cx + cw, chipY + chipH);
         pushClip(ctx, cx, chipY - 2, cx + cw, chipY + chipH + 2);
         int x = cx - (int) Math.round(chipScroll);
-        for (String[] c : CATEGORIES) {
+        for (String[] c : cats) {
             int w = width(Role.LABEL, c[0]) + 18;
             boolean on = c[1] == null ? category == null : c[1].equals(category);
             boolean hv = hover(x, chipY, x + w, chipY + chipH);
@@ -644,7 +777,7 @@ public class ModBrowserScreen extends Screen {
             centered(ctx, "Try again", bx, bx + bw, by + 6, Theme.TEXT, Role.LABEL);
             hot(bx, by, bx + bw, by + 20, () -> search(false));
         } else if (hits.isEmpty()) {
-            centered(ctx, query.isBlank() ? "Nothing here" : "No mods match \"" + ellipsize(Role.BODY, query, 200) + "\"", x, x + w, y + 30, Theme.TEXT_DIM, Role.BODY);
+            centered(ctx, query.isBlank() ? "Nothing here" : "No " + noun(type) + " match \"" + ellipsize(Role.BODY, query, 200) + "\"", x, x + w, y + 30, Theme.TEXT_DIM, Role.BODY);
         }
         // more pages as the list nears its end
         if (!loading && !loadingMore && error == null && hits.size() < total && s.target >= s.max - 160) search(true);
@@ -742,10 +875,11 @@ public class ModBrowserScreen extends Screen {
                 button(ctx, "link", x, y, x + lw, y + 18, hl, Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.RED);
                 centered(ctx, link, x, x + lw, y + 5, Theme.TEXT_SOFT, Role.LABEL);
                 String slug = project.slug() != null ? project.slug() : project.id();
-                hot(x, y, x + lw, y + 18, () -> ConfirmLinkScreen.open(this, "https://modrinth.com/mod/" + slug));
+                ContentType pt = type;
+                hot(x, y, x + lw, y + 18, () -> ConfirmLinkScreen.open(this, pageUrl(pt, slug)));
                 y += 26;
 
-                y = section(ctx, "Versions for Fabric " + ModrinthApi.GAME_VERSION, x, y, w);
+                y = section(ctx, (type == ContentType.MOD ? "Versions for Fabric " : "Versions for ") + ModrinthApi.GAME_VERSION, x, y, w);
                 if (versions == null || versions.isEmpty()) {
                     text(ctx, "None yet", x, y, Theme.TEXT_DIM, Role.LABEL);
                     y += 12;
@@ -806,6 +940,7 @@ public class ModBrowserScreen extends Screen {
             centered(ctx, "Installed", x, x + w, y + 8, Theme.OK, Role.STRONG);
             return y + 24;
         }
+        if (type != ContentType.MOD) return renderContentInstall(ctx, hit, x, y, w);
         if (plan != null && plan.projectId().equals(pid)) return renderPlan(ctx, x, y, w);
         boolean hv = hover(x, y, x + w, y + 24) && !planning;
         button(ctx, "install", x, y, x + w, y + 24, hv, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
@@ -816,6 +951,67 @@ public class ModBrowserScreen extends Screen {
             y += 4;
             for (String line : wrap(Role.LABEL, planError, w)) { text(ctx, line, x, y, Theme.DANGER, Role.LABEL); y += 11; }
         }
+        return y;
+    }
+
+    /**
+     * The Install box for a resource pack, shader pack or data pack: installs the newest version straight into its
+     * folder. Data packs first pick one of your singleplayer worlds.
+     */
+    private int renderContentInstall(DrawContext ctx, Hit hit, int x, int y, int w) {
+        if (detailLoading) {
+            Theme.roundBordered(ctx, x, y, x + w, y + 24, Theme.CONTROL, Theme.BORDER);
+            centered(ctx, "Loading...", x, x + w, y + 8, Theme.TEXT_DIM, Role.STRONG);
+            return y + 24;
+        }
+        Version v = versions == null ? null : ContentInstaller.newest(versions);
+        if (v == null) {
+            for (String line : wrap(Role.LABEL, "No version for Minecraft " + ModrinthApi.GAME_VERSION + " yet", w)) { text(ctx, line, x, y, Theme.TEXT_DIM, Role.LABEL); y += 11; }
+            return y;
+        }
+        List<ContentInstaller.World> worlds = List.of();
+        if (type == ContentType.DATA_PACK) {
+            if (worldsCache == null || now() - worldsAt > 2000) { worldsCache = ContentInstaller.worlds(6); worldsAt = now(); }
+            worlds = worldsCache;
+            if (worlds.isEmpty()) {
+                for (String line : wrap(Role.LABEL, "Data packs go into a singleplayer world. Create a world first, then come back.", w)) {
+                    text(ctx, line, x, y, Theme.TEXT_DIM, Role.LABEL);
+                    y += 11;
+                }
+                return y;
+            }
+            boolean known = false;
+            for (ContentInstaller.World wd : worlds) if (wd.folder().equals(datapackWorld)) known = true;
+            if (!known) datapackWorld = worlds.get(0).folder();
+            text(ctx, "ADD TO WORLD", x, y, Theme.TEXT_HEADER, Role.CAPS);
+            y += 12;
+            for (ContentInstaller.World wd : worlds) {
+                boolean on = wd.folder().equals(datapackWorld), hv = hover(x, y, x + w, y + 18);
+                Theme.roundBordered(ctx, x, y, x + w, y + 18, on ? Theme.tint(0.16f) : hv ? Theme.CONTROL_HOVER : Theme.CONTROL, on ? Theme.RED : Theme.BORDER);
+                text(ctx, ellipsize(Role.LABEL, wd.folder(), w - 16), x + 8, y + 5, on ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
+                String folder = wd.folder();
+                hot(x, y, x + w, y + 18, () -> datapackWorld = folder);
+                y += 21;
+            }
+            y += 3;
+        }
+        String world = type == ContentType.DATA_PACK ? datapackWorld : null;
+        String pid = hit.projectId();
+        if (isInstalled(pid) || ContentInstaller.present(type, world, v)) {
+            Theme.roundBordered(ctx, x, y, x + w, y + 24, Theme.alpha(Theme.OK, 0.12f), Theme.alpha(Theme.OK, 0.6f));
+            centered(ctx, "Installed", x, x + w, y + 8, Theme.OK, Role.STRONG);
+            y += 24;
+        } else {
+            boolean hv = hover(x, y, x + w, y + 24);
+            button(ctx, "install", x, y, x + w, y + 24, hv, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
+            centered(ctx, "Install " + v.versionNumber(), x, x + w, y + 8, Theme.ON_ACCENT, Role.STRONG);
+            hot(x, y, x + w, y + 24, () -> runContentInstall(hit, v, world));
+            y += 24;
+        }
+        String where = "Into " + ContentInstaller.describe(type, world);
+        if (type == ContentType.SHADER && !net.evadeclient.util.ShaderSwitch.irisLoaded()) where = "Shader packs need Iris: run the Evade installer with Shaders on";
+        y += 4;
+        for (String line : wrap(Role.SMALL, where, w)) { text(ctx, line, x, y, type == ContentType.SHADER && !net.evadeclient.util.ShaderSwitch.irisLoaded() ? Theme.WARN : Theme.TEXT_FAINT, Role.SMALL); y += 10; }
         return y;
     }
 

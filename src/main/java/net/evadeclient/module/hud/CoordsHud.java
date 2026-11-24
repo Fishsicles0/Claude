@@ -107,6 +107,12 @@ public class CoordsHud extends TextHudModule {
             out.add(extra("Coords hidden by server"));
             return out;
         }
+        if (net.evadeclient.module.misc.StreamerMode.hidesCoordinates()) {
+            if (preview) return sample();
+            List<Text> out = new ArrayList<>(1);
+            out.add(extra("Coords hidden (Streamer Mode)"));
+            return out;
+        }
         List<Text> out = new ArrayList<>(8);
         position(out, p.getX(), p.getY(), p.getZ());
         if (nether.get()) {
@@ -248,6 +254,7 @@ public class CoordsHud extends TextHudModule {
     private static String unavailable() {
         if (mc.player == null || mc.world == null) return "Join a world first";
         if (mc.player.hasReducedDebugInfo()) return "This server hides coordinates";
+        if (net.evadeclient.module.misc.StreamerMode.hidesCoordinates()) return "Streamer Mode is hiding your coordinates";
         return null;
     }
 

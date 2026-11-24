@@ -6,13 +6,16 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Turns Iris shaders on or off and switches between the packs the installer adds (Photon, and the lighter
- * Complementary Reimagined), without opening Iris' own screens. Iris is optional: everything here is reflection and
+ * Turns Iris shaders on or off and switches between shader packs, without opening Iris' own screens: the two the
+ * installer adds (Photon, and the lighter Complementary Reimagined) by name, or any pack in shaderpacks/ through
+ * {@link #listPacks()} and {@link #applyPack(String)} (the Shader Pack picker). Iris is optional: everything here is reflection and
  * does nothing when Iris isn't installed. Render thread only (Iris reloads its pipeline).
  */
 public final class ShaderSwitch {
@@ -32,6 +35,93 @@ public final class ShaderSwitch {
             }
         } catch (Throwable t) {
             return Optional.empty();
+        }
+    }
+
+    /** The shaderpacks folder: Iris' own when it's loaded, else the game folder's (where Iris would look). */
+    public static Path packsDir() {
+        if (irisLoaded()) {
+            try {
+                Path dir = (Path) Class.forName("net.irisshaders.iris.Iris").getMethod("getShaderpacksDirectory").invoke(null);
+                if (dir != null) return dir;
+            } catch (Throwable ignored) {
+                // fall back below
+            }
+        }
+        return FabricLoader.getInstance().getGameDir().resolve("shaderpacks");
+    }
+
+    /**
+     * Every shader pack in shaderpacks/: zip files, and folders that hold a {@code shaders} folder (an unzipped
+     * pack), sorted by name. Empty when there's no folder.
+     */
+    public static List<String> listPacks() {
+        List<String> out = new ArrayList<>();
+        Path dir = packsDir();
+        if (!Files.isDirectory(dir)) return out;
+        try (Stream<Path> s = Files.list(dir)) {
+            s.forEach(f -> {
+                String n = f.getFileName().toString();
+                if (n.startsWith(".")) return;
+                if (Files.isRegularFile(f) && n.toLowerCase(Locale.ROOT).endsWith(".zip")) out.add(n);
+                else if (Files.isDirectory(f) && Files.isDirectory(f.resolve("shaders"))) out.add(n);
+            });
+        } catch (Exception e) {
+            EvadeClient.LOG.warn("Shaders: couldn't list {}", dir, e);
+        }
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return out;
+    }
+
+    /** The pack Iris has selected (whether or not shaders are on), if any. */
+    public static Optional<String> selectedPack() {
+        if (!irisLoaded()) return Optional.empty();
+        try {
+            Object cfg = config();
+            @SuppressWarnings("unchecked")
+            Optional<String> pack = (Optional<String>) cfg.getClass().getMethod("getShaderPackName").invoke(cfg);
+            return pack;
+        } catch (Throwable t) {
+            return Optional.empty();
+        }
+    }
+
+    /** Whether Iris has shaders switched on (a pack may still fail to load). */
+    public static boolean enabled() {
+        if (!irisLoaded()) return false;
+        try {
+            Object cfg = config();
+            return (boolean) cfg.getClass().getMethod("areShadersEnabled").invoke(cfg);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** A pack's file name as players know it: "Photon", "Complementary", else the name without ".zip". */
+    public static String displayName(String file) { return pretty(file); }
+
+    /**
+     * Turns shaders on with {@code file} from shaderpacks/ (any pack, not only the installer's), or off when
+     * {@code file} is null. Returns a message for the player. Render thread only.
+     */
+    public static String applyPack(String file) {
+        if (!irisLoaded()) return "Shaders need Iris. Run the Evade installer again with Shaders switched on.";
+        if (file != null && !listPacks().contains(file)) return file + " isn't in your shaderpacks folder any more.";
+        try {
+            Object cfg = config();
+            Class<?> c = cfg.getClass();
+            if (file == null) {
+                c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, false);
+            } else {
+                c.getMethod("setShaderPackName", String.class).invoke(cfg, file);
+                c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, true);
+            }
+            c.getMethod("save").invoke(cfg);
+            Class.forName("net.irisshaders.iris.Iris").getMethod("reload").invoke(null);
+            return file == null ? "Shaders off" : pretty(file) + " shaders on";
+        } catch (Throwable t) {
+            EvadeClient.LOG.warn("Shaders: couldn't switch to {}", file, t);
+            return "Couldn't switch shaders: " + t.getClass().getSimpleName();
         }
     }
 

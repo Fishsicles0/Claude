@@ -33,6 +33,8 @@ public class HypixelStats extends Module {
             .describe("What to show after each name. Auto picks the stat of the game you're in (from the scoreboard), else network level."));
     private final BooleanSetting showSelf = add(new BooleanSetting("Show Yourself", true)
             .describe("Also show your own stat in the tab list."));
+    private final BooleanSetting showInChat = add(new BooleanSetting("Show In Chat", false)
+            .describe("Also puts the stat in front of chat messages from players in the tab list (only ones already looked up)."));
     /** The key itself: saved in the config but hidden, so it is never shown, searched or put in a profile code. */
     private final StringSetting apiKey = add(new StringSetting("API Key Value", "", "").maxLength(64).hidden());
     @SuppressWarnings("unused")
@@ -48,8 +50,8 @@ public class HypixelStats extends Module {
     private String autoStat = "Network Level";
 
     public HypixelStats() {
-        super("Hypixel Stats", "Shows Hypixel stats (BedWars star, SkyWars level, network level) next to names in the tab list. "
-                + "Needs your own Hypixel API key from developer.hypixel.net.", Category.MISC);
+        super("Hypixel Stats", "Shows Hypixel stats (BedWars star, SkyWars level, network level) next to names in the tab list "
+                + "(and optionally in chat). Needs your own Hypixel API key from developer.hypixel.net.", Category.MISC);
     }
 
     public static HypixelStats instance() {
@@ -120,6 +122,37 @@ public class HypixelStats extends Module {
         Text suffix = m.format(s);
         if (suffix == null) return name;
         return Text.empty().append(name).append(Text.literal(" ")).append(suffix);
+    }
+
+    /** "[MVP+] Steve: hi" -> Steve: the last word before the first ": " that is a player in the tab list. */
+    private static final java.util.regex.Pattern WORD = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,16}");
+
+    /**
+     * Show In Chat: {@code message} with the sender's stat in front ("[312✫] [MVP+] Steve: gg"), or unchanged. The
+     * sender must be in the tab list (its UUID comes from there, never from the chat text) and already looked up:
+     * a lookup is queued for next time, so this never waits for the network. Render thread.
+     */
+    public static Text chatDecorate(Text message) {
+        HypixelStats m = instance();
+        if (m == null || message == null || !m.isEnabled() || !m.showInChat.get() || !m.hasKey() || !Hypixel.connected()) return message;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        var handler = mc.getNetworkHandler();
+        if (handler == null) return message;
+        String plain = Formatting.strip(message.getString());
+        int colon = plain == null ? -1 : plain.indexOf(": ");
+        if (colon <= 0 || colon > 80) return message;
+        String[] words = plain.substring(0, colon).split("[\\s\\[\\]<>()]+");
+        for (int i = words.length - 1; i >= 0; i--) {
+            if (!WORD.matcher(words[i]).matches()) continue;
+            PlayerListEntry e = handler.getPlayerListEntry(words[i]);
+            if (e == null) continue;
+            UUID id = e.getProfile().id();
+            if (!m.showSelf.get() && mc.player != null && mc.player.getUuid().equals(id)) return message;
+            HypixelApi.Stats s = HypixelApi.lookup(id);
+            Text stat = s == null || !s.found() ? null : m.format(s);
+            return stat == null ? message : Text.empty().append(stat).append(Text.literal(" ")).append(message);
+        }
+        return message;
     }
 
     private Text format(HypixelApi.Stats s) {

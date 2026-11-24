@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
  *   java -jar EvadeInstaller.jar --minimized          start in the tray only (how Evade Client starts it with Minecraft)
  *   java -jar EvadeInstaller.jar --clips              open the window on the Clips section
  *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods] [--no-clips] [--shaders]
+ *                     [--no-pack-features] [--dynamic-lights]
  *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every page to PNG (no display needed)
  * </pre>
  */
@@ -125,6 +126,8 @@ public final class EvadeInstaller {
         boolean perf = !a.contains("--no-performance-mods");
         boolean clips = !a.contains("--no-clips"); // ffmpeg for the built-in Evade Clips (Windows)
         boolean shaders = a.contains("--shaders");
+        boolean packFeatures = !a.contains("--no-pack-features"); // connected textures, CIT, ETF/EMF, custom skies
+        boolean dynamicLights = a.contains("--dynamic-lights");
         InstallerCore core = new InstallerCore();
         System.out.println("Evade Installer");
         System.out.println("Minecraft folder: " + mc);
@@ -139,11 +142,16 @@ public final class EvadeInstaller {
                 voice && r.voiceChat() != null ? ", Simple Voice Chat " + r.voiceChat().version() + " (from Modrinth)" : "");
         if (perf && !r.performance().isEmpty())
             System.out.println("Performance mods (from Modrinth): " + String.join(", ", r.performance().stream().map(m -> m.name() + " " + m.version()).toList()));
+        if (packFeatures && !r.packFeatures().isEmpty())
+            System.out.println("Resource pack features (from Modrinth): " + String.join(", ", r.packFeatures().stream().map(m -> m.name() + " " + m.version()).toList()));
+        if (dynamicLights && r.dynamicLights() != null)
+            System.out.println("Dynamic lights (from Modrinth): " + r.dynamicLights().name() + " " + r.dynamicLights().version());
         System.out.println("Memory: " + mem + " GB");
         int[] last = {-1};
         List<String> skipped;
         try {
-            skipped = core.install(new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), mem, copy, voice, perf, clips, shaders), r, (f, msg) -> {
+            skipped = core.install(new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), mem, copy, voice, perf, clips, shaders,
+                    InstallerCore.PROFILE_KEY, InstallerCore.PROFILE_NAME, null, packFeatures, dynamicLights), r, (f, msg) -> {
                 int pct = (int) Math.round(f * 100);
                 if (msg != null || pct / 10 != last[0] / 10) {
                     System.out.printf("[%3d%%] %s%n", pct, msg != null ? msg : "");

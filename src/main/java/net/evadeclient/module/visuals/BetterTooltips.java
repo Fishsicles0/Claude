@@ -4,10 +4,16 @@ import com.google.gson.JsonObject;
 import net.evadeclient.module.Category;
 import net.evadeclient.module.Module;
 import net.evadeclient.module.ModuleManager;
+import net.evadeclient.module.visuals.tooltip.BannerPreviewComponent;
+import net.evadeclient.module.visuals.tooltip.BannerPreviewData;
+import net.evadeclient.module.visuals.tooltip.BookPreviewComponent;
+import net.evadeclient.module.visuals.tooltip.BookPreviewData;
 import net.evadeclient.module.visuals.tooltip.ContainerPreviewComponent;
 import net.evadeclient.module.visuals.tooltip.ContainerPreviewData;
 import net.evadeclient.module.visuals.tooltip.FoodPreviewComponent;
 import net.evadeclient.module.visuals.tooltip.FoodPreviewData;
+import net.evadeclient.module.visuals.tooltip.MapPreviewComponent;
+import net.evadeclient.module.visuals.tooltip.MapPreviewData;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.ModeSetting;
 import net.evadeclient.setting.NumberSetting;
@@ -28,7 +34,15 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ConsumableComponent;
+import net.minecraft.block.entity.BannerPattern;
+import net.minecraft.component.type.BannerPatternsComponent;
 import net.minecraft.component.type.ContainerComponent;
+import net.minecraft.component.type.MapIdComponent;
+import net.minecraft.component.type.WritableBookContentComponent;
+import net.minecraft.component.type.WrittenBookContentComponent;
+import net.minecraft.item.BannerItem;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.component.type.FoodComponent;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.component.type.TooltipDisplayComponent;
@@ -80,6 +94,8 @@ import java.util.Map;
  *   <li>Durability in several formats, an Unbreaking estimate of uses left and a low-durability warning.</li>
  *   <li>Food as text or hunger-bar shanks, its saturation, and the effects eating it gives.</li>
  *   <li>Prior anvil work and furnace fuel time.</li>
+ *   <li>Previews: a filled map's picture (from map data your game already has), a book's first page, and a banner or
+ *   banner pattern drawn as a large flag.</li>
  * </ul>
  * Anything a server hid from the tooltip (tooltip_display) stays hidden.
  */
@@ -138,6 +154,16 @@ public class BetterTooltips extends Module {
             .describe("Shows the extra levels earlier anvil work adds to the next repair; red once the anvil would call it too expensive."));
     public final BooleanSetting fuelTime = add(new BooleanSetting("Fuel Time", false)
             .describe("Shows how many items a fuel smelts in a furnace, and for how long it burns."));
+    // ---------------------------------------------------------------- previews
+    public final BooleanSetting mapPreview = add(new BooleanSetting("Map Preview", true)
+            .describe("Filled maps show their picture, for maps your game already has (ones you've held or seen in an item frame)."));
+    public final NumberSetting mapSize = add(new NumberSetting("Map Preview Size", 96, 64, 128, 16)
+            .describe("How big the map picture is, in GUI pixels."));
+    public final BooleanSetting bookPreview = add(new BooleanSetting("Book Preview", true)
+            .describe("Written books and books and quills show their first page and how many pages they have."));
+    public final BooleanSetting bannerPreview = add(new BooleanSetting("Banner Preview", true)
+            .describe("Banners show a large flag with all their patterns; banner pattern items show their pattern on a white banner."));
+
     public final BooleanSetting detailsNeedShift = add(new BooleanSetting("Details Need Shift", false)
             .describe("Hides the extra lines (durability, food, anvil, fuel) until you hold Shift. Container previews always show."));
 
@@ -186,6 +212,9 @@ public class BetterTooltips extends Module {
     private static TooltipComponent component(TooltipData data) {
         if (data instanceof ContainerPreviewData d) return new ContainerPreviewComponent(d);
         if (data instanceof FoodPreviewData f) return new FoodPreviewComponent(f);
+        if (data instanceof MapPreviewData m) return new MapPreviewComponent(m);
+        if (data instanceof BookPreviewData b) return new BookPreviewComponent(b);
+        if (data instanceof BannerPreviewData b) return new BannerPreviewComponent(b);
         return null;
     }
 
@@ -296,9 +325,44 @@ public class BetterTooltips extends Module {
             }
         }
 
+        TooltipData preview = preview(stack, display);
+        if (preview != null) return preview;
+
         if (foodIcons(stack, display) && (!detailsNeedShift.get() || shift)) {
             FoodComponent f = stack.get(DataComponentTypes.FOOD);
             return new FoodPreviewData(f.nutrition(), f.saturation(), showSaturation.get());
+        }
+        return null;
+    }
+
+    /**
+     * Map, book and banner previews, or null. Only from what the item itself carries (and map data the game already
+     * has): nothing is asked of the server. A server's tooltip_display hiding a component hides its preview too.
+     */
+    private TooltipData preview(ItemStack stack, TooltipDisplayComponent display) {
+        if (mapPreview.get() && stack.isOf(Items.FILLED_MAP) && mc.world != null) {
+            MapIdComponent id = stack.get(DataComponentTypes.MAP_ID);
+            if (id != null && mc.world.getMapState(id) != null) return new MapPreviewData(id, mapSize.getInt());
+        }
+        if (bookPreview.get()) {
+            WrittenBookContentComponent written = stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+            if (written != null && !written.pages().isEmpty() && display.shouldDisplay(DataComponentTypes.WRITTEN_BOOK_CONTENT))
+                return new BookPreviewData(written.pages().get(0).get(mc.shouldFilterText()), written.pages().size());
+            WritableBookContentComponent writable = stack.get(DataComponentTypes.WRITABLE_BOOK_CONTENT);
+            if (writable != null && !writable.pages().isEmpty() && display.shouldDisplay(DataComponentTypes.WRITABLE_BOOK_CONTENT))
+                return new BookPreviewData(Text.literal(writable.pages().get(0).get(mc.shouldFilterText())), writable.pages().size());
+        }
+        if (bannerPreview.get()) {
+            if (stack.getItem() instanceof BannerItem banner && display.shouldDisplay(DataComponentTypes.BANNER_PATTERNS)) {
+                BannerPatternsComponent patterns = stack.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT);
+                if (!patterns.layers().isEmpty()) return new BannerPreviewData(banner.getColor(), patterns);
+            }
+            TagKey<BannerPattern> provides = stack.get(DataComponentTypes.PROVIDES_BANNER_PATTERNS);
+            if (provides != null && mc.world != null) {
+                for (RegistryEntry<BannerPattern> p : mc.world.getRegistryManager().getOrThrow(RegistryKeys.BANNER_PATTERN).iterateEntries(provides)) {
+                    return new BannerPreviewData(DyeColor.WHITE, new BannerPatternsComponent.Builder().add(p, DyeColor.BLACK).build());
+                }
+            }
         }
         return null;
     }

@@ -3,7 +3,10 @@ package net.evadeclient.setting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
-/** An ARGB colour chosen from a palette of swatches. */
+/**
+ * An ARGB colour, picked from a palette of swatches or with the full colour picker (saturation/value square, hue,
+ * alpha, hex). A colour can be linked to a Chroma toggle ({@link #chroma(BooleanSetting)}); the picker then offers it.
+ */
 public class ColorSetting extends Setting<Integer> {
     public static final int[] PALETTE = {
             0xFFE11D2E, 0xFFFF4D5E, 0xFF9B111E, 0xFFFFFFFF, 0xFFB8B8C0, 0xFF5A5A66,
@@ -12,7 +15,36 @@ public class ColorSetting extends Setting<Integer> {
     /** Hit Color's old default blue, which isn't a swatch; saved copies of it load as the palette blue. */
     private static final int LEGACY_BLUE = 0xFF3B82F6, PALETTE_BLUE = 0xFF3D7BFF;
 
+    /** The toggle that makes whatever this colour paints cycle through the rainbow, or null when it has none. */
+    private BooleanSetting chroma;
+    /** Whether the picker's alpha strip applies (colours drawn opaque by their widget leave it off). */
+    private boolean alpha = true;
+
     public ColorSetting(String name, int argb) { super(name, argb); }
+
+    /** Link the Chroma toggle that goes with this colour, so the colour picker can show it. */
+    public ColorSetting chroma(BooleanSetting toggle) {
+        this.chroma = toggle;
+        return this;
+    }
+
+    /** The linked Chroma toggle, or null when this colour has none. */
+    public BooleanSetting chromaSetting() { return chroma; }
+
+    /** Hide the picker's alpha strip for a colour its widget always draws opaque. */
+    public ColorSetting opaque() {
+        this.alpha = false;
+        return this;
+    }
+
+    /** Whether the picker offers transparency for this colour. */
+    public boolean hasAlpha() { return alpha; }
+
+    /**
+     * Whether a value of 0 alpha means "follow the theme" here (Keystrokes' key colours start that way). The picker
+     * then offers a Theme button instead of treating the colour as fully transparent.
+     */
+    public boolean followsTheme() { return getDefault() >>> 24 == 0; }
 
     @Override public JsonElement toJson() { return new JsonPrimitive(value); }
 

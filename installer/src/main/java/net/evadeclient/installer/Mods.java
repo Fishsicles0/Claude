@@ -218,6 +218,7 @@ final class Mods {
                 }
             }
             String needOption = InstallerCore.optionForSlug(slug);
+            if (needOption != null && optionOn(gameDir, needOption)) continue; // Play installs it with the option
             if (needOption != null) {
                 throw new IOException(hit.title() + " needs " + title + ", which comes with " + needOption + ". Switch on " + needOption
                         + " for this instance in Instances, then install it again.");
@@ -273,6 +274,34 @@ final class Mods {
         }
         p.update(1, "Installed");
         return names;
+    }
+
+    /** Whether the instance has an Evade option ("FPS mods", "Shaders", ...) switched on in its evade-instance.json. */
+    static boolean optionOn(Path gameDir, String option) {
+        JsonObject o = InstallerCore.readJsonObject(gameDir.resolve(Launcher.INSTANCE_FILE));
+        String key = switch (option) {
+            case "FPS mods" -> "perf";
+            case "Shaders" -> "shaders";
+            case "Voice chat" -> "voice";
+            case "Pack features" -> "packs";
+            case "Dynamic lights" -> "lights";
+            default -> null;
+        };
+        if (key == null || !o.has(key)) return false;
+        try { return o.get(key).getAsBoolean(); } catch (RuntimeException e) { return false; }
+    }
+
+    /** The Evade option that brings a mod id ("sodium" -> "FPS mods"), or null when the id isn't one Evade manages. */
+    static String optionForModId(String id) {
+        if (id == null) return null;
+        return switch (id) {
+            case "fabric-api", "fabric" -> "Evade";
+            case "sodium", "lithium", "ferritecore", "immediatelyfast", "entityculling", "moreculling", "krypton", "badoptimizations",
+                 "sodium-extra", "fastip", "fastquit" -> "FPS mods";
+            case "iris" -> "Shaders";
+            case "voicechat" -> "Voice chat";
+            default -> null;
+        };
     }
 
     /** 12345678 -> "12.3M". */
