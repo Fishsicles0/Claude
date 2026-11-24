@@ -92,7 +92,6 @@ public final class SocialClient {
         SocialJoin.init();
         SocialPresence.init();
         OpenToFriends.init();
-        net.evadeclient.gui.title.Discover.init();
     }
 
     public static SocialState state() { return state; }

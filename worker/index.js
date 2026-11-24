@@ -501,12 +501,7 @@ async function backupRoute(req, env, url, store) {
  * marks servers that run the Evade Server API plugin. The client pings each one itself and only ever joins when the
  * player clicks Join and confirms.
  */
-const DISCOVER = [
-  { name: "Hypixel", address: "mc.hypixel.net", description: "Minigames: Bed Wars, SkyBlock, Duels and more", tags: ["minigames", "pvp"], evade: false },
-  { name: "Wynncraft", address: "play.wynncraft.com", description: "A huge MMORPG with quests and dungeons", tags: ["rpg"], evade: false },
-  { name: "CubeCraft", address: "play.cubecraft.net", description: "EggWars, SkyWars, parkour and more", tags: ["minigames"], evade: false },
-  { name: "Minemen Club", address: "minemen.club", description: "Competitive PvP practice", tags: ["pvp"], evade: false },
-];
+const DISCOVER = []; // no featured servers
 /** The Discover list (a function, not the array: the Workers runtime only expects classes and functions as exports). */
 export function discoverList() { return DISCOVER; }
 
