@@ -144,6 +144,8 @@ final class Launcher {
         boolean perf = true, shaders = false, voice = true;
         /** Resource pack features (connected textures, CIT, ETF/EMF, skies; on by default) and dynamic lights (off). */
         boolean packs = true, lights = false;
+        /** The {@link OptionalMods} groups switched on (all off by default). */
+        Set<String> optional = new java.util.LinkedHashSet<>();
         /** Options changed since the last install: Play brings the folder in line first. */
         boolean dirty;
         String created;
@@ -205,6 +207,7 @@ final class Launcher {
                 i.shaders = notBlank(InstallerCore.str(marker, "shaders"));
                 if (marker.has("packFeatures")) i.packs = notBlank(InstallerCore.str(marker, "packFeatures"));
                 i.lights = notBlank(InstallerCore.str(marker, "dynamicLights"));
+                if (marker.has("optional") && marker.get("optional").isJsonObject()) i.optional = OptionalMods.clean(marker.getAsJsonObject("optional").keySet());
             }
             i.memoryGb = profileMemory(s.minecraftDir(), i.profileKey(), s.defaultMemoryGb);
         } else {
@@ -214,6 +217,7 @@ final class Launcher {
             i.voice = bool(o, "voice", true);
             i.packs = bool(o, "packs", true);
             i.lights = bool(o, "lights", false);
+            i.optional = readOptional(o);
             i.dirty = bool(o, "dirty", false);
             i.created = InstallerCore.str(o, "created");
             i.javaDirWritten = InstallerCore.str(o, "javaDir");
@@ -234,7 +238,7 @@ final class Launcher {
 
     /** Works out {@link Instance#pending} against the release on evadeclient.com (unknown while it's being checked). */
     static void check(Instance i, InstallerCore.Release r) {
-        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders, i.packs, i.lights);
+        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders, i.packs, i.lights, i.optional);
     }
 
     static void save(Instance i) throws IOException {
@@ -246,6 +250,7 @@ final class Launcher {
         o.addProperty("voice", i.voice);
         o.addProperty("packs", i.packs);
         o.addProperty("lights", i.lights);
+        o.add("optional", ContentApi.array(OptionalMods.clean(i.optional)));
         o.addProperty("dirty", i.dirty);
         o.addProperty("created", i.created != null ? i.created : Instant.now().toString());
         if (i.javaDirWritten != null) o.addProperty("javaDir", i.javaDirWritten);
@@ -254,6 +259,15 @@ final class Launcher {
     }
 
     private static boolean notBlank(String s) { return s != null && !s.isBlank(); }
+
+    /** The optional extras switched on in an evade-instance.json (or instance zip manifest). */
+    static Set<String> readOptional(JsonObject o) {
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        try {
+            if (o.has("optional") && o.get("optional").isJsonArray()) for (var e : o.getAsJsonArray("optional")) if (e.isJsonPrimitive()) keys.add(e.getAsString());
+        } catch (RuntimeException ignored) { }
+        return OptionalMods.clean(keys);
+    }
 
     private static int num(JsonObject o, String k, int def) {
         try { return o.has(k) ? o.get(k).getAsInt() : def; } catch (RuntimeException e) { return def; }
@@ -346,6 +360,7 @@ final class Launcher {
         i.voice = src.voice;
         i.packs = src.packs;
         i.lights = src.lights;
+        i.optional = new java.util.LinkedHashSet<>(src.optional);
         i.dirty = src.dirty;
         i.created = Instant.now().toString();
         copyTree(src.dir, i.dir, Set.of("logs", "crash-reports", ".evade-staging", INSTANCE_FILE, "debug", "screenshots", GameState.DIR));
@@ -389,7 +404,7 @@ final class Launcher {
             else if (i.javaDirWritten != null) java = "";
         }
         return new InstallerCore.Options(s.minecraftDir(), i.dir, i.memoryGb, copySettings, i.voice, i.perf, updateClips, i.shaders,
-                i.profileKey(), i.profileName(), java, i.packs, i.lights);
+                i.profileKey(), i.profileName(), java, i.packs, i.lights, i.optional);
     }
 
     /** Copies a folder tree, leaving out top-level entries named in {@code skip}. */

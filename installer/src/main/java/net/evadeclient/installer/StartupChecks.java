@@ -45,7 +45,7 @@ final class StartupChecks {
                     try { for (Content.Pack p : Content.packs(i.dir, t, null)) if (!p.folder()) files.put(p.file(), t); } catch (RuntimeException ignored) { }
                 }
                 if (files.isEmpty()) continue;
-                int n = (int) Updates.check(files).values().stream().filter(Updates.Known::hasUpdate).count();
+                int n = ContentPins.unpinnedUpdates(i.dir, Updates.check(files).values()).size(); // pinned ones aren't news
                 if (n > 0) report.accept(i, n);
             } catch (Exception e) {
                 return; // offline or Modrinth unavailable: try again next start

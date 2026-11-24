@@ -347,6 +347,8 @@ public class ProfileManager {
     public enum ImportError {
         EMPTY("Nothing to import", "Copy an Evade profile code first"),
         NOT_A_CODE("Not a profile code", "Copy an Evade profile code first"),
+        /** An Evade Launcher instance code (EVI1-, or EVADE1- from launchers before 2.5): a different kind of code. */
+        INSTANCE_CODE("That's an instance code", "Paste it in the Evade Launcher: Mods, Modpacks & sharing"),
         INVALID("Invalid profile code", "It looks damaged or cut off; copy it again"),
         TOO_LARGE("Invalid profile code", "That code is too large to be a profile"),
         NEWER("Profile from a newer Evade", "Update Evade to import this code"),
@@ -456,7 +458,7 @@ public class ProfileManager {
         if (code == null || code.isBlank()) return ImportResult.fail(ImportError.EMPTY);
         if (code.length() > MAX_CODE_CHARS * 4) return ImportResult.fail(ImportError.TOO_LARGE);
         Matcher m = CODE_PREFIX_PATTERN.matcher(code);
-        if (!m.find()) return ImportResult.fail(ImportError.NOT_A_CODE);
+        if (!m.find()) return ImportResult.fail(code.contains("EVI1-") || code.contains("EVADE1-") ? ImportError.INSTANCE_CODE : ImportError.NOT_A_CODE);
         int version = Integer.parseInt(m.group(1));
         if (version > 1) return ImportResult.fail(ImportError.NEWER);
         if (version < 1) return ImportResult.fail(ImportError.NOT_A_CODE);

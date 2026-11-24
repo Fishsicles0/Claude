@@ -20,6 +20,9 @@ import java.util.concurrent.TimeUnit;
  *   java -jar EvadeInstaller.jar --clips              open the window on the Clips section
  *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods] [--no-clips] [--shaders]
  *                     [--no-pack-features] [--dynamic-lights]
+ *                     [--fast-start] [--more-fps] [--chunk-speed] [--open-to-friends] [--extras KEY,KEY|all]
+ *                     [--template pvp|survival|building|laptop]
+ *   java -jar EvadeInstaller.jar --play INSTANCE      update that instance if needed, open the Minecraft Launcher on it, close
  *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every page to PNG (no display needed)
  * </pre>
  */
@@ -155,6 +158,19 @@ public final class EvadeInstaller {
         boolean shaders = a.contains("--shaders");
         boolean packFeatures = !a.contains("--no-pack-features"); // connected textures, CIT, ETF/EMF, custom skies
         boolean dynamicLights = a.contains("--dynamic-lights");
+        // Optional extras (all off unless asked for): --fast-start, --more-fps, --chunk-speed, --open-to-friends.
+        java.util.Set<String> optional = new java.util.LinkedHashSet<>(OptionalMods.fromArgs(a));
+        String tpl = arg(a, "--template", null);
+        if (tpl != null) {
+            InstanceTemplates.Template t = InstanceTemplates.byKey(tpl);
+            if (t == null) fail("--template takes one of: " + InstanceTemplates.keys());
+            // A template sets the options; flags given as well still add to it.
+            perf = perf && t.perf(); shaders = shaders || t.shaders(); voice = voice && t.voice(); packFeatures = packFeatures && t.packs();
+            dynamicLights = dynamicLights || t.lights();
+            optional.addAll(t.optional());
+            if (memArg == null) mem = InstallerCore.clampMemory(InstanceTemplates.memoryFor(t, mem));
+            System.out.println("Template: " + t.name());
+        }
         InstallerCore core = new InstallerCore();
         System.out.println("Evade Installer");
         System.out.println("Minecraft folder: " + mc);
@@ -173,12 +189,18 @@ public final class EvadeInstaller {
             System.out.println("Resource pack features (from Modrinth): " + String.join(", ", r.packFeatures().stream().map(m -> m.name() + " " + m.version()).toList()));
         if (dynamicLights && r.dynamicLights() != null)
             System.out.println("Dynamic lights (from Modrinth): " + r.dynamicLights().name() + " " + r.dynamicLights().version());
+        for (String key : optional) {
+            OptionalMods.Group g = OptionalMods.byKey(key);
+            java.util.List<InstallerCore.ModFile> files = r.optional().get(key);
+            System.out.println(g.label() + " (from Modrinth): " + (files == null ? "not available right now"
+                    : String.join(", ", files.stream().map(m -> m.name() + " " + m.version()).toList())));
+        }
         System.out.println("Memory: " + mem + " GB");
         int[] last = {-1};
         List<String> skipped;
         try {
             skipped = core.install(new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), mem, copy, voice, perf, clips, shaders,
-                    InstallerCore.PROFILE_KEY, InstallerCore.PROFILE_NAME, null, packFeatures, dynamicLights), r, (f, msg) -> {
+                    InstallerCore.PROFILE_KEY, InstallerCore.PROFILE_NAME, null, packFeatures, dynamicLights, optional), r, (f, msg) -> {
                 int pct = (int) Math.round(f * 100);
                 if (msg != null || pct / 10 != last[0] / 10) {
                     System.out.printf("[%3d%%] %s%n", pct, msg != null ? msg : "");

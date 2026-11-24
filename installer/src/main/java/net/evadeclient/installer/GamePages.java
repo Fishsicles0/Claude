@@ -650,12 +650,12 @@ final class GamePages {
         for (int n = first; n < last; n++) {
             LogTools.Line l = filtered.get(n);
             int ry = top + 4 + n * rowH - Math.round(off);
-            int was = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
+            int dm = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
             if (l.level() == LogTools.Level.ERROR) { g.setColor(new Color(225, 29, 46, 22)); g.fillRect(x + 10, ry, w - 30, rowH); }
             else if (l.level() == LogTools.Level.WARN) { g.setColor(new Color(245, 165, 36, 14)); g.fillRect(x + 10, ry, w - 30, rowH); }
             g.setColor(l.level() == LogTools.Level.ERROR ? new Color(0xFF7A86) : l.level() == LogTools.Level.WARN ? AMBER : new Color(0xC6C6CE));
             g.drawString(LauncherView.ellipsizeEnd(g, LogTools.mask(l.text().replace('\t', ' '), player), w - 50), x + 18, ry + 13);
-            if (was >= 0) ThemedGraphics.mode(g, was);
+            if (dm >= 0) ThemedGraphics.mode(g, dm);
         }
         g.setClip(was);
         v.scrollArea(g, "gp-log", area, content);

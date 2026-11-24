@@ -172,6 +172,18 @@ final class ContentApi {
         return pick;
     }
 
+    /** Every version of a project for {@code loaders} on this Minecraft version, newest first (the version list). */
+    static List<Version> versions(String projectId, List<String> loaders) throws IOException {
+        String url = API + "/project/" + enc(projectId) + "/version?game_versions=" + enc("[\"" + InstallerCore.MC_VERSION + "\"]")
+                + (loaders.isEmpty() ? "" : "&loaders=" + enc(array(loaders).toString()));
+        List<Version> out = new java.util.ArrayList<>();
+        for (JsonElement e : get(url).getAsJsonArray()) {
+            Version v = version(e.getAsJsonObject());
+            if (v.url() != null && v.sha512() != null) out.add(v);
+        }
+        return out;
+    }
+
     /** A project's title, slug, type, description and body (Markdown), or null when Modrinth has no such project. */
     record Project(String id, String slug, String title, String type, String description, String body, String iconUrl,
                    String license, String clientSide, List<String> categories) {}

@@ -77,6 +77,14 @@ final class Updates {
      * SHA-512 first, then the old file is removed. A switched-off mod stays switched off. Returns the new file.
      */
     static Path apply(Path gameDir, Known k, InstallerCore.Progress p) throws IOException {
+        return apply(gameDir, k, p, null);
+    }
+
+    /**
+     * As {@link #apply(Path, Known, InstallerCore.Progress)}, and with a {@code batch} the replaced file is kept there
+     * (for "Undo last update") instead of deleted. {@code k.latest()} may also be an older version (the version list).
+     */
+    static Path apply(Path gameDir, Known k, InstallerCore.Progress p, ContentPins.Batch batch) throws IOException {
         if (!k.hasUpdate()) return k.file();
         ContentApi.Version v = k.latest();
         String name = Content.localName(v.filename());
@@ -97,7 +105,18 @@ final class Updates {
         try {
             Path tmp = staging.resolve(name);
             ContentApi.download(v.url(), tmp, v.sha512(), Set.of("cdn.modrinth.com"), f -> p.update(0.1 + 0.8 * f, "Downloading " + name));
-            if (!target.equals(k.file()) && Files.exists(target)) Files.delete(k.file()); // the new file is already there
+            if (batch != null) {
+                // keep the old file for Undo, then put the new one in its place
+                String title = k.current() != null && k.current().name() != null ? k.current().name() : k.file().getFileName().toString();
+                JsonObject rec = Content.record(gameDir);
+                if (!jar && v.projectId() != null && rec.has(k.type().api) && rec.getAsJsonObject(k.type().api).has(v.projectId())) {
+                    String t = InstallerCore.str(rec.getAsJsonObject(k.type().api).getAsJsonObject(v.projectId()), "title");
+                    if (t != null) title = t;
+                }
+                batch.keep(k.file(), target, k.type(), v.projectId(), k.current() != null ? k.current().number() : null, v.number(), title);
+                if (Files.exists(target)) Files.delete(tmp); // already there under the new name
+                else InstallerCore.move(tmp, target);
+            } else if (!target.equals(k.file()) && Files.exists(target)) Files.delete(k.file()); // the new file is already there
             else {
                 InstallerCore.move(tmp, target);
                 if (!target.equals(k.file())) Files.deleteIfExists(k.file());
@@ -142,7 +161,7 @@ final class Updates {
     }
 
     /** options.txt names enabled resource packs by file: follow the pack to its new file name. */
-    private static void renameResourcePack(Path gameDir, String from, String to) {
+    static void renameResourcePack(Path gameDir, String from, String to) {
         Path opt = gameDir.resolve("options.txt");
         if (!Files.isRegularFile(opt) || from.equals(to)) return;
         try {

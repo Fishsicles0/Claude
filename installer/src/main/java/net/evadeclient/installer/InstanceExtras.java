@@ -40,6 +40,8 @@ final class InstanceExtras {
     /** Icon: -1 the default tile, else an index into GLYPHS, with a colour from COLORS. */
     int glyph = -1, color;
     String notes = "";
+    /** The garbage collector preset: false is Evade's G1 settings (the default), true generational ZGC. */
+    boolean zgc;
     // bookkeeping
     String javaDirWritten, argsWritten;
     boolean sizeWritten, iconWritten;
@@ -59,6 +61,7 @@ final class InstanceExtras {
         if (x.glyph >= GLYPHS.length) x.glyph = -1;
         x.color = Math.floorMod((int) n(o, "color"), COLORS.length);
         x.notes = s(o, "notes");
+        x.zgc = "zgc".equals(InstallerCore.str(o, "gc"));
         x.javaDirWritten = InstallerCore.str(o, "javaDirWritten");
         x.argsWritten = InstallerCore.str(o, "argsWritten");
         x.sizeWritten = o.has("sizeWritten") && o.get("sizeWritten").getAsBoolean();
@@ -77,6 +80,7 @@ final class InstanceExtras {
         o.addProperty("glyph", glyph);
         o.addProperty("color", color);
         o.addProperty("notes", notes);
+        o.addProperty("gc", zgc ? "zgc" : "g1");
         if (javaDirWritten != null) o.addProperty("javaDirWritten", javaDirWritten);
         if (argsWritten != null) o.addProperty("argsWritten", argsWritten);
         o.addProperty("sizeWritten", sizeWritten);
@@ -114,7 +118,7 @@ final class InstanceExtras {
             if (l.startsWith("-xmx") || l.startsWith("-xms")) { notes.add(a + " left out: set memory with the chips above"); continue; }
             if (!a.startsWith("-")) { notes.add(a + " left out: Java options start with -"); continue; }
             if (l.equals("-xx:+usezgc") || l.equals("-xx:+useshenandoahgc") || l.equals("-xx:+useparallelgc") || l.equals("-xx:+useserialgc")) {
-                notes.add(a + " clashes with Evade's G1 settings: Java won't start with two collectors");
+                notes.add(a + " left out: pick the collector with the Garbage collector setting (Java won't start with two)");
                 continue;
             }
             if (keep.contains(a)) continue;
@@ -170,6 +174,8 @@ final class InstanceExtras {
             int at = args.lastIndexOf(argsWritten);
             if (at >= 0) args = (args.substring(0, at) + args.substring(at + argsWritten.length())).replaceAll("\\s{2,}", " ").strip();
         }
+        // the collector preset: Evade's G1 flags or generational ZGC (only Evade's own flags are swapped)
+        args = MemoryAdvice.withCollector(args, zgc);
         String extra = cleanArgs(javaArgs, new ArrayList<>());
         if (!extra.isEmpty()) args = (args + " " + extra).strip();
         prof.addProperty("javaArgs", args);

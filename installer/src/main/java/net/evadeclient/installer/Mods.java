@@ -287,6 +287,8 @@ final class Mods {
             case "Dynamic lights" -> "lights";
             default -> null;
         };
+        OptionalMods.Group opt = OptionalMods.byLabel(option);
+        if (opt != null) return Launcher.readOptional(o).contains(opt.key());
         if (key == null || !o.has(key)) return false;
         try { return o.get(key).getAsBoolean(); } catch (RuntimeException e) { return false; }
     }
