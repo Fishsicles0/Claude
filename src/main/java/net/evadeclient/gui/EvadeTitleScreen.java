@@ -66,7 +66,8 @@ public class EvadeTitleScreen extends Screen {
     private int colX, colW;
     private int logoX, logoY, markSize;
     private boolean tagline;
-    private int cardsX, cardsW;
+    /** The side rails: left (account, what's new) and right (continue playing), both cardsW wide. */
+    private int leftX, rightX, cardsW;
     private int accountY = -1, serversY = -1, serversH, newsY = -1, newsH;
     private int footerCy;
     private int versionX;
@@ -128,7 +129,7 @@ public class EvadeTitleScreen extends Screen {
         int y = logoY + markSize + (tagline ? 12 : 0) + (compact ? 12 : 22);
         int rowH = compact ? 20 : 22, primH = compact ? 22 : 26, gap = compact ? 4 : 5;
         if (height < 236) { rowH = 18; primH = 20; gap = 3; }
-        float sx = wide ? -10f : 0f, sy = wide ? 0f : 8f;
+        float sx = 0f, sy = 8f;
         double d = 60;
         int x = colX;
 
@@ -214,11 +215,13 @@ public class EvadeTitleScreen extends Screen {
     private void layout(TitleScreenModule mod, boolean rejoin, boolean mods) {
         int W = width, H = height;
         compact = H < 330;
-        margin = Math.round(Math.max(18, Math.min(90, W * 0.07f)));
-        int cardW = Math.round(Math.max(176, Math.min(236, W * 0.25f)));
+        margin = Math.round(Math.max(14, Math.min(72, W * 0.04f)));
+        int cardW = Math.round(Math.max(160, Math.min(236, W * 0.22f)));
         int bw = Math.round(Math.max(196, Math.min(236, W * 0.24f)));
         boolean panels = mod == null || mod.sidePanels.get();
-        wide = panels && H >= 250 && W - 2 * margin - bw - cardW >= 48;
+        // The column stays centred; the rails need a card's width plus a clear gap on each side of it.
+        int railRoom = (W - bw) / 2 - margin - 16;
+        wide = panels && H >= 250 && railRoom >= cardW;
 
         footerCy = H - 13;
         int top = 12, bottom = H - 28;
@@ -230,40 +233,34 @@ public class EvadeTitleScreen extends Screen {
                 + 2 * rowH + gap + (mods ? gap + rowH : 0);
         int block = markSize + (tagline ? 12 : 0) + (compact ? 12 : 22) + buttons;
 
-        if (wide) {
-            colW = bw;
-            colX = margin;
-            cardsW = cardW;
-            cardsX = W - margin - cardW;
-        } else {
-            colW = Math.min(220, W - 32);
-            colX = (W - colW) / 2;
-        }
+        colW = wide ? bw : Math.min(220, W - 32);
+        colX = (W - colW) / 2;
         int blockTop = top + Math.max(0, Math.round((bottom - top - block) * 0.46f));
         logoY = blockTop;
-        int lw = TitleArt.lockupWidth(markSize);
-        logoX = wide ? colX : (W - lw) / 2;
+        logoX = (W - TitleArt.lockupWidth(markSize)) / 2;
 
-        // Side cards: account, continue playing, what's new, as many as fit, centred like the column.
+        // Side rails, centred on the column's middle: account and what's new on the left, continue playing on
+        // the right. A rail drops its lower card when the screen is too short for it.
         accountY = serversY = newsY = -1;
         newsLines.clear();
         if (!wide) return;
+        cardsW = Math.min(cardW, railRoom);
+        leftX = margin;
+        rightX = W - margin - cardsW;
         int cardGap = 8;
         int accountH = 48;
         int n = RecentServers.get().entries().size();
         serversH = 28 + (n == 0 ? 34 : n * 28) + 4;
         wrap(WhatsNew.HEADLINE, cardsW - 24, Role.BODY, newsLines, 3);
         newsH = 28 + newsLines.size() * 11 + 22;
-        int avail = bottom - top;
-        boolean news = true, account = true;
-        int total = accountH + cardGap + serversH + cardGap + newsH;
-        if (total > avail) { news = false; total -= cardGap + newsH; }
-        if (total > avail) { account = false; total -= cardGap + accountH; }
-        int y = top + Math.max(0, Math.round((avail - total) * 0.46f));
-        if (account) { accountY = y; y += accountH + cardGap; }
-        serversY = y;
-        y += serversH + cardGap;
-        if (news) newsY = y;
+        int avail = bottom - top, mid = blockTop + block / 2;
+        int left = accountH + cardGap + newsH;
+        boolean news = left <= avail;
+        if (!news) left = accountH;
+        int ly = Math.max(top, Math.min(bottom - left, mid - left / 2));
+        accountY = ly;
+        if (news) newsY = ly + accountH + cardGap;
+        serversY = Math.max(top, Math.min(bottom - serversH, mid - serversH / 2));
 
         // The account card's text.
         int hour = LocalTime.now().getHour();
@@ -273,7 +270,7 @@ public class EvadeTitleScreen extends Screen {
     }
 
     private void addCardWidgets(RecentServers recent, Text mpDisabled) {
-        int x = cardsX, w = cardsW;
+        int x = rightX, w = cardsW;
         double d = 140;
         if (accountY >= 0) d += 45;
         // Continue playing: the server rows and a link to the full list.
@@ -305,8 +302,8 @@ public class EvadeTitleScreen extends Screen {
         if (newsY >= 0) {
             String more = "Read the changelog";
             int mw = TitleArt.width(more, Role.SMALL) + 12;
-            add(new TitleButton(x + 12, newsY + newsH - 18, mw, 10, Text.literal(more), Style.LINK, "external",
-                    () -> ConfirmLinkScreen.open(this, WhatsNew.URL)).intro(intro, d + 20, 12, 0));
+            add(new TitleButton(leftX + 12, newsY + newsH - 18, mw, 10, Text.literal(more), Style.LINK, "external",
+                    () -> ConfirmLinkScreen.open(this, WhatsNew.URL)).intro(intro, d + 20, -12, 0));
         }
     }
 
@@ -425,8 +422,11 @@ public class EvadeTitleScreen extends Screen {
             // Darken toward the column (and the cards), keep the middle of the panorama lively.
             if (panorama) Theme.fill(ctx, 0, 0, W, H, 0x30000000);
             if (wide) {
-                TitleArt.rampH(ctx, 0, 0, Math.min(W, colX + colW + Math.round(W * 0.28f)), H, 0xD8060608, false);
-                TitleArt.rampH(ctx, Math.max(0, cardsX - Math.round(W * 0.16f)), 0, W, H, 0xB0060608, true);
+                // Both rails sit on darker edges; the middle keeps a light veil behind the column.
+                int reach = leftX + cardsW + Math.round(W * 0.10f);
+                TitleArt.rampH(ctx, 0, 0, reach, H, 0xB8060608, false);
+                TitleArt.rampH(ctx, W - reach, 0, W, H, 0xB8060608, true);
+                Theme.fill(ctx, 0, 0, W, H, 0x30000000);
             } else {
                 Theme.fill(ctx, 0, 0, W, H, 0x58000000);
             }
@@ -438,12 +438,11 @@ public class EvadeTitleScreen extends Screen {
             double t = Intro.now() / 1000.0;
             float breathe = TitleArt.anims() ? 0.5f + 0.5f * (float) Math.sin(t * Math.PI * 2 / 7.0) : 0.5f;
             float in = intro.p(0, 900);
-            int cx = logoX + markSize / 2 + (wide ? markSize : TitleArt.lockupWidth(markSize) / 2 - markSize / 2);
+            int cx = logoX + TitleArt.lockupWidth(markSize) / 2;
             int cy = logoY + markSize / 2;
             TitleArt.glow(ctx, cx, cy, markSize * 9, markSize * 6, Theme.alpha(Theme.RED, (0.26f + 0.06f * breathe) * in));
-            TitleArt.glow(ctx, wide ? 0 : W / 2, H + H / 6, Math.round(W * (wide ? 1.1f : 1.4f)), Math.round(H * 0.95f),
+            TitleArt.glow(ctx, W / 2, H + H / 6, Math.round(W * 1.3f), Math.round(H * 0.95f),
                     Theme.alpha(Theme.RED, (0.15f + 0.03f * (1f - breathe)) * in));
-            if (wide) TitleArt.glow(ctx, W, 0, Math.round(W * 0.6f), Math.round(H * 0.7f), Theme.alpha(Theme.RED, 0.06f * in));
         } finally {
             Theme.fade = base;
         }
@@ -488,7 +487,7 @@ public class EvadeTitleScreen extends Screen {
             int word = 0xFFF2F2F5;
             TitleArt.lockup(ctx, logoX, logoY, markSize, net.evadeclient.util.Logo.markTint(), word);
             if (tagline) {
-                int tx = TitleArt.wordX(logoX, markSize) + Math.max(1, markSize / 30);
+                int tx = (width - TitleArt.capsWidth("Your game, sharper", Role.CAPS_SM, 1.6f)) / 2;
                 int ty = logoY + markSize + 2;
                 float tin = intro.p(160, 420);
                 Theme.fade = tin;

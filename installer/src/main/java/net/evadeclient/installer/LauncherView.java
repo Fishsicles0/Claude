@@ -302,7 +302,7 @@ public final class LauncherView extends JPanel {
         add(javaField);
         modalField2.addActionListener(e -> confirmModal());
         Thread loader = new Thread(() -> {
-            for (String n : new String[]{"menu", "hud", "styles", "clips", "settings", "theme"}) {
+            for (String n : new String[]{"menu", "hud", "styles", "clips", "settings", "theme", "bg-world", "bg-hud", "bg-menu", "bg-clips"}) {
                 Image img = image("/evade/hero/" + n + ".jpg");
                 if (img.getWidth(null) > 1) heroImages.put(n, img);
             }
@@ -743,6 +743,9 @@ public final class LauncherView extends JPanel {
     }
 
     // ------------------------------------------------------------------ painting
+
+    /** Home's hero backdrops (Evade gameplay, softly blurred), one per slide. */
+    private static final String[] BACKDROPS = {"bg-world", "bg-hud", "bg-menu", "bg-clips"};
 
     /** Width of the icon rail on the left. */
     static final int RAIL = 88;
@@ -1199,10 +1202,10 @@ public final class LauncherView extends JPanel {
         long age = System.currentTimeMillis() - slideAt;
         float fade = slideFrom >= 0 ? Math.min(1f, age / 700f) : 1f;
         if (slideFrom >= 0 && fade < 1f) {
-            Image from = heroImages.get(slides[slideFrom][0]);
+            Image from = heroImages.get(BACKDROPS[slideFrom % BACKDROPS.length]);
             if (from != null) cover(g, from, x, y, w, h, 0.8);
         }
-        Image img = heroImages.get(slides[slide][0]);
+        Image img = heroImages.get(BACKDROPS[slide % BACKDROPS.length]);
         if (img != null) {
             Composite c0 = g.getComposite();
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fade));
@@ -1357,9 +1360,9 @@ public final class LauncherView extends JPanel {
         // the skin, standing on the card
         int bh = 176, bw = Math.round(bh * 0.5f);
         int bx = x + (w - bw) / 2, byBottom = cy + 92;
-        g.setPaint(new RadialGradientPaint(x + w / 2f, byBottom - 10, 120, new float[]{0f, 1f},
-                new Color[]{new Color(225, 29, 46, 60), new Color(225, 29, 46, 0)}));
-        g.fillRect(x, y, w, byBottom - y + 10);
+        g.setPaint(new RadialGradientPaint(x + w / 2f, byBottom - 20, 110, new float[]{0f, 1f},
+                new Color[]{new Color(225, 29, 46, 46), new Color(225, 29, 46, 0)}));
+        g.fill(new Ellipse2D.Double(x + w / 2.0 - 110, byBottom - 130, 220, 220));
         if (playerBody != null) {
             int iw = playerBody.getWidth(null), ih = playerBody.getHeight(null);
             double s = bh / (double) Math.max(1, ih);
@@ -1392,13 +1395,13 @@ public final class LauncherView extends JPanel {
     /** No skin yet: a plain standing figure in the launcher's colours (simple shapes, no game art). */
     private void defaultBody(Graphics2D g, int x, int y, int w, int h) {
         double u = h / 32.0;
-        Color skin = new Color(0x2A2A31), shirt = new Color(0x3A1218), legs = new Color(0x1E1E24);
+        Color skin = new Color(0x34343C), shirt = new Color(0x2A2A31), legs = new Color(0x1F1F25);
         double cx = x + w / 2.0;
         g.setColor(skin);
         g.fill(new RoundRectangle2D.Double(cx - 4 * u, y, 8 * u, 8 * u, 2 * u, 2 * u));
         g.setColor(shirt);
         g.fill(new RoundRectangle2D.Double(cx - 4 * u, y + 8 * u, 8 * u, 12 * u, u, u));
-        g.setColor(new Color(0x2E0F14));
+        g.setColor(new Color(0x26262C));
         g.fill(new RoundRectangle2D.Double(cx - 8 * u, y + 8 * u, 4 * u, 12 * u, u, u));
         g.fill(new RoundRectangle2D.Double(cx + 4 * u, y + 8 * u, 4 * u, 12 * u, u, u));
         g.setColor(legs);

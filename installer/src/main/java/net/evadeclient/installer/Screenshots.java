@@ -177,7 +177,7 @@ final class Screenshots {
     /** Sample player, servers (with drawn icons, no real server art), notices and a Clips stand-in for Home. */
     private static void sampleHome(LauncherView v) throws Exception {
         long t0 = System.currentTimeMillis();
-        while (v.heroImages.size() < 6 && System.currentTimeMillis() - t0 < 5000) Thread.sleep(50);
+        while (v.heroImages.size() < 10 && System.currentTimeMillis() - t0 < 5000) Thread.sleep(50);
         v.playerName = "Player";
         v.settings.servers.clear();
         String[][] servers = {{"Evade Practice", "practice.example.net", "1834", "4000", "41"}, {"Skyblock", "sky.example.org", "612", "1000", "63"},

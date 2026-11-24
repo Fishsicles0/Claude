@@ -71,7 +71,8 @@ public class EvadeMenu extends Screen {
                     new Nav("Profiles", Page.PROFILES, "profiles", false),
                     new Nav("Settings", Page.SETTINGS, "settings", false),
                     new Nav("Mod Browser", null, "mods", false, net.evadeclient.gui.ModBrowserScreen::open),
-                    new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open))));
+                    new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open),
+                    new Nav("Friends", Page.FRIENDS, "friends", false))));
 
     private static Page page = Page.ALL;
     private static Module selected;
