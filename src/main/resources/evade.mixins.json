@@ -95,7 +95,12 @@
     "PackListWidgetAccessor",
     "PackListWidgetMixin",
     "PackEntryMixin",
-    "HypixelStatsTabMixin"
+    "HypixelStatsTabMixin",
+    "SplashOverlayMixin",
+    "WindowTitleMixin",
+    "RenderScaleClientMixin",
+    "RenderScaleGameRendererMixin",
+    "RenderScaleWorldRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

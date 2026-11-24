@@ -18,6 +18,7 @@ nav: docs
       <a href="#performance">Performance</a>
       <a href="#voice">Voice chat</a>
       <a href="#icons">Evade icons</a>
+      <a href="#friends">Friends &amp; parties</a>
       <a href="#clips">Clips</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
@@ -116,6 +117,18 @@ nav: docs
         <p>Your icon is verified through Mojang's sign-in check, the one servers already use, so it can't be faked. Evade only learns your username and player ID; your password and login token stay between you and Mojang. Icons need a Microsoft account; offline or cracked accounts don't get one.</p>
       </div>
 
+      <div class="doc-sec rv" id="friends">
+        <h2>Friends &amp; parties</h2>
+        <p>Click your name at the bottom of the menu's sidebar to open <b>Friends</b>, then <b>Turn on Friends</b>. Nothing is sent to us until you do. Evade checks your Minecraft account the same way as for <a href="#icons">Evade icons</a>, so friends need a Microsoft account and Evade too.</p>
+        <ul>
+          <li><b>Friends</b> &mdash; type a friend's Minecraft name and click <b>Add</b>. Evade asks Mojang which account has that name, so a request always goes to the right player. Your friends list shows who's online and, if they share it, which server they're on. Up to 300 friends.</li>
+          <li><b>Requests</b> &mdash; accept, decline or block friend requests, and join or decline party invites. Invites lapse after 10 minutes.</li>
+          <li><b>Party</b> &mdash; invite online friends (up to 8 players). The leader can make someone else leader or remove a member. A party with nobody online for 12 hours ends.</li>
+          <li><b>Settings</b> &mdash; <b>Allow friend requests</b>, <b>Share my server with friends</b> (on by default), toasts, Party Ping, your blocked players and <b>Delete my social data</b>.</li>
+        </ul>
+        <p><b>Party Ping</b> (Misc): in a party, press the middle mouse button to mark the block, mob or player you're looking at, up to 256 blocks away; hold Sneak for a danger ping. Party members on the <b>same server</b> see a marker with your name, distance and coordinates for 10 seconds, a toast, a sound and a dot on their minimap. Nobody else gets it, and pings aren't stored. Out of a party the button does nothing extra, and in creative it still picks the block you look at within reach (switch off <b>Keep Pick Block In Creative</b>, or bind <b>Ping Key</b> to a side button). Pings only work on public multiplayer servers, never in singleplayer or on a LAN address, and a server can switch Party Ping off for its players.</p>
+      </div>
+
       <div class="doc-sec rv" id="clips">
         <h2>Clips</h2>
         <p>Turn on <b>Clips</b> (Misc) to keep your best moments; it's already on if you use the <a href="/clips">Evade Launcher</a>, which has Evade Clips built in. Its <b>Recorder</b> setting picks where clips go:</p>
@@ -157,6 +170,9 @@ nav: docs
           <div><code>.clips last</code><span>Open your last clip in the Evade Clips editor</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
           <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
+          <div><code>.friend add | remove | accept | decline | block | unblock &lt;name&gt;</code><span>Friends; <code>.friend list</code> shows who's online, <code>.friend requests</code> what's waiting</span></div>
+          <div><code>.party invite | kick | leader &lt;name&gt;</code><span>Your party; also <code>.party accept</code>, <code>.party decline</code>, <code>.party leave</code> and <code>.party list</code></span></div>
+          <div><code>.ping [danger|loot]</code><span>Ping where you're looking, for your party on the same server</span></div>
           <div><code>.save</code><span>Save your config now</span></div>
           <div><code>.load</code><span>Reload your config from disk</span></div>
         </div>

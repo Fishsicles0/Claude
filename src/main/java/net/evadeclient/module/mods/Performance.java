@@ -17,6 +17,9 @@ import net.evadeclient.util.Notifications;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.util.FrameStats;
+import net.evadeclient.util.RenderScale;
+import net.evadeclient.util.ShaderSwitch;
+import net.evadeclient.replay.ReplayRender;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -127,6 +130,16 @@ public class Performance extends Module {
             .describe("Turns VSync off and removes the frame rate cap, so the game runs as fast as your PC allows. Turn off to put your own VSync and Max Framerate back."));
     public final NumberSetting renderCap = add(new NumberSetting("Render Distance Cap", 12, 0, 32, 1)
             .describe("Lowers your render distance to this while Performance is on (0 = leave it alone). Far chunks cost the most frames, especially on laptop graphics."));
+    /** Render Scale: the 3D world is drawn at this share of the window's resolution and scaled up (see {@link RenderScale}). */
+    public final NumberSetting renderScale = add(new NumberSetting("Render Scale %", 100, 40, 100, 5)
+            .describe("Draws the 3D world at this share of your screen's resolution and scales it up, while the HUD, chat, menus and text stay sharp at full resolution. The biggest FPS win on laptop graphics: 70% draws half the pixels. 100 = off. Paused automatically while a shader pack is on, since shaders draw at their own resolution."));
+    public final ModeSetting upscale = add(new ModeSetting("Upscale", "Smooth", "Smooth", "Sharp")
+            .describe("How the smaller world image is scaled up. Smooth: filtered, soft edges. Sharp: blocky, pixel-exact."));
+    public final BooleanSetting sharpen = add(new BooleanSetting("Sharpen", true)
+            .describe("A light sharpening pass on the scaled-up world that wins back detail without halos. Costs next to nothing. Only used below 100%."));
+    public final StatusSetting renderScaleNow = add(new StatusSetting("Render Scale Now", this::renderScaleText, "live"));
+    /** Why Render Scale is paused right now (null = it isn't). */
+    private String renderScalePaused;
     /** Iris shader packs the installer adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
     public final ModeSetting shaders = add(new ModeSetting("Shaders", "Leave Alone", "Leave Alone", "Off", "Photon", "Complementary")
             .describe("Switch shaders without opening Iris. Photon looks the best; Complementary is lighter for laptops. Shaders cost a lot of FPS, so they're best left Off for the highest frame rates."));
@@ -161,7 +174,10 @@ public class Performance extends Module {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> recoverVideoOptions());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> restoreVideoOptions());
         // Volume When Tabbed Out also applies on the title screen and in menus, where onTick doesn't run.
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tickBackgroundAudio());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            tickBackgroundAudio();
+            tickRenderScale();
+        });
     }
 
     public static Performance active() {
@@ -511,6 +527,35 @@ public class Performance extends Module {
         if (sounds != null) sounds.refreshSoundVolumes(SoundCategory.MASTER);
     }
 
+    // ---- Render Scale
+
+    /**
+     * Every client tick (in menus too, and with Performance off, so turning it off frees the framebuffer at once):
+     * hands the scale to {@link RenderScale}, or 100% while a shader pack is on (shaders manage their own buffers) or
+     * a replay renders (videos always come out at full quality).
+     */
+    private void tickRenderScale() {
+        double scale = 1;
+        String paused = null;
+        if (isEnabled() && renderScale.get() < 100) {
+            if (ShaderSwitch.inUse()) paused = "Paused: a shader pack is on";
+            else if (ReplayRender.rendering()) paused = "Paused while a replay renders";
+            else scale = renderScale.get() / 100.0;
+        }
+        renderScalePaused = paused;
+        RenderScale.configure(scale, upscale.get().equals("Sharp"), sharpen.get());
+    }
+
+    private String renderScaleText() {
+        if (!isEnabled()) return "Off";
+        if (renderScale.get() >= 100) return "Full resolution";
+        if (renderScalePaused != null) return renderScalePaused;
+        if (RenderScale.broken()) return "Unavailable (drawing at full resolution)";
+        int[] s = RenderScale.lastSize();
+        if (s[0] == 0 || mc.world == null) return renderScale.getInt() + "% (in a world)";
+        return s[0] + "x" + s[1] + " shown at " + s[2] + "x" + s[3];
+    }
+
     // ---- Video settings: Lighter Video Settings and Low-End PC Mode.
     //
     // Each changed option is remembered with your own value and the value Evade set. Putting it back only touches
@@ -550,14 +595,14 @@ public class Performance extends Module {
     /** Applies an FPS Mode preset to the settings (Custom changes nothing). */
     private void applyPreset(String mode) {
         switch (mode) {
-            case "Max FPS" -> preset(true, true, true, 8, 40, 48, 24);
-            case "Balanced" -> preset(true, true, false, 12, 60, 64, 32);
-            case "Quality" -> preset(true, false, false, 0, 100, 96, 48);
+            case "Max FPS" -> preset(true, true, true, 8, 40, 48, 24, 60);
+            case "Balanced" -> preset(true, true, false, 12, 60, 64, 32, 80);
+            case "Quality" -> preset(true, false, false, 0, 100, 96, 48, 100);
             default -> { }
         }
     }
 
-    private void preset(boolean unlock, boolean lighter, boolean low, int cap, int particles, int entities, int particleDist) {
+    private void preset(boolean unlock, boolean lighter, boolean low, int cap, int particles, int entities, int particleDist, int scale) {
         unlockFps.set(unlock);
         lighterOptions.set(lighter);
         lowEnd.set(low);
@@ -565,6 +610,7 @@ public class Performance extends Module {
         particlePercent.set((double) particles);
         entityDistance.set((double) entities);
         particleDistance.set((double) particleDist);
+        renderScale.set((double) scale);
     }
 
     /** Follows Shaders: a new choice is applied once (in a world, so Iris can reload). */
@@ -578,11 +624,14 @@ public class Performance extends Module {
 
     /** Follows FPS Mode: a newly picked preset is applied once. */
     private void followPreset() {
-        String mode = fpsMode.get();
-        if (mode.equals(appliedMode.get())) return;
+        // The version suffix re-applies a preset once when presets gain new options (v2: Render Scale).
+        String mode = fpsMode.get(), key = mode + PRESET_VERSION;
+        if (key.equals(appliedMode.get())) return;
         applyPreset(mode);
-        appliedMode.set(mode);
+        appliedMode.set(key);
     }
+
+    private static final String PRESET_VERSION = "#2";
 
     /** Unlock FPS: VSync off and the cap at Unlimited. Your own values come back when it's turned off. */
     private void applyUnlock(boolean on) {

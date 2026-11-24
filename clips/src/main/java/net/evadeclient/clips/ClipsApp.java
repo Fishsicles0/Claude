@@ -344,6 +344,8 @@ public final class ClipsApp {
         }
         System.setProperty("flatlaf.uiScale.allowScaleDown", "true");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
+        // Direct3D corrupts see-through windows (the clip toast) on some Windows graphics drivers; plain GDI is reliable.
+        if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) System.setProperty("sun.java2d.d3d", "false");
         if (args.length > 0 && args[0].equals("--screenshots")) {
             Theme.install();
             Screenshots.run(Path.of(args.length > 1 ? args[1] : "build/screenshots"));

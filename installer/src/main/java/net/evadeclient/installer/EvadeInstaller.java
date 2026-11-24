@@ -35,6 +35,8 @@ public final class EvadeInstaller {
         if (!a.isEmpty() && List.of("--selftest", "--edittest", "--sizetest").contains(a.get(0))) { net.evadeclient.clips.ClipsApp.main(args); return; }
         System.setProperty("awt.useSystemAAFontSettings", "lcd");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
+        // Direct3D corrupts see-through windows (the clip toast) on some Windows graphics drivers; plain GDI is reliable.
+        if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) System.setProperty("sun.java2d.d3d", "false");
         System.setProperty("flatlaf.uiScale.allowScaleDown", "true");
         // Self-update, single instance, the built-in Evade Clips and the window.
         AppHost.start(a);

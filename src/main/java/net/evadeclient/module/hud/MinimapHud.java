@@ -444,6 +444,7 @@ public class MinimapHud extends HudElementModule {
         } else {
             if (showWaypoints.get() && live) drawWaypoints(ctx, p, td, cx, cy, r, circle);
             if (showTeammates.get() && live) drawTeammates(ctx, p, td, cx, cy, r, circle);
+            if (live) drawPartyPings(ctx, p, td, cx, cy, r, circle);
             drawArrow(ctx, set, cx, cy, yaw);
         }
         if (showCardinals.get()) drawCardinals(ctx, cx, cy, r, circle);
@@ -564,6 +565,25 @@ public class MinimapHud extends HudElementModule {
             int x = Math.round(cx + tmp.x - d / 2f), y = Math.round(cy + tmp.y - d / 2f);
             Theme.disc(ctx, x - 1, y - 1, d + 2, 0xC0000000);
             Theme.disc(ctx, x, y, d, m.color());
+        }
+    }
+
+    /**
+     * Party pings (Party Ping's Show On Minimap): a white-rimmed dot in the ping's colour, fading with it, pinned to the
+     * edge while it's off the map.
+     */
+    private void drawPartyPings(DrawContext ctx, ClientPlayerEntity p, float td, float cx, float cy, float r, boolean circle) {
+        var dots = net.evadeclient.module.misc.PartyPing.minimapDots();
+        if (dots.isEmpty()) return;
+        double px = MathHelper.lerp(td, p.lastX, p.getX()), pz = MathHelper.lerp(td, p.lastZ, p.getZ());
+        for (var dot : dots) {
+            project(dot.x() - px, dot.z() - pz);
+            clampToEdge(r, circle, 3f);
+            float a = (dot.color() >>> 24) / 255f;
+            int d = 5;
+            int x = Math.round(cx + tmp.x - d / 2f), y = Math.round(cy + tmp.y - d / 2f);
+            Theme.disc(ctx, x - 1, y - 1, d + 2, Theme.alpha(0xFFFFFFFF, a));
+            Theme.disc(ctx, x, y, d, dot.color());
         }
     }
 

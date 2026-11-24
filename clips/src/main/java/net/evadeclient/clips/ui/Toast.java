@@ -42,7 +42,16 @@ public final class Toast {
             window.setFocusableWindowState(false);
             window.setBackground(new Color(0, 0, 0, 0));
             JComponent content = new JComponent() {
-                @Override protected void paintComponent(Graphics g0) { paintToast((Graphics2D) g0, getWidth(), getHeight()); }
+                @Override protected void paintComponent(Graphics g0) {
+                    Graphics2D g = (Graphics2D) g0.create();
+                    // A see-through window starts from whatever was in its buffer: wipe it first, or some Windows
+                    // drivers show leftover pixels around and behind the toast.
+                    g.setComposite(java.awt.AlphaComposite.Clear);
+                    g.fillRect(0, 0, getWidth(), getHeight());
+                    g.setComposite(java.awt.AlphaComposite.SrcOver);
+                    paintToast(g, getWidth(), getHeight());
+                    g.dispose();
+                }
             };
             MouseAdapter ma = new MouseAdapter() {
                 @Override public void mouseEntered(MouseEvent e) { hovered = true; alpha = 1; setOpacity(1); }
@@ -81,7 +90,12 @@ public final class Toast {
 
     private void dismiss() {
         if (hide != null) hide.stop();
-        if (window != null) window.setVisible(false);
+        if (window != null) {
+            // Dispose (not just hide): a hidden see-through window can leave its last frame on screen on Windows.
+            window.setVisible(false);
+            window.dispose();
+            window = null;
+        }
         hovered = false;
     }
 
