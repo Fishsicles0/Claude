@@ -529,8 +529,14 @@ public final class App {
         notify("Marker added", null, false);
     }
 
+    /** Something the app told the player (a host such as the Evade Launcher lists these under its bell). */
+    public interface NoticeListener { void notice(String title, String body, boolean error); }
+    private final List<NoticeListener> noticeListeners = new CopyOnWriteArrayList<>();
+    public void onNotice(NoticeListener l) { noticeListeners.add(l); }
+
     public void notify(String title, String body, boolean error) {
         if (error) System.err.println("[clips] " + title + ": " + body);
+        for (NoticeListener l : noticeListeners) { try { l.notice(title, body, error); } catch (RuntimeException ignored) {} }
         if (settings.playSound) beep(!error);
         if (settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show(title, body, error));
     }

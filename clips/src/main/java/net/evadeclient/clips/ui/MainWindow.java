@@ -19,7 +19,6 @@ import javax.swing.WindowConstants;
 import java.awt.AWTException;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -55,14 +54,12 @@ import java.util.List;
 /** Sidebar navigation + pages. */
 public final class MainWindow extends JFrame {
     private final App app;
-    private final CardLayout cards = new CardLayout();
-    private final JPanel pages = new JPanel(cards);
+    private final ClipsPages pages;
     public final LibraryPanel library;
     public final RecordPanel record;
     public final EditorPanel editor;
     public final SettingsPanel settings;
     private final Sidebar sidebar = new Sidebar();
-    private String page = "library";
     private TrayIcon tray;
     /** Saves the window's place and size a moment after it was moved or resized. */
     private final Timer saveBounds;
@@ -76,16 +73,11 @@ public final class MainWindow extends JFrame {
         placeWindow();
         getContentPane().setBackground(Theme.BG);
 
-        library = new LibraryPanel(app);
-        record = new RecordPanel(app);
-        editor = new EditorPanel(app);
-        settings = new SettingsPanel(app);
-        pages.add(library, "library");
-        pages.add(record, "record");
-        pages.add(editor, "editor");
-        pages.add(settings, "settings");
-        // Focus moves here when a page opens, so it never lands on a random control (or one hidden with the old page).
-        pages.setFocusable(true);
+        pages = new ClipsPages(app);
+        library = pages.library;
+        record = pages.record;
+        editor = pages.editor;
+        settings = pages.settings;
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(Theme.BG);
@@ -110,7 +102,7 @@ public final class MainWindow extends JFrame {
         });
 
         addWindowListener(new WindowAdapter() {
-            @Override public void windowOpened(WindowEvent e) { if (page.equals("library")) library.focusGrid(); }
+            @Override public void windowOpened(WindowEvent e) { if (pages.page().equals("library")) library.focusGrid(); }
             @Override public void windowClosing(WindowEvent e) {
                 rememberBounds();
                 if (app.settings.minimizeToTray && tray != null) {
@@ -199,18 +191,11 @@ public final class MainWindow extends JFrame {
     // ------------------------------------------------------------------ pages
 
     public void show(String name) {
-        if (page.equals("editor") && !name.equals("editor")) editor.close();
-        page = name;
-        cards.show(pages, name);
+        pages.show(name);
         sidebar.repaint();
-        switch (name) {
-            case "library" -> library.focusGrid();
-            case "editor" -> {} // the editor puts focus on its video itself
-            default -> pages.requestFocusInWindow();
-        }
     }
 
-    public String page() { return page; }
+    public String page() { return pages.page(); }
 
     /** Ctrl+1 … Ctrl+4 open Library, Record, Editor (when a clip is open) and Settings from anywhere in the window. */
     private void bindPageKeys() {
@@ -321,7 +306,7 @@ public final class MainWindow extends JFrame {
             });
             addFocusListener(new FocusAdapter() {
                 @Override public void focusGained(FocusEvent e) {
-                    for (int i = 0; i < items.size(); i++) if (items.get(i).id.equals(page)) focused = i;
+                    for (int i = 0; i < items.size(); i++) if (items.get(i).id.equals(pages.page())) focused = i;
                     repaint();
                 }
                 @Override public void focusLost(FocusEvent e) { repaint(); }
@@ -418,7 +403,7 @@ public final class MainWindow extends JFrame {
                 Item it = items.get(i);
                 Rectangle r = new Rectangle(12, y, w - 24, 42);
                 hits.add(r);
-                boolean active = page.equals(it.id), en = enabled(i);
+                boolean active = pages.page().equals(it.id), en = enabled(i);
                 if (active || hover == i) {
                     g.setColor(active ? Theme.CARD_HI : Theme.CARD);
                     g.fill(new RoundRectangle2D.Double(r.x, r.y, r.width, r.height, 12, 12));
