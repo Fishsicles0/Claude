@@ -183,7 +183,7 @@ final class ViewExtras {
             case "slide-next": return "Next slide";
             case "side-instance": case "home-switch": case "mods-instance": return "Choose the instance";
             case "inst-sort": return "Sort instances, now " + sortName();
-            case "inst-import": return "Import an instance from a zip";
+            case "inst-import": return "Import an instance: from another launcher or a zip";
             case "inst-pin": return v.focused() != null && prefs.pinned.contains(v.focused().id) ? "Unpin this instance" : "Pin this instance to the top";
             case "inst-group": return "Move this instance to a group";
             case "inst-export": return "Export this instance as a zip";
@@ -582,7 +582,8 @@ final class ViewExtras {
                     items.add(new String[]{"pop:isort:" + UiPrefs.SORTS[k], UiPrefs.SORT_NAMES[k], UiPrefs.SORTS[k].equals(prefs.sort) ? "✓" : ""});
                 popupBelow(id, items, 240);
             }
-            case "inst-import" -> importZip();
+            case "inst-import" -> popupBelow(id, List.of(new String[]{"pop:tl:import", "From another launcher…", ""},
+                    new String[]{"pop:imp-zip", "An Evade instance (.zip)…", ""}), 260);
             case "inst-pin" -> {
                 if (foc == null) return true;
                 if (!prefs.pinned.remove(foc.id)) prefs.pinned.add(foc.id);
@@ -628,6 +629,7 @@ final class ViewExtras {
     boolean popup(String what) {
         Launcher.Instance foc = v.focused();
         if (what.startsWith("isort:")) { prefs.sort = what.substring(6); changed(); return true; }
+        if (what.equals("imp-zip")) { importZip(); return true; }
         if (what.equals("igrp-new")) {
             if (foc != null) v.openModal(new LauncherView.Modal("group", "New group", "Groups keep the Instances list tidy; fold one away with its arrow.", "Create", foc, null), "");
             return true;

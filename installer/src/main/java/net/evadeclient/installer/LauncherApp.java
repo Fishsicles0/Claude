@@ -58,6 +58,8 @@ final class LauncherApp implements LauncherView.Actions {
     /** Game state, logs, crashes and instance settings (files the Evade mod shares with the launcher). */
     private final GameController game;
     private boolean started, ffmpegOffered;
+    /** Started by a desktop shortcut (--play): close again once the Minecraft Launcher has the instance. */
+    boolean closeAfterQuickPlay;
 
     LauncherApp(App clips, String clipsNote, boolean blocked) {
         view.clipsNote = clipsNote;
@@ -71,6 +73,7 @@ final class LauncherApp implements LauncherView.Actions {
         view.extras.persist = true;
         view.extras.setPrefs(UiPrefs.load());
         game = new GameController(view, settings, work, this::play, this::reloadInstances, () -> tray, () -> frame);
+        view.tools.attach(settings, work, this::reloadInstances, this::quickPlay);
         ModIcons.registerWebp();
         if (clips != null) attach(clips);
     }
@@ -129,6 +132,7 @@ final class LauncherApp implements LauncherView.Actions {
         game.start();
         refreshServers();
         startupChecks();
+        view.tools.start();
         if (view.legacyClips && !settings.legacyClipsHandled)
             view.notice("Evade Clips is built in now", "The separate Evade Clips app isn't needed any more. Remove it in Settings.", false);
     }
@@ -702,6 +706,45 @@ final class LauncherApp implements LauncherView.Actions {
                 });
             }
         });
+    }
+
+    /**
+     * A desktop shortcut's request: select the instance, wait for the version check, then Play (update, hand off to
+     * the Minecraft Launcher); a launcher started just for it closes once the Minecraft Launcher has it.
+     */
+    void quickPlay(String id) {
+        Launcher.Instance target = null;
+        for (Launcher.Instance i : view.instances) if (i.id.equals(id)) target = i;
+        if (target == null) { view.toast("That shortcut's instance isn't here any more"); return; }
+        Launcher.Instance t = target;
+        boolean close = closeAfterQuickPlay;
+        closeAfterQuickPlay = false;
+        showWindow();
+        view.showPage(LauncherView.Page.HOME);
+        select(t);
+        long since = System.currentTimeMillis();
+        javax.swing.Timer wait = new javax.swing.Timer(250, null);
+        wait.addActionListener(e -> {
+            if (busy) return;
+            boolean ready = view.release != null || view.releaseError != null || System.currentTimeMillis() - since > 20_000;
+            if (!ready) return;
+            wait.stop();
+            play();
+            if (!close) return;
+            javax.swing.Timer watch = new javax.swing.Timer(400, null);
+            watch.addActionListener(x -> {
+                if (view.play == LauncherView.Play.LAUNCHED) {
+                    watch.stop();
+                    javax.swing.Timer done = new javax.swing.Timer(2500, y -> { if (view.play == LauncherView.Play.LAUNCHED) closeAfterPlay(); });
+                    done.setRepeats(false);
+                    done.start();
+                } else if (view.play == LauncherView.Play.ERROR || view.play == LauncherView.Play.NO_LAUNCHER || view.play == LauncherView.Play.IDLE && !busy) {
+                    watch.stop(); // something to read: stay open
+                }
+            });
+            watch.start();
+        });
+        wait.start();
     }
 
     /** "Hide the launcher on Play": to the tray when Clips keeps running there, else the program ends. */

@@ -2126,7 +2126,12 @@ final class ContentPage {
         fc.setDialogTitle("Choose a modpack (.mrpack)");
         fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Modrinth modpacks (*.mrpack)", "mrpack", "zip"));
         if (fc.showOpenDialog(window()) != JFileChooser.APPROVE_OPTION) return;
-        Path f = fc.getSelectedFile().toPath();
+        importPackFile(fc.getSelectedFile().toPath());
+    }
+
+    /** Imports a .mrpack into a new instance, with progress on the Modpacks tab (also for a file dropped on the window). */
+    void importPackFile(Path f) {
+        tab = Tab.PACKS;
         runPackTask("Importing " + f.getFileName(), () -> {
             Mrpack.Info info = Mrpack.inspect(f);
             if (!info.ok()) throw new IOException(info.problem());

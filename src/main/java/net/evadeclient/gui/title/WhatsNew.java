@@ -7,7 +7,7 @@ package net.evadeclient.gui.title;
 public final class WhatsNew {
     private WhatsNew() {}
 
-    public static final String VERSION = "v2.3.0";
-    public static final String HEADLINE = "Friend messages, a new HUD editor, OptiFine-style packs, and a launcher with logs, crash help and modpacks.";
+    public static final String VERSION = "v2.4.0";
+    public static final String HEADLINE = "A World Map, Item View, damage numbers, new widgets, a screenshot gallery and addons.";
     public static final String URL = "https://evadeclient.com/changelog";
 }
