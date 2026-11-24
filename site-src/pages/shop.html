@@ -1,0 +1,176 @@
+title: Shop
+description: The Evade Shop: capes, wings, hats and more cosmetics for Evade Client, with a 3D preview of every item. Purely cosmetic, never a gameplay advantage.
+nav: shop
+---
+<link rel="stylesheet" href="/assets/shop.css?v={{SHOP_KEY}}">
+<header class="page-hero wrap shop-hero">
+  <div class="eyebrow rv">Evade Shop</div>
+  <h1 class="rv d1">Wear it <span class="red">your way</span>.</h1>
+  <p class="rv d2">Capes, wings, hats and more for Evade Client, each one previewed in 3D before you buy. Cosmetics only: nothing here changes how the game plays, and other players see them only if they use Evade.</p>
+</header>
+
+<section class="wrap page-body shop" id="shop" aria-label="Shop">
+  <div class="shop-banner rv" id="shopBanner" data-state="soon" role="status">
+    <span class="shop-banner-dot" aria-hidden="true"></span>
+    <div class="shop-banner-txt">
+      <b id="shopBannerTitle">Shop opening soon</b>
+      <span id="shopBannerText">Browse and preview every item now. Checkout opens when the shop launches.</span>
+    </div>
+    <a class="btn btn-ghost btn-sm" href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener" id="shopBannerCta">Get notified on Discord</a>
+  </div>
+
+  <div class="shop-layout">
+    <div class="shop-main">
+      <div class="toolbar shop-toolbar">
+        <label class="search"><span class="sr-only">Search cosmetics</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="shopSearch" type="search" placeholder="Search cosmetics" autocomplete="off" enterkeyhint="search">
+        </label>
+        <label class="shop-select"><span class="sr-only">Rarity</span>
+          <select id="shopRarity">
+            <option value="">All rarities</option>
+            <option value="common">Common</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option>
+            <option value="epic">Epic</option><option value="legendary">Legendary</option><option value="partner">Partner</option>
+          </select>
+        </label>
+        <label class="shop-select"><span class="sr-only">Sort</span>
+          <select id="shopSort">
+            <option value="featured">Featured</option><option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option><option value="name">Name</option>
+          </select>
+        </label>
+      </div>
+      <div class="shop-cats" id="shopCats" role="tablist" aria-label="Categories"></div>
+      <p class="shop-count" id="shopCount" aria-live="polite"></p>
+      <div class="shop-grid" id="shopGrid">
+        <noscript><p class="shop-empty">The shop needs JavaScript to show its items and 3D previews.</p></noscript>
+      </div>
+      <div class="shop-empty" id="shopEmpty" hidden>
+        <h3>Nothing here yet</h3>
+        <p id="shopEmptyText">No cosmetics match. Try another category or clear the search.</p>
+      </div>
+    </div>
+
+    <aside class="shop-side" id="shopSide" aria-label="Your cart">
+      <div class="card shop-panel" id="linkPanel">
+        <div class="shop-panel-head"><h3>Your Minecraft account</h3><span class="shop-chip" id="linkState">Not linked</span></div>
+        <p class="shop-small" id="linkHelp">In Evade, open <b>Wardrobe</b> &rarr; <b>Link the shop</b> and type the 6-character code here. Items go to that account.</p>
+        <form class="link-form" id="linkForm" autocomplete="off" novalidate>
+          <label class="sr-only" for="linkCode">Link code</label>
+          <input id="linkCode" class="code-input" inputmode="text" maxlength="6" placeholder="ABC123" autocapitalize="characters" spellcheck="false" aria-describedby="linkMsg">
+          <button class="btn btn-ghost btn-sm" type="submit" id="linkBtn">Link</button>
+        </form>
+        <p class="shop-msg" id="linkMsg" role="status"></p>
+        <div class="owned" id="owned" hidden>
+          <h4>You own</h4>
+          <div class="owned-list" id="ownedList"></div>
+        </div>
+      </div>
+
+      <div class="card shop-panel cart" id="cartPanel">
+        <div class="shop-panel-head"><h3>Cart</h3><span class="shop-chip" id="cartCount">0 items</span></div>
+        <ul class="cart-list" id="cartList"></ul>
+        <p class="shop-small cart-empty" id="cartEmpty">Your cart is empty. Open an item to preview it and add it.</p>
+        <label class="gift-toggle"><input type="checkbox" id="giftToggle"> <span>This is a gift</span></label>
+        <div class="gift-field" id="giftField" hidden>
+          <label class="sr-only" for="giftTo">Friend's Minecraft username</label>
+          <input id="giftTo" class="text-input" maxlength="16" placeholder="Friend's Minecraft username" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="cart-total"><span>Total</span><b id="cartTotal">&mdash;</b></div>
+        <button class="btn btn-red checkout" id="checkoutBtn" type="button" disabled>Checkout opens soon</button>
+        <p class="shop-msg" id="checkoutMsg" role="status"></p>
+        <p class="shop-fine">By checking out you agree to the <a href="/shop-terms">Terms of Sale</a>. Digital, cosmetic-only items.</p>
+      </div>
+    </aside>
+  </div>
+
+  <button class="cart-fab" id="cartFab" type="button" aria-controls="shopSide" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1.3"/><circle cx="17" cy="20.5" r="1.3"/></svg>
+    <span>Cart</span><b id="cartFabCount">0</b>
+  </button>
+</section>
+
+<section class="wrap shop-how" aria-labelledby="howTitle">
+  <div class="sec-head center rv">
+    <div class="eyebrow">How it works</div>
+    <h2 id="howTitle">Three steps, no passwords.</h2>
+    <p>The shop never asks for your Microsoft or Minecraft password. A short code from inside the game proves which account the items are for.</p>
+  </div>
+  <div class="steps shop-steps">
+    <div class="card step rv"><h4>Open the Wardrobe</h4><p>In Evade, open the <b>Wardrobe</b> and choose <b>Link the shop</b>. You'll see a 6-character code.</p></div>
+    <div class="card step rv d1"><h4>Type the code here</h4><p>Enter it in <b>Your Minecraft account</b>. Codes expire after a short time, so get a new one if it stops working.</p></div>
+    <div class="card step rv d2"><h4>Pick your items</h4><p>Preview anything in 3D, add it to your cart, or send it to a friend as a gift.</p></div>
+    <div class="card step rv d3"><h4>Wear it in game</h4><p>Your items appear in the Wardrobe. Switch them on and off any time.</p></div>
+  </div>
+</section>
+
+<section class="wrap shop-partners" id="partners" aria-labelledby="partnersTitle">
+  <div class="partner-band rv">
+    <div class="partner-copy">
+      <div class="eyebrow">Partner servers</div>
+      <h2 id="partnersTitle">Cosmetics with your server's name on them.</h2>
+      <p>Partner servers get their own branded cosmetics in the Evade Shop: a cape in the server's colours, a hat for a season, a badge for a tournament. Each partner decides how players get them.</p>
+      <ul class="partner-points">
+        <li><b>Earn them</b> by playing: an event win, a rank, a season pass, whatever the server chooses.</li>
+        <li><b>Or buy them</b> here, when the server sells them in the shop.</li>
+        <li><b>Still cosmetic-only.</b> Partner items follow the same rule as every item: no gameplay advantage, anywhere.</li>
+      </ul>
+      <div class="cta">
+        <button class="btn btn-ghost" type="button" data-cat-jump="partner">See partner items</button>
+        <a class="btn btn-ghost" href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Run a server? Talk to us</a>
+      </div>
+    </div>
+    <div class="partner-art" aria-hidden="true">
+      <div class="partner-badge"><span>YOUR</span><b>SERVER</b><em>Partner cape</em></div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap shop-faq" aria-labelledby="shopFaqTitle">
+  <div class="sec-head rv"><div class="eyebrow">Good to know</div><h2 id="shopFaqTitle">Questions</h2></div>
+  <div class="doc rv">
+    <details><summary>Do cosmetics give an advantage?</summary><p>No. Every item is visual only. Nothing changes your hitbox, reach, speed or anything else about how the game plays.</p></details>
+    <details><summary>Who can see my cosmetics?</summary><p>Other players who use Evade Client. Players without Evade see your normal skin, so servers and other clients are unaffected.</p></details>
+    <details><summary>Do I need to give you my password?</summary><p>Never. The shop only needs the 6-character code the game shows you in the Wardrobe. Nobody from Evade will ever ask for your password.</p></details>
+    <details><summary>I'm under 18. Can I buy?</summary><p>Only with permission from a parent or guardian, who should read the <a href="/shop-terms">Terms of Sale</a> with you first.</p></details>
+  </div>
+</section>
+
+<section class="wrap shop-foot" aria-label="Shop links">
+  <div class="shop-foot-in">
+    <span>Evade Shop</span>
+    <nav aria-label="Shop legal"><a href="/shop-terms">Terms of Sale</a><a href="/privacy">Privacy policy</a><a href="/shop-terms#contact">Contact</a></nav>
+    <small>Evade Client is not affiliated with, endorsed by or associated with Mojang Studios or Microsoft.</small>
+  </div>
+</section>
+
+<div class="item-modal" id="itemModal" role="dialog" aria-modal="true" aria-labelledby="itemName" hidden>
+  <div class="item-backdrop" data-close></div>
+  <div class="item-sheet card">
+    <button class="item-close" type="button" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="item-stage" id="itemStage">
+      <canvas id="itemCanvas" aria-label="3D preview of a player wearing this item"></canvas>
+      <img id="itemStill" alt="" hidden>
+      <div class="item-loading" id="itemLoading">Loading 3D preview&hellip;</div>
+      <div class="item-controls" id="itemControls">
+        <button type="button" class="tab on" data-anim="idle">Stand</button>
+        <button type="button" class="tab" data-anim="walk">Walk</button>
+        <button type="button" class="tab" data-view="back">Back</button>
+        <button type="button" class="tab" data-rotate>Spin</button>
+      </div>
+      <p class="item-hint" id="itemHint">Drag to turn &middot; scroll or pinch to zoom</p>
+    </div>
+    <div class="item-info">
+      <div class="item-meta"><span class="rarity" id="itemRarity"></span><span class="item-cat" id="itemCat"></span></div>
+      <h2 id="itemName"></h2>
+      <p class="item-desc" id="itemDesc"></p>
+      <p class="item-partner" id="itemPartner" hidden></p>
+      <div class="item-buy">
+        <b class="item-price" id="itemPrice"></b>
+        <button class="btn btn-red" type="button" id="itemAdd">Add to cart</button>
+      </div>
+      <p class="shop-fine">Cosmetic only. No gameplay advantage. Visible to players using Evade Client.</p>
+    </div>
+  </div>
+</div>
+<script src="/assets/shop.js?v={{SHOP_KEY}}" defer></script>

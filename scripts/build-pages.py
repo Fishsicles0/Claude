@@ -18,6 +18,7 @@ import html
 import json
 import pathlib
 import re
+import shutil
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -27,7 +28,11 @@ SITE = "https://evadeclient.com"
 
 NAV = [("home", "/", "Home"), ("features", "/features", "Features"), ("clips", "/clips", "Clips"), ("download", "/download", "Download"),
        ("docs", "/docs", "Docs"), ("changelog", "/changelog", "Changelog"), ("showcase", "/showcase", "Showcase"),
-       ("faq", "/faq", "FAQ")]
+       ("faq", "/faq", "FAQ"), ("shop", "/shop", "Shop")]
+# The shop isn't open yet: its nav link carries a "Soon" pill. Set to False when the shop opens.
+SHOP_SOON = True
+if SHOP_SOON:
+    NAV[-1] = ("shop", "/shop", 'Shop <span class="nav-soon">Soon</span>')
 
 LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="32" height="32">'
         '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIENT</span></span>')
@@ -761,6 +766,13 @@ def main() -> None:
     (OUT / "news.json").write_text(json.dumps(news_out, ensure_ascii=False, indent=1) + "\n")
     print(f"news.json: {len(news_out['entries'])} changelog entries")
     tokens |= {"{{MODS_KEY}}": keys["mods_key"]}
+    # The shop pages load their own stylesheet and script; cosmetics from site-src/cosmetics are served at /cosmetics/.
+    tokens |= {"{{SHOP_KEY}}": hashlib.sha256(b"".join(
+        (OUT / "assets" / f).read_bytes() for f in ("shop.css", "shop.js") if (OUT / "assets" / f).exists())).hexdigest()[:10]}
+    cosmetics = ROOT / "site-src" / "cosmetics"
+    if cosmetics.is_dir():
+        shutil.copytree(cosmetics, OUT / "cosmetics", dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("README*", "*.md", ".*"))
     # One card per HUD element, for the Showcase page's HUD gallery (links to each element's detail view).
     hud_cards = "".join(
         f'<a class="card hud-card" href="/features#m={html.escape(m["name"].replace(" ", "%20"))}">'
