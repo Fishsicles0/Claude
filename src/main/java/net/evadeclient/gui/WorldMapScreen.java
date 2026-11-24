@@ -206,12 +206,14 @@ public final class WorldMapScreen extends Screen {
     }
 
     private void drawTerrain(DrawContext ctx, int mode, boolean wd) {
+        drawnRegions = 0;
         int rx0 = MathHelper.floor(wx(0)) >> 9, rx1 = MathHelper.floor(wx(width)) >> 9;
         int rz0 = MathHelper.floor(wz(0)) >> 9, rz1 = MathHelper.floor(wz(height)) >> 9;
         for (int rz = rz0; rz <= rz1; rz++) {
             for (int rx = rx0; rx <= rx1; rx++) {
                 GpuTextureView v = textures.view(rx, rz, mode, wd);
                 if (v == null) continue;
+                drawnRegions++;
                 MapDraw.texture(ctx, v, sx(rx * 512.0), sy(rz * 512.0), sx((rx + 1) * 512.0), sy((rz + 1) * 512.0), 0xFFFFFFFF);
             }
         }
@@ -490,6 +492,13 @@ public final class WorldMapScreen extends Screen {
         }
         if (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_C) { followPlayer = false; centre(); return true; }
         return super.keyPressed(input);
+    }
+
+    private int drawnRegions;
+
+    /** Test hook: what the last frame drew. */
+    public String drawnForTest() {
+        return "regions " + drawnRegions + ", zoom " + zoom + ", centre " + Math.round(camX) + "," + Math.round(camZ) + ", size " + width + "x" + height;
     }
 
     /** Test hook: region textures on the GPU. */

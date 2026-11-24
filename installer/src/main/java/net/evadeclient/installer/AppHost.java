@@ -32,6 +32,9 @@ final class AppHost {
 
     static void start(List<String> args) throws Exception {
         boolean minimized = args.contains("--minimized"), clipsFirst = args.contains("--clips");
+        // A desktop shortcut's --play <instance>: left as a request that this launcher (or one already open) picks up.
+        String playId = InstanceShortcut.playArg(args);
+        if (playId != null) InstanceShortcut.request(playId);
         Settings cs = Settings.load();
         // Already running (this program, or an old one without the lock): bring it forward and stop here.
         // Another Evade Launcher (this program) already runs: show it and stop here. Only the old separate app is
@@ -73,6 +76,7 @@ final class AppHost {
             Theme.install();
             if (clips != null) clips.toast = new Toast();
             launcher[0] = new LauncherApp(clips, clipsNote, clipsNote != null);
+            launcher[0].closeAfterQuickPlay = playId != null;
             launcher[0].installTray();
             if (clips != null) clips.showWindow = launcher[0]::showWindow;
             if (minimized && clips != null) launcher[0].startBackground();

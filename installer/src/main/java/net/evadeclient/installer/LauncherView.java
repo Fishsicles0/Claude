@@ -227,6 +227,8 @@ public final class LauncherView extends JPanel {
     final GamePages game;
     /** Appearance, keyboard shortcuts, instance groups/pins/sorting, zip export/import, What's new. */
     final ViewExtras extras;
+    /** Import from other launchers, drag and drop, templates, optional extras, safe mode, shortcuts, memory advice. */
+    final LauncherTools tools;
 
     record Popup(String id, int x, int y, int w, List<String[]> items) {}
     record Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod, int index) {
@@ -351,6 +353,7 @@ public final class LauncherView extends JPanel {
         game = new GamePages(this);
         extras = new ViewExtras(this);
         extras.installKeys();
+        tools = new LauncherTools(this);
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
@@ -494,6 +497,7 @@ public final class LauncherView extends JPanel {
             if (id.equals("dismiss") || id.equals("bell")) { repaint(); return; }
         }
         if (extras.click(id)) { repaint(); return; }
+        if (tools.click(id)) { repaint(); return; }
         if (content.click(id)) { repaint(); return; }
         switch (id) {
             case "close" -> { if (play != Play.UPDATING) actions.close(); }
@@ -668,6 +672,7 @@ public final class LauncherView extends JPanel {
         Popup p = popup;
         popup = null;
         if (extras.popup(what)) { repaint(); return; }
+        if (tools.popup(what)) { repaint(); return; }
         if (what.startsWith("sel:")) {
             for (Launcher.Instance i : instances) if (i.id.equals(what.substring(4))) actions.select(i);
         } else if (what.startsWith("copy:")) {
@@ -723,6 +728,7 @@ public final class LauncherView extends JPanel {
     void openModal(Modal m, String text) {
         modal = m;
         modalCopyFrom = m.kind().equals("create") ? Launcher.DEFAULT_ID : null;
+        if (m.kind().equals("create")) tools.template = InstanceTemplates.BLANK;
         if (text != null) {
             syncingFields = true;
             modalField.setText(text);
@@ -740,7 +746,7 @@ public final class LauncherView extends JPanel {
         switch (m.kind()) {
             case "create" -> {
                 if (text.isEmpty()) return;
-                actions.createInstance(text, modalCopyFrom);
+                if (!tools.createInstance(text, modalCopyFrom)) actions.createInstance(text, modalCopyFrom);
             }
             case "rename" -> {
                 if (text.isEmpty()) return;
@@ -853,6 +859,7 @@ public final class LauncherView extends JPanel {
             else if (overlay.equals("friends")) paintFriends(g);
             else if (overlay.equals("whatsnew")) extras.paintWhatsNew(g);
             else if (overlay.equals("keys")) extras.paintKeys(g);
+            else if (tools.paintOverlay(g, overlay)) { /* import, optional extras */ }
             else if (overlayServer() != null) paintServerCard(g, overlayIndex());
             else overlay = null;
         }
@@ -884,6 +891,7 @@ public final class LauncherView extends JPanel {
             if (clipsHost.isVisible() != show) clipsHost.setVisible(show);
         }
         game.paintOverlay(g);
+        tools.paintDrag(g);
         g.dispose();
     }
 
@@ -2216,6 +2224,11 @@ public final class LauncherView extends JPanel {
 
     /** A settings row: the name (and a line under it) on the left, the control on the right, a hairline below. */
     void rowLabel(Graphics2D g, int x, int y, int h, String title, String sub, boolean last, int w) {
+        rowLabel(g, x, y, h, title, sub, last, w, w);
+    }
+
+    /** As above, with the line under the name kept within {@code subW} (clear of a control on the right). */
+    void rowLabel(Graphics2D g, int x, int y, int h, String title, String sub, boolean last, int w, int subW) {
         g.setFont(interBold.deriveFont(13.5f));
         g.setColor(TEXT);
         int ty = sub == null ? y + h / 2 + 5 : y + h / 2 - 3;
@@ -2223,7 +2236,7 @@ public final class LauncherView extends JPanel {
         if (sub != null) {
             g.setFont(inter.deriveFont(12f));
             g.setColor(FAINT);
-            g.drawString(ellipsizeEnd(g, sub, w), x, ty + 19);
+            g.drawString(ellipsizeEnd(g, sub, subW), x, ty + 19);
         }
         if (!last) {
             g.setColor(HAIRLINE);
@@ -2263,7 +2276,8 @@ public final class LauncherView extends JPanel {
         game.name("inst-folder", "Open the instance folder in the file manager");
         game.name("inst-export", "Export this instance as a zip");
         ry += rh;
-        rowLabel(g, ix, ry, rh, "Memory", "How much Minecraft may use", false, iw);
+        rowLabel(g, ix, ry, rh, "Memory", tools.memoryLine(i.memoryGb, "How much Minecraft may use"), false, iw, iw - ctl - 12);
+        if (tools.memoryWarn(i.memoryGb)) { g.setColor(AMBER); g.fill(new Ellipse2D.Double(ix - 12, ry + rh / 2 + 9, 6, 6)); }
         memoryChips(g, cx, ry + 14, ctl, i.memoryGb);
         ry += rh;
         boolean voice = release == null || release.voiceChat() != null, perf = release == null || !release.performance().isEmpty(), sh = release == null || release.iris() != null;
@@ -2273,28 +2287,32 @@ public final class LauncherView extends JPanel {
                 {"inst-lights", "Dynamic lights", "Held torches light up the area"}};
         boolean packs = release == null || !release.packFeatures().isEmpty(), lights = release == null || release.dynamicLights() != null;
         boolean[] val = {i.perf, i.shaders, i.voice, i.packs, i.lights}, av = {perf, sh, voice, packs, lights};
-        // Rows tighten on small windows so the note and the buttons below stay clear.
-        int oh = Math.max(44, Math.min(rh - 8, (y + h - 28 - 40 - 40 - ry) / rows.length));
+        // Rows tighten on small windows so the note and the buttons below stay clear (the last row is Optional extras).
+        int oh = Math.max(40, Math.min(rh - 8, (y + h - 28 - 40 - 34 - ry) / (rows.length + 1)));
         for (int k = 0; k < rows.length; k++) {
-            rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", k == rows.length - 1, iw);
+            rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", false, iw);
             toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + oh / 2 - 12, val[k], av[k]);
             if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, oh));
             game.name(rows[k][0], rows[k][1] + ", " + (val[k] ? "on" : "off"));
             ry += oh;
         }
+        tools.paintExtrasRow(g, i, ix, ry, oh, iw);
+        ry += oh - 6;
         g.setFont(inter.deriveFont(12f));
         g.setColor(i.dirty ? AMBER : FAINT);
         g.drawString(i.dirty ? "Changed: applied the next time you press Play with this instance." : "Changes apply the next time you press Play.", ix, ry + 26);
 
-        int by = y + h - 28 - 40, bw = (iw - 3 * 12) / 4;
+        int by = y + h - 28 - 40, bw = (iw - 4 * 10) / 5;
         ghostButton(g, "inst-copy", ix, by, bw, 40, "Copy settings", false, "copy");
-        ghostButton(g, "inst-rename", ix + (bw + 12), by, bw, 40, "Rename", false);
-        ghostButton(g, "inst-dup", ix + 2 * (bw + 12), by, bw, 40, "Duplicate", false, "layers");
-        if (!i.isDefault()) ghostButton(g, "inst-del", ix + 3 * (bw + 12), by, bw, 40, "Delete", true, "trash");
+        ghostButton(g, "inst-rename", ix + (bw + 10), by, bw, 40, "Rename", false);
+        ghostButton(g, "inst-dup", ix + 2 * (bw + 10), by, bw, 40, "Duplicate", false, "layers");
+        ghostButton(g, "inst-more", ix + 3 * (bw + 10), by, bw, 40, "More", false, "list");
+        game.name("inst-more", "More: start in safe mode, desktop shortcut, optional extras");
+        if (!i.isDefault()) ghostButton(g, "inst-del", ix + 4 * (bw + 10), by, bw, 40, "Delete", true, "trash");
         else {
             g.setFont(inter.deriveFont(12f));
             g.setColor(FAINT);
-            center(g, "Main stays", ix + 3 * (bw + 12), by, bw, 40);
+            center(g, "Main stays", ix + 4 * (bw + 10), by, bw, 40);
         }
     }
 
@@ -2556,7 +2574,8 @@ public final class LauncherView extends JPanel {
         ghostButton(g, "open-mc", ix + iw - 172, ry + 15, 84, 36, "Open", false);
         ghostButton(g, "set-folder", ix + iw - 80, ry + 15, 80, 36, "Change", false);
         ry += rh;
-        rowLabel(g, ix, ry, rh, "Memory for new instances", "Recommended here: " + recommendedGb + " GB" + (totalGb > 0 ? " of " + totalGb + " GB" : ""), false, iw);
+        rowLabel(g, ix, ry, rh, "Memory for new instances", tools.memoryLine(settings.defaultMemoryGb,
+                "Recommended here: " + recommendedGb + " GB" + (totalGb > 0 ? " of " + totalGb + " GB" : "")), false, iw, iw - ctl - 12);
         memoryChips(g, cx, ry + 15, ctl, settings.defaultMemoryGb);
         ry += rh;
         rowLabel(g, ix, ry, rh, "Java", "Optional: leave empty", false, iw);
@@ -2748,7 +2767,7 @@ public final class LauncherView extends JPanel {
         boolean server = m.kind().equals("server");
         boolean text = m.kind().equals("create") || m.kind().equals("rename") || m.kind().equals("group") || server || m.kind().startsWith("c:text");
         boolean create = m.kind().equals("create");
-        int w = 440, h = text ? (create || server ? 346 : 256) : 200;
+        int w = 440, h = text ? (create ? 470 : server ? 346 : 256) : 200;
         int x = (W - w) / 2, y = (H - h) / 2;
         card(g, x, y, w, h, true);
         int ix = x + 28, iw = w - 56;
@@ -2794,6 +2813,7 @@ public final class LauncherView extends JPanel {
                 g.drawString(from, ix + 13, fy + 119);
                 icon(g, "chevron-down", ix + iw - 20, fy + 114, 9, DIM);
                 hitMap.put("modal-copy", new Rectangle(ix, fy + 94, iw, 40));
+                tools.paintTemplates(g, ix, fy + 156, iw);
             }
         }
         boolean danger = m.kind().equals("delete") || m.kind().equals("remove-mod") || m.kind().startsWith("c:del");

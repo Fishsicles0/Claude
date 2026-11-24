@@ -63,7 +63,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
                     "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
-            if (Boolean.getBoolean("evade.mapsonly")) { MapsTest.run(ctx, sp); return; } // TEMP-MAPS
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);

@@ -27,12 +27,12 @@ final class StartupChecks {
 
     /** What's new in this launcher version (newest first; shown once after an update). */
     static final String[][] WHATS_NEW = {
-            {"Light theme and accent colours", "Settings › Appearance: keep the dark Evade look or switch to light, and pick an accent colour."},
-            {"Bigger text, less motion", "Text size 100 / 115 / 130 % and a reduced-motion option that stops slides and animations."},
-            {"Keyboard everywhere", "Tab and Shift+Tab move through every page, Enter or Space presses, Escape closes. Ctrl+1…6 switch pages, Ctrl+P plays, F1 lists every shortcut."},
-            {"Organise instances", "Groups you can fold away, pin favourites to the top, and sort by name, last played or play time."},
-            {"Instances as a .zip", "Export an instance (worlds optional) and import it on another PC. Evade's own files reinstall fresh on the first Play."},
-            {"Update checks on start", "The bell tells you when mods you added have updates, without slowing the launcher down."}};
+            {"Bring your setup over", "Instances › Import › From another launcher: settings, keybinds, servers, packs and worlds, with your mods fetched again for " + InstallerCore.MC_VERSION + "."},
+            {"Drag and drop", "Drop a mod, resource pack, shader pack or modpack on the window: it's checked and goes where it belongs."},
+            {"Templates and optional extras", "Start a new instance as PvP, Survival + shaders, Building or Low-end laptop. Faster start-up, more FPS and Open to Friends are a switch away."},
+            {"Pick a version, undo an update", "Every mod's version list with changelogs, pins that Update all leaves alone, and Undo update."},
+            {"Safe mode and shortcuts", "Start in safe mode from a crash card or an instance's More menu, and put an instance on your desktop."},
+            {"Memory that fits your PC", "Laptops whose graphics share the RAM get the right amount, and the Game page offers generational ZGC."}};
 
     /** Checks every installed instance's own mods and packs; {@code report(instance, updates)} runs for each with updates. */
     static void modUpdates(List<Launcher.Instance> instances, BiConsumer<Launcher.Instance, Integer> report) {
@@ -45,7 +45,7 @@ final class StartupChecks {
                     try { for (Content.Pack p : Content.packs(i.dir, t, null)) if (!p.folder()) files.put(p.file(), t); } catch (RuntimeException ignored) { }
                 }
                 if (files.isEmpty()) continue;
-                int n = (int) Updates.check(files).values().stream().filter(Updates.Known::hasUpdate).count();
+                int n = ContentPins.unpinnedUpdates(i.dir, Updates.check(files).values()).size(); // pinned ones aren't news
                 if (n > 0) report.accept(i, n);
             } catch (Exception e) {
                 return; // offline or Modrinth unavailable: try again next start

@@ -15,6 +15,7 @@ final class Screenshots {
     static void render(Path out) throws Exception {
         if ("content".equals(System.getProperty("evade.shots.only"))) { ContentShots.render(out); return; }
         if ("look".equals(System.getProperty("evade.shots.only"))) { LookShots.render(out); return; }
+        if ("v25".equals(System.getProperty("evade.shots.only"))) { V25Shots.render(out); return; }
         LauncherView v = new LauncherView();
         v.version = EvadeInstaller.launcherVersion();
         Path mc = Paths.get("C:/Users/Player/AppData/Roaming/.minecraft");

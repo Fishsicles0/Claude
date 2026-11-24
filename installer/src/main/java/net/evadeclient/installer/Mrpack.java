@@ -419,10 +419,19 @@ final class Mrpack {
 
     // ------------------------------------------------------------------ share codes
 
-    static final String CODE_PREFIX = "EVADE1-";
+    /**
+     * Instance share codes start with {@code EVI1-}. Launchers before 2.5 wrote {@code EVADE1-}, which is still read;
+     * {@code EVADE1:} (with a colon) is the in-game menu's profile code, a different thing, and gets its own message.
+     */
+    static final String CODE_PREFIX = "EVI1-", OLD_CODE_PREFIX = "EVADE1-", PROFILE_CODE_PREFIX = "EVADE1:";
 
     /** What a share code holds: a name, Modrinth project ids by type, and the instance's Evade options. */
-    record Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice) {}
+    record Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice,
+                 Set<String> optional) {
+        Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice) {
+            this(name, mods, resourcePacks, shaders, perf, shaderOption, voice, Set.of());
+        }
+    }
 
     /** The share code for an instance: its Modrinth projects (by id, never files) and options, deflated and base64url. */
     static String shareCode(Launcher.Instance inst, Map<Path, Updates.Known> known) {
@@ -440,6 +449,8 @@ final class Mrpack {
         if (!r.isEmpty()) o.add("r", r);
         if (!sh.isEmpty()) o.add("s", sh);
         o.addProperty("o", (inst.perf ? "p" : "") + (inst.shaders ? "s" : "") + (inst.voice ? "v" : ""));
+        String extras = OptionalMods.letters(inst.optional);
+        if (!extras.isEmpty()) o.addProperty("x", extras); // optional extras (older launchers ignore this key)
         byte[] raw = o.toString().getBytes(StandardCharsets.UTF_8);
         Deflater d = new Deflater(Deflater.BEST_COMPRESSION, true);
         d.setInput(raw);
@@ -452,9 +463,12 @@ final class Mrpack {
 
     static Share readCode(String code) throws IOException {
         String c = code == null ? "" : code.strip().replaceAll("\\s+", "");
-        if (!c.startsWith(CODE_PREFIX)) throw new IOException("That isn't an Evade share code (they start with " + CODE_PREFIX + ")");
+        if (c.startsWith(PROFILE_CODE_PREFIX))
+            throw new IOException("That's an Evade profile code (for the in-game menu's Profiles page), not an instance code. Instance codes start with " + CODE_PREFIX);
+        String prefix = c.startsWith(CODE_PREFIX) ? CODE_PREFIX : c.startsWith(OLD_CODE_PREFIX) ? OLD_CODE_PREFIX : null;
+        if (prefix == null) throw new IOException("That isn't an Evade instance code (they start with " + CODE_PREFIX + ")");
         try {
-            byte[] packed = Base64.getUrlDecoder().decode(c.substring(CODE_PREFIX.length()));
+            byte[] packed = Base64.getUrlDecoder().decode(c.substring(prefix.length()));
             Inflater inf = new Inflater(true);
             inf.setInput(packed);
             java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
@@ -469,7 +483,7 @@ final class Mrpack {
             JsonObject o = JsonParser.parseString(b.toString(StandardCharsets.UTF_8)).getAsJsonObject();
             String opts = InstallerCore.str(o, "o") == null ? "pv" : InstallerCore.str(o, "o");
             return new Share(InstallerCore.str(o, "n") == null ? "Shared" : InstallerCore.str(o, "n"), ids(o, "m"), ids(o, "r"), ids(o, "s"),
-                    opts.contains("p"), opts.contains("s"), opts.contains("v"));
+                    opts.contains("p"), opts.contains("s"), opts.contains("v"), OptionalMods.fromLetters(InstallerCore.str(o, "x")));
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -490,6 +504,10 @@ final class Mrpack {
     static Result fromCode(InstallerCore core, Launcher.Settings s, List<Launcher.Instance> all, Share share, int memoryGb, InstallerCore.Progress p) throws IOException {
         List<String> notes = new ArrayList<>();
         Launcher.Instance inst = Launcher.create(s, all, share.name(), null, memoryGb, share.perf(), share.shaderOption(), share.voice());
+        if (share.optional() != null && !share.optional().isEmpty()) {
+            inst.optional = OptionalMods.clean(share.optional());
+            Launcher.save(inst);
+        }
         Map<String, ContentApi.Project> projects;
         try {
             List<String> ids = new ArrayList<>(share.mods());

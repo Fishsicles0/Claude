@@ -81,9 +81,11 @@ public final class MapsTest {
         ctx.waitTicks(10);
         WorldMapScreen map = screen(ctx);
         check(map != null, "The World Map opens");
-        ctx.runOnClient(c -> map.setViewForTest(504, 8, 0.75f));
+        ctx.runOnClient(c -> map.setViewForTest(504, 8, 0.35f));
         ctx.waitTicks(20);
         check(ctx.computeOnClient(c -> map.texturesForTest()) > 0, "The World Map uploads region tiles");
+        String drawn = ctx.computeOnClient(c -> map.drawnForTest());
+        EvadeClient.LOG.info("[gametest] MAPDRAW {}", drawn);
         float[] at = ctx.computeOnClient(c -> map.screenAtForTest(1002.5, 8.5));
         List<String> info = ctx.computeOnClient(c -> map.cursorInfo(at[0], at[1]));
         check(info.size() == 2 && info.get(0).startsWith("X 1002") && info.get(0).endsWith("Z 8") && !info.get(1).isBlank(),

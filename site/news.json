@@ -1,6 +1,27 @@
 {
- "version": "2.3.0",
+ "version": "2.4.0",
  "entries": [
+  {
+   "id": "v2.4.0",
+   "title": "v2.4.0",
+   "date": "2026-11-24",
+   "dateText": "24 Nov 2026",
+   "summary": "A World Map, Item View, damage numbers, five new widgets, a screenshot gallery, addons, and a launcher you can drive from the keyboard.",
+   "items": [
+    "World Map: press M for a map of the ground you've explored, saved per server and world, with waypoints you can add, edit and target. It only shows surface terrain you've actually seen: no caves, no other players. The Minimap gets height shading, water depth, real biome colours and your explored tiles.",
+    "Item View: move, turn and resize the item in each hand, change the swing animation speed (only how it looks: attack timing is untouched), and hide your shield.",
+    "1.7 Animations: the old sword block pose, red armour when hurt, the old hurt tilt, sneak camera and heart flash.",
+    "Damage Numbers and a hit marker: only for hits the server confirms were yours. Nobody's health is ever shown.",
+    "New widgets: Server TPS (estimate), Connection Watch (warns when the server stops responding), Network, Ping Graph and Paper Doll.",
+    "Screenshot gallery in game (.shots): browse, rename, copy and delete with undo.",
+    "Look and feel: title screen backgrounds (or your own image), custom menu colours with shareable theme codes, and HUD widget stacks that move together.",
+    "Addons: other Fabric mods can add their own mods and widgets to Evade's menu and HUD editor. Each one is labelled with the mod that added it. See For mod developers.",
+    "Evade Launcher: works fully from the keyboard (F1 lists the shortcuts), larger text and reduce-motion options, a light theme and accent colours, instance folders, pins and sorting, instance export and import as a .zip, and a quiet check for mod updates at start.",
+    "Streamer Mode now also hides friend messages and friends' servers.",
+    "More launcher tools: import your instances from another launcher, drag and drop mods, packs and modpacks onto the window, pick or pin a mod's version and undo the last update, new-instance templates (PvP, Survival + shaders, Building, Low-end laptop), memory advice for laptops with integrated graphics, optional extras (faster start-up, more FPS, faster singleplayer chunks), \"Start in safe mode\", and desktop shortcuts that start an instance in one click."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.4.0"
+  },
   {
    "id": "v2.3.0",
    "title": "v2.3.0",
@@ -85,24 +106,6 @@
     "Hundreds of smaller fixes across the client, the installer and Evade Clips."
    ],
    "url": "https://evadeclient.com/changelog#v2.0.0"
-  },
-  {
-   "id": "v1.18.1",
-   "title": "v1.1 – v1.18",
-   "date": "2026-11-23",
-   "dateText": "23 Nov 2026",
-   "summary": "Evade Clips, voice chat, themes, shareable profiles and a benchmarked FPS boost.",
-   "items": [
-    "Evade Clips: a companion app for instant replay with sound, full recordings, a clip library and an editor, set up by the installer. It clips kills, totem pops, wins and advancements automatically, and makes share links that play inside Discord.",
-    "Voice chat through Simple Voice Chat, added by the installer. Press V or type .voice.",
-    "FPS boost: the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against its checksum. Evade's own Performance mod adds Low-End PC Mode, low FPS when AFK or tabbed out, and Effects settings that cut particles, block dust, rain splashes and fire on mobs.",
-    "Themes: Modern, Midnight, OLED or Classic, with eight accent colours, a smooth Inter font, sidebar icons and a two-column Compact view.",
-    "HUD: per-element styling (Evade, Solid, Glass or Outline backgrounds, Chroma text, the smooth font), Hide In Menus and Only In Combat, a snap grid in the editor, Auto HUD Scale and HUD Size, the Frame Time Graph and the Frame Profiler.",
-    "Profiles: share any profile as a code, and link a profile to a server so it loads when you join. Search finds setting names, from anywhere with Ctrl+F.",
-    "Installer: optional shaders through Iris, a recommended memory size for your PC, downloads that can't stall, and clear help when Java is too old.",
-    "Evade icons in the tab list, Pack Tweaks (low fire, no pumpkin blur), a privacy policy, and fixes for Windows players, including the firework \"Ticking Particle\" crash and the menu on scaled screens."
-   ],
-   "url": "https://evadeclient.com/changelog#v1.18.1"
   }
  ]
 }

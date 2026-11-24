@@ -153,9 +153,12 @@ final class ContentPage {
     private final Set<String> bodyLoading = new HashSet<>();
     /** What the open confirm dialog is about. */
     private Object pending;
+    /** Version list, pins and Undo last update. */
+    final ContentVersions versions;
 
     ContentPage(LauncherView v) {
         this.v = v;
+        versions = new ContentVersions(this, v);
         filterField = field("Search installed");
         browseField = field("Search Modrinth");
         v.add(filterField);
@@ -235,6 +238,7 @@ final class ContentPage {
             checkError = null;
             datapackWorld = null;
             troubleshoot = readTroubleshoot(dir);
+            versions.ensure(dir);
             hitState.clear();
             sheet = null;
         }
@@ -354,7 +358,7 @@ final class ContentPage {
         v.pageTitle(g, "Mods", "Mods, packs and worlds for one instance. A mod switched off stays, ready to turn back on.");
         instancePicker(g, sel, CX, CW);
         int ty = 100, x = CX;
-        long ups = known.values().stream().filter(Updates.Known::hasUpdate).count();
+        long ups = versions.unpinnedCount(known.values());
         for (Tab t : Tab.values()) {
             int count = t == Tab.INSTALLED ? v.mods.size() : -1;
             v.tab(g, "c-tab:" + t.name(), x, ty, t.label, count, tab == t);
@@ -602,9 +606,10 @@ final class ContentPage {
         int sw = segmented(g, x, y, new String[][]{{"c-itype:MOD", "Mods"}, {"c-itype:RESOURCEPACK", "Resource packs"}, {"c-itype:SHADER", "Shader packs"}},
                 "c-itype:" + installedType.name());
         long ups = known.values().stream().filter(k -> k.hasUpdate() && (installedType == Content.Type.MOD ? k.type() == Content.Type.MOD : true)).count();
-        long allUps = known.values().stream().filter(Updates.Known::hasUpdate).count();
+        long allUps = versions.unpinnedCount(known.values());
         int bw = 170;
         int bx = x + w - bw;
+        int undoW = versions.rollback.isEmpty() || bulk != null ? 0 : 150;
         if (bulk != null) progressPill(g, bx, y, bw, 40, bulkProgress, bulk);
         else if (checking) {
             g.setColor(new Color(0x1C1C22));
@@ -617,7 +622,11 @@ final class ContentPage {
         else v.ghostButton(g, "c-check", bx, y, bw, 40, "Check for updates", false, "download");
         String sortLabel = switch (sort) { case "date" -> "Newest"; case "size" -> "Largest"; case "updates" -> "Updates first"; default -> "Name"; };
         dropdown(g, "c-sort", bx - 12 - 150, y, 150, "Sort: " + sortLabel);
-        filterRect = searchBox(g, filterField, x + sw + 12, y, bx - 12 - 150 - 12 - (x + sw + 12), "Search " + (installedType == Content.Type.MOD ? "mods" : installedType.label.toLowerCase(Locale.ROOT)));
+        if (undoW > 0) {
+            v.ghostButton(g, "c-undo", bx - 12 - 150 - 12 - undoW, y, undoW, 40, "Undo update", false, "arrow-right");
+            v.game.name("c-undo", "Undo the last update: puts the previous versions back");
+        }
+        filterRect = searchBox(g, filterField, x + sw + 12, y, bx - 12 - 150 - 12 - (undoW > 0 ? undoW + 12 : 0) - (x + sw + 12), "Search " + (installedType == Content.Type.MOD ? "mods" : installedType.label.toLowerCase(Locale.ROOT)));
         y += 52;
         h -= 52;
 
@@ -1341,6 +1350,7 @@ final class ContentPage {
         v.iconButton(g, "c-sheetx", x + w - 48, y + 16, 32, "close-x", false);
         int ix = x + 28, iw = w - 56;
         if (sheet.equals("problems")) { paintProblems(g, x, y, w, h, ix, iw); return; }
+        if (sheet.equals("versions")) { versions.paint(g, x, y, w, h, ix, iw); return; }
         if (sheet.startsWith("datapacks:")) { paintDatapacks(g, sel, x, y, w, h, ix, iw, sheet.substring(10)); return; }
         String title, sub, body = null, projectId = null, url = null;
         Image img = null;
@@ -1428,6 +1438,7 @@ final class ContentPage {
         int bx = ix + iw;
         if (url != null) { v.ghostButton(g, "c-openurl", bx - 170, by, 170, 40, "Open on Modrinth", false, "external"); bx -= 180; }
         if (file != null) v.ghostButton(g, "c-showfile", bx - 150, by, 150, 40, "Show file", false, "folder");
+        if (file != null && k != null) versions.paintSheetButtons(g, k, ix, by);
         else if (sheet.startsWith("hit:")) {
             int n = Integer.parseInt(sheet.substring(4));
             Mods.Hit hh = hits.get(n);
@@ -1437,10 +1448,22 @@ final class ContentPage {
         }
         sheetUrl = url;
         sheetFile = file;
+        sheetTitle = title;
     }
 
-    private String sheetUrl;
+    private String sheetUrl, sheetTitle;
     private Path sheetFile;
+
+    /** The file and name on the open mod or pack sheet (for its version list). */
+    Path sheetFileShown() { return sheetFile; }
+
+    String sheetTitleShown() { return sheetTitle; }
+
+    /** After switching a version or undoing an update: the lists reload. */
+    void versionsChanged(Launcher.Instance sel, Content.Type type) {
+        packs = null;
+        if (type == null || type == Content.Type.MOD) refreshMods(sel);
+    }
 
     private void loadBody(String projectId) {
         bodyLoading.add(projectId);
@@ -1580,6 +1603,7 @@ final class ContentPage {
         if (!id.startsWith("c-")) return false;
         String arg = id.indexOf(':') > 0 ? id.substring(id.indexOf(':') + 1) : "";
         String cmd = id.indexOf(':') > 0 ? id.substring(0, id.indexOf(':')) : id;
+        if (versions.click(cmd, arg, sel)) return true;
         switch (cmd) {
             case "c-tab" -> {
                 tab = Tab.valueOf(arg);
@@ -1961,8 +1985,10 @@ final class ContentPage {
         updating.put(file, 0.0);
         work.submit(() -> {
             try {
-                Path np = Updates.apply(sel.dir, k, (f, m) -> SwingUtilities.invokeLater(() -> { if (updating.containsKey(file)) updating.put(file, f); }));
+                Path np = Updates.apply(sel.dir, k, (f, m) -> SwingUtilities.invokeLater(() -> { if (updating.containsKey(file)) updating.put(file, f); }),
+                        ContentPins.begin(sel.dir));
                 ui(() -> {
+                    versions.reload();
                     updating.remove(file);
                     known.remove(file);
                     known.put(np, new Updates.Known(np, k.type(), k.latest().sha1(), k.latest(), null));
@@ -1979,18 +2005,25 @@ final class ContentPage {
 
     private void updateAll(Launcher.Instance sel) {
         if (sel == null || bulk != null) return;
-        List<Updates.Known> todo = known.values().stream().filter(Updates.Known::hasUpdate).toList();
+        // Pinned projects stay as they are; the files replaced are kept for "Undo update".
+        List<Updates.Known> todo = ContentPins.unpinnedUpdates(sel.dir, known.values());
         if (todo.isEmpty()) return;
         bulk = "Updating 0 of " + todo.size();
         bulkProgress = 0;
         work.submit(() -> {
             int done = 0, failed = 0;
             Map<Path, Updates.Known> now = new HashMap<>();
+            ContentPins.Batch batch;
+            try {
+                batch = ContentPins.begin(sel.dir);
+            } catch (IOException e) {
+                batch = null;
+            }
             for (Updates.Known k : todo) {
                 int i = done + failed;
                 ui(() -> { bulk = "Updating " + (i + 1) + " of " + todo.size(); });
                 try {
-                    Path np = Updates.apply(sel.dir, k, (f, m) -> SwingUtilities.invokeLater(() -> bulkProgress = (i + f) / todo.size()));
+                    Path np = Updates.apply(sel.dir, k, (f, m) -> SwingUtilities.invokeLater(() -> bulkProgress = (i + f) / todo.size()), batch);
                     now.put(k.file(), new Updates.Known(np, k.type(), k.latest().sha1(), k.latest(), null));
                     done++;
                 } catch (Exception e) {
@@ -2000,6 +2033,7 @@ final class ContentPage {
             int d = done, f = failed;
             ui(() -> {
                 bulk = null;
+                versions.reload();
                 for (var e : now.entrySet()) { known.remove(e.getKey()); known.put(e.getValue().file(), e.getValue()); }
                 packs = null;
                 v.toast("Updated " + d + (d == 1 ? " file" : " files") + (f > 0 ? ", " + f + " couldn't be updated" : ""));
@@ -2092,7 +2126,12 @@ final class ContentPage {
         fc.setDialogTitle("Choose a modpack (.mrpack)");
         fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Modrinth modpacks (*.mrpack)", "mrpack", "zip"));
         if (fc.showOpenDialog(window()) != JFileChooser.APPROVE_OPTION) return;
-        Path f = fc.getSelectedFile().toPath();
+        importPackFile(fc.getSelectedFile().toPath());
+    }
+
+    /** Imports a .mrpack into a new instance, with progress on the Modpacks tab (also for a file dropped on the window). */
+    void importPackFile(Path f) {
+        tab = Tab.PACKS;
         runPackTask("Importing " + f.getFileName(), () -> {
             Mrpack.Info info = Mrpack.inspect(f);
             if (!info.ok()) throw new IOException(info.problem());

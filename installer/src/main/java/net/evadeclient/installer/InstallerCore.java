@@ -104,6 +104,7 @@ public final class InstallerCore {
         KNOWN.add(DYNAMIC_LIGHTS);
         KNOWN.add(new String[]{"iris", "Iris", "iris"});
         KNOWN.add(new String[]{"simple-voice-chat", "Simple Voice Chat", "voicechat"});
+        KNOWN.addAll(OptionalMods.allEntries());
     }
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
     static final String FABRIC_API_ID = "P7dR8mSH";
@@ -179,7 +180,17 @@ public final class InstallerCore {
     public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                           boolean performanceMods, boolean installClips, boolean shaders,
                           String profileKey, String profileName, String javaDir,
-                          boolean packFeatures, boolean dynamicLights) {
+                          boolean packFeatures, boolean dynamicLights, java.util.Set<String> optional) {
+        /** {@code optional}: the {@link OptionalMods} groups switched on (none: the default). */
+        public Options {
+            optional = optional == null ? java.util.Set.of() : java.util.Set.copyOf(optional);
+        }
+        public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                       boolean performanceMods, boolean installClips, boolean shaders,
+                       String profileKey, String profileName, String javaDir, boolean packFeatures, boolean dynamicLights) {
+            this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, shaders,
+                    profileKey, profileName, javaDir, packFeatures, dynamicLights, java.util.Set.of());
+        }
         /** Resource pack features on and dynamic lights off: the defaults. */
         public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                        boolean performanceMods, boolean installClips, boolean shaders,
@@ -204,7 +215,22 @@ public final class InstallerCore {
                           ModFile voiceChat, java.util.List<ModFile> performance,
                           String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
                           ModFile iris, ModFile irisSodium, ModFile shaderPack,
-                          java.util.List<ModFile> packFeatures, ModFile dynamicLights) {
+                          java.util.List<ModFile> packFeatures, ModFile dynamicLights,
+                          java.util.Map<String, java.util.List<ModFile>> optional) {
+        /** {@code optional}: each {@link OptionalMods} group's files (with their libraries); a missing group isn't available. */
+        public Release {
+            optional = optional == null ? java.util.Map.of() : java.util.Map.copyOf(optional);
+        }
+        public Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
+                       String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
+                       ModFile voiceChat, java.util.List<ModFile> performance,
+                       String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
+                       ModFile iris, ModFile irisSodium, ModFile shaderPack,
+                       java.util.List<ModFile> packFeatures, ModFile dynamicLights) {
+            this(evadeVersion, evadeUrl, evadeSha256, loaderVersion, fabricApiVersion, fabricApiUrl, fabricApiSha512, fabricApiFile,
+                    voiceChat, performance, clipsVersion, clipsUrl, clipsSha256, ffmpegUrl, ffmpegShaUrl, iris, irisSodium, shaderPack,
+                    packFeatures, dynamicLights, java.util.Map.of());
+        }
         public Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
                        String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
                        ModFile voiceChat, java.util.List<ModFile> performance,
@@ -370,8 +396,18 @@ public final class InstallerCore {
                 ffSha = str(f, "sha256url");
             }
         }
+        // Optional extras (off by default): each group is only offered when all its mods and their libraries were found.
+        java.util.Map<String, java.util.List<ModFile>> optional = new java.util.LinkedHashMap<>();
+        for (OptionalMods.Group g : OptionalMods.GROUPS) {
+            java.util.List<ModFile> files = modsWithLibraries(g.mods(), query, g.newest());
+            Set<String> got = new HashSet<>();
+            for (ModFile f : files) got.add(f.name());
+            boolean all = true;
+            for (String[] m : g.mods()) all &= got.contains(m[1]);
+            if (all && !files.isEmpty()) optional.put(g.key(), files);
+        }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, apiVersion, apiUrl, apiSha, apiFile, voice, perf,
-                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights);
+                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights, optional);
     }
 
     /**
@@ -380,10 +416,16 @@ public final class InstallerCore {
      * library couldn't be found: Minecraft refuses to start when a required library is missing.
      */
     private java.util.List<ModFile> modsWithLibraries(String[][] list, String query) {
+        return modsWithLibraries(list, query, false);
+    }
+
+    /** {@code newest}: the listed mods' newest build even when it's an alpha or beta (their libraries still prefer releases). */
+    private java.util.List<ModFile> modsWithLibraries(String[][] list, String query, boolean newest) {
         java.util.List<ModFile> out = new java.util.ArrayList<>();
         for (String[] m : list) {
             try {
-                ModFile f = latestOnModrinth(m[1], "https://api.modrinth.com/v2/project/" + m[0] + "/version" + query);
+                String url = "https://api.modrinth.com/v2/project/" + m[0] + "/version" + query;
+                ModFile f = newest ? newestOnModrinth(m[1], url) : latestOnModrinth(m[1], url);
                 if (f != null) out.add(f);
             } catch (Exception e) { /* optional: skip that one */ }
         }
@@ -420,6 +462,12 @@ public final class InstallerCore {
         if (pick == null && !versions.isEmpty()) pick = versions.get(0).getAsJsonObject();
         if (pick == null) return null;
         return modFileFromVersion(name, pick);
+    }
+
+    /** The newest build for this Minecraft version, whatever its type (Modrinth lists newest first), or null. */
+    ModFile newestOnModrinth(String name, String url) throws IOException, InterruptedException {
+        JsonArray versions = getJson(url).getAsJsonArray();
+        return versions.isEmpty() ? null : modFileFromVersion(name, versions.get(0).getAsJsonObject());
     }
 
     /** A Modrinth version object as a ModFile: primary file, hash, and the projects (and exact versions) it requires. */
@@ -675,6 +723,17 @@ public final class InstallerCore {
         if (voiceOn && voiceAvail) wanted.add(new Extra(r.voiceChat(), VOICE_GROUP));
         if (packsOn) for (ModFile f : packList) wanted.add(new Extra(f, PACKS_GROUP));
         if (lightsOn && lightsAvail) wanted.add(new Extra(r.dynamicLights(), LIGHTS_GROUP));
+        // Optional extras: a group that's on but not available this time keeps what it installed before.
+        for (OptionalMods.Group gr : OptionalMods.GROUPS) {
+            if (!o.optional().contains(gr.key())) continue;
+            List<ModFile> files = r.optional() == null ? null : r.optional().get(gr.key());
+            if (files == null || files.isEmpty()) {
+                skipped.add(gr.label() + " isn't available right now");
+                keepGroups.add(gr.group());
+                continue;
+            }
+            for (ModFile f : files) wanted.add(new Extra(f, gr.group()));
+        }
         Set<String> seen = new HashSet<>();
         wanted.removeIf(e -> e.file().projectId() != null && !seen.add(e.file().projectId()));
         Map<String, String> names = new HashMap<>();
@@ -742,6 +801,7 @@ public final class InstallerCore {
         JsonArray added = new JsonArray();
         JsonObject groups = new JsonObject(), projects = new JsonObject();
         List<String> perfNames = new ArrayList<>(), packNames = new ArrayList<>();
+        Map<String, List<String>> optionalNames = new LinkedHashMap<>();
         String voiceVersion = "", lightsVersion = "";
         boolean irisReady = false;
         Set<Extra> swapFailed = new HashSet<>();
@@ -764,6 +824,8 @@ public final class InstallerCore {
             else if (en.getKey().group().equals(PERF_GROUP)) perfNames.add(f.name() + " " + f.version());
             else if (en.getKey().group().equals(PACKS_GROUP)) packNames.add(f.name() + " " + f.version());
             else if (en.getKey().group().equals(LIGHTS_GROUP)) lightsVersion = f.version();
+            else if (OptionalMods.byGroup(en.getKey().group()) != null)
+                optionalNames.computeIfAbsent(en.getKey().group().substring(2), k -> new ArrayList<>()).add(f.name() + " " + f.version());
             if (r.iris() != null && f.projectId() != null && f.projectId().equals(r.iris().projectId())) irisReady = true;
         }
         for (var en : kept.entrySet()) {
@@ -861,6 +923,15 @@ public final class InstallerCore {
         marker.addProperty("performanceMods", String.join(", ", perfNames));
         marker.addProperty("packFeatures", String.join(", ", packNames));
         marker.addProperty("dynamicLights", lightsVersion);
+        JsonObject optional = new JsonObject();
+        for (var e : optionalNames.entrySet()) optional.addProperty(e.getKey(), String.join(", ", e.getValue()));
+        // A group kept as it was (on, but not available this time) keeps its record.
+        if (prev != null && prev.has("optional") && prev.get("optional").isJsonObject()) {
+            for (var e : prev.getAsJsonObject("optional").entrySet()) {
+                if (!optional.has(e.getKey()) && keepGroups.contains("x-" + e.getKey()) && e.getValue().isJsonPrimitive()) optional.add(e.getKey(), e.getValue());
+            }
+        }
+        marker.add("optional", optional);
         marker.addProperty("shaders", packVersion);
         if (packFile != null) marker.addProperty("shaderPackFile", packFile);
         if (lightPack != null) marker.addProperty("lightPackFile", lightPack);
@@ -930,7 +1001,8 @@ public final class InstallerCore {
         for (String[] m : PERF) if (m[0].equals(slug)) return "FPS mods";
         for (String[] m : PACK_FEATURES) if (m[0].equals(slug)) return "Pack features";
         if (slug.equals(DYNAMIC_LIGHTS[0])) return "Dynamic lights";
-        return null;
+        OptionalMods.Group g = OptionalMods.forSlug(slug);
+        return g != null ? g.label() : null;
     }
 
     /** The option group a known mod (a {@link #KNOWN} entry, or null for a library) belongs to. */
@@ -940,6 +1012,8 @@ public final class InstallerCore {
         if (owner[1].equals("Simple Voice Chat")) return VOICE_GROUP;
         if (owner == DYNAMIC_LIGHTS) return LIGHTS_GROUP;
         for (String[] m : PACK_FEATURES) if (m == owner) return PACKS_GROUP;
+        OptionalMods.Group opt = OptionalMods.forEntry(owner);
+        if (opt != null) return opt.group();
         return PERF_GROUP;
     }
 
@@ -958,6 +1032,8 @@ public final class InstallerCore {
     }
 
     private static String groupLabel(String group) {
+        OptionalMods.Group opt = OptionalMods.byGroup(group);
+        if (opt != null) return opt.label();
         return switch (group) {
             case SHADERS_GROUP -> "Shaders";
             case VOICE_GROUP -> "Voice chat";
@@ -976,6 +1052,11 @@ public final class InstallerCore {
     }
 
     static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders, boolean packs, boolean lights) {
+        return updateReason(gameDir, r, perf, voice, shaders, packs, lights, Set.of());
+    }
+
+    static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders, boolean packs, boolean lights,
+                               Set<String> optional) {
         JsonObject m = readMarker(gameDir);
         if (m == null) return "Evade Client isn't installed in this instance yet";
         if (r == null) return null;
@@ -1005,6 +1086,21 @@ public final class InstallerCore {
         }
         if (lights && r.dynamicLights() != null && !r.dynamicLights().version().equals(str(m, "dynamicLights")))
             return r.dynamicLights().name() + " " + r.dynamicLights().version() + " is out";
+        if (optional != null && !optional.isEmpty() && r.optional() != null) {
+            JsonObject rec = m.has("optional") && m.get("optional").isJsonObject() ? m.getAsJsonObject("optional") : new JsonObject();
+            Set<String> have = new HashSet<>();
+            // A library shared with another group is recorded once, under whichever group installed it first.
+            for (var e : rec.entrySet()) if (e.getValue().isJsonPrimitive()) for (String n : e.getValue().getAsString().split(",\\s*")) have.add(n.trim());
+            for (String key : new String[]{"performanceMods", "packFeatures"}) {
+                String names = str(m, key);
+                if (names != null) for (String n : names.split(",\\s*")) have.add(n.trim());
+            }
+            for (String key : optional) {
+                List<ModFile> files = r.optional().get(key);
+                if (files == null) continue;
+                for (ModFile f : files) if (!have.contains(f.name() + " " + f.version())) return f.name() + " " + f.version() + " is out";
+            }
+        }
         return null;
     }
 
@@ -1316,7 +1412,7 @@ public final class InstallerCore {
     }
 
     /** Low-pause G1 settings: short GC pauses, no forced full GCs. */
-    private static final String G1_FLAGS = "-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC "
+    static final String G1_FLAGS = "-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC "
             + "-XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=37 -XX:+DisableExplicitGC -XX:G1NewSizePercent=20 "
             + "-XX:G1MaxNewSizePercent=40 -XX:G1ReservePercent=20 -XX:G1HeapRegionSize=16M -XX:G1MixedGCCountTarget=4 "
             + "-XX:InitiatingHeapOccupancyPercent=15 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:MaxTenuringThreshold=1 "

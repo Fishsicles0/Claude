@@ -114,6 +114,7 @@ final class InstanceZip {
         o.addProperty("voice", i.voice);
         o.addProperty("packs", i.packs);
         o.addProperty("lights", i.lights);
+        o.add("optional", ContentApi.array(OptionalMods.clean(i.optional)));
         o.addProperty("worlds", worlds);
         o.addProperty("exported", Instant.now().toString());
         return o;
@@ -197,6 +198,7 @@ final class InstanceZip {
                 i.voice = bool(m, "voice", true);
                 i.packs = bool(m, "packs", true);
                 i.lights = bool(m, "lights", false);
+                i.optional = Launcher.readOptional(m);
                 i.dirty = true;
                 i.created = Instant.now().toString();
                 Files.createDirectories(tmp.resolve("mods"));

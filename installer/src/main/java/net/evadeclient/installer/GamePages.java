@@ -537,11 +537,20 @@ final class GamePages {
             ghost(g, "gp-crash-log", bx, by, bw, bh, "Open report", false, "list", "Open the crash report");
             if (fix[0] != null) primary(g, "gp-fix", bx - 12 - 200, by, 200, bh, fix[0], null, fix[0]);
             if (fix[1] != null) ghost(g, "gp-fix-alt", bx - 12 - 200 - 12 - 160, by, 160, bh, fix[1], false, null, fix[1]);
+            // Safe Start: every Evade module off for one start (the mod reads the request; see SafeStart)
+            if (i != null) {
+                v.textLink(g, "tl-safe:" + i.id, "Start in safe mode", ix, by + bh / 2 + 5, 0);
+                name("tl-safe:" + i.id, "Start " + i.name + " in safe mode: every Evade module off for one start");
+            }
             return;
         }
         int by = y + h - 24 - bh;
         ghost(g, "gp-crash-log", ix, by, iw, bh, "Open the report", false, "list", "Open the crash report");
         by -= bh + 10;
+        if (i != null) {
+            ghost(g, "tl-safe:" + i.id, ix, by, iw, bh, "Start in safe mode", false, "gear", "Start " + i.name + " in safe mode: every Evade module off for one start");
+            by -= bh + 10;
+        }
         if (fix[1] != null) { ghost(g, "gp-fix-alt", ix, by, iw, bh, fix[1], false, null, fix[1]); by -= bh + 10; }
         if (fix[0] != null) primary(g, "gp-fix", ix, by, iw, bh, fix[0], null, fix[0]);
     }
@@ -650,12 +659,12 @@ final class GamePages {
         for (int n = first; n < last; n++) {
             LogTools.Line l = filtered.get(n);
             int ry = top + 4 + n * rowH - Math.round(off);
-            int mode = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
+            int dm = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
             if (l.level() == LogTools.Level.ERROR) { g.setColor(new Color(225, 29, 46, 22)); g.fillRect(x + 10, ry, w - 30, rowH); }
             else if (l.level() == LogTools.Level.WARN) { g.setColor(new Color(245, 165, 36, 14)); g.fillRect(x + 10, ry, w - 30, rowH); }
             g.setColor(l.level() == LogTools.Level.ERROR ? new Color(0xFF7A86) : l.level() == LogTools.Level.WARN ? AMBER : new Color(0xC6C6CE));
             g.drawString(LauncherView.ellipsizeEnd(g, LogTools.mask(l.text().replace('\t', ' '), player), w - 50), x + 18, ry + 13);
-            if (mode >= 0) ThemedGraphics.mode(g, mode);
+            if (dm >= 0) ThemedGraphics.mode(g, dm);
         }
         g.setClip(was);
         v.scrollArea(g, "gp-log", area, content);
@@ -717,9 +726,33 @@ final class GamePages {
             name(id, "Icon colour " + (k + 1) + (on ? ", selected" : ""));
         }
         ry += 76 + 8;
-        v.rowLabel(g, ix, ry, rh, "Memory", "How much Minecraft may use", false, iw);
+        v.rowLabel(g, ix, ry, rh, "Memory", v.tools.memoryLine(i.memoryGb, "How much Minecraft may use"), false, iw, iw - ctl - 20);
         v.memoryChips(g, cx, ry + 14, ctl, i.memoryGb);
         for (int gb : InstallerCore.memoryOptions()) name("mem:" + gb, gb + " gigabytes of memory" + (gb == i.memoryGb ? ", selected" : ""));
+        ry += rh;
+        // garbage collector preset: Evade's G1 settings, or generational ZGC (Java 21; shorter pauses, a bit more memory)
+        boolean roomy = v.tools.advice == null || v.tools.advice.zgcSuits();
+        v.rowLabel(g, ix, ry, rh, "Garbage collector", xt.zgc ? "ZGC: very short pauses, uses a little more memory"
+                : roomy ? "G1 is Evade's tuned default; ZGC trades memory for shorter pauses" : "G1 suits this PC's memory best", false, iw, iw - ctl - 20);
+        String[] gcs = {"G1 (Evade default)", "Generational ZGC"};
+        g.setColor(FIELD);
+        g.fill(new RoundRectangle2D.Double(cx, ry + 14, ctl, 36, 22, 22));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(cx + .5, ry + 14.5, ctl - 1, 35, 22, 22));
+        int gw = (ctl - 8) / 2;
+        for (int k = 0; k < 2; k++) {
+            String id = "gp-gc:" + k;
+            boolean on = (k == 1) == xt.zgc;
+            float t = v.anim(id, id.equals(v.hovered));
+            int sx = cx + 4 + k * gw;
+            if (on) { g.setColor(RED); g.fill(new RoundRectangle2D.Double(sx, ry + 18, gw, 28, 16, 16)); }
+            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(12 * t))); g.fill(new RoundRectangle2D.Double(sx, ry + 18, gw, 28, 16, 16)); }
+            g.setFont(v.interBold.deriveFont(12.5f));
+            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            LauncherView.center(g, gcs[k], sx, ry + 18, gw, 28);
+            v.hit(id, new Rectangle(sx, ry + 18, gw, 28));
+            name(id, "Garbage collector " + gcs[k] + (on ? ", selected" : ""));
+        }
         ry += rh;
         // window
         v.rowLabel(g, ix, ry, rh, "Game window", "Its size when the game opens", false, iw);
@@ -1069,6 +1102,9 @@ final class GamePages {
                 } else if (id.startsWith("gp-color:")) {
                     int k = Integer.parseInt(id.substring(9));
                     edit(x -> { x.color = k; if (x.glyph < 0) x.glyph = 0; });
+                } else if (id.startsWith("gp-gc:")) {
+                    boolean z = id.endsWith(":1");
+                    edit(x -> x.zgc = z);
                 } else if (id.startsWith("gp-size:")) {
                     int k = Integer.parseInt(id.substring(8));
                     edit(x -> { x.width = InstanceExtras.SIZES[k][0]; x.height = InstanceExtras.SIZES[k][1]; });
