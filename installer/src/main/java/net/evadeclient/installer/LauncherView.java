@@ -36,6 +36,7 @@ import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
@@ -73,10 +74,12 @@ public final class LauncherView extends JPanel {
     enum Play { IDLE, UPDATING, LAUNCHING, LAUNCHED, NO_LAUNCHER, ERROR }
 
     // palette
-    static final Color BG = new Color(0x0A0A0C), CARD = new Color(0x111115), CARD_2 = new Color(0x17171C),
-            BORDER = new Color(0x24242C), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9B9BA6), FAINT = new Color(0x5E5E69), OK = new Color(0x3DDC84),
-            AMBER = new Color(0xF5A524), FIELD = new Color(0x0C0C0F);
+    static final Color BG = new Color(0x0B0B0E), CARD = new Color(0x121216), CARD_2 = new Color(0x18181D),
+            BORDER = new Color(0x232329), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
+            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x62626D), OK = new Color(0x3DDC84),
+            AMBER = new Color(0xF5A524), FIELD = new Color(0x0E0E12),
+            /** the rail's panel, page hairlines, and panels raised over the page */
+            RAIL_BG = new Color(0x0E0E11), HAIRLINE = new Color(255, 255, 255, 14), RAISED = new Color(0x18181D);
 
     /** What the launcher does when the player clicks; {@link LauncherApp} implements these. */
     interface Actions {
@@ -113,6 +116,8 @@ public final class LauncherView extends JPanel {
         default void noticesSeen() {}
         default void removeLegacyClips() {}
         default void pageShown(Page p) {}
+        default void manageAccount() {}
+        default void takeOverClips() {}
     }
 
     // ------------------------------------------------------------------ links (empty = not shown)
@@ -168,8 +173,16 @@ public final class LauncherView extends JPanel {
     private int slide;
     private long slideAt = System.currentTimeMillis();
     private int slideFrom = -1;
-    /** Open over the page: "bell", "server:<index>", or null. */
+    /** Open over the page: "bell", "friends", "server:<index>", or null. */
     String overlay;
+    /** The full-body skin render for the profile card (null: a plain figure is drawn). */
+    Image playerBody;
+    /** The old separate Evade Clips app holds Clips' folder (a banner offers to close it); while it's closing. */
+    boolean clipsBlocked, clipsBusy;
+
+    /** A friend (filled in by the friends system once it exists; empty for now). */
+    record Friend(String name, String uuid, String status, boolean online) {}
+    List<Friend> friends = new ArrayList<>();
 
     Play play = Play.IDLE;
     /** True while the first-run install runs from the Home page's setup card. */
@@ -483,6 +496,10 @@ public final class LauncherView extends JPanel {
             case "clips-save" -> actions.saveClip();
             case "clips-go" -> { showPage(Page.CLIPS); actions.clipsPage("library"); }
             case "clips-legacy" -> actions.removeLegacyClips();
+            case "clips-takeover" -> { if (!clipsBusy) actions.takeOverClips(); }
+            case "status-pill" -> showPage(Page.CLIPS);
+            case "manage-account" -> actions.manageAccount();
+            case "friends", "friends-add" -> overlay = "friends";
             case "slide-prev" -> nextSlide(-1);
             case "slide-next" -> nextSlide(1);
             case "link-site" -> actions.openUrl(InstallerCore.SITE);
@@ -1880,6 +1897,19 @@ public final class LauncherView extends JPanel {
         hit(id, new Rectangle(x, y, w, h));
     }
 
+    /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
+    private void statusDot(Graphics2D g, int x, int y, Launcher.Instance i) {
+        Color c = FAINT;
+        if (i != null) {
+            if (i.installed == null || i.dirty || i.pending != null) c = AMBER;
+            else if (release != null) c = OK;
+        }
+        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 50));
+        g.fill(new Ellipse2D.Double(x - 3, y - 7, 12, 12));
+        g.setColor(c);
+        g.fill(new Ellipse2D.Double(x, y - 4, 6, 6));
+    }
+
     /** A neutral rounded tile with the first letter of a name (when there's no picture). */
     private void tile(Graphics2D g, int x, int y, int s, String name) {
         g.setColor(new Color(0x24242B));
@@ -2888,7 +2918,8 @@ public final class LauncherView extends JPanel {
         q.translate(cx, cy);
         double k = s / 18.0;
         q.scale(k, k);
-        q.setStroke(new BasicStroke(1.7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        // a 1.75px line at the size drawn (the icon box is 18 units)
+        q.setStroke(new BasicStroke((float) (1.75 / k), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         switch (kind) {
             case "home" -> {
                 Path2D p = new Path2D.Double();
@@ -3019,6 +3050,52 @@ public final class LauncherView extends JPanel {
                 q.draw(new Line2D.Double(2, -8, 2, 4));
                 q.draw(new Line2D.Double(2, -8, 7, -5.5));
                 q.fill(new Ellipse2D.Double(-4.5, 1.5, 7, 6));
+            }
+            case "user-plus" -> {
+                q.draw(new Ellipse2D.Double(-6.5, -8, 7, 7));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-9, 8); p.curveTo(-9, 2.5, -6, 0.5, -3, 0.5); p.curveTo(0, 0.5, 3, 2.5, 3, 8);
+                q.draw(p);
+                q.draw(new Line2D.Double(6.5, -4, 6.5, 2));
+                q.draw(new Line2D.Double(3.5, -1, 9.5, -1));
+            }
+            case "users" -> {
+                q.draw(new Ellipse2D.Double(-7.5, -8, 7, 7));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-10, 8); p.curveTo(-10, 2.5, -7, 0.5, -4, 0.5); p.curveTo(-1, 0.5, 2, 2.5, 2, 8);
+                q.draw(p);
+                q.draw(new Arc2D.Double(1.5, -8, 7, 7, -90, 230, Arc2D.OPEN));
+                Path2D p2 = new Path2D.Double();
+                p2.moveTo(4.5, 0.6); p2.curveTo(7.5, 0.8, 10, 3, 10, 8);
+                q.draw(p2);
+            }
+            case "external" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(-1, -7); p.lineTo(-7, -7); p.lineTo(-7, 7); p.lineTo(7, 7); p.lineTo(7, 1);
+                q.draw(p);
+                q.draw(new Line2D.Double(0, 0, 7.5, -7.5));
+                Path2D h = new Path2D.Double();
+                h.moveTo(2.5, -7.5); h.lineTo(7.5, -7.5); h.lineTo(7.5, -2.5);
+                q.draw(h);
+            }
+            case "arrow-right" -> {
+                q.draw(new Line2D.Double(-7.5, 0, 7.5, 0));
+                Path2D p = new Path2D.Double();
+                p.moveTo(2, -5.5); p.lineTo(7.5, 0); p.lineTo(2, 5.5);
+                q.draw(p);
+            }
+            case "alert" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(0, -8); p.lineTo(8.5, 7); p.lineTo(-8.5, 7); p.closePath();
+                q.draw(p);
+                q.draw(new Line2D.Double(0, -2.5, 0, 2));
+                q.fill(new Ellipse2D.Double(-1.1, 3.6, 2.2, 2.2));
+            }
+            case "copy" -> {
+                q.draw(new RoundRectangle2D.Double(-4, -4, 12, 12, 3, 3));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-8, 4); p.lineTo(-8, -6); p.quadTo(-8, -8, -6, -8); p.lineTo(4, -8);
+                q.draw(p);
             }
             case "folder" -> {
                 Path2D p = new Path2D.Double();
