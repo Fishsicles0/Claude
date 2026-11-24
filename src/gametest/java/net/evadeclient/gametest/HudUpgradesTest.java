@@ -290,8 +290,10 @@ public final class HudUpgradesTest {
         in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
         in.releaseKey(GLFW.GLFW_KEY_LEFT_SHIFT);
         ctx.waitTicks(2);
-        int sel = ctx.computeOnClient(c -> ((HudEditorScreen) c.currentScreen).selection().size());
-        check(sel == 2, "HUD editor: click then Shift+click picks two widgets (" + sel + ")");
+        String sel = ctx.computeOnClient(c -> ((HudEditorScreen) c.currentScreen).selection().stream()
+                .map(HudElementModule::getName).toList().toString());
+        check(sel.equals("[FPS, CPS]"), "HUD editor: click then Shift+click picks two widgets (" + sel + " at "
+                + java.util.Arrays.toString(f) + ", " + java.util.Arrays.toString(cp) + ")");
         ctx.takeScreenshot("hud-editor-multiselect");
 
         // Arrow nudges the whole selection: 1, then 10 with Shift.
@@ -302,7 +304,8 @@ public final class HudUpgradesTest {
         key(ctx, GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_DOWN);
         int[] f1 = pos(ctx, FpsHud.class), c1 = pos(ctx, CpsHud.class);
         check(f1[0] == f0[0] + 1 && f1[1] == f0[1] + 10 && c1[0] == c0[0] + 1 && c1[1] == c0[1] + 10,
-                "HUD editor: arrows nudge the selection by 1, Shift by 10");
+                "HUD editor: arrows nudge the selection by 1, Shift by 10 (FPS " + java.util.Arrays.toString(f0) + " -> "
+                        + java.util.Arrays.toString(f1) + ", CPS " + java.util.Arrays.toString(c0) + " -> " + java.util.Arrays.toString(c1) + ")");
 
         // Undo puts both back (quick nudges in a row may be one step); redo moves them again.
         int steps = ctx.computeOnClient(c -> ((HudEditorScreen) c.currentScreen).undoDepth()) - d0;

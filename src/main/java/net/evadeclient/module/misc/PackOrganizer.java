@@ -62,6 +62,7 @@ public class PackOrganizer extends Module {
 
     public PackOrganizer() {
         super("Pack Organizer", "Star resource packs to keep them at the top of the list.", Category.MISC);
+        setEnabled(true); // its pack feature check helps everyone; favourites change nothing until you star a pack
         INSTANCE = this;
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (screen instanceof PackScreen ps) onPackScreen(ps);

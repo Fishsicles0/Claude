@@ -268,6 +268,7 @@ public final class GraphicsUpgradesTest {
             check(reports >= 2, "The pack features list shows every pack (" + reports + ")");
 
             // The resource pack screen gets the "?" button next to the star.
+            ctx.runOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.PackOrganizer.class).setEnabled(true));
             ctx.runOnClient(c -> c.setScreen(new PackScreen(c.getResourcePackManager(), m -> { }, c.getResourcePackDir(), Text.literal("Resource Packs"))));
             ctx.waitTicks(5);
             ctx.takeScreenshot("evade-pack-screen-buttons");

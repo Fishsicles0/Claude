@@ -133,7 +133,8 @@ public final class ShaderPackScreen extends Screen {
         UiFont.draw(ctx, textRenderer, "Shader Packs", px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
         String sub = !ShaderSwitch.irisLoaded() ? "Shaders need Iris: run the Evade installer with Shaders on."
                 : packs.isEmpty() ? "No packs yet. Get More finds them on Modrinth."
-                : "Now: " + ShaderSwitch.status() + ". Pick a pack, then Apply (or double-click).";
+                : "Now: " + (ShaderSwitch.enabled() ? ShaderSwitch.selectedPack().map(ShaderSwitch::displayName).orElse("Off") : "Off")
+                        + ". Pick a pack, then Apply (or double-click).";
         UiFont.draw(ctx, textRenderer, sub, px + 14, py + 30, ShaderSwitch.irisLoaded() ? Theme.TEXT_DIM : Theme.WARN, Role.SMALL, smooth);
 
         List<String> r = rows();
