@@ -113,7 +113,9 @@ public final class ReplayEditorScreen extends Screen {
         toggle(x, y, 188, () -> "Play camera path: " + (pr.previewPath ? "on" : "off"), () -> pr.previewPath = !pr.previewPath,
                 "While playing, the camera follows the path. Off: fly freely");
         y += 20;
-        toggle(x, y, 188, () -> "Look at: " + lookAtName(), this::cycleLookAt, "Keep the camera pointed at a player or mob (works with a path or flying)");
+        toggle(x, y, 92, () -> "Look: " + lookAtName(), this::cycleLookAt, "Keep the camera pointed at a player or mob (works with a path or flying)");
+        toggle(x + 96, y, 92, () -> "Follow: " + followName(), this::cycleFollow,
+                "Track a player or mob: the camera rides along at the distance it has now. With Look at, a chase camera. A camera path wins while it plays");
         y += 20;
         action(x, y, 188, "Orbit 8 s around " + orbitName(), this::orbit, "Keyframes for one smooth turn around them, starting now");
         y += 20;
@@ -132,7 +134,13 @@ public final class ReplayEditorScreen extends Screen {
         ReplayProject.Scene s = project().scene;
         String[] times = {"Recorded", "Morning", "Noon", "Sunset", "Night", "Midnight"};
         int[] values = {-1, 1000, 6000, 12500, 14000, 18000};
-        toggle(x, y, 188, () -> "Time: " + times[indexOf(values, s.timeOfDay)], () -> s.timeOfDay = values[(indexOf(values, s.timeOfDay) + 1) % values.length], null);
+        toggle(x, y, 92, () -> "Time: " + times[indexOf(values, s.timeOfDay)], () -> s.timeOfDay = values[(indexOf(values, s.timeOfDay) + 1) % values.length], null);
+        action(x + 96, y, 44, "Key", () -> {
+            int now = s.timeOfDay >= 0 ? s.timeOfDay : (int) (mc.world.getTimeOfDay() % 24000);
+            s.timeKeys.removeIf(k -> Math.abs(k.tick - player.tick()) < 2);
+            s.timeKeys.add(new ReplayProject.TimeKey(player.tick(), now));
+        }, "Time keyframe here: the time chosen on the left (or the world's). The sky moves on from key to key, e.g. day to night");
+        action(x + 144, y, 44, "Clear", () -> s.timeKeys.clear(), "Delete every time keyframe");
         y += 20;
         toggle(x, y, 92, () -> "Weather: " + (s.clearWeather ? "clear" : "as is"), () -> s.clearWeather = !s.clearWeather, null);
         toggle(x + 96, y, 92, () -> "Fog: " + (s.noFog ? "off" : "normal"), () -> s.noFog = !s.noFog, null);
@@ -220,6 +228,19 @@ public final class ReplayEditorScreen extends Screen {
     private String lookAtName() {
         Entity e = byUuid(project().lookAt);
         return e == null ? (project().lookAt.isBlank() ? "nothing" : "(not here)") : e.getName().getString();
+    }
+
+    private String followName() {
+        Entity e = byUuid(project().follow);
+        return e == null ? (project().follow.isBlank() ? "off" : "(not here)") : e.getName().getString();
+    }
+
+    private void cycleFollow() {
+        List<Entity> c = candidates();
+        String cur = project().follow;
+        int i = -1;
+        for (int k = 0; k < c.size(); k++) if (c.get(k).getUuidAsString().equals(cur)) i = k;
+        ReplayOverrides.follow(project(), i + 1 < c.size() ? c.get(i + 1) : null);
     }
 
     private void cycleLookAt() {

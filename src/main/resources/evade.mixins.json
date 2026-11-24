@@ -106,7 +106,9 @@
     "RenderScaleClientMixin",
     "RenderScaleGameRendererMixin",
     "RenderScaleWorldRendererAccessor",
-    "ChatScreenEvadeMixin"
+    "ChatScreenEvadeMixin",
+    "ReplayPovHandsMixin",
+    "ReplayPovSkinMixin"
   ],
   "injectors": {
     "defaultRequire": 1

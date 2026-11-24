@@ -122,6 +122,9 @@ final class ReplayTest {
             server.runCommand("setblock 3 -60 3 minecraft:gold_block");
             server.runCommand("summon minecraft:zombie 0 -60 6 {NoAI:1b,PersistenceRequired:1b,CustomName:'\"Dummy\"'}");
             ctx.waitTicks(20);
+            // something in hand, for the POV check (it's what their first-person hand should show)
+            server.runCommand("item replace entity @a weapon.mainhand with minecraft:diamond_sword");
+            ctx.waitTicks(2);
             boolean started = ctx.computeOnClient(c -> ReplayRecorder.start());
             check(started && ctx.computeOnClient(c -> ReplayRecorder.recording()), "start recording mid-session");
             ctx.waitTicks(10);
@@ -347,6 +350,9 @@ final class ReplayTest {
         check(pv[0].equals("true") && Double.parseDouble(pv[1]) < 0.5 && Double.parseDouble(pv[2]) < 5,
                 String.format(java.util.Locale.ROOT, "player POV: \"%s\" puts the camera at their eyes (%.2f blocks off) facing their way (%.1f° off)",
                         view, Double.parseDouble(pv[1]), Double.parseDouble(pv[2])));
+        String hands = ctx.computeOnClient(c -> (net.evadeclient.replay.ReplayOverrides.povPlayer() != null) + ","
+                + net.minecraft.registry.Registries.ITEM.getId(c.player.getMainHandStack().getItem()));
+        check(hands.equals("true,minecraft:diamond_sword"), "player POV shows their first-person hand holding what they held (" + hands + ")");
         ctx.runOnClient(c -> {
             var p = ReplayPlayer.current();
             p.project.render.from = p.startTick() + 20;
@@ -359,6 +365,47 @@ final class ReplayTest {
         String back = ctx.computeOnClient(c -> net.evadeclient.replay.ReplayOverrides.cyclePov(ReplayPlayer.current()));
         ctx.waitTicks(2);
         check(back.equals("Free camera") && ctx.computeOnClient(c -> c.getCameraEntity() == c.player), "V again goes back to the free camera");
+        check(ctx.computeOnClient(c -> c.player.getMainHandStack().isEmpty()), "leaving POV puts the camera's hands away again");
+
+        // track entity: the camera rides along with the recorded player at a fixed offset, also through their teleport
+        ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.project.previewPath = false; p.seek(p.startTick() + 5); });
+        ctx.waitFor(c -> !ReplayPlayer.current().seeking() && c.currentScreen == null, 20 * 60);
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            c.player.refreshPositionAndAngles(p.self().getX() + 3, p.self().getY() + 2, p.self().getZ() - 3, 0, 20);
+            net.evadeclient.replay.ReplayOverrides.follow(p.project, p.self());
+        });
+        ctx.waitTicks(3);
+        java.util.function.Function<net.minecraft.client.MinecraftClient, double[]> offset = c -> {
+            var self = ReplayPlayer.current().self();
+            var eye = c.player.getEyePos();
+            return new double[]{eye.x - self.getX(), eye.y - self.getY(), eye.z - self.getZ(), self.getX(), self.getZ()};
+        };
+        double[] o1 = ctx.computeOnClient(offset::apply);
+        ctx.runOnClient(c -> ReplayPlayer.current().setPlaying(true));
+        ctx.waitTicks(40);
+        ctx.runOnClient(c -> ReplayPlayer.current().setPlaying(false));
+        ctx.waitTicks(3);
+        double[] o2 = ctx.computeOnClient(offset::apply);
+        double drift = Math.sqrt(Math.pow(o2[0] - o1[0], 2) + Math.pow(o2[1] - o1[1], 2) + Math.pow(o2[2] - o1[2], 2));
+        double travelled = Math.hypot(o2[3] - o1[3], o2[4] - o1[4]);
+        ctx.runOnClient(c -> ReplayPlayer.current().project.follow = "");
+        check(travelled > 3 && drift < 0.3, String.format(java.util.Locale.ROOT,
+                "follow camera: the player moved %.1f blocks and the camera kept its offset (%.2f blocks off)", travelled, drift));
+
+        // time-of-day keyframes: halfway between morning (1000) and night (13000) the sky is at midday (7000)
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            p.project.scene.timeKeys.clear();
+            p.project.scene.timeKeys.add(new ReplayProject.TimeKey(p.startTick(), 1000));
+            p.project.scene.timeKeys.add(new ReplayProject.TimeKey(p.startTick() + 60, 13000));
+            p.seek(p.startTick() + 30);
+        });
+        ctx.waitFor(c -> !ReplayPlayer.current().seeking() && c.currentScreen == null, 20 * 60);
+        ctx.waitTicks(3);
+        long midday = ctx.computeOnClient(c -> c.world.getTimeOfDay() % 24000);
+        ctx.runOnClient(c -> ReplayPlayer.current().project.scene.timeKeys.clear());
+        check(Math.abs(midday - 7000) < 400, "time-of-day keyframes: halfway from morning to night the sky shows " + midday + " (7000 expected)");
         ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.project.render.from = -1; p.project.render.to = -1; });
 
         // the editor's three tabs
