@@ -1,0 +1,56 @@
+// Evade Server API: a small Paper plugin that lets servers talk to Evade Client players (waypoints, cooldowns,
+// notifications, mod rules...). Build it with:  ./gradlew :server-plugin:build  -> server-plugin/build/libs/
+//
+// The Paper API comes from repo.papermc.io. So that a machine without access to that repository can still build the
+// mod and the other subprojects, this project only runs its tasks when they are asked for by name (":server-plugin:...",
+// or from inside this folder) or when -Pevade.serverPlugin is passed. A plain `./gradlew build` skips it.
+plugins {
+    id 'java'
+}
+
+version = '1.0.0'
+group = 'net.evadeclient'
+base { archivesName = 'EvadeServerAPI' }
+
+// Compile against the oldest 1.21 API the plugin supports; it runs on any later 1.21.x Paper (or Paper fork).
+def paperApiVersion = providers.gradleProperty('paperApiVersion').getOrElse('1.21.4-R0.1-SNAPSHOT')
+
+repositories {
+    maven { name = 'PaperMC'; url = 'https://repo.papermc.io/repository/maven-public/' }
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
+    // Gson ships with every Paper server (and comes with paper-api); listed so the dependency is explicit.
+    compileOnly 'com.google.code.gson:gson:2.11.0'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('plugin.yml') { expand 'version': project.version }
+}
+
+jar {
+    archiveFileName = "EvadeServerAPI-${project.version}.jar"
+    from(rootProject.file('LICENSE')) { rename { 'LICENSE_EvadeServerAPI' } }
+}
+
+// Opt-in: skip every task of this project unless it was asked for explicitly (see the top of this file).
+def startParameter = gradle.startParameter
+boolean requested = providers.gradleProperty('evade.serverPlugin').isPresent() ||
+        startParameter.currentDir.canonicalFile == projectDir.canonicalFile ||
+        startParameter.taskNames.any { it.startsWith(':server-plugin:') || it.startsWith('server-plugin:') }
+if (!requested) {
+    tasks.configureEach { enabled = false }
+}

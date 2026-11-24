@@ -1,0 +1,36 @@
+name: EvadeServerAPI
+version: '${version}'
+main: net.evadeclient.server.EvadePlugin
+api-version: '1.21'
+description: Talks to players using Evade Client - waypoints, cooldowns, notifications, mod rules and more.
+authors: [Evade Client contributors]
+website: https://github.com/
+load: STARTUP
+
+commands:
+  evade:
+    description: Evade Server API commands.
+    usage: /evade <list|info|waypoint|notify|reload>
+    permission: evade.command
+
+permissions:
+  evade.command:
+    description: Use /evade (each subcommand has its own permission).
+    default: op
+  evade.command.list:
+    description: List the online players using Evade Client (/evade list, /evade info).
+    default: op
+  evade.command.test:
+    description: Send a test waypoint or notification (/evade waypoint, /evade notify).
+    default: op
+  evade.command.reload:
+    description: Reload config.yml and re-send the rules to every Evade player (/evade reload).
+    default: op
+  evade.admin:
+    description: All Evade Server API permissions.
+    default: op
+    children:
+      evade.command: true
+      evade.command.list: true
+      evade.command.test: true
+      evade.command.reload: true

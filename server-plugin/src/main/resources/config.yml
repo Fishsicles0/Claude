@@ -1,0 +1,37 @@
+# Evade Server API configuration.
+# After editing, run /evade reload: the new rules are sent to every Evade player at once.
+
+# Evade mods switched off for every Evade player (names as shown in the Evade menu, case doesn't matter).
+# Players can't turn them back on while they're on this server; they come back when they leave.
+disabled-mods:
+  - Freelook
+
+# Mod settings forced for every Evade player: <Mod>: { <Setting>: <value> }.
+settings: {}
+#  Zoom:
+#    Smooth: true
+
+# Per-world overrides. A world listed here REPLACES the global disabled-mods list with its own (when it has one), and
+# its settings are added on top of the global settings (world wins on conflicts).
+worlds: {}
+#  pvp_arena:
+#    disabled-mods: [Freelook, Minimap]
+#    settings:
+#      Minimap:
+#        Radar: false
+
+# A notification shown to each player the moment their Evade Client says hello.
+welcome:
+  enabled: true
+  title: "Evade features enabled"
+  text: "This server supports Evade waypoints, cooldowns and notifications."
+  seconds: 5
+  level: info
+
+# Older Evade Client versions don't say hello; they only listen on evade:rules. When such a client registers that
+# channel, it still gets the disabled-mods list (after this many ticks without a hello).
+legacy-rules: true
+legacy-rules-delay-ticks: 40
+
+# Log each Evade player that joins (name, client version, API level, features).
+log-joins: true
