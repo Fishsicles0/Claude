@@ -57,6 +57,13 @@ public final class ReplayOverrides {
             fov = k.fov;
             pathActive = true;
         }
+        // track entity: the camera rides along at the offset it had when following started (a path still wins)
+        Entity tracked = usePath ? null : byUuid(pr.follow);
+        if (tracked != null) {
+            Vec3d at = tracked.getLerpedPos(delta);
+            setCamera(at.x + pr.followX, at.y + pr.followY, at.z + pr.followZ);
+            flyPos = null;
+        }
         Entity target = lookTarget(pr);
         if (target != null) {
             Vec3d eye = target.getLerpedPos(delta).add(0, target.getStandingEyeHeight() * 0.85, 0);
@@ -93,7 +100,51 @@ public final class ReplayOverrides {
         Entity target = p == null || p.seeking() ? null : povTarget(p);
         Entity want = target != null ? target : mc.player;
         if (mc.getCameraEntity() != want) mc.setCameraEntity(want);
+        if (target instanceof net.minecraft.entity.player.PlayerEntity t) mirrorHands(t);
+        else if (handsMirrored) clearHands();
         return target;
+    }
+
+    private static boolean handsMirrored;
+
+    /**
+     * The first-person hand is drawn from the game's own player (the replay camera), so in POV it takes on the watched
+     * player's held items, swing and where they look; their skin comes from ReplayPovSkinMixin.
+     */
+    private static void mirrorHands(net.minecraft.entity.player.PlayerEntity t) {
+        var me = mc.player;
+        for (var slot : new net.minecraft.entity.EquipmentSlot[]{net.minecraft.entity.EquipmentSlot.MAINHAND, net.minecraft.entity.EquipmentSlot.OFFHAND}) {
+            var want = t.getEquippedStack(slot);
+            if (!net.minecraft.item.ItemStack.areEqual(me.getEquippedStack(slot), want)) me.equipStack(slot, want.copy());
+        }
+        me.handSwinging = t.handSwinging;
+        me.handSwingTicks = t.handSwingTicks;
+        me.handSwingProgress = t.handSwingProgress;
+        me.lastHandSwingProgress = t.lastHandSwingProgress;
+        me.preferredHand = t.preferredHand;
+        me.setYaw(t.getYaw());
+        me.setPitch(t.getPitch());
+        me.lastYaw = t.lastYaw;
+        me.lastPitch = t.lastPitch;
+        me.renderYaw = me.lastRenderYaw = t.getYaw();
+        me.renderPitch = me.lastRenderPitch = t.getPitch();
+        // the hand is lit by the light where the player stands
+        me.setPosition(t.getX(), t.getY(), t.getZ());
+        handsMirrored = true;
+    }
+
+    private static void clearHands() {
+        if (mc.player != null) {
+            mc.player.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, net.minecraft.item.ItemStack.EMPTY);
+            mc.player.equipStack(net.minecraft.entity.EquipmentSlot.OFFHAND, net.minecraft.item.ItemStack.EMPTY);
+        }
+        handsMirrored = false;
+    }
+
+    /** The player watched through in first person (hands drawn), or null. */
+    public static net.minecraft.client.network.AbstractClientPlayerEntity povPlayer() {
+        if (!active() || !mc.options.getPerspective().isFirstPerson()) return null;
+        return povTarget(ReplayPlayer.current()) instanceof net.minecraft.client.network.AbstractClientPlayerEntity a ? a : null;
     }
 
     /** The players you can watch through: whoever recorded first, then everyone else by name. */
@@ -174,6 +225,22 @@ public final class ReplayOverrides {
         mc.player.setVelocity(Vec3d.ZERO);
     }
 
+    private static Entity byUuid(String id) {
+        if (id == null || id.isBlank() || mc.world == null) return null;
+        for (Entity e : mc.world.getEntities()) if (e != mc.player && e.getUuidAsString().equals(id)) return e;
+        return null;
+    }
+
+    /** Starts following {@code e} from where the camera is now (or stops, for null). */
+    public static void follow(ReplayProject pr, Entity e) {
+        if (e == null || mc.player == null) { pr.follow = ""; return; }
+        Vec3d eye = mc.player.getEyePos(), at = e.getEntityPos();
+        pr.follow = e.getUuidAsString();
+        pr.followX = eye.x - at.x;
+        pr.followY = eye.y - at.y;
+        pr.followZ = eye.z - at.z;
+    }
+
     private static Entity lookTarget(ReplayProject pr) {
         if (pr.lookAt == null || pr.lookAt.isBlank() || mc.world == null) return null;
         for (Entity e : mc.world.getEntities()) if (e.getUuidAsString().equals(pr.lookAt)) return e;
@@ -193,7 +260,10 @@ public final class ReplayOverrides {
         ReplayProject pr = project();
         if (pr == null || mc.world == null) return;
         ReplayProject.Scene s = pr.scene;
-        if (s.timeOfDay >= 0) mc.world.getLevelProperties().setTimeOfDay(s.timeOfDay);
+        ReplayPlayer rp = ReplayPlayer.current();
+        double keyed = rp == null ? -1 : s.timeAt(rp.tick());
+        if (keyed >= 0) mc.world.getLevelProperties().setTimeOfDay((long) keyed);
+        else if (s.timeOfDay >= 0) mc.world.getLevelProperties().setTimeOfDay(s.timeOfDay);
         if (s.clearWeather) { mc.world.setRainGradient(0); mc.world.setThunderGradient(0); }
         // the HUD stays while watching (the playback bar lives there); renders leave it out unless asked
         if (ReplayRender.rendering()) {
@@ -222,6 +292,12 @@ public final class ReplayOverrides {
     }
 
     // ------------------------------------------------------------------ read by render hooks
+
+    /** Whether the HUD mod {@code name} is hidden in the replay being watched or rendered. */
+    public static boolean hudHidden(String name) {
+        ReplayProject pr = active() ? project() : null;
+        return pr != null && pr.scene.hiddenHud != null && pr.scene.hiddenHud.contains(name);
+    }
 
     public static boolean hideNametags() { ReplayProject pr = active() ? project() : null; return pr != null && pr.scene.hideNametags; }
     public static boolean greenScreen() { ReplayProject pr = active() ? project() : null; return pr != null && pr.scene.greenScreen; }

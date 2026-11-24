@@ -131,7 +131,9 @@
     "FishingLineMixin",
     "SpyglassOverlayMixin",
     "ItemHighlightSlotMixin",
-    "ChatScreenEvadeMixin"
+    "ChatScreenEvadeMixin",
+    "ReplayPovHandsMixin",
+    "ReplayPovSkinMixin"
   ],
   "injectors": {
     "defaultRequire": 1

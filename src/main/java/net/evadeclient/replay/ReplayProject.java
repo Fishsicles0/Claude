@@ -42,6 +42,35 @@ public final class ReplayProject {
         public boolean clearWeather, noFog, hideNametags, hideHud = true, greenScreen, hideSelf;
         /** UUIDs of players and mobs to hide. */
         public List<String> hidden = new ArrayList<>();
+        /** HUD mods (by name) left out while watching this replay and in its videos. */
+        public List<String> hiddenHud = new ArrayList<>();
+        /** Time-of-day keyframes: the sky moves on from one to the next (always forwards), e.g. a sunset timelapse. */
+        public List<TimeKey> timeKeys = new ArrayList<>();
+
+        /** The time of day at replay tick {@code t} from the keyframes, or -1 without any. */
+        public double timeAt(double t) {
+            if (timeKeys == null || timeKeys.isEmpty()) return -1;
+            List<TimeKey> k = new ArrayList<>(timeKeys);
+            k.sort(java.util.Comparator.comparingDouble(x -> x.tick));
+            if (t <= k.get(0).tick) return k.get(0).time;
+            for (int i = 1; i < k.size(); i++) {
+                TimeKey a = k.get(i - 1), b = k.get(i);
+                if (t <= b.tick) {
+                    double to = b.time;
+                    while (to < a.time) to += 24000; // forwards round the clock
+                    double f = (t - a.tick) / Math.max(1e-6, b.tick - a.tick);
+                    return (a.time + (to - a.time) * f) % 24000;
+                }
+            }
+            return k.get(k.size() - 1).time;
+        }
+    }
+
+    public static final class TimeKey {
+        public double tick;
+        public int time;
+        public TimeKey() {}
+        public TimeKey(double tick, int time) { this.tick = tick; this.time = time; }
     }
 
     public static final class Render {
@@ -62,6 +91,10 @@ public final class ReplayProject {
     public List<SpeedKey> speeds = new ArrayList<>();
     /** The camera keeps looking at this entity (UUID), "" for none. */
     public String lookAt = "";
+    /** Track entity: the camera follows this player or mob (UUID) at a fixed offset, "" for none. */
+    public String follow = "";
+    /** The camera's offset from the followed entity's position, taken when following started. */
+    public double followX, followY, followZ;
     /** Player POV: the UUID of the player whose eyes the camera sees through, "" for the free camera. */
     public String pov = "";
     /** Play the camera path while watching (otherwise you fly freely). */

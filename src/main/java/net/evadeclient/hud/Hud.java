@@ -82,13 +82,15 @@ public final class Hud {
                 java.util.List<HudElementModule> cached = new java.util.ArrayList<>(), moving = new java.util.ArrayList<>();
                 for (HudElementModule el : EvadeClient.modules.hudElements()) {
                     if (!el.isEnabled() || !el.shouldShow()) continue;
+                    // hidden in this replay (the replay editor's HUD mods list)
+                    if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
                     (HudCache.animated(el) ? moving : cached).add(el);
                 }
                 HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
                 for (HudElementModule el : moving) drawWidget(ctx, el, sw, sh);
             } else {
                 for (HudElementModule el : EvadeClient.modules.hudElements())
-                    if (el.isEnabled() && el.shouldShow()) drawWidget(ctx, el, sw, sh);
+                    if (el.isEnabled() && el.shouldShow() && !net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) drawWidget(ctx, el, sw, sh);
             }
         } finally {
             ctx.getMatrices().popMatrix();
