@@ -52,6 +52,8 @@ public final class Settings {
     // audio
     public boolean recordSystemAudio = true;
     public String systemAudioDevice = "";
+    /** Windows, Default device: the game's own sound on the Game track and everything else (Discord, music) on its own. */
+    public boolean gameAudioSeparate = true;
     public boolean recordMic = false;
     public String micDevice = "";
     public double micVolume = 1.0;

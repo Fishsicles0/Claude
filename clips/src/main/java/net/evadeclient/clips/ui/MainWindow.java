@@ -237,6 +237,9 @@ public final class MainWindow extends JFrame {
         m.addSeparator();
         m.add(save);
         m.add(rec);
+        MenuItem look = new MenuItem("Look back");
+        look.addActionListener(e -> app.lookBack());
+        m.add(look);
         m.addSeparator();
         m.add(quit);
         tray = new TrayIcon(Theme.icon, "Evade Clips", m);

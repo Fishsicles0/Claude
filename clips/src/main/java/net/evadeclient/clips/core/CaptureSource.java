@@ -189,9 +189,25 @@ public final class CaptureSource {
             Map<String, String> devices = null; // scanned at most once per build
             if (s.recordSystemAudio) {
                 String dev = s.systemAudioDevice;
-                // Windows, Default: what the speakers play, straight from Windows (no Stereo Mix or virtual cable)
-                LoopbackAudio.Stream speakers = dev.isBlank() ? LoopbackAudio.windows() : null;
-                if (speakers != null) {
+                // Windows, Default: straight from Windows (no Stereo Mix or virtual cable). With the game running and
+                // "game sound on its own track" on, the Game track is only the game and the rest gets its own track
+                // (mute Discord or music in the editor); otherwise the Game track is everything the speakers play.
+                LoopbackAudio.Stream game = null, rest = null, speakers = null;
+                if (dev.isBlank() && Ffmpeg.WINDOWS) {
+                    if (s.gameAudioSeparate) {
+                        Long pid = GameDetector.detect().map(GameDetector.Game::pid).orElse(null);
+                        if (pid != null && (game = LoopbackAudio.windowsApp(pid, true)) != null) rest = LoopbackAudio.windowsApp(pid, false);
+                    }
+                    if (game == null) speakers = LoopbackAudio.windows();
+                }
+                if (game != null) {
+                    a.addAll(game.ffmpegInput());
+                    tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
+                    if (rest != null) {
+                        a.addAll(rest.ffmpegInput());
+                        tracks.add(new String[]{"[" + idx++ + ":a]", "Other sound", ""});
+                    }
+                } else if (speakers != null) {
                     a.addAll(speakers.ffmpegInput());
                     tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
                 } else {

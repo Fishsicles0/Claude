@@ -1,6 +1,9 @@
 package net.evadeclient.clips.core;
 
+import com.sun.jna.Callback;
+import com.sun.jna.CallbackReference;
 import com.sun.jna.Function;
+import com.sun.jna.WString;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -33,7 +36,16 @@ public final class WasapiLoopback implements LoopbackAudio.Source {
     private static final int CLIENT_Initialize = 3, CLIENT_GetMixFormat = 8, CLIENT_Start = 10, CLIENT_Stop = 11, CLIENT_GetService = 14;
     private static final int CAPTURE_GetBuffer = 3, CAPTURE_ReleaseBuffer = 4, CAPTURE_GetNextPacketSize = 5;
 
-    private Pointer enumerator, device, client, capture;
+    private static final String IID_IUnknown = "00000000-0000-0000-C000-000000000046";
+    private static final String IID_IAgileObject = "94EA2B94-E9CC-49E0-C0FF-EE64CA8F5B90";
+    private static final String IID_IActivateCompletion = "41D949AB-9862-444A-80F6-C261334DA5EB";
+    private static final int AUDCLNT_STREAMFLAGS_EVENTCALLBACK = 0x00040000, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM = 0x80000000,
+            AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY = 0x08000000;
+    private static final int CLIENT_SetEventHandle = 13, OPERATION_GetActivateResult = 3;
+
+    private Pointer enumerator, device, client, capture, event;
+    /** Kept alive while Windows may call it back (it's a COM object implemented here). */
+    private CompletionHandler handler;
     private int rate, channels, bytesPerSample, blockAlign;
     private boolean isFloat;
     private byte[] scratch = new byte[0];
@@ -83,6 +95,118 @@ public final class WasapiLoopback implements LoopbackAudio.Source {
         check(call(client, CLIENT_GetService, guid(IID_IAudioCaptureClient), out), "IAudioCaptureClient");
         capture = out.getValue();
         check(call(client, CLIENT_Start), "Start");
+    }
+
+    /**
+     * One program's sound only (Windows 10 2022 builds and Windows 11): with {@code include}, what {@code pid} and
+     * the processes it started play; without, everything but that. Used to put the game on its own track.
+     */
+    static WasapiLoopback openProcess(long pid, boolean include) throws IOException {
+        WasapiLoopback w = new WasapiLoopback();
+        try {
+            w.initProcess(pid, include);
+            return w;
+        } catch (IOException | RuntimeException | Error e) {
+            w.close();
+            throw e instanceof IOException io ? io : new IOException(e.getMessage(), e);
+        }
+    }
+
+    private void initProcess(long pid, boolean include) throws IOException {
+        int hr = ole32("CoInitializeEx", Pointer.NULL, COINIT_MULTITHREADED);
+        if (hr < 0 && hr != 0x80010106) check(hr, "CoInitializeEx");
+        // AUDIOCLIENT_ACTIVATION_PARAMS { PROCESS_LOOPBACK, { pid, include tree / exclude tree } } in a VT_BLOB PROPVARIANT
+        Memory params = new Memory(12);
+        params.setInt(0, 1);
+        params.setInt(4, (int) pid);
+        params.setInt(8, include ? 0 : 1);
+        Memory prop = new Memory(24);
+        prop.clear();
+        prop.setShort(0, (short) 65);
+        prop.setInt(8, 12);
+        prop.setPointer(16, params);
+        handler = new CompletionHandler();
+        PointerByReference op = new PointerByReference();
+        Function activate;
+        try {
+            activate = Function.getFunction("Mmdevapi", "ActivateAudioInterfaceAsync", Function.ALT_CONVENTION);
+        } catch (UnsatisfiedLinkError e) {
+            throw new IOException("this Windows can't record one program's sound");
+        }
+        check(activate.invokeInt(new Object[]{new WString("VAD\\Process_Loopback"), guid(IID_IAudioClient), prop, handler.object, op}), "ActivateAudioInterfaceAsync");
+        try {
+            if (!handler.done.await(5, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("Windows didn't answer the request for the game's sound");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted");
+        }
+        IntByReference result = new IntByReference();
+        PointerByReference unknown = new PointerByReference();
+        try {
+            check(call(op.getValue(), OPERATION_GetActivateResult, result, unknown), "GetActivateResult");
+            check(result.getValue(), "this Windows can't record one program's sound");
+        } finally {
+            call(op.getValue(), 2);
+        }
+        PointerByReference out = new PointerByReference();
+        try {
+            check(call(unknown.getValue(), 0, guid(IID_IAudioClient), out), "IAudioClient");
+        } finally {
+            call(unknown.getValue(), 2);
+        }
+        client = out.getValue();
+        // a process stream has no mix format of its own: ask for 48 kHz stereo float, Windows converts
+        Memory wfx = new Memory(18);
+        wfx.clear();
+        wfx.setShort(0, WAVE_FORMAT_IEEE_FLOAT);
+        wfx.setShort(2, (short) 2);
+        wfx.setInt(4, 48_000);
+        wfx.setInt(8, 48_000 * 8);
+        wfx.setShort(12, (short) 8);
+        wfx.setShort(14, (short) 32);
+        rate = 48_000;
+        channels = 2;
+        bytesPerSample = 4;
+        blockAlign = 8;
+        isFloat = true;
+        int flags = AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+        check(call(client, CLIENT_Initialize, AUDCLNT_SHAREMODE_SHARED, flags, 2_000_000L, 0L, wfx, Pointer.NULL), "Initialize");
+        // the stream is set up for event callbacks (process streams require it); the pump still polls every 10 ms
+        event = Function.getFunction("kernel32", "CreateEventW", Function.ALT_CONVENTION).invokePointer(new Object[]{Pointer.NULL, 0, 0, Pointer.NULL});
+        check(call(client, CLIENT_SetEventHandle, event), "SetEventHandle");
+        check(call(client, CLIENT_GetService, guid(IID_IAudioCaptureClient), out), "IAudioCaptureClient");
+        capture = out.getValue();
+        check(call(client, CLIENT_Start), "Start");
+    }
+
+    /** IActivateAudioInterfaceCompletionHandler (and IAgileObject), implemented here for Windows to call back. */
+    private static final class CompletionHandler {
+        interface QueryInterface extends Callback { int invoke(Pointer self, Pointer riid, Pointer ppv); }
+        interface AddRefRelease extends Callback { int invoke(Pointer self); }
+        interface ActivateCompleted extends Callback { int invoke(Pointer self, Pointer operation); }
+
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        final Memory vtable = new Memory(4L * Native.POINTER_SIZE), object = new Memory(Native.POINTER_SIZE);
+        private final QueryInterface qi = (self, riid, ppv) -> {
+            byte[] id = riid.getByteArray(0, 16);
+            if (java.util.Arrays.equals(id, guidBytes(IID_IUnknown)) || java.util.Arrays.equals(id, guidBytes(IID_IAgileObject))
+                    || java.util.Arrays.equals(id, guidBytes(IID_IActivateCompletion))) {
+                ppv.setPointer(0, self);
+                return 0;
+            }
+            ppv.setPointer(0, Pointer.NULL);
+            return 0x80004002; // E_NOINTERFACE
+        };
+        private final AddRefRelease addRef = self -> 1, release = self -> 1; // lives as long as the stream
+        private final ActivateCompleted completed = (self, operation) -> { done.countDown(); return 0; };
+
+        CompletionHandler() {
+            vtable.setPointer(0, CallbackReference.getFunctionPointer(qi));
+            vtable.setPointer(Native.POINTER_SIZE, CallbackReference.getFunctionPointer(addRef));
+            vtable.setPointer(2L * Native.POINTER_SIZE, CallbackReference.getFunctionPointer(release));
+            vtable.setPointer(3L * Native.POINTER_SIZE, CallbackReference.getFunctionPointer(completed));
+            object.setPointer(0, vtable);
+        }
     }
 
     @Override public int rate() { return rate; }
@@ -138,6 +262,8 @@ public final class WasapiLoopback implements LoopbackAudio.Source {
         if (client != null) call(client, CLIENT_Stop);
         for (Pointer p : new Pointer[]{capture, client, device, enumerator}) if (p != null) call(p, 2);
         capture = client = device = enumerator = null;
+        if (event != null) Function.getFunction("kernel32", "CloseHandle", Function.ALT_CONVENTION).invokeInt(new Object[]{event});
+        event = null;
     }
 
     // ------------------------------------------------------------------ COM through JNA

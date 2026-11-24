@@ -1088,6 +1088,7 @@ public final class EditorPanel extends JPanel {
         ticker.stop();
         flushSave();
         commitMeta();
+        if (clip != null && clip != c) app.settleLookBack(clip);
         clip = c;
         undo.clear();
         redo.clear();
@@ -1130,6 +1131,7 @@ public final class EditorPanel extends JPanel {
         flushSave();
         commitMeta();
         player.close();
+        if (clip != null && app.settleLookBack(clip)) clip = null;
         ticker.stop();
         updatePlayIcon();
     }
