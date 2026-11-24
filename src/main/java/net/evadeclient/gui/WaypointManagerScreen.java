@@ -50,6 +50,13 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         super("Waypoints", parent);
     }
 
+    /** Opens the manager with {@code p}'s editor already open (from the World Map's right-click menu). */
+    public static WaypointManagerScreen editing(Screen parent, Point p) {
+        WaypointManagerScreen s = new WaypointManagerScreen(parent);
+        if (p != null) s.openEditor(p);
+        return s;
+    }
+
     /** Test hook: the open manager's editor, so a test can drive it. */
     public Point editingForTest() { return editing; }
 

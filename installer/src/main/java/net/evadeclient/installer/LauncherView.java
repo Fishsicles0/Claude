@@ -76,7 +76,7 @@ public final class LauncherView extends JPanel {
     // palette
     static final Color BG = new Color(0x0B0B0E), CARD = new Color(0x121216), CARD_2 = new Color(0x18181D),
             BORDER = new Color(0x232329), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x62626D), OK = new Color(0x3DDC84),
+            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x7C7C88), // FAINT: 4.5:1 on cards OK = new Color(0x3DDC84),
             AMBER = new Color(0xF5A524), FIELD = new Color(0x0E0E12),
             /** the rail's panel, page hairlines, and panels raised over the page */
             RAIL_BG = new Color(0x0E0E11), HAIRLINE = new Color(255, 255, 255, 14), RAISED = new Color(0x18181D);
@@ -118,6 +118,10 @@ public final class LauncherView extends JPanel {
         default void pageShown(Page p) {}
         default void manageAccount() {}
         default void takeOverClips() {}
+        /** F5: reload what the page shows. */
+        default void refresh(Page p) {}
+        /** An instance was added outside the usual actions (imported): reload the list. */
+        default void instancesChanged() {}
     }
 
     // ------------------------------------------------------------------ links (empty = not shown)
@@ -221,6 +225,8 @@ public final class LauncherView extends JPanel {
     Modal modal;
     /** The game's state, logs, crashes and instance settings (GamePages paints them). */
     final GamePages game;
+    /** Appearance, keyboard shortcuts, instance groups/pins/sorting, zip export/import, What's new. */
+    final ViewExtras extras;
 
     record Popup(String id, int x, int y, int w, List<String[]> items) {}
     record Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod, int index) {
@@ -343,6 +349,8 @@ public final class LauncherView extends JPanel {
             c.getActionMap().put("escape", escape);
         }
         game = new GamePages(this);
+        extras = new ViewExtras(this);
+        extras.installKeys();
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
@@ -374,7 +382,8 @@ public final class LauncherView extends JPanel {
             }
             boolean busy = play == Play.UPDATING || play == Play.LAUNCHING || searching || modState.containsValue("installing");
             boolean showing = isShowing();
-            if (showing && page == Page.HOME && !firstRun() && System.currentTimeMillis() - slideAt > 8000 && modal == null) nextSlide(1);
+            if (showing && page == Page.HOME && !firstRun() && !LauncherTheme.reduceMotion() && System.currentTimeMillis() - slideAt > 8000 && modal == null) nextSlide(1);
+            if (LauncherTheme.reduceMotion()) { slideFrom = -1; for (float[] s : scroll.values()) s[1] = s[0]; scrolling = false; }
             boolean fading = slideFrom >= 0 && System.currentTimeMillis() - slideAt < 700;
             if (!fading) slideFrom = -1;
             if (showing && (animating || scrolling || busy || fading || toast != null || Math.abs(progress - shownProgress) > 1e-4)) repaint();
@@ -453,7 +462,7 @@ public final class LauncherView extends JPanel {
         setCursor(hand ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
     }
 
-    private void wheel(Point p, double rot) {
+    void wheel(Point p, double rot) {
         List<Map.Entry<String, int[]>> l = new ArrayList<>(scrollAreas.entrySet());
         for (int i = l.size() - 1; i >= 0; i--) {
             int[] a = l.get(i).getValue();
@@ -484,6 +493,7 @@ public final class LauncherView extends JPanel {
             overlay = null;
             if (id.equals("dismiss") || id.equals("bell")) { repaint(); return; }
         }
+        if (extras.click(id)) { repaint(); return; }
         if (content.click(id)) { repaint(); return; }
         switch (id) {
             case "close" -> { if (play != Play.UPDATING) actions.close(); }
@@ -657,6 +667,7 @@ public final class LauncherView extends JPanel {
     private void popupClick(String what) {
         Popup p = popup;
         popup = null;
+        if (extras.popup(what)) { repaint(); return; }
         if (what.startsWith("sel:")) {
             for (Launcher.Instance i : instances) if (i.id.equals(what.substring(4))) actions.select(i);
         } else if (what.startsWith("copy:")) {
@@ -742,6 +753,10 @@ public final class LauncherView extends JPanel {
                 actions.saveServer(m.index(), text.isEmpty() ? addr : text, addr);
             }
             case "remove-mod" -> actions.removeMod(m.mod());
+            case "group" -> {
+                if (text.isEmpty()) return;
+                extras.setGroup(m.target(), text);
+            }
             default -> { }
         }
         modal = null;
@@ -757,6 +772,9 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ painting
 
+    /** Where the Clips pages were placed last frame (design coordinates). */
+    private Rectangle clipsBoxShown;
+
     /** Home's hero backdrops (Evade gameplay, softly blurred), one per slide. */
     private static final String[] BACKDROPS = {"bg-world", "bg-hud", "bg-menu", "bg-clips"};
 
@@ -765,9 +783,34 @@ public final class LauncherView extends JPanel {
     /** Window corner radius. */
     static final int RADIUS = 20;
 
+    /** Paints everything (children too) through the theme's colours. */
+    @Override public void paint(Graphics g) {
+        super.paint(LauncherTheme.wrap(g));
+    }
+
+    /**
+     * With a theme that changes colours, a child's own repaint (a text field's caret, the Clips pages) goes through
+     * this view too, so it's drawn in the theme's colours.
+     */
+    @Override protected boolean isPaintingOrigin() { return !LauncherTheme.identity(); }
+
+    private int themeGen = -1;
+
+    /** The theme, accent or text size changed: redraw cached layers. */
+    void themeChanged() {
+        bgLayer = null;
+        themeGen = LauncherTheme.generation();
+        repaint();
+    }
+
     @Override
     protected void paintComponent(Graphics g0) {
-        Graphics2D g = (Graphics2D) g0.create();
+        // A repaint only inside the (opaque) Clips pages doesn't need the whole launcher painted under it.
+        Rectangle cb = g0.getClipBounds();
+        if (cb != null && page == Page.CLIPS && clipsHost != null && clipsHost.isVisible() && clipsHost.isOpaque() && !hitMap.isEmpty()
+                && modal == null && overlay == null && popup == null && toScreen(clipsBoxShown) != null && toScreen(clipsBoxShown).contains(cb)) return;
+        if (themeGen != LauncherTheme.generation()) { themeGen = LauncherTheme.generation(); bgLayer = null; }
+        Graphics2D g = ThemedGraphics.withText((Graphics2D) g0.create());
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
@@ -789,7 +832,7 @@ public final class LauncherView extends JPanel {
             case HOME -> { if (firstRun()) paintSetup(g); else paintHome(g); }
             case INSTANCES -> paintInstances(g);
             case MODS -> search = content.paint(g);
-            case CLIPS -> clipsBox = paintClips(g);
+            case CLIPS -> clipsBox = clipsBoxShown = paintClips(g);
             case GAME -> game.paintPage(g);
             case SETTINGS -> java = paintSettings(g);
         }
@@ -808,6 +851,8 @@ public final class LauncherView extends JPanel {
             if (bell != null) hitMap.put("bell", bell);
             if (overlay.equals("bell")) paintNotices(g);
             else if (overlay.equals("friends")) paintFriends(g);
+            else if (overlay.equals("whatsnew")) extras.paintWhatsNew(g);
+            else if (overlay.equals("keys")) extras.paintKeys(g);
             else if (overlayServer() != null) paintServerCard(g, overlayIndex());
             else overlay = null;
         }
@@ -846,7 +891,7 @@ public final class LauncherView extends JPanel {
     @Override protected void paintChildren(Graphics g0) {
         super.paintChildren(g0);
         if (toast == null && sideTip == null) return;
-        Graphics2D g = (Graphics2D) g0.create();
+        Graphics2D g = ThemedGraphics.withText((Graphics2D) g0.create());
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
@@ -868,7 +913,7 @@ public final class LauncherView extends JPanel {
         double scale = g.getTransform().getScaleX();
         if (bgLayer == null || bgScale != scale || bgRound != roundCorners) {
             bgLayer = deviceImage(W, H, scale);
-            Graphics2D b = bgLayer.createGraphics();
+            Graphics2D b = LauncherTheme.wrap(bgLayer.createGraphics());
             b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             b.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             b.scale(bgLayer.getWidth() / (double) W, bgLayer.getHeight() / (double) H);
@@ -1924,7 +1969,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
-    private void statusDot(Graphics2D g, int x, int y, Launcher.Instance i) {
+    void statusDot(Graphics2D g, int x, int y, Launcher.Instance i) {
         Color c = FAINT;
         if (i != null) {
             if (i.installed == null || i.dirty || i.pending != null) c = AMBER;
@@ -2671,7 +2716,7 @@ public final class LauncherView extends JPanel {
         if (toast == null) return;
         long age = System.currentTimeMillis() - toastAt;
         if (age > 3600) { toast = null; return; }
-        float a = age < 200 ? age / 200f : age > 3200 ? (3600 - age) / 400f : 1f;
+        float a = LauncherTheme.reduceMotion() ? 1f : age < 200 ? age / 200f : age > 3200 ? (3600 - age) / 400f : 1f;
         g.setFont(interBold.deriveFont(12.5f));
         int tw = g.getFontMetrics().stringWidth(toast) + 48;
         int x = CX + (CW - tw) / 2, y = H - 64 + Math.round((1 - a) * 10);
@@ -2719,7 +2764,7 @@ public final class LauncherView extends JPanel {
         if (roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
         boolean server = m.kind().equals("server");
-        boolean text = m.kind().equals("create") || m.kind().equals("rename") || server || m.kind().startsWith("c:text");
+        boolean text = m.kind().equals("create") || m.kind().equals("rename") || m.kind().equals("group") || server || m.kind().startsWith("c:text");
         boolean create = m.kind().equals("create");
         int w = 440, h = text ? (create || server ? 346 : 256) : 200;
         int x = (W - w) / 2, y = (H - h) / 2;
@@ -3339,7 +3384,7 @@ public final class LauncherView extends JPanel {
     float anim(String id, boolean target) {
         float to = target ? 1f : 0f;
         float v = hover.getOrDefault(id, to);
-        v += (to - v) * 0.22f;
+        v += (to - v) * (LauncherTheme.reduceMotion() ? 1f : 0.22f);
         if (Math.abs(to - v) < 0.002f) v = to;
         else animating = true;
         hover.put(id, v);
