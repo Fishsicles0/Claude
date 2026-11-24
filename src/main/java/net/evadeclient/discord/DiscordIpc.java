@@ -33,6 +33,11 @@ public final class DiscordIpc implements Closeable {
         void readFully(byte[] data) throws IOException;
     }
 
+    /** Discord answered but refused the request (bad activity fields). */
+    public static final class Rejected extends IOException {
+        Rejected(String message) { super(message); }
+    }
+
     private final Pipe pipe;
 
     private DiscordIpc(Pipe pipe) { this.pipe = pipe; }
@@ -115,7 +120,7 @@ public final class DiscordIpc implements Closeable {
         frame.addProperty("nonce", UUID.randomUUID().toString());
         send(OP_FRAME, frame);
         JsonObject reply = receive();
-        if ("ERROR".equals(str(reply, "evt"))) throw new IOException("Discord rejected the presence: " + reply.get("data"));
+        if ("ERROR".equals(str(reply, "evt"))) throw new Rejected(String.valueOf(reply.get("data")));
     }
 
     private void send(int op, JsonObject json) throws IOException {
