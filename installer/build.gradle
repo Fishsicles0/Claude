@@ -13,6 +13,9 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
     // Evade Clips is built in: one jar/exe runs the launcher and the clip recorder (tray, control server, editor).
     implementation project(':clips')
+    // WebP decoding for Modrinth's mod icons (TwelveMonkeys ImageIO 3.12.0, BSD-3-Clause). Kept in installer/libs
+    // (checked against Maven Central's SHA-1s) so the build works offline.
+    implementation files(fileTree(dir: 'libs', include: '*.jar'))
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }

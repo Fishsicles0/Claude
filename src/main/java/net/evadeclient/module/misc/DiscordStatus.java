@@ -23,15 +23,19 @@ import net.minecraft.client.network.ServerInfo;
  * module says so and does nothing.
  */
 public class DiscordStatus extends Module {
-    /** Evade's Discord application id (Developer Portal: "Evade Client"). */
+    /** Evade's Discord application id (Developer Portal, OAuth2 Client ID). Empty: not set up yet. */
     public static final String DISCORD_APP_ID = "1573553858158923958";
+    /** The Evade logo (the Discord app's icon), used as the big image. A URL works without uploading art assets. */
+    private static final String LOGO = "https://cdn.discordapp.com/app-icons/" + DISCORD_APP_ID + "/d969d19052fdba42c6b4310df645f3f4.png?size=512";
+    /** Permanent invite to the Evade Discord, for the profile button. */
+    private static final String DISCORD_INVITE = "https://discord.gg/BxXAv6kvtw";
     private static final String NO_ID = "Discord app ID not set";
     /** How often (client ticks) the presence is worked out again; it's only sent when it changed. */
     private static final int EVERY = 20;
 
     private final StatusSetting status = add(new StatusSetting("Status", this::statusText, "")
             .describe("Whether Evade is connected to the Discord app on this computer."));
-    private final BooleanSetting hideAddress = add(new BooleanSetting("Hide Server Address", false)
+    private final BooleanSetting hideAddress = add(new BooleanSetting("Hide Server Address", true)
             .describe("Show \"Playing multiplayer\" instead of the server's address, so friends don't see where you play."));
     private final BooleanSetting useListName = add(new BooleanSetting("Use Server List Name", false)
             .describe("Show the name you gave the server in your server list instead of its address."));
@@ -41,6 +45,8 @@ public class DiscordStatus extends Module {
             .describe("Count the time from when you joined the current world or server, or from when the game started."));
     private final BooleanSetting showInMenus = add(new BooleanSetting("Show In Menus", true)
             .describe("Keep a status (\"In menus\") while you're on the title screen. Off: no status outside a world."));
+    private final BooleanSetting showButton = add(new BooleanSetting("Show Discord Button", true)
+            .describe("Add a \"Join the Discord\" button to your status so friends can find the Evade Discord."));
     /** The Discord application id to use when {@link #DISCORD_APP_ID} is empty (never shown in the menu). */
     private final StringSetting appId = add(new StringSetting("App ID", "", "Discord application id").maxLength(32).hidden());
 
@@ -54,6 +60,7 @@ public class DiscordStatus extends Module {
     public DiscordStatus() {
         super("Discord Status", "Shows what you're playing on your Discord profile.", Category.MISC);
         ClientTickEvents.END_CLIENT_TICK.register(this::clientTick);
+        setEnabled(true); // on by default; the server address stays hidden unless the player turns it on
     }
 
     /** Runs on the title screen too (the status says "In menus"). */
@@ -100,7 +107,7 @@ public class DiscordStatus extends Module {
         if (--countdown > 0) return;
         countdown = EVERY;
         String details = details(mc);
-        String key = details == null ? "" : details + "|" + showTime.get() + "|" + timeFrom.get();
+        String key = details == null ? "" : details + "|" + showTime.get() + "|" + timeFrom.get() + "|" + showButton.get();
         if (key.equals(lastKey)) return;
         // A new place to be (joined, left, switched server) restarts "Current Activity" time.
         String place = details == null ? "" : details;
@@ -134,10 +141,18 @@ public class DiscordStatus extends Module {
             a.add("timestamps", ts);
         }
         JsonObject assets = new JsonObject();
-        assets.addProperty("large_image", "evade");
+        assets.addProperty("large_image", LOGO);
         assets.addProperty("large_text", EvadeClient.NAME + " Client " + EvadeClient.VERSION);
         a.add("assets", assets);
         a.addProperty("instance", false);
+        if (showButton.get()) {
+            com.google.gson.JsonArray buttons = new com.google.gson.JsonArray();
+            JsonObject b = new JsonObject();
+            b.addProperty("label", "Join the Discord");
+            b.addProperty("url", DISCORD_INVITE);
+            buttons.add(b);
+            a.add("buttons", buttons);
+        }
         return a;
     }
 }

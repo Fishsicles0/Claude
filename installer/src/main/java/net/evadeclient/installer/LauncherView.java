@@ -36,6 +36,7 @@ import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
@@ -73,10 +74,12 @@ public final class LauncherView extends JPanel {
     enum Play { IDLE, UPDATING, LAUNCHING, LAUNCHED, NO_LAUNCHER, ERROR }
 
     // palette
-    static final Color BG = new Color(0x0A0A0C), CARD = new Color(0x111115), CARD_2 = new Color(0x17171C),
-            BORDER = new Color(0x24242C), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9B9BA6), FAINT = new Color(0x5E5E69), OK = new Color(0x3DDC84),
-            AMBER = new Color(0xF5A524), FIELD = new Color(0x0C0C0F);
+    static final Color BG = new Color(0x0B0B0E), CARD = new Color(0x121216), CARD_2 = new Color(0x18181D),
+            BORDER = new Color(0x232329), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
+            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x62626D), OK = new Color(0x3DDC84),
+            AMBER = new Color(0xF5A524), FIELD = new Color(0x0E0E12),
+            /** the rail's panel, page hairlines, and panels raised over the page */
+            RAIL_BG = new Color(0x0E0E11), HAIRLINE = new Color(255, 255, 255, 14), RAISED = new Color(0x18181D);
 
     /** What the launcher does when the player clicks; {@link LauncherApp} implements these. */
     interface Actions {
@@ -113,10 +116,12 @@ public final class LauncherView extends JPanel {
         default void noticesSeen() {}
         default void removeLegacyClips() {}
         default void pageShown(Page p) {}
+        default void manageAccount() {}
+        default void takeOverClips() {}
     }
 
     // ------------------------------------------------------------------ links (empty = not shown)
-    static final String DISCORD = "", YOUTUBE = "", TIKTOK = "";
+    static final String DISCORD = "https://discord.gg/PZSzSFX7DD", YOUTUBE = "", TIKTOK = "";
 
     private final Font inter, interBold;
     private final Image mark, word;
@@ -168,8 +173,16 @@ public final class LauncherView extends JPanel {
     private int slide;
     private long slideAt = System.currentTimeMillis();
     private int slideFrom = -1;
-    /** Open over the page: "bell", "server:<index>", or null. */
+    /** Open over the page: "bell", "friends", "server:<index>", or null. */
     String overlay;
+    /** The full-body skin render for the profile card (null: a plain figure is drawn). */
+    Image playerBody;
+    /** The old separate Evade Clips app holds Clips' folder (a banner offers to close it); while it's closing. */
+    boolean clipsBlocked, clipsBusy;
+
+    /** A friend (filled in by the friends system once it exists; empty for now). */
+    record Friend(String name, String uuid, String status, boolean online) {}
+    List<Friend> friends = new ArrayList<>();
 
     Play play = Play.IDLE;
     /** True while the first-run install runs from the Home page's setup card. */
@@ -289,7 +302,7 @@ public final class LauncherView extends JPanel {
         add(javaField);
         modalField2.addActionListener(e -> confirmModal());
         Thread loader = new Thread(() -> {
-            for (String n : new String[]{"menu", "hud", "styles", "clips", "settings", "theme"}) {
+            for (String n : new String[]{"menu", "hud", "styles", "clips", "settings", "theme", "bg-world", "bg-hud", "bg-menu", "bg-clips"}) {
                 Image img = image("/evade/hero/" + n + ".jpg");
                 if (img.getWidth(null) > 1) heroImages.put(n, img);
             }
@@ -483,6 +496,10 @@ public final class LauncherView extends JPanel {
             case "clips-save" -> actions.saveClip();
             case "clips-go" -> { showPage(Page.CLIPS); actions.clipsPage("library"); }
             case "clips-legacy" -> actions.removeLegacyClips();
+            case "clips-takeover" -> { if (!clipsBusy) actions.takeOverClips(); }
+            case "status-pill" -> showPage(Page.CLIPS);
+            case "manage-account" -> actions.manageAccount();
+            case "friends", "friends-add" -> overlay = "friends";
             case "slide-prev" -> nextSlide(-1);
             case "slide-next" -> nextSlide(1);
             case "link-site" -> actions.openUrl(InstallerCore.SITE);
@@ -727,6 +744,14 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ painting
 
+    /** Home's hero backdrops (Evade gameplay, softly blurred), one per slide. */
+    private static final String[] BACKDROPS = {"bg-world", "bg-hud", "bg-menu", "bg-clips"};
+
+    /** Width of the icon rail on the left. */
+    static final int RAIL = 88;
+    /** Window corner radius. */
+    static final int RADIUS = 20;
+
     @Override
     protected void paintComponent(Graphics g0) {
         Graphics2D g = (Graphics2D) g0.create();
@@ -740,14 +765,12 @@ public final class LauncherView extends JPanel {
         hitMap.clear();
         scrollAreas.clear();
         animating = false;
-        // The sidebar slides between its two widths; everything right of it follows.
-        float open = anim("side-open", !settings.sidebarCollapsed);
-        SIDE = Math.round(SIDE_SHUT + (SIDE_OPEN - SIDE_SHUT) * open);
-        CX = SIDE + 26;
-        CW = W - CX - 26;
+        SIDE = RAIL;
+        CX = RAIL + 24;
+        CW = W - CX - 24;
         Rectangle search = null, java = null, modalBox = null, clipsBox = null;
         paintBackground(g);
-        paintSidebar(g, open);
+        paintRail(g);
         switch (page) {
             case HOME -> { if (firstRun()) paintSetup(g); else paintHome(g); }
             case INSTANCES -> paintInstances(g);
@@ -755,9 +778,7 @@ public final class LauncherView extends JPanel {
             case CLIPS -> clipsBox = paintClips(g);
             case SETTINGS -> java = paintSettings(g);
         }
-        paintBell(g, W - 114, 12);
-        button(g, "min", W - 74, 12, 28, 26, false);
-        button(g, "close", W - 42, 12, 28, 26, true);
+        paintTopRight(g);
         if (modal != null) {
             hitMap.clear();
             modalBox = paintModal(g);
@@ -770,6 +791,7 @@ public final class LauncherView extends JPanel {
             if (min != null) hitMap.put("min", min);
             if (bell != null) hitMap.put("bell", bell);
             if (overlay.equals("bell")) paintNotices(g);
+            else if (overlay.equals("friends")) paintFriends(g);
             else if (overlayServer() != null) paintServerCard(g, overlayIndex());
             else overlay = null;
         }
@@ -802,7 +824,7 @@ public final class LauncherView extends JPanel {
         g.dispose();
     }
 
-    /** The toast goes over everything, the embedded Clips pages included. */
+    /** The toast and the rail's labels go over everything, the embedded Clips pages included. */
     @Override protected void paintChildren(Graphics g0) {
         super.paintChildren(g0);
         if (toast == null && sideTip == null) return;
@@ -823,6 +845,7 @@ public final class LauncherView extends JPanel {
         if (f.isVisible() != show) f.setVisible(show);
     }
 
+    /** A calm near-black surface: one faint red glow, the rail's panel, and a hairline round the window. */
     private void paintBackground(Graphics2D g) {
         double scale = g.getTransform().getScaleX();
         if (bgLayer == null || bgScale != scale || bgRound != roundCorners) {
@@ -830,46 +853,33 @@ public final class LauncherView extends JPanel {
             Graphics2D b = bgLayer.createGraphics();
             b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             b.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            b.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
             b.scale(bgLayer.getWidth() / (double) W, bgLayer.getHeight() / (double) H);
-            Shape win = roundCorners ? new RoundRectangle2D.Double(0, 0, W, H, 22, 22) : new Rectangle(0, 0, W, H);
+            Shape win = roundCorners ? new RoundRectangle2D.Double(0, 0, W, H, RADIUS * 2, RADIUS * 2) : new Rectangle(0, 0, W, H);
             b.setColor(BG);
             b.fill(win);
-            b.setPaint(new RadialGradientPaint(760, 70, 480, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 62), new Color(225, 29, 46, 0)}));
+            b.setPaint(new RadialGradientPaint(W * 0.42f, -80, 560, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 26), new Color(225, 29, 46, 0)}));
             b.fill(win);
-            b.setPaint(new RadialGradientPaint(120, 600, 320, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 26), new Color(225, 29, 46, 0)}));
-            b.fill(win);
-            b.setComposite(AlphaComposite.SrcAtop);
-            for (int x = 0; x < W; x += 40) {
-                b.setPaint(new GradientPaint(0, 0, new Color(255, 255, 255, 9), 0, H, new Color(255, 255, 255, 0)));
-                b.fillRect(x, 0, 1, H);
-            }
-            for (int y = 0; y < H; y += 40) {
-                b.setColor(new Color(255, 255, 255, Math.max(0, 9 - y / 40)));
-                b.fillRect(0, y, W, 1);
-            }
-            b.setColor(new Color(255, 255, 255, 18));
-            b.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, 21, 21));
+            Shape was = b.getClip();
+            b.clip(win);
+            b.setColor(RAIL_BG);
+            b.fillRect(0, 0, RAIL, H);
+            b.setColor(HAIRLINE);
+            b.fillRect(RAIL, 0, 1, H);
+            b.setClip(was);
+            b.setColor(new Color(255, 255, 255, 16));
+            b.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, RADIUS * 2 - 1, RADIUS * 2 - 1));
             b.dispose();
             bgScale = scale;
             bgRound = roundCorners;
         }
         g.drawImage(bgLayer, 0, 0, W, H, null);
-        // sidebar panel (its width moves, so it isn't part of the cached layer)
-        Shape was = g.getClip();
-        if (roundCorners) g.clip(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
-        g.setColor(new Color(0, 0, 0, 90));
-        g.fillRect(0, 0, SIDE, H);
-        g.setColor(new Color(255, 255, 255, 14));
-        g.fillRect(SIDE, 0, 1, H);
-        g.setClip(was);
     }
 
     private static BufferedImage deviceImage(int w, int h, double scale) {
         return new BufferedImage(Math.max(1, (int) Math.round(w * scale)), Math.max(1, (int) Math.round(h * scale)), BufferedImage.TYPE_INT_ARGB_PRE);
     }
 
-    /** A soft drop shadow under a card (blurred once per size and scale, then reused). */
+    /** A soft drop shadow under something raised above the page (menus, dialogs, toasts). */
     private void shadow(Graphics2D g, int x, int y, int w, int h) {
         double scale = g.getTransform().getScaleX();
         String key = w + "x" + h + "@" + scale;
@@ -896,188 +906,178 @@ public final class LauncherView extends JPanel {
             shadows.put(key, img);
         }
         Composite was = g.getComposite();
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.42f));
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         g.drawImage(img, x - pad, y + SHADOW_DY - pad, w + 2 * pad, h + 2 * pad, null);
         g.setComposite(was);
     }
 
+    /** A flat card on the page: a slightly lighter surface with a hairline edge, 16px corners. */
     private void card(Graphics2D g, int x, int y, int w, int h, boolean accent) {
-        shadow(g, x, y, w, h);
         g.setColor(CARD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 18, 18));
-        g.setColor(BORDER);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 18, 18));
-        if (accent) {
-            g.setColor(RED);
-            g.fill(new RoundRectangle2D.Double(x + 24, y, 46, 2, 2, 2));
-        }
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 16 * 2, 16 * 2));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 16 * 2, 16 * 2));
     }
 
-    // ------------------------------------------------------------------ sidebar
+    /** A raised panel (menus, dialogs, cards that open over the page): elevated surface and a soft shadow. */
+    private void raised(Graphics2D g, int x, int y, int w, int h) {
+        shadow(g, x, y, w, h);
+        g.setColor(RAISED);
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
+        g.setColor(new Color(255, 255, 255, 18));
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 32, 32));
+    }
 
-    private void paintSidebar(Graphics2D g, float open) {
-        // logo: the mark always, the word mark fading in as the sidebar opens
-        int mx = Math.round(17 + 9 * open);
-        g.drawImage(mark, mx, 30, 38, 38, null);
-        if (open > 0.05f) {
-            Composite c0 = g.getComposite();
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.min(1f, open * open)));
-            Shape was = g.getClip();
-            g.clipRect(0, 0, SIDE - 4, H);
-            int wh = 44, ww = Math.round(wh * 320f / 96f);
-            g.drawImage(word, mx + 42, 30 + (38 - wh) / 2 + 1, ww, wh, null);
-            g.setFont(interBold.deriveFont(8.5f));
-            g.setColor(FAINT);
-            spaced(g, "LAUNCHER", mx + 45, 80, 3.0f);
-            g.setClip(was);
-            g.setComposite(c0);
-        }
+    // ------------------------------------------------------------------ rail and top bar
 
+    private void paintRail(Graphics2D g) {
+        g.drawImage(mark, (RAIL - 40) / 2, 26, 40, 40, null);
         String[][] nav = {{"nav-home", "Home", "home"}, {"nav-instances", "Instances", "layers"}, {"nav-mods", "Mods", "cube"},
-                {"nav-clips", "Clips", "clip"}, {"nav-settings", "Settings", "gear"}};
-        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.CLIPS, Page.SETTINGS};
-        int iw = SIDE - 32;
+                {"nav-clips", "Clips", "clip"}};
+        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.CLIPS};
         String tip = null;
         int tipY = 0;
-        for (int i = 0; i < nav.length; i++) {
-            int y = 112 + i * 46;
-            boolean on = page == pages[i];
-            float t = anim(nav[i][0], nav[i][0].equals(hovered));
-            float s = anim(nav[i][0] + "-on", on);
-            if (s > 0) {
-                g.setPaint(new GradientPaint(16, 0, new Color(225, 29, 46, (int) (56 * s)), 16 + iw, 0, new Color(225, 29, 46, (int) (8 * s))));
-                g.fill(new RoundRectangle2D.Double(16, y, iw, 40, 11, 11));
-                g.setColor(new Color(255, 65, 83, (int) (255 * s)));
-                g.fill(new RoundRectangle2D.Double(16, y + 11, 3, 18, 3, 3));
-            }
-            if (t > 0 && !on) {
-                g.setColor(new Color(255, 255, 255, (int) (12 * t)));
-                g.fill(new RoundRectangle2D.Double(16, y, iw, 40, 11, 11));
-            }
-            Color c = mix(mix(DIM, TEXT, t), TEXT, s);
-            int ix = Math.round(36 + 8 * open);
-            icon(g, nav[i][2], ix, y + 20, 18, on ? RED_HI : c);
-            if (pages[i] == Page.CLIPS && clips != null) {
-                // live dot: red while recording, green while instant replay runs
+        for (int i = 0; i <= nav.length; i++) {
+            boolean settingsItem = i == nav.length;
+            String id = settingsItem ? "nav-settings" : nav[i][0];
+            Page p = settingsItem ? Page.SETTINGS : pages[i];
+            int y = settingsItem ? H - 24 - 52 : 108 + i * 64;
+            if (railButton(g, id, y, settingsItem ? "gear" : nav[i][2], page == p)) { tip = settingsItem ? "Settings" : nav[i][1]; tipY = y + 26; }
+            if (p == Page.CLIPS && clips != null) {
                 var st = clips.status;
                 boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
-                if (rec || live) {
-                    g.setColor(BG);
-                    g.fill(new Ellipse2D.Double(ix + 4, y + 8, 10, 10));
-                    g.setColor(rec ? RED_HI : OK);
-                    g.fill(new Ellipse2D.Double(ix + 6, y + 10, 6, 6));
+                if (rec || live || clipsBlocked) {
+                    int dx = (RAIL - 52) / 2 + 52 - 10, dy = y + 6;
+                    g.setColor(page == p ? RED : RAIL_BG);
+                    g.fill(new Ellipse2D.Double(dx - 2, dy - 2, 12, 12));
+                    g.setColor(clipsBlocked ? AMBER : rec ? RED_HI : OK);
+                    g.fill(new Ellipse2D.Double(dx, dy, 8, 8));
                 }
+            } else if (p == Page.CLIPS && clipsBlocked) {
+                int dx = (RAIL - 52) / 2 + 52 - 10, dy = y + 6;
+                g.setColor(AMBER);
+                g.fill(new Ellipse2D.Double(dx, dy, 8, 8));
             }
-            if (open > 0.4f) {
-                g.setFont((on ? interBold : inter).deriveFont(13.5f));
-                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), Math.round(255 * Math.min(1f, (open - 0.4f) / 0.6f))));
-                g.drawString(nav[i][1], ix + 22, y + 25);
-            }
-            hit(nav[i][0], new Rectangle(16, y, iw, 40));
-            if (open < 0.5f && nav[i][0].equals(hovered)) { tip = nav[i][1]; tipY = y + 20; }
-        }
-
-        // collapse / expand
-        int cy = H - 150;
-        float tc = anim("nav-collapse", "nav-collapse".equals(hovered));
-        if (tc > 0) {
-            g.setColor(new Color(255, 255, 255, (int) (12 * tc)));
-            g.fill(new RoundRectangle2D.Double(16, cy, iw, 34, 10, 10));
-        }
-        int cix = Math.round(36 + 8 * open);
-        Graphics2D q = (Graphics2D) g.create();
-        q.rotate(open > 0.5f ? Math.PI / 2 : -Math.PI / 2, cix, cy + 17);
-        icon(q, "chevron-down", cix, cy + 17, 10, mix(FAINT, TEXT, tc));
-        q.dispose();
-        if (open > 0.4f) {
-            g.setFont(inter.deriveFont(12f));
-            g.setColor(mix(FAINT, DIM, tc));
-            g.drawString("Collapse", cix + 22, cy + 21);
-        }
-        hit("nav-collapse", new Rectangle(16, cy, iw, 34));
-        if (open < 0.5f && "nav-collapse".equals(hovered)) { tip = "Expand"; tipY = cy + 17; }
-
-        // The instance Play starts, switchable from here.
-        Launcher.Instance sel = selected();
-        int bx = 16, by = H - 106, bw = iw, bh = 62;
-        float t = anim("side-instance", "side-instance".equals(hovered));
-        g.setColor(mix(new Color(0x101014), new Color(0x17171D), t));
-        g.fill(new RoundRectangle2D.Double(bx, by, bw, bh, 13, 13));
-        g.setColor(mix(BORDER, new Color(0x34343E), t));
-        g.draw(new RoundRectangle2D.Double(bx + .5, by + .5, bw - 1, bh - 1, 13, 13));
-        if (open > 0.6f) {
-            g.setFont(interBold.deriveFont(8.5f));
-            g.setColor(FAINT);
-            spaced(g, "PLAYING", bx + 14, by + 21, 1.6f);
-            g.setFont(interBold.deriveFont(13.5f));
-            g.setColor(TEXT);
-            g.drawString(ellipsizeEnd(g, sel != null ? sel.name : "—", bw - 50), bx + 14, by + 43);
-            statusDot(g, bx + bw - 44, by + 38, sel);
-            icon(g, "chevron-up", bx + bw - 20, by + bh / 2, 10, DIM);
-        } else {
-            avatar(g, bx + (bw - 30) / 2, by + 10, 30, sel != null ? sel.name : "?", sel != null && sel.isDefault() ? RED.getRGB() : hashColor(sel != null ? sel.name : ""));
-            statusDot(g, bx + bw - 14, by + 50, sel);
-        }
-        hit("side-instance", new Rectangle(bx, by, bw, bh));
-        if (open < 0.5f && "side-instance".equals(hovered)) { tip = "Playing: " + (sel != null ? sel.name : "—"); tipY = by + bh / 2; }
-
-        if (open > 0.6f) {
-            g.setFont(inter.deriveFont(11f));
-            float ts = anim("site", "site".equals(hovered));
-            g.setColor(mix(FAINT, DIM, ts));
-            g.drawString("evadeclient.com", 26, H - 22);
-            int sw = g.getFontMetrics().stringWidth("evadeclient.com");
-            hit("site", new Rectangle(22, H - 36, sw + 8, 20));
-            g.setColor(new Color(0x45454F));
-            String v = "v" + version;
-            g.drawString(v, SIDE - 18 - g.getFontMetrics().stringWidth(v), H - 22);
         }
         sideTip = tip;
         sideTipY = tipY;
     }
 
-    /** The collapsed sidebar's label bubble (painted after the children, so it shows over the Clips pages). */
+    /** One rail button: a rounded square, filled red when its page is open, with a small tab on the rail's edge. */
+    private boolean railButton(Graphics2D g, String id, int y, String iconKind, boolean on) {
+        int s = 52, x = (RAIL - s) / 2;
+        float t = anim(id, id.equals(hovered));
+        float a = anim(id + "-on", on);
+        Color fill = mix(mix(new Color(0x141418), new Color(0x1E1E24), t), RED, a);
+        g.setColor(fill);
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, 32, 32));
+        if (a > 0.01f) {
+            g.setColor(new Color(255, 65, 83, Math.round(255 * a)));
+            g.fill(new RoundRectangle2D.Double(-4, y + 12, 8, s - 24, 8, 8));
+        }
+        icon(g, iconKind, x + s / 2, y + s / 2, 20, mix(mix(DIM, TEXT, t), Color.WHITE, a));
+        hit(id, new Rectangle(x, y, s, s));
+        return id.equals(hovered);
+    }
+
+    /** The rail's label bubble (painted after the children, so it shows over the Clips pages). */
     private String sideTip;
     private int sideTipY;
 
     private void paintSideTip(Graphics2D g) {
         String tip = sideTip;
-        int tipY = sideTipY;
-        if (tip != null) {
-            // collapsed: the label as a small bubble next to the icon
-            g.setFont(interBold.deriveFont(12f));
-            int tw = g.getFontMetrics().stringWidth(tip) + 20;
-            int tx = SIDE + 8;
-            g.setColor(new Color(0x1C1C22));
-            g.fill(new RoundRectangle2D.Double(tx, tipY - 14, tw, 28, 10, 10));
-            g.setColor(new Color(255, 255, 255, 26));
-            g.draw(new RoundRectangle2D.Double(tx + .5, tipY - 13.5, tw - 1, 27, 10, 10));
-            g.setColor(TEXT);
-            center(g, tip, tx, tipY - 14, tw, 28);
-        }
-    }
-
-    /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
-    private void statusDot(Graphics2D g, int x, int y, Launcher.Instance i) {
-        Color c = FAINT;
-        if (i != null) {
-            if (i.installed == null || i.dirty || i.pending != null) c = AMBER;
-            else if (release != null) c = OK;
-        }
-        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 50));
-        g.fill(new Ellipse2D.Double(x - 3, y - 7, 12, 12));
-        g.setColor(c);
-        g.fill(new Ellipse2D.Double(x, y - 4, 6, 6));
-    }
-
-    private void pageTitle(Graphics2D g, String title, String sub) {
-        g.setFont(interBold.deriveFont(24f));
+        if (tip == null) return;
+        g.setFont(interBold.deriveFont(12f));
+        int tw = g.getFontMetrics().stringWidth(tip) + 20;
+        int tx = RAIL + 6, ty = sideTipY - 15;
+        g.setColor(new Color(0x1E1E24));
+        g.fill(new RoundRectangle2D.Double(tx, ty, tw, 30, 16, 16));
+        g.setColor(new Color(255, 255, 255, 22));
+        g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, 29, 16, 16));
         g.setColor(TEXT);
-        g.drawString(title, CX, 58);
+        center(g, tip, tx, ty, tw, 30);
+    }
+
+    /** A square top-bar button (bell, minimise, close): a dark tile with a hairline. */
+    private void topButton(Graphics2D g, String id, int x, String iconKind, boolean danger) {
+        int y = 22, s = 40;
+        float t = anim(id, id.equals(hovered) || id.equals(overlay));
+        g.setColor(mix(new Color(0x141418), danger ? RED : new Color(0x202026), t));
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 24, 24));
+        Color c = mix(DIM, TEXT, t);
+        if (iconKind.equals("min") || iconKind.equals("close")) {
+            g.setColor(c);
+            g.setStroke(new BasicStroke(1.75f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            double cx = x + s / 2.0, cy = y + s / 2.0;
+            if (iconKind.equals("close")) {
+                g.draw(new Line2D.Double(cx - 5.5, cy - 5.5, cx + 5.5, cy + 5.5));
+                g.draw(new Line2D.Double(cx + 5.5, cy - 5.5, cx - 5.5, cy + 5.5));
+            } else g.draw(new Line2D.Double(cx - 6, cy, cx + 6, cy));
+            g.setStroke(new BasicStroke(1f));
+        } else icon(g, iconKind, x + s / 2, y + s / 2, 18, c);
+        hitMap.put(id, new Rectangle(x, y, s, s));
+    }
+
+    /** Right end of the top bar: Clips status, notifications, minimise and close. */
+    private void paintTopRight(Graphics2D g) {
+        int cx = W - 24 - 40, mx = cx - 48, bx = mx - 56;
+        topButton(g, "close", cx, "close", true);
+        topButton(g, "min", mx, "min", false);
+        topButton(g, "bell", bx, "bell", false);
+        if (unread > 0) {
+            String n = unread > 9 ? "9+" : String.valueOf(unread);
+            g.setFont(interBold.deriveFont(10f));
+            int bw = Math.max(18, g.getFontMetrics().stringWidth(n) + 10);
+            g.setColor(BG);
+            g.fill(new RoundRectangle2D.Double(bx + 40 - bw / 2.0 - 2, 14, bw + 4, 22, 22, 22));
+            g.setColor(RED);
+            g.fill(new RoundRectangle2D.Double(bx + 40 - bw / 2.0, 16, bw, 18, 18, 18));
+            g.setColor(Color.WHITE);
+            center(g, n, (int) Math.round(bx + 40 - bw / 2.0), 16, bw, 18);
+        }
+        // Clips status pill: what instant replay is doing right now (opens Clips)
+        String text;
+        Color dot;
+        if (clipsBlocked) { text = "Clips needs attention"; dot = AMBER; }
+        else if (clips == null) { text = "Clips is off"; dot = FAINT; }
+        else {
+            var st = clips.status;
+            boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
+            text = rec ? "Recording " + net.evadeclient.clips.ui.Theme.time(st.recordingSeconds()) : live ? "Instant replay on"
+                    : clips.settings.replayEnabled ? "Replay starts with Minecraft" : "Instant replay off";
+            dot = rec ? RED_HI : live ? OK : FAINT;
+            if (rec || live) animating = true;
+        }
+        g.setFont(inter.deriveFont(12.5f));
+        int pw = g.getFontMetrics().stringWidth(text) + 40, px = bx - 12 - pw;
+        float t = anim("status-pill", "status-pill".equals(hovered));
+        g.setColor(mix(new Color(0x141418), new Color(0x1C1C22), t));
+        g.fill(new RoundRectangle2D.Double(px, 22, pw, 40, 40, 40));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(px + .5, 22.5, pw - 1, 39, 40, 40));
+        float pulse = dot == OK || dot == RED_HI ? (float) (0.65 + 0.35 * Math.sin(System.currentTimeMillis() / 320.0)) : 1f;
+        g.setColor(new Color(dot.getRed(), dot.getGreen(), dot.getBlue(), Math.round(255 * pulse)));
+        g.fill(new Ellipse2D.Double(px + 16, 38, 8, 8));
+        g.setColor(mix(DIM, TEXT, t));
+        g.drawString(text, px + 32, 46);
+        hit("status-pill", new Rectangle(px, 22, pw, 40));
+        topRightStart = px;
+    }
+
+    /** Where the top bar's right group starts (the left group stays clear of it). */
+    private int topRightStart = W - 400;
+
+    /** A page title in the top bar, with an optional line under it. */
+    private void pageTitle(Graphics2D g, String title, String sub) {
+        g.setFont(interBold.deriveFont(26f));
+        g.setColor(TEXT);
+        g.drawString(title, CX, 52);
         if (sub != null) {
-            g.setFont(inter.deriveFont(12.5f));
+            g.setFont(inter.deriveFont(13f));
             g.setColor(DIM);
-            g.drawString(ellipsizeEnd(g, sub, CW - 260), CX, 80);
+            g.drawString(ellipsizeEnd(g, sub, CW - 420), CX, 80);
         }
     }
 
@@ -1085,28 +1085,103 @@ public final class LauncherView extends JPanel {
 
     private void paintHome(Graphics2D g) {
         Launcher.Instance sel = selected();
-        int rw = 248, rx = W - 26 - rw;
-        int x = CX, w = rx - 20 - CX;
-        // greeting
-        g.setFont(interBold.deriveFont(20f));
-        g.setColor(TEXT);
-        String hello = greeting() + (playerName != null ? ", " + playerName : "");
-        g.drawString(ellipsizeEnd(g, hello, w - 120), x, 38);
-
-        paintHero(g, sel, x, 52, w, 300);
-        paintServers(g, x, 372, w);
-        paintNewsCards(g, x, 502, w, H - 24 - 502);
-
-        paintProfile(g, rx, 52, rw, 136);
-        paintClipsCard(g, rx, 204, rw, 168);
-        paintVersions(g, sel, rx, 388, rw, 132);
-        paintLinks(g, rx, 536, rw, H - 24 - 536);
+        paintLinksPill(g);
+        int pw = 296, x = CX, y = 84, hw = CW - 24 - pw, hh = 372;
+        paintHero(g, sel, x, y, hw, hh);
+        paintProfile(g, x + hw + 24, y, pw, hh);
+        paintNewsRow(g, x, y + hh + 24, CW, H - 24 - (y + hh + 24));
     }
 
-    private static String greeting() {
-        int h = java.time.LocalTime.now().getHour();
-        return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    /** Top bar, left: Evade's links, then the player's servers (icons, and + to add one). */
+    private void paintLinksPill(Graphics2D g) {
+        List<String[]> links = new ArrayList<>();
+        links.add(new String[]{"link-site", "globe", "evadeclient.com"});
+        links.add(new String[]{"link-docs", "book", "Guides"});
+        links.add(new String[]{"link-changelog", "list", "Changelog"});
+        if (!DISCORD.isBlank()) links.add(new String[]{"link-discord", "chat", "Discord"});
+        if (!YOUTUBE.isBlank()) links.add(new String[]{"link-youtube", "video", "YouTube"});
+        if (!TIKTOK.isBlank()) links.add(new String[]{"link-tiktok", "music", "TikTok"});
+        int x = CX, y = 22, h = 40;
+        int w = links.size() * 36 + 8;
+        g.setColor(new Color(0x141418));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 24, 24));
+        for (int i = 0; i < links.size(); i++) {
+            String id = links.get(i)[0];
+            int bx = x + 4 + i * 36;
+            float t = anim(id, id.equals(hovered));
+            if (t > 0) {
+                g.setColor(new Color(255, 255, 255, Math.round(14 * t)));
+                g.fill(new RoundRectangle2D.Double(bx, y + 4, 32, 32, 18, 18));
+            }
+            icon(g, links.get(i)[1], bx + 16, y + 20, 16, mix(DIM, TEXT, t));
+            hit(id, new Rectangle(bx, y + 4, 32, 32));
+        }
+        paintServersPill(g, x + w + 12, y, topRightStart - 12 - (x + w + 12));
     }
+
+    /** The player's servers as icons in the top bar. A click opens the server's card; + adds one. */
+    private void paintServersPill(Graphics2D g, int x, int y, int maxW) {
+        int n = settings.servers.size();
+        boolean add = n < Launcher.MAX_SERVERS;
+        int slots = n + (add ? 1 : 0);
+        int fit = Math.max(1, (maxW - 8 - 90) / 36);
+        slots = Math.min(slots, fit);
+        int w = 8 + 92 + slots * 36;
+        g.setColor(new Color(0x141418));
+        g.fill(new RoundRectangle2D.Double(x, y, w, 40, 24, 24));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, 39, 24, 24));
+        g.setFont(interBold.deriveFont(11f));
+        g.setColor(FAINT);
+        g.drawString("SERVERS", x + 16, y + 24);
+        int sx = x + 92;
+        for (int i = 0; i < slots; i++) {
+            int bx = sx + i * 36, by = y + 4;
+            if (i < n && (!add || i < slots - 1 || slots == n)) {
+                Launcher.Server sv = settings.servers.get(i);
+                String id = "server:" + i;
+                float t = anim(id, id.equals(hovered) || id.equals(overlay));
+                String k = ServersDat.key(sv.address());
+                Image icon = serverIcons.get(k);
+                Shape was = g.getClip();
+                g.clip(new RoundRectangle2D.Double(bx + 2, by + 2, 28, 28, 14, 14));
+                if (icon != null) {
+                    Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g.drawImage(icon, bx + 2, by + 2, 28, 28, null);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+                } else tile(g, bx + 2, by + 2, 28, sv.name());
+                g.setClip(was);
+                if (t > 0.01f) {
+                    g.setColor(new Color(255, 65, 83, Math.round(220 * t)));
+                    g.setStroke(new BasicStroke(1.75f));
+                    g.draw(new RoundRectangle2D.Double(bx + 1, by + 1, 30, 30, 16, 16));
+                    g.setStroke(new BasicStroke(1f));
+                }
+                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? RED_HI : null;
+                if (dc != null) {
+                    g.setColor(new Color(0x141418));
+                    g.fill(new Ellipse2D.Double(bx + 22, by + 22, 11, 11));
+                    g.setColor(dc);
+                    g.fill(new Ellipse2D.Double(bx + 24, by + 24, 7, 7));
+                }
+                hit(id, new Rectangle(bx, by, 32, 32));
+            } else {
+                String id = "server-add:" + i;
+                float t = anim(id, id.equals(hovered));
+                g.setColor(new Color(255, 255, 255, Math.round(8 + 14 * t)));
+                g.fill(new RoundRectangle2D.Double(bx + 2, by + 2, 28, 28, 14, 14));
+                icon(g, "plus", bx + 16, by + 16, 12, mix(DIM, TEXT, t));
+                hit(id, new Rectangle(bx, by, 32, 32));
+            }
+        }
+        serversPillX = sx;
+    }
+
+    /** Where the first server icon sits (the server card opens under it). */
+    private int serversPillX = CX + 200;
 
     /** Draws {@code img} filling the box (cropped, not stretched), aligned by {@code ax} (0 left … 1 right). */
     private static void cover(Graphics2D g, Image img, int x, int y, int w, int h, double ax) {
@@ -1118,504 +1193,442 @@ public final class LauncherView extends JPanel {
     }
 
     private void paintHero(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
-        shadow(g, x, y, w, h);
-        Shape box = new RoundRectangle2D.Double(x, y, w, h, 20, 20);
-        g.setPaint(new GradientPaint(x, y, new Color(0x1A0D10), x + w, y + h, new Color(0x0F0F13)));
+        Shape box = new RoundRectangle2D.Double(x, y, w, h, 40, 40);
+        g.setColor(CARD);
         g.fill(box);
         Shape was = g.getClip();
         g.clip(box);
-        // the slide picture, cross-fading from the previous one
+        // the artwork, cross-fading from the previous picture
         long age = System.currentTimeMillis() - slideAt;
-        float fade = slideFrom >= 0 ? Math.min(1f, age / 600f) : 1f;
+        float fade = slideFrom >= 0 ? Math.min(1f, age / 700f) : 1f;
         if (slideFrom >= 0 && fade < 1f) {
-            Image from = heroImages.get(slides[slideFrom][0]);
-            if (from != null) cover(g, from, x, y, w, h, 0.7);
+            Image from = heroImages.get(BACKDROPS[slideFrom % BACKDROPS.length]);
+            if (from != null) cover(g, from, x, y, w, h, 0.8);
         }
-        Image img = heroImages.get(slides[slide][0]);
+        Image img = heroImages.get(BACKDROPS[slide % BACKDROPS.length]);
         if (img != null) {
             Composite c0 = g.getComposite();
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fade));
-            cover(g, img, x, y, w, h, 0.7);
+            cover(g, img, x, y, w, h, 0.8);
             g.setComposite(c0);
-        } else {
-            g.setPaint(new RadialGradientPaint(x + w - 150, y + 40, 330, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 85), new Color(225, 29, 46, 0)}));
-            g.fill(box);
         }
-        // scrims: dark on the left for the text, and along the bottom for the Play bar
-        g.setColor(new Color(8, 8, 10, 70));
+        // dim it, then a scrim on the left for the text
+        g.setColor(new Color(10, 10, 12, 120));
         g.fill(box);
-        g.setPaint(new GradientPaint(x + w * 0.25f, 0, new Color(8, 8, 10, 235), x + w * 0.78f, 0, new Color(8, 8, 10, 30)));
+        g.setPaint(new GradientPaint(x, 0, new Color(10, 10, 12, 245), x + w * 0.75f, 0, new Color(10, 10, 12, 0)));
         g.fill(box);
-        g.setPaint(new GradientPaint(0, y + h - 130, new Color(8, 8, 10, 0), 0, y + h, new Color(8, 8, 10, 235)));
+        g.setPaint(new GradientPaint(0, y + h * 0.55f, new Color(10, 10, 12, 0), 0, y + h, new Color(10, 10, 12, 200)));
         g.fill(box);
-        g.setPaint(new RadialGradientPaint(x + 60, y + h, 360, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 60), new Color(225, 29, 46, 0)}));
-        g.fill(box);
-        boolean idle = play == Play.IDLE;
-        if (!idle) {
-            g.setColor(new Color(8, 8, 10, 200));
+        if (play != Play.IDLE) {
+            g.setColor(new Color(10, 10, 12, 190));
             g.fill(box);
         }
         g.setClip(was);
-        g.setColor(new Color(255, 255, 255, 22));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 20, 20));
+        g.setColor(new Color(255, 255, 255, 18));
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 40, 40));
 
-        int ix = x + 30;
         switch (play) {
-            case UPDATING, LAUNCHING -> paintHeroProgress(g, ix, y, w - 60, h);
-            case LAUNCHED -> paintHeroLaunched(g, ix, y, w - 60, h);
-            case NO_LAUNCHER -> paintHeroNoLauncher(g, ix, y, w - 60, h);
-            case ERROR -> paintHeroError(g, ix, y, w - 60, h);
-            default -> paintHeroIdle(g, sel, ix, y, w - 60, h);
+            case UPDATING, LAUNCHING -> paintHeroProgress(g, x + 40, y + 8, w - 80, h - 16);
+            case LAUNCHED -> paintHeroLaunched(g, x + 40, y + 8, w - 80, h - 16);
+            case NO_LAUNCHER -> paintHeroNoLauncher(g, x + 40, y + 8, w - 80, h - 16);
+            case ERROR -> paintHeroError(g, x + 40, y + 8, w - 80, h - 16);
+            default -> paintHeroIdle(g, sel, x + 40, y, w - 80, h);
         }
     }
 
     private void paintHeroIdle(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
-        String[] sl = slides[slide];
-        float a = slideFrom >= 0 ? Math.min(1f, (System.currentTimeMillis() - slideAt) / 500f) : 1f;
-        Composite c0 = g.getComposite();
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
-        g.setFont(interBold.deriveFont(9.5f));
+        // tag
+        String tag = "EVADE CLIENT" + (sel != null && sel.installed != null ? "  v" + sel.installed.evadeVersion() : "");
+        g.setFont(interBold.deriveFont(10.5f));
+        int tw = (int) (g.getFontMetrics().stringWidth(tag) + tag.length() * 1.2f) + 24;
+        g.setColor(new Color(225, 29, 46, 46));
+        g.fill(new RoundRectangle2D.Double(x, y + 44, tw, 26, 26, 26));
         g.setColor(RED_HI);
-        spaced(g, sl[1], x, y + 40, 2.0f);
-        g.setFont(interBold.deriveFont(30f));
+        spaced(g, tag, x + 12, y + 61, 1.2f);
+        // the instance, big
+        g.setFont(interBold.deriveFont(48f));
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, sl[2], w - 60), x - 1, y + 78);
-        g.setFont(inter.deriveFont(13f));
-        g.setColor(new Color(0xC9C9D1));
-        int ly = y + 102;
-        for (String line : wrapLines(g, sl[3], Math.min(380, w - 60), 2)) { g.drawString(line, x, ly); ly += 19; }
-        g.setComposite(c0);
+        String name = ellipsizeEnd(g, sel != null ? sel.name : "—", w - 40);
+        g.drawString(name, x - 2, y + 128);
+        // what it is
+        g.setFont(inter.deriveFont(14.5f));
+        g.setColor(new Color(0xC6C6CE));
+        String meta = "Minecraft " + InstallerCore.MC_VERSION;
+        if (sel != null && sel.installed != null) meta += "  ·  Fabric " + sel.installed.loaderVersion();
+        if (sel != null) meta += "  ·  " + sel.memoryGb + " GB" + (sel.installed != null ? "  ·  " + sel.modCount + " mods" : "");
+        g.drawString(ellipsizeEnd(g, meta, w - 40), x, y + 162);
 
-        // slide dots, top right
+        String reason = sel != null ? sel.pending : null;
+        String status, sub;
+        Color sc;
+        if (sel == null) { status = "No instance"; sc = FAINT; sub = "PICK AN INSTANCE"; }
+        else if (sel.installed == null) { status = "Evade installs when you press Play"; sc = AMBER; sub = "INSTALLS FIRST"; }
+        else if (release == null && releaseError == null) { status = "Checking for updates…"; sc = DIM; sub = "READY TO LAUNCH"; }
+        else if (release == null) { status = "Couldn't check for updates"; sc = DIM; sub = "READY TO LAUNCH"; }
+        else if (reason != null) { status = "Update ready: " + reason; sc = AMBER; sub = "UPDATES FIRST"; }
+        else if (sel.dirty) { status = "Options changed: applied when you press Play"; sc = AMBER; sub = "UPDATES FIRST"; }
+        else { status = "Up to date"; sc = OK; sub = "READY TO LAUNCH"; }
+        g.setFont(inter.deriveFont(13f));
+        g.setColor(sc);
+        g.fill(new Ellipse2D.Double(x + 1, y + 182, 8, 8));
+        String st = ellipsizeEnd(g, status, w - 120);
+        g.drawString(st, x + 18, y + 191);
+        if (release == null && releaseError != null) {
+            int sw = g.getFontMetrics().stringWidth(st);
+            float tr = anim("retry-release", "retry-release".equals(hovered));
+            g.setColor(mix(DIM, TEXT, tr));
+            g.drawString("Retry", x + 30 + sw, y + 191);
+            hit("retry-release", new Rectangle(x + 24 + sw, y + 174, 50, 24));
+        }
+
+        // Play, with the instance switch next to it
+        boolean ready = release != null || (releaseError != null && sel != null && sel.installed != null);
+        boolean checking = release == null && releaseError == null;
+        String label = checking ? "CHECKING" : sel != null && (sel.installed == null || reason != null || sel.dirty) && release != null ? "UPDATE & PLAY" : "PLAY";
+        int by = y + h - 40 - 64;
+        launchButton(g, "play", x, by, 232, 64, label, checking ? "ONE MOMENT" : sub, ready && sel != null);
+        squareButton(g, "home-switch", x + 232 + 12, by, 64, "layers", "Switch instance");
+
+        // artwork dots
         int dx = x + w;
         for (int i = slides.length - 1; i >= 0; i--) {
             boolean on = i == slide;
-            int dw = on ? 22 : 8;
+            int dw = on ? 20 : 8;
             dx -= dw;
-            g.setColor(on ? RED_HI : new Color(255, 255, 255, 70));
-            g.fill(new RoundRectangle2D.Double(dx, y + 30, dw, 8, 8, 8));
-            hit("dot:" + i, new Rectangle(dx - 3, y + 24, dw + 6, 20));
-            dx -= 6;
+            g.setColor(on ? new Color(255, 255, 255, 210) : new Color(255, 255, 255, 60));
+            g.fill(new RoundRectangle2D.Double(dx, y + h - 40 - 4, dw, 8, 8, 8));
+            hit("dot:" + i, new Rectangle(dx - 3, y + h - 54, dw + 6, 28));
+            dx -= 8;
         }
+    }
 
-        // instance picker
-        int by = y + h - 92;
-        float t = anim("home-switch", "home-switch".equals(hovered));
-        int sw = Math.min(300, w - 250);
-        g.setColor(mix(new Color(12, 12, 15, 200), new Color(28, 28, 34, 220), t));
-        g.fill(new RoundRectangle2D.Double(x, by, sw, 56, 14, 14));
-        g.setColor(mix(new Color(255, 255, 255, 26), new Color(255, 255, 255, 50), t));
-        g.draw(new RoundRectangle2D.Double(x + .5, by + .5, sw - 1, 55, 14, 14));
-        avatar(g, x + 10, by + 10, 36, sel != null ? sel.name : "?", sel != null && sel.isDefault() ? RED.getRGB() : hashColor(sel != null ? sel.name : ""));
-        g.setFont(interBold.deriveFont(8.5f));
-        g.setColor(FAINT);
-        spaced(g, "INSTANCE", x + 58, by + 22, 1.6f);
-        g.setFont(interBold.deriveFont(15f));
+    /** The big red Play button: a bold label and a small line under it. */
+    private void launchButton(Graphics2D g, String id, int x, int y, int w, int h, String label, String sub, boolean enabled) {
+        float t = enabled ? anim(id, id.equals(hovered)) : 0;
+        if (enabled) {
+            shadowGlow(g, x, y, w, h, t);
+            g.setColor(mix(RED, RED_HI, t));
+        } else g.setColor(new Color(0x2A1418));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
+        if (enabled) {
+            g.setColor(new Color(255, 255, 255, 40));
+            g.fill(new RoundRectangle2D.Double(x + 12, y + 1, w - 24, 1.2, 1, 1));
+        }
+        Color fg = enabled ? Color.WHITE : FAINT;
+        g.setFont(interBold.deriveFont(19f));
+        FontMetrics fm = g.getFontMetrics();
+        int iw = 14, gap = 12;
+        int lw = (int) (fm.stringWidth(label) + label.length() * 0.6f);
+        int tx = x + (w - lw - iw - gap) / 2;
+        icon(g, "play", tx + iw / 2, y + 26, iw, fg);
+        g.setColor(fg);
+        spaced(g, label, tx + iw + gap, y + 33, 0.6f);
+        g.setFont(interBold.deriveFont(9.5f));
+        g.setColor(enabled ? new Color(255, 255, 255, 190) : FAINT);
+        int sw = (int) (g.getFontMetrics().stringWidth(sub) + sub.length() * 1.4f);
+        spaced(g, sub, x + (w - sw) / 2, y + 51, 1.4f);
+        hit(id, new Rectangle(x, y, w, h));
+    }
+
+    /** A soft red light under the Play button (no box edges). */
+    private void shadowGlow(Graphics2D g, int x, int y, int w, int h, float t) {
+        Graphics2D q = (Graphics2D) g.create();
+        float rx = w * 0.6f, ry = h * 0.7f;
+        q.translate(x + w / 2f, y + h * 0.8f);
+        q.scale(1, ry / rx);
+        q.setPaint(new RadialGradientPaint(0, 0, rx, new float[]{0f, 1f},
+                new Color[]{new Color(225, 29, 46, Math.round(70 + 50 * t)), new Color(225, 29, 46, 0)}));
+        q.fill(new Ellipse2D.Float(-rx, -rx, 2 * rx, 2 * rx));
+        q.dispose();
+    }
+
+    /** A square icon button (glass tile) beside the Play button. */
+    private void squareButton(Graphics2D g, String id, int x, int y, int s, String iconKind, String tipText) {
+        float t = anim(id, id.equals(hovered));
+        g.setColor(mix(new Color(255, 255, 255, 18), new Color(255, 255, 255, 34), t));
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, 28, 28));
+        g.setColor(new Color(255, 255, 255, 26));
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 28, 28));
+        icon(g, iconKind, x + s / 2, y + s / 2, 20, mix(new Color(0xD6D6DC), Color.WHITE, t));
+        hit(id, new Rectangle(x, y, s, s));
+    }
+
+    /** Right of the hero: the player's skin standing on their card, their name, and account/friends buttons. */
+    private void paintProfile(Graphics2D g, int x, int y, int w, int h) {
+        int cy = y + 96, ch = h - 96;
+        card(g, x, cy, w, ch, false);
+        // the skin, standing on the card
+        int bh = 176, bw = Math.round(bh * 0.5f);
+        int bx = x + (w - bw) / 2, byBottom = cy + 92;
+        g.setPaint(new RadialGradientPaint(x + w / 2f, byBottom - 20, 110, new float[]{0f, 1f},
+                new Color[]{new Color(225, 29, 46, 46), new Color(225, 29, 46, 0)}));
+        g.fill(new Ellipse2D.Double(x + w / 2.0 - 110, byBottom - 130, 220, 220));
+        if (playerBody != null) {
+            int iw = playerBody.getWidth(null), ih = playerBody.getHeight(null);
+            double s = bh / (double) Math.max(1, ih);
+            int dw = (int) Math.round(iw * s);
+            Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(playerBody, x + (w - dw) / 2, byBottom - bh, dw, bh, null);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+        } else defaultBody(g, bx, byBottom - bh, bw, bh);
+        g.setColor(RED);
+        g.fill(new RoundRectangle2D.Double(x + w / 2.0 - 60, byBottom + 2, 120, 4, 4, 4));
+        // name
+        g.setFont(interBold.deriveFont(22f));
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, sel != null ? sel.name : "—", sw - 100), x + 58, by + 42);
-        icon(g, "chevron-down", x + sw - 22, by + 28, 10, mix(DIM, TEXT, t));
-        hit("home-switch", new Rectangle(x, by, sw, 56));
-
-        // status line under it
-        String reason = sel != null ? sel.pending : null;
-        String pill;
-        Color pc;
-        if (sel == null) { pill = "No instance"; pc = FAINT; }
-        else if (sel.installed == null) { pill = "Installs when you press Play"; pc = AMBER; }
-        else if (release == null && releaseError == null) { pill = "Checking for updates…"; pc = DIM; }
-        else if (release == null) { pill = "Couldn't check for updates"; pc = DIM; }
-        else if (reason != null) { pill = "Update ready: " + reason; pc = AMBER; }
-        else if (sel.dirty) { pill = "Options changed: applied when you press Play"; pc = AMBER; }
-        else { pill = "Up to date"; pc = OK; }
-        String meta = sel != null && sel.installed != null ? "  ·  Evade v" + sel.installed.evadeVersion() + "  ·  Minecraft " + InstallerCore.MC_VERSION
-                + "  ·  " + sel.memoryGb + " GB" : "  ·  Minecraft " + InstallerCore.MC_VERSION;
-        g.setFont(inter.deriveFont(11.5f));
-        int sy = y + h - 18;
-        g.setColor(pc);
-        g.fill(new Ellipse2D.Double(x + 1, sy - 7, 6, 6));
-        String ps = ellipsizeEnd(g, pill, w - 250);
-        g.drawString(ps, x + 13, sy);
-        int pw = g.getFontMetrics().stringWidth(ps);
-        if (release == null && releaseError != null) {
-            float tr = anim("retry-release", "retry-release".equals(hovered));
-            g.setColor(mix(DIM, TEXT, tr));
-            g.drawString("Retry", x + 13 + pw + 10, sy);
-            hit("retry-release", new Rectangle(x + 13 + pw + 4, sy - 15, 46, 22));
-        } else {
-            g.setColor(FAINT);
-            g.drawString(ellipsizeEnd(g, meta, Math.max(0, w - 250 - pw)), x + 13 + pw, sy);
-        }
-
-        boolean ready = release != null || (releaseError != null && sel != null && sel.installed != null);
-        String label = release == null && releaseError == null ? "Checking…" : sel != null && (sel.installed == null || reason != null || sel.dirty) && release != null ? "Update & Play" : "Play";
-        playButton(g, "play", x + w - 210, by - 2, 210, 60, label, ready && sel != null);
-    }
-
-    // ------------------------------------------------------------------ home: servers, news, right rail
-
-    private void paintServers(Graphics2D g, int x, int y, int w) {
-        label(g, "SERVERS", x, y + 4);
-        if (!settings.servers.isEmpty()) {
-            textLink(g, "servers-edit", serversEditing ? "Done" : "Edit", x + w, y + 5, 1);
-            g.setFont(inter.deriveFont(12f));
-            int ew = g.getFontMetrics().stringWidth(serversEditing ? "Done" : "Edit");
-            textLink(g, "servers-refresh", "Refresh", x + w - ew - 18, y + 5, 1);
-        }
-        int n = Launcher.MAX_SERVERS, gap = 10, tw = (w - gap * (n - 1)) / n, ty = y + 16, th = 92;
-        boolean addShown = false;
-        for (int i = 0; i < n; i++) {
-            int tx = x + i * (tw + gap);
-            if (i < settings.servers.size()) {
-                Launcher.Server sv = settings.servers.get(i);
-                String id = "server:" + i;
-                float t = anim(id, id.equals(hovered) || id.equals(overlay));
-                g.setColor(mix(new Color(0x111115), new Color(0x1A1A20), t));
-                g.fill(new RoundRectangle2D.Double(tx, ty, tw, th, 14, 14));
-                g.setColor(mix(BORDER, new Color(225, 29, 46, 120), t));
-                g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, th - 1, 14, 14));
-                int is = Math.min(46, tw - 20), ix = tx + (tw - is) / 2, iy = ty + 10;
-                Image icon = serverIcons.get(ServersDat.key(sv.address()));
-                if (icon != null) {
-                    Shape was = g.getClip();
-                    g.clip(new RoundRectangle2D.Double(ix, iy, is, is, 10, 10));
-                    Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
-                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-                    g.drawImage(icon, ix, iy, is, is, null);
-                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
-                    g.setClip(was);
-                } else avatar(g, ix, iy, is, sv.name(), hashColor(sv.address()));
-                // online dot
-                String k = ServersDat.key(sv.address());
-                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? RED_HI : FAINT;
-                g.setColor(new Color(0x111115));
-                g.fill(new Ellipse2D.Double(ix + is - 9, iy + is - 9, 14, 14));
-                g.setColor(dc);
-                g.fill(new Ellipse2D.Double(ix + is - 6, iy + is - 6, 8, 8));
-                g.setFont(interBold.deriveFont(11f));
-                g.setColor(TEXT);
-                String nm = ellipsizeEnd(g, sv.name(), tw - 10);
-                center(g, nm, tx, ty + th - 30, tw, 14);
-                g.setFont(inter.deriveFont(10f));
-                g.setColor(FAINT);
-                ServerPing.Status st = serverStatus.get(k);
-                String sub = st != null ? Mods.count(st.online()) + " online" : serverPinging.contains(k) ? "…" : serverDown.contains(k) ? "offline" : "";
-                center(g, ellipsizeEnd(g, sub, tw - 8), tx, ty + th - 16, tw, 12);
-                hit(id, new Rectangle(tx, ty, tw, th));
-                if (serversEditing) {
-                    int bx = tx + tw - 22, by = ty + 4;
-                    String xid = "server-x:" + i;
-                    float tx2 = anim(xid, xid.equals(hovered));
-                    g.setColor(mix(new Color(0x2A2A31), RED, tx2));
-                    g.fill(new Ellipse2D.Double(bx, by, 18, 18));
-                    g.setColor(Color.WHITE);
-                    g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                    g.draw(new Line2D.Double(bx + 6, by + 6, bx + 12, by + 12));
-                    g.draw(new Line2D.Double(bx + 12, by + 6, bx + 6, by + 12));
-                    g.setStroke(new BasicStroke(1f));
-                    hit(xid, new Rectangle(bx - 2, by - 2, 22, 22));
-                }
-            } else {
-                String id = "server-add:" + i;
-                float t = anim(id, id.equals(hovered));
-                boolean first = !addShown;
-                addShown = true;
-                g.setColor(new Color(255, 255, 255, first ? (int) (6 + 10 * t) : (int) (3 + 8 * t)));
-                g.fill(new RoundRectangle2D.Double(tx, ty, tw, th, 14, 14));
-                g.setColor(mix(new Color(255, 255, 255, first ? 40 : 20), new Color(225, 29, 46, 150), t));
-                g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[]{4f, 4f}, 0f));
-                g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, th - 1, 14, 14));
-                g.setStroke(new BasicStroke(1f));
-                icon(g, "plus", tx + tw / 2, ty + th / 2 - (first ? 8 : 0), 14, mix(first ? DIM : FAINT, TEXT, t));
-                if (first) {
-                    g.setFont(inter.deriveFont(10.5f));
-                    g.setColor(mix(FAINT, DIM, t));
-                    center(g, "Add server", tx, ty + th - 30, tw, 14);
-                }
-                hit(id, new Rectangle(tx, ty, tw, th));
-            }
-        }
-    }
-
-    /** The card for a server in the Servers row: what its status ping says, and its address to copy. */
-    private void paintServerCard(Graphics2D g, int index) {
-        Launcher.Server sv = settings.servers.get(index);
-        int n = Launcher.MAX_SERVERS, gap = 10;
-        int rx = W - 26 - 248, w = rx - 20 - CX, tw = (w - gap * (n - 1)) / n;
-        int cw = 300, ch = 196;
-        int tx = CX + index * (tw + gap);
-        int x = Math.max(CX, Math.min(W - 26 - cw, tx + tw / 2 - cw / 2)), y = 388 - ch - 10;
-        card(g, x, y, cw, ch, true);
-        String k = ServersDat.key(sv.address());
-        Image icon = serverIcons.get(k);
-        if (icon != null) {
-            Shape was = g.getClip();
-            g.clip(new RoundRectangle2D.Double(x + 20, y + 22, 44, 44, 10, 10));
-            g.drawImage(icon, x + 20, y + 22, 44, 44, null);
-            g.setClip(was);
-        } else avatar(g, x + 20, y + 22, 44, sv.name(), hashColor(sv.address()));
-        g.setFont(interBold.deriveFont(15f));
-        g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, sv.name(), cw - 100), x + 76, y + 40);
+        center(g, ellipsizeEnd(g, playerName != null ? playerName : "Not signed in", w - 40), x, byBottom + 18, w, 30);
         g.setFont(inter.deriveFont(12f));
-        g.setColor(DIM);
-        g.drawString(ellipsizeEnd(g, sv.address(), cw - 100), x + 76, y + 59);
-        ServerPing.Status st = serverStatus.get(k);
-        g.setFont(inter.deriveFont(12f));
-        int ly = y + 92;
-        if (st != null) {
-            g.setColor(OK);
-            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 7, 7));
-            g.setColor(TEXT);
-            String line = String.format(java.util.Locale.ROOT, "%,d / %,d online", st.online(), st.max()) + "  ·  " + st.pingMs() + " ms";
-            g.drawString(ellipsizeEnd(g, line, cw - 52), x + 33, ly);
-            g.setColor(FAINT);
-            g.setFont(inter.deriveFont(11f));
-            if (!st.version().isBlank()) g.drawString(ellipsizeEnd(g, st.version(), cw - 40), x + 20, ly + 17);
-            g.setFont(inter.deriveFont(11.5f));
-            g.setColor(DIM);
-            int my = ly + 36;
-            for (String line2 : wrapLines(g, st.motd().replace('\n', ' '), cw - 40, 2)) { g.drawString(line2, x + 20, my); my += 16; }
+        g.setColor(playerName != null ? DIM : FAINT);
+        center(g, playerName != null ? "Minecraft account" : "Sign in once in the Minecraft Launcher", x, byBottom + 46, w, 18);
+        int ix = x + 24, iw = w - 48, ry = byBottom + 78;
+        if (playerName != null) {
+            accentButton(g, "manage-account", ix, ry, iw - 52, 44, "Manage account");
+            squareSmall(g, "friends-add", ix + iw - 44, ry, 44, "user-plus");
+            ghostButton(g, "friends", ix, ry + 54, iw, 44, "Your friends", false, "users");
         } else {
-            boolean down = serverDown.contains(k);
-            g.setColor(down ? RED_HI : FAINT);
-            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 7, 7));
-            g.setColor(DIM);
-            g.drawString(serverPinging.contains(k) ? "Checking…" : down ? "Didn't answer (offline, or the address is wrong)" : "Not checked yet", x + 33, ly);
+            accentButton(g, "play-again", ix, ry, iw, 44, "Open the Minecraft Launcher");
+            ghostButton(g, "friends", ix, ry + 54, iw, 44, "Your friends", false, "users");
         }
-        int by = y + ch - 50;
-        smallPrimary(g, "ov-copy", x + 20, by, 112, 32, "Copy address", null);
-        ghostButton(g, "ov-edit", x + 140, by, 60, 32, "Edit", false);
-        ghostButton(g, "ov-remove", x + 208, by, 72, 32, "Remove", true);
-        hitMap.put("ov-card", new Rectangle(x, y, cw, ch));
-        // the card's own buttons win over the click-away area
-        for (String id : new String[]{"ov-copy", "ov-edit", "ov-remove"}) { Rectangle r = hitMap.remove(id); if (r != null) hitMap.put(id, r); }
     }
 
-    private void paintNewsCards(Graphics2D g, int x, int y, int w, int h) {
-        label(g, "NEWS", x, y + 4);
-        textLink(g, "news-all", "View all", x + w, y + 5, 1);
-        int top = y + 16, ch = h - 16;
+    /** No skin yet: a plain standing figure in the launcher's colours (simple shapes, no game art). */
+    private void defaultBody(Graphics2D g, int x, int y, int w, int h) {
+        double u = h / 32.0;
+        Color skin = new Color(0x34343C), shirt = new Color(0x2A2A31), legs = new Color(0x1F1F25);
+        double cx = x + w / 2.0;
+        g.setColor(skin);
+        g.fill(new RoundRectangle2D.Double(cx - 4 * u, y, 8 * u, 8 * u, 2 * u, 2 * u));
+        g.setColor(shirt);
+        g.fill(new RoundRectangle2D.Double(cx - 4 * u, y + 8 * u, 8 * u, 12 * u, u, u));
+        g.setColor(new Color(0x26262C));
+        g.fill(new RoundRectangle2D.Double(cx - 8 * u, y + 8 * u, 4 * u, 12 * u, u, u));
+        g.fill(new RoundRectangle2D.Double(cx + 4 * u, y + 8 * u, 4 * u, 12 * u, u, u));
+        g.setColor(legs);
+        g.fill(new RoundRectangle2D.Double(cx - 4 * u, y + 20 * u, 4 * u, 12 * u, u, u));
+        g.fill(new RoundRectangle2D.Double(cx, y + 20 * u, 4 * u, 12 * u, u, u));
+        g.setColor(new Color(255, 255, 255, 170));
+        g.fill(new Rectangle2D.Double(cx - 3 * u, y + 4 * u, 2 * u, u));
+        g.fill(new Rectangle2D.Double(cx + u, y + 4 * u, 2 * u, u));
+    }
+
+    /** A tinted red button (secondary action on dark cards). */
+    private void accentButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
+        float t = anim(id, id.equals(hovered));
+        g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 80), t));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
+        g.setFont(interBold.deriveFont(13.5f));
+        g.setColor(mix(new Color(0xFF6B78), Color.WHITE, t));
+        center(g, ellipsizeEnd(g, label, w - 20), x, y, w, h);
+        hit(id, new Rectangle(x, y, w, h));
+    }
+
+    private void squareSmall(Graphics2D g, String id, int x, int y, int s, String iconKind) {
+        float t = anim(id, id.equals(hovered));
+        g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 80), t));
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
+        icon(g, iconKind, x + s / 2, y + s / 2, 18, mix(new Color(0xFF6B78), Color.WHITE, t));
+        hit(id, new Rectangle(x, y, s, s));
+    }
+
+    /** Bottom of Home: the latest news as artwork cards, and a tile for all of it. */
+    private void paintNewsRow(Graphics2D g, int x, int y, int w, int h) {
+        card(g, x, y, w, h, false);
+        int pad = 16, gap = 16, allW = 88;
+        int top = y + pad, ch = h - 2 * pad;
         if (news.isEmpty()) {
-            card(g, x, top, w, ch, false);
-            g.setFont(inter.deriveFont(12.5f));
+            g.setFont(inter.deriveFont(13f));
             g.setColor(newsError != null ? FAINT : DIM);
-            g.drawString(ellipsizeEnd(g, newsLoading ? "Loading the latest news…" : newsError != null ? "News couldn't be loaded. " + EvadeInstaller.sentence(newsError) : "No news yet.", w - 48), x + 24, top + 34);
+            g.drawString(ellipsizeEnd(g, newsLoading ? "Loading the latest news…" : newsError != null ? "News couldn't be loaded. " + EvadeInstaller.sentence(newsError) : "No news yet.", w - 48), x + 24, y + h / 2 + 5);
             return;
         }
-        int n = Math.min(3, news.size()), gap = 14, cw = (w - gap * (n - 1)) / n;
-        String[] fallback = {"menu", "hud", "styles", "clips", "settings", "theme"};
+        int n = Math.min(3, news.size());
+        int cw = (w - 2 * pad - allW - gap * n) / n;
+        String[] fallback = {"hud", "clips", "theme", "menu"};
         for (int i = 0; i < n; i++) {
             News.Entry e = news.get(i);
-            int cx = x + i * (cw + gap);
+            int cx = x + pad + i * (cw + gap);
             String id = "news:" + i;
             float t = anim(id, id.equals(hovered));
-            int lift = Math.round(t * 2);
-            shadow(g, cx, top - lift, cw, ch);
-            Shape box = new RoundRectangle2D.Double(cx, top - lift, cw, ch, 16, 16);
-            g.setColor(CARD);
+            Shape box = new RoundRectangle2D.Double(cx, top, cw, ch, 24, 24);
+            g.setColor(mix(new Color(0x18181D), new Color(0x1D1D23), t));
             g.fill(box);
-            int ih = Math.max(60, ch - 66);
+            int ih = ch - 64;
             Image img = e.image() != null ? newsImages.get(e.image()) : null;
             if (img == null) img = heroImages.get(fallback[i % fallback.length]);
             Shape was = g.getClip();
             g.clip(box);
-            g.clipRect(cx, top - lift, cw, ih);
-            if (img != null) cover(g, img, cx, top - lift, cw, ih, 0.5);
-            g.setPaint(new GradientPaint(0, top - lift + ih - 40, new Color(17, 17, 21, 0), 0, top - lift + ih, new Color(17, 17, 21, 200)));
-            g.fillRect(cx, top - lift, cw, ih);
+            g.clipRect(cx, top, cw, ih);
+            if (img != null) cover(g, img, cx, top, cw, ih, 0.5);
+            g.setColor(new Color(10, 10, 12, Math.round(70 - 40 * t)));
+            g.fillRect(cx, top, cw, ih);
             g.setClip(was);
             if (i == 0) {
-                g.setFont(interBold.deriveFont(9f));
-                int pw = g.getFontMetrics().stringWidth("LATEST") + 14;
+                g.setFont(interBold.deriveFont(9.5f));
+                int pw = g.getFontMetrics().stringWidth("NEW") + 16;
                 g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(cx + 12, top - lift + 12, pw, 18, 18, 18));
+                g.fill(new RoundRectangle2D.Double(cx + 10, top + 10, pw, 20, 20, 20));
                 g.setColor(Color.WHITE);
-                center(g, "LATEST", cx + 12, top - lift + 12, pw, 18);
+                center(g, "NEW", cx + 10, top + 10, pw, 20);
             }
-            g.setColor(mix(BORDER, new Color(0x3A3A44), t));
-            g.draw(new RoundRectangle2D.Double(cx + .5, top - lift + .5, cw - 1, ch - 1, 16, 16));
-            int ty = top - lift + ih + 22;
-            g.setFont(interBold.deriveFont(13.5f));
+            int ty = top + ih + 24;
+            g.setFont(interBold.deriveFont(14.5f));
             g.setColor(TEXT);
-            g.drawString(ellipsizeEnd(g, e.title(), cw - 28), cx + 14, ty);
-            g.setFont(inter.deriveFont(11f));
+            g.drawString(ellipsizeEnd(g, e.title() + (e.summary().isEmpty() ? "" : ": " + e.summary()), cw - 70), cx + 14, ty);
+            g.setFont(inter.deriveFont(12f));
             g.setColor(FAINT);
-            g.drawString(e.date(), cx + 14, ty + 18);
-            int dw = g.getFontMetrics().stringWidth(e.date());
-            if (!e.summary().isEmpty()) {
-                g.setColor(DIM);
-                g.drawString(ellipsizeEnd(g, "  ·  " + e.summary(), cw - 28 - dw), cx + 14 + dw, ty + 18);
-            }
+            g.drawString(e.date(), cx + 14, ty + 20);
+            // square open-link button
+            int sb = 36, sx = cx + cw - sb - 12, sy = top + ih + 14;
+            g.setColor(mix(new Color(225, 29, 46, 40), RED, t));
+            g.fill(new RoundRectangle2D.Double(sx, sy, sb, sb, 20, 20));
+            icon(g, "external", sx + sb / 2, sy + sb / 2, 15, mix(new Color(0xFF6B78), Color.WHITE, t));
             hit(id, new Rectangle(cx, top, cw, ch));
         }
+        // all news
+        int ax = x + w - pad - allW;
+        float t = anim("news-all", "news-all".equals(hovered));
+        g.setColor(mix(new Color(0x18181D), new Color(0x1F1F25), t));
+        g.fill(new RoundRectangle2D.Double(ax, top, allW, ch, 24, 24));
+        icon(g, "arrow-right", ax + allW / 2, top + ch / 2 - 12, 18, mix(DIM, TEXT, t));
+        g.setFont(interBold.deriveFont(12f));
+        g.setColor(mix(DIM, TEXT, t));
+        center(g, "All news", ax, top + ch / 2 + 6, allW, 20);
+        hit("news-all", new Rectangle(ax, top, allW, ch));
     }
 
-    private void paintProfile(Graphics2D g, int x, int y, int w, int h) {
-        card(g, x, y, w, h, false);
-        int fs = 56, fx = x + 18, fy = y + 20;
-        g.setColor(new Color(0x0C0C0F));
-        g.fill(new RoundRectangle2D.Double(fx - 3, fy - 3, fs + 6, fs + 6, 14, 14));
-        if (playerFace != null) {
-            Shape was = g.getClip();
-            g.clip(new RoundRectangle2D.Double(fx, fy, fs, fs, 10, 10));
-            Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g.drawImage(playerFace, fx, fy, fs, fs, null);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
-            g.setClip(was);
-        } else defaultHead(g, fx, fy, fs);
-        g.setColor(new Color(225, 29, 46, 140));
-        g.draw(new RoundRectangle2D.Double(fx - 2.5, fy - 2.5, fs + 5, fs + 5, 13, 13));
-        int tx = fx + fs + 16;
-        g.setFont(interBold.deriveFont(8.5f));
-        g.setColor(FAINT);
-        spaced(g, "PLAYER", tx, fy + 12, 1.6f);
+    // ------------------------------------------------------------------ overlays: server card, notices, friends
+
+    /** The card for a server: what its status ping says, and its address to copy. */
+    private void paintServerCard(Graphics2D g, int index) {
+        Launcher.Server sv = settings.servers.get(index);
+        int cw = 320, ch = 204;
+        int tx = serversPillX + index * 36 + 16;
+        int x = Math.max(CX, Math.min(W - 24 - cw, tx - cw / 2)), y = 72;
+        raised(g, x, y, cw, ch);
+        String k = ServersDat.key(sv.address());
+        Image icon = serverIcons.get(k);
+        Shape was = g.getClip();
+        g.clip(new RoundRectangle2D.Double(x + 20, y + 20, 48, 48, 24, 24));
+        if (icon != null) g.drawImage(icon, x + 20, y + 20, 48, 48, null);
+        else tile(g, x + 20, y + 20, 48, sv.name());
+        g.setClip(was);
         g.setFont(interBold.deriveFont(16f));
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, playerName != null ? playerName : "Not signed in", x + w - 18 - tx), tx, fy + 34);
-        g.setFont(inter.deriveFont(11f));
-        g.setColor(playerName != null ? OK : DIM);
-        String sub = playerName != null ? "Signed in to the Minecraft Launcher" : "Sign in once in the Minecraft Launcher";
-        List<String> lines = wrapLines(g, sub, x + w - 18 - tx, 2);
-        int ly = fy + 51;
-        for (String l : lines) { g.drawString(l, tx, ly); ly += 14; }
-        g.setColor(BORDER);
-        g.fillRect(x + 18, y + h - 38, w - 36, 1);
-        g.setFont(inter.deriveFont(11.5f));
+        g.drawString(ellipsizeEnd(g, sv.name(), cw - 104), x + 82, y + 40);
+        g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
-        Launcher.Instance sel = selected();
-        g.drawString(ellipsizeEnd(g, "Playing  " + (sel != null ? sel.name : "—") + "  ·  " + settings.servers.size() + " server" + (settings.servers.size() == 1 ? "" : "s"), w - 36), x + 18, y + h - 15);
-    }
-
-    /** No skin yet: a plain Evade-red head with a simple face (no game art). */
-    private void defaultHead(Graphics2D g, int x, int y, int s) {
-        g.setPaint(new GradientPaint(x, y, new Color(0x3A1218), x + s, y + s, new Color(0x1A0A0D)));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 10, 10));
-        int u = s / 8;
-        g.setColor(new Color(255, 255, 255, 200));
-        g.fillRect(x + u, y + 4 * u, u * 2, u);
-        g.fillRect(x + 5 * u, y + 4 * u, u * 2, u);
-        g.setColor(new Color(225, 29, 46, 220));
-        g.fillRect(x + 3 * u, y + 6 * u, u * 2, u / 2 + 1);
-    }
-
-    private void paintClipsCard(Graphics2D g, int x, int y, int w, int h) {
-        card(g, x, y, w, h, false);
-        label(g, "EVADE CLIPS", x + 18, y + 28);
-        if (clips == null) {
+        g.drawString(ellipsizeEnd(g, sv.address(), cw - 104), x + 82, y + 60);
+        ServerPing.Status st = serverStatus.get(k);
+        int ly = y + 96;
+        if (st != null) {
+            g.setColor(OK);
+            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 8, 8));
+            g.setFont(interBold.deriveFont(12.5f));
+            g.setColor(TEXT);
+            String line = String.format(java.util.Locale.ROOT, "%,d / %,d online", st.online(), st.max());
+            g.drawString(line, x + 36, ly);
+            int lw = g.getFontMetrics().stringWidth(line);
+            g.setFont(inter.deriveFont(12.5f));
+            g.setColor(FAINT);
+            g.drawString(ellipsizeEnd(g, "  ·  " + st.pingMs() + " ms" + (st.version().isBlank() ? "" : "  ·  " + st.version()), cw - 56 - lw), x + 36 + lw, ly);
             g.setFont(inter.deriveFont(12f));
             g.setColor(DIM);
-            int ly = y + 54;
-            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "Starting…", w - 36, 4)) { g.drawString(l, x + 18, ly); ly += 17; }
-            return;
+            int my = ly + 24;
+            for (String line2 : wrapLines(g, st.motd().replace('\n', ' '), cw - 40, 2)) { g.drawString(line2, x + 20, my); my += 17; }
+        } else {
+            boolean down = serverDown.contains(k);
+            g.setColor(down ? RED_HI : FAINT);
+            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 8, 8));
+            g.setFont(inter.deriveFont(12.5f));
+            g.setColor(DIM);
+            g.drawString(serverPinging.contains(k) ? "Checking…" : down ? "No answer (offline, or the address is wrong)" : "Not checked yet", x + 36, ly);
         }
-        var st = clips.status;
-        boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
-        boolean err = st.state() == net.evadeclient.clips.core.CaptureEngine.State.ERROR;
-        boolean on = clips.settings.replayEnabled;
-        // record icon
-        int ix = x + 18, iy = y + 42;
-        g.setPaint(new GradientPaint(ix, iy, new Color(0x2A1116), ix + 40, iy + 40, new Color(0x16090C)));
-        g.fill(new RoundRectangle2D.Double(ix, iy, 40, 40, 12, 12));
-        g.setColor(new Color(225, 29, 46, 60));
-        g.draw(new RoundRectangle2D.Double(ix + .5, iy + .5, 39, 39, 12, 12));
-        float pulse = rec || live ? (float) (0.6 + 0.4 * Math.sin(System.currentTimeMillis() / 300.0)) : 1f;
-        if (rec || live) animating = true;
-        Color dot = rec ? RED_HI : live ? OK : err ? AMBER : FAINT;
-        g.setColor(new Color(dot.getRed(), dot.getGreen(), dot.getBlue(), Math.round(255 * pulse)));
-        g.fill(new Ellipse2D.Double(ix + 13, iy + 13, 14, 14));
-        g.setFont(interBold.deriveFont(13.5f));
-        g.setColor(TEXT);
-        String title = rec ? "Recording " + net.evadeclient.clips.ui.Theme.time(st.recordingSeconds()) : live ? "Instant replay on"
-                : err ? "Capture error" : on ? "Instant replay ready" : "Instant replay off";
-        g.drawString(ellipsizeEnd(g, title, w - 130), ix + 52, iy + 17);
-        g.setFont(inter.deriveFont(11.5f));
-        g.setColor(DIM);
-        String sub = live ? clips.settings.hotkeySaveClip + " saves the last " + clips.settings.replaySeconds + " s"
-                : on && !rec && !err ? "Starts when Minecraft opens"
-                : clips.library.all().size() + " clip" + (clips.library.all().size() == 1 ? "" : "s") + " in your library";
-        g.drawString(ellipsizeEnd(g, sub, w - 90), ix + 52, iy + 35);
-        toggle(g, "clips-replay-sw", x + w - 18 - 38, iy + 8, on, true);
-        hit("clips-replay", new Rectangle(x + w - 18 - 44, iy + 2, 50, 32));
-        int bw = (w - 36 - 10) / 2, by = y + h - 50;
-        smallPrimary(g, "clips-save", x + 18, by, bw, 34, "Save clip", null);
-        ghostButton(g, "clips-go", x + 18 + bw + 10, by, bw, 34, "Open Clips", false);
-    }
-
-    private void paintLinks(Graphics2D g, int x, int y, int w, int h) {
-        card(g, x, y, w, h, false);
-        label(g, "EVADE", x + 18, y + 28);
-        List<String[]> links = new ArrayList<>();
-        links.add(new String[]{"link-site", "Website", "globe"});
-        links.add(new String[]{"link-docs", "Guides", "book"});
-        links.add(new String[]{"link-changelog", "Changelog", "list"});
-        if (!DISCORD.isBlank()) links.add(new String[]{"link-discord", "Discord", "chat"});
-        if (!YOUTUBE.isBlank()) links.add(new String[]{"link-youtube", "YouTube", "video"});
-        if (!TIKTOK.isBlank()) links.add(new String[]{"link-tiktok", "TikTok", "music"});
-        int cols = 2, gap = 8, bw = (w - 36 - gap) / cols, bh = 34;
-        for (int i = 0; i < links.size(); i++) {
-            int bx = x + 18 + (i % cols) * (bw + gap), by = y + 42 + (i / cols) * (bh + gap);
-            if (by + bh > y + h - 10) break;
-            ghostButton(g, links.get(i)[0], bx, by, bw, bh, links.get(i)[1], false, links.get(i)[2]);
-        }
-    }
-
-    // ------------------------------------------------------------------ bell
-
-    private void paintBell(Graphics2D g, int x, int y) {
-        float t = anim("bell", "bell".equals(hovered) || "bell".equals(overlay));
-        g.setColor(mix(new Color(255, 255, 255, 0), new Color(255, 255, 255, 30), t));
-        g.fill(new RoundRectangle2D.Double(x, y, 30, 26, 8, 8));
-        icon(g, "bell", x + 15, y + 13, 15, mix(DIM, TEXT, t));
-        if (unread > 0) {
-            String n = unread > 9 ? "9+" : String.valueOf(unread);
-            g.setFont(interBold.deriveFont(8.5f));
-            int bw = Math.max(14, g.getFontMetrics().stringWidth(n) + 8);
-            g.setColor(RED);
-            g.fill(new RoundRectangle2D.Double(x + 30 - bw + 4, y - 2, bw, 14, 14, 14));
-            g.setColor(Color.WHITE);
-            center(g, n, x + 30 - bw + 4, y - 2, bw, 14);
-        }
-        hitMap.put("bell", new Rectangle(x, y, 30, 26));
+        int by = y + ch - 56;
+        smallPrimary(g, "ov-copy", x + 20, by, 128, 36, "Copy address", "copy");
+        ghostButton(g, "ov-edit", x + 156, by, 64, 36, "Edit", false);
+        ghostButton(g, "ov-remove", x + 228, by, 72, 36, "Remove", true);
+        hitMap.put("ov-card", new Rectangle(x, y, cw, ch));
+        for (String id : new String[]{"ov-copy", "ov-edit", "ov-remove"}) { Rectangle r = hitMap.remove(id); if (r != null) hitMap.put(id, r); }
     }
 
     private void paintNotices(Graphics2D g) {
-        int w = 340, x = W - 26 - w, y = 46;
+        int w = 360, x = W - 24 - w, y = 72;
         int rows = Math.min(6, notices.size());
-        int h = 58 + Math.max(1, rows) * 54 + (notices.isEmpty() ? 0 : 4);
-        card(g, x, y, w, h, true);
-        g.setFont(interBold.deriveFont(14f));
+        int h = 64 + Math.max(1, rows) * 60 + 8;
+        raised(g, x, y, w, h);
+        g.setFont(interBold.deriveFont(15f));
         g.setColor(TEXT);
-        g.drawString("Notifications", x + 20, y + 34);
-        if (!notices.isEmpty()) textLink(g, "ov-clear", "Clear", x + w - 20, y + 34, 1);
+        g.drawString("Notifications", x + 20, y + 36);
+        if (!notices.isEmpty()) textLink(g, "ov-clear", "Clear all", x + w - 20, y + 36, 1);
         if (notices.isEmpty()) {
-            g.setFont(inter.deriveFont(12f));
+            g.setFont(inter.deriveFont(12.5f));
             g.setColor(DIM);
-            g.drawString("Nothing new. Updates and saved clips show up here.", x + 20, y + 80);
+            g.drawString("You're all caught up.", x + 20, y + 90);
         }
-        int ry = y + 50;
+        int ry = y + 56;
         long now = System.currentTimeMillis();
         for (int i = 0; i < rows; i++) {
             Notice n = notices.get(i);
             g.setColor(new Color(255, 255, 255, 6));
-            g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 48, 10, 10));
-            g.setColor(n.error() ? AMBER : RED_HI);
-            g.fill(new Ellipse2D.Double(x + 22, ry + 14, 7, 7));
-            g.setFont(interBold.deriveFont(12.5f));
+            g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 54, 20, 20));
+            g.setColor(n.error() ? new Color(245, 165, 36, 40) : new Color(225, 29, 46, 36));
+            g.fill(new RoundRectangle2D.Double(x + 20, ry + 11, 32, 32, 16, 16));
+            icon(g, n.error() ? "alert" : "bell", x + 36, ry + 27, 14, n.error() ? AMBER : RED_HI);
+            g.setFont(interBold.deriveFont(13f));
             g.setColor(TEXT);
             String ago = ago(now - n.at());
-            g.drawString(ellipsizeEnd(g, n.title(), w - 90 - 40), x + 38, ry + 20);
-            g.setFont(inter.deriveFont(10.5f));
+            g.drawString(ellipsizeEnd(g, n.title(), w - 130), x + 64, ry + 23);
+            g.setFont(inter.deriveFont(11f));
             g.setColor(FAINT);
-            g.drawString(ago, x + w - 22 - g.getFontMetrics().stringWidth(ago), ry + 20);
-            g.setFont(inter.deriveFont(11.5f));
+            g.drawString(ago, x + w - 24 - g.getFontMetrics().stringWidth(ago), ry + 23);
+            g.setFont(inter.deriveFont(12f));
             g.setColor(DIM);
-            g.drawString(ellipsizeEnd(g, n.body(), w - 60), x + 38, ry + 38);
-            ry += 54;
+            g.drawString(ellipsizeEnd(g, n.body(), w - 90), x + 64, ry + 41);
+            ry += 60;
         }
         hitMap.put("ov-panel", new Rectangle(x, y, w, h));
         Rectangle clear = hitMap.remove("ov-clear");
         if (clear != null) hitMap.put("ov-clear", clear);
+    }
+
+    /**
+     * Friends: a hook for the friends system that's being built. With {@link #friends} filled in, it lists them;
+     * until then it says they're coming.
+     */
+    private void paintFriends(Graphics2D g) {
+        int w = 320, h = friends.isEmpty() ? 220 : 72 + Math.min(6, friends.size()) * 52 + 12;
+        int x = W - 24 - w, y = 84 + 96 - 10;
+        raised(g, x, y, w, h);
+        g.setFont(interBold.deriveFont(15f));
+        g.setColor(TEXT);
+        g.drawString("Friends", x + 20, y + 36);
+        if (friends.isEmpty()) {
+            g.setColor(new Color(225, 29, 46, 36));
+            g.fill(new RoundRectangle2D.Double(x + w / 2.0 - 28, y + 58, 56, 56, 28, 28));
+            icon(g, "users", x + w / 2, y + 86, 24, RED_HI);
+            g.setFont(interBold.deriveFont(14f));
+            g.setColor(TEXT);
+            center(g, "Friends are coming soon", x, y + 126, w, 20);
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(DIM);
+            int ly = y + 160;
+            for (String l : wrapLines(g, "See who's online and play together, right from here.", w - 48, 2)) { center(g, l, x, ly - 13, w, 18); ly += 18; }
+        } else {
+            int ry = y + 56;
+            for (int i = 0; i < Math.min(6, friends.size()); i++) {
+                Friend f = friends.get(i);
+                tile(g, x + 20, ry + 6, 36, f.name());
+                g.setFont(interBold.deriveFont(13f));
+                g.setColor(TEXT);
+                g.drawString(ellipsizeEnd(g, f.name(), w - 100), x + 68, ry + 22);
+                g.setFont(inter.deriveFont(12f));
+                g.setColor(f.online() ? OK : FAINT);
+                g.drawString(ellipsizeEnd(g, f.status(), w - 100), x + 68, ry + 40);
+                ry += 52;
+            }
+        }
+        hitMap.put("ov-panel", new Rectangle(x, y, w, h));
     }
 
     private static String ago(long ms) {
@@ -1628,100 +1641,119 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ clips
 
-    private Rectangle paintClips(Graphics2D g) {
-        pageTitle(g, "Clips", null);
-        int ty = 64;
-        String[][] tabs = {{"library", "Library"}, {"record", "Record"}, {"editor", "Editor"}, {"settings", "Settings"}};
-        int tx = CX + 96;
-        for (String[] t : tabs) {
-            boolean en = !t[0].equals("editor") || clipsEditorOpen();
-            boolean on = clipsPage.equals(t[0]);
-            int count = t[0].equals("library") && clips != null ? clips.library.all().size() : -1;
-            if (clips == null) { en = false; on = false; }
-            String id = "ctab:" + t[0];
-            float a = en ? anim(id, id.equals(hovered)) : 0;
-            g.setFont((on ? interBold : inter).deriveFont(13.5f));
-            g.setColor(on ? TEXT : en ? mix(DIM, TEXT, a) : FAINT);
-            g.drawString(t[1], tx, ty - 14);
-            int lw = g.getFontMetrics().stringWidth(t[1]);
-            if (count >= 0) {
-                g.setFont(interBold.deriveFont(10f));
-                String c = String.valueOf(count);
-                int cw = g.getFontMetrics().stringWidth(c) + 12;
-                g.setColor(on ? new Color(225, 29, 46, 50) : new Color(255, 255, 255, 14));
-                g.fill(new RoundRectangle2D.Double(tx + lw + 7, ty - 27, cw, 16, 16, 16));
-                g.setColor(on ? RED_HI : DIM);
-                center(g, c, tx + lw + 7, ty - 27, cw, 16);
-                lw += cw + 7;
-            }
-            if (on) {
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(tx, ty - 4, lw, 3, 3, 3));
-            }
-            if (en) hit(id, new Rectangle(tx - 6, ty - 34, lw + 12, 34));
-            tx += lw + 26;
-        }
-        int rx = CX + CW - 118; // keep clear of the window buttons
-        if (clips != null) {
-            var st = clips.status;
-            boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
-            smallPrimary(g, "clips-save", rx - 104, ty - 36, 104, 30, "Save clip", null);
-            g.setFont(inter.deriveFont(12f));
-            String rs = rec ? "Recording" : live ? "Replay on" : clips.settings.replayEnabled ? "Replay waits for Minecraft" : "Replay off";
-            int rw2 = g.getFontMetrics().stringWidth(rs);
-            int sx = rx - 104 - 16 - 38;
-            toggle(g, "clips-replay-sw", sx, ty - 31, clips.settings.replayEnabled, true);
-            hit("clips-replay", new Rectangle(sx - 4, ty - 36, 46, 30));
-            g.setColor(rec ? RED_HI : live ? OK : DIM);
-            g.drawString(rs, sx - 10 - rw2, ty - 16);
-        }
-        g.setColor(BORDER);
-        g.fillRect(CX, ty, CW, 1);
-        Rectangle box = new Rectangle(CX, ty + 14, CW, H - ty - 14 - 24);
-        if (clips == null || clipsHost == null) {
-            card(g, box.x, box.y, box.width, box.height, false);
-            g.setFont(interBold.deriveFont(15f));
-            g.setColor(TEXT);
-            center(g, clips == null ? "Evade Clips isn't running" : "Opening Evade Clips…", box.x, box.y + box.height / 2 - 50, box.width, 20);
-            g.setFont(inter.deriveFont(12.5f));
+    /**
+     * The old separate Evade Clips app is running and holds Clips' folder: an amber banner that says so, with a
+     * button that closes it and starts the built-in Clips.
+     */
+    private void clipsBanner(Graphics2D g, int x, int y, int w) {
+        int h = 76;
+        g.setColor(new Color(245, 165, 36, 22));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
+        g.setColor(new Color(245, 165, 36, 70));
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 28, 28));
+        g.setColor(new Color(245, 165, 36, 40));
+        g.fill(new RoundRectangle2D.Double(x + 18, y + 18, 40, 40, 20, 20));
+        icon(g, "alert", x + 38, y + 38, 18, AMBER);
+        g.setFont(interBold.deriveFont(14f));
+        g.setColor(TEXT);
+        int bw = 168;
+        g.drawString(ellipsizeEnd(g, "The old Evade Clips app is still running", w - 110 - bw), x + 72, y + 33);
+        g.setFont(inter.deriveFont(12.5f));
+        g.setColor(DIM);
+        g.drawString(ellipsizeEnd(g, clipsBusy ? "Closing it and starting Clips…" : "Clips is built into the launcher now. Close the old app to use it here.", w - 110 - bw), x + 72, y + 53);
+        if (clipsBusy) {
+            g.setColor(new Color(0x2A2A31));
+            g.fill(new RoundRectangle2D.Double(x + w - 18 - bw, y + 18, bw, 40, 24, 24));
+            g.setFont(interBold.deriveFont(13f));
             g.setColor(DIM);
-            int ly = box.y + box.height / 2 - 14;
-            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "One moment.", Math.min(520, box.width - 80), 4)) {
-                center(g, l, box.x, ly - 13, box.width, 18);
-                ly += 19;
-            }
-            return null;
-        }
-        // a thin frame around the embedded pages
-        g.setColor(BORDER);
-        g.draw(new RoundRectangle2D.Double(box.x - .5, box.y - .5, box.width, box.height, 6, 6));
-        return box;
+            center(g, "Closing…", x + w - 18 - bw, y + 18, bw, 40);
+            animating = true;
+        } else smallPrimary(g, "clips-takeover", x + w - 18 - bw, y + 18, bw, 40, "Close it now", null);
     }
 
-    private void playButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
-        float t = enabled ? anim(id, id.equals(hovered)) : 0;
-        if (enabled) {
-            glow(g, x + w / 2f, y + h * 0.75f, w * 0.62f, h * 0.9f, (int) (80 + 70 * t));
-            g.setPaint(new GradientPaint(0, y, mix(RED_HI, new Color(0xFF6070), t), 0, y + h, mix(RED, RED_HI, t)));
-        } else {
-            g.setColor(new Color(0x2A1418));
+    private Rectangle paintClips(Graphics2D g) {
+        pageTitle(g, "Clips", null);
+        // segmented tabs
+        int ty = 84;
+        String[][] tabs = {{"library", "Library"}, {"record", "Record"}, {"editor", "Editor"}, {"settings", "Settings"}};
+        int tx = CX + 4, segX = CX;
+        g.setFont(interBold.deriveFont(13f));
+        int total = 8;
+        int[] widths = new int[tabs.length];
+        for (int i = 0; i < tabs.length; i++) {
+            int count = tabs[i][0].equals("library") && clips != null ? clips.library.all().size() : -1;
+            widths[i] = g.getFontMetrics().stringWidth(tabs[i][1]) + 32 + (count >= 0 ? g.getFontMetrics().stringWidth(String.valueOf(count)) + 16 : 0);
+            total += widths[i];
         }
-        double dy = -t * 1.5;
-        g.fill(new RoundRectangle2D.Double(x, y + dy, w, h, 14, 14));
-        if (enabled) {
-            g.setColor(new Color(255, 255, 255, 55));
-            g.fill(new java.awt.geom.Rectangle2D.Double(x + 10, y + dy + 1, w - 20, 1));
+        g.setColor(new Color(0x141418));
+        g.fill(new RoundRectangle2D.Double(segX, ty, total, 44, 26, 26));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(segX + .5, ty + .5, total - 1, 43, 26, 26));
+        for (int i = 0; i < tabs.length; i++) {
+            String[] t = tabs[i];
+            boolean en = clips != null && (!t[0].equals("editor") || clipsEditorOpen());
+            boolean on = clips != null && clipsPage.equals(t[0]);
+            String id = "ctab:" + t[0];
+            float a = en ? anim(id, id.equals(hovered)) : 0;
+            float s = anim(id + "-on", on);
+            if (s > 0.01f) {
+                g.setColor(new Color(225, 29, 46, Math.round(255 * s)));
+                g.fill(new RoundRectangle2D.Double(tx, ty + 4, widths[i], 36, 20, 20));
+            } else if (a > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(12 * a)));
+                g.fill(new RoundRectangle2D.Double(tx, ty + 4, widths[i], 36, 20, 20));
+            }
+            g.setFont(interBold.deriveFont(13f));
+            g.setColor(on ? Color.WHITE : en ? mix(DIM, TEXT, a) : FAINT);
+            g.drawString(t[1], tx + 16, ty + 27);
+            if (t[0].equals("library") && clips != null) {
+                String c = String.valueOf(clips.library.all().size());
+                int lw = g.getFontMetrics().stringWidth(t[1]);
+                g.setFont(interBold.deriveFont(10.5f));
+                int cw = g.getFontMetrics().stringWidth(c) + 12;
+                g.setColor(on ? new Color(255, 255, 255, 50) : new Color(255, 255, 255, 16));
+                g.fill(new RoundRectangle2D.Double(tx + 16 + lw + 7, ty + 13, cw, 18, 18, 18));
+                g.setColor(on ? Color.WHITE : DIM);
+                center(g, c, tx + 16 + lw + 7, ty + 13, cw, 18);
+            }
+            if (en) hit(id, new Rectangle(tx, ty + 4, widths[i], 36));
+            tx += widths[i];
         }
-        g.setFont(interBold.deriveFont(label.length() > 8 ? 16f : 19f));
-        FontMetrics fm = g.getFontMetrics();
-        int tw = fm.stringWidth(label), iw = 14, gap = 12;
-        int tx = x + (w - tw - iw - gap) / 2;
-        int cy = (int) (y + dy + h / 2.0);
-        Color fg = enabled ? Color.WHITE : FAINT;
-        icon(g, "play", tx + iw / 2, cy, iw, fg);
-        g.setColor(fg);
-        g.drawString(label, tx + iw + gap, cy + fm.getAscent() / 2f - 2);
-        hit(id, new Rectangle(x, y, w, h));
+        // replay switch and Save clip on the right
+        int rx = CX + CW;
+        if (clips != null) {
+            smallPrimary(g, "clips-save", rx - 120, ty + 2, 120, 40, "Save clip", "clip");
+            g.setFont(inter.deriveFont(13f));
+            String rs = "Instant replay";
+            int rw2 = g.getFontMetrics().stringWidth(rs);
+            int sx = rx - 120 - 20 - 38;
+            toggle(g, "clips-replay-sw", sx, ty + 12, clips.settings.replayEnabled, true);
+            hit("clips-replay", new Rectangle(sx - 12 - rw2, ty + 2, rw2 + 56, 40));
+            g.setColor(DIM);
+            g.drawString(rs, sx - 12 - rw2, ty + 27);
+        }
+        int top = ty + 44 + 16;
+        if (clipsBlocked) {
+            clipsBanner(g, CX, top, CW);
+            top += 76 + 16;
+        }
+        Rectangle box = new Rectangle(CX, top, CW, H - top - 24);
+        if (clips == null || clipsHost == null) {
+            card(g, box.x, box.y, box.width, box.height, false);
+            g.setColor(new Color(255, 255, 255, 10));
+            g.fill(new RoundRectangle2D.Double(box.x + box.width / 2.0 - 32, box.y + box.height / 2.0 - 84, 64, 64, 32, 32));
+            icon(g, "clip", box.x + box.width / 2, box.y + box.height / 2 - 52, 26, DIM);
+            g.setFont(interBold.deriveFont(17f));
+            g.setColor(TEXT);
+            center(g, clipsBlocked ? "Clips will open here" : clips == null ? "Evade Clips isn't running" : "Opening Evade Clips…", box.x, box.y + box.height / 2 - 6, box.width, 24);
+            g.setFont(inter.deriveFont(13f));
+            g.setColor(DIM);
+            int ly = box.y + box.height / 2 + 34;
+            String msg = clipsBlocked ? "Instant replay, your clip library and the editor, once the old app is closed." : clipsNote != null ? clipsNote : "One moment.";
+            for (String l : wrapLines(g, msg, Math.min(520, box.width - 80), 3)) { center(g, l, box.x, ly - 13, box.width, 18); ly += 20; }
+            return null;
+        }
+        return box;
     }
 
     private void paintHeroProgress(Graphics2D g, int x, int y, int w, int h) {
@@ -1851,39 +1883,65 @@ public final class LauncherView extends JPanel {
         center(g, s, cx - 18, cy - 18, 36, 36);
     }
 
-    private void paintVersions(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
-        card(g, x, y, w, h, false);
-        label(g, "VERSIONS", x + 18, y + 28);
-        g.setFont(inter.deriveFont(10f));
-        g.setColor(FAINT);
-        String cols = "INSTALLED → LATEST";
-        g.drawString(cols, x + w - 18 - g.getFontMetrics().stringWidth(cols), y + 28);
-        InstallerCore.Installed in = sel != null ? sel.installed : null;
-        String[][] rows = {
-                {"Evade Client", in != null ? "v" + in.evadeVersion() : "—", release != null ? "v" + release.evadeVersion() : "…"},
-                {"Fabric Loader", in != null ? in.loaderVersion() : "—", release != null ? release.loaderVersion() : "…"},
-                {"Fabric API", in != null ? InstallerCore.shortVersion(in.fabricApiVersion()) : "—", release != null ? InstallerCore.shortVersion(release.fabricApiVersion()) : "…"}};
-        int ry = y + 42;
-        for (String[] r : rows) {
-            g.setFont(inter.deriveFont(12.5f));
-            g.setColor(TEXT);
-            g.drawString(r[0], x + 18, ry + 14);
-            boolean same = r[1].equals(r[2]) || release == null;
-            g.setFont(interBold.deriveFont(12f));
-            FontMetrics fm = g.getFontMetrics();
-            int lx = x + w - 18 - fm.stringWidth(r[2]);
-            g.setColor(same ? DIM : RED_HI);
-            g.drawString(r[2], lx, ry + 14);
-            if (!same) {
-                g.setFont(inter.deriveFont(12f));
-                String a = r[1] + "  →  ";
-                g.setColor(FAINT);
-                g.drawString(a, lx - g.getFontMetrics().stringWidth(a), ry + 14);
-            } else {
-                icon(g, "check", lx - 14, ry + 9, 10, release == null ? FAINT : OK);
-            }
-            ry += 27;
+    /** A solid red button with a play icon (the hero's other states: try again, get the launcher). */
+    private void playButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
+        float t = enabled ? anim(id, id.equals(hovered)) : 0;
+        if (enabled) shadowGlow(g, x, y, w, h, t);
+        g.setColor(enabled ? mix(RED, RED_HI, t) : new Color(0x2A1418));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
+        g.setFont(interBold.deriveFont(label.length() > 12 ? 15f : 17f));
+        FontMetrics fm = g.getFontMetrics();
+        int tw = fm.stringWidth(label), iw = 13, gap = 10;
+        int tx = x + (w - tw - iw - gap) / 2;
+        Color fg = enabled ? Color.WHITE : FAINT;
+        icon(g, "play", tx + iw / 2, y + h / 2, iw, fg);
+        g.setColor(fg);
+        g.drawString(label, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        hit(id, new Rectangle(x, y, w, h));
+    }
+
+    /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
+    private void statusDot(Graphics2D g, int x, int y, Launcher.Instance i) {
+        Color c = FAINT;
+        if (i != null) {
+            if (i.installed == null || i.dirty || i.pending != null) c = AMBER;
+            else if (release != null) c = OK;
         }
+        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 50));
+        g.fill(new Ellipse2D.Double(x - 3, y - 7, 12, 12));
+        g.setColor(c);
+        g.fill(new Ellipse2D.Double(x, y - 4, 6, 6));
+    }
+
+    /** A mod's real icon (rounded), or a neutral tile with its initial while there's none; faded when switched off. */
+    private void modIcon(Graphics2D g, int x, int y, int s, String name, Image img, boolean enabled) {
+        Composite c0 = g.getComposite();
+        if (!enabled) g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+        if (img != null && img.getWidth(null) > 1) {
+            Shape was = g.getClip();
+            RoundRectangle2D r = new RoundRectangle2D.Double(x, y, s, s, s * 0.45, s * 0.45);
+            g.setColor(new Color(0x1C1C22));
+            g.fill(r);
+            g.clip(r);
+            Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+            // small pixel-art icons stay crisp; big ones scale smoothly
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, img.getWidth(null) < s ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+                    : RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.drawImage(img, x, y, s, s, null);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+            g.setClip(was);
+        } else tile(g, x, y, s, name);
+        g.setComposite(c0);
+    }
+
+    /** A neutral rounded tile with the first letter of a name (when there's no picture). */
+    private void tile(Graphics2D g, int x, int y, int s, String name) {
+        g.setColor(new Color(0x24242B));
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, s * 0.6, s * 0.6));
+        String letter = name == null || name.isBlank() ? "?" : name.strip().substring(0, 1).toUpperCase();
+        g.setFont(interBold.deriveFont(s * 0.42f));
+        g.setColor(new Color(0xB4B4BE));
+        center(g, letter, x, y, s, s);
     }
 
     // ------------------------------------------------------------------ first run
@@ -1976,12 +2034,20 @@ public final class LauncherView extends JPanel {
         boolean[] avail = {true, release == null || release.voiceChat() != null, release == null || !release.performance().isEmpty(),
                 release == null || release.iris() != null};
         for (int i = 0; i < rows.length; i++) {
-            int ry = y + 186 + i * 31;
+            int ry = y + 200 + i * 42;
             switchRow(g, rows[i][0], x, ry, w, avail[i] ? rows[i][1] : rows[i][2], values[i], avail[i]);
         }
         g.setFont(inter.deriveFont(11.5f));
         g.setColor(FAINT);
-        g.drawString(ellipsizeEnd(g, "Evade Clips is built in: instant replay, clip library & editor.", w), x, y + 186 + rows.length * 31 + 8);
+        g.setColor(new Color(225, 29, 46, 26));
+        g.fill(new RoundRectangle2D.Double(x, y + 200 + rows.length * 42 + 6, w, 52, 24, 24));
+        icon(g, "clip", x + 24, y + 200 + rows.length * 42 + 32, 16, RED_HI);
+        g.setFont(interBold.deriveFont(12.5f));
+        g.setColor(TEXT);
+        g.drawString("Evade Clips is built in", x + 46, y + 200 + rows.length * 42 + 28);
+        g.setFont(inter.deriveFont(11.5f));
+        g.setColor(DIM);
+        g.drawString(ellipsizeEnd(g, "Instant replay, clip library and editor", w - 60), x + 46, y + 200 + rows.length * 42 + 45);
         g.setFont(inter.deriveFont(12f));
         String info;
         Color ic = DIM;
@@ -2049,112 +2115,139 @@ public final class LauncherView extends JPanel {
     // ------------------------------------------------------------------ instances
 
     private void paintInstances(Graphics2D g) {
-        pageTitle(g, "Instances", "Each instance has its own mods, settings, worlds and Minecraft Launcher profile.");
-        smallPrimary(g, "inst-new", CX + CW - 150, 44, 150, 36, "New instance", "plus");
-
-        int lx = CX, ly = 100, lw = 300, lh = H - ly - 26;
+        pageTitle(g, "Instances", "Each has its own mods, settings, worlds and Minecraft Launcher profile.");
+        int lx = CX, ly = 100, lw = 320, lh = H - ly - 24;
         card(g, lx, ly, lw, lh, false);
-        Rectangle area = new Rectangle(lx + 1, ly + 8, lw - 2, lh - 16);
+        Rectangle area = new Rectangle(lx + 1, ly + 8, lw - 2, lh - 16 - 60);
         float off = scrollOf("instances");
         Shape was = g.getClip();
         g.clip(area);
         clip = area;
-        int y = ly + 10 - Math.round(off);
+        int y = ly + 12 - Math.round(off);
         Launcher.Instance foc = focused();
         for (Launcher.Instance i : instances) {
             String id = "inst:" + i.id;
             boolean on = i == foc;
             float t = anim(id, id.equals(hovered));
             if (on) {
-                g.setPaint(new GradientPaint(lx + 10, 0, new Color(225, 29, 46, 46), lx + lw, 0, new Color(225, 29, 46, 8)));
-                g.fill(new RoundRectangle2D.Double(lx + 10, y, lw - 20, 62, 12, 12));
-                g.setColor(new Color(225, 29, 46, 90));
-                g.draw(new RoundRectangle2D.Double(lx + 10.5, y + .5, lw - 21, 61, 12, 12));
-            } else if (t > 0) {
-                g.setColor(new Color(255, 255, 255, (int) (10 * t)));
-                g.fill(new RoundRectangle2D.Double(lx + 10, y, lw - 20, 62, 12, 12));
+                g.setColor(new Color(225, 29, 46, 34));
+                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
+                g.setColor(RED);
+                g.fill(new RoundRectangle2D.Double(lx + 12, y + 18, 3, 28, 3, 3));
+            } else if (t > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(8 * t)));
+                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
             }
-            avatar(g, lx + 22, y + 13, 36, i.name, i.isDefault() ? RED.getRGB() : hashColor(i.name));
-            g.setFont(interBold.deriveFont(13.5f));
+            instanceTile(g, lx + 28, y + 12, 40, i);
+            g.setFont(interBold.deriveFont(14f));
             g.setColor(TEXT);
             boolean playing = i.id.equals(settings.selected);
-            int maxName = lw - 110 - (playing ? 64 : 0);
-            String nm = ellipsizeEnd(g, i.name, maxName);
-            g.drawString(nm, lx + 70, y + 28);
+            String nm = ellipsizeEnd(g, i.name, lw - 140 - (playing ? 64 : 0));
+            g.drawString(nm, lx + 80, y + 29);
             if (playing) {
-                int px = lx + 70 + g.getFontMetrics().stringWidth(nm) + 8;
-                g.setFont(interBold.deriveFont(8.5f));
-                int pw = g.getFontMetrics().stringWidth("PLAYING") + 12;
+                int px = lx + 80 + g.getFontMetrics().stringWidth(nm) + 8;
+                g.setFont(interBold.deriveFont(9f));
+                int pw = g.getFontMetrics().stringWidth("ACTIVE") + 14;
                 g.setColor(new Color(225, 29, 46, 44));
-                g.fill(new RoundRectangle2D.Double(px, y + 16, pw, 15, 15, 15));
+                g.fill(new RoundRectangle2D.Double(px, y + 17, pw, 16, 16, 16));
                 g.setColor(RED_HI);
-                center(g, "PLAYING", px, y + 16, pw, 15);
+                center(g, "ACTIVE", px, y + 17, pw, 16);
             }
-            g.setFont(inter.deriveFont(11.5f));
+            g.setFont(inter.deriveFont(12f));
             g.setColor(DIM);
             String sub = (i.installed != null ? "v" + i.installed.evadeVersion() : "Not installed yet") + "  ·  " + i.modCount + " mods  ·  " + i.memoryGb + " GB";
-            g.drawString(ellipsizeEnd(g, sub, lw - 110), lx + 70, y + 46);
-            statusDot(g, lx + lw - 34, y + 33, i);
-            hit(id, new Rectangle(lx + 10, y, lw - 20, 62));
-            y += 68;
+            g.drawString(ellipsizeEnd(g, sub, lw - 130), lx + 80, y + 48);
+            statusDot(g, lx + lw - 40, y + 35, i);
+            hit(id, new Rectangle(lx + 12, y, lw - 24, 64));
+            y += 70;
         }
-        int content = y + Math.round(off) - (ly + 10);
+        int content = y + Math.round(off) - (ly + 12);
         g.setClip(was);
         clip = null;
         scrollArea(g, "instances", area, content);
+        ghostButton(g, "inst-new", lx + 16, ly + lh - 60, lw - 32, 44, "New instance", false, "plus");
 
-        if (foc != null) paintInstanceDetail(g, foc, lx + lw + 18, ly, CW - lw - 18, lh);
+        if (foc != null) paintInstanceDetail(g, foc, lx + lw + 24, ly, CW - lw - 24, lh);
+    }
+
+    /** An instance's tile: Evade's mark for Main, else a neutral tile with its initial. */
+    private void instanceTile(Graphics2D g, int x, int y, int s, Launcher.Instance i) {
+        if (i.isDefault()) {
+            g.setColor(new Color(225, 29, 46, 40));
+            g.fill(new RoundRectangle2D.Double(x, y, s, s, s * 0.6, s * 0.6));
+            g.drawImage(mark, x + s / 5, y + s / 5, s * 3 / 5, s * 3 / 5, null);
+        } else tile(g, x, y, s, i.name);
+    }
+
+    /** A settings row: the name (and a line under it) on the left, the control on the right, a hairline below. */
+    private void rowLabel(Graphics2D g, int x, int y, int h, String title, String sub, boolean last, int w) {
+        g.setFont(interBold.deriveFont(13.5f));
+        g.setColor(TEXT);
+        int ty = sub == null ? y + h / 2 + 5 : y + h / 2 - 3;
+        g.drawString(title, x, ty);
+        if (sub != null) {
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(FAINT);
+            g.drawString(ellipsizeEnd(g, sub, w), x, ty + 19);
+        }
+        if (!last) {
+            g.setColor(HAIRLINE);
+            g.fillRect(x, y + h, w, 1);
+        }
     }
 
     private void paintInstanceDetail(Graphics2D g, Launcher.Instance i, int x, int y, int w, int h) {
-        card(g, x, y, w, h, true);
-        int ix = x + 26, iw = w - 52;
+        card(g, x, y, w, h, false);
+        int ix = x + 28, iw = w - 56;
+        instanceTile(g, ix, y + 26, 52, i);
         g.setFont(interBold.deriveFont(22f));
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, i.name, iw - 110), ix, y + 44);
-        g.setFont(inter.deriveFont(12f));
+        g.drawString(ellipsizeEnd(g, i.name, iw - 220), ix + 68, y + 50);
+        g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
-        g.drawString(ellipsizeEnd(g, "Launcher profile: " + i.profileName(), iw), ix, y + 66);
+        g.drawString(ellipsizeEnd(g, "Profile “" + i.profileName() + "”", iw - 220), ix + 68, y + 72);
         boolean playing = i.id.equals(settings.selected);
         if (playing) {
-            g.setFont(inter.deriveFont(11.5f));
+            g.setFont(interBold.deriveFont(12f));
+            String s2 = "Play starts this one";
+            int sw = g.getFontMetrics().stringWidth(s2) + 36;
+            g.setColor(new Color(61, 220, 132, 26));
+            g.fill(new RoundRectangle2D.Double(ix + iw - sw, y + 32, sw, 32, 32, 32));
             g.setColor(OK);
-            String s = "Play starts this one";
-            int sw = g.getFontMetrics().stringWidth(s);
-            g.fill(new Ellipse2D.Double(ix + iw - sw - 12, y + 32, 6, 6));
-            g.drawString(s, ix + iw - sw, y + 39);
-        } else {
-            smallPrimary(g, "inst-use", ix + iw - 120, y + 22, 120, 32, "Play this", "play");
-        }
+            g.fill(new Ellipse2D.Double(ix + iw - sw + 14, y + 45, 7, 7));
+            g.drawString(s2, ix + iw - sw + 28, y + 53);
+        } else smallPrimary(g, "inst-use", ix + iw - 140, y + 30, 140, 40, "Play this", "play");
 
-        label(g, "FOLDER", ix, y + 100);
-        box(g, ix, y + 110, iw, 38);
-        g.setFont(inter.deriveFont(12.5f));
-        g.setColor(TEXT);
-        g.drawString(ellipsize(g, i.dir.toString(), iw - 100), ix + 12, y + 134);
-        smallButton(g, "inst-folder", ix + iw - 72, y + 116, 64, 26, "Open");
-
-        label(g, "MEMORY", ix, y + 178);
-        memoryChips(g, ix, y + 188, iw, i.memoryGb);
-
-        label(g, "EXTRAS", ix, y + 252);
+        int ctl = 300, cx = ix + iw - ctl, ry = y + 100, rh = 64;
+        rowLabel(g, ix, ry, rh, "Folder", ellipsize(g, i.dir.toString(), iw - ctl - 120), false, iw);
+        ghostButton(g, "inst-folder", ix + iw - 120, ry + 14, 120, 36, "Open", false, "folder");
+        ry += rh;
+        rowLabel(g, ix, ry, rh, "Memory", "How much Minecraft may use", false, iw);
+        memoryChips(g, cx, ry + 14, ctl, i.memoryGb);
+        ry += rh;
         boolean voice = release == null || release.voiceChat() != null, perf = release == null || !release.performance().isEmpty(), sh = release == null || release.iris() != null;
-        switchRow(g, "inst-perf", ix, y + 264, iw, "FPS mods (Sodium & more)", i.perf, perf);
-        switchRow(g, "inst-shaders", ix, y + 296, iw, "Shaders (Iris + Photon)", i.shaders, sh);
-        switchRow(g, "inst-voice", ix, y + 328, iw, "Voice chat (Simple Voice Chat)", i.voice, voice);
-        g.setFont(inter.deriveFont(11.5f));
+        String[][] rows = {{"inst-perf", "FPS mods", "Sodium, Lithium and friends"}, {"inst-shaders", "Shaders", "Iris with the Photon pack"},
+                {"inst-voice", "Voice chat", "Simple Voice Chat"}};
+        boolean[] val = {i.perf, i.shaders, i.voice}, av = {perf, sh, voice};
+        for (int k = 0; k < rows.length; k++) {
+            rowLabel(g, ix, ry, rh - 8, rows[k][1], av[k] ? rows[k][2] : "Not available right now", k == rows.length - 1, iw);
+            toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + (rh - 8) / 2 - 12, val[k], av[k]);
+            if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, rh - 8));
+            ry += rh - 8;
+        }
+        g.setFont(inter.deriveFont(12f));
         g.setColor(i.dirty ? AMBER : FAINT);
-        g.drawString(i.dirty ? "Changed: applied the next time you press Play with this instance." : "Changes apply the next time you press Play.", ix, y + 376);
+        g.drawString(i.dirty ? "Changed: applied the next time you press Play with this instance." : "Changes apply the next time you press Play.", ix, ry + 26);
 
-        int by = y + h - 58, bw = (iw - 3 * 10) / 4;
-        ghostButton(g, "inst-copy", ix, by, bw, 36, "Copy from", false);
-        ghostButton(g, "inst-rename", ix + (bw + 10), by, bw, 36, "Rename", false);
-        ghostButton(g, "inst-dup", ix + 2 * (bw + 10), by, bw, 36, "Duplicate", false);
-        if (!i.isDefault()) ghostButton(g, "inst-del", ix + 3 * (bw + 10), by, bw, 36, "Delete", true);
+        int by = y + h - 28 - 40, bw = (iw - 3 * 12) / 4;
+        ghostButton(g, "inst-copy", ix, by, bw, 40, "Copy settings", false, "copy");
+        ghostButton(g, "inst-rename", ix + (bw + 12), by, bw, 40, "Rename", false);
+        ghostButton(g, "inst-dup", ix + 2 * (bw + 12), by, bw, 40, "Duplicate", false, "layers");
+        if (!i.isDefault()) ghostButton(g, "inst-del", ix + 3 * (bw + 12), by, bw, 40, "Delete", true, "trash");
         else {
-            g.setFont(inter.deriveFont(11f));
+            g.setFont(inter.deriveFont(12f));
             g.setColor(FAINT);
-            center(g, "Main can't be deleted", ix + 3 * (bw + 10), by, bw, 36);
+            center(g, "Main stays", ix + 3 * (bw + 12), by, bw, 40);
         }
     }
 
@@ -2170,23 +2263,21 @@ public final class LauncherView extends JPanel {
         int px = CX + CW - pw;
         float t = anim("mods-instance", "mods-instance".equals(hovered));
         g.setColor(mix(CARD_2, new Color(0x202028), t));
-        g.fill(new RoundRectangle2D.Double(px, 44, pw, 36, 11, 11));
-        g.setColor(BORDER);
-        g.draw(new RoundRectangle2D.Double(px + .5, 44.5, pw - 1, 35, 11, 11));
-        icon(g, "layers", px + 20, 62, 14, DIM);
+        g.fill(new RoundRectangle2D.Double(px, 96, pw, 40, 24, 24));
+        icon(g, "layers", px + 22, 116, 15, DIM);
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, nm, pw - 70), px + 36, 67);
-        icon(g, "chevron-down", px + pw - 18, 62, 9, DIM);
-        hit("mods-instance", new Rectangle(px, 44, pw, 36));
+        g.drawString(ellipsizeEnd(g, nm, pw - 70), px + 40, 121);
+        icon(g, "chevron-down", px + pw - 20, 116, 9, DIM);
+        hit("mods-instance", new Rectangle(px, 96, pw, 40));
 
         // tabs
         int ty = 100;
         tab(g, "tab-installed", CX, ty, "Installed", mods.size(), !browse);
         tab(g, "tab-browse", CX + 140, ty, "Browse Modrinth", -1, browse);
-        g.setColor(BORDER);
-        g.fillRect(CX, ty + 36, CW, 1);
+        g.setColor(HAIRLINE);
+        g.fillRect(CX, ty + 38, CW, 1);
 
-        int y = ty + 50, h = H - y - 26;
+        int y = ty + 52, h = H - y - 24;
         if (!browse) { paintInstalledMods(g, sel, CX, y, CW, h); return null; }
         return paintBrowse(g, CX, y, CW, h);
     }
@@ -2240,7 +2331,7 @@ public final class LauncherView extends JPanel {
                     g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 56, 10, 10));
                 }
                 Color fade = e.enabled() ? TEXT : FAINT;
-                avatar(g, x + 22, ry + 11, 34, e.name(), e.enabled() ? (e.option() != null && e.option().equals("Evade") ? RED.getRGB() : hashColor(e.name())) : 0x2A2A31);
+                modIcon(g, x + 22, ry + 9, 38, e.name(), "Evade".equals(e.option()) && e.name().startsWith("Evade") ? mark : ModIcons.get(e.file(), this::repaint), e.enabled());
                 g.setFont(interBold.deriveFont(13f));
                 g.setColor(fade);
                 String name = ellipsizeEnd(g, e.name(), 300);
@@ -2332,7 +2423,7 @@ public final class LauncherView extends JPanel {
                     g.setColor(new Color(255, 255, 255, 5));
                     g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 68, 10, 10));
                 }
-                avatar(g, x + 22, ry + 13, 42, hh.title(), hh.color());
+                modIcon(g, x + 22, ry + 13, 42, hh.title(), ModIcons.url(hh.iconUrl(), this::repaint), true);
                 g.setFont(interBold.deriveFont(13.5f));
                 g.setColor(TEXT);
                 String title = ellipsizeEnd(g, hh.title(), 280);
@@ -2395,92 +2486,143 @@ public final class LauncherView extends JPanel {
 
     private Rectangle paintSettings(Graphics2D g) {
         pageTitle(g, "Settings", null);
-        int lx = CX, y = 92, lw = 440, h = H - y - 26;
-        card(g, lx, y, lw, h, true);
-        int ix = lx + 26, iw = lw - 52;
-        g.setFont(interBold.deriveFont(15f));
+        int y = 92;
+        if (clipsBlocked) {
+            clipsBanner(g, CX, y, CW);
+            y += 76 + 16;
+        }
+        int lw = 600, rw = CW - lw - 24, h = Math.min(H - 24 - y, 56 + 4 * 66 + 84);
+        // ---- Game
+        int lx = CX;
+        card(g, lx, y, lw, h, false);
+        int ix = lx + 28, iw = lw - 56, ctl = 300, cx = ix + iw - ctl;
+        g.setFont(interBold.deriveFont(17f));
         g.setColor(TEXT);
-        g.drawString("Game", ix, y + 38);
-
-        label(g, "MINECRAFT FOLDER", ix, y + 72);
-        box(g, ix, y + 82, iw, 38);
-        g.setFont(inter.deriveFont(12.5f));
-        g.setColor(TEXT);
-        g.drawString(ellipsize(g, settings.minecraftDir().toString(), iw - 100), ix + 12, y + 106);
-        smallButton(g, "set-folder", ix + iw - 72, y + 88, 64, 26, "Change");
-
-        label(g, "MEMORY FOR NEW INSTANCES", ix, y + 150);
-        memoryChips(g, ix, y + 160, iw, settings.defaultMemoryGb);
-        g.setFont(inter.deriveFont(11f));
-        g.setColor(DIM);
-        g.drawString("Recommended for this PC: " + recommendedGb + " GB" + (totalGb > 0 ? "  ·  " + totalGb + " GB RAM" : ""), ix, y + 211);
-
-        label(g, "JAVA (OPTIONAL)", ix, y + 246);
-        box(g, ix, y + 256, iw, 38);
-        Rectangle field = new Rectangle(ix + 12, y + 261, iw - 170, 28);
+        g.drawString("Game", ix, y + 40);
+        int ry = y + 56, rh = 66;
+        rowLabel(g, ix, ry, rh, "Minecraft folder", ellipsize(g, settings.minecraftDir().toString(), iw - 200), false, iw);
+        ghostButton(g, "open-mc", ix + iw - 172, ry + 15, 84, 36, "Open", false);
+        ghostButton(g, "set-folder", ix + iw - 80, ry + 15, 80, 36, "Change", false);
+        ry += rh;
+        rowLabel(g, ix, ry, rh, "Memory for new instances", "Recommended here: " + recommendedGb + " GB" + (totalGb > 0 ? " of " + totalGb + " GB" : ""), false, iw);
+        memoryChips(g, cx, ry + 15, ctl, settings.defaultMemoryGb);
+        ry += rh;
+        rowLabel(g, ix, ry, rh, "Java", "Optional: leave empty", false, iw);
+        int fw = ctl - 88;
+        box(g, cx, ry + 15, fw, 36);
+        Rectangle field = new Rectangle(cx + 12, ry + 19, fw - 44, 28);
         if (javaField.getText().isEmpty()) {
             g.setFont(inter.deriveFont(12.5f));
             g.setColor(FAINT);
-            g.drawString("The Minecraft Launcher's own Java", ix + 13, y + 280);
-        }
-        smallButton(g, "java-browse", ix + iw - 146, y + 262, 72, 26, "Browse");
-        smallButton(g, "java-clear", ix + iw - 70, y + 262, 62, 26, "Clear");
-        g.setFont(inter.deriveFont(11.5f));
-        g.setColor(FAINT);
-        int hy = y + 316;
-        for (String line : wrapLines(g, "Leave empty unless you know you need it: the Minecraft Launcher picks the right Java for "
-                + InstallerCore.MC_VERSION + ". A path set here is used by every Evade instance (javaw.exe on Windows).", iw, 3)) {
-            g.drawString(line, ix, hy);
-            hy += 16;
-        }
-
-        // about, at the foot of the Game card
-        g.setColor(BORDER);
-        g.fillRect(lx + 1, y + h - 74, lw - 2, 1);
-        g.drawImage(mark, ix, y + h - 56, 30, 30, null);
-        g.setFont(interBold.deriveFont(12.5f));
-        g.setColor(TEXT);
-        g.drawString("Evade Launcher v" + version, ix + 42, y + h - 41);
-        g.setFont(inter.deriveFont(11f));
-        g.setColor(FAINT);
-        g.drawString("Sign-in and the game itself run in the official Minecraft Launcher.", ix + 42, y + h - 24);
-
-        int rx = lx + lw + 18, rw = CW - lw - 18, rh = 278;
-        card(g, rx, y, rw, rh, false);
-        int jx = rx + 24, jw = rw - 48;
-        g.setFont(interBold.deriveFont(15f));
-        g.setColor(TEXT);
-        g.drawString("Launcher", jx, y + 38);
-        boolean tray = clips != null && clips.settings.minimizeToTray;
-        settingRow(g, "set-close", jx, y + 60, jw, "Hide the launcher on Play", tray ? "To the tray, so Evade Clips keeps recording" : "After the Minecraft Launcher opens", settings.closeOnPlay);
-        settingRow(g, "set-updates", jx, y + 112, jw, "Check for updates on start", "Updates this launcher itself", settings.checkUpdates);
-        if (clips != null) {
-            settingRow(g, "set-replay", jx, y + 164, jw, "Instant replay (Evade Clips)", "Records the last moments while Minecraft runs", clips.settings.replayEnabled);
-            settingRow(g, "set-tray", jx, y + 216, jw, "Keep running in the tray", "Closing the window keeps instant replay going", tray);
+            g.drawString("Minecraft Launcher's own", cx + 13, ry + 38);
         } else {
-            g.setFont(inter.deriveFont(11.5f));
-            g.setColor(FAINT);
-            int ly = y + 182;
-            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "Evade Clips isn't running.", jw, 3)) { g.drawString(l, jx, ly); ly += 16; }
+            float tc = anim("java-clear", "java-clear".equals(hovered));
+            icon(g, "close-x", cx + fw - 18, ry + 33, 10, mix(FAINT, TEXT, tc));
+            hit("java-clear", new Rectangle(cx + fw - 32, ry + 19, 28, 28));
+        }
+        ghostButton(g, "java-browse", cx + fw + 8, ry + 15, 80, 36, "Browse", false);
+        ry += rh;
+        rowLabel(g, ix, ry, rh, "Folders", "Open where things live", true, iw);
+        int bw = (ctl - 16) / 3;
+        ghostButton(g, "open-inst", cx, ry + 15, bw, 36, "Instance", false);
+        ghostButton(g, "open-clips", cx + bw + 8, ry + 15, bw, 36, "Clips", false);
+        ghostButton(g, "open-data", cx + 2 * (bw + 8), ry + 15, bw, 36, "Launcher", false);
+        g.setFont(inter.deriveFont(12f));
+        g.setColor(FAINT);
+        int hy = ry + rh + 24;
+        for (String line : wrapLines(g, "Java: only set one if you know you need it. The Minecraft Launcher picks the right Java for "
+                + InstallerCore.MC_VERSION + "; a path set here is used by every Evade instance (javaw.exe on Windows).", iw, 3)) {
+            if (hy > y + h - 16) break;
+            g.drawString(line, ix, hy);
+            hy += 17;
         }
 
-        int fy = y + rh + 16, fh = h - rh - 16;
-        card(g, rx, fy, rw, fh, false);
+        // ---- Launcher
+        int rx = lx + lw + 24, jx = rx + 24, jw = rw - 48;
+        boolean tray = clips != null && clips.settings.minimizeToTray;
+        int lh = clips != null ? 56 + 4 * 58 + 8 : 56 + 2 * 58 + 8;
+        card(g, rx, y, rw, lh, false);
+        g.setFont(interBold.deriveFont(17f));
+        g.setColor(TEXT);
+        g.drawString("Launcher", jx, y + 40);
+        int sy = y + 52;
+        sy = toggleRow(g, "set-close", jx, sy, jw, "Hide on Play", tray ? "To the tray: Clips keeps recording" : "Once the Minecraft Launcher opens", settings.closeOnPlay, false);
+        sy = toggleRow(g, "set-updates", jx, sy, jw, "Update automatically", "Keeps this launcher current", settings.checkUpdates, clips == null);
+        if (clips != null) {
+            sy = toggleRow(g, "set-replay", jx, sy, jw, "Instant replay", "Evade Clips records while you play", clips.settings.replayEnabled, false);
+            toggleRow(g, "set-tray", jx, sy, jw, "Keep running in the tray", "When the window is closed", tray, true);
+        }
+
+        // ---- About
+        int ay = y + lh + 24, ah = H - 24 - ay;
+        card(g, rx, ay, rw, ah, false);
+        g.drawImage(mark, jx, ay + 22, 36, 36, null);
         g.setFont(interBold.deriveFont(15f));
         g.setColor(TEXT);
-        g.drawString("Folders", jx, fy + 38);
-        String[][] f = {{"open-mc", "Minecraft"}, {"open-inst", "This instance"}, {"open-clips", "Clips"}, {"open-data", "Launcher"}};
-        int bw = (jw - 10) / 2;
-        for (int i = 0; i < f.length; i++) {
-            int bx = jx + (i % 2) * (bw + 10), by = fy + 56 + (i / 2) * 44;
-            ghostButton(g, f[i][0], bx, by, bw, 36, f[i][1], false, "folder");
-        }
-        if (legacyClips && fy + 56 + 2 * 44 + 36 < fy + fh - 10) {
-            ghostButton(g, "clips-legacy", jx, fy + 56 + 2 * 44, jw, 36, "Remove the old separate Evade Clips app", true, "trash");
-        }
-        g.setFont(inter.deriveFont(11f));
+        g.drawString("Evade Launcher", jx + 48, ay + 38);
+        g.setFont(inter.deriveFont(12f));
         g.setColor(FAINT);
+        g.drawString(ellipsizeEnd(g, "Version " + version + "  ·  Sign-in stays with the Minecraft Launcher", jw - 48), jx + 48, ay + 56);
+        paintVersionRows(g, jx, ay + 76, jw);
+        int ly = ay + ah - 20 - 36;
+        if (legacyClips && !clipsBlocked) {
+            ghostButton(g, "clips-legacy", jx, ly, jw, 36, "Remove the old Evade Clips app", true, "trash");
+        } else {
+            List<String[]> links = new ArrayList<>();
+            links.add(new String[]{"link-site", "Website", "globe"});
+            links.add(new String[]{"link-docs", "Guides", "book"});
+            links.add(new String[]{"link-changelog", "Changelog", "list"});
+            if (!DISCORD.isBlank()) links.add(new String[]{"link-discord", "Discord", "chat"});
+            int n = links.size(), lw2 = (jw - (n - 1) * 8) / n;
+            for (int i = 0; i < n; i++) ghostButton(g, links.get(i)[0], jx + i * (lw2 + 8), ly, lw2, 36, links.get(i)[1], false, links.get(i)[2]);
+        }
         return field;
+    }
+
+    /** A label with a line under it on the left and a switch on the right. Returns the y of the next row. */
+    private int toggleRow(Graphics2D g, String id, int x, int y, int w, String title, String sub, boolean on, boolean last) {
+        int h = 58;
+        rowLabel(g, x, y, h, title, sub, last, w);
+        toggle(g, id + "-sw", x + w - 40, y + h / 2 - 10, on, true);
+        hit(id, new Rectangle(x, y, w, h));
+        return y + h;
+    }
+
+    /** Evade, Fabric Loader and Fabric API: installed (in the selected instance) and newest, each with its icon. */
+    private void paintVersionRows(Graphics2D g, int x, int y, int w) {
+        Launcher.Instance sel = selected();
+        InstallerCore.Installed in = sel != null ? sel.installed : null;
+        Path apiJar = null;
+        if (sel != null) {
+            for (Mods.Entry e : mods) if ("fabric-api".equals(e.id()) || e.fileName().startsWith("fabric-api")) apiJar = e.file();
+            if (apiJar == null && in != null) apiJar = sel.dir.resolve("mods").resolve("fabric-api-" + in.fabricApiVersion() + ".jar");
+        }
+        Image api = apiJar != null && java.nio.file.Files.isRegularFile(apiJar) ? ModIcons.get(apiJar, this::repaint) : null;
+        Object[][] rows = {
+                {"Evade Client", mark, in != null ? "v" + in.evadeVersion() : "—", release != null ? "v" + release.evadeVersion() : "…"},
+                {"Fabric Loader", null, in != null ? in.loaderVersion() : "—", release != null ? release.loaderVersion() : "…"},
+                {"Fabric API", api, in != null ? InstallerCore.shortVersion(in.fabricApiVersion()) : "—", release != null ? InstallerCore.shortVersion(release.fabricApiVersion()) : "…"}};
+        int ry = y;
+        for (Object[] r : rows) {
+            modIcon(g, x, ry + 6, 32, (String) r[0], (Image) r[1], true);
+            g.setFont(interBold.deriveFont(13f));
+            g.setColor(TEXT);
+            g.drawString((String) r[0], x + 46, ry + 27);
+            String have = (String) r[2], latest = (String) r[3];
+            boolean same = have.equals(latest) || release == null;
+            g.setFont(interBold.deriveFont(12.5f));
+            FontMetrics fm = g.getFontMetrics();
+            int lx = x + w - fm.stringWidth(latest);
+            g.setColor(same ? DIM : RED_HI);
+            g.drawString(latest, lx, ry + 27);
+            if (!same) {
+                g.setFont(inter.deriveFont(12.5f));
+                String a = have + "  →  ";
+                g.setColor(FAINT);
+                g.drawString(a, lx - g.getFontMetrics().stringWidth(a), ry + 27);
+            } else icon(g, "check", lx - 16, ry + 22, 10, release == null ? FAINT : OK);
+            ry += 44;
+        }
     }
 
     private void settingRow(Graphics2D g, String id, int x, int y, int w, String title, String sub, boolean on) {
@@ -2507,7 +2649,7 @@ public final class LauncherView extends JPanel {
         Composite was = g.getComposite();
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, Math.min(1, a))));
         shadow(g, x, y, tw, 38);
-        g.setColor(new Color(0x1C1C22));
+        g.setColor(RAISED);
         g.fill(new RoundRectangle2D.Double(x, y, tw, 38, 38, 38));
         g.setColor(new Color(255, 255, 255, 24));
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, tw - 1, 37, 37, 37));
@@ -2522,8 +2664,8 @@ public final class LauncherView extends JPanel {
         Popup p = popup;
         int h = p.items().size() * 38 + 12;
         shadow(g, p.x(), p.y(), p.w(), h);
-        g.setColor(new Color(0x18181E));
-        g.fill(new RoundRectangle2D.Double(p.x(), p.y(), p.w(), h, 14, 14));
+        g.setColor(RAISED);
+        g.fill(new RoundRectangle2D.Double(p.x(), p.y(), p.w(), h, 24, 24));
         g.setColor(new Color(0x2E2E38));
         g.draw(new RoundRectangle2D.Double(p.x() + .5, p.y() + .5, p.w() - 1, h - 1, 14, 14));
         int y = p.y() + 6;
@@ -2633,22 +2775,28 @@ public final class LauncherView extends JPanel {
 
     private void memoryChips(Graphics2D g, int x, int y, int w, int value) {
         int[] opts = memoryChoices;
-        int gap = 6, sw = (w - (opts.length - 1) * gap) / Math.max(1, opts.length);
+        // one segmented control: a dark track, the chosen size filled red
+        g.setColor(FIELD);
+        g.fill(new RoundRectangle2D.Double(x, y, w, 36, 22, 22));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, 35, 22, 22));
+        int sw = (w - 8) / Math.max(1, opts.length);
         for (int i = 0; i < opts.length; i++) {
-            int sx = x + i * (sw + gap);
+            int sx = x + 4 + i * sw;
             String id = "mem:" + opts[i];
             boolean on = value == opts[i];
             float t = anim(id, id.equals(hovered));
-            g.setColor(on ? RED : mix(CARD_2, new Color(0x22222A), t));
-            g.fill(new RoundRectangle2D.Double(sx, y, sw, 34, 9, 9));
-            if (!on) {
-                g.setColor(BORDER);
-                g.draw(new RoundRectangle2D.Double(sx + .5, y + .5, sw - 1, 33, 9, 9));
+            if (on) {
+                g.setColor(RED);
+                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, 28, 16, 16));
+            } else if (t > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(12 * t)));
+                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, 28, 16, 16));
             }
             g.setFont(interBold.deriveFont(12.5f));
-            g.setColor(on ? Color.WHITE : DIM);
-            center(g, opts[i] + " GB", sx, y, sw, 34);
-            hit(id, new Rectangle(sx, y, sw, 34));
+            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            center(g, opts[i] + " GB", sx, y + 4, sw, 28);
+            hit(id, new Rectangle(sx, y + 4, sw, 28));
         }
     }
 
@@ -2710,20 +2858,12 @@ public final class LauncherView extends JPanel {
 
     private void bigButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
         float t = enabled ? anim(id, id.equals(hovered)) : 0;
-        if (enabled) {
-            glow(g, x + w / 2f, y + h * 0.75f, w * 0.6f, h * 0.9f, (int) (70 + 60 * t));
-            g.setPaint(new GradientPaint(0, y, mix(RED_HI, new Color(0xFF6070), t), 0, y + h, mix(RED, RED_HI, t)));
-        } else {
-            g.setColor(new Color(0x2A1418));
-        }
-        g.fill(new RoundRectangle2D.Double(x, y - t * 1.5, w, h, 12, 12));
-        if (enabled) {
-            g.setColor(new Color(255, 255, 255, 50));
-            g.fillRect(x + 8, (int) (y - t * 1.5) + 1, w - 16, 1);
-        }
+        if (enabled) shadowGlow(g, x, y, w, h, t);
+        g.setColor(enabled ? mix(RED, RED_HI, t) : new Color(0x2A1418));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
         g.setFont(interBold.deriveFont(15f));
         g.setColor(enabled ? Color.WHITE : FAINT);
-        center(g, label, x, (int) (y - t * 1.5), w, h);
+        center(g, label, x, y, w, h);
         hit(id, new Rectangle(x, y, w, h));
     }
 
@@ -2741,11 +2881,9 @@ public final class LauncherView extends JPanel {
     /** A compact red button, optionally with an icon before the label. */
     private void smallPrimary(Graphics2D g, String id, int x, int y, int w, int h, String label, String iconKind) {
         float t = anim(id, id.equals(hovered));
-        g.setPaint(new GradientPaint(0, y, mix(RED_HI, new Color(0xFF6070), t), 0, y + h, mix(RED, RED_HI, t)));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 10, 10));
-        g.setColor(new Color(255, 255, 255, 45));
-        g.fillRect(x + 6, y + 1, w - 12, 1);
-        g.setFont(interBold.deriveFont(12.5f));
+        g.setColor(mix(RED, RED_HI, t));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 24), Math.min(h, 24)));
+        g.setFont(interBold.deriveFont(13f));
         FontMetrics fm = g.getFontMetrics();
         int tw = fm.stringWidth(label), iw = iconKind != null ? 12 : 0, gap = iconKind != null ? 8 : 0;
         int tx = x + (w - tw - iw - gap) / 2;
@@ -2765,12 +2903,15 @@ public final class LauncherView extends JPanel {
 
     private void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
         float t = anim(id, id.equals(hovered));
-        Color base = solid ? new Color(0x3A1218) : new Color(0x18181D);
-        g.setColor(danger ? mix(base, new Color(0x4A141B), t) : mix(base, new Color(0x23232A), t));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 10, 10));
-        g.setColor(danger ? mix(new Color(0x3A1D22), RED, t) : mix(BORDER, new Color(0x3A3A44), t));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 10, 10));
-        g.setFont(interBold.deriveFont(12.5f));
+        Color base = solid ? new Color(0x3A1218) : new Color(0x1C1C22);
+        int r = Math.min(h, 24);
+        g.setColor(danger ? mix(base, new Color(0x4A141B), t) : mix(base, new Color(0x26262D), t));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, r, r));
+        if (danger) {
+            g.setColor(mix(new Color(225, 29, 46, 50), RED, t));
+            g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, r, r));
+        }
+        g.setFont(interBold.deriveFont(13f));
         int room = w - 16 - (iconKind != null ? 20 : 0);
         if (g.getFontMetrics().stringWidth(label) > room) g.setFont(interBold.deriveFont(11.5f));
         FontMetrics fm = g.getFontMetrics();
@@ -2786,9 +2927,9 @@ public final class LauncherView extends JPanel {
 
     private void smallButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
         float hc = anim(id, id.equals(hovered));
-        g.setColor(mix(CARD_2.brighter(), RED, hc));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 8, 8));
-        g.setFont(interBold.deriveFont(11.5f));
+        g.setColor(mix(new Color(0x24242B), new Color(0x2E2E36), hc));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 20), Math.min(h, 20)));
+        g.setFont(interBold.deriveFont(12f));
         g.setColor(TEXT);
         center(g, label, x, y, w, h);
         hit(id, new Rectangle(x, y, w, h));
@@ -2866,15 +3007,15 @@ public final class LauncherView extends JPanel {
 
     private void box(Graphics2D g, int x, int y, int w, int h) {
         g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 10, 10));
-        g.setColor(BORDER);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 10, 10));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 20, 20));
+        g.setColor(HAIRLINE);
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 20, 20));
     }
 
     private void label(Graphics2D g, String s, int x, int y) {
-        g.setFont(interBold.deriveFont(9.5f));
+        g.setFont(interBold.deriveFont(10f));
         g.setColor(FAINT);
-        spaced(g, s, x, y, 1.6f);
+        spaced(g, s, x, y, 1.4f);
     }
 
     /** Line icons, drawn with shapes (fonts don't reliably have these glyphs). */
@@ -2884,7 +3025,8 @@ public final class LauncherView extends JPanel {
         q.translate(cx, cy);
         double k = s / 18.0;
         q.scale(k, k);
-        q.setStroke(new BasicStroke(1.7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        // a 1.75px line at the size drawn (the icon box is 18 units)
+        q.setStroke(new BasicStroke((float) (1.75 / k), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         switch (kind) {
             case "home" -> {
                 Path2D p = new Path2D.Double();
@@ -3016,6 +3158,56 @@ public final class LauncherView extends JPanel {
                 q.draw(new Line2D.Double(2, -8, 7, -5.5));
                 q.fill(new Ellipse2D.Double(-4.5, 1.5, 7, 6));
             }
+            case "user-plus" -> {
+                q.draw(new Ellipse2D.Double(-6.5, -8, 7, 7));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-9, 8); p.curveTo(-9, 2.5, -6, 0.5, -3, 0.5); p.curveTo(0, 0.5, 3, 2.5, 3, 8);
+                q.draw(p);
+                q.draw(new Line2D.Double(6.5, -4, 6.5, 2));
+                q.draw(new Line2D.Double(3.5, -1, 9.5, -1));
+            }
+            case "users" -> {
+                q.draw(new Ellipse2D.Double(-7.5, -8, 7, 7));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-10, 8); p.curveTo(-10, 2.5, -7, 0.5, -4, 0.5); p.curveTo(-1, 0.5, 2, 2.5, 2, 8);
+                q.draw(p);
+                q.draw(new Arc2D.Double(1.5, -8, 7, 7, -90, 230, Arc2D.OPEN));
+                Path2D p2 = new Path2D.Double();
+                p2.moveTo(4.5, 0.6); p2.curveTo(7.5, 0.8, 10, 3, 10, 8);
+                q.draw(p2);
+            }
+            case "external" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(-1, -7); p.lineTo(-7, -7); p.lineTo(-7, 7); p.lineTo(7, 7); p.lineTo(7, 1);
+                q.draw(p);
+                q.draw(new Line2D.Double(0, 0, 7.5, -7.5));
+                Path2D h = new Path2D.Double();
+                h.moveTo(2.5, -7.5); h.lineTo(7.5, -7.5); h.lineTo(7.5, -2.5);
+                q.draw(h);
+            }
+            case "arrow-right" -> {
+                q.draw(new Line2D.Double(-7.5, 0, 7.5, 0));
+                Path2D p = new Path2D.Double();
+                p.moveTo(2, -5.5); p.lineTo(7.5, 0); p.lineTo(2, 5.5);
+                q.draw(p);
+            }
+            case "alert" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(0, -8); p.lineTo(8.5, 7); p.lineTo(-8.5, 7); p.closePath();
+                q.draw(p);
+                q.draw(new Line2D.Double(0, -2.5, 0, 2));
+                q.fill(new Ellipse2D.Double(-1.1, 3.6, 2.2, 2.2));
+            }
+            case "close-x" -> {
+                q.draw(new Line2D.Double(-6, -6, 6, 6));
+                q.draw(new Line2D.Double(6, -6, -6, 6));
+            }
+            case "copy" -> {
+                q.draw(new RoundRectangle2D.Double(-4, -4, 12, 12, 3, 3));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-8, 4); p.lineTo(-8, -6); p.quadTo(-8, -8, -6, -8); p.lineTo(4, -8);
+                q.draw(p);
+            }
             case "folder" -> {
                 Path2D p = new Path2D.Double();
                 p.moveTo(-8, 6.5); p.lineTo(-8, -6.5); p.lineTo(-2.5, -6.5); p.lineTo(-0.5, -4); p.lineTo(8, -4); p.lineTo(8, 6.5); p.closePath();
@@ -3139,10 +3331,26 @@ public final class LauncherView extends JPanel {
 
     static Image image(String path) {
         try (InputStream in = LauncherView.class.getResourceAsStream(path)) {
-            return ImageIO.read(in);
-        } catch (Exception e) {
+            BufferedImage img = in == null ? null : ImageIO.read(in);
+            if (img == null) System.err.println("[launcher] no picture at " + path);
+            return img != null ? argb(img) : new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        } catch (Throwable e) {
+            System.err.println("[launcher] couldn't read " + path + ": " + e);
             return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         }
+    }
+
+    /**
+     * The picture as plain 32-bit ARGB. JPEGs decode as 3-byte BGR, which some window surfaces (a translucent,
+     * round-cornered window on Linux) silently fail to draw.
+     */
+    static BufferedImage argb(BufferedImage img) {
+        if (img.getType() == BufferedImage.TYPE_INT_ARGB || img.getType() == BufferedImage.TYPE_INT_ARGB_PRE) return img;
+        BufferedImage out = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(img, 0, 0, null);
+        g.dispose();
+        return out;
     }
 
     /** Opens a popup the way a click on {@code id} would (for screenshots). */

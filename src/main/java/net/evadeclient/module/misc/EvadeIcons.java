@@ -173,8 +173,9 @@ public class EvadeIcons extends Module {
             token = res.get("token").getAsString();
             tokenExpiry = System.currentTimeMillis() + res.get("expiresIn").getAsLong() * 1000;
             statusText = "Signed in as " + name;
-            // A sign-in Friends asked for (requestSignIn) doesn't show the icon unless the icon would show anyway.
-            if (isEnabled() && shareMe.get()) heartbeat();
+            // A sign-in Friends asked for (requestSignIn) never shows the icon by itself: only in a world, with the
+            // module and "Show That I Use Evade" on, as before (onTick's heartbeat covers a world joined later).
+            if (isEnabled() && shareMe.get() && mc.getNetworkHandler() != null) heartbeat();
         });
     }
 

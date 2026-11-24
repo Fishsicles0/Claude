@@ -86,6 +86,8 @@ public class ModuleManager {
         register(new Clips());
         register(new net.evadeclient.module.misc.Replay());
         register(new EvadeIcons());
+        register(new net.evadeclient.module.misc.Friends());
+        register(new net.evadeclient.module.misc.PartyPing());
         register(new VoiceChat());
         register(new ScreenshotTools());
         // HUD

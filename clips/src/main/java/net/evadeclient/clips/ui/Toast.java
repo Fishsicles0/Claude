@@ -33,6 +33,8 @@ public final class Toast {
     private volatile boolean hovered;
     private long shownAt, holdMs;
 
+    private static final boolean OPAQUE = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+
     public void show(String title, String body, boolean error) {
         if (GraphicsEnvironment.isHeadless()) return;
         this.error = error;
@@ -40,13 +42,17 @@ public final class Toast {
             window = new JWindow();
             window.setAlwaysOnTop(true);
             window.setFocusableWindowState(false);
-            window.setBackground(new Color(0, 0, 0, 0));
+            // Windows: per-pixel see-through windows garble on HiDPI scaling (tiled garbage that stays on screen),
+            // so the toast is a normal opaque window cut to a rounded shape there; elsewhere it stays see-through.
+            if (OPAQUE) window.setBackground(new Color(0x111115));
+            else window.setBackground(new Color(0, 0, 0, 0));
             JComponent content = new JComponent() {
                 @Override protected void paintComponent(Graphics g0) {
                     Graphics2D g = (Graphics2D) g0.create();
                     // A see-through window starts from whatever was in its buffer: wipe it first, or some Windows
                     // drivers show leftover pixels around and behind the toast.
-                    g.setComposite(java.awt.AlphaComposite.Clear);
+                    g.setComposite(OPAQUE ? java.awt.AlphaComposite.Src : java.awt.AlphaComposite.Clear);
+                    g.setColor(new Color(0x111115));
                     g.fillRect(0, 0, getWidth(), getHeight());
                     g.setComposite(java.awt.AlphaComposite.SrcOver);
                     paintToast(g, getWidth(), getHeight());
@@ -69,6 +75,9 @@ public final class Toast {
         int h = lines.isEmpty() ? 54 : 72 + (lines.size() - 1) * LINE;
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
         window.setSize(new Dimension(W, h));
+        if (OPAQUE) {
+            try { window.setShape(new RoundRectangle2D.Double(0, 0, W, h, 14, 14)); } catch (Exception ignored) {} // no shaped windows: square corners
+        }
         window.setLocation(screen.x + screen.width - W - 24, screen.y + 24);
         alpha = 1;
         setOpacity(1f);

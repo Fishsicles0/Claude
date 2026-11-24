@@ -53,32 +53,23 @@ final class AppHost {
             }
         }
         String note = null;
+        hostArgs = args;
         if (legacy != null) {
             // The old separate Evade Clips is running: it would record twice and hold the clips folder. Close it.
             closeLegacy(legacy);
             locked = locked || lock(40);
             if (!locked || ClipsApp.alreadyRunning(cs.controlPort, true))
-                note = "The separate Evade Clips app is still running. Quit it from its tray icon (right-click, Quit), then reopen Evade.";
+                note = "The old Evade Clips app is still running.";
         }
 
-        App app = null;
-        if (note == null) {
-            ClipsApp.hosted = true;
-            Path self = homePath(args);
-            if (self != null && self.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe")) ClipsApp.hostExe = self;
-            else if (self != null) ClipsApp.hostJar = self;
-            // ffmpeg from the old separate app's folder still counts.
-            Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg").resolve("bin"));
-            Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg"));
-            app = ClipsApp.startCore(cs);
-        }
+        App app = note == null ? startClips(cs) : null;
         App clips = app;
         String clipsNote = note;
         LauncherApp[] launcher = new LauncherApp[1];
         SwingUtilities.invokeAndWait(() -> {
             Theme.install();
             if (clips != null) clips.toast = new Toast();
-            launcher[0] = new LauncherApp(clips, clipsNote);
+            launcher[0] = new LauncherApp(clips, clipsNote, clipsNote != null);
             launcher[0].installTray();
             if (clips != null) clips.showWindow = launcher[0]::showWindow;
             if (minimized && clips != null) launcher[0].startBackground();
@@ -94,9 +85,39 @@ final class AppHost {
         migrate.start();
     }
 
+    private static List<String> hostArgs = List.of();
+
+    /** Starts the built-in Clips (call with the single-instance lock held). */
+    private static App startClips(Settings cs) {
+        ClipsApp.hosted = true;
+        Path self = homePath(hostArgs);
+        if (self != null && self.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe")) ClipsApp.hostExe = self;
+        else if (self != null) ClipsApp.hostJar = self;
+        // ffmpeg from the old separate app's folder still counts.
+        Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg").resolve("bin"));
+        Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg"));
+        return ClipsApp.startCore(cs);
+    }
+
+    /**
+     * The "Close it now" button: closes the old separate app, takes the lock and starts the built-in Clips.
+     * Null when the old app wouldn't close. Runs off the UI thread (closing can take several seconds).
+     */
+    static synchronized App takeOver() {
+        Path legacy = legacyRunningApp();
+        if (legacy != null) closeLegacy(legacy);
+        if (!lock(40)) return null;
+        Settings cs = Settings.load();
+        if (ClipsApp.alreadyRunning(cs.controlPort, true)) return null;
+        return startClips(cs);
+    }
+
+    private static boolean haveLock;
+
     private static boolean lock(int tries) {
+        if (haveLock) return true;
         for (int i = 0; i < tries; i++) {
-            if (ClipsApp.acquireInstanceLock()) return true;
+            if (ClipsApp.acquireInstanceLock()) return haveLock = true;
             try { Thread.sleep(250); } catch (InterruptedException e) { return false; }
         }
         return false;

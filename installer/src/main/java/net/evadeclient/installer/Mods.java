@@ -40,7 +40,11 @@ final class Mods {
     }
 
     /** A Modrinth search result. */
-    record Hit(String projectId, String slug, String title, String author, String description, long downloads, int color) {}
+    record Hit(String projectId, String slug, String title, String author, String description, long downloads, int color, String iconUrl) {
+        Hit(String projectId, String slug, String title, String author, String description, long downloads, int color) {
+            this(projectId, slug, title, author, description, downloads, color, null);
+        }
+    }
 
     record Page(List<Hit> hits, int total) {}
 
@@ -174,7 +178,7 @@ final class Mods {
             try { dl = h.get("downloads").getAsLong(); } catch (RuntimeException ignored) { }
             String desc = InstallerCore.str(h, "description");
             hits.add(new Hit(InstallerCore.str(h, "project_id"), InstallerCore.str(h, "slug"), InstallerCore.str(h, "title"),
-                    InstallerCore.str(h, "author"), desc == null ? "" : desc.replaceAll("\\s+", " ").strip(), dl, color));
+                    InstallerCore.str(h, "author"), desc == null ? "" : desc.replaceAll("\\s+", " ").strip(), dl, color, InstallerCore.str(h, "icon_url")));
         }
         int total = o.has("total_hits") ? o.get("total_hits").getAsInt() : hits.size();
         return new Page(hits, total);

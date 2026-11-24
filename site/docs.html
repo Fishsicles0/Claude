@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 2.1.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta name="description" content="How to use Evade Client 2.2.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 2.1.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
+<meta property="og:description" content="How to use Evade Client 2.2.0: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.1.0</span>
+      <span class="nav-ver">v2.2.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -82,6 +82,7 @@
       <a href="#performance">Performance</a>
       <a href="#voice">Voice chat</a>
       <a href="#icons">Evade icons</a>
+      <a href="#friends">Friends &amp; parties</a>
       <a href="#clips">Clips</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
@@ -104,7 +105,7 @@
         <ul>
           <li><b>Left-click</b> a card to turn the mod on or off.</li>
           <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
-          <li><b>Start typing</b> anywhere to search all 82 mods.</li>
+          <li><b>Start typing</b> anywhere to search all 84 mods.</li>
           <li>On a mod's settings page, click <b>Toggle Key</b> and press a key to bind it. <span class="kbd">Esc</span> cancels; right-click, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears a key. Keys a mod uses while it's on, like <b>Zoom Key</b> or <b>Freelook Key</b>, are separate settings on the same page and bind the same way.</li>
           <li><b>Middle-click</b> a setting to put it back to its default, or click <b>Reset</b> to put the whole mod back.</li>
         </ul>
@@ -180,6 +181,18 @@
         <p>Your icon is verified through Mojang's sign-in check, the one servers already use, so it can't be faked. Evade only learns your username and player ID; your password and login token stay between you and Mojang. Icons need a Microsoft account; offline or cracked accounts don't get one.</p>
       </div>
 
+      <div class="doc-sec rv" id="friends">
+        <h2>Friends &amp; parties</h2>
+        <p>Click your name at the bottom of the menu's sidebar to open <b>Friends</b>, then <b>Turn on Friends</b>. Nothing is sent to us until you do. Evade checks your Minecraft account the same way as for <a href="#icons">Evade icons</a>, so friends need a Microsoft account and Evade too.</p>
+        <ul>
+          <li><b>Friends</b> &mdash; type a friend's Minecraft name and click <b>Add</b>. Evade asks Mojang which account has that name, so a request always goes to the right player. Your friends list shows who's online and, if they share it, which server they're on. Up to 300 friends.</li>
+          <li><b>Requests</b> &mdash; accept, decline or block friend requests, and join or decline party invites. Invites lapse after 10 minutes.</li>
+          <li><b>Party</b> &mdash; invite online friends (up to 8 players). The leader can make someone else leader or remove a member. A party with nobody online for 12 hours ends.</li>
+          <li><b>Settings</b> &mdash; <b>Allow friend requests</b>, <b>Share my server with friends</b> (on by default), toasts, Party Ping, your blocked players and <b>Delete my social data</b>.</li>
+        </ul>
+        <p><b>Party Ping</b> (Misc): in a party, press the middle mouse button to mark the block, mob or player you're looking at, up to 256 blocks away; hold Sneak for a danger ping. Party members on the <b>same server</b> see a marker with your name, distance and coordinates for 10 seconds, a toast, a sound and a dot on their minimap. Nobody else gets it, and pings aren't stored. Out of a party the button does nothing extra, and in creative it still picks the block you look at within reach (switch off <b>Keep Pick Block In Creative</b>, or bind <b>Ping Key</b> to a side button). Pings only work on public multiplayer servers, never in singleplayer or on a LAN address, and a server can switch Party Ping off for its players.</p>
+      </div>
+
       <div class="doc-sec rv" id="clips">
         <h2>Clips</h2>
         <p>Turn on <b>Clips</b> (Misc) to keep your best moments; it's already on if you use the <a href="/clips">Evade Launcher</a>, which has Evade Clips built in. Its <b>Recorder</b> setting picks where clips go:</p>
@@ -221,6 +234,9 @@
           <div><code>.clips last</code><span>Open your last clip in the Evade Clips editor</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
           <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
+          <div><code>.friend add | remove | accept | decline | block | unblock &lt;name&gt;</code><span>Friends; <code>.friend list</code> shows who's online, <code>.friend requests</code> what's waiting</span></div>
+          <div><code>.party invite | kick | leader &lt;name&gt;</code><span>Your party; also <code>.party accept</code>, <code>.party decline</code>, <code>.party leave</code> and <code>.party list</code></span></div>
+          <div><code>.ping [danger|loot]</code><span>Ping where you're looking, for your party on the same server</span></div>
           <div><code>.save</code><span>Save your config now</span></div>
           <div><code>.load</code><span>Reload your config from disk</span></div>
         </div>
@@ -268,11 +284,11 @@
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=2b04668829">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=31a626559a">Download</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.1.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.2.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
