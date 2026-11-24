@@ -97,13 +97,24 @@ final class Profile {
      */
     static BufferedImage face(String uuid) {
         if (uuid == null || !uuid.matches("[0-9a-fA-F]{32}")) return null;
-        Path cache = Launcher.dataDir().resolve("heads").resolve(uuid.toLowerCase() + ".png");
+        return fetch(Launcher.dataDir().resolve("heads").resolve(uuid.toLowerCase() + ".png"),
+                "https://mc-heads.net/avatar/" + uuid + "/64", "https://crafatar.com/avatars/" + uuid + "?size=64&overlay");
+    }
+
+    /** A full-body render of {@code uuid}'s skin (a transparent PNG), cached for a day like the face. */
+    static BufferedImage body(String uuid) {
+        if (uuid == null || !uuid.matches("[0-9a-fA-F]{32}")) return null;
+        return fetch(Launcher.dataDir().resolve("heads").resolve(uuid.toLowerCase() + "-body.png"),
+                "https://mc-heads.net/body/" + uuid + "/right", "https://crafatar.com/renders/body/" + uuid + "?overlay");
+    }
+
+    private static BufferedImage fetch(Path cache, String... urls) {
         try {
             if (Files.exists(cache) && System.currentTimeMillis() - Files.getLastModifiedTime(cache).toMillis() < 86_400_000L)
                 return ImageIO.read(cache.toFile());
         } catch (IOException ignored) { }
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NORMAL).build();
-        for (String url : new String[]{"https://mc-heads.net/avatar/" + uuid + "/64", "https://crafatar.com/avatars/" + uuid + "?size=64&overlay"}) {
+        for (String url : urls) {
             try {
                 HttpResponse<byte[]> res = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(5))
                         .header("user-agent", "EvadeLauncher").GET().build(), HttpResponse.BodyHandlers.ofByteArray());
