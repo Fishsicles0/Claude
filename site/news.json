@@ -1,6 +1,25 @@
 {
- "version": "2.2.0",
+ "version": "2.3.0",
  "entries": [
+  {
+   "id": "v2.3.0",
+   "title": "v2.3.0",
+   "date": "2026-11-24",
+   "dateText": "24 Nov 2026",
+   "summary": "The biggest update yet: friend messages, a new HUD editor, OptiFine-style resource packs, and a launcher that stays with you while you play.",
+   "items": [
+    "Friends: message friends and chat with your party (.msg, .reply, .pc, or the new Chat tab), Join a friend's server or Bring your party to yours (you always confirm first), and friends' names in your colour in chat and the tab list. Messages are passed on, never stored.",
+    "HUD editor: undo and redo, select several widgets and line them up, nudge with the arrow keys, lock widgets, right-click to add one, ready-made layouts and HUD codes to share yours.",
+    "New widgets: Custom Text with live values like {fps}, {ping} and {biome}, much deeper Potion Effects, and titles, the action bar and subtitles you can move and resize.",
+    "Colour picker: a full picker with transparency, hex codes and your recent colours on every colour setting.",
+    "Menu and keys: Tab completes dot commands, a Keybinds page that shows clashes, hold or toggle keys with Ctrl/Shift/Alt combos, pinned mods, share one mod's settings as a code, a Waypoint Manager with icons, clickable coordinates in chat, a first-run setup with \"Tune for my PC\", and Streamer Mode.",
+    "Graphics: resource packs with connected textures, custom items, mob textures and models, and custom skies now work (the launcher adds the mods that read them), optional dynamic lights, a picker for any shader pack, Benchmark Every FPS Mode, Borderless Fullscreen, and the new 1.21.11 video options in every FPS Mode.",
+    "Chat and tab list: Coords Guard stops you posting your own coordinates by accident, a Hypixel chat clean-up, ping colours, friends or yourself first, and map, book and banner previews in tooltips.",
+    "Evade Launcher: stays open after Play and shows when you're playing, play time and a Stop button; a Game page with live logs (share them safely) and crash help with one-click fixes; per-instance memory, Java, window size and icon; resource packs, shaders, data packs and modpacks from Modrinth; Update all; mod checks; world backups; and modpack import and export.",
+    "Fixes: Play now always opens the Evade profile (an already-open Minecraft Launcher used to start an older one), the \"old Evade Clips app is still running\" warning no longer appears by mistake, and Evade Clips can record your game's sound on Windows."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.3.0"
+  },
   {
    "id": "v2.2.0",
    "title": "v2.2.0",
@@ -84,23 +103,6 @@
     "Evade icons in the tab list, Pack Tweaks (low fire, no pumpkin blur), a privacy policy, and fixes for Windows players, including the firework \"Ticking Particle\" crash and the menu on scaled screens."
    ],
    "url": "https://evadeclient.com/changelog#v1.18.1"
-  },
-  {
-   "id": "v1.0.0",
-   "title": "v0.1 – v1.0",
-   "date": "2026-11-21",
-   "dateText": "21 Nov 2026",
-   "summary": "The first release of Evade: a server-safe, quality-of-life client for Minecraft 1.21.11.",
-   "items": [
-    "A full HUD: cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.",
-    "The menu: List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.",
-    "Profiles: named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.",
-    "Controls & camera: zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and an adjustable third-person camera distance.",
-    "Visuals: NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.",
-    "Quality of life: waypoints, better tooltips, auto-reconnect, better chat, alerts for your own totem pops and low armour, AutoGG, AutoTip, a TNT timer and Nick Hider.",
-    "A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched."
-   ],
-   "url": "https://evadeclient.com/changelog#v1.0.0"
   }
  ]
 }

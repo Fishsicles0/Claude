@@ -552,9 +552,19 @@ def scan_mods(new: set) -> list:
         if re.search(r"\babstract\s+class\b", src):
             continue
         cls = f.stem
-        if not re.search(r"register\(\s*new\s+(?:[\w.]+\.)?" + cls + r"\s*\(\s*\)\s*\)", registered):
+        numbered = re.search(r"register\(\s*new\s+(?:[\w.]+\.)?" + cls + r"\s*\(\s*\w+\s*\)\s*\)", registered)
+        if not numbered and not re.search(r"register\(\s*new\s+(?:[\w.]+\.)?" + cls + r"\s*\(\s*\)\s*\)", registered):
             continue
         head = module_header(src)
+        if numbered and not head:
+            # several numbered copies (e.g. Custom Text 1-3): one entry, named without the number
+            sm = re.search(r'\bsuper\s*\(\s*"([^"]+?)\s*"\s*\+\s*\w+\s*,', src)
+            if sm:
+                rest = split_top(balanced(src, src.index("(", sm.start()))[0])
+                desc = java_string(resolve(rest[1], [src])) if len(rest) > 1 else None
+                cat = next((c.group(1) for a in rest[2:] for c in [re.fullmatch(r"(?:[\w.]+\.)?Category\.([A-Z_]+)", a)] if c), None)
+                if desc is not None:
+                    head = (sm.group(1).strip(), desc, cat)
         if not head:
             continue
         name, desc, cat = head

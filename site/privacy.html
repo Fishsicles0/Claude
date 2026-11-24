@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.2.0</span>
+      <span class="nav-ver">v2.3.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -121,9 +121,12 @@
           <li><b>Reports:</b> if you report a player, we keep your UUID, theirs, what you wrote and when, for review, for up to 90 days.</li>
         </ul>
         <p><b>Who sees what:</b> your friends see your username, whether you're online, when you were last online and, if you share it, your server. Party members see the same. Someone who sends you a friend request sees your username and whether you accepted. Players can only find you by your exact username, and only while you allow friend requests. When you add someone by name, your game asks Mojang which account has that name, and it asks Mojang for the current names of your friends and of players who send you requests or invites, so names can't be faked; those requests go from your computer to Mojang, not through us.</p>
-        <p><b>Party pings</b> are not stored. A ping (a position, a dimension and a kind such as "danger") is passed straight on only to members of your party who are online on the same server address as you, and to nobody else; your party members see your name, the position and its distance. Turning on a party with someone is both of you choosing to share these positions. Blocking a player stops their requests, invites and pings.</p>
+        <p><b>Party pings</b> are not stored. A ping (a position, a dimension and a kind such as "danger") is passed straight on only to members of your party who are online on the same server address as you, and to nobody else; your party members see your name, the position and its distance. Turning on a party with someone is both of you choosing to share these positions. Blocking a player stops their requests, invites, messages and pings.</p>
+        <p><b>Messages and party chat</b> are not stored either. A message (plain text, at most 256 characters) goes from your game to us and is passed straight on to the friend you wrote to, or to the members of your party who are online, and to nobody else. It is only delivered to someone who is online at that moment: if they're offline it's refused, not kept for later. If their game is checking in every 15 seconds instead of staying connected, the message waits in our server's memory for their next check, 30 seconds at most, and is then gone. We never write the text of a message to disk or to logs, and we can't show it to anyone later; we only count how many messages you send in an hour, to stop spam. Conversations are kept in your game's memory while it runs and are never saved to your computer. You can only message friends and your party, and blocking a player stops their messages.</p>
+        <p><b>Join and "Bring party here":</b> a <b>Join</b> button appears for a friend only when they share their server, and a party leader can send the party the address of the server they're on. Nothing joins for you: you click Join, check the address, and confirm. The address a leader sends is passed on like a message and not stored.</p>
+        <p><b>Friend colours</b> (your friends' names in their own colour in chat and the tab list) and <b>Highlighted Players</b> work only on your computer; that list is never sent to us.</p>
         <p><b>How long:</b> everything above is deleted automatically once your account hasn't used Friends for <b>90 days</b>. <b>Delete my social data</b> (Friends &rarr; Settings) deletes it all straight away; your friends simply see you removed. Switching Friends off disconnects you.</p>
-        <p><b>Why:</b> to provide friends, parties and pings, which you choose to use. We never sell or share this data, and we don't use it for anything else.</p>
+        <p><b>Why:</b> to provide friends, parties, pings and messages, which you choose to use. We never sell or share this data, and we don't use it for anything else.</p>
       </div>
 
       <div class="doc-sec rv" id="installer">
@@ -187,11 +190,11 @@
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=31a626559a">Download</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=d4c1af4b97">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.2.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.3.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
