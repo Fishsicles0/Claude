@@ -42,6 +42,8 @@ public final class ReplayProject {
         public boolean clearWeather, noFog, hideNametags, hideHud = true, greenScreen, hideSelf;
         /** UUIDs of players and mobs to hide. */
         public List<String> hidden = new ArrayList<>();
+        /** HUD mods (by name) left out while watching this replay and in its videos. */
+        public List<String> hiddenHud = new ArrayList<>();
         /** Time-of-day keyframes: the sky moves on from one to the next (always forwards), e.g. a sunset timelapse. */
         public List<TimeKey> timeKeys = new ArrayList<>();
 

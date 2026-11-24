@@ -73,6 +73,8 @@ public final class Hud {
         try {
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled() || !el.shouldShow()) continue;
+                // hidden in this replay (the replay editor's HUD mods list)
+                if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
                 try {
                     if (PROFILE != null) {
                         long t = System.nanoTime();

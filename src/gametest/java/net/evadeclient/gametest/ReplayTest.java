@@ -406,6 +406,32 @@ final class ReplayTest {
         long midday = ctx.computeOnClient(c -> c.world.getTimeOfDay() % 24000);
         ctx.runOnClient(c -> ReplayPlayer.current().project.scene.timeKeys.clear());
         check(Math.abs(midday - 7000) < 400, "time-of-day keyframes: halfway from morning to night the sky shows " + midday + " (7000 expected)");
+
+        // HUD mods in the replay: one hidden is no longer drawn while the others still are
+        String drawnName = ctx.computeOnClient(c -> {
+            for (var m : net.evadeclient.EvadeClient.modules.hudElements()) if (m.isEnabled()) return m.getName();
+            return null;
+        });
+        check(drawnName != null, "a HUD mod is on to test with (" + drawnName + ")");
+        java.util.function.Supplier<java.util.Set<String>> drawn = () -> {
+            ctx.runOnClient(c -> net.evadeclient.module.HudElementModule.STYLE_PROBE = new java.util.concurrent.ConcurrentHashMap<>());
+            ctx.waitTicks(3);
+            return ctx.computeOnClient(c -> {
+                var seen = new java.util.HashSet<>(net.evadeclient.module.HudElementModule.STYLE_PROBE.keySet());
+                net.evadeclient.module.HudElementModule.STYLE_PROBE = null;
+                return seen;
+            });
+        };
+        var before = drawn.get();
+        ctx.runOnClient(c -> ReplayPlayer.current().project.scene.hiddenHud.add(drawnName));
+        var after = drawn.get();
+        ctx.runOnClient(c -> c.setScreen(new net.evadeclient.replay.ReplayHudScreen(null, ReplayPlayer.current().project)));
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("evade-replay-hud-mods");
+        ctx.runOnClient(c -> { c.setScreen(null); ReplayPlayer.current().project.scene.hiddenHud.clear(); });
+        var restored = drawn.get();
+        check(before.contains(drawnName) && !after.contains(drawnName) && after.size() == before.size() - 1 && restored.contains(drawnName),
+                "HUD mods in the replay: hiding \"" + drawnName + "\" takes only it off the screen (" + before.size() + " drawn, then " + after.size() + "), and it comes back");
         ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.project.render.from = -1; p.project.render.to = -1; });
 
         // the editor's three tabs

@@ -106,6 +106,8 @@ video.
   and rendered into the video. The API is compiled against small stand-ins in `src/svcstub` (never packaged).
 - **Player POV**: V (or *View* in the editor's Camera tab) watches through a player's eyes, who recorded first, then
   each other player, then back to the free camera; renders use it too (it takes over from a camera path while on).
+- **HUD mods per replay**: Scene tab → *HUD mods* hides chosen HUD widgets (FPS, Keystrokes, CPS...) while watching that
+  replay and in its videos; the normal HUD is unchanged. Also: POV hands, Follow (track entity), time-of-day keyframes.
 - **Free camera** flies at normal speed whatever the replay speed (the game's own movement would slow with it).
 - Files: `.minecraft/evade/replays/*.evadereplay` (a zip: `meta.json` + the recorded stream), camera paths in
   `*.evadereplay.project.json` beside them, renders in `.minecraft/evade/renders`.

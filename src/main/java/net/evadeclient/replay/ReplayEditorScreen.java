@@ -152,6 +152,10 @@ public final class ReplayEditorScreen extends Screen {
         y += 20;
         action(x, y, 92, "Hide target", this::hideTargeted, "Hide the player or mob the camera is looking at (close the editor with E to aim)");
         action(x + 96, y, 92, "Unhide all (" + s.hidden.size() + ")", () -> s.hidden.clear(), null);
+        y += 20;
+        action(x, y, 188, "HUD mods" + (s.hiddenHud.isEmpty() ? "" : " (" + s.hiddenHud.size() + " hidden)"),
+                () -> client.setScreen(new ReplayHudScreen(this, project())),
+                "Choose which HUD mods (FPS, Keystrokes, CPS...) show while watching and in videos of this replay");
     }
 
     private void renderTab(int x, int y) {

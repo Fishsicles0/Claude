@@ -293,6 +293,12 @@ public final class ReplayOverrides {
 
     // ------------------------------------------------------------------ read by render hooks
 
+    /** Whether the HUD mod {@code name} is hidden in the replay being watched or rendered. */
+    public static boolean hudHidden(String name) {
+        ReplayProject pr = active() ? project() : null;
+        return pr != null && pr.scene.hiddenHud != null && pr.scene.hiddenHud.contains(name);
+    }
+
     public static boolean hideNametags() { ReplayProject pr = active() ? project() : null; return pr != null && pr.scene.hideNametags; }
     public static boolean greenScreen() { ReplayProject pr = active() ? project() : null; return pr != null && pr.scene.greenScreen; }
 
