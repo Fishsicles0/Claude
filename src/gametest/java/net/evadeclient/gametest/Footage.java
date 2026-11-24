@@ -33,7 +33,11 @@ import java.util.function.IntConsumer;
  * Opponents are mannequins (player-shaped, with the game's built-in skins) moved by commands.
  */
 final class Footage {
-    private static final int W = 1280, H = 720;
+    // -Devade.footage.size=1080x1920 films vertical (TikTok/Shorts); -Devade.footage.hud=true keeps a PvP HUD on screen
+    private static final String[] SIZE = System.getProperty("evade.footage.size", "1280x720").split("x");
+    private static final int W = Integer.parseInt(SIZE[0]), H = Integer.parseInt(SIZE[1]);
+    private static final boolean HUD = Boolean.getBoolean("evade.footage.hud");
+    private final List<String> events = new java.util.ArrayList<>();
     private final ClientGameTestContext ctx;
     private final TestSingleplayerContext sp;
     private final Path root = Path.of(System.getProperty("evade.footage.dir", "../footage")).toAbsolutePath();
@@ -161,6 +165,13 @@ final class Footage {
                 e -> e.getType() == EntityType.MANNEQUIN && e.isAlive() && e.getHealth() > 0);
     }
 
+    /** Attacks and logs the frame, so an editor can cut and shake on real hits (events.txt next to the frames). */
+    private void hit(MinecraftClient c, net.minecraft.entity.Entity e) {
+        c.interactionManager.attackEntity(c.player, e);
+        c.player.swingHand(Hand.MAIN_HAND);
+        events.add(frame + " " + (e instanceof EndCrystalEntity ? "crystal" : "hit"));
+    }
+
     /** Turns the camera towards a point, at most {@code step} degrees per tick (like a mouse flick). */
     private static float aim(MinecraftClient c, Vec3d at, float step) {
         Vec3d eye = c.player.getEyePos();
@@ -191,8 +202,7 @@ final class Footage {
         float cd = c.player.getAttackCooldownProgress(0);
         c.options.jumpKey.setPressed(close && cd > 0.55f && cd < 0.8f && c.player.isOnGround());
         if (dist < 3.6 && off < 20 && cd >= 0.95f && !c.player.isOnGround() && c.player.getVelocity().y < 0 || dist < 3.4 && off < 20 && cd >= 1f && t % 4 == 0) {
-            c.interactionManager.attackEntity(c.player, f);
-            c.player.swingHand(Hand.MAIN_HAND);
+            hit(c, f);
         }
     }
 
@@ -204,6 +214,7 @@ final class Footage {
         Files.createDirectories(dir);
         try (var old = Files.list(dir)) { for (Path f : old.toList()) Files.delete(f); }
         frame = 0;
+        events.clear();
         long t0 = System.currentTimeMillis();
         int quiet = 0;
         for (tick = 0; tick < ticks && quiet < 32; tick++) {
@@ -217,6 +228,7 @@ final class Footage {
             }
         }
         ctx.runOnClient(Footage::release);
+        Files.write(dir.resolve("events.txt"), events);
         System.out.println("[footage] " + name + ": " + frame + " frames in " + (System.currentTimeMillis() - t0) / 1000 + " s");
     }
 
@@ -248,11 +260,15 @@ final class Footage {
                 var m = EvadeClient.modules.get(n);
                 if (m != null && m.isEnabled()) m.setEnabled(false);
             }
-            c.options.getFov().setValue(90);
+            if (HUD) for (String n : new String[]{"Watermark", "Keystrokes", "CPS", "Combo Counter", "Reach Display", "ArmorHUD", "Totem Counter", "Potion Effects", "Hit Color"}) {
+                var m = EvadeClient.modules.get(n);
+                if (m != null && !m.isEnabled()) m.setEnabled(true);
+            }
+            c.options.getFov().setValue(H > W ? 105 : 90); // Minecraft's FOV is vertical: widen it for a portrait frame
             c.options.getViewDistance().setValue(8);
             c.options.getBobView().setValue(true);
         });
-        // Film at the window's real size, so the HUD and crosshair are laid out for 1280x720.
+        // Film at the window's real size, so the HUD and crosshair are laid out for it.
         ctx.getInput().resizeWindow(W, H);
         ctx.waitTicks(20);
         System.out.println("[footage] window " + ctx.computeOnClient(c -> c.getWindow().getFramebufferWidth() + "x" + c.getWindow().getFramebufferHeight()));
@@ -304,12 +320,10 @@ final class Footage {
                 else if (cycle >= 20 && cycle <= 30 && cycle % 2 == 0) {
                     var crystals = c.world.getEntitiesByClass(EndCrystalEntity.class, c.player.getBoundingBox().expand(8), e -> true);
                     if (!crystals.isEmpty()) {
-                        c.interactionManager.attackEntity(c.player, crystals.get(0));
-                        c.player.swingHand(Hand.MAIN_HAND);
+                        hit(c, crystals.get(0));
                     }
                 } else if (cycle > 32 && !foes.isEmpty() && foes.get(0).squaredDistanceTo(c.player) < 13 && c.player.getAttackCooldownProgress(0) >= 1f) {
-                    c.interactionManager.attackEntity(c.player, foes.get(0));
-                    c.player.swingHand(Hand.MAIN_HAND);
+                    hit(c, foes.get(0));
                 }
             });
         });
@@ -346,8 +360,7 @@ final class Footage {
                 c.player.setVelocity(0, c.player.getVelocity().y, c.player.getVelocity().z);
                 float cd = c.player.getAttackCooldownProgress(0);
                 if (!walk && cd >= 1f) {
-                    c.interactionManager.attackEntity(c.player, f);
-                    c.player.swingHand(Hand.MAIN_HAND);
+                    hit(c, f);
                 }
             });
         });

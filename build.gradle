@@ -67,6 +67,10 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
         vmArg "-Devade.footage=true"
         vmArg "-Devade.footage.dir=${layout.buildDirectory.dir('footage').get().asFile.absolutePath}"
         vmArg "-Devade.footage.only=${project.findProperty('footage') ?: ''}"
+        // `-PfootageSize=1080x1920 -PfootageHud` films vertical with a PvP HUD on (scripts/film-footage.sh --vertical)
+        if (project.hasProperty('footageSize')) vmArg "-Devade.footage.size=${project.findProperty('footageSize')}"
+        if (project.hasProperty('footageHud')) vmArg "-Devade.footage.hud=true"
+        if (project.hasProperty('footageDir')) vmArg "-Devade.footage.dir=${file(project.findProperty('footageDir')).absolutePath}"
     }
 }
 
