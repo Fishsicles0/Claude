@@ -41,8 +41,6 @@ public class DiscordPresence extends Module {
     private String lastState = "";
     private long stateSince = System.currentTimeMillis() / 1000;
     private int ticks;
-    private volatile String status = "Starting";
-    private volatile String lastError = "";
 
     public DiscordPresence() {
         super("Discord Presence", "Shows Evade Client on your Discord profile.", Category.MODS);
@@ -51,10 +49,6 @@ public class DiscordPresence extends Module {
 
     @Override
     protected boolean alwaysRunHooks() { return true; }
-
-    /** Shown next to the module name in the menu, so it's obvious whether it's working. */
-    @Override
-    public String getSuffix() { return status; }
 
     @Override
     protected void onDisable() {
@@ -141,42 +135,19 @@ public class DiscordPresence extends Module {
                     lastSent = null;
                     return;
                 }
-                if (ipc == null) {
-                    ipc = DiscordIpc.connect(APP_ID);
-                    EvadeClient.LOG.info("[Discord Presence] Connected to Discord");
-                }
-                try {
-                    ipc.setActivity(activity);
-                } catch (DiscordIpc.Rejected rejected) {
-                    // Discord refused part of it (usually the image or button). Fall back to the basics.
-                    report("Discord rejected the full presence, using a simple one: " + rejected.getMessage());
-                    JsonObject basic = activity.deepCopy();
-                    basic.remove("assets");
-                    basic.remove("buttons");
-                    ipc.setActivity(basic);
-                }
+                if (ipc == null) ipc = DiscordIpc.connect(APP_ID);
+                ipc.setActivity(activity);
                 lastSent = activity.toString();
-                status = "Connected";
-                lastError = "";
             } catch (Exception e) {
                 // Discord closed or not running: drop the connection and try again later.
                 if (ipc != null) ipc.close();
                 ipc = null;
                 lastSent = null;
                 nextAttempt = System.currentTimeMillis() + RETRY_MS;
-                status = e.getMessage() != null && e.getMessage().contains("isn't running") ? "Discord not found" : "Error";
-                report(e.toString());
             } finally {
                 busy = false;
             }
         });
-    }
-
-    /** Logs each distinct problem once, so latest.log explains what's wrong without spamming it. */
-    private void report(String message) {
-        if (message.equals(lastError)) return;
-        lastError = message;
-        EvadeClient.LOG.warn("[Discord Presence] {}", message);
     }
 
     private static String version(String modId) {
