@@ -243,9 +243,18 @@ public final class CaptureEngine {
         // -thread_queue_size applies to the next input. A short queue on the video grabber means a lagging
         // encoder makes it skip frames, instead of buffering seconds (and gigabytes) of raw frames that leave
         // replays ending before the key press. Audio packets are tiny, so audio gets a deep queue.
+        // Not for filter-graph inputs (-f lavfi, e.g. Windows ddagrab): newer ffmpeg refuses the option there
+        // ("cannot be applied to input url ddagrab=...") and the capture never starts.
         int input = 0;
+        String format = null;
         for (String v : in.args()) {
-            if (v.equals("-i")) args.addAll(List.of("-thread_queue_size", input++ == 0 ? "16" : "512"));
+            if (v.equals("-i")) {
+                boolean filterInput = "lavfi".equals(format);
+                int n = input++;
+                if (!filterInput) args.addAll(List.of("-thread_queue_size", n == 0 ? "16" : "512"));
+                format = null;
+            }
+            if (format == null && !args.isEmpty() && "-f".equals(args.get(args.size() - 1))) format = v;
             args.add(v);
         }
         args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));

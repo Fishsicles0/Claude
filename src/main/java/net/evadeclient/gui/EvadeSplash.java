@@ -29,55 +29,32 @@ public final class EvadeSplash {
     private static final int BG = 0x0B0B10, ACCENT = 0xE11D2E, TRACK = 0x26262E;
     private static boolean loaded, failed;
     private static int markW, markH, wordW, wordH;
-    private static float shown;
 
     private EvadeSplash() {}
 
-    /**
-     * Called at the end of the game's loading-screen render. {@code progress} is the game's smoothed progress,
-     * {@code completeTime}/{@code startTime} its fade timestamps (-1 when unset), {@code reloading} true for a
-     * resource-pack reload (which fades in over the current screen).
-     */
-    public static void render(DrawContext ctx, float progress, long completeTime, long startTime, boolean reloading) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        int w = ctx.getScaledWindowWidth(), h = ctx.getScaledWindowHeight();
-        long now = Util.getMeasuringTimeMs();
-        float done = completeTime > -1L ? (now - completeTime) / 1000f : -1f;
-        float start = startTime > -1L ? (now - startTime) / 500f : -1f;
-        float alpha;
-        if (done >= 1f) alpha = 1f - MathHelper.clamp(done - 1f, 0f, 1f);
-        else if (reloading) alpha = MathHelper.clamp(start, 0f, 1f);
-        else alpha = 1f;
-        if (alpha <= 0f) return;
-        int a = Math.round(alpha * 255);
+    /** The loading screen's background (RGB; the game adds its own fade alpha). */
+    public static final int BACKGROUND = BG;
 
-        ctx.fill(0, 0, w, h, (a << 24) | BG);
-        // a soft red glow behind the logo
-        int glowR = Math.min(w, h) / 2;
-        for (int i = 6; i >= 1; i--) {
-            int r = glowR * i / 6, ga = Math.round(a * 0.035f);
-            ctx.fill(w / 2 - r, h / 2 - r * 2 / 3, w / 2 + r, h / 2 + r * 2 / 3, (ga << 24) | ACCENT);
-        }
+    /** Evade's mark and wordmark, {@code height} tall, centred on {@code centerX}; {@code color} carries the fade. */
+    public static void drawLogo(DrawContext ctx, int centerX, int top, int height, int color) {
+        load(MinecraftClient.getInstance());
+        if (failed || height <= 0) return;
+        int mw = Math.round(height * markW / (float) markH);
+        int wh = Math.round(height * 0.62f), ww = Math.round(wh * wordW / (float) wordH);
+        int total = mw + height / 3 + ww, x = centerX - total / 2;
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, MARK, x, top, 0, 0, mw, height, markW, markH, markW, markH, color);
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, WORD, x + mw + height / 3, top + (height - wh) / 2, 0, 0, ww, wh, wordW, wordH, wordW, wordH, color);
+    }
 
-        load(mc);
-        int logoH = Math.max(16, Math.min(h / 7, w / 14));
-        int cy = h / 2 - logoH / 2 - 6;
-        if (!failed) {
-            int mw = Math.round(logoH * markW / (float) markH);
-            int ww = Math.round(logoH * 0.62f * wordW / (float) wordH), wh = Math.round(logoH * 0.62f);
-            int total = mw + logoH / 3 + ww, x = w / 2 - total / 2;
-            int color = (a << 24) | 0xFFFFFF;
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, MARK, x, cy, 0, 0, mw, logoH, markW, markH, markW, markH, color);
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, WORD, x + mw + logoH / 3, cy + (logoH - wh) / 2, 0, 0, ww, wh, wordW, wordH, wordW, wordH, color);
-        }
-
-        // progress: eased so it never jumps backwards
-        shown = Math.max(shown * (done > -1f ? 0f : 1f), MathHelper.clamp(progress, 0f, 1f));
-        int barW = Math.min(w * 2 / 5, 240), barH = Math.max(2, logoH / 14);
-        int bx = w / 2 - barW / 2, by = cy + logoH + Math.max(10, logoH / 2);
-        ctx.fill(bx, by, bx + barW, by + barH, (Math.round(a * 0.9f) << 24) | TRACK);
-        int fill = Math.round(barW * (done > -1f ? 1f : shown));
-        if (fill > 0) ctx.fill(bx, by, bx + fill, by + barH, (a << 24) | ACCENT);
+    /** A slim red bar on a dark track in place of the game's white one; {@code opacity} is the game's fade. */
+    public static void drawBar(DrawContext ctx, int minX, int minY, int maxX, int maxY, float opacity, float progress) {
+        int a = Math.round(MathHelper.clamp(opacity, 0f, 1f) * 255);
+        if (a <= 0) return;
+        int midY = (minY + maxY) / 2, half = Math.max(1, (maxY - minY) / 4);
+        int y1 = midY - half, y2 = midY + half;
+        ctx.fill(minX, y1, maxX, y2, (Math.round(a * 0.9f) << 24) | TRACK);
+        int fill = Math.round((maxX - minX) * MathHelper.clamp(progress, 0f, 1f));
+        if (fill > 0) ctx.fill(minX, y1, minX + fill, y2, (a << 24) | ACCENT);
     }
 
     /** Reads the logo images from Evade's jar once and registers them as textures. */

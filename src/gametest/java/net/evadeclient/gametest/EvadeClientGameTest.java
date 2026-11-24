@@ -2079,6 +2079,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         boolean overlay = ctx.computeOnClient(c -> c.getOverlay() instanceof net.minecraft.client.gui.screen.SplashOverlay);
         ctx.waitFor(c -> c.getOverlay() == null, 20 * 60);
         check(overlay, "The Evade loading screen shows while resources load");
+        // The test framework expects every run to end on the game's own title screen.
+        disable(ctx, net.evadeclient.module.misc.TitleScreenModule.class);
     }
 
     /** Fullbright really lights the picture (with Sodium, BadOptimizations and the other FPS mods loaded). */
