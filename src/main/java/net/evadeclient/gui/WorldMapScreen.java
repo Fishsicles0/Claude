@@ -178,13 +178,17 @@ public final class WorldMapScreen extends Screen {
         if (followPlayer) { camX = px; camZ = pz; }
 
         boolean ceiling = client.world.getDimension().hasCeiling();
+        // GUI elements in one layer are batched by pipeline, not drawn in order: each stage gets its own layer.
+        ctx.createNewRootLayer();
         int mode = shadeMode();
         boolean wd = waterDepth();
         if (!ceiling && textures.begin(mode, wd)) {
             drawTerrain(ctx, mode, wd);
+            ctx.createNewRootLayer();
             WorldMap w = wm();
             if (w == null || w.showWaypoints.get()) drawWaypoints(ctx, mx, my);
             if (w == null || w.showTeammates.get()) drawTeammates(ctx, td);
+            ctx.createNewRootLayer();
             drawArrow(ctx, sx(px), sy(pz), p.getYaw(td));
         } else {
             String a = ceiling && client.world.getRegistryKey() == World.NETHER ? "No map in the Nether" : ceiling ? "No map in this dimension" : "Nothing mapped here yet";
@@ -194,9 +198,10 @@ public final class WorldMapScreen extends Screen {
             centred(ctx, b, height / 2 + 8, Theme.TEXT_DIM, Role.BODY);
         }
 
+        ctx.createNewRootLayer();
         drawBar(ctx, mx, my, ceiling);
         if (!ceiling) drawInfo(ctx, mx, my);
-        if (menuPoint != null) drawMenu(ctx, mx, my);
+        if (menuPoint != null) { ctx.createNewRootLayer(); drawMenu(ctx, mx, my); }
         textures.trim(Math.max(16, MapStore.capacity() / 2));
     }
 

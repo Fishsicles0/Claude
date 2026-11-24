@@ -286,7 +286,7 @@ public class MinimapHud extends HudElementModule {
         for (int i = 0, total = ringDx.length; i < total && (paint > 0 || clear > 0); i++) {
             int cx = pcx + ringDx[i], cz = pcz + ringDz[i];
             int slot = slot(cx, cz);
-            int rev = liveOnly && !world.isChunkLoaded(cx, cz) ? 0 : MapStore.revision(cx, cz);
+            int rev = liveOnly && world.getChunkManager().getChunk(cx, cz, net.minecraft.world.chunk.ChunkStatus.FULL, false) == null ? 0 : MapStore.revision(cx, cz);
             boolean ours = slotState[slot] != SLOT_FREE && slotCx[slot] == cx && slotCz[slot] == cz;
             if (ours && slotRev[slot] == rev) continue;
             int bx = Math.floorMod(cx, chunks) * 16, bz = Math.floorMod(cz, chunks) * 16;

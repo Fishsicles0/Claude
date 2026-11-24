@@ -113,13 +113,17 @@ public class ItemView extends Module {
      * The game's swing (and everything that reads it) is never changed.
      */
     public float visualSwing(float real, int durationTicks) {
+        return visualSwing(real, durationTicks, System.nanoTime());
+    }
+
+    /** {@link #visualSwing(float, int)} at a given time (System.nanoTime scale; also the test hook). */
+    public float visualSwing(float real, int durationTicks, long now) {
         float speed = swingSpeed.getFloat() / 100f;
         if (Math.abs(speed - 1) < 0.001f) {
             swinging = false;
             lastReal = real;
             return real;
         }
-        long now = System.nanoTime();
         long lengthNs = (long) (Math.max(1, durationTicks) * 50_000_000L / speed);
         boolean started = real > 0 && (lastReal <= 0 || real < lastReal - 0.02f);
         lastReal = real;

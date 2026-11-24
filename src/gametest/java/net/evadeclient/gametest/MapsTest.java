@@ -55,14 +55,14 @@ public final class MapsTest {
         int[] home = ctx.computeOnClient(c -> new int[]{MapStore.revision(0, 0), MapStore.exploredChunks(), MapStore.column(8, 8)});
         check(home[0] != 0 && home[1] > 20 && home[2] != 0, "World Map maps the loaded chunks around you (" + home[1] + " chunks)");
 
-        // Explore a second spot 30 chunks east.
-        server.runCommand("tp @a 488 -60 8 0 90");
+        // Explore a second spot 62 chunks east.
+        server.runCommand("tp @a 1000 -60 8 0 90");
         sp.getClientWorld().waitForChunksRender();
         ctx.waitTicks(60);
         String stats = ctx.computeOnClient(c -> MapStore.takeStats());
         EvadeClient.LOG.info("[gametest] MAPCOST {}", stats);
         boolean[] spots = ctx.computeOnClient(c -> new boolean[]{
-                MapStore.revision(488 >> 4, 0) != 0, MapStore.revision(0, 0) != 0,
+                MapStore.revision(1000 >> 4, 0) != 0, MapStore.revision(0, 0) != 0,
                 MapStore.revision(5000 >> 4, 5000 >> 4) == 0 && MapStore.column(5000, 5000) == 0,
                 MapStore.revision(244 >> 4, 3000 >> 4) == 0});
         check(spots[0] && spots[1], "Both explored spots are on the map");
@@ -70,7 +70,7 @@ public final class MapsTest {
         double us = Double.parseDouble(stats.substring(0, stats.indexOf(' ')));
         check(us < 3000, "Mapping stays within its per-tick budget (" + stats + ")");
         // The first spot is out of range now but still explored: the Minimap draws it from the shared tiles.
-        boolean unloadedButExplored = ctx.computeOnClient(c -> !c.world.isChunkLoaded(0, 0) && MapStore.revision(0, 0) != 0);
+        boolean unloadedButExplored = ctx.computeOnClient(c -> c.world.getChunkManager().getChunk(0, 0, net.minecraft.world.chunk.ChunkStatus.FULL, false) == null && MapStore.revision(0, 0) != 0);
         check(unloadedButExplored || ctx.computeOnClient(c -> c.options.getClampedViewDistance() >= 30),
                 "Explored tiles outlive the loaded chunks (the Minimap reads them beyond the loaded area)");
         int painted = ctx.computeOnClient(c -> EvadeClient.modules.get(MinimapHud.class).paintedChunks());
@@ -81,14 +81,14 @@ public final class MapsTest {
         ctx.waitTicks(10);
         WorldMapScreen map = screen(ctx);
         check(map != null, "The World Map opens");
-        ctx.runOnClient(c -> map.setViewForTest(260, 8, 0.75f));
+        ctx.runOnClient(c -> map.setViewForTest(504, 8, 0.75f));
         ctx.waitTicks(20);
         check(ctx.computeOnClient(c -> map.texturesForTest()) > 0, "The World Map uploads region tiles");
-        float[] at = ctx.computeOnClient(c -> map.screenAtForTest(490.5, 8.5));
+        float[] at = ctx.computeOnClient(c -> map.screenAtForTest(1002.5, 8.5));
         List<String> info = ctx.computeOnClient(c -> map.cursorInfo(at[0], at[1]));
-        check(info.size() == 2 && info.get(0).startsWith("X 490") && info.get(0).endsWith("Z 8") && !info.get(1).isBlank(),
+        check(info.size() == 2 && info.get(0).startsWith("X 1002") && info.get(0).endsWith("Z 8") && !info.get(1).isBlank(),
                 "Cursor shows coordinates and the biome of a loaded chunk " + info);
-        float[] far = ctx.computeOnClient(c -> map.screenAtForTest(260.5, 3000.5));
+        float[] far = ctx.computeOnClient(c -> map.screenAtForTest(504.5, 3000.5));
         check(ctx.computeOnClient(c -> map.cursorInfo(far[0], far[1])).isEmpty(), "Nothing is shown over unexplored ground");
         float[] old = ctx.computeOnClient(c -> map.screenAtForTest(8.5, 8.5));
         List<String> oldInfo = ctx.computeOnClient(c -> map.cursorInfo(old[0], old[1]));
@@ -106,7 +106,7 @@ public final class MapsTest {
 
         // A click adds a waypoint there; a right-click on it opens its menu.
         int before = ctx.computeOnClient(c -> EvadeClient.modules.get(Waypoints.class).allInWorld().size());
-        float[] spot = ctx.computeOnClient(c -> map.screenAtForTest(470.5, 20.5));
+        float[] spot = ctx.computeOnClient(c -> map.screenAtForTest(980.5, 20.5));
         ctx.runOnClient(c -> {
             map.mouseClicked(new Click(spot[0], spot[1], new MouseInput(0, 0)), false);
             map.mouseReleased(new Click(spot[0], spot[1], new MouseInput(0, 0)));
@@ -115,7 +115,7 @@ public final class MapsTest {
             var all = EvadeClient.modules.get(Waypoints.class).allInWorld();
             return all.size() == before + 1 ? all.get(all.size() - 1) : null;
         });
-        check(added != null && Math.abs(added.x() - 470) <= 1 && Math.abs(added.z() - 20) <= 1, "Clicking the map adds a waypoint there (" + added + ")");
+        check(added != null && Math.abs(added.x() - 980) <= 1 && Math.abs(added.z() - 20) <= 1, "Clicking the map adds a waypoint there (" + added + ")");
         ctx.runOnClient(c -> map.mouseClicked(new Click(spot[0], spot[1], new MouseInput(1, 0)), false));
         ctx.waitTicks(2);
         check(added.equals(ctx.computeOnClient(c -> map.menuForTest())), "Right-clicking a waypoint opens its menu");
@@ -123,7 +123,7 @@ public final class MapsTest {
         ctx.runOnClient(c -> { map.mouseClicked(new Click(2, 200, new MouseInput(0, 0)), false); EvadeClient.modules.get(Waypoints.class).deletePoint(added); });
 
         // Save and reload from disk.
-        int[] probe = ctx.computeOnClient(c -> new int[]{MapStore.column(490, 8), MapStore.column(8, 8), MapStore.column(-20, 30)});
+        int[] probe = ctx.computeOnClient(c -> new int[]{MapStore.column(1002, 8), MapStore.column(8, 8), MapStore.column(-20, 30)});
         ctx.runOnClient(c -> MapStore.flushForTest());
         Path dir = ctx.computeOnClient(c -> MapStore.folderForTest());
         long files;
@@ -131,11 +131,11 @@ public final class MapsTest {
         check(files > 0, "Explored regions are saved to " + dir + " (" + files + " files)");
         int afterDrop = ctx.computeOnClient(c -> { MapStore.reloadForTest(); return MapStore.exploredChunks(); });
         check(afterDrop == 0, "Map memory is dropped before the reload");
-        ctx.runOnClient(c -> { MapStore.column(490, 8); MapStore.column(8, 8); MapStore.column(-20, 30); });
+        ctx.runOnClient(c -> { MapStore.column(1002, 8); MapStore.column(8, 8); MapStore.column(-20, 30); });
         ctx.waitTicks(3);
         ctx.runOnClient(c -> MapStore.settleForTest());
         ctx.waitTicks(3);
-        int[] again = ctx.computeOnClient(c -> new int[]{MapStore.column(490, 8), MapStore.column(8, 8), MapStore.column(-20, 30)});
+        int[] again = ctx.computeOnClient(c -> new int[]{MapStore.column(1002, 8), MapStore.column(8, 8), MapStore.column(-20, 30)});
         check(again[1] == probe[1] && again[2] == probe[2] && again[1] != 0, "Saved tiles read back the same after a reload");
 
         // A server that switches the Minimap off switches the World Map off too (and closes it).
@@ -151,7 +151,11 @@ public final class MapsTest {
         check(ctx.computeOnClient(c -> EvadeClient.modules.get(WorldMap.class).isEnabled()), "Lifting the rule brings the World Map back");
 
         // The Nether is never mapped.
-        server.runCommand("execute in minecraft:the_nether run tp @a 0 64 0");
+        // a small safe room, so the screenshot isn't of a lava death
+        server.runCommand("execute in minecraft:the_nether run fill -3 99 -3 3 104 3 minecraft:obsidian");
+        server.runCommand("execute in minecraft:the_nether run fill -2 100 -2 2 103 2 minecraft:air");
+        server.runCommand("effect give @a minecraft:fire_resistance 60 0 true");
+        server.runCommand("execute in minecraft:the_nether run tp @a 0 100 0");
         ctx.waitTicks(80);
         boolean netherMapped = ctx.computeOnClient(c -> MapStore.mapping());
         ctx.runOnClient(c -> WorldMapScreen.open(null));
@@ -160,8 +164,9 @@ public final class MapsTest {
         ctx.runOnClient(c -> c.setScreen(null));
         check(!netherMapped, "No map in the Nether");
         server.runCommand("execute in minecraft:overworld run tp @a 0 -60 0 0 0");
-        sp.getClientWorld().waitForChunksRender();
-        ctx.waitTicks(20);
+        // (a dimension change swaps the client world, so wait in ticks rather than for the old world's chunks)
+        ctx.waitTicks(100);
+        check(ctx.computeOnClient(c -> MapStore.mapping() && MapStore.revision(0, 0) != 0), "Back in the Overworld its map is there again");
 
         // FPS cost: a 5 s benchmark with the map off, then with the World Map and the Minimap on.
         ctx.runOnClient(c -> { EvadeClient.modules.get(WorldMap.class).setEnabled(false); EvadeClient.modules.get(MinimapHud.class).setEnabled(false); Benchmark.setQuiet(true); });

@@ -1012,6 +1012,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             for (var el : EvadeClient.modules.hudElements()) {
                 if (!(el instanceof net.evadeclient.module.TextHudModule t) || el instanceof net.evadeclient.module.mods.ToggleSprint
                         || el instanceof net.evadeclient.module.hud.BedWarsHud // only shows during a BedWars game
+                        || el instanceof net.evadeclient.module.hud.ConnectionWatchHud // only shows when the server goes quiet
                         || el.getName().equals(profiler)) continue;
                 if (t.textForTest().isEmpty()) p.append(el.getName()).append(" is empty; ");
             }

@@ -65,23 +65,25 @@ public final class VisualsV24Test {
         sp.getServer().runCommand("item replace entity @a weapon.mainhand with diamond_sword");
         sp.getServer().runCommand("item replace entity @a weapon.offhand with shield");
         ctx.waitTicks(3);
-        float[] before = ctx.computeOnClient(c -> {
+        float[] r = ctx.computeOnClient(c -> {
             ItemView iv = EvadeClient.modules.get(ItemView.class);
             iv.setEnabled(true);
             iv.swingSpeed.set(50.0);
             iv.mainX.set(-0.1);
             iv.mainScale.set(130.0);
             iv.offY.set(-0.1);
-            return new float[]{c.player.getAttackCooldownProgress(0.5f), iv.visualSwing(0.1f, 6)};
+            float cooldown = c.player.getAttackCooldownProgress(0.5f);
+            float progress = c.player.getHandSwingProgress(0f);
+            // A 6-tick swing: vanilla is at 0.1, then 2 ticks (100 ms) later at 0.433. At 50% the visual swing lags.
+            long t0 = 1_000_000_000L;
+            float a = iv.visualSwing(0.1f, 6, t0);
+            float b = iv.visualSwing(0.433f, 6, t0 + 100_000_000L);
+            float end = iv.visualSwing(0f, 6, t0 + 700_000_000L);
+            return new float[]{a, b, end, cooldown, c.player.getAttackCooldownProgress(0.5f), progress, c.player.getHandSwingProgress(0f)};
         });
-        ctx.waitTicks(2);
-        float[] after = ctx.computeOnClient(c -> {
-            ItemView iv = EvadeClient.modules.get(ItemView.class);
-            return new float[]{iv.visualSwing(0.433f, 6), c.player.getAttackCooldownProgress(0.5f)};
-        });
-        check(after[0] > before[1] && after[0] < 0.433f,
-                "Item View: Swing Speed 50% plays the swing slower than the game's (" + before[1] + " -> " + after[0] + " vs 0.433)");
-        check(after[1] >= before[0], "Item View: the attack cooldown is untouched by Swing Speed (" + before[0] + " -> " + after[1] + ")");
+        check(r[1] > r[0] && r[1] < 0.433f && r[2] == 0f,
+                "Item View: Swing Speed 50% plays the swing slower than the game's and then ends (" + r[0] + " -> " + r[1] + " vs 0.433, then " + r[2] + ")");
+        check(r[4] >= r[3] && r[5] == r[6], "Item View: the attack cooldown and the game's swing are untouched by Swing Speed");
         boolean[] hide = ctx.computeOnClient(c -> {
             ItemView iv = EvadeClient.modules.get(ItemView.class);
             ItemStack shield = c.player.getOffHandStack();
@@ -261,6 +263,12 @@ public final class VisualsV24Test {
             return m;
         });
         check(migrated.equals("Evade Grid"), "Title Screen: an old \"Panorama off\" config becomes Background Evade Grid");
+        boolean wasOn = ctx.computeOnClient(c -> {
+            TitleScreenModule t = EvadeClient.modules.get(TitleScreenModule.class);
+            boolean on = t.isEnabled();
+            t.setEnabled(true);
+            return on;
+        });
         for (String mode : new String[]{"Evade Animated", "Solid Color", "Custom Image"}) {
             ctx.runOnClient(c -> {
                 TitleScreenModule t = EvadeClient.modules.get(TitleScreenModule.class);
@@ -271,13 +279,15 @@ public final class VisualsV24Test {
             ctx.waitTicks(5);
             ctx.takeScreenshot("v24-title-" + mode.toLowerCase().replace(' ', '-'));
         }
-        boolean loaded = ctx.computeOnClient(c -> TitleBackground.imageLoaded());
-        check(loaded, "Title Screen: Custom Image loads a .png from config/evade/backgrounds");
+        String loaded = ctx.computeOnClient(c -> TitleBackground.imageLoaded() + " " + TitleBackground.images()
+                + " " + c.currentScreen + " " + EvadeClient.modules.get(TitleScreenModule.class).backgroundMode());
+        check(loaded.startsWith("true"), "Title Screen: Custom Image loads a .png from config/evade/backgrounds (" + loaded + ")");
         ctx.runOnClient(c -> {
             c.setScreen(null);
             TitleScreenModule t = EvadeClient.modules.get(TitleScreenModule.class);
             t.background.reset();
             t.imageFile.reset();
+            t.setEnabled(wasOn);
         });
         try {
             Files.deleteIfExists(img);
