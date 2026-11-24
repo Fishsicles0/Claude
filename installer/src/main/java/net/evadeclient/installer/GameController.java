@@ -44,6 +44,8 @@ final class GameController implements GamePages.Actions {
     private volatile boolean polling;
     private String noticeSig = "";
     private long noticesSeenAt;
+    /** When Home first showed "Press Play in the Minecraft Launcher" (a session started after it ends that state). */
+    private long launchedAt;
 
     GameController(LauncherView view, Launcher.Settings settings, ExecutorService work, Runnable play, Runnable reload,
                    Supplier<TrayIcon> tray, Supplier<java.awt.Component> window) {
@@ -137,7 +139,10 @@ final class GameController implements GamePages.Actions {
                                 + InstallerCore.str(req, "name");
                         in.requestAt = req == null ? 0 : req.get("created").getAsLong();
                         // The launcher stays open after Play: once the game is up, Home shows it playing (and Play again after).
-                        if (in.running() && view.play == LauncherView.Play.LAUNCHED && i.id.equals(settings.selected)) view.play = LauncherView.Play.IDLE;
+                        if (view.play != LauncherView.Play.LAUNCHED) launchedAt = 0;
+                        else if (launchedAt == 0) launchedAt = System.currentTimeMillis() - 5000;
+                        if (view.play == LauncherView.Play.LAUNCHED && i.id.equals(settings.selected) && s != null
+                                && (in.running() || s.started() > launchedAt)) view.play = LauncherView.Play.IDLE;
                         if (found != null) {
                             in.crash = found;
                             view.notice(i.name + " crashed", found.title(), true);

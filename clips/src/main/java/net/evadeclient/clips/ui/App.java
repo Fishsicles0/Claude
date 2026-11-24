@@ -327,6 +327,8 @@ public final class App {
                     CaptureEngine.Status s = status;
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("app", "Evade Clips");
+                    // "launcher": Clips inside the Evade Launcher; "app": the old separate app (a new launcher closes that one)
+                    m.put("host", net.evadeclient.clips.ClipsApp.hosted ? "launcher" : "app");
                     m.put("state", s.state().name().toLowerCase());
                     m.put("recording", s.recording());
                     m.put("buffered", Math.round(s.bufferedSeconds()));

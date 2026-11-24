@@ -67,7 +67,7 @@ final class LogTools {
         m.appendTail(b);
         s = b.toString();
         s = IPV6.matcher(s).replaceAll("x:x:x:x");
-        if (player != null && player.length() >= 3) s = s.replaceAll("(?i)(?<![A-Za-z0-9_])" + Pattern.quote(player) + "(?![A-Za-z0-9_])", "<player>");
+        if (player != null && player.length() >= 3) s = s.replaceAll("(?i)(?<![A-Za-z0-9_<])" + Pattern.quote(player) + "(?![A-Za-z0-9_])", "<player>");
         return s;
     }
 

@@ -95,7 +95,7 @@ final class LauncherApp implements LauncherView.Actions {
             ui(() -> {
                 view.clipsBusy = false;
                 if (app == null) {
-                    view.toast("The old Evade Clips app didn't close. Quit it from its tray icon, then try again.");
+                    view.toast("Clips is still held by another program. Quit Evade from the tray (or end Java in Task Manager), then try again.");
                     return;
                 }
                 view.clipsBlocked = false;

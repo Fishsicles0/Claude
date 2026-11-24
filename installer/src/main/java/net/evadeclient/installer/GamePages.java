@@ -250,7 +250,7 @@ final class GamePages {
     /** Paints the Game page. Returns nothing: the text fields are placed here too. */
     void paintPage(Graphics2D g) {
         Launcher.Instance i = v.focused();
-        v.pageTitle(g, "Game", "Logs, crashes and advanced settings for one instance. The game itself runs in the Minecraft Launcher.");
+        v.pageTitle(g, "Game", "Status, logs, crash help and advanced settings for one instance.");
         // instance picker (the same menu as on the Mods page)
         g.setFont(v.interBold.deriveFont(12.5f));
         String nm = i != null ? i.name : "—";
@@ -529,21 +529,15 @@ final class GamePages {
     static String[] fixLabels(CrashHelper.Diagnosis d) {
         String mod = d.mod() == null ? "the mod" : d.mod();
         return switch (d.fix()) {
-            case DISABLE_MOD -> new String[]{d.jar() != null ? "Switch off " + shortName(d.jar()) + " and play" : null, "Share log for help"};
+            case DISABLE_MOD -> new String[]{d.jar() != null ? "Switch it off and play" : null, "Share log for help"};
             case RAISE_MEMORY -> new String[]{"Give it more memory and play", "Share log for help"};
             case LOWER_MEMORY -> new String[]{"Use less memory and play", "Share log for help"};
             case DRIVER -> new String[]{"Get the latest graphics driver", "Turn shaders off"};
             case CLEAR_JAVA -> new String[]{"Use the Minecraft Launcher's Java", null};
-            case FIND_MOD -> new String[]{"Find " + mod + " on Modrinth", d.jar() != null ? "Switch off " + shortName(d.jar()) : null};
+            case FIND_MOD -> new String[]{"Find " + mod + " on Modrinth", d.jar() != null ? "Switch the mod off" : null};
             case OPEN_MODS -> new String[]{"Open the mods folder", null};
             default -> new String[]{null, "Share log for help"};
         };
-    }
-
-    private static String shortName(Path jar) {
-        String n = jar.getFileName().toString().replaceAll("(?i)\\.jar(\\.disabled)?$", "");
-        n = n.replaceAll("[-_+]?(?:fabric|mc)?[-_]?\\d.*$", "");
-        return n.isEmpty() ? jar.getFileName().toString() : n;
     }
 
     // ---- logs
@@ -837,16 +831,19 @@ final class GamePages {
         int pw = g.getFontMetrics().stringWidth(s) + 14;
         Color c = in.run == GameState.Run.RUNNING ? OK : AMBER;
         g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 40));
-        g.fill(new RoundRectangle2D.Double(x + 6 - pw, y - 10, pw, 16, 16, 16));
+        // on the name's line, right-aligned (the line under it holds the details)
+        g.fill(new RoundRectangle2D.Double(x + 12 - pw, y - 24, pw, 16, 16, 16));
         g.setColor(c);
-        LauncherView.center(g, s, x + 6 - pw, y - 10, pw, 16);
+        LauncherView.center(g, s, x + 12 - pw, y - 24, pw, 16);
         return true;
     }
 
     /** "  ·  41 h played" for the instance list, or "". */
     String playtimeShort(Launcher.Instance i) {
         long t = info(i).playtime.totalMs();
-        return t < 60_000 ? "" : "  ·  " + GameState.duration(t).replaceAll(" \\d+ min$", "") + " played";
+        if (t < 60_000) return "";
+        long h = t / 3_600_000;
+        return "  ·  " + (h > 0 ? h + "h" : t / 60_000 + "m");
     }
 
     /** An instance's own icon, when one was picked. True when drawn. */

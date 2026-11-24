@@ -68,6 +68,14 @@ public final class ClipsApp {
      * Takes the single-instance lock ({@code appdir/instance.lock}). False if another copy holds it. A lock that
      * can't be taken for another reason (a read-only folder) doesn't stop the app.
      */
+    /** Lets go of the single-instance lock (used to test whether it's free). */
+    public static void releaseInstanceLock() {
+        try { if (instanceLock != null) instanceLock.release(); } catch (IOException ignored) { }
+        try { if (instanceChannel != null) instanceChannel.close(); } catch (IOException ignored) { }
+        instanceLock = null;
+        instanceChannel = null;
+    }
+
     public static boolean acquireInstanceLock() {
         try {
             Path f = Settings.appDir().resolve("instance.lock");
