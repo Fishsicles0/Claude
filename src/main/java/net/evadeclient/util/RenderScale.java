@@ -88,6 +88,8 @@ public final class RenderScale {
      * (a projection effect drawing the world into its own target, say), that one is left alone.
      */
     public static Framebuffer redirect(Framebuffer main) {
+        Framebuffer hud = HudCache.redirect(); // the HUD cache's own GUI pass draws into its texture
+        if (hud != null) return hud;
         return redirect && main == realMain ? scaled : main;
     }
 

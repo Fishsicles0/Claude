@@ -333,9 +333,9 @@ public final class PerfV25Test {
         for (int i = 0; i < 150; i++) FramePacer.limit(200);
         double[] st = FramePacer.intervalStats();
         FramePacer.reset();
-        perf("frame pacer at 200 FPS: mean %.3f ms, deviation %.3f ms", st[0], st[1]);
-        check(Math.abs(st[0] - 5.0) < 0.25 && st[1] < 0.5, String.format(Locale.ROOT,
-                "Smooth Pacing: frames are released on an even 5 ms schedule (mean %.3f ms, deviation %.3f ms)", st[0], st[1]));
+        perf("frame pacer at 200 FPS: mean %.3f ms, standard deviation %.3f ms, 95%% within %.3f ms", st[0], st[1], st[2]);
+        check(Math.abs(st[0] - 5.0) < 0.25 && st[2] < 0.5, String.format(Locale.ROOT,
+                "Smooth Pacing: frames are released on an even 5 ms schedule (mean %.3f ms, 95%% within %.3f ms)", st[0], st[2]));
     }
 
     // ------------------------------------------------------------------ 5: HUD cache
@@ -373,17 +373,55 @@ public final class PerfV25Test {
                 shown, us.get("Every Frame"), us.get("60 Hz"), us.get("30 Hz"), java.util.Arrays.toString(counts.get("30 Hz")));
         long[] c30 = counts.get("30 Hz");
         check(counts.get("Every Frame")[0] == 0 && c30[0] > 0 && c30[1] > 0,
-                "HUD cache: Every Frame never reuses a drawing; 30 Hz reuses and redraws (" + java.util.Arrays.toString(c30) + ")");
-        check(us.get("30 Hz") < us.get("Every Frame") * 0.8,
-                String.format(Locale.ROOT, "HUD cache: 30 Hz costs less per frame than drawing every frame (%.0f vs %.0f us)", us.get("30 Hz"), us.get("Every Frame")));
+                "HUD cache: Every Frame never uses the texture; 30 Hz shows it and redraws it (" + java.util.Arrays.toString(c30) + ")");
+        // The game runs at about 50 FPS here, so in real frames half the draws are redraws. At hundreds of FPS
+        // nearly every frame is a reuse: measure that directly, drawing the HUD 300 times back to back (as at a very
+        // high frame rate) into a fresh scratch GUI state each time, with the cache off and on.
+        double[] loop = ctx.computeOnClient(c -> {
+            double[] out = new double[2];
+            HudCache.configure("30 Hz");
+            for (int pass = 0; pass < 3; pass++) { // pass 0 warms up
+                HudCache.forceOff = pass == 1;
+                Hud.PROFILE = new java.util.HashMap<>();
+                net.minecraft.client.gui.DrawContext dc = null;
+                long t0 = System.nanoTime();
+                for (int i = 0; i < 300; i++) {
+                    dc = new net.minecraft.client.gui.DrawContext(c, new net.minecraft.client.gui.render.state.GuiRenderState(), 0, 0);
+                    Hud.render(dc);
+                }
+                if (pass > 0) out[pass - 1] = (System.nanoTime() - t0) / 300 / 1000.0;
+                if (pass > 0) EvadeClient.LOG.info("[gametest] PERF HUD {} widget costs: {}", pass == 1 ? "uncached" : "cached", Hud.PROFILE.entrySet().stream()
+                        .filter(e -> !e.getKey().startsWith("__"))
+                        .sorted((x, y) -> Long.compare(y.getValue(), x.getValue())).limit(6)
+                        .map(e -> e.getKey() + "=" + e.getValue() / 300 / 1000 + "us").toList());
+                Hud.PROFILE = null;
+            }
+            HudCache.forceOff = false;
+            FrameStats.takeHudMicros();
+            return out;
+        });
+        perf("HUD cost at a very high frame rate (300 draws back to back, %d widgets): every frame %.0f us, with the 30 Hz cache %.0f us per frame (%.1fx less)",
+                shown, loop[0], loop[1], loop[0] / Math.max(0.001, loop[1]));
+        check(loop[1] < loop[0] * 0.6, String.format(Locale.ROOT,
+                "HUD cache: at a high frame rate a cached HUD costs much less per frame than drawing it (%.0f vs %.0f us)", loop[1], loop[0]));
 
-        // A replayed widget adds the same elements as drawing it: compare one text widget recorded and replayed.
+        // The texture looks like drawing the widgets: a frame from the cache next to one drawn live.
+        ctx.runOnClient(c -> HudCache.forceOff = true);
+        ctx.waitTicks(3);
+        Path liveShot = ctx.takeScreenshot("evade-hud-live");
+        ctx.runOnClient(c -> HudCache.forceOff = false);
+        ctx.waitTicks(3);
+        Path cachedShot = ctx.takeScreenshot("evade-hud-cached");
+        double diff = meanDiff(liveShot, cachedShot);
+        perf("HUD cache: mean pixel difference between a live and a cached frame %.2f (0-255)", diff);
+        check(diff >= 0 && diff < 4, String.format(Locale.ROOT, "HUD cache: a cached frame looks like a live one (mean difference %.2f)", diff));
+        // Text widgets go in the texture; widgets that move every frame stay live.
         String same = ctx.computeOnClient(c -> {
             var coords = EvadeClient.modules.get(net.evadeclient.module.hud.CoordsHud.class);
             return HudCache.animated(coords) + "|" + HudCache.animated(EvadeClient.modules.get(net.evadeclient.module.hud.MinimapHud.class))
-                    + "|" + (HudCache.lastRecordedElements() > 0);
+                    + "|" + (HudCache.lastWidgets() > 0) + "|" + HudCache.broken();
         });
-        check(same.equals("false|true|true"), "HUD cache: text widgets are cached, moving widgets (minimap) are always drawn live (" + same + ")");
+        check(same.equals("false|true|true|false"), "HUD cache: text widgets go in the texture, moving widgets (minimap) are always drawn live (" + same + ")");
         ctx.takeScreenshot("evade-hud-cache-30hz");
 
         // A screen (the Evade menu could be changing settings) always draws live.
@@ -427,6 +465,22 @@ public final class PerfV25Test {
         for (Path p : made) try { Files.deleteIfExists(p); } catch (Exception ignored) {}
         check(after == taken + 1 && !pending && !made.isEmpty(), "HUD Toggle: an F2 screenshot is taken from a frame without Evade's HUD and saved (" + made + ")");
         ctx.runOnClient(c -> EvadeClient.modules.get(HudToggle.class).hideInScreenshots.set(false));
+    }
+
+    /** Mean absolute difference per colour channel of two screenshots of the same size (-1 if unreadable). */
+    private static double meanDiff(Path a, Path b) {
+        try (var x = net.minecraft.client.texture.NativeImage.read(Files.newInputStream(a));
+             var y = net.minecraft.client.texture.NativeImage.read(Files.newInputStream(b))) {
+            if (x.getWidth() != y.getWidth() || x.getHeight() != y.getHeight()) return -1;
+            long sum = 0;
+            for (int j = 0; j < x.getHeight(); j++) for (int i = 0; i < x.getWidth(); i++) {
+                int p = x.getColorArgb(i, j), q = y.getColorArgb(i, j);
+                for (int sh = 0; sh < 24; sh += 8) sum += Math.abs(((p >> sh) & 255) - ((q >> sh) & 255));
+            }
+            return sum / (3.0 * x.getWidth() * x.getHeight());
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     private static Set<Path> list(Path dir) {

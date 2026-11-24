@@ -76,23 +76,37 @@ public final class Hud {
         ctx.getMatrices().scale(k, k);
         try {
             HudStacks.apply(sw, sh, false);
-            for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (!el.isEnabled() || !el.shouldShow()) continue;
-                // hidden in this replay (the replay editor's HUD mods list)
-                if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
-                try {
-                    // HUD Refresh: reuse the widget's last drawing while it's still current (see HudCache).
-                    if (PROFILE != null) {
-                        long t = System.nanoTime();
-                        HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
-                        PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
-                    } else HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
-                } catch (Exception e) {
-                    ModuleManager.crashed(el, e, "HUD");
+            // HUD Refresh: widgets that don't move every frame come from the HUD cache's texture (see HudCache),
+            // drawn under the ones that do.
+            if (HudCache.active()) {
+                java.util.List<HudElementModule> cached = new java.util.ArrayList<>(), moving = new java.util.ArrayList<>();
+                for (HudElementModule el : EvadeClient.modules.hudElements()) {
+                    if (!el.isEnabled() || !el.shouldShow()) continue;
+                    // hidden in this replay (the replay editor's HUD mods list)
+                    if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
+                    (HudCache.animated(el) ? moving : cached).add(el);
                 }
+                HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
+                for (HudElementModule el : moving) drawWidget(ctx, el, sw, sh);
+            } else {
+                for (HudElementModule el : EvadeClient.modules.hudElements())
+                    if (el.isEnabled() && el.shouldShow() && !net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) drawWidget(ctx, el, sw, sh);
             }
         } finally {
             ctx.getMatrices().popMatrix();
+        }
+    }
+
+    /** One widget, timed for the profiler, switched off if it throws. */
+    private static void drawWidget(DrawContext ctx, HudElementModule el, int sw, int sh) {
+        try {
+            if (PROFILE != null) {
+                long t = System.nanoTime();
+                el.renderScaled(ctx, sw, sh, false);
+                PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
+            } else el.renderScaled(ctx, sw, sh, false);
+        } catch (Exception e) {
+            ModuleManager.crashed(el, e, "HUD");
         }
     }
 

@@ -2,9 +2,9 @@
 
 // Evade Upscale: Evade's own edge-aware spatial upscaler for Render Scale, written for Evade.
 //
-// 1. Read the 4x4 source texels around the output pixel and estimate the edge direction from the luma gradient
+// 1. Read the source texels around the output pixel and estimate the edge direction from the luma gradient
 //    of the centre 2x2, weighted toward where the pixel falls between them.
-// 2. Filter with a windowed-sinc (Lanczos, radius 2) whose footprint is stretched along the edge and squeezed
+// 2. Filter the 12 nearest texels with a Lanczos-like window (radius 2) whose footprint is stretched along the edge and squeezed
 //    across it, in proportion to how strong the edge is: stair-steps along an edge are smoothed while the edge
 //    itself stays crisp. Flat areas get the plain round filter.
 // 3. Clamp to the colour range of the centre 2x2, so the negative lobes can't ring.
@@ -23,8 +23,6 @@ out vec4 fragColor;
 #define SHARPEN_PCT 0
 #endif
 
-const float PI = 3.14159265;
-
 vec3 tap(ivec2 p, ivec2 size) {
     return texelFetch(InSampler, clamp(p, ivec2(0), size - 1), 0).rgb;
 }
@@ -33,14 +31,13 @@ float luma(vec3 c) {
     return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
-// Lanczos window over a squared distance in source texels (zero from 2 texels out).
-float lanczos2(float d2) {
-    if (d2 >= 4.0) return 0.0;
-    float d = sqrt(d2);
-    if (d < 1.0e-3) return 1.0;
-    float a = PI * d;
-    float b = 0.5 * a;
-    return (sin(a) / a) * (sin(b) / b);
+// A Lanczos-like window over the squared distance in source texels, without sin or sqrt: 1 at the centre, 0 at
+// 1 texel, a small negative lobe out to 2 texels (which keeps edges crisp), 0 from 2 texels out.
+float window2(float d2) {
+    float base = 1.0 - 0.25 * min(d2, 4.0);
+    base *= base;
+    float lobe = 1.0 - d2;
+    return base * (d2 < 1.0 ? lobe : 0.28 * lobe);
 }
 
 void main() {
@@ -50,10 +47,12 @@ void main() {
     vec2 f = pos - cell;
     ivec2 base = ivec2(cell);
 
+    // The 4x4 neighbourhood without its four corners (they sit at least 1.4 texels out and add little): 12 taps.
     vec3 c[16];
     float l[16];
     for (int j = 0; j < 4; j++) {
         for (int i = 0; i < 4; i++) {
+            if ((i == 0 || i == 3) && (j == 0 || j == 3)) { c[j * 4 + i] = vec3(0.0); l[j * 4 + i] = 0.0; continue; }
             vec3 s = tap(base + ivec2(i - 1, j - 1), size);
             c[j * 4 + i] = s;
             l[j * 4 + i] = luma(s);
@@ -71,16 +70,17 @@ void main() {
     vec2 along = vec2(-across.y, across.x);
     // 0 on flat areas, 1 on a clear edge.
     float edge = smoothstep(0.03, 0.30, glen);
-    float squeeze = 1.0 + 0.9 * edge;     // narrower across the edge
+    float squeeze = 1.0 + 0.9 * edge;         // narrower across the edge
     float stretch = 1.0 / (1.0 + 0.9 * edge); // wider along it
 
     vec3 sum = vec3(0.0);
     float wsum = 0.0;
     for (int j = 0; j < 4; j++) {
         for (int i = 0; i < 4; i++) {
+            if ((i == 0 || i == 3) && (j == 0 || j == 3)) continue;
             vec2 o = vec2(float(i - 1), float(j - 1)) - f;
             float a = dot(o, along), x = dot(o, across);
-            float w = lanczos2(a * a * stretch + x * x * squeeze);
+            float w = window2(a * a * stretch + x * x * squeeze);
             sum += c[j * 4 + i] * w;
             wsum += w;
         }
