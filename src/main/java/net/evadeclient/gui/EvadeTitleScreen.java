@@ -43,9 +43,9 @@ import java.util.function.Supplier;
  * Evade's main menu (the Title Screen module), opened in place of the vanilla title screen.
  *
  * <p>The vanilla panorama keeps turning behind a dark vignette with a soft accent glow (or, with Panorama off, an
- * Evade backdrop). On wide screens the Evade logo and the actions sit in a column on the left and three cards on the
- * right: the account, "Continue playing" (recent servers with favicons and live status) and "What's new"; narrower
- * screens centre the column and drop the cards. Everything arrives in a short staggered entrance the first time
+ * Evade backdrop). The Evade logo and the actions sit in a centred column, as in the vanilla menu. On wide screens
+ * cards fill the rails beside it: the account and "What's new" on the left, "Continue playing" (recent servers with
+ * favicons and live status) on the right; narrower screens drop the cards. Everything arrives in a short staggered entrance the first time
  * and fades in quickly after that.
  *
  * <p>It keeps what matters from the vanilla screen: the multiplayer-disabled checks (with their reason as a
@@ -529,16 +529,16 @@ public class EvadeTitleScreen extends Screen {
     }
 
     private void drawCards(DrawContext ctx) {
-        int x = cardsX, w = cardsW;
+        int x = rightX, l = leftX, w = cardsW;
         double d = 140;
         if (accountY >= 0) {
-            float in = card(ctx, x, accountY, w, 48, d);
-            if (in > 0) drawAccount(ctx, x, accountY, w, in);
+            float in = card(ctx, l, accountY, w, 48, d);
+            if (in > 0) drawAccount(ctx, l, accountY, w, in);
             d += 45;
         }
         float in = card(ctx, x, serversY, w, serversH, d);
         if (in > 0) {
-            float base = beginCard(ctx, in);
+            float base = beginCard(ctx, x, in);
             try {
                 TitleArt.caps(ctx, "Continue playing", x + 12, serversY + 10, Theme.TEXT_HEADER, Role.CAPS, 1.2f);
                 if (RecentServers.get().entries().isEmpty()) {
@@ -550,19 +550,19 @@ public class EvadeTitleScreen extends Screen {
         }
         d += 45;
         if (newsY >= 0) {
-            float nin = card(ctx, x, newsY, w, newsH, d);
+            float nin = card(ctx, l, newsY, w, newsH, d);
             if (nin > 0) {
-                float base = beginCard(ctx, nin);
+                float base = beginCard(ctx, l, nin);
                 try {
-                    TitleArt.caps(ctx, "What's new", x + 12, newsY + 10, Theme.TEXT_HEADER, Role.CAPS, 1.2f);
+                    TitleArt.caps(ctx, "What's new", l + 12, newsY + 10, Theme.TEXT_HEADER, Role.CAPS, 1.2f);
                     int pw = TitleArt.width(WhatsNew.VERSION, Role.SMALL) + 10;
-                    int px2 = x + w - 12, px1 = px2 - pw;
+                    int px2 = l + w - 12, px1 = px2 - pw;
                     Theme.pill(ctx, px1, newsY + 8, px2, newsY + 19, Theme.alpha(Theme.RED, 0.22f));
                     Theme.hairline(ctx, px1, newsY + 8, px2, newsY + 19, Theme.alpha(Theme.RED_BRIGHT, 0.5f), 5);
                     TitleArt.text(ctx, WhatsNew.VERSION, px1 + 5, newsY + 10, Theme.RED_BRIGHT, Role.SMALL);
                     int ly = newsY + 28;
                     for (int i = 0; i < newsLines.size(); i++) {
-                        TitleArt.text(ctx, newsLines.get(i), x + 12, ly, Theme.TEXT, Role.BODY);
+                        TitleArt.text(ctx, newsLines.get(i), l + 12, ly, Theme.TEXT, Role.BODY);
                         ly += 11;
                     }
                 } finally {
@@ -581,7 +581,7 @@ public class EvadeTitleScreen extends Screen {
         m.pushMatrix();
         try {
             Theme.fade = in;
-            m.translate(Theme.snap(ctx, 12f * (1f - in)), 0);
+            m.translate(Theme.snap(ctx, slide(x) * (1f - in)), 0);
             Theme.shadow(ctx, Theme.SH_CARD, x, y + 2, x + w, y + h + 2, 0x99000000);
             Theme.round(ctx, x, y, x + w, y + h, 0xD80C0C10, 6);
             Theme.round(ctx, x, y, x + w, y + 22, 0x07FFFFFF, 6, Theme.TL | Theme.TR);
@@ -595,11 +595,16 @@ public class EvadeTitleScreen extends Screen {
     }
 
     /** Starts drawing a card's contents at intro progress {@code in} (fade and slide); returns the fade to restore. */
-    private float beginCard(DrawContext ctx, float in) {
+    /** Cards slide in from their own side: the left rail from the left, the right rail from the right. */
+    private float slide(int x) {
+        return x < width / 2 ? -12f : 12f;
+    }
+
+    private float beginCard(DrawContext ctx, int x, float in) {
         float base = Theme.fade;
         ctx.getMatrices().pushMatrix();
         Theme.fade = base * in;
-        ctx.getMatrices().translate(Theme.snap(ctx, 12f * (1f - in)), 0);
+        ctx.getMatrices().translate(Theme.snap(ctx, slide(x) * (1f - in)), 0);
         return base;
     }
 
@@ -609,7 +614,7 @@ public class EvadeTitleScreen extends Screen {
     }
 
     private void drawAccount(DrawContext ctx, int x, int y, int w, float in) {
-        float base = beginCard(ctx, in);
+        float base = beginCard(ctx, x, in);
         try {
             int fs = 28, fx = x + 10, fy = y + 10;
             Theme.round(ctx, fx - 1, fy - 1, fx + fs + 1, fy + fs + 1, 0xFF0A0A0D, 4);
