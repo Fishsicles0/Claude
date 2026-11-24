@@ -90,8 +90,6 @@ public class EvadeClient implements ClientModInitializer {
         net.evadeclient.api.ServerApi.register();
         // Mod Browser: finish removals and updates left over from the last session.
         net.evadeclient.mods.ModBrowser.startup();
-        // Quick Play from the Evade Launcher: join the chosen server once the main menu opens.
-        net.evadeclient.util.AutoJoin.register();
         // Profiles linked to a server switch in automatically when you join it.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             var entry = client.getCurrentServerEntry();
