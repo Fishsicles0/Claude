@@ -109,7 +109,6 @@ Every HUD element has Scale and Background settings; text elements also have tex
 | **No Hurt Cam** | Removes the screen shake when you're hit. |
 | **Block Outline** | Colour, thickness and translucent fill for the block you're looking at. |
 | **Time / Weather Changer** | Client-side time of day and weather. |
-| **Discord Presence** | Shows "Playing Evade Client" on your Discord profile with the logo, what you're doing (menus, singleplayer, multiplayer), time played and a Join the Discord button. Server address is hidden unless you turn on *Show Server Address*. Works with the Discord desktop app on Windows, macOS and Linux (including Flatpak/Snap); does nothing if Discord isn't open. |
 
 ## Layout
 
