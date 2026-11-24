@@ -1,14 +1,14 @@
 {
  "_note": "Module classes added in the latest feature release (version below). The features page marks them New. At each x.y.0 release, set version to it and list that release's new classes (an empty list is fine): the site build stops while version belongs to an older x.y series.",
- "version": "2.4.0",
+ "version": "2.5.0",
  "classes": [
-  "ItemView",
-  "DamageNumbers",
-  "TpsHud",
-  "ConnectionWatchHud",
-  "NetworkHud",
-  "PingGraphHud",
-  "PaperDollHud",
-  "WorldMap"
+  "ChatHeads",
+  "ChatTabs",
+  "SmoothChat",
+  "ChatEmoji",
+  "LookInfoHud",
+  "LightOverlay",
+  "ItemHighlight",
+  "HudToggle"
  ]
 }
