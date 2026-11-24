@@ -52,7 +52,7 @@ public final class InstallerCore {
     public static final String MC_VERSION = "1.21.11";
     /** Overridable with -Devade.site=... (tests point it at a local server). */
     public static final String SITE = System.getProperty("evade.site", "https://evadeclient.com");
-    public static final String PROFILE_KEY = "evade-client";
+    public static final String PROFILE_KEY = "evade-client", PROFILE_NAME = "Evade Client";
     public static final String VERSION_ID = "evade-client-" + MC_VERSION;
     private static final String FABRIC_META = "https://meta.fabricmc.net/v2/versions/loader/" + MC_VERSION;
     private static final String MODRINTH = "https://api.modrinth.com/v2/project/fabric-api/version";
@@ -86,10 +86,10 @@ public final class InstallerCore {
         KNOWN.add(new String[]{"simple-voice-chat", "Simple Voice Chat", "voicechat"});
     }
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
-    private static final String FABRIC_API_ID = "P7dR8mSH";
+    static final String FABRIC_API_ID = "P7dR8mSH";
     /** Sodium's Modrinth project id (Iris pins an exact Sodium build) and the shader pack the Shaders option adds. */
     private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "photon-shader", LIGHT_PACK = "complementary-reimagined";
-    private static final String USER_AGENT = "EvadeInstaller/1.4 (+https://evadeclient.com)";
+    private static final String USER_AGENT = "EvadeLauncher/2.0 (+https://evadeclient.com)";
     /** Groups of extra mods, recorded per file in the install marker. */
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
 
@@ -152,8 +152,19 @@ public final class InstallerCore {
         return total > 0 && total - xmxGb < 4 ? Math.max(1, xmxGb / 2) : xmxGb;
     }
 
+    /**
+     * What to install where. {@code profileKey}/{@code profileName} name the launcher profile (the default instance
+     * keeps the original "evade-client" profile); {@code javaDir} is the profile's Java override: null leaves the
+     * profile's own setting alone, blank removes it, anything else sets it.
+     */
     public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
-                          boolean performanceMods, boolean installClips, boolean shaders) {
+                          boolean performanceMods, boolean installClips, boolean shaders,
+                          String profileKey, String profileName, String javaDir) {
+        public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                       boolean performanceMods, boolean installClips, boolean shaders) {
+            this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, shaders,
+                    PROFILE_KEY, PROFILE_NAME, null);
+        }
         public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                        boolean performanceMods, boolean installClips) {
             this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, false);
@@ -181,7 +192,7 @@ public final class InstallerCore {
         ClipsBusyException(Throwable cause) { super(CLIPS_BUSY, cause); }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private final HttpClient http = HttpClient.newBuilder()
             .proxy(ProxySelector.getDefault())
             .followRedirects(HttpClient.Redirect.NORMAL)
@@ -212,7 +223,7 @@ public final class InstallerCore {
     }
 
     /** The previous install's marker (evade-install.json), or null. */
-    private static JsonObject readMarker(Path gameDir) {
+    static JsonObject readMarker(Path gameDir) {
         try {
             Path f = gameDir.resolve("evade-install.json");
             if (!Files.exists(f)) return null;
@@ -354,7 +365,7 @@ public final class InstallerCore {
     }
 
     /** Newest release for this Minecraft version (falling back to the newest beta), or null if there's none. */
-    private ModFile latestOnModrinth(String name, String url) throws IOException, InterruptedException {
+    ModFile latestOnModrinth(String name, String url) throws IOException, InterruptedException {
         JsonArray versions = getJson(url).getAsJsonArray();
         JsonObject pick = null;
         for (JsonElement e : versions) {
@@ -367,7 +378,7 @@ public final class InstallerCore {
     }
 
     /** A Modrinth version object as a ModFile: primary file, hash, and the projects (and exact versions) it requires. */
-    private static ModFile modFileFromVersion(String name, JsonObject pick) {
+    static ModFile modFileFromVersion(String name, JsonObject pick) {
         JsonObject file = null;
         for (JsonElement f : pick.getAsJsonArray("files")) if (f.getAsJsonObject().get("primary").getAsBoolean()) file = f.getAsJsonObject();
         if (file == null) file = pick.getAsJsonArray("files").get(0).getAsJsonObject();
@@ -665,9 +676,7 @@ public final class InstallerCore {
 
             // 6. Launcher profile.
             p.update(0.97, "Adding the Evade Client profile");
-            addProfile(mc.resolve("launcher_profiles.json"), true, o);
-            Path store = mc.resolve("launcher_profiles_microsoft_store.json");
-            if (Files.exists(store)) addProfile(store, false, o);
+            writeProfiles(o);
             // 7. Windows: run Minecraft's Java on the fast graphics card (laptops often default to the weak one).
             if (WINDOWS) preferHighPerformanceGpu(mc);
         } finally {
@@ -981,6 +990,105 @@ public final class InstallerCore {
         return null;
     }
 
+    /**
+     * Which instance option adds the Modrinth project {@code slug} ("FPS mods", "Shaders" or "Voice chat"), or null
+     * when it's not one the installer manages. Those are switched with the option, not installed by hand.
+     */
+    static String optionForSlug(String slug) {
+        if (slug == null) return null;
+        if (slug.equals("iris")) return "Shaders";
+        if (slug.equals("simple-voice-chat")) return "Voice chat";
+        for (String[] m : PERF) if (m[0].equals(slug)) return "FPS mods";
+        return null;
+    }
+
+    /** The option a jar in mods/ belongs to, from the install marker's record and the known names; null for the player's own. */
+    static String optionForJar(JsonObject marker, String fileName) {
+        String l = lower(fileName.endsWith(".disabled") ? fileName.substring(0, fileName.length() - 9) : fileName);
+        if (l.startsWith("evade-client") || l.startsWith("fabric-api")) return "Evade";
+        if (marker != null && marker.has("addedGroups") && marker.get("addedGroups").isJsonObject()) {
+            for (var e : marker.getAsJsonObject("addedGroups").entrySet()) {
+                if (lower(e.getKey()).equals(l) && e.getValue().isJsonPrimitive()) return groupLabel(e.getValue().getAsString());
+            }
+        }
+        String[] owner = knownOwner(l);
+        if (owner == null) return null;
+        return owner[1].equals("Iris") ? "Shaders" : owner[1].equals("Simple Voice Chat") ? "Voice chat" : "FPS mods";
+    }
+
+    private static String groupLabel(String group) {
+        return switch (group) {
+            case SHADERS_GROUP -> "Shaders";
+            case VOICE_GROUP -> "Voice chat";
+            default -> "FPS mods";
+        };
+    }
+
+    /**
+     * Why the instance in {@code gameDir} should be updated before playing, or null when it's current: not installed,
+     * a newer Evade / Fabric Loader / Fabric API, or a newer version of an extra mod its options ask for.
+     */
+    static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders) {
+        JsonObject m = readMarker(gameDir);
+        if (m == null) return "Evade Client isn't installed in this instance yet";
+        if (r == null) return null;
+        if (!r.evadeVersion().equals(str(m, "evade"))) return "Evade Client v" + r.evadeVersion() + " is out";
+        if (!r.loaderVersion().equals(str(m, "loader"))) return "Fabric Loader " + r.loaderVersion() + " is out";
+        if (!r.fabricApiVersion().equals(str(m, "fabricApi"))) return "Fabric API " + shortVersion(r.fabricApiVersion()) + " is out";
+        if (voice && r.voiceChat() != null && !r.voiceChat().version().equals(str(m, "voiceChat"))) return "Simple Voice Chat " + r.voiceChat().version() + " is out";
+        if (perf && r.performance() != null) {
+            Set<String> have = new HashSet<>();
+            String names = str(m, "performanceMods");
+            if (names != null) for (String n : names.split(",\\s*")) have.add(n.trim());
+            boolean irisSodium = shaders && r.iris() != null;
+            for (ModFile f : r.performance()) {
+                if (irisSodium && SODIUM_ID.equals(f.projectId())) continue; // shaders bring their own Sodium build
+                if (!have.contains(f.name() + " " + f.version())) return f.name() + " " + f.version() + " is out";
+            }
+        }
+        if (shaders && r.shaderPack() != null && !r.shaderPack().version().equals(str(m, "shaders"))) return r.shaderPack().name() + " " + r.shaderPack().version() + " is out";
+        return null;
+    }
+
+    static String shortVersion(String v) {
+        int plus = v == null ? -1 : v.indexOf('+');
+        return plus > 0 ? v.substring(0, plus) : v;
+    }
+
+    /** The Evade Clips app recorded in location.json, if it's still there. */
+    static Path clipsInstalledApp() {
+        JsonObject loc = readJsonObject(clipsDataDir().resolve("location.json"));
+        for (String k : new String[]{"exe", "jar"}) {
+            String v = str(loc, k);
+            if (v == null) continue;
+            try {
+                Path p = Paths.get(v);
+                if (Files.isRegularFile(p)) return p;
+            } catch (RuntimeException ignored) { }
+        }
+        return null;
+    }
+
+    /** Starts the installed Evade Clips app. False when it isn't installed or couldn't start. */
+    static boolean openClips() {
+        Path app = clipsInstalledApp();
+        if (app == null) return false;
+        try {
+            List<String> cmd = new ArrayList<>();
+            if (lower(app.getFileName().toString()).endsWith(".exe")) cmd.add(app.toString());
+            else {
+                String java = str(readJsonObject(clipsDataDir().resolve("location.json")), "java");
+                if (java == null || !Files.exists(Paths.get(java))) java = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
+                cmd.addAll(List.of(java, "-jar", app.toString()));
+            }
+            new ProcessBuilder(cmd).directory(app.getParent().toFile()).redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /** The known extra mod (see {@link #KNOWN}) that a lowercase jar name belongs to, or null. */
     private static String[] knownOwner(String lowerName) {
         String[] best = null;
@@ -1082,7 +1190,43 @@ public final class InstallerCore {
      * installer owns change, so the player's own Java, resolution and JVM arguments survive a reinstall. In existing JVM
      * arguments only the -Xms/-Xmx values are replaced; the default G1 flags are written only for a new profile.
      */
-    private void addProfile(Path file, boolean createIfMissing, Options o) throws IOException {
+    /**
+     * Adds or refreshes the instance's profile in the launcher's profile list (and in the Microsoft Store launcher's
+     * list when there is one), marking it the most recently used so the Minecraft Launcher selects it.
+     */
+    public static void writeProfiles(Options o) throws IOException {
+        Path mc = o.minecraftDir();
+        addProfile(mc.resolve("launcher_profiles.json"), true, o);
+        Path store = mc.resolve("launcher_profiles_microsoft_store.json");
+        if (Files.exists(store)) addProfile(store, false, o);
+    }
+
+    /** Removes a profile from both of the launcher's profile lists (a missing one is fine). */
+    public static void removeProfiles(Path mc, String key) throws IOException {
+        for (Path file : List.of(mc.resolve("launcher_profiles.json"), mc.resolve("launcher_profiles_microsoft_store.json"))) {
+            if (!Files.exists(file)) continue;
+            JsonObject root;
+            try {
+                JsonElement parsed = JsonParser.parseString(Files.readString(file));
+                if (!parsed.isJsonObject()) continue;
+                root = parsed.getAsJsonObject();
+            } catch (RuntimeException e) {
+                continue;
+            }
+            if (!root.has("profiles") || !root.get("profiles").isJsonObject() || !root.getAsJsonObject("profiles").has(key)) continue;
+            root.getAsJsonObject("profiles").remove(key);
+            writeAtomic(file, GSON.toJson(root));
+        }
+    }
+
+    /** A profile from the launcher's profile list, or null. */
+    public static JsonObject readProfile(Path mc, String key) {
+        JsonObject root = readJsonObject(mc.resolve("launcher_profiles.json"));
+        JsonElement p = root.has("profiles") && root.get("profiles").isJsonObject() ? root.getAsJsonObject("profiles").get(key) : null;
+        return p != null && p.isJsonObject() ? p.getAsJsonObject() : null;
+    }
+
+    private static void addProfile(Path file, boolean createIfMissing, Options o) throws IOException {
         JsonObject root;
         if (Files.exists(file)) {
             try {
@@ -1107,9 +1251,9 @@ public final class InstallerCore {
         JsonObject profiles = root.getAsJsonObject("profiles");
 
         String now = Instant.now().truncatedTo(ChronoUnit.MILLIS).toString();
-        JsonElement existing = profiles.get(PROFILE_KEY);
+        JsonElement existing = profiles.get(o.profileKey());
         JsonObject prof = existing != null && existing.isJsonObject() ? existing.getAsJsonObject().deepCopy() : new JsonObject();
-        prof.addProperty("name", "Evade Client");
+        prof.addProperty("name", o.profileName());
         prof.addProperty("type", "custom");
         if (!prof.has("created")) prof.addProperty("created", now);
         prof.addProperty("lastUsed", now); // newest, so the launcher selects it
@@ -1117,7 +1261,11 @@ public final class InstallerCore {
         prof.addProperty("icon", iconDataUri());
         prof.addProperty("gameDir", o.gameDir().toAbsolutePath().toString());
         prof.addProperty("javaArgs", javaArgs(str(prof, "javaArgs"), o.memoryGb()));
-        profiles.add(PROFILE_KEY, prof);
+        if (o.javaDir() != null) {
+            if (o.javaDir().isBlank()) prof.remove("javaDir");
+            else prof.addProperty("javaDir", o.javaDir());
+        }
+        profiles.add(o.profileKey(), prof);
 
         writeAtomic(file, GSON.toJson(root));
     }
@@ -1362,7 +1510,7 @@ public final class InstallerCore {
         }
     }
 
-    private static void writeAtomic(Path file, String content) throws IOException {
+    static void writeAtomic(Path file, String content) throws IOException {
         writeAtomic(file, content, StandardCharsets.UTF_8);
     }
 
@@ -1372,7 +1520,7 @@ public final class InstallerCore {
         move(tmp, file);
     }
 
-    private static JsonObject readJsonObject(Path f) {
+    static JsonObject readJsonObject(Path f) {
         try {
             if (Files.exists(f)) {
                 JsonElement e = JsonParser.parseString(Files.readString(f));
@@ -1382,7 +1530,7 @@ public final class InstallerCore {
         return new JsonObject();
     }
 
-    private static void deleteTree(Path dir) throws IOException {
+    static void deleteTree(Path dir) throws IOException {
         if (!Files.exists(dir)) return;
         try (Stream<Path> s = Files.walk(dir)) {
             for (Path q : s.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(q);
@@ -1390,7 +1538,7 @@ public final class InstallerCore {
     }
 
     /** A bare file name that stays inside the folder it's put in (no paths, drive letters or streams). */
-    private static boolean plainName(String n) {
+    static boolean plainName(String n) {
         return n != null && !n.isBlank() && !n.contains("/") && !n.contains("\\") && !n.contains(":")
                 && !n.equals(".") && !n.equals("..");
     }
@@ -1404,13 +1552,20 @@ public final class InstallerCore {
 
     // ------------------------------------------------------------------ http helpers
 
-    private JsonElement getJson(String url) throws IOException, InterruptedException {
+    /** A page as text (HTTP 200 only). */
+    String getText(String url) throws IOException, InterruptedException {
+        HttpResponse<String> res = http.send(request(url), HttpResponse.BodyHandlers.ofString());
+        if (res.statusCode() != 200) throw new IOException("HTTP " + res.statusCode() + " from " + host(url));
+        return res.body();
+    }
+
+    JsonElement getJson(String url) throws IOException, InterruptedException {
         HttpResponse<String> res = http.send(request(url), HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() != 200) throw new IOException("HTTP " + res.statusCode() + " from " + host(url));
         return JsonParser.parseString(res.body());
     }
 
-    private void download(String url, Path target, String expectedHash, String algo,
+    void download(String url, Path target, String expectedHash, String algo,
                           double from, double to, Progress p) throws Exception {
         download(url, target, expectedHash, algo, from, to, p, null);
     }
@@ -1492,15 +1647,15 @@ public final class InstallerCore {
         };
     }
 
-    private static HttpRequest request(String url) {
+    static HttpRequest request(String url) {
         return HttpRequest.newBuilder(URI.create(url)).header("User-Agent", USER_AGENT).timeout(Duration.ofSeconds(60)).GET().build();
     }
 
-    private static String str(JsonObject o, String k) { return o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsString() : null; }
+    static String str(JsonObject o, String k) { return o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsString() : null; }
 
-    private static String enc(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
+    static String enc(String s) { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
 
-    private static String host(String url) {
+    static String host(String url) {
         try {
             String h = URI.create(url).getHost();
             return h != null ? h : url;

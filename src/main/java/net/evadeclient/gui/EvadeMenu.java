@@ -52,7 +52,9 @@ public class EvadeMenu extends Screen {
     }
 
     /** A sidebar entry: a category page, or the special Edit-HUD action (page == null, hud == true). */
-    private record Nav(String label, Page page, String icon, boolean hud) {}
+    private record Nav(String label, Page page, String icon, boolean hud, Runnable action) {
+        Nav(String label, Page page, String icon, boolean hud) { this(label, page, icon, hud, null); }
+    }
     private record NavGroup(String header, List<Nav> items) {}
 
     private static final List<NavGroup> GROUPS = List.of(
@@ -67,7 +69,9 @@ public class EvadeMenu extends Screen {
             new NavGroup("GENERAL", List.of(
                     new Nav("Edit HUD Layout", null, "edit", true),
                     new Nav("Profiles", Page.PROFILES, "profiles", false),
-                    new Nav("Settings", Page.SETTINGS, "settings", false))));
+                    new Nav("Settings", Page.SETTINGS, "settings", false),
+                    new Nav("Mod Browser", null, "mods", false, net.evadeclient.gui.ModBrowserScreen::open),
+                    new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open))));
 
     private static Page page = Page.ALL;
     private static Module selected;
@@ -1858,7 +1862,9 @@ public class EvadeMenu extends Screen {
             if (my >= navTop() && my < navBottom()) {
                 for (NavHit hit : navLayout()) {
                     if (my >= hit.y && my < hit.y + NAV_ITEM_H) {
-                        if (hit.nav.hud) {
+                        if (hit.nav.action != null) {
+                            hit.nav.action.run();
+                        } else if (hit.nav.hud) {
                             returnTo = null; // the editor comes back to this menu, not to where the menu came from
                             client.setScreen(new HudEditorScreen(this));
                         } else go(hit.nav.page);

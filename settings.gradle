@@ -7,3 +7,5 @@ pluginManagement {
 }
 rootProject.name = 'evade-client'
 include 'installer', 'clips'
+// Paper plugin for servers (Evade Server API). Its tasks only run when asked for by name: ./gradlew :server-plugin:build
+include 'server-plugin'

@@ -88,7 +88,14 @@
     "NickHiderDrawContextMixin",
     "NickHiderTextRendererMixin",
     "NickHiderTextHandlerMixin",
-    "PlayerListEntryMixin"
+    "PlayerListEntryMixin",
+    "MenuBlurScreenMixin",
+    "MinecraftClientTitleScreenMixin",
+    "PackScreenAccessor",
+    "PackListWidgetAccessor",
+    "PackListWidgetMixin",
+    "PackEntryMixin",
+    "HypixelStatsTabMixin"
   ],
   "injectors": {
     "defaultRequire": 1

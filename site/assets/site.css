@@ -334,6 +334,8 @@ main > section.page-body { margin-top: 56px; }
 /* ---------- docs ---------- */
 .doc-sec + .doc-sec { margin-top: 56px; }
 .doc-sec h2 { font-size: clamp(24px, 3vw, 32px); margin-bottom: 14px; }
+.doc-sec h3 { font-size: clamp(19px, 2.2vw, 23px); margin: 40px 0 12px; scroll-margin-top: 96px; }
+.doc-sec .table + pre.code, .doc-sec pre.code + .table { margin-top: 14px; }
 .doc-sec p, .doc-sec li { color: var(--muted); max-width: 720px; }
 .doc-sec p + p, .doc-sec p + ul, .doc-sec ul + p, .doc-sec p + ol, .doc-sec .table + p, .doc-sec p + .table { margin-top: 14px; }
 .doc-sec ul, .doc-sec ol { padding-left: 20px; display: grid; gap: 8px; }

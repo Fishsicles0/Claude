@@ -9,7 +9,8 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 /**
  * Inventory Blur strength. The menu blur shader reads its radius from the per-frame global uniforms (MenuBlurRadius),
  * which vanilla fills from the Menu Background Blur option; while Inventory Blur is on and a container screen is open,
- * the module's Strength goes there instead. Every other screen keeps the game's setting.
+ * the module's Strength goes there instead; Menu Blur does the same for the other menus it covers. Every other
+ * screen keeps the game's setting.
  */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererBlurMixin {
@@ -18,6 +19,6 @@ public abstract class GameRendererBlurMixin {
                     target = "Lnet/minecraft/client/gl/GlobalSettings;set(IIDJLnet/minecraft/client/render/RenderTickCounter;ILnet/minecraft/client/render/Camera;Z)V"),
             index = 5)
     private int evade$inventoryBlurRadius(int vanilla) {
-        return InventoryBlur.blurRadius(vanilla);
+        return net.evadeclient.module.visuals.MenuBlur.blurRadius(InventoryBlur.blurRadius(vanilla));
     }
 }

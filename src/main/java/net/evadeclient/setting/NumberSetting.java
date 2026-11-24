@@ -7,6 +7,11 @@ import java.util.Locale;
 
 public class NumberSetting extends Setting<Double> {
     private final double min, max, step;
+    /**
+     * Bounds a server set for this session through the Evade Server API (NaN when none). They limit what
+     * {@link #get()} returns, never the stored value, so the player's own value is saved and comes back on leaving.
+     */
+    private double serverMin = Double.NaN, serverMax = Double.NaN;
 
     public NumberSetting(String name, double value, double min, double max, double step) {
         super(name, value);
@@ -42,12 +47,40 @@ public class NumberSetting extends Setting<Double> {
         return Math.abs(value - getDefault()) < tolerance;
     }
 
+    /**
+     * The value in effect: the player's own, held inside the bounds a server set for this session (if any).
+     * The config always saves the player's own value.
+     */
+    @Override
+    public Double get() {
+        if (Double.isNaN(serverMin) && Double.isNaN(serverMax)) return value;
+        double v = value;
+        if (!Double.isNaN(serverMax) && v > serverMax) v = serverMax;
+        if (!Double.isNaN(serverMin) && v < serverMin) v = serverMin;
+        return v;
+    }
+
+    /** Server bounds for this session; NaN leaves that side open. See {@link #get()}. */
+    public void limit(double lo, double hi) {
+        serverMin = lo;
+        serverMax = hi;
+    }
+
+    /** Drops the server's bounds (on leaving the server). */
+    public void clearLimit() {
+        serverMin = Double.NaN;
+        serverMax = Double.NaN;
+    }
+
+    /** Whether a server bounds this setting right now. */
+    public boolean isLimited() { return !Double.isNaN(serverMin) || !Double.isNaN(serverMax); }
+
     public double getMin() { return min; }
     public double getMax() { return max; }
     /** The size of one step (the slider and the config snap to multiples of it). */
     public double getStep() { return step; }
-    public float getFloat() { return value.floatValue(); }
-    public int getInt() { return value.intValue(); }
+    public float getFloat() { return get().floatValue(); }
+    public int getInt() { return get().intValue(); }
 
     @Override public JsonElement toJson() { return new JsonPrimitive(value); }
 
@@ -60,7 +93,8 @@ public class NumberSetting extends Setting<Double> {
 
     @Override
     public String display() {
-        if (step >= 1) return String.valueOf(value.intValue());
+        double value = get();
+        if (step >= 1) return String.valueOf((int) value);
         // Two decimals as always; finer steps get as many as they need.
         int decimals = step > 0 && step < 0.01 ? (int) Math.min(6, Math.ceil(-Math.log10(step) - 1e-9)) : 2;
         return String.format(Locale.ROOT, "%." + decimals + "f", value);

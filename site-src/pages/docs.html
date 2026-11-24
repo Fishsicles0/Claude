@@ -5,12 +5,13 @@ nav: docs
 <header class="page-hero wrap">
   <div class="eyebrow rv">Docs</div>
   <h1 class="rv d1">How to use <span class="red">Evade</span>.</h1>
-  <p class="rv d2">Everything you need after installing: the menu, keybinds, chat commands and the tools that need a little explaining.</p>
+  <p class="rv d2">Everything you need after installing: the launcher, the menu, keybinds, chat commands and the tools that need a little explaining.</p>
 </header>
 
 <section class="wrap page-body">
   <div class="faq-layout">
     <aside class="faq-nav" aria-label="Docs sections">
+      <a href="#launcher">The launcher</a>
       <a href="#menu">The menu</a>
       <a href="#themes">Themes</a>
       <a href="#profiles">Profiles</a>
@@ -25,6 +26,14 @@ nav: docs
       <a href="#config">Config files</a>
     </aside>
     <div class="doc">
+      <div class="doc-sec rv" id="launcher">
+        <h2>The Evade Launcher</h2>
+        <p>The Evade Launcher installs Evade and keeps it up to date. Press <b>Play</b> on its Home page: if Evade, Fabric or one of the extras has a new version it updates them first, then it opens the official Minecraft Launcher with the right profile already selected. Press Play there. Signing in stays with the Minecraft Launcher and your Microsoft account; the Evade Launcher never asks for your password. Home also shows the latest changes, which versions you have, and Evade Clips.</p>
+        <p><b>Instances</b> are separate setups, each with its own mods, settings, worlds and memory, and its own profile in the Minecraft Launcher (<b>Evade Client &mdash; PvP</b>, for example). Your first one is <b>Main</b> in <span class="mono">.minecraft/evade</span>; new ones go in <span class="mono">.minecraft/evade-instances</span>. Create, rename, duplicate or delete them, switch <b>FPS mods</b>, <b>Shaders</b> and <b>Voice chat</b> per instance, and copy game settings from another instance or your normal game. Changes are applied the next time you press Play.</p>
+        <p><b>Mods</b> lists the mods in an instance. Switch your own mods off and on (the file is renamed to <span class="mono">.jar.disabled</span>, so nothing is lost) or remove them, and use <b>Browse Modrinth</b> to add Fabric mods for {{MC}}: the newest compatible version is installed with the libraries it needs, each checked against Modrinth's SHA-512. Evade, Fabric API and the extras are managed by Play and the instance's switches.</p>
+        <p><b>Settings</b> has the Minecraft folder, the memory for new instances, an optional Java path, whether the launcher closes when you press Play, update checks, and buttons to open each folder.</p>
+      </div>
+
       <div class="doc-sec rv" id="menu">
         <h2>The menu</h2>
         <p>Press <span class="kbd">Right Shift</span> in game. The sidebar has {{CATS}} categories plus <b>All Mods</b>, <b>Edit HUD Layout</b>, <a href="#profiles"><b>Profiles</b></a> and <b>Settings</b>.</p>
@@ -69,7 +78,7 @@ nav: docs
         <h2>Performance</h2>
         <p>Evade's <b>Performance</b> mod (Controls) is on by default. It skips drawing mobs and block entities past a distance you choose, draws one item per dropped stack, thins particles, idles at a low frame rate when you tab out or go AFK (back to full speed the moment you move) and can apply lighter video settings &mdash; all restored when you turn it off. On a weak PC, switch on <b>Low-End PC Mode</b> too: solid leaves, smooth lighting off, no chunk fade-in, biome blend off and a shorter entity distance.</p>
         <p><b>FPS Mode</b> sets everything in one click: <b>Max FPS</b> (render distance up to 8, Low-End PC Mode on), <b>Balanced</b> (the default: render distance up to 12, smooth lighting kept) or <b>Quality</b> (only unlocks the frame rate). Pick <b>Custom</b> to set each option yourself. <b>Unlock FPS</b> turns VSync off and sets Max Framerate to Unlimited the first time you play (you'll see a notification); turn it off to put your own back. Type <span class="mono">.bench</span> (or <span class="mono">.bench 60</span>) to measure average FPS and the 1% low; each run is compared with the last and saved to <span class="mono">config/evade/bench.txt</span>.</p>
-        <p><b>Shaders</b> switches Iris between <b>Off</b>, <a href="https://modrinth.com/shader/photon-shader" target="_blank" rel="noopener">Photon</a> (by SixthSurge, the best looking) and Complementary Reimagined (lighter, for laptops) without opening Iris' menus. Both packs come from Modrinth when you switch on Shaders in the installer.</p>
+        <p><b>Shaders</b> switches Iris between <b>Off</b>, <a href="https://modrinth.com/shader/photon-shader" target="_blank" rel="noopener">Photon</a> (by SixthSurge, the best looking) and Complementary Reimagined (lighter, for laptops) without opening Iris' menus. Both packs come from Modrinth when you switch on Shaders in the Evade Launcher.</p>
         <p>Its <b>Effects</b> settings cut the eye candy that costs frames:</p>
         <ul>
           <li><b>Particle Distance</b> (32 blocks): particles further away aren't created at all.</li>
@@ -81,15 +90,15 @@ nav: docs
           <li><b>Hide Rain &amp; Snow</b> (off): skips drawing precipitation completely, for the weakest PCs.</li>
         </ul>
         <p>Particles that tell you something, like a fishing bite, a splash, bubbles or an explosion, are never thinned or cut by distance. For the fire on your own screen, <b>Pack Tweaks</b> lowers it and <b>NoRender</b> hides it.</p>
-        <p><b>Shaders:</b> switch on <b>Shaders</b> in the installer to add <a href="https://modrinth.com/mod/iris" target="_blank" rel="noopener">Iris</a> with the <a href="https://modrinth.com/shader/photon-shader" target="_blank" rel="noopener">Photon</a> shader pack by SixthSurge, plus the lighter <a href="https://modrinth.com/shader/complementary-reimagined" target="_blank" rel="noopener">Complementary Reimagined</a>, from Modrinth: real-time shadows, volumetric light, reflective water and more. Shaders cost a lot of FPS, so they're off by default. Press <span class="kbd">K</span> in game to turn them on or off, or pick another pack under <b>Options &rsaquo; Video Settings &rsaquo; Shader Packs</b>.</p>
-        <p><b>Memory:</b> the installer recommends how much memory to give Minecraft based on your PC. More isn't faster: an oversized heap makes garbage-collection pauses longer.</p>
-        <p>The installer also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. The installer also sets low-pause memory settings for smoother frame times.</p>
+        <p><b>Shaders:</b> switch on <b>Shaders</b> for an instance in the Evade Launcher to add <a href="https://modrinth.com/mod/iris" target="_blank" rel="noopener">Iris</a> with the <a href="https://modrinth.com/shader/photon-shader" target="_blank" rel="noopener">Photon</a> shader pack by SixthSurge, plus the lighter <a href="https://modrinth.com/shader/complementary-reimagined" target="_blank" rel="noopener">Complementary Reimagined</a>, from Modrinth: real-time shadows, volumetric light, reflective water and more. Shaders cost a lot of FPS, so they're off by default. Press <span class="kbd">K</span> in game to turn them on or off, or pick another pack under <b>Options &rsaquo; Video Settings &rsaquo; Shader Packs</b>.</p>
+        <p><b>Memory:</b> the Evade Launcher recommends how much memory to give Minecraft based on your PC. More isn't faster: an oversized heap makes garbage-collection pauses longer.</p>
+        <p>The Evade Launcher also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. It also sets low-pause memory settings for smoother frame times.</p>
         <p>Turn on the <b>Frame Time Graph</b> (HUD) to see how smooth your game really is: one bar per frame (green inside a 60 FPS budget, yellow slower, red for stutters), plus your average FPS, your <b>1% low</b> (the FPS of your slowest frames, which is what you feel) and your worst frame.</p>
       </div>
 
       <div class="doc-sec rv" id="voice">
         <h2>Voice chat</h2>
-        <p>Evade's voice chat is <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax. The Evade Installer downloads it straight from Modrinth when you leave <b>Voice chat</b> switched on.</p>
+        <p>Evade's voice chat is <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a> by henkelmax. The Evade Launcher downloads it straight from Modrinth when you leave <b>Voice chat</b> switched on.</p>
         <ul>
           <li>It works on every server that runs Simple Voice Chat, and in singleplayer and LAN worlds you host.</li>
           <li>Press <span class="kbd">V</span> (or type <span class="mono">.voice</span>, or click <b>Voice Chat</b> in the menu) for its menu. The first time, its setup guide walks you through your mic and push-to-talk key.</li>
@@ -178,7 +187,7 @@ nav: docs
           <div><code>.minecraft/evade/config/evade/config.json</code><span>Mods, settings, keybinds, HUD layout</span></div>
           <div><code>.minecraft/evade/config/evade/waypoints.json</code><span>Waypoints</span></div>
         </div>
-        <p>Paths are for an installer setup. If you dropped the jar into your own Fabric install, they're inside that instance's folder instead.</p>
+        <p>Paths are for the Evade Launcher's <b>Main</b> instance. Other instances keep theirs in <span class="mono">.minecraft/evade-instances/&lt;name&gt;/config/evade</span>. If you dropped the jar into your own Fabric install, they're inside that game folder instead.</p>
       </div>
     </div>
   </div>

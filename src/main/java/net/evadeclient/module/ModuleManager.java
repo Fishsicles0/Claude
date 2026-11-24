@@ -113,6 +113,17 @@ public class ModuleManager {
         register(new PackDisplayHud());
         register(new FrameTimeHud());
         register(new net.evadeclient.module.hud.MinimapHud());
+        register(new TotemCounterHud());
+        register(new DayCounterHud());
+        register(new net.evadeclient.module.hud.BedWarsHud());
+        register(new MenuBlur());
+        register(new Snaplook());
+        register(new TextHotkeys());
+        register(new TitleScreenModule());
+        register(new PackOrganizer());
+        register(new DiscordStatus());
+        register(new net.evadeclient.module.misc.QuickPlay());
+        register(new net.evadeclient.module.misc.HypixelStats());
         register(new net.evadeclient.module.hud.ProfilerHud());
         // Client
         register(new ClientSettings());
