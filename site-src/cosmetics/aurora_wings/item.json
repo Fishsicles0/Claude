@@ -1,0 +1,10 @@
+{
+ "id": "aurora_wings",
+ "name": "Aurora Wings",
+ "slot": "WINGS",
+ "rarity": "LEGENDARY",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "See-through wings that fade from cyan to violet, with glowing veins and a slow, easy beat."
+}

@@ -1,0 +1,10 @@
+{
+ "id": "ashen_feathers",
+ "name": "Ashen Feathers",
+ "slot": "WINGS",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Layered grey feathers that darken towards ember-lit tips."
+}

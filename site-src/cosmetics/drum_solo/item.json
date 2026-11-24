@@ -1,0 +1,112 @@
+{
+ "id": "drum_solo",
+ "name": "Drum Solo",
+ "slot": "EMOTE",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Air drums: alternate hits with a head bob to the beat.",
+ "emote": {
+  "length": 1.0,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -50,
+     0,
+     0
+    ],
+    [
+     0.25,
+     -85,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -50,
+     0,
+     0
+    ],
+    [
+     0.75,
+     -60,
+     0,
+     0
+    ],
+    [
+     1.0,
+     -50,
+     0,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     -60,
+     0,
+     0
+    ],
+    [
+     0.25,
+     -50,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -60,
+     0,
+     0
+    ],
+    [
+     0.75,
+     -85,
+     0,
+     0
+    ],
+    [
+     1.0,
+     -60,
+     0,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     10,
+     0,
+     0
+    ],
+    [
+     0.25,
+     -4,
+     0,
+     0
+    ],
+    [
+     0.5,
+     10,
+     0,
+     0
+    ],
+    [
+     0.75,
+     -4,
+     0,
+     0
+    ],
+    [
+     1.0,
+     10,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

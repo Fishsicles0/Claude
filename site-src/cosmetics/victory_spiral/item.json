@@ -1,0 +1,22 @@
+{
+ "id": "victory_spiral",
+ "name": "Victory Spiral",
+ "slot": "WIN_EFFECT",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
+ "fx": {
+  "type": "spiral",
+  "particle": "dust",
+  "colors": [
+   "#FFD36A",
+   "#FFF4C2",
+   "#FF8A3A"
+  ],
+  "count": 80,
+  "size": 1.0,
+  "height": 3.0
+ }
+}

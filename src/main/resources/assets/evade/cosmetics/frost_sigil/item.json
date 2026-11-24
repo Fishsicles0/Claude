@@ -1,0 +1,19 @@
+{
+ "id": "frost_sigil",
+ "name": "Frost Sigil",
+ "slot": "AURA",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A pale snowflake sigil slowly turns beneath you, with a few drifting flakes.",
+ "fx": {
+  "type": "aura",
+  "particle": "snow",
+  "colors": [
+   "#E8FBFF"
+  ],
+  "rate": 2,
+  "size": 1.0
+ }
+}

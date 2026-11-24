@@ -1,0 +1,10 @@
+{
+ "id": "circuit_crown",
+ "name": "Circuit Crown",
+ "slot": "HAT",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A gold crown traced with glowing cyan circuitry and a crystal at the front."
+}

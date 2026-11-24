@@ -1,0 +1,10 @@
+{
+ "id": "comet_cap",
+ "name": "Comet Cap",
+ "slot": "HAT",
+ "rarity": "COMMON",
+ "colourable": true,
+ "defaultColor": "#3D7BFF",
+ "partner": null,
+ "description": "A ribbed knit beanie with a glowing pom-pom, in any colour you like."
+}

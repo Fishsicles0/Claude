@@ -955,12 +955,12 @@ def rotate(pitch, yaw, roll):
     return M
 
 
-def render_scene(scene, yaw, pitch, focus, size=THUMB, ss=3):
+def render_scene(scene, yaw, pitch, focus, size=THUMB, ss=3, yup=False):
     S = size * ss
     img = np.zeros((S, S, 4), np.float32)
     R = rot_matrix(pitch, 0, 0) @ rot_matrix(0, yaw, 0)
     # entity space is y-down with the front at -z (as Minecraft draws it): screen x = x, up = -y, nearer = -z
-    view = np.diag([1, -1, -1]) @ R
+    view = np.diag([1, 1 if yup else -1, -1]) @ R
     pts_all = [(view @ q[0].T).T for q in scene.quads]
     allp = np.concatenate(pts_all) if pts_all else np.zeros((1, 3))
     if focus is not None:
@@ -1069,7 +1069,7 @@ def thumb_model(it, tex_arr, tw, th):
         color[3] = b.alpha
         for c in b.cubes:
             scene.cube(M, c.origin, c.size, c.uv, c.inflate, c.mirror, tw, th, tex_arr, color, b.emissive)
-    return render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), None)
+    return render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), None, yup=focus == "item")
 
 
 def thumb_emote(it):

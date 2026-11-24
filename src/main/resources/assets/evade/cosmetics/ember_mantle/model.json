@@ -1,0 +1,83 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  32,
+  64
+ ],
+ "textureScale": 2,
+ "bones": [
+  {
+   "name": "cape",
+   "attach": "body",
+   "pivot": [
+    0,
+    0,
+    2
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -5.0,
+      0.0,
+      1.0
+     ],
+     "size": [
+      10,
+      16,
+      1
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "cape"
+   }
+  },
+  {
+   "name": "cape_glow",
+   "attach": "body",
+   "pivot": [
+    0,
+    0,
+    2
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -5.0,
+      0.0,
+      1.0
+     ],
+     "size": [
+      10,
+      16,
+      1
+     ],
+     "uv": [
+      0,
+      17
+     ],
+     "inflate": 0.05
+    }
+   ],
+   "anim": {
+    "type": "cape"
+   },
+   "emissive": true
+  }
+ ]
+}

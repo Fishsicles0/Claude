@@ -1,0 +1,21 @@
+{
+ "id": "stardust_trail",
+ "name": "Stardust Trail",
+ "slot": "TRAIL",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Glittering violet and gold dust drifts from your feet as you move.",
+ "fx": {
+  "type": "trail",
+  "particle": "dust",
+  "colors": [
+   "#B98CFF",
+   "#FFD36A",
+   "#FFFFFF"
+  ],
+  "rate": 10,
+  "size": 0.8
+ }
+}

@@ -1,0 +1,102 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  32,
+  16
+ ],
+ "textureScale": 2,
+ "bones": [
+  {
+   "name": "wisp",
+   "attach": "body",
+   "pivot": [
+    7,
+    -6,
+    1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      5.0,
+      -8.0,
+      -1.0
+     ],
+     "size": [
+      4,
+      4,
+      4
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 0.8,
+    "speed": 2.0
+   }
+  },
+  {
+   "name": "wisp_flame",
+   "attach": "body",
+   "pivot": [
+    7,
+    -6,
+    1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.0,
+      -10.0,
+      0.0
+     ],
+     "size": [
+      2,
+      2,
+      2
+     ],
+     "uv": [
+      16,
+      0
+     ]
+    },
+    {
+     "origin": [
+      6.5,
+      -11.5,
+      0.5
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ],
+     "uv": [
+      24,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 0.8,
+    "speed": 2.0
+   },
+   "emissive": true
+  }
+ ]
+}

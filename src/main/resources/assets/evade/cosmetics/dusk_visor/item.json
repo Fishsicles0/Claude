@@ -1,0 +1,10 @@
+{
+ "id": "dusk_visor",
+ "name": "Dusk Visor",
+ "slot": "MASK",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A sleek gunmetal visor across the eyes with a glowing red slit."
+}

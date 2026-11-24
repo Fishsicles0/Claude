@@ -1,0 +1,10 @@
+{
+ "id": "lantern_pack",
+ "name": "Lantern Pack",
+ "slot": "BACK",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A sturdy canvas backpack with leather straps and a little lantern that glows at night."
+}
