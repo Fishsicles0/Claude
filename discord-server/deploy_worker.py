@@ -22,7 +22,7 @@ from common import HERE, load_state
 from setup_rest import Discord
 
 WORKER = HERE / "worker"
-DIST = WORKER / "dist"
+DIST = WORKER / ("dist" if os.environ.get("SERVER", "evade") == "evade" else f"dist-{os.environ['SERVER']}")
 
 MOD_PERMS = str(1 << 40)          # moderate_members: hides staff commands from members
 MANAGE_MESSAGES = str(1 << 13)
