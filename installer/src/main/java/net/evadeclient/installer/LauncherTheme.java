@@ -102,6 +102,12 @@ final class LauncherTheme {
         return (a << 24) | rgb;
     }
 
+    /** A saturated colour as the light theme shows it, without any accent change (for the accent swatches). */
+    static int mapArgbLightOnly(int rgb) {
+        float[] hsl = hsl((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
+        return rgb(hsl[0], hsl[1], Math.min(hsl[2], 0.42f));
+    }
+
     /** Lightness of a dark-theme neutral in the light theme. */
     private static float curve(float l) {
         if (l < 0.115f) return Math.min(1f, 0.945f + (l - 0.04f) * 0.75f);      // page, cards, fields: near white

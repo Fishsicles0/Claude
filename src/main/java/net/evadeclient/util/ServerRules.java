@@ -59,6 +59,8 @@ public final class ServerRules {
     public static boolean isDisabled(Module m) {
         if (m == null || disabled.isEmpty()) return false;
         if (disabled.contains(m.getName().toLowerCase(Locale.ROOT))) return true;
+        // The World Map is built from the same explored terrain: switching the Minimap off switches it off too.
+        if (m instanceof net.evadeclient.module.visuals.WorldMap && disabled.contains("minimap")) return true;
         // "@addons" switches off every module other mods added through the Evade Addon API, "@addon:<modid>" one mod's.
         var owner = net.evadeclient.addon.EvadeAddons.owner(m);
         return owner != null && (disabled.contains("@addons") || disabled.contains("@addon:" + owner.modId().toLowerCase(Locale.ROOT)));
