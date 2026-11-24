@@ -3,6 +3,7 @@ package net.evadeclient.module.client;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.evadeclient.EvadeClient;
+import net.evadeclient.api.ApiCooldowns;
 import net.evadeclient.hud.HudDraw;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.hud.PotionHud;
@@ -48,7 +49,7 @@ import java.util.Set;
 /**
  * Timers for everything with a cooldown: ender pearls, wind charges, spears, chorus fruit,
  * shields disabled by an axe, goat horns, server-imposed gapple cooldowns, your weapon charge,
- * and gapple/potion effects. Shows "READY" and can ping when something comes off cooldown, and can write the
+ * gapple/potion effects, and cooldowns the server adds through the Evade Server API. Shows "READY" and can ping when something comes off cooldown, and can write the
  * time left on hotbar items.
  *
  * <p>Sits centred under the Direction HUD by default (below any boss bars), close to where you're looking.
@@ -279,6 +280,15 @@ public class CooldownHud extends HudElementModule {
             ItemStack icon = iconFor(cd.group());
             rows.add(new Row(icon, null, icon.getName().getString(), cd.remaining(), cd.total(),
                     TYPE_COLORS.getOrDefault(cd.group(), Theme.RED), i, false));
+        }
+        // Cooldowns the server added through the Evade Server API, after the item cooldowns.
+        List<ApiCooldowns.ServerCooldown> server = ApiCooldowns.active();
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < server.size(); i++) {
+            ApiCooldowns.ServerCooldown cd = server.get(i);
+            int remaining = cd.remainingTicks(now);
+            if (remaining <= 0) continue;
+            rows.add(new Row(cd.icon(), null, cd.name(), remaining, cd.totalTicks(), Theme.RED, 5_000 + i, false));
         }
         if (readyFlash.get()) {
             List<Identifier> ready = new ArrayList<>(justReady.keySet());

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import net.evadeclient.EvadeClient;
+import net.evadeclient.api.ApiTeams;
 import net.evadeclient.hud.HudDraw;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.visuals.Waypoints;
@@ -48,7 +49,9 @@ import java.util.Arrays;
  *
  * <p><b>Server-safe by design.</b> It shows the surface only: never players, mobs, items or anything underground,
  * and it draws nothing in dimensions with a ceiling (the Nether), where the "surface" would be the roof or a view
- * into caves. Servers can still switch it off with {@code evade:rules} ("Minimap").
+ * into caves. The one exception is chosen by the server: team mates it lists through the Evade Server API
+ * ({@code team.set}), and only those already loaded near you. Servers can still switch it off with
+ * {@code evade:rules} ("Minimap").
  *
  * <p><b>Cheap to draw.</b> Terrain is painted into a world-aligned texture used as a torus (block (x, z) lives at
  * texel (x mod T, z mod T)), a few chunks per tick, nearest first, each chunk uploaded as its own 16 x 16
@@ -87,7 +90,9 @@ public class MinimapHud extends HudElementModule {
     private final BooleanSetting showCoords = add(new BooleanSetting("Show Coordinates", true)
             .describe("Your block position under the map (hidden where the server hides coordinates from F3)."));
     private final BooleanSetting showWaypoints = add(new BooleanSetting("Show Waypoints", true)
-            .describe("Your own waypoints as dots, pinned to the edge when they're off the map (needs Waypoints on)."));
+            .describe("Your waypoints (and any the server adds) as dots, pinned to the edge when they're off the map (needs Waypoints on)."));
+    private final BooleanSetting showTeammates = add(new BooleanSetting("Show Teammates", true)
+            .describe("Team mates the server shares with Evade, as dots: only players already loaded near you, never anyone else."));
     private final BooleanSetting showCardinals = add(new BooleanSetting("Show Cardinal Directions", true)
             .describe("N, E, S and W around the edge of the map."));
     private final ModeSetting border = add(new ModeSetting("Border", "Accent", "Accent", "Custom", "Off")
@@ -438,6 +443,7 @@ public class MinimapHud extends HudElementModule {
             HudDraw.smallText(ctx, styled(msg), cx, cy - 3, Theme.TEXT_DIM, s - 8);
         } else {
             if (showWaypoints.get() && live) drawWaypoints(ctx, p, td, cx, cy, r, circle);
+            if (showTeammates.get() && live) drawTeammates(ctx, p, td, cx, cy, r, circle);
             drawArrow(ctx, set, cx, cy, yaw);
         }
         if (showCardinals.get()) drawCardinals(ctx, cx, cy, r, circle);
@@ -539,6 +545,25 @@ public class MinimapHud extends HudElementModule {
             int x = Math.round(cx + tmp.x - d / 2f), y = Math.round(cy + tmp.y - d / 2f);
             Theme.disc(ctx, x - 1, y - 1, d + 2, 0xA0000000);
             Theme.disc(ctx, x, y, d, c);
+        }
+    }
+
+    /**
+     * Team mates a server shared through the Evade Server API, as small rimmed dots in their team colour: only
+     * players in the client's loaded entity list that the server listed, and only while they're on the map (never
+     * pinned to the edge).
+     */
+    private void drawTeammates(DrawContext ctx, ClientPlayerEntity p, float td, float cx, float cy, float r, boolean circle) {
+        if (!ApiTeams.any()) return;
+        double px = MathHelper.lerp(td, p.lastX, p.getX()), pz = MathHelper.lerp(td, p.lastZ, p.getZ());
+        for (ApiTeams.Member m : ApiTeams.loaded()) {
+            var o = m.player();
+            project(MathHelper.lerp(td, o.lastX, o.getX()) - px, MathHelper.lerp(td, o.lastZ, o.getZ()) - pz);
+            if (clampToEdge(r, circle, 2f)) continue;
+            int d = 4;
+            int x = Math.round(cx + tmp.x - d / 2f), y = Math.round(cy + tmp.y - d / 2f);
+            Theme.disc(ctx, x - 1, y - 1, d + 2, 0xC0000000);
+            Theme.disc(ctx, x, y, d, m.color());
         }
     }
 

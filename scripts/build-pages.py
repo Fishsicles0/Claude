@@ -602,6 +602,39 @@ def news(ver: dict) -> dict:
     return {"{{NEWS_ID}}": vid, "{{NEWS_SERIES}}": "v" + series(vid[1:]), "{{NEWS}}": line}
 
 
+def plain(fragment: str) -> str:
+    """HTML fragment -> plain text: tags dropped, entities decoded, {{MC}} filled in, whitespace collapsed."""
+    text = html.unescape(re.sub(r"<[^>]+>", "", fragment))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def news_json(ver: dict, limit: int = 6) -> dict:
+    """site/news.json for the Evade Launcher's Home page: the newest changelog entries with their title, date,
+    summary and bullet points (plain text), newest first."""
+    text = (SRC / "changelog.html").read_text().replace("{{MC}}", ver["minecraft"])
+    entries = []
+    for m in re.finditer(r'<article\b([^>]*)>(.*?)</article>', text, re.S):
+        attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', m.group(1)))
+        body = m.group(2)
+        vid = attrs.get("id", "")
+        title = re.search(r"<h2>(.*?)</h2>", body, re.S)
+        when = re.search(r'<time datetime="([^"]*)">(.*?)</time>', body, re.S)
+        summary = re.search(r'<p class="rel-sum">(.*?)</p>', body, re.S)
+        items = [plain(li) for li in re.findall(r"<li>(.*?)</li>", body, re.S)]
+        entries.append({
+            "id": vid,
+            "title": plain(title.group(1)) if title else vid,
+            "date": when.group(1) if when else "",
+            "dateText": plain(when.group(2)) if when else "",
+            "summary": plain(summary.group(1)) if summary else "",
+            "items": [i for i in items if i],
+            "url": f"{SITE}/changelog" + (f"#{vid}" if vid else ""),
+        })
+        if len(entries) >= limit:
+            break
+    return {"version": ver["version"], "entries": entries}
+
+
 def file_key(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:10]
 
@@ -632,6 +665,9 @@ def main() -> None:
         "{{SHA_CLIPS_JAR}}": (clips.get("jar") or {}).get("sha256", ""),
     }
     tokens |= news(ver)
+    news_out = news_json(ver)
+    (OUT / "news.json").write_text(json.dumps(news_out, ensure_ascii=False, indent=1) + "\n")
+    print(f"news.json: {len(news_out['entries'])} changelog entries")
     tokens |= {"{{MODS_KEY}}": keys["mods_key"]}
     # One card per HUD element, for the Showcase page's HUD gallery (links to each element's detail view).
     hud_cards = "".join(

@@ -74,6 +74,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testPerformance(ctx, sp);
             testFpsAndServerRules(ctx, sp);
             testFullbrightOnScreen(ctx, sp);
+            testServerApi(ctx, sp);
+            testPhase1(ctx, sp);
             testFrameTime(ctx);
             testClips(ctx, sp);
             testVoice(ctx);
@@ -1954,6 +1956,102 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     }
 
     /** Frame Time Graph: frames are being recorded and summarised; header, freeze and styles. */
+    private void testServerApi(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        sp.getServer().runCommand("tp @a 0 -60 0 0 0");
+        ctx.waitTicks(3);
+        var api = net.evadeclient.api.ServerApi.class;
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ServerApi.helloJson()).contains("\"api\":1"), "Server API hello names the API version");
+        // Waypoints: drawn by Waypoints, flagged server, never saved, no beam when asked.
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ServerApi.handle(
+                "{\"type\":\"waypoint.add\",\"id\":\"spawn\",\"name\":\"Spawn\",\"x\":5,\"y\":-60,\"z\":5,\"color\":\"#3BE37A\",\"beam\":false}")) == 1, "waypoint.add accepted");
+        var wp = enable(ctx, net.evadeclient.module.visuals.Waypoints.class);
+        check(ctx.computeOnClient(c -> wp.visible().stream().anyMatch(s -> s.server() && !s.beam() && s.point().name().equals("Spawn"))), "Server waypoint shows in Waypoints");
+        check(ctx.computeOnClient(c -> wp.here().stream().noneMatch(p -> p.name().equals("Spawn"))), "Server waypoint is not among the player's own points");
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"waypoint.remove\",\"id\":\"spawn\"}"));
+        check(ctx.computeOnClient(c -> wp.visible().stream().noneMatch(s -> s.server())), "waypoint.remove removes it");
+        // Cooldowns.
+        var cd = enable(ctx, net.evadeclient.module.client.CooldownHud.class);
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"cooldown.set\",\"id\":\"dash\",\"name\":\"Dash\",\"icon\":\"minecraft:feather\",\"seconds\":8}"));
+        check(ctx.computeOnClient(c -> cd.rowsForTest().stream().anyMatch(r -> r.startsWith("Dash:"))), "Server cooldown shows in the Cooldown HUD");
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"cooldown.clear\"}"));
+        check(ctx.computeOnClient(c -> cd.rowsForTest().stream().noneMatch(r -> r.startsWith("Dash:"))), "cooldown.clear removes it");
+        // Notification, title, discord, batch.
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ServerApi.handle(
+                "[{\"type\":\"notification\",\"title\":\"Event\",\"text\":\"Soon\",\"seconds\":3,\"level\":\"warn\"},"
+              + "{\"type\":\"title\",\"title\":\"Round 2\",\"subtitle\":\"Fight!\",\"stay\":40},"
+              + "{\"type\":\"discord\",\"text\":\"Playing Test\"}]")) == 3, "A batch of three messages is accepted");
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ApiTitle.showing()), "Server title shows");
+        check("Playing Test".equals(ctx.computeOnClient(c -> net.evadeclient.api.ServerApi.discordText())), "Discord text stored");
+        // Border and beam.
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"border.set\",\"minX\":-10,\"minZ\":-10,\"maxX\":10,\"maxZ\":10,\"color\":\"cyan\"}"));
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"beam.add\",\"id\":\"b\",\"x\":3,\"y\":-60,\"z\":3,\"color\":\"gold\"}"));
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ApiBorder.active() && net.evadeclient.api.ApiBeams.count() == 1), "Border and beam set");
+        // Holograms: in plain sight shows, behind a wall doesn't.
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"hologram.add\",\"id\":\"h\",\"x\":0.5,\"y\":-58.5,\"z\":3.5,\"lines\":[\"Hello\",\"World\"]}"));
+        ctx.waitTicks(2);
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ApiHolograms.inViewCount()) == 1, "Hologram in sight shows");
+        sp.getServer().runCommand("fill -2 -60 2 2 -56 2 stone");
+        ctx.waitTicks(3);
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ApiHolograms.inViewCount()) == 0, "Hologram behind a wall is hidden");
+        sp.getServer().runCommand("fill -2 -60 2 2 -56 2 air");
+        // Teams: the local player is never marked; nobody unlisted is.
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"team.set\",\"color\":\"red\",\"players\":[\"" + c.player.getUuidAsString() + "\"]}"));
+        ctx.waitTicks(2);
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ApiTeams.any() && net.evadeclient.api.ApiTeams.loaded().isEmpty()
+                && net.evadeclient.api.ApiTeams.inView().isEmpty()), "Team set; the local player gets no marker or dot");
+        // Settings limit for the session only.
+        var zoom = EvadeClient.modules.get(net.evadeclient.module.mods.Zoom.class);
+        java.util.function.Supplier<Double> maxZoom = () -> zoom.getSettings().stream().filter(s -> s.getName().equals("Max Zoom"))
+                .map(s -> ((net.evadeclient.setting.NumberSetting) s).get()).findFirst().orElse(-1.0);
+        double before = ctx.computeOnClient(c -> maxZoom.get());
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"rules\",\"settings\":{\"Zoom\":{\"Max Zoom\":4}}}"));
+        check(ctx.computeOnClient(c -> maxZoom.get()) == Math.min(4, before), "Server caps Max Zoom for the session");
+        // Reset forgets everything and restores the setting.
+        ctx.runOnClient(c -> net.evadeclient.api.ServerApi.handle("{\"type\":\"reset\"}"));
+        check(ctx.computeOnClient(c -> maxZoom.get()) == before && !net.evadeclient.api.ApiBorder.active()
+                && net.evadeclient.api.ApiBeams.count() == 0 && net.evadeclient.api.ServerApi.discordText() == null, "reset clears everything and restores settings");
+        check(ctx.computeOnClient(c -> net.evadeclient.api.ServerApi.handle("not json")) == 0, "Bad JSON is ignored");
+        clearToasts(ctx);
+    }
+
+    /** Phase 1: Hypixel tools, the new mods (they switch on and off cleanly), and the Mod Browser screen. */
+    private void testPhase1(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        check(ctx.computeOnClient(c -> net.evadeclient.module.misc.QuickPlay.find("play bedwars_eight_one") != null
+                && net.evadeclient.module.misc.QuickPlay.find("say hi") == null), "Quick Play only sends listed commands");
+        check(ctx.computeOnClient(c -> !net.evadeclient.module.misc.QuickPlay.available()), "Quick Play is off outside Hypixel");
+        check(ctx.computeOnClient(c -> net.evadeclient.util.HypixelApi.validKey("01234567-89ab-cdef-0123-456789abcdef")
+                && !net.evadeclient.util.HypixelApi.validKey("hunter2")
+                && (int) net.evadeclient.util.HypixelApi.networkLevel(0) == 1), "Hypixel API key check and level formula");
+        check(ctx.computeOnClient(c -> {
+            var bw = net.evadeclient.EvadeClient.modules.get(net.evadeclient.module.hud.BedWarsHud.class);
+            bw.chatForTest("Protect your bed and destroy the enemy beds.");
+            bw.chatForTest("Steve purchased Reinforced Armor II");
+            bw.chatForTest("You purchased Iron Forge");
+            bw.chatForTest("You purchased Wool");
+            var up = bw.upgradesForTest();
+            return bw.runningForTest() && up.get("Prot") == 2 && up.get("Forge") == 1 && up.size() == 2;
+        }), "BedWars Helper reads team upgrades from chat");
+        Class<?>[] fresh = {net.evadeclient.module.hud.TotemCounterHud.class, net.evadeclient.module.hud.DayCounterHud.class,
+                net.evadeclient.module.hud.BedWarsHud.class, net.evadeclient.module.visuals.MenuBlur.class,
+                net.evadeclient.module.mods.Snaplook.class, net.evadeclient.module.misc.TextHotkeys.class,
+                net.evadeclient.module.misc.PackOrganizer.class, net.evadeclient.module.misc.DiscordStatus.class,
+                net.evadeclient.module.misc.HypixelStats.class};
+        for (Class<?> k : fresh) {
+            @SuppressWarnings("unchecked") Class<? extends Module> mk = (Class<? extends Module>) k;
+            enable(ctx, mk);
+            ctx.waitTicks(3);
+            disable(ctx, mk);
+        }
+        check(true, "New mods switch on and off without errors");
+        ctx.runOnClient(c -> net.evadeclient.gui.ModBrowserScreen.open());
+        ctx.waitTicks(10);
+        clearToasts(ctx);
+        ctx.takeScreenshot("evade-mod-browser");
+        String scr = ctx.computeOnClient(c -> c.currentScreen == null ? "none" : c.currentScreen.getClass().getSimpleName());
+        ctx.setScreen(() -> null);
+        check(scr.equals("ModBrowserScreen"), "Mod Browser opens (" + scr + ")");
+    }
+
     /** Fullbright really lights the picture (with Sodium, BadOptimizations and the other FPS mods loaded). */
     private void testFullbrightOnScreen(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var server = sp.getServer();

@@ -6,7 +6,7 @@
 disabled-mods:
   - Freelook
 
-# Mod settings forced for every Evade player: <Mod>: { <Setting>: <value> }.
+# Number limits for every Evade player: <Mod>: { <Setting>: <max> or {min: x, max: y} }. On/off and mode settings are ignored.
 settings: {}
 #  Zoom:
 #    Smooth: true

@@ -86,6 +86,10 @@ public class EvadeClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());
         // Servers can switch off Evade mods for their players (evade:rules).
         net.evadeclient.util.ServerRules.register();
+        // Servers can show waypoints, cooldowns, titles and more to Evade players (evade:api), and learn Evade is there (evade:hello).
+        net.evadeclient.api.ServerApi.register();
+        // Mod Browser: finish removals and updates left over from the last session.
+        net.evadeclient.mods.ModBrowser.startup();
         // Profiles linked to a server switch in automatically when you join it.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             var entry = client.getCurrentServerEntry();

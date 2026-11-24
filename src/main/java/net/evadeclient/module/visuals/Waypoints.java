@@ -7,6 +7,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import net.evadeclient.EvadeClient;
+import net.evadeclient.api.ApiWaypoints;
 import net.evadeclient.command.CommandManager;
 import net.evadeclient.command.CommandManager.CommandError;
 import net.evadeclient.module.Category;
@@ -88,9 +89,16 @@ public class Waypoints extends Module {
     /**
      * A point as drawn this tick: its own position, or for a point from the other dimension (Overworld and Nether
      * only) the matching position here, with {@code converted} set. {@code distance} is from your feet;
-     * {@code target} marks the point set with {@code .wp target}. Sorted far to near, so near labels end up on top.
+     * {@code target} marks the point set with {@code .wp target}. {@code server} marks a point a server added through
+     * the Evade Server API (never saved; {@code beam} off means it asked for no beam). Sorted far to near, so near
+     * labels end up on top.
      */
-    public record Shown(Point point, int x, int y, int z, boolean converted, int color, double distance, boolean target) {}
+    public record Shown(Point point, int x, int y, int z, boolean converted, int color, double distance, boolean target,
+                        boolean server, boolean beam) {
+        public Shown(Point point, int x, int y, int z, boolean converted, int color, double distance, boolean target) {
+            this(point, x, y, z, converted, color, distance, target, false, true);
+        }
+    }
 
     public static final int DEFAULT_COLOR = 0xFFE11D2E, DEATH_COLOR = 0xFFFF7A85;
     private static final String OVERWORLD = "minecraft:overworld", NETHER = "minecraft:the_nether", END = "minecraft:the_end";
@@ -227,6 +235,8 @@ public class Waypoints extends Module {
     private long shownTick = Long.MIN_VALUE;
     private ClientWorld shownWorld;
     private boolean shownDirty = true;
+    /** {@link ApiWaypoints#version()} the shown list was built with. */
+    private int shownServerVersion = -1;
 
     public Waypoints() {
         super("Waypoints", "Saved locations with beams and distance.", Category.VISUALS);
@@ -506,8 +516,9 @@ public class Waypoints extends Module {
     public List<Shown> visible() {
         if (mc.player == null || mc.world == null) return List.of();
         long tick = EvadeClient.ticks;
-        if (!shownDirty && tick == shownTick && shownWorld == mc.world) return shown;
+        if (!shownDirty && tick == shownTick && shownWorld == mc.world && shownServerVersion == ApiWaypoints.version()) return shown;
         shownDirty = false;
+        shownServerVersion = ApiWaypoints.version();
         shownTick = tick;
         shownWorld = mc.world;
 
@@ -525,6 +536,16 @@ public class Waypoints extends Module {
             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (!isTarget && ((max > 0 && dist > max) || dist < min)) continue;
             out.add(new Shown(p, at[0], at[1], at[2], at[3] == 1, color(p), dist, isTarget));
+        }
+        // Points the server added: same filters, never saved, never a target.
+        for (ApiWaypoints.ServerWaypoint w : ApiWaypoints.all()) {
+            Point p = new Point(w.name(), w.dim() == null ? here : w.dim(), w.x(), w.y(), w.z(), w.color(), false, 0L);
+            int[] at = spotHere(p, here);
+            if (at == null) continue;
+            double dx = at[0] + 0.5 - me.x, dy = at[1] - me.y, dz = at[2] + 0.5 - me.z;
+            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if ((max > 0 && dist > max) || dist < min) continue;
+            out.add(new Shown(p, at[0], at[1], at[2], at[3] == 1, w.color(), dist, false, true, w.beam()));
         }
         out.sort(Comparator.comparingDouble(Shown::distance).reversed());
         shown = out;
@@ -1240,7 +1261,7 @@ public class Waypoints extends Module {
                 ctx.boxFilled(new Box(x, y, z, x + 1, y + 1, z + 1), ColorUtil.withAlpha(c, a));
             }
             if (outline) ctx.boxOutline(x, y, z, x + 1, y + 1, z + 1, c, width);
-            if (!beam || s.converted()) continue;
+            if (!beam || s.converted() || !s.beam()) continue;
             double top = height == 0 ? buildTop : y + 1 + height;
             if (top <= y + 1) continue;
             if (pillar) ctx.boxFilled(new Box(x + .375, y + 1, z + .375, x + .625, top, z + .625), ColorUtil.withAlpha(c, 0x60));

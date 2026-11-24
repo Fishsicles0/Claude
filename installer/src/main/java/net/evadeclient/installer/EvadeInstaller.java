@@ -1,13 +1,6 @@
 package net.evadeclient.installer;
 
-import javax.imageio.ImageIO;
-import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
-import java.awt.Color;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
@@ -21,11 +14,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Evade Installer.
+ * Evade Launcher (still shipped as EvadeInstaller.jar / Evade-Installer.exe so existing downloads keep updating).
  * <pre>
- *   java -jar EvadeInstaller.jar                      open the installer window
+ *   java -jar EvadeInstaller.jar                      open the launcher window
  *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods] [--no-clips] [--shaders]
- *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every screen to PNG (no display needed)
+ *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every page to PNG (no display needed)
  * </pre>
  */
 public final class EvadeInstaller {
@@ -37,126 +30,37 @@ public final class EvadeInstaller {
         List<String> a = List.of(args);
         if (a.contains("--cli")) { cli(a); return; }
         if (a.contains("--screenshots")) { screenshots(Paths.get(arg(a, "--screenshots", "screenshots"))); return; }
-        // A newer installer on evadeclient.com takes over (and replaces this file), so one download lasts.
-        if (SelfUpdate.run(a)) { System.exit(0); return; }
+        // A newer launcher on evadeclient.com takes over (and replaces this file), so one download lasts.
+        // The player can switch this off in Settings.
+        if (Launcher.loadSettings().checkUpdates && SelfUpdate.run(a)) { System.exit(0); return; }
         System.setProperty("awt.useSystemAAFontSettings", "lcd");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
-        SwingUtilities.invokeLater(EvadeInstaller::openWindow);
+        SwingUtilities.invokeLater(LauncherApp::open);
     }
 
-    // ------------------------------------------------------------------ window
+    // ------------------------------------------------------------------ system helpers
 
-    private static void openWindow() {
-        InstallerCore core = new InstallerCore();
-        InstallerView view = new InstallerView();
-        JFrame frame = new JFrame("Evade Installer");
-        frame.setUndecorated(true);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(view);
-        // Rounded corners: with per-pixel alpha the frame is see-through and the view paints the rounded window
-        // itself, anti-aliased. Without it, the window is cut to the rounded shape (hard-edged corners). Set
-        // before pack(), while the frame has no native window yet.
-        boolean perPixel = perPixelTranslucency();
-        if (perPixel) {
-            try {
-                frame.setBackground(new Color(0, 0, 0, 0));
-            } catch (RuntimeException e) {
-                perPixel = false;
-                frame.setBackground(InstallerView.BG);
-            }
-        }
-        view.setOpaque(!perPixel);
-        view.roundCorners = perPixel;
-        frame.pack();
-        frame.setResizable(false);
-        if (!perPixel) {
-            try { frame.setShape(new RoundRectangle2D.Double(0, 0, InstallerView.W, InstallerView.H, 22, 22)); } catch (Exception ignored) {}
-        }
-        List<java.awt.Image> icons = new ArrayList<>();
-        icons.add(InstallerView.image("/evade/icon-128.png"));
-        frame.setIconImages(icons);
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-
-        Runnable loadRelease = () -> new SwingWorker<InstallerCore.Release, Void>() {
-            @Override protected InstallerCore.Release doInBackground() throws Exception { return core.fetchRelease(); }
-            @Override protected void done() {
-                try {
-                    view.release = get();
-                    view.releaseError = null;
-                } catch (Exception e) {
-                    // fetchRelease names the source it couldn't reach; that's the message to show, not its root cause.
-                    Throwable c = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
-                    view.releaseError = c.getMessage() != null ? c.getMessage() : rootMessage(c);
-                }
-                view.repaint();
-            }
-        }.execute();
-        loadRelease.run();
-        view.onRetryRelease = () -> {
-            view.releaseError = null;
-            view.repaint();
-            loadRelease.run();
-        };
-
-        view.onInstall = () -> {
-            view.state = InstallerView.State.INSTALLING;
-            view.progress = 0;
-            view.shownProgress = 0;
-            view.status = "";
-            view.skipped = List.of();
-            view.launcherError = null;
-            Path mc = view.minecraftDir;
-            InstallerCore.Options opts = new InstallerCore.Options(mc, InstallerCore.defaultGameDir(mc), view.memoryGb, view.copySettings, view.voiceChat, view.performanceMods, view.installClips, view.shaders);
-            InstallerCore.Release release = view.release;
-            new SwingWorker<List<String>, Object[]>() {
-                @Override protected List<String> doInBackground() throws Exception {
-                    return core.install(opts, release, (f, msg) -> publish(new Object[]{f, msg}));
-                }
-                @Override protected void process(List<Object[]> chunks) {
-                    for (Object[] c : chunks) {
-                        view.progress = Math.max(view.progress, (double) c[0]);
-                        if (c[1] != null) view.status = (String) c[1];
-                    }
-                }
-                @Override protected void done() {
-                    try {
-                        view.skipped = List.copyOf(get());
-                        view.progress = 1;
-                        view.refreshInstalled();
-                        view.state = InstallerView.State.DONE;
-                    } catch (Exception e) {
-                        view.error = friendly(e);
-                        view.state = InstallerView.State.ERROR;
-                    }
-                    view.repaint();
-                }
-            }.execute();
-        };
-        view.onOpenLauncher = () -> {
-            if (view.openingLauncher) return;
-            view.openingLauncher = true;
-            view.launcherError = null;
-            // Off the EDT: some attempts wait a moment to see whether the launcher actually started.
-            new Thread(() -> {
-                boolean ok = openLauncher();
-                SwingUtilities.invokeLater(() -> {
-                    view.openingLauncher = false;
-                    if (ok) System.exit(0);
-                    view.launcherError = "Couldn't open the Minecraft Launcher. " + (OS.contains("win") ? "Open it from your Start menu."
-                            : OS.contains("mac") ? "Open it from your Applications folder." : "Open it from your app menu.");
-                    view.repaint();
-                });
-            }, "open-launcher").start();
-        };
+    /** This launcher's version (from the jar manifest; "dev" when run from classes). */
+    static String launcherVersion() {
+        String v = EvadeInstaller.class.getPackage().getImplementationVersion();
+        return v != null ? v : "dev";
     }
 
-    /** Whether the screen can show windows with see-through pixels (smooth, anti-aliased window corners). */
-    private static boolean perPixelTranslucency() {
+    /** Opens a folder in the file manager or a link in the browser. False if nothing could open it. */
+    static boolean openPath(String target) {
+        boolean url = target.startsWith("http://") || target.startsWith("https://");
         try {
-            return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
-                    .isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSLUCENT);
-        } catch (RuntimeException e) {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop d = java.awt.Desktop.getDesktop();
+                if (url && d.isSupported(java.awt.Desktop.Action.BROWSE)) { d.browse(java.net.URI.create(target)); return true; }
+                if (!url && d.isSupported(java.awt.Desktop.Action.OPEN)) { d.open(new File(target)); return true; }
+            }
+        } catch (Exception ignored) { /* try the system command below */ }
+        List<String> cmd = OS.contains("win") ? List.of("explorer.exe", target) : OS.contains("mac") ? List.of("open", target) : List.of("xdg-open", target);
+        try {
+            new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            return true;
+        } catch (Exception e) {
             return false;
         }
     }
@@ -266,58 +170,8 @@ public final class EvadeInstaller {
     private static void screenshots(Path out) throws Exception {
         System.setProperty("java.awt.headless", "true");
         Files.createDirectories(out);
-        InstallerView v = new InstallerView();
-        v.minecraftDir = Paths.get(System.getProperty("user.home"), "AppData", "Roaming", ".minecraft");
-        InstallerCore.ModFile mod = new InstallerCore.ModFile("Sodium", "0.6.13", "", "", "sodium-fabric-0.6.13+mc1.21.11.jar",
-                "AANobbMI", List.of(), java.util.Map.of());
-        InstallerCore.Release full = new InstallerCore.Release("1.8.0", "", "", "0.18.6", "0.141.6+1.21.11", "", "", "", mod,
-                List.of(mod), "1.0.0", "downloads/Evade-Clips.exe", "", null, null, mod, mod, mod);
-        v.release = full;
-        v.installed = null;
-        save(v, out, "1-ready");
-        v.installed = new InstallerCore.Installed("0.3.0", "0.20.1", "0.141.6+1.21.11");
-        save(v, out, "2-update");
-        v.state = InstallerView.State.INSTALLING;
-        v.progress = 0.62;
-        v.status = "Downloading Evade Client v0.3.1";
-        save(v, out, "3-installing");
-        v.state = InstallerView.State.DONE;
-        v.progress = 1;
-        save(v, out, "4-done");
-        v.state = InstallerView.State.ERROR;
-        v.error = "Couldn't reach evadeclient.com. Check your internet connection and try again.";
-        save(v, out, "5-error");
-
-        v.state = InstallerView.State.DONE;
-        v.skipped = List.of("Lithium couldn't be downloaded", "Voice chat isn't available right now");
-        save(v, out, "6-done-skipped");
-        v.skipped = List.of(InstallerCore.CLIPS_BUSY, "Shaders skipped: Sodium could not be found", "The shader pack couldn't be downloaded",
-                "Krypton couldn't be updated (kept the installed version)");
-        v.launcherError = "Couldn't open the Minecraft Launcher. Open it from your Start menu.";
-        save(v, out, "7-done-busy");
-        v.skipped = List.of();
-        v.launcherError = null;
-
-        v.state = InstallerView.State.IDLE;
-        v.release = null;
-        v.releaseError = "Couldn't reach Modrinth (Fabric API)";
-        save(v, out, "8-offline");
-        v.releaseError = null;
-        v.release = new InstallerCore.Release("1.8.0", "", "", "0.18.6", "0.141.6+1.21.11", "", "", "", null,
-                List.of(), "1.0.0", "downloads/Evade-Clips.exe", "", null, null, null, null, null);
-        save(v, out, "9-unavailable");
-        v.release = full;
-        v.state = InstallerView.State.INSTALLING;
-        v.progress = 0.8;
-        v.status = "Downloading Lithium 0.15.0";
-        save(v, out, "10-installing-extras");
+        Screenshots.render(out);
         System.exit(0);
-    }
-
-    private static void save(InstallerView v, Path dir, String name) throws Exception {
-        // Paint twice so hover/toggle animations settle at their resting values.
-        for (int i = 0; i < 30; i++) v.snapshot(1f);
-        ImageIO.write(v.snapshot(2f), "png", dir.resolve(name + ".png").toFile());
     }
 
     // ------------------------------------------------------------------ helpers
