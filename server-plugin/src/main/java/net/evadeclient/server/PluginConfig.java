@@ -35,6 +35,11 @@ final class PluginConfig {
     final long legacyRulesDelayTicks;
     final boolean logJoins;
 
+    /** Partner cosmetics (off unless both are set): this server's partner id and key from evadeclient.com. */
+    final String partnerId;
+    final String partnerKey;
+    final String cosmeticsApiUrl;
+
     PluginConfig(ConfigurationSection c) {
         disabledMods = List.copyOf(c.getStringList("disabled-mods"));
         settings = readSettings(c.getConfigurationSection("settings"));
@@ -60,6 +65,14 @@ final class PluginConfig {
         legacyRules = c.getBoolean("legacy-rules", true);
         legacyRulesDelayTicks = Math.max(1, c.getInt("legacy-rules-delay-ticks", 40));
         logJoins = c.getBoolean("log-joins", true);
+
+        String id = c.getString("cosmetics.partner-id", "");
+        String key = c.getString("cosmetics.partner-key", "");
+        partnerId = id == null || id.isBlank() ? null : id.trim().toLowerCase(Locale.ROOT);
+        partnerKey = key == null || key.isBlank() ? null : key.trim();
+        String url = c.getString("cosmetics.api-url", "https://evadeclient.com");
+        url = url == null || !url.matches("https?://[^\\s]+") ? "https://evadeclient.com" : url.trim();
+        cosmeticsApiUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     /** The disabled-mods list for {@code world} (a world override replaces the global list). */

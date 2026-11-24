@@ -20,8 +20,12 @@
 // Friends, parties and party pings (/api/social/*, Bearer token from /api/auth/*) live in the EvadeSocial Durable
 // Object below; its header comment lists the endpoints and the WebSocket messages.
 //
+// Cosmetics and the (not yet open) shop: /api/cosmetics/*, /api/shop/*, /api/partner/*, /api/admin/* in
+// worker/cosmetics.js (its header lists the endpoints); their data lives in cos_* tables of the EvadeSocial object.
+//
 // Everyone gets the same free icon: there are no tiers or paid extras.
 import { DurableObject } from "cloudflare:workers";
+import { cosmeticsRoute, CosmeticsStore } from "./cosmetics.js";
 
 const HEADERS = {
   "content-type": "application/json",
@@ -97,6 +101,7 @@ export default {
     const store = env.ICONS.get(env.ICONS.idFromName("global"));
     try {
       if (url.pathname.startsWith("/api/social/")) return await socialRoute(req, env, url, store);
+      if (/^\/api\/(cosmetics|shop|partner|admin)\//.test(url.pathname)) return await cosmeticsRoute(req, env, url, store);
       if (url.pathname.startsWith("/api/backup/")) return await backupRoute(req, env, url, store);
       if (url.pathname === "/api/discover") {
         if (req.method !== "GET") throw new HttpError(405, "use GET");
@@ -535,6 +540,8 @@ export class EvadeSocial extends DurableObject {
                      iters INTEGER NOT NULL, format INTEGER NOT NULL, size INTEGER NOT NULL, label TEXT NOT NULL DEFAULT '',
                      updated INTEGER NOT NULL, used INTEGER NOT NULL);
                    CREATE INDEX IF NOT EXISTS backups_by_used ON backups (used);`);
+    /** Cosmetics: owned items, equipped state, orders, codes, partners (worker/cosmetics.js; cos_* tables). */
+    this.cos = new CosmeticsStore(this.sql);
     /** Ping times per sender (memory only: pings are never written down). */
     this.pingTimes = new Map();
     /** Pings waiting for a polling client's next /state, by recipient (memory only, kept 15 s). */
@@ -602,6 +609,11 @@ export class EvadeSocial extends DurableObject {
       console.error("social", op, e);
       return { status: 500, body: { error: "server error" } };
     }
+  }
+
+  /** One cosmetics/shop request from worker/cosmetics.js (which checked tokens and signatures). Returns { status, body }. */
+  async cosmetics(op, args) {
+    return this.cos.run(op, args);
   }
 
   /** One /api/backup/* request (the worker checked the token). Returns { status, body }. */
@@ -1367,6 +1379,7 @@ export class EvadeSocial extends DurableObject {
     this.sql.exec("DELETE FROM rate WHERE start <= ?", now - 24 * 3600 * 1000);
     this.sql.exec("DELETE FROM backups WHERE used <= ?", now - BACKUP.UNUSED_MS);
     this.sql.exec("DELETE FROM activity WHERE uuid NOT IN (SELECT uuid FROM profiles)");
+    this.cos.sweep(now);
   }
 
   // ------------------------------------------------------------------ cloud backup

@@ -7,6 +7,7 @@ package net.evadeclient.server;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -14,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The Evade Server API for other plugins. Add {@code depend: [EvadeServerAPI]} (or {@code softdepend}) to your
@@ -398,6 +400,30 @@ public final class EvadeApi {
         JsonObject m = Json.message("discord");
         m.addProperty("text", text);
         return plugin().send(player, m);
+    }
+
+    // ---------------------------------------------------------------- partner cosmetics
+
+    /** Whether partner cosmetics are on (config.yml has {@code cosmetics.partner-id} and {@code cosmetics.partner-key}). */
+    public static boolean partnerCosmeticsEnabled() {
+        return PartnerCosmetics.configured(plugin().settings());
+    }
+
+    /**
+     * Gives {@code player} one of this server's own partner cosmetics on evadeclient.com (an item whose partner is the
+     * {@code cosmetics.partner-id} in config.yml). The player doesn't need to be online or using Evade Client right now.
+     *
+     * <p>Asynchronous: completes with {@code true} when it was granted, {@code false} when the player already owned it,
+     * or exceptionally (partner cosmetics off, not one of your items, network error...). It completes on a background
+     * thread: switch to the main thread (the Bukkit scheduler) before touching players or worlds.
+     */
+    public static CompletableFuture<Boolean> grantPartnerCosmetic(OfflinePlayer player, String itemId) {
+        return grantPartnerCosmetic(player == null ? null : player.getUniqueId(), itemId);
+    }
+
+    /** {@link #grantPartnerCosmetic(OfflinePlayer, String)} by player UUID. */
+    public static CompletableFuture<Boolean> grantPartnerCosmetic(UUID player, String itemId) {
+        return PartnerCosmetics.grant(plugin().settings(), player, itemId);
     }
 
     /**

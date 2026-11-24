@@ -5,6 +5,7 @@
 package net.evadeclient.server;
 
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,10 +18,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** /evade list | info | waypoint | notify | reload. */
+/** /evade list | info | waypoint | notify | reload | cosmetic grant. */
 final class EvadeCommand implements CommandExecutor, TabCompleter {
     private static final String PREFIX = "§8[§bEvade§8] §7";
-    private static final List<String> SUBCOMMANDS = List.of("list", "info", "waypoint", "notify", "reload");
+    private static final List<String> SUBCOMMANDS = List.of("list", "info", "waypoint", "notify", "reload", "cosmetic");
 
     private final EvadePlugin plugin;
 
@@ -74,6 +75,10 @@ final class EvadeCommand implements CommandExecutor, TabCompleter {
                 plugin.reload();
                 sender.sendMessage(PREFIX + "Reloaded config.yml and re-sent the rules to " + plugin.evadePlayers().size() + " Evade player(s).");
             }
+            case "cosmetic", "cosmetics" -> {
+                if (!allowed(sender, "evade.command.cosmetics")) return true;
+                grantCosmetic(sender, label, args);
+            }
             default -> {
                 sender.sendMessage(PREFIX + "Evade Server API " + plugin.getDescription().getVersion());
                 sender.sendMessage("§f/" + label + " list §7- online Evade players");
@@ -81,9 +86,41 @@ final class EvadeCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§f/" + label + " waypoint [player] §7- send a test waypoint");
                 sender.sendMessage("§f/" + label + " notify [player] [text] §7- send a test notification");
                 sender.sendMessage("§f/" + label + " reload §7- reload config.yml");
+                sender.sendMessage("§f/" + label + " cosmetic grant <player> <item> §7- give a player one of your partner cosmetics");
             }
         }
         return true;
+    }
+
+    /** /evade cosmetic grant <player> <item>: one of this server's partner cosmetics, through evadeclient.com. */
+    private void grantCosmetic(CommandSender sender, String label, String[] args) {
+        if (args.length != 4 || !args[1].equalsIgnoreCase("grant")) {
+            sender.sendMessage(PREFIX + "Usage: §f/" + label + " cosmetic grant <player> <item>");
+            return;
+        }
+        if (!PartnerCosmetics.configured(plugin.settings())) {
+            sender.sendMessage(PREFIX + "§cPartner cosmetics are off. Set cosmetics.partner-id and cosmetics.partner-key in config.yml.");
+            return;
+        }
+        OfflinePlayer target = plugin.getServer().getPlayerExact(args[2]);
+        if (target == null) target = plugin.getServer().getOfflinePlayerIfCached(args[2]);
+        if (target == null) {
+            sender.sendMessage(PREFIX + "§cNo player called " + args[2] + " has played here.");
+            return;
+        }
+        String name = target.getName() == null ? args[2] : target.getName();
+        String item = args[3];
+        sender.sendMessage(PREFIX + "Giving " + item + " to " + name + "...");
+        EvadeApi.grantPartnerCosmetic(target, item).whenComplete((granted, err) ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (err == null) {
+                        sender.sendMessage(PREFIX + (granted ? "Gave §f" + item + "§7 to §f" + name + "§7."
+                                : "§f" + name + "§7 already has §f" + item + "§7."));
+                    } else {
+                        Throwable cause = err.getCause() != null ? err.getCause() : err;
+                        sender.sendMessage(PREFIX + "§cCouldn't give " + item + ": " + cause.getMessage());
+                    }
+                }));
     }
 
     private static boolean allowed(CommandSender sender, String permission) {
@@ -115,6 +152,11 @@ final class EvadeCommand implements CommandExecutor, TabCompleter {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
             for (String s : SUBCOMMANDS) if (s.startsWith(args[0].toLowerCase(Locale.ROOT))) out.add(s);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("cosmetic")) {
+            if ("grant".startsWith(args[1].toLowerCase(Locale.ROOT))) out.add("grant");
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("cosmetic")) {
+            for (Player p : plugin.getServer().getOnlinePlayers())
+                if (p.getName().toLowerCase(Locale.ROOT).startsWith(args[2].toLowerCase(Locale.ROOT))) out.add(p.getName());
         } else if (args.length == 2 && List.of("info", "waypoint", "notify").contains(args[0].toLowerCase(Locale.ROOT))) {
             for (Player p : plugin.getServer().getOnlinePlayers())
                 if (p.getName().toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(p.getName());

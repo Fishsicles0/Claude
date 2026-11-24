@@ -37,3 +37,11 @@ legacy-rules-delay-ticks: 40
 
 # Log each Evade player that joins (name, client version, API level, features).
 log-joins: true
+
+# Partner cosmetics: if your server is an Evade partner, it can give players your own partner cosmetics (and only
+# those), with /evade cosmetic grant <player> <item> or EvadeApi.grantPartnerCosmetic(player, item). The Evade Team
+# gives you the id and key. Keep the key secret: anyone with it can grant your partner items. Empty = off.
+cosmetics:
+  partner-id: ""
+  partner-key: ""
+  api-url: "https://evadeclient.com"

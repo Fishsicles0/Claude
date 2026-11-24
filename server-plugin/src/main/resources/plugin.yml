@@ -8,7 +8,7 @@ authors: [Evade Client contributors]
 commands:
   evade:
     description: Evade Server API commands.
-    usage: /evade <list|info|waypoint|notify|reload>
+    usage: /evade <list|info|waypoint|notify|reload|cosmetic>
     permission: evade.command
 
 permissions:
@@ -24,6 +24,9 @@ permissions:
   evade.command.reload:
     description: Reload config.yml and re-send the rules to every Evade player (/evade reload).
     default: op
+  evade.command.cosmetics:
+    description: Grant this server's partner cosmetics to players (/evade cosmetic grant).
+    default: op
   evade.admin:
     description: All Evade Server API permissions.
     default: op
@@ -32,3 +35,4 @@ permissions:
       evade.command.list: true
       evade.command.test: true
       evade.command.reload: true
+      evade.command.cosmetics: true

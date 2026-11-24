@@ -1,6 +1,6 @@
 # Store listings for the Evade Server API plugin
 
-Text and settings ready to paste when publishing `EvadeServerAPI-1.1.0.jar` (build it with
+Text and settings ready to paste when publishing `EvadeServerAPI-1.2.0.jar` (build it with
 `./gradlew :server-plugin:build`). Publishing needs the owner's Modrinth and Hangar accounts; nothing here is
 uploaded automatically.
 
@@ -12,7 +12,7 @@ uploaded automatically.
 - **Source:** the `server-plugin/` folder of the Evade repository
 - **Platforms:** Paper 1.21.x and Paper forks (Purpur, Folia not tested), Java 21
 - **Categories:** Utility, Social (Modrinth: `utility`, `social`; Hangar: Admin Tools, Gameplay)
-- **Version:** 1.1.0, release channel. Game versions: 1.21 to 1.21.11.
+- **Version:** 1.2.0, release channel. Game versions: 1.21 to 1.21.11.
 - **Icon:** the Evade logo mark (`src/main/resources/assets/evade/icon.png` in the client), 512x512.
 
 ## Summary (one line)
@@ -45,6 +45,12 @@ returns `false` for them, so you can call it for everyone.
 For developers: add the jar as a `compileOnly` dependency, `depend: [EvadeServerAPI]` in your plugin.yml, and use
 `net.evadeclient.server.EvadeApi`. The README lists every method and the plain-JSON protocol (any server software
 can speak it).
+
+## Changelog for 1.2.0
+
+- New: partner cosmetics. Evade partner servers can give players their own partner cosmetics with
+  `EvadeApi.grantPartnerCosmetic(player, item)` or `/evade cosmetic grant <player> <item>` (needs the partner id and
+  key in config.yml; off without them)
 
 ## Changelog for 1.1.0
 

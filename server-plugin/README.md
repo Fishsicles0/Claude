@@ -49,6 +49,12 @@ legacy-rules: true
 legacy-rules-delay-ticks: 40
 
 log-joins: true
+
+# Partner cosmetics (Evade partners only): the id and key the Evade Team gives you. Empty = off.
+cosmetics:
+  partner-id: ""
+  partner-key: ""
+  api-url: "https://evadeclient.com"
 ```
 
 Rules are re-sent when a player changes world and on `/evade reload`. Mods switched off by the server come back
@@ -63,6 +69,7 @@ on their own when the player leaves.
 | `/evade waypoint [player]` | `evade.command.test` | Sends a test waypoint (at your position, or the player's) |
 | `/evade notify [player] [text]` | `evade.command.test` | Sends a test notification |
 | `/evade reload` | `evade.command.reload` | Reloads config.yml and re-sends the rules |
+| `/evade cosmetic grant <player> <item>` | `evade.command.cosmetics` | Gives a player one of your partner cosmetics (partners only, see below) |
 
 `evade.admin` grants all of them. All default to operators.
 
@@ -143,6 +150,37 @@ JsonObject fields = new JsonObject();
 fields.addProperty("id", "x");
 EvadeApi.send(player, "some.type", fields);
 ```
+
+## Partner cosmetics
+
+Servers that partner with Evade can have their own cosmetics in the Evade catalog (they show the server's name) and
+give them to their players, for example as a rank reward. Only the items the catalog lists under your partner id can
+be granted with your key. Put the id and key the Evade Team gives you in `config.yml` (`cosmetics.partner-id`,
+`cosmetics.partner-key`) and run `/evade reload`. Keep the key secret: anyone who has it can grant your items. Without
+it, partner cosmetics are off and nothing is sent anywhere.
+
+```java
+// Asynchronous; completes off the main thread. true = granted, false = they already had it.
+EvadeApi.grantPartnerCosmetic(player, "craftnet_wings").whenComplete((granted, err) ->
+        Bukkit.getScheduler().runTask(this, () -> {
+            if (err != null) getLogger().warning("Couldn't grant: " + err.getCause().getMessage());
+            else if (granted) player.sendMessage("You got the CraftNet Wings! Equip them in Evade's Wardrobe.");
+        }));
+EvadeApi.partnerCosmeticsEnabled();   // whether config.yml has a partner id and key
+```
+
+The player doesn't need to be online or on Evade Client. Each grant is one HTTPS request to evadeclient.com:
+
+```
+POST https://evadeclient.com/api/partner/grant      {"uuid": "<32 hex>", "item": "<item id>", "nonce": "<random>"}
+X-Evade-Partner: <partner id>
+X-Evade-Timestamp: <unix time, milliseconds>
+X-Evade-Signature: <hex HMAC-SHA256(partner key, partnerId + "\n" + timestamp + "\n" + body)>
+-> 200 {"ok": true, "granted": true|false}  |  401 bad signature or clock off by more than 5 minutes
+   403 not one of your items  |  409 nonce already used  |  429 too many grants
+```
+
+Only the player's UUID and the item id are sent; the key itself never leaves your server.
 
 ## Protocol
 

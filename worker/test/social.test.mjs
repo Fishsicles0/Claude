@@ -15,7 +15,8 @@ const src = readFileSync(join(here, "..", "index.js"), "utf8")
   .replace('import { DurableObject } from "cloudflare:workers";',
     "class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }");
 const tmp = mkdtempSync(join(tmpdir(), "evade-social-"));
-writeFileSync(join(tmp, "index.mjs"), src);
+writeFileSync(join(tmp, "index.mjs"), src.replace('from "./cosmetics.js"', 'from "./cosmetics.mjs"'));
+writeFileSync(join(tmp, "cosmetics.mjs"), readFileSync(join(here, "..", "cosmetics.js"), "utf8"));
 globalThis.WebSocketRequestResponsePair = class { constructor(a, b) { this.a = a; this.b = b; } };
 const worker = await import(pathToFileURL(join(tmp, "index.mjs")).href);
 const { EvadeSocial, normServer, chatText, worldAddress, discoverList } = worker;
