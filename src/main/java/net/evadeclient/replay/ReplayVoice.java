@@ -152,7 +152,8 @@ public final class ReplayVoice {
             else if (type == ENTITY) locate(s);
             s.idleTicks = 0;
             framesPlayed++;
-            lastSpeaker = String.format(java.util.Locale.ROOT, "%s at %.1f, %.1f, %.1f, range %.0f, volume %.2f", type == ENTITY ? "player" : type == LOCATION ? "place" : "group", s.x, s.y, s.z, s.distance, volume);
+            lastSpeaker = String.format(java.util.Locale.ROOT, "%s at %.1f, %.1f, %.1f, range %.0f, volume %.2f, heard from %s", type == ENTITY ? "player" : type == LOCATION ? "place" : "group", s.x, s.y, s.z, s.distance, volume,
+                    mc.gameRenderer == null ? "?" : mc.gameRenderer.getCamera().getCameraPos().toString());
             ByteBuffer buf = org.lwjgl.BufferUtils.createByteBuffer(pcm.length * 2);
             buf.asShortBuffer().put(pcm);
             SoundExecutor exec = executor();

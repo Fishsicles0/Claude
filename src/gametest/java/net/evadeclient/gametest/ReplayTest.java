@@ -273,6 +273,7 @@ final class ReplayTest {
                             heard, expected, ReplayRender.lastAudioPeak));
 
             // the voice: loud at 3 kHz from when it was said (plus the short start-up cushion), quiet there before
+            System.out.println("[gametest] modules on: " + ctx.computeOnClient(c -> net.evadeclient.EvadeClient.modules.all().stream().filter(net.evadeclient.module.Module::isEnabled).map(net.evadeclient.module.Module::getName).toList()));
             System.out.println("[gametest] voice frames played: " + net.evadeclient.replay.ReplayVoice.framesPlayed + ", last: " + net.evadeclient.replay.ReplayVoice.lastSpeaker);
             double said = (voiceAt - 10) / 20.0;
             double before = bandLevel(video, said - 0.45, 0.35, 3000), during = bandLevel(video, said + 0.1, 0.35, 3000);
