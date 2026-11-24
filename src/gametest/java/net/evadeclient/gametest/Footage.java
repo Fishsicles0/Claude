@@ -68,6 +68,9 @@ final class Footage {
                     || b.matchesKey(net.minecraft.world.biome.BiomeKeys.SUNFLOWER_PLAINS)
                     || b.matchesKey(net.minecraft.world.biome.BiomeKeys.MEADOW), new BlockPos(x0, 80, z0), 3000, 32, 64);
             BlockPos c = found != null ? found.getFirst() : new BlockPos(x0, 80, z0);
+            // generate the area first: unloaded chunks have no heightmap, so every spot would look bad
+            for (int cx = (c.getX() - 80) >> 4; cx <= (c.getX() + 80) >> 4; cx++)
+                for (int cz = (c.getZ() - 80) >> 4; cz <= (c.getZ() + 80) >> 4; cz++) w.getChunk(cx, cz);
             BlockPos best = null;
             int bestScore = Integer.MAX_VALUE;
             for (int dx0 = -64; dx0 <= 64; dx0 += 8) for (int dz0 = -64; dz0 <= 64; dz0 += 8) {
