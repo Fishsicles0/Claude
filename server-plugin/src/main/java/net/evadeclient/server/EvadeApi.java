@@ -290,6 +290,107 @@ public final class EvadeApi {
         return p.sendRules(player);
     }
 
+    // ---------------------------------------------------------------- v2: prompts, widgets, player-card entries
+    // Clients from Evade 2.5 on list these features in their hello ("prompt", "transfer", "economy", "timer",
+    // "interaction"); older clients ignore the messages, so check hasFeature first when it matters.
+
+    /**
+     * Asks the player to type something ("Name your island"). They can always cancel. {@code onAnswer} (main thread)
+     * gets what they typed, or null when they cancelled; {@link EvadePromptReplyEvent} fires too. {@code max} is the
+     * longest answer (1 to 256). Returns false when the player's client can't show prompts.
+     */
+    public static boolean promptInput(Player player, String id, String title, String text, String placeholder, int max,
+                                      java.util.function.Consumer<String> onAnswer) {
+        if (!hasFeature(player, "prompt")) return false;
+        JsonObject m = Json.message("prompt.input");
+        m.addProperty("id", id);
+        m.addProperty("title", title);
+        m.addProperty("text", text);
+        if (placeholder != null) m.addProperty("placeholder", placeholder);
+        m.addProperty("max", Math.max(1, Math.min(256, max)));
+        plugin().expect(player, "prompt.input", id, onAnswer);
+        return plugin().send(player, m);
+    }
+
+    /**
+     * Offers the player a move to another server: they see the address (and {@code name}, {@code reason}) and only go
+     * if they click Join. {@code onAnswer} (main thread) gets true or false. For servers behind one proxy, use the
+     * proxy's own transfer instead; this is for sending players to a different address.
+     */
+    public static boolean promptTransfer(Player player, String id, String address, String name, String reason,
+                                         java.util.function.Consumer<Boolean> onAnswer) {
+        if (!hasFeature(player, "transfer")) return false;
+        JsonObject m = Json.message("prompt.transfer");
+        m.addProperty("id", id);
+        m.addProperty("address", address);
+        if (name != null) m.addProperty("name", name);
+        if (reason != null) m.addProperty("reason", reason);
+        plugin().expect(player, "prompt.transfer", id, onAnswer == null ? null : v -> onAnswer.accept("true".equals(v)));
+        return plugin().send(player, m);
+    }
+
+    /** A balance line on the player's HUD ("Coins" "1,250"); up to 4. An empty value removes it. */
+    public static boolean setBalance(Player player, String id, String label, String value, int color) {
+        JsonObject m = Json.message("economy.set");
+        m.addProperty("id", id);
+        m.addProperty("label", label);
+        m.addProperty("value", value);
+        m.addProperty("color", Json.color(color));
+        return plugin().send(player, m);
+    }
+
+    /** Removes a balance line ({@code id} null: all of them). */
+    public static boolean clearBalance(Player player, String id) {
+        JsonObject m = Json.message("economy.clear");
+        if (id != null) m.addProperty("id", id);
+        return plugin().send(player, m);
+    }
+
+    /**
+     * A timer on the player's HUD: counting down {@code seconds} to zero, or ({@code countUp}) up from {@code seconds}.
+     * Up to 4, at most 24 hours. The client counts, so send it once.
+     */
+    public static boolean setTimer(Player player, String id, String label, double seconds, boolean countUp, int color) {
+        JsonObject m = Json.message("timer.set");
+        m.addProperty("id", id);
+        m.addProperty("label", label);
+        m.addProperty("seconds", seconds);
+        m.addProperty("mode", countUp ? "up" : "down");
+        m.addProperty("color", Json.color(color));
+        return plugin().send(player, m);
+    }
+
+    /** Removes a timer ({@code id} null: all of them). */
+    public static boolean clearTimer(Player player, String id) {
+        JsonObject m = Json.message("timer.clear");
+        if (id != null) m.addProperty("id", id);
+        return plugin().send(player, m);
+    }
+
+    /**
+     * An entry on the player's player cards (the Evade list of players in the tab list): {@code label}, and one of
+     * your server's commands to run when they click it, with {@code {player}} for the card's player, e.g.
+     * {@code addInteraction(p, "trade", "Trade", "trade {player}")}. Up to 8. The player's click sends exactly that one
+     * command, as if they had typed it, so your usual permission checks apply.
+     */
+    public static boolean addInteraction(Player player, String id, String label, String command) {
+        JsonObject m = Json.message("interaction.add");
+        m.addProperty("id", id);
+        m.addProperty("label", label);
+        m.addProperty("command", command);
+        return plugin().send(player, m);
+    }
+
+    public static boolean removeInteraction(Player player, String id) {
+        JsonObject m = Json.message("interaction.remove");
+        m.addProperty("id", id);
+        return plugin().send(player, m);
+    }
+
+    public static boolean clearInteractions(Player player) {
+        return plugin().send(player, Json.message("interaction.clear"));
+    }
+
     // ---------------------------------------------------------------- misc
 
     /** Sets the Discord Rich Presence text the client shows while on this server. */

@@ -141,6 +141,11 @@ public final class LibraryPanel extends JPanel {
         top.add(Box.createHorizontalGlue());
         top.add(storage);
         top.add(Box.createHorizontalStrut(14));
+        JButton recapBtn = Theme.button("Session recap", Theme.icon(Theme.Glyph.FILM, 16, Theme.TEXT), false);
+        recapBtn.setToolTipText("One captioned video from today's automatic clips (kills, pops, wins)");
+        recapBtn.addActionListener(e -> recapDialog());
+        top.add(recapBtn);
+        top.add(Box.createHorizontalStrut(8));
         JButton importBtn = Theme.button("Import", Theme.icon(Theme.Glyph.IMPORT, 16, Theme.TEXT), false);
         importBtn.addActionListener(e -> importDialog());
         top.add(importBtn);
@@ -774,6 +779,26 @@ public final class LibraryPanel extends JPanel {
     private void copyLink(Clip c, String url) {
         App.copyText(url);
         app.notify("Link copied", c.sharePrivate ? "Private link: anyone you send it to can watch" : url, false);
+    }
+
+    /** Session recap: how many clips today, horizontal or vertical, and whether to make a share link right away. */
+    private void recapDialog() {
+        long since = net.evadeclient.clips.core.SessionRecap.startOfToday();
+        int n = net.evadeclient.clips.core.SessionRecap.pick(app.library.all(), since).size();
+        if (n == 0) {
+            JOptionPane.showMessageDialog(this, "No automatic clips today yet.\nEvade Client's Clips mod saves them on kills, totem pops and wins.",
+                    "Session recap", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        javax.swing.JComboBox<String> shape = new javax.swing.JComboBox<>(new String[]{"Horizontal (YouTube, 1080p)", "Vertical (TikTok, Shorts, Reels)"});
+        javax.swing.JCheckBox share = new javax.swing.JCheckBox("Make a share link when it's done", app.cloud.configured());
+        share.setEnabled(app.cloud.configured());
+        JPanel p = new JPanel(new java.awt.GridLayout(0, 1, 0, 6));
+        p.add(new javax.swing.JLabel(n + (n == 1 ? " clip" : " clips") + " from today, captioned, oldest first."));
+        p.add(shape);
+        p.add(share);
+        if (JOptionPane.showConfirmDialog(this, p, "Session recap", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+        app.recap(since, shape.getSelectedIndex() == 1, share.isSelected() && app.cloud.configured(), null);
     }
 
     /** Montage title and how the clips join; the transition is remembered for next time. */

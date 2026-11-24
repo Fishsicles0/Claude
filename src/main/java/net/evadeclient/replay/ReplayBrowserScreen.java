@@ -23,7 +23,7 @@ public final class ReplayBrowserScreen extends Screen {
     private final List<Path> files = new ArrayList<>();
     private final List<ReplayFile.Meta> metas = new ArrayList<>();
     private int selected = -1, scroll;
-    private ButtonWidget watch, rename, delete;
+    private ButtonWidget watch, rename, delete, queue;
     private TextFieldWidget renameField;
     private static final int ROW = 34;
 
@@ -50,6 +50,29 @@ public final class ReplayBrowserScreen extends Screen {
             Util.getOperatingSystem().open(ReplayFile.dir().toFile());
         }).dimensions(x + (bw + 4) * 3, by, bw, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Back"), b -> close()).dimensions(x + (bw + 4) * 4, by, bw, 20).build());
+        // Render queue: queue the selected replay, switch share links, and run the queue (top right).
+        queue = addDrawableChild(ButtonWidget.builder(Text.literal("Queue render"), b -> {
+            if (selected < 0) return;
+            RenderQueue.add(files.get(selected), RenderQueue.shareNew);
+            net.evadeclient.util.Notifications.push("Render queue", "Queued " + metas.get(selected).name + " (" + RenderQueue.jobs().size() + " in the queue)", true);
+            clearAndInit();
+        }).dimensions(width - 6 - 90, 6, 90, 20).tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+                "Render this replay later with its saved camera path and render settings"))).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Share links: " + (RenderQueue.shareNew ? "On" : "Off")), b -> {
+            RenderQueue.shareNew = !RenderQueue.shareNew;
+            clearAndInit();
+        }).dimensions(width - 6 - 90 - 4 - 100, 6, 100, 20).tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+                "Queued renders also get a share link through Evade Clips (needs a share server set up there)"))).build());
+        int n = RenderQueue.jobs().size();
+        ButtonWidget run = addDrawableChild(ButtonWidget.builder(Text.literal(RenderQueue.running() ? "Stop queue" : "Render queue (" + n + ")"), b -> {
+            if (RenderQueue.running()) RenderQueue.stop(); else RenderQueue.start();
+            clearAndInit();
+        }).dimensions(width - 6 - 90, 30, 90, 20).build());
+        run.active = RenderQueue.running() || n > 0;
+        if (n > 0 && !RenderQueue.running()) addDrawableChild(ButtonWidget.builder(Text.literal("Clear queue"), b -> {
+            RenderQueue.clear();
+            clearAndInit();
+        }).dimensions(width - 6 - 90 - 4 - 100, 30, 100, 20).build());
         renameField = new TextFieldWidget(textRenderer, width / 2 - 120, height - 54, 240, 18, Text.literal("Name"));
         renameField.setMaxLength(80);
         renameField.visible = false;
@@ -62,6 +85,7 @@ public final class ReplayBrowserScreen extends Screen {
         watch.active = has;
         rename.active = has;
         delete.active = has;
+        if (queue != null) queue.active = has;
     }
 
     private void watch() {

@@ -38,6 +38,7 @@ public class EvadeClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        net.evadeclient.util.BootTimer.initStart();
         modules = new ModuleManager();
         // Other mods' modules and widgets (the "evade" entrypoint), before the config loads their saved state.
         net.evadeclient.addon.EvadeAddons.load(modules);
@@ -48,6 +49,8 @@ public class EvadeClient implements ClientModInitializer {
         config.profiles = profiles;
         profiles.init();
         modules.get(net.evadeclient.module.client.ClientSettings.class).applyTheme();
+        // Safe Start: after failed starts (or the launcher's "Start in safe mode") every Evade module starts off.
+        net.evadeclient.util.SafeStart.init();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> { ticks++; modules.onTick(); });
         // Evade's widgets sit just under chat, so chat, the tab list and subtitles stay readable on top of them.
@@ -135,6 +138,7 @@ public class EvadeClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) ->
                 net.evadeclient.module.misc.AutoTip.allow(message, overlay));
 
+        net.evadeclient.util.BootTimer.initEnd();
         LOG.info("{} {} loaded with {} modules", NAME, VERSION, modules.all().size());
     }
 

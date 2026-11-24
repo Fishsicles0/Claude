@@ -93,7 +93,7 @@ public final class ChatCompletion {
                 yield Result.NONE;
             }
             case "binds", "keybinds" -> rest.contains(" ") ? Result.NONE : options(argStart, rest, List.of("conflicts", "gui"));
-            case "bench", "benchmark" -> rest.contains(" ") ? Result.NONE : options(argStart, rest, List.of("all", "stop", "10", "30", "60"));
+            case "bench", "benchmark" -> rest.contains(" ") ? Result.NONE : options(argStart, rest, List.of("all", "scene", "stop", "10", "30", "60"));
             case "clips", "clip" -> rest.contains(" ") ? Result.NONE : options(argStart, rest, List.of("last", "save"));
             case "coords" -> rest.contains(" ") ? Result.NONE : options(argStart, rest, List.of("copy", "share"));
             default -> Result.NONE;

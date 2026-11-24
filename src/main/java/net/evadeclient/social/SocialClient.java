@@ -76,7 +76,7 @@ public final class SocialClient {
     /** Sends on one socket must not overlap: each waits for the one before. */
     private static CompletableFuture<?> sendTail = CompletableFuture.completedFuture(null);
     // Presence as last sent (render thread). sentServer null = send again on the next check.
-    private static String sentServer, sentName;
+    private static String sentServer, sentName, sentActivity;
     private static long lastPresenceCheck, lastPresenceSent;
     private static boolean registered;
     private static volatile boolean loopback;
@@ -90,6 +90,9 @@ public final class SocialClient {
         ClientTickEvents.END_CLIENT_TICK.register(SocialClient::tick);
         ClientLifecycleEvents.CLIENT_STOPPING.register(c -> stop("Off"));
         SocialJoin.init();
+        SocialPresence.init();
+        OpenToFriends.init();
+        net.evadeclient.gui.title.Discover.init();
     }
 
     public static SocialState state() { return state; }
@@ -212,6 +215,7 @@ public final class SocialClient {
         status = why;
         sentServer = null;
         SocialChat.clear();
+        SocialPresence.clear();
     }
 
     private static void closeSocket(int code, String reason) {
@@ -304,7 +308,7 @@ public final class SocialClient {
                 if (!e.isJsonObject()) continue;
                 JsonObject ev = e.getAsJsonObject();
                 if (ev.has("type") && ev.get("type").isJsonPrimitive()
-                        && List.of("msg", "party.msg", "party.summon").contains(ev.get("type").getAsString())) {
+                        && List.of("msg", "party.msg", "party.summon", "world.invite").contains(ev.get("type").getAsString())) {
                     try { handle(ev.toString()); } catch (RuntimeException ex) { EvadeClient.LOG.warn("Friends: bad event", ex); }
                 }
             }
@@ -319,9 +323,11 @@ public final class SocialClient {
         String server = currentServer(mc);
         String name = mc.getSession().getUsername();
         String s = server == null ? "" : server;
-        if (s.equals(sentServer) && name.equals(sentName) && now - lastPresenceSent < 5 * 60_000) return;
+        String act = SocialPresence.key(mc);
+        if (s.equals(sentServer) && name.equals(sentName) && act.equals(sentActivity) && now - lastPresenceSent < 5 * 60_000) return;
         sentServer = s;
         sentName = name;
+        sentActivity = act;
         lastPresenceSent = now;
         call("presence", presenceBody(mc)).exceptionally(e -> { MinecraftClient.getInstance().execute(() -> sentServer = null); return null; });
     }
@@ -331,6 +337,7 @@ public final class SocialClient {
         b.addProperty("name", mc.getSession().getUsername());
         String server = currentServer(mc);
         if (server == null) b.add("server", JsonNull.INSTANCE); else b.addProperty("server", server);
+        SocialPresence.addTo(b, mc);
         return b;
     }
 
@@ -473,6 +480,7 @@ public final class SocialClient {
             case "friend.status" -> {
                 UUID u = SocialState.uuid(SocialState.str(o, "uuid"));
                 if (u == null) return;
+                SocialPresence.read(u, o);
                 boolean on = SocialState.bool(o, "online");
                 String server = o.has("server") && o.get("server").isJsonPrimitive() ? o.get("server").getAsString() : null;
                 SocialState before = state;
@@ -517,6 +525,7 @@ public final class SocialClient {
             case "msg" -> SocialChat.receive(false, o);
             case "party.msg" -> SocialChat.receive(true, o);
             case "party.summon" -> SocialJoin.summoned(o);
+            case "world.invite" -> OpenToFriends.received(o);
             default -> { /* newer server: ignore what we don't know */ }
         }
     }

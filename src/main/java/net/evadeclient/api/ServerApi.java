@@ -39,8 +39,11 @@ import java.util.Locale;
  *
  * <p>Message types: {@code waypoint.add/remove/clear}, {@code cooldown.set/clear}, {@code notification},
  * {@code title}, {@code team.set/clear}, {@code border.set/clear}, {@code beam.add/remove},
- * {@code hologram.add/remove}, {@code rules}, {@code discord} and {@code reset}. Everything is forgotten when the
- * player disconnects or the network moves them to another server.
+ * {@code hologram.add/remove}, {@code rules}, {@code discord} and {@code reset}; since v2.5 also {@code prompt.input},
+ * {@code prompt.transfer} (answered on {@code evade:reply}, see {@link ApiPrompts}), {@code economy.set/clear},
+ * {@code timer.set/clear} ({@link ApiWidgets}) and {@code interaction.add/remove/clear} (player-card entries,
+ * {@link ApiInteractions}). Everything is forgotten when the player disconnects or the network moves them to another
+ * server.
  *
  * <p>Nothing here can show more than the player could see for themselves: team markers and holograms need a clear
  * line of sight, the minimap only shows team mates the client already has loaded, and no message can switch a mod on.
@@ -52,7 +55,7 @@ public final class ServerApi {
     public static final int API_VERSION = 1;
     /** What this client understands, as sent in the hello. */
     public static final List<String> FEATURES = List.of("waypoint", "cooldown", "notification", "title", "team",
-            "border", "beam", "hologram", "rules", "settings", "discord");
+            "border", "beam", "hologram", "rules", "settings", "discord", "prompt", "transfer", "economy", "timer", "interaction");
     /** Most messages handled from one plugin message (an array). */
     static final int MAX_BATCH = 128;
     /** Server notifications: at most this many in {@link #NOTIFY_WINDOW_MS}. */
@@ -94,6 +97,7 @@ public final class ServerApi {
         try {
             PayloadTypeRegistry.playS2C().register(ApiPayload.ID, ApiPayload.CODEC);
             PayloadTypeRegistry.playC2S().register(HelloPayload.ID, HelloPayload.CODEC);
+            ApiPrompts.register();
             ClientPlayNetworking.registerGlobalReceiver(ApiPayload.ID, (payload, ctx) -> ctx.client().execute(() -> handle(payload.body())));
         } catch (Exception e) {
             EvadeClient.LOG.warn("Server API: couldn't register {} / {}", CHANNEL, HELLO_CHANNEL, e);
@@ -115,6 +119,7 @@ public final class ServerApi {
             try {
                 ApiTeams.tick();
                 ApiHolograms.tick();
+                ApiPrompts.tick();
             } catch (Exception e) {
                 failed("tick", e);
             }
@@ -202,6 +207,9 @@ public final class ServerApi {
                 case "title" -> ApiTitle.handle(o);
                 case "rules" -> rules(o);
                 case "discord" -> discord(o);
+                case "prompt.input", "prompt.transfer" -> ApiPrompts.handle(type, o);
+                case "economy.set", "economy.clear", "timer.set", "timer.clear" -> ApiWidgets.handle(type, o);
+                case "interaction.add", "interaction.remove", "interaction.clear" -> ApiInteractions.handle(type, o);
                 case "reset" -> { clear(); yield true; }
                 default -> {
                     warn("ignored a message of unknown type \"" + type + "\"");
@@ -289,6 +297,9 @@ public final class ServerApi {
         ApiHolograms.clear();
         ApiTitle.clear();
         ApiSettings.clear();
+        ApiPrompts.clear();
+        ApiWidgets.clear();
+        ApiInteractions.clear();
         discordText = discordDetails = null;
         recentNotifications.clear();
         warnings = 0;
@@ -302,6 +313,7 @@ public final class ServerApi {
         try {
             ApiHolograms.render(ctx);
             ApiTeams.render(ctx, td);
+            ApiWidgets.render(ctx);
         } catch (Exception e) {
             failed("HUD drawing", e);
         }

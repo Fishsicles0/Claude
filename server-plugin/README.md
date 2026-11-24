@@ -129,6 +129,15 @@ EvadeApi.clearBorder(player);
 EvadeApi.removeBeam(player, "flag");
 EvadeApi.removeHologram(player, "shop");
 
+// v2 (Evade 2.5+, plugin 1.1+): prompts, HUD widgets and player-card entries.
+EvadeApi.promptInput(player, "island", "Name your island", "Up to 24 letters", "My island", 24,
+        name -> { if (name != null) islands.rename(player, name); });       // null: they cancelled
+EvadeApi.promptTransfer(player, "lobby2", "lobby2.example.net", "Lobby 2", "Lobby 1 is full",
+        accepted -> getLogger().info(player.getName() + (accepted ? " moved" : " stayed")));
+EvadeApi.setBalance(player, "coins", "Coins", "1,250", 0xFFD866);
+EvadeApi.setTimer(player, "round", "Round ends", 300, false, 0xFFFFFF);   // counts down on the client
+EvadeApi.addInteraction(player, "trade", "Trade", "trade {player}");      // on every player card; one click = one command
+
 // Anything not wrapped yet: a raw evade:api message.
 JsonObject fields = new JsonObject();
 fields.addProperty("id", "x");
@@ -160,6 +169,23 @@ Server to client, `evade:api`, one object per message with a `type`:
 | `hologram.add` / `hologram.remove` | `id`, `x`, `y`, `z`, `lines` / `id` |
 | `rules` | `disable` (mod names), `settings` (`{"Mod": {"Setting": value}}`); replaces the previous rules |
 | `discord` | `text` |
+| `prompt.input` | `id`, `title`, `text`, `placeholder`?, `max` (1-256); answered on `evade:reply` |
+| `prompt.transfer` | `id`, `address`, `name`?, `reason`?; the player sees the address and chooses; answered on `evade:reply` |
+| `economy.set` / `economy.clear` | `id`, `label`, `value` (text or number), `color` / `id`? (up to 4) |
+| `timer.set` / `timer.clear` | `id`, `label`, `seconds`, `mode` (`down` or `up`), `color` / `id`? (up to 4, 24 h at most) |
+| `interaction.add` / `interaction.remove` / `interaction.clear` | `id`, `label`, `command` (`{player}` is the card's player) / `id` / - (up to 8) |
+
+Client to server, `evade:reply` (Evade 2.5+), the answer to a prompt:
+
+```json
+{"type": "prompt.input", "id": "island", "value": "Sunny Isle"}
+{"type": "prompt.input", "id": "island", "cancelled": true}
+{"type": "prompt.transfer", "id": "lobby2", "accepted": true}
+```
+
+The plugin only passes on answers to prompts it sent (and not yet answered), to the callback and as an
+`EvadePromptReplyEvent`. A prompt shows when the player has no other screen open and can always be cancelled; a
+client shows at most 3 waiting and 6 a minute.
 
 Older clients also accept `{"disable": [...]}` on `evade:rules`.
 

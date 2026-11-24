@@ -63,6 +63,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
                     "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
+            // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
+            if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -87,6 +89,10 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             VisualsV24Test.run(ctx, sp);
             MapsTest.run(ctx, sp);
             AddonAndShotsTest.run(ctx, sp);
+            SocialV25Test.run(ctx, sp);
+            FeaturesV25Test.run(ctx, sp);
+            PerfV25Test.run(ctx, sp);
+            ReliabilityV25Test.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);
@@ -1012,6 +1018,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                 if (!(el instanceof net.evadeclient.module.TextHudModule t) || el instanceof net.evadeclient.module.mods.ToggleSprint
                         || el instanceof net.evadeclient.module.hud.BedWarsHud // only shows during a BedWars game
                         || el instanceof net.evadeclient.module.hud.ConnectionWatchHud // only shows when the server goes quiet
+                        || el instanceof net.evadeclient.module.hud.LookInfoHud // only shows with a block or mob in reach
                         || el.getName().equals(profiler)) continue;
                 if (t.textForTest().isEmpty()) p.append(el.getName()).append(" is empty; ");
             }

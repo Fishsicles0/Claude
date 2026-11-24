@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.mods.ToggleSprint;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.input.Input;
 import net.minecraft.client.input.KeyboardInput;
 import net.minecraft.util.PlayerInput;
@@ -19,9 +20,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ToggleSprintInputMixin extends Input {
     @Inject(method = "tick", at = @At("TAIL"))
     private void evade$toggleSprint(CallbackInfo ci) {
-        PlayerInput in = this.playerInput;
-        boolean sneak = ToggleSprint.sneakInput(in.sneak()), sprint = ToggleSprint.sprintInput(in.sprint());
-        if (sneak == in.sneak() && sprint == in.sprint()) return;
-        this.playerInput = new PlayerInput(in.forward(), in.backward(), in.left(), in.right(), in.jump(), sneak, sprint);
+        Guard.run(ToggleSprint.class, "input", () -> {
+            PlayerInput in = this.playerInput;
+            boolean sneak = ToggleSprint.sneakInput(in.sneak()), sprint = ToggleSprint.sprintInput(in.sprint());
+            if (sneak == in.sneak() && sprint == in.sprint()) return;
+            this.playerInput = new PlayerInput(in.forward(), in.backward(), in.left(), in.right(), in.jump(), sneak, sprint);
+        });
     }
 }

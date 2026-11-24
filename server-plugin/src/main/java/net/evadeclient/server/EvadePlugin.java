@@ -42,6 +42,15 @@ public final class EvadePlugin extends JavaPlugin implements Listener, PluginMes
     public static final String RULES_CHANNEL = "evade:rules";
     /** Client to server: {@code {"client":"evade","version":"x","api":1,"features":[...]}}. */
     public static final String HELLO_CHANNEL = "evade:hello";
+    /** Client to server: answers to prompts, {@code {"type":"prompt.input","id":"...","value":"..."}} and so on. */
+    public static final String REPLY_CHANNEL = "evade:reply";
+    /** Unanswered prompts are forgotten after this long. */
+    static final long PROMPT_MS = 10 * 60_000L;
+
+    /** A prompt waiting for its answer: the callback gets the value (input; null = cancelled) or "true"/"false" (transfer). */
+    record Pending(String type, java.util.function.Consumer<String> callback, long at) {}
+
+    private final Map<String, Pending> prompts = new ConcurrentHashMap<>();
 
     private static volatile EvadePlugin instance;
 
@@ -73,6 +82,7 @@ public final class EvadePlugin extends JavaPlugin implements Listener, PluginMes
         messenger.registerOutgoingPluginChannel(this, API_CHANNEL);
         messenger.registerOutgoingPluginChannel(this, RULES_CHANNEL);
         messenger.registerIncomingPluginChannel(this, HELLO_CHANNEL, this);
+        messenger.registerIncomingPluginChannel(this, REPLY_CHANNEL, this);
         getServer().getPluginManager().registerEvents(this, this);
 
         PluginCommand command = getCommand("evade");
@@ -182,6 +192,10 @@ public final class EvadePlugin extends JavaPlugin implements Listener, PluginMes
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+        if (REPLY_CHANNEL.equals(channel)) {
+            onReply(player, message);
+            return;
+        }
         if (!HELLO_CHANNEL.equals(channel)) return;
         EvadeClientInfo info;
         try {
@@ -201,6 +215,47 @@ public final class EvadePlugin extends JavaPlugin implements Listener, PluginMes
         if (first && config.welcomeEnabled)
             EvadeApi.notify(player, config.welcomeTitle, config.welcomeText, config.welcomeSeconds, config.welcomeLevel);
         getServer().getPluginManager().callEvent(new EvadeHelloEvent(player, info, first));
+    }
+
+    /** Remembers a prompt sent to {@code p} so its answer reaches {@code callback} (and the event). */
+    void expect(Player p, String type, String id, java.util.function.Consumer<String> callback) {
+        long now = System.currentTimeMillis();
+        prompts.values().removeIf(x -> now - x.at() > PROMPT_MS);
+        prompts.put(p.getUniqueId() + "/" + type + "/" + id, new Pending(type, callback, now));
+    }
+
+    /** An evade:reply: only answers to prompts this server sent and hasn't had an answer for yet count. */
+    private void onReply(Player player, byte[] message) {
+        if (message.length > 4096) return;
+        try {
+            JsonElement root = JsonParser.parseString(new String(message, StandardCharsets.UTF_8));
+            if (!root.isJsonObject()) return;
+            JsonObject o = root.getAsJsonObject();
+            String type = o.has("type") && o.get("type").isJsonPrimitive() ? o.get("type").getAsString() : "";
+            String id = o.has("id") && o.get("id").isJsonPrimitive() ? o.get("id").getAsString() : "";
+            Pending pending = prompts.remove(player.getUniqueId() + "/" + type + "/" + id);
+            if (pending == null || System.currentTimeMillis() - pending.at() > PROMPT_MS) return;
+            String value = null;
+            boolean accepted;
+            if (type.equals("prompt.transfer")) {
+                accepted = o.has("accepted") && o.get("accepted").isJsonPrimitive() && o.get("accepted").getAsBoolean();
+                value = String.valueOf(accepted);
+            } else {
+                if (o.has("value") && o.get("value").isJsonPrimitive()) {
+                    value = o.get("value").getAsString();
+                    if (value.length() > 256) value = value.substring(0, 256);
+                }
+                accepted = value != null;
+            }
+            if (pending.callback() != null) {
+                try { pending.callback().accept(value); }
+                catch (RuntimeException e) { getLogger().log(Level.WARNING, "A prompt callback failed", e); }
+            }
+            getServer().getPluginManager().callEvent(new EvadePromptReplyEvent(player, type, id,
+                    type.equals("prompt.transfer") ? null : value, accepted));
+        } catch (RuntimeException e) {
+            getLogger().log(Level.FINE, "Ignored a malformed evade:reply from " + player.getName(), e);
+        }
     }
 
     static EvadeClientInfo parseHello(byte[] body) {
@@ -241,6 +296,7 @@ public final class EvadePlugin extends JavaPlugin implements Listener, PluginMes
         UUID id = event.getPlayer().getUniqueId();
         clients.remove(id);
         playerRules.remove(id);
+        prompts.keySet().removeIf(k -> k.startsWith(id + "/"));
         legacy.remove(id);
     }
 

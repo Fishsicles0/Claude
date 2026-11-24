@@ -39,9 +39,25 @@ FULL = {
     "evade-theme-classic":  "theme-classic.webp",
 }
 
+# Home page tiles for the bigger features (v2.5 site refresh). Skipped with a note when a run didn't take them,
+# so a partial gametest run still builds the site (the page then shows the previous image).
+TILES = {
+    "world-map":                  "tile-world-map.webp",
+    "evade-replay-editor-camera": "tile-replay.webp",
+}
+
 print("screenshots -> webp:")
 for src, out in FULL.items():
     save(Image.open(latest(src)).convert("RGB"), out)
+for src, out in TILES.items():
+    found = sorted(glob.glob(f"{SHOTS}/*_{src}.png"))
+    if not found:
+        print(f"  {out:24} skipped: no {src} screenshot in this run")
+        continue
+    img = Image.open(found[-1]).convert("RGB")
+    if img.width > 1280:
+        img = img.resize((1280, round(img.height * 1280 / img.width)), Image.LANCZOS)
+    save(img, out, q=82)
 
 # hero image: the menu, resized to the index hero's box
 menu = Image.open(latest("evade-menu")).convert("RGB")

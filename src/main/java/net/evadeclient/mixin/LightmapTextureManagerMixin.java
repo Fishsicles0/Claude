@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.Fullbright;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.LightmapTextureManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,22 +32,24 @@ public abstract class LightmapTextureManagerMixin {
     /** Every frame (the update is called each frame and returns early unless dirty): step the fade first. */
     @Inject(method = "update(F)V", at = @At("HEAD"))
     private void evade$fullbrightFrame(float tickProgress, CallbackInfo ci) {
-        if (Fullbright.frame(tickProgress)) dirty = true;
-        if (dirty) Fullbright.building();
+        Guard.run(Fullbright.class, "fade", () -> {
+            if (Fullbright.frame(tickProgress)) dirty = true;
+            if (dirty) Fullbright.building();
+        });
     }
 
     @ModifyArg(method = "update(F)V", at = @At(value = "INVOKE", target = PUT_FLOAT, ordinal = 0))
     private float evade$fullLight(float ambientLight) {
-        return Fullbright.ambientLight(ambientLight);
+        return Guard.getFloat(Fullbright.class, "ambient light", () -> Fullbright.ambientLight(ambientLight), ambientLight);
     }
 
     @ModifyArg(method = "update(F)V", at = @At(value = "INVOKE", target = PUT_FLOAT, ordinal = 3))
     private float evade$nightVision(float nightVision) {
-        return Fullbright.nightVision(nightVision);
+        return Guard.getFloat(Fullbright.class, "night vision", () -> Fullbright.nightVision(nightVision), nightVision);
     }
 
     @ModifyArg(method = "update(F)V", at = @At(value = "INVOKE", target = PUT_FLOAT, ordinal = 6))
     private float evade$gamma(float brightness) {
-        return Fullbright.brightness(brightness);
+        return Guard.getFloat(Fullbright.class, "gamma", () -> Fullbright.brightness(brightness), brightness);
     }
 }

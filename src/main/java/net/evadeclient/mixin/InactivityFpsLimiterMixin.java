@@ -44,6 +44,12 @@ public abstract class InactivityFpsLimiterMixin {
         }
         // Adaptive Quality ignores frames an idle cap holds down (the game's or Evade's).
         p.noteIdleCap(fps < maxFps);
+        // Battery FPS Cap and Smooth Pacing: deliberate caps while you play (Adaptive Quality aims under them instead).
+        int cap = p.frameCap(Integer.MAX_VALUE);
+        if (cap < fps) {
+            fps = cap;
+            if (p.batteryCapNow() > 0 && cap == p.batteryCapNow()) p.noteBatteryCap();
+        }
         if (fps != vanilla) cir.setReturnValue(fps);
     }
 

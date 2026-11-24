@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.NickHider;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.font.TextHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,11 +19,11 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class NickHiderTextHandlerMixin {
     @ModifyVariable(method = "getWidth(Ljava/lang/String;)F", at = @At("HEAD"), argsOnly = true)
     private String evade$nickWidth(String text) {
-        return NickHider.replace(text);
+        return Guard.get(NickHider.class, "text width", () -> NickHider.replace(text), text);
     }
 
     @ModifyVariable(method = "wrapLines(Ljava/lang/String;ILnet/minecraft/text/Style;)Ljava/util/List;", at = @At("HEAD"), argsOnly = true)
     private String evade$nickWrap(String text) {
-        return NickHider.replace(text);
+        return Guard.get(NickHider.class, "text wrap", () -> NickHider.replace(text), text);
     }
 }

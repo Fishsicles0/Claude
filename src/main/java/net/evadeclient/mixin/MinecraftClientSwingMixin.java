@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.gui.screen.Screen;
@@ -30,16 +31,18 @@ public abstract class MinecraftClientSwingMixin {
     @Inject(method = "handleInputEvents", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z", ordinal = 0))
     private void evade$swingWhileUsing(CallbackInfo ci) {
-        ClientPlayerEntity p = this.player;
-        if (p == null || !p.isUsingItem() || !this.options.useKey.isPressed()) return;
-        OldAnimations o = OldAnimations.active();
-        if (o == null || !o.swingWhileUsing.get()) return;
-        // A click starts a swing (vanilla drains any further presses right after this).
-        boolean clicked = this.options.attackKey.wasPressed();
-        // Holding attack keeps swinging, one full swing after another, like 1.7.
-        boolean held = this.currentScreen == null && this.mouse.isCursorLocked() && this.options.attackKey.isPressed() && !p.handSwinging;
-        // LivingEntity.swingHand(hand, false): the local animation only. ClientPlayerEntity.swingHand(hand) would
-        // also send a HandSwingC2SPacket, which this deliberately never does.
-        if (clicked || held) p.swingHand(Hand.MAIN_HAND, false);
+        Guard.run(OldAnimations.class, "swing while using", () -> {
+            ClientPlayerEntity p = this.player;
+            if (p == null || !p.isUsingItem() || !this.options.useKey.isPressed()) return;
+            OldAnimations o = OldAnimations.active();
+            if (o == null || !o.swingWhileUsing.get()) return;
+            // A click starts a swing (vanilla drains any further presses right after this).
+            boolean clicked = this.options.attackKey.wasPressed();
+            // Holding attack keeps swinging, one full swing after another, like 1.7.
+            boolean held = this.currentScreen == null && this.mouse.isCursorLocked() && this.options.attackKey.isPressed() && !p.handSwinging;
+            // LivingEntity.swingHand(hand, false): the local animation only. ClientPlayerEntity.swingHand(hand) would
+            // also send a HandSwingC2SPacket, which this deliberately never does.
+            if (clicked || held) p.swingHand(Hand.MAIN_HAND, false);
+        });
     }
 }

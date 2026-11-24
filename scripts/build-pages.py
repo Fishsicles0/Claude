@@ -142,7 +142,7 @@ MODULES = JAVA / "module"
 CATEGORY_ORDER = ["SERVER", "VISUALS", "HUD", "MODS", "MISC"]
 CATEGORY_LABEL = {"SERVER": "Server-facing", "VISUALS": "Visuals", "HUD": "HUD", "MODS": "Controls", "MISC": "Misc"}
 
-SETTING_TYPES = ("NumberSetting", "BooleanSetting", "ModeSetting", "ColorSetting", "KeySetting", "StringSetting")
+SETTING_TYPES = ("NumberSetting", "BooleanSetting", "ModeSetting", "ColorSetting", "KeySetting", "StringSetting", "ItemListSetting")
 # `new ModeSetting(` and fully qualified `new net.evadeclient.setting.ModeSetting(` alike.
 SETTING_START = re.compile(r"\bnew\s+(?:[\w.]+\.)?(" + "|".join(SETTING_TYPES) + r")\s*\(")
 STRING_LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
@@ -440,9 +440,83 @@ def chained_calls(src: str, i: int):
         calls[m.group(1)] = inner
 
 
+HELPER_DEF = re.compile(r"\b(?:(?:private|protected|public|static|final)\s+)*(?:[\w.]+\.)?(" + "|".join(SETTING_TYPES)
+                        + r")\s+(\w+)\s*\(([^()]*)\)\s*\{")
+
+
+def substitute(expr: str, values: dict) -> str:
+    """expr with each identifier in values replaced by its argument text (never inside string literals)."""
+    out, i, n = [], 0, len(expr)
+    while i < n:
+        c = expr[i]
+        if c in "\"'":
+            k = i + 1
+            while k < n and expr[k] != c:
+                k += 2 if expr[k] == "\\" else 1
+            out.append(expr[i:k + 1]); i = k + 1
+        elif c.isalpha() or c == "_":
+            k = i
+            while k < n and (expr[k].isalnum() or expr[k] == "_"):
+                k += 1
+            word = expr[i:k]
+            prev = expr[:i].rstrip()[-1:] if expr[:i].strip() else ""
+            out.append(values[word] if word in values and prev != "." else word); i = k
+        else:
+            out.append(c); i += 1
+    return "".join(out)
+
+
+def setting_helpers(srcs: list) -> dict:
+    """Methods that build a setting, `static NumberSetting percent(String name, String what) { return new
+    NumberSetting(name, ...).describe(... + what); }`, as {method: (parameter names, setting expression)}. The
+    expression is the `new XSetting(...)` with its chained calls, plus a `.describe(...)` made on it later."""
+    helpers = {}
+    for src in srcs:
+        for m in HELPER_DEF.finditer(src):
+            _, close = balanced(src.replace("{", "(").replace("}", ")"), m.end() - 1)
+            body = src[m.end():close - 1]
+            sm = SETTING_START.search(body)
+            if not sm:
+                continue
+            inner, end = balanced(body, sm.end() - 1)
+            calls = chained_calls(body, end)
+            expr = f"new {sm.group(1)}({inner})"
+            for name, args in calls.items():
+                expr += f".{name}({args})"
+            if "describe" not in calls:
+                dm = re.search(r"\.\s*describe\s*\(", body[end:])
+                if dm:
+                    expr += f".describe({balanced(body, end + dm.end() - 1)[0]})"
+            params = [p.split()[-1] for p in split_top(m.group(3)) if p.strip()]
+            helpers.setdefault(m.group(2), (params, expr))
+    return helpers
+
+
+def expand_helpers(src: str, srcs: list) -> str:
+    """src with each `add(helper(args))` written out as the `new XSetting(...)` the helper builds, so settings made
+    through helpers (Sound Tweaks' volume sliders, Keystrokes' colours) are read like any other."""
+    helpers = setting_helpers(srcs)
+    if not helpers:
+        return src
+    pat = re.compile(r"\badd\s*\(\s*(" + "|".join(map(re.escape, helpers)) + r")\s*\(")
+    out, pos = [], 0
+    for m in pat.finditer(src):
+        if m.start() < pos:
+            continue
+        params, expr = helpers[m.group(1)]
+        inner, end = balanced(src, m.end() - 1)
+        args = split_top(inner)
+        if len(args) != len(params):
+            continue
+        out.append(src[pos:m.start()] + "add(" + substitute(expr, dict(zip(params, args))))
+        pos = end
+    return "".join(out) + src[pos:]
+
+
 def scan_settings(src: str, srcs: list, where: str) -> list:
     """Every setting declared in one class: name, type, default and range or options, plus its description."""
     out = []
+    src = expand_helpers(src, srcs)
     for m in SETTING_START.finditer(src):
         kind = m.group(1)
         inner, end = balanced(src, m.end() - 1)
@@ -478,7 +552,7 @@ def scan_settings(src: str, srcs: list, where: str) -> list:
                 st |= {"type": "color", "default": c}
             elif kind == "KeySetting":
                 st |= {"type": "key", "default": key_name(vals[0])}
-            elif kind == "StringSetting":
+            elif kind in ("StringSetting", "ItemListSetting"):
                 text = java_string(vals[0])
                 if text is None:
                     raise ValueError
@@ -543,6 +617,11 @@ def series(v: str) -> str:
     return ".".join(v.split(".")[:2])
 
 
+# Modules that really have no settings to list (only buttons or status rows). Any other module that ends up with
+# none is warned about: its settings are built in a way the extractor doesn't follow yet.
+NO_SETTINGS = {"VoiceChat"}
+
+
 def scan_mods(new: set) -> list:
     """Every registered module's name, description, category and settings."""
     registered = (MODULES / "ModuleManager.java").read_text()
@@ -579,6 +658,9 @@ def scan_mods(new: set) -> list:
             for st in scan_settings(s, srcs, cls):
                 if st["name"] not in seen:
                     seen.add(st["name"]); settings.append(st)
+        if not settings and cls not in NO_SETTINGS:
+            warn(f"{cls}: no settings found for the site. If it really has none, add it to NO_SETTINGS in "
+                 f"scripts/build-pages.py; otherwise teach the extractor how its settings are built")
         mods.append({"name": name, "desc": desc, "cat": CATEGORY_LABEL[cat], "slug": cat.lower(),
                      "settings": settings, "new": cls in new})
     unknown = new - {f.stem for f in MODULES.rglob("*.java")}

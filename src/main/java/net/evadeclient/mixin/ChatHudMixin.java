@@ -33,6 +33,7 @@ public abstract class ChatHudMixin {
     @Shadow @Final private List<ChatHudLine> messages;
     @Shadow @Final private List<ChatHudLine.Visible> visibleMessages;
     @Shadow private int scrolledLines;
+    @Shadow private void refresh() {}
 
     /** The message as received, before BetterChat decorated it (null when it didn't): what latest.log records. */
     @Unique
@@ -50,6 +51,7 @@ public abstract class ChatHudMixin {
      */
     @WrapMethod(method = ADD_MESSAGE)
     private void evade$betterChat(Text received, MessageSignatureData signature, MessageIndicator indicator, Operation<Void> original) {
+        net.evadeclient.chat.ChatLines.received(received); // Chat Heads / Chat Tabs read the line as received
         // Friend Colours and Hypixel Stats' chat stat first (display only), then BetterChat.
         Text message = received;
         try {
@@ -119,6 +121,8 @@ public abstract class ChatHudMixin {
     @Unique
     private void evade$removeEntry(int index) {
         messages.remove(index);
+        // A Chat Tabs tab shows only some messages, so the screen lines no longer line up with them: re-wrap.
+        if (net.evadeclient.module.misc.ChatTabs.filtering()) { refresh(); return; }
         int group = -1, start = -1, end = visibleMessages.size();
         for (int i = 0; i < visibleMessages.size(); i++) {
             if (!visibleMessages.get(i).endOfEntry()) continue;

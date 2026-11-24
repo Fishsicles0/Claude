@@ -3,6 +3,7 @@ package net.evadeclient.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.evadeclient.module.visuals.Hitboxes;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.DrawStyle;
 import net.minecraft.client.render.debug.EntityHitboxDebugRenderer;
 import net.minecraft.entity.Entity;
@@ -25,8 +26,10 @@ public abstract class EntityHitboxDebugRendererMixin {
     /** Type filters: Players, Items, Projectiles, Other Entities. */
     @Inject(method = DRAW_HITBOX, at = @At("HEAD"), cancellable = true)
     private void evade$filter(Entity entity, float tickProgress, boolean inLocalServer, CallbackInfo ci) {
-        Hitboxes h = Hitboxes.active();
-        if (h != null && !h.shows(entity)) ci.cancel();
+        Guard.run(Hitboxes.class, "type filter", () -> {
+            Hitboxes h = Hitboxes.active();
+            if (h != null && !h.shows(entity)) ci.cancel();
+        });
     }
 
     /** Box colour, eye line colour/visibility and line width, told apart by the colour vanilla passes. */
@@ -42,8 +45,10 @@ public abstract class EntityHitboxDebugRendererMixin {
             target = "Lnet/minecraft/world/debug/gizmo/GizmoDrawing;point(Lnet/minecraft/util/math/Vec3d;IF)Lnet/minecraft/world/debug/gizmo/VisibilityConfigurable;"),
             index = 1)
     private int evade$pointColor(int color) {
-        Hitboxes h = Hitboxes.active();
-        return h == null ? color : h.pointColor(color);
+        return Guard.getInt(Hitboxes.class, "point colour", () -> {
+            Hitboxes h = Hitboxes.active();
+            return h == null ? color : h.pointColor(color);
+        }, color);
     }
 
     /** Look Vector off: skip the blue look arrow (the result is unused by vanilla). */

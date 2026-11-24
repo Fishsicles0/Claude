@@ -97,6 +97,47 @@ public final class FirstRun {
             });
         });
         ClientTickEvents.END_CLIENT_TICK.register(FirstRun::tickTune);
+        // The graphics are known once the window exists: integrated graphics start on the laptop profile.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            try {
+                autoProfile(false);
+            } catch (RuntimeException e) {
+                net.evadeclient.EvadeClient.LOG.warn("First run: graphics check failed", e);
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ graphics-aware start
+
+    /**
+     * Reads the OpenGL renderer once per GPU (first start, an update to this version, or a new graphics card or
+     * driver name) and, for integrated graphics, applies Performance's laptop profile and says so. A PC with a
+     * graphics card keeps its settings. Never runs by itself during the automated tests ({@code force} = test hook).
+     *
+     * @return what was done: "laptop", "kept" (not integrated, or already set for this GPU), or "skipped"
+     */
+    public static String autoProfile(boolean force) {
+        if (EvadeClient.modules == null) return "skipped";
+        Performance p = EvadeClient.modules.get(Performance.class);
+        String gpu = net.evadeclient.util.GpuInfo.renderer();
+        if (p == null || gpu.isEmpty()) return "skipped";
+        if (!force && (inGameTest() || gpu.equals(p.tunedGpu.get()))) return "kept";
+        boolean upgrade = !force && p.tunedGpu.get().isEmpty() && MenuState.setupDone();
+        p.tunedGpu.set(gpu);
+        var kind = net.evadeclient.util.GpuInfo.classify(gpu);
+        // Someone updating Evade who already picked an FPS Mode other than the default keeps their choice.
+        boolean ownChoice = upgrade && !p.fpsMode.get().equals("Balanced");
+        if (kind != net.evadeclient.util.GpuInfo.Kind.INTEGRATED || ownChoice) {
+            EvadeClient.config.save();
+            return "kept";
+        }
+        p.applyLaptopProfile();
+        EvadeClient.config.save();
+        Notifications.push("Tuned for integrated graphics",
+                "Max FPS, Render Scale " + Performance.LAPTOP_RENDER_SCALE + "% with Evade's upscaler. Measure it: Performance > Benchmark Scene",
+                Notifications.Level.SUCCESS, 9000);
+        EvadeClient.LOG.info("First run: {} is integrated graphics, laptop profile applied", gpu);
+        return "laptop";
     }
 
     // ------------------------------------------------------------------ Tune for my PC

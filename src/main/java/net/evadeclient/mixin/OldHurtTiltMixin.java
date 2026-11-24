@@ -2,6 +2,7 @@ package net.evadeclient.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,6 +13,6 @@ public abstract class OldHurtTiltMixin {
     @ModifyExpressionValue(method = "tiltViewWhenHurt", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/entity/LivingEntity;getDamageTiltYaw()F"))
     private float evade$oldHurtTilt(float yaw) {
-        return OldAnimations.with(o -> o.oldHurtTilt) != null ? 0f : yaw;
+        return Guard.getFloat(OldAnimations.class, "hurt tilt", () -> OldAnimations.with(o -> o.oldHurtTilt) != null ? 0f : yaw, yaw);
     }
 }

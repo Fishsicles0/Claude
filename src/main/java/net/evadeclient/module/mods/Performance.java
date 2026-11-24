@@ -17,6 +17,13 @@ import net.evadeclient.util.Notifications;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.util.BenchmarkAll;
+import net.evadeclient.util.BenchmarkScene;
+import net.evadeclient.util.GpuInfo;
+import net.evadeclient.util.HudCache;
+import net.evadeclient.util.PowerState;
+import net.evadeclient.util.SodiumBridge;
+import net.evadeclient.util.TextureWarmup;
+import net.evadeclient.util.Upscaler;
 import net.evadeclient.util.Borderless;
 import net.evadeclient.util.FrameStats;
 import net.evadeclient.util.RenderScale;
@@ -142,8 +149,8 @@ public class Performance extends Module {
     /** Render Scale: the 3D world is drawn at this share of the window's resolution and scaled up (see {@link RenderScale}). */
     public final NumberSetting renderScale = add(new NumberSetting("Render Scale %", 100, 40, 100, 5)
             .describe("Draws the 3D world at this share of your screen's resolution and scales it up, while the HUD, chat, menus and text stay sharp at full resolution. The biggest FPS win on laptop graphics: 70% draws half the pixels. 100 = off. Paused automatically while a shader pack is on, since shaders draw at their own resolution."));
-    public final ModeSetting upscale = add(new ModeSetting("Upscale", "Smooth", "Smooth", "Sharp")
-            .describe("How the smaller world image is scaled up. Smooth: filtered, soft edges. Sharp: blocky, pixel-exact."));
+    public final ModeSetting upscale = add(new ModeSetting("Upscale", Upscaler.Mode.EVADE.label, Upscaler.LABELS)
+            .describe("How the smaller world image is scaled up. Evade (best): Evade's own edge-aware upscaler, which keeps edges clean and detail crisp, so 50 to 80% looks close to full resolution. Smooth: filtered, soft edges. Sharp: blocky, pixel-exact."));
     public final BooleanSetting sharpen = add(new BooleanSetting("Sharpen", true)
             .describe("A light sharpening pass on the scaled-up world that wins back detail without halos. Costs next to nothing. Only used below 100%."));
     public final StatusSetting renderScaleNow = add(new StatusSetting("Render Scale Now", this::renderScaleText, "live"));
@@ -165,6 +172,28 @@ public class Performance extends Module {
     public final BooleanSetting borderless = add(new BooleanSetting("Borderless Fullscreen", false)
             .describe("Fills the screen with a frameless window instead of the game's own fullscreen: instant Alt-Tab and no flicker on a second monitor. While F11 fullscreen is on, that one is used."));
     public final StatusSetting addons = add(new StatusSetting("FPS Mods Installed", Performance::installedAddons, "via installer"));
+    public final BooleanSetting tuneSodium = add(new BooleanSetting("Tune Sodium Too", true)
+            .describe("FPS Mode also sets Sodium and Sodium Extra when they're installed: Max FPS turns off water, lava, fire and portal animations and the stars, and defers chunk updates; Max FPS and Balanced size Sodium's chunk build threads to your processor. Your own Sodium settings come back when you turn this off."));
+    public final StatusSetting sodiumNow = add(new StatusSetting("Also Changed In Sodium", SodiumBridge::status, "live"));
+    // HUD cache: Evade's widgets are drawn once and repeated until something changes (see HudCache).
+    public final ModeSetting hudRefresh = add(new ModeSetting("HUD Refresh", "Auto", "Auto", "Every Frame", "60 Hz", "30 Hz")
+            .describe("How often Evade's HUD widgets are redrawn. Between redraws the last drawing is reused, and a widget whose text changes is redrawn at once. Auto: 60 times a second while the game runs above 90 FPS, every frame below that. Moving widgets (minimap, keystrokes, graphs) are always drawn every frame."));
+    public final StatusSetting hudCacheNow = add(new StatusSetting("HUD Cache Now", HudCache::status, "live"));
+    // Battery and frame pacing.
+    public final ModeSetting batteryCap = add(new ModeSetting("Battery FPS Cap", "60", "Off", "60", "90")
+            .describe("While your laptop runs on battery, the frame rate is held at this, for a longer battery life and a cooler laptop. Plugged in, nothing changes."));
+    public final StatusSetting powerNow = add(new StatusSetting("Power Now", this::powerText, "live"));
+    public final BooleanSetting smoothPacing = add(new BooleanSetting("Smooth Pacing", false)
+            .describe("Caps the frame rate 3 below your monitor's refresh rate and spaces frames evenly, for steadier motion without VSync's input delay. Only used while VSync is off."));
+    /** The graphics the laptop profile last looked at (so it's applied once per GPU, not on every start). */
+    public final StringSetting tunedGpu = add(new StringSetting("Tuned For Graphics", "", "").hidden());
+    public final StatusSetting graphicsNow = add(new StatusSetting("Graphics", Performance::graphicsText, "detected"));
+    public final StatusSetting benchScene = add((StatusSetting) new StatusSetting("Benchmark Scene", BenchmarkScene::status, "click: run")
+            .onClick(() -> {
+                if (BenchmarkScene.running()) BenchmarkScene.cancel();
+                else BenchmarkScene.start(BenchmarkScene.DEFAULT_SECONDS);
+            })
+            .describe("A repeatable test: a new world with a fixed seed and a 60 second camera flight, then a result card with your average FPS, 1% and 0.1% lows and a code to share. The world is deleted afterwards. Also: .bench scene"));
 
     private static final String[][] ADDONS = {
             {"sodium", "Sodium"}, {"lithium", "Lithium"}, {"ferritecore", "FerriteCore"},
@@ -188,12 +217,19 @@ public class Performance extends Module {
         super("Performance", "Built-in FPS boost: culling, lighter rendering and an idle frame cap.", Category.MODS);
         setEnabled(true);
         // Video settings Evade changed are always handed back: on start (after a crash or a killed game) and on quit.
-        ClientLifecycleEvents.CLIENT_STARTED.register(client -> recoverVideoOptions());
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> restoreVideoOptions());
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            recoverVideoOptions();
+            TextureWarmup.start(client);
+        });
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> { restoreVideoOptions(); SodiumBridge.restore(); });
         // Volume When Tabbed Out also applies on the title screen and in menus, where onTick doesn't run.
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             tickBackgroundAudio();
             tickRenderScale();
+            followSodium();
+            TextureWarmup.tick(client);
+            BenchmarkScene.tick(client);
+            HudCache.configure(isEnabled() ? hudRefresh.get() : "Every Frame");
             Borderless.follow(isEnabled() && borderless.get());
         });
     }
@@ -289,6 +325,7 @@ public class Performance extends Module {
         int maxFps = mc.options.getMaxFps().getValue();
         if (maxFps < 260) limit = maxFps;
         if (mc.options.getEnableVsync().getValue()) limit = Math.min(limit, FrameStats.refreshRate());
+        limit = Math.min(limit, frameCap(UNLIMITED_FPS));
         double target = targetFps.get();
         double tightenBelow = Math.min(target, limit * 0.9);
         double relaxAbove = Math.max(tightenBelow * 1.02, Math.min(target * 1.15, limit * 0.95));
@@ -545,6 +582,94 @@ public class Performance extends Module {
         if (sounds != null) sounds.refreshSoundVolumes(SoundCategory.MASTER);
     }
 
+    // ---- Sodium, frame caps, graphics (v2.5)
+
+    /** FPS Mode into Sodium and Sodium Extra (nothing while Performance or Tune Sodium Too is off). Every client tick. */
+    private void followSodium() {
+        String mode = isEnabled() && tuneSodium.get() ? fpsMode.get() : "";
+        try {
+            SodiumBridge.follow(mode);
+        } catch (RuntimeException e) {
+            EvadeClient.LOG.warn("Performance: Sodium bridge failed", e);
+        }
+    }
+
+    /** Battery FPS Cap's frame rate, or 0 when it doesn't apply right now (off, plugged in, or no battery). */
+    public int batteryCapNow() {
+        if (!isEnabled() || batteryCap.is("Off") || !PowerState.onBattery()) return 0;
+        try {
+            return Integer.parseInt(batteryCap.get());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Smooth Pacing is on and VSync is off: Evade's even-spaced limiter replaces the game's. */
+    public boolean smoothPacingActive() {
+        return isEnabled() && smoothPacing.get() && mc.options != null && !mc.options.getEnableVsync().getValue();
+    }
+
+    /**
+     * The lowest of Evade's own frame-rate caps right now (Battery FPS Cap, Smooth Pacing), or {@code none} when
+     * neither applies. Only ever lowers: the frame limiter takes the smaller of this and the game's own cap.
+     */
+    public int frameCap(int none) {
+        int cap = none;
+        int battery = batteryCapNow();
+        if (battery > 0) cap = Math.min(cap, battery);
+        if (smoothPacingActive()) cap = Math.min(cap, Math.max(30, FrameStats.refreshRate() - 3));
+        return cap;
+    }
+
+    private boolean announcedBattery;
+
+    /** Called by the frame limiter when the battery cap holds the frame rate: one toast per session. */
+    public void noteBatteryCap() {
+        if (announcedBattery) return;
+        announcedBattery = true;
+        Notifications.push("On battery", "FPS held at " + batteryCap.get() + " to save power. Change it in Performance > Battery FPS Cap.", false);
+    }
+
+    private String powerText() {
+        String p = PowerState.describe();
+        int cap = batteryCapNow();
+        return cap > 0 ? p + ", FPS capped at " + cap : p;
+    }
+
+    private static String graphicsText() {
+        String r = GpuInfo.renderer();
+        if (r.isEmpty()) return "Not read yet";
+        String kind = switch (GpuInfo.classify(r)) {
+            case INTEGRATED -> "built-in";
+            case DISCRETE -> "graphics card";
+            case SOFTWARE -> "software, no GPU driver";
+            default -> "unknown kind";
+        };
+        return GpuInfo.shortName(r) + " (" + kind + ")";
+    }
+
+    /** Render Scale with the laptop profile (the setting moves in steps of 5). */
+    public static final int LAPTOP_RENDER_SCALE = 65;
+
+    /**
+     * The laptop profile for integrated graphics: Max FPS, then the world drawn at 65% with Evade's upscaler (the
+     * biggest lever there: these GPUs are limited by how many pixels they fill), Unlock FPS, entities drawn to 48
+     * blocks, and smooth lighting and fancy leaves kept (they cost the processor once per chunk, not the GPU every
+     * frame). Turns Performance on. Settings only; the next tick applies them.
+     */
+    public void applyLaptopProfile() {
+        if (!isEnabled()) setEnabled(true);
+        fpsMode.set("Max FPS");
+        followPreset();
+        lowEnd.set(false);
+        renderScale.set((double) LAPTOP_RENDER_SCALE);
+        upscale.set(Upscaler.Mode.EVADE.label);
+        sharpen.set(true);
+        unlockFps.set(true);
+        entityDistance.set(48.0);
+        tuneSodium.set(true);
+    }
+
     // ---- Render Scale
 
     /**
@@ -561,7 +686,7 @@ public class Performance extends Module {
             else scale = renderScale.get() / 100.0;
         }
         renderScalePaused = paused;
-        RenderScale.configure(scale, upscale.get().equals("Sharp"), sharpen.get());
+        RenderScale.configure(scale, Upscaler.Mode.of(upscale.get()), sharpen.get());
     }
 
     private String renderScaleText() {
@@ -815,6 +940,7 @@ public class Performance extends Module {
         applyUnlock(unlockFps.get());
         applyDistance((int) Math.round(renderCap.get()));
         applyVideo();
+        followSodium();
         resetRuntime();
     }
 
@@ -826,6 +952,7 @@ public class Performance extends Module {
         applyLighter(false);
         applyDistance(0);
         applyUnlock(false);
+        SodiumBridge.restore();
         resetRuntime();
     }
 

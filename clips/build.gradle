@@ -21,6 +21,17 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     // Windows: records what the speakers play (WASAPI loopback) without Stereo Mix or a virtual cable.
     implementation 'net.java.dev.jna:jna:5.17.0'
+
+    // Unit tests for the editor's model (`./gradlew :clips:test`); the export checks that need ffmpeg stay in selfTest.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+    systemProperty 'java.awt.headless', 'true'
+    testLogging { events 'failed'; exceptionFormat 'full' }
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }

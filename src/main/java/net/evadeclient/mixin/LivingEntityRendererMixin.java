@@ -3,6 +3,7 @@ package net.evadeclient.mixin;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.evadeclient.module.visuals.HitColor;
 import net.evadeclient.util.EntityVisualsDuck;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.entity.LivingEntity;
@@ -22,16 +23,23 @@ public abstract class LivingEntityRendererMixin {
     @Inject(method = "updateRenderState(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;F)V",
             at = @At("RETURN"))
     private void evade$hurtFade(LivingEntity entity, LivingEntityRenderState state, float tickDelta, CallbackInfo ci) {
-        if (entity.hurtTime > 0 && HitColor.active() && state instanceof EntityVisualsDuck duck) {
-            duck.evade$setHurtFade(HitColor.hurtFade(entity.hurtTime, entity.maxHurtTime, tickDelta));
-        }
+        Guard.run(HitColor.class, "hurt fade", () -> {
+            if (entity.hurtTime > 0 && HitColor.active() && state instanceof EntityVisualsDuck duck) {
+                duck.evade$setHurtFade(HitColor.hurtFade(entity.hurtTime, entity.maxHurtTime, tickDelta));
+            }
+        });
     }
 
     /** Runs for every living entity and feature layer each frame: a return-value hook, so nothing is allocated. */
     @ModifyReturnValue(method = "getOverlay(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;F)I",
             at = @At("RETURN"))
     private static int evade$hitColorOverlay(int original, LivingEntityRenderState state, float whiteOverlayProgress) {
-        int uv = HitColor.overlay(state, whiteOverlayProgress);
-        return uv == -1 ? original : uv;
+        try {
+            int uv = HitColor.overlay(state, whiteOverlayProgress);
+            return uv == -1 ? original : uv;
+        } catch (Exception e) {
+            Guard.failed(HitColor.class, "overlay", e);
+            return original;
+        }
     }
 }

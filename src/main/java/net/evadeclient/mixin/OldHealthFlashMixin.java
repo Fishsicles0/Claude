@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,10 +18,12 @@ public abstract class OldHealthFlashMixin {
             target = "Lnet/minecraft/client/gui/hud/InGameHud;renderHealthBar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/entity/player/PlayerEntity;IIIIFIIIZ)V"),
             index = 10)
     private boolean evade$oldHealthFlash(boolean blinking) {
-        if (OldAnimations.with(o -> o.oldHealthFlash) == null) return blinking;
-        var p = MinecraftClient.getInstance().player;
-        if (p == null) return blinking;
-        int t = p.timeUntilRegen;
-        return t >= 10 && t / 3 % 2 == 1;
+        return Guard.test(OldAnimations.class, "health flash", () -> {
+            if (OldAnimations.with(o -> o.oldHealthFlash) == null) return blinking;
+            var p = MinecraftClient.getInstance().player;
+            if (p == null) return blinking;
+            int t = p.timeUntilRegen;
+            return t >= 10 && t / 3 % 2 == 1;
+        }, blinking);
     }
 }

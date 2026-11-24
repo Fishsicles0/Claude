@@ -2,6 +2,7 @@ package net.evadeclient.mixin;
 
 import com.llamalad7.mixinextras.injector.WrapWithCondition;
 import net.evadeclient.module.visuals.Particles;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.particle.ParticleEffect;
@@ -20,9 +21,11 @@ public abstract class LivingEntityOwnPotionParticlesMixin {
             target = "Lnet/minecraft/world/World;addParticleClient(Lnet/minecraft/particle/ParticleEffect;DDDDDD)V"))
     private boolean evade$ownPotionParticles(World world, ParticleEffect effect, double x, double y, double z,
                                              double vx, double vy, double vz) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if ((Object) this != mc.player || mc.getCameraEntity() != mc.player
-                || mc.options == null || !mc.options.getPerspective().isFirstPerson()) return true;
-        return !Particles.hidesOwnPotions();
+        return Guard.test(Particles.class, "own potion particles", () -> {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if ((Object) this != mc.player || mc.getCameraEntity() != mc.player
+                    || mc.options == null || !mc.options.getPerspective().isFirstPerson()) return true;
+            return !Particles.hidesOwnPotions();
+        }, true);
     }
 }

@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.mods.Performance;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.entity.Entity;
@@ -18,9 +19,11 @@ public abstract class EntityRenderManagerMixin {
      */
     @Inject(method = "shouldRender", at = @At("RETURN"), cancellable = true)
     private <E extends Entity> void evade$cull(E entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValueZ()) return;
-        Performance p = Performance.active();
-        if (p != null && p.cullEntity(entity, x, y, z)) cir.setReturnValue(false);
+        Guard.run(Performance.class, "entity culling", () -> {
+            if (!cir.getReturnValueZ()) return;
+            Performance p = Performance.active();
+            if (p != null && p.cullEntity(entity, x, y, z)) cir.setReturnValue(false);
+        });
     }
 
     /** Performance "Hide Fire On Mobs": burning mobs skip their fire layer (players still show theirs). */
@@ -30,8 +33,10 @@ public abstract class EntityRenderManagerMixin {
                                net.minecraft.client.util.math.MatrixStack matrices,
                                net.minecraft.client.render.command.OrderedRenderCommandQueue queue,
                                org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
-        if (!state.onFire || state instanceof net.minecraft.client.render.entity.state.PlayerEntityRenderState) return;
-        Performance p = Performance.active();
-        if (p != null && p.hideMobFire()) state.onFire = false;
+        Guard.run(Performance.class, "mob fire", () -> {
+            if (!state.onFire || state instanceof net.minecraft.client.render.entity.state.PlayerEntityRenderState) return;
+            Performance p = Performance.active();
+            if (p != null && p.hideMobFire()) state.onFire = false;
+        });
     }
 }

@@ -3,6 +3,7 @@ package net.evadeclient.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import net.evadeclient.module.visuals.BossBar;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.BossBarHud;
@@ -24,20 +25,22 @@ public abstract class BossBarHudMixin {
     /** Hide, or scale around the top centre of the screen and move down by Y Offset. */
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void evade$head(DrawContext ctx, CallbackInfo ci) {
-        evade$pushed = false;
-        evade$bars = 0;
-        BossBar b = BossBar.active();
-        if (b == null) return;
-        if (b.hide.get()) { ci.cancel(); return; }
-        float s = b.scale.getFloat();
-        int dy = b.yOffset.getInt();
-        if (Math.abs(s - 1f) < 0.001f && dy == 0) return;
-        float cx = ctx.getScaledWindowWidth() / 2f;
-        ctx.getMatrices().pushMatrix();
-        ctx.getMatrices().translate(cx, dy);
-        ctx.getMatrices().scale(s, s);
-        ctx.getMatrices().translate(-cx, 0);
-        evade$pushed = true;
+        Guard.run(BossBar.class, "layout", () -> {
+            evade$pushed = false;
+            evade$bars = 0;
+            BossBar b = BossBar.active();
+            if (b == null) return;
+            if (b.hide.get()) { ci.cancel(); return; }
+            float s = b.scale.getFloat();
+            int dy = b.yOffset.getInt();
+            if (Math.abs(s - 1f) < 0.001f && dy == 0) return;
+            float cx = ctx.getScaledWindowWidth() / 2f;
+            ctx.getMatrices().pushMatrix();
+            ctx.getMatrices().translate(cx, dy);
+            ctx.getMatrices().scale(s, s);
+            ctx.getMatrices().translate(-cx, 0);
+            evade$pushed = true;
+        });
     }
 
     /**
@@ -47,9 +50,11 @@ public abstract class BossBarHudMixin {
     @ModifyExpressionValue(method = "render",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;getScaledWindowHeight()I"))
     private int evade$maxBars(int height) {
-        BossBar b = BossBar.active();
-        if (b == null) return height;
-        return ++evade$bars >= b.maxBars.getInt() ? 0 : height;
+        return Guard.getInt(BossBar.class, "max bars", () -> {
+            BossBar b = BossBar.active();
+            if (b == null) return height;
+            return ++evade$bars >= b.maxBars.getInt() ? 0 : height;
+        }, height);
     }
 
     /** Mode Text Only: no bar, just the boss's name. */

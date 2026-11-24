@@ -12,6 +12,10 @@
 //   POST /api/presence  (Bearer token)  -> marks the player as an active Evade user
 //   POST /api/presence/hide (Bearer)   -> stops showing the player's icon right away
 //   POST /api/icons {uuids: [...]}      -> { icons: { uuid: "evade" }, ttl }   (only active Evade users)
+//   GET  /api/discover                  -> { servers: [{name, address, description, tags, evade}], ttl }  (curated list;
+//                                          the client pings them itself and never joins on its own)
+//   POST /api/backup/info|get|put|delete (Bearer) -> opt-in cloud backup of Evade profiles, HUD layout and waypoints,
+//                                          encrypted on the player's PC before upload (see the EvadeSocial comment)
 //
 // Friends, parties and party pings (/api/social/*, Bearer token from /api/auth/*) live in the EvadeSocial Durable
 // Object below; its header comment lists the endpoints and the WebSocket messages.
@@ -93,6 +97,11 @@ export default {
     const store = env.ICONS.get(env.ICONS.idFromName("global"));
     try {
       if (url.pathname.startsWith("/api/social/")) return await socialRoute(req, env, url, store);
+      if (url.pathname.startsWith("/api/backup/")) return await backupRoute(req, env, url, store);
+      if (url.pathname === "/api/discover") {
+        if (req.method !== "GET") throw new HttpError(405, "use GET");
+        return json({ servers: DISCOVER, ttl: 3600 }, 200, { "cache-control": "public, max-age=600" });
+      }
       switch (url.pathname) {
         case "/api/health": {
           if (url.searchParams.get("mojang") !== "1") return json({ ok: true });
@@ -315,7 +324,11 @@ export class EvadeIcons extends DurableObject {
 //   /api/social/msg {uuid, text}   (a friend who is online; plain text, 256 characters at most) -> { ok, delivered }
 //   /api/social/party/msg {text}   (party chat)                                     -> { ok, delivered }
 //   /api/social/party/summon {server}  (leader: "Bring party here", members choose to join) -> { ok, delivered }
-//   /api/social/delete {}                                             -> { ok, deleted }  (all your social data)
+//   /api/social/world/invite {uuids: [...], address, world?}  (Open to Friends: an e4mc address to chosen friends or
+//                                party members who are online; never stored)                  -> { ok, delivered }
+//   /api/social/delete {}                                             -> { ok, deleted }  (all your social data, and the cloud backup)
+//   state/presence also take {activity?: "menus"|"singleplayer"|"server"|"afk"|null, since?: ms}: friends and party then
+//   see it (as activity and activeSince) while you're online; it's forgotten when you go offline. Older clients send neither.
 // WebSocket: GET /api/social/ws (wss) with the same Authorization header, or ?token=, or send
 //   {"op":"auth","token":"..."} as the first message (within 30 s). The text "ping" is answered "pong" without waking
 //   the object. Requests are {"op":"friend.request","id":7,...same fields as HTTP} -> {"type":"result","id":7,"ok":true,...}
@@ -323,9 +336,10 @@ export class EvadeIcons extends DurableObject {
 //   hello {state} | state {state} | friend.request {from} | friend.accepted {friend} | friend.removed {uuid}
 //   friend.status {uuid, name, online, server} | party.invite {party, from, size} | party.joined {member}
 //   party.left {member, kicked} | party.kicked {by} | party.leader {leader} | ping {from, x, y, z, dimension, kind, at}
-//   msg {from, text, at} | party.msg {from, text, at} | party.summon {from, server, at}
-//   where from/friend/member = {uuid, name}. A polling client gets pings in /state "pings" and the msg, party.msg and
-//   party.summon events in /state "events" (both only for its next /state, 15-30 s at most). Clients ignore types
+//   msg {from, text, at} | party.msg {from, text, at} | party.summon {from, server, at} | world.invite {from, address, world, at}
+//   (friend.status and the people in state carry activity and activeSince too, when the player's client sends them)
+//   where from/friend/member = {uuid, name}. A polling client gets pings in /state "pings" and the msg, party.msg,
+//   party.summon and world.invite events in /state "events" (both only for its next /state, 15-30 s at most). Clients ignore types
 //   they don't know, so older clients are unaffected by newer events.
 //
 // Pings are relayed straight to the sender's party members who are online on the same server address (normalized:
@@ -349,7 +363,34 @@ const SOCIAL = {
   CHAT_GAP_MS: 300, CHAT_WINDOW_MS: 10 * 1000, CHAT_BURST: 8, CHAT_HOUR: 600,
   SUMMON_GAP_MS: 15 * 1000, SUMMON_HOUR: 20,
   POLL_EVENT_MS: 30 * 1000,              // how long a polling client's relayed message waits for its next /state
+  MAX_WORLD_INVITE: 16, WORLD_INVITE_GAP_MS: 5 * 1000, WORLD_INVITE_HOUR: 30,
 };
+/** Richer presence: what a player is doing (only shown to friends and party while they're online). */
+const ACTIVITIES = new Set(["menus", "singleplayer", "server", "afk"]);
+/** Cloud backup limits: one encrypted blob per account. */
+const BACKUP = {
+  MAX_BLOB: 256 * 1024,                         // bytes of encrypted backup
+  MAX_BLOB_B64: Math.ceil(256 * 1024 / 3) * 4,   // the same, as base64
+  MAX_BODY: 360 * 1024,                         // the whole request body
+  MAX_TOTAL: 2 * 1024 * 1024 * 1024,            // every backup together (keeps the object well inside its storage)
+  UNUSED_MS: 90 * 24 * 3600 * 1000,             // deleted after 90 days without a backup or restore
+  PUTS_PER_DAY: 30, GETS_PER_DAY: 30,
+};
+const B64 = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * An Open to Friends address: an e4mc tunnel host ("name.region.e4mc.link"), lower case, optional port. Null for
+ * anything else, so the invite relay can't be used to send players to an arbitrary server.
+ */
+export function worldAddress(s) {
+  if (typeof s !== "string") return null;
+  s = s.trim().toLowerCase().replace(/\.$/, "");
+  if (s.length > 200) return null;
+  const m = s.match(/^((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){1,4}e4mc\.link)(?::(\d{1,5}))?$/);
+  if (!m) return null;
+  if (m[2] !== undefined && !(Number(m[2]) >= 1 && Number(m[2]) <= 65535)) return null;
+  return m[2] === undefined || m[2] === "25565" ? m[1] : m[1] + ":" + m[2];
+}
 const PING_KINDS = new Set(["location", "danger", "loot"]);
 const DIMENSION = /^[a-z0-9_.-]{1,32}:[a-z0-9_./-]{1,64}$/;
 const PARTY_ID = /^[0-9a-f]{16}$/;
@@ -433,6 +474,42 @@ async function socialRoute(req, env, url, store) {
   return json(r.body, r.status, r.status === 429 && r.body.retryAfter ? { "retry-after": String(Math.ceil(r.body.retryAfter / 1000)) } : undefined);
 }
 
+/**
+ * /api/backup/*: opt-in cloud backup. The body can be larger than other API calls (an encrypted backup), so it has its
+ * own size cap; the token is checked here and the EvadeSocial object stores the blob it can't read.
+ */
+async function backupRoute(req, env, url, store) {
+  if (!env.SOCIAL) throw new HttpError(503, "cloud backup isn't available right now");
+  if (req.method !== "POST") throw new HttpError(405, "use POST");
+  const len = Number(req.headers.get("content-length") || 0);
+  if (len > BACKUP.MAX_BODY) throw new HttpError(413, "That backup is too big (" + Math.round(BACKUP.MAX_BLOB / 1024) + " KB at most)");
+  const text = await req.text();
+  if (text.length > BACKUP.MAX_BODY) throw new HttpError(413, "That backup is too big (" + Math.round(BACKUP.MAX_BLOB / 1024) + " KB at most)");
+  let args;
+  try { args = text ? JSON.parse(text) : {}; } catch { throw new HttpError(400, "bad json"); }
+  if (!args || typeof args !== "object" || Array.isArray(args)) throw new HttpError(400, "bad json");
+  const uuid = await bearerUuid(req, store);
+  if (!uuid) throw new HttpError(401, "sign in again");
+  const op = url.pathname.slice("/api/backup/".length);
+  const social = env.SOCIAL.get(env.SOCIAL.idFromName("global"));
+  const r = await social.backup(uuid, op, args);
+  return json(r.body, r.status, r.status === 429 && r.body.retryAfter ? { "retry-after": String(Math.ceil(r.body.retryAfter / 1000)) } : undefined);
+}
+
+/**
+ * Discover: servers shown on the title screen's Discover strip. Curated by hand (edit this list and push); "evade"
+ * marks servers that run the Evade Server API plugin. The client pings each one itself and only ever joins when the
+ * player clicks Join and confirms.
+ */
+const DISCOVER = [
+  { name: "Hypixel", address: "mc.hypixel.net", description: "Minigames: Bed Wars, SkyBlock, Duels and more", tags: ["minigames", "pvp"], evade: false },
+  { name: "Wynncraft", address: "play.wynncraft.com", description: "A huge MMORPG with quests and dungeons", tags: ["rpg"], evade: false },
+  { name: "CubeCraft", address: "play.cubecraft.net", description: "EggWars, SkyWars, parkour and more", tags: ["minigames"], evade: false },
+  { name: "Minemen Club", address: "minemen.club", description: "Competitive PvP practice", tags: ["pvp"], evade: false },
+];
+/** The Discover list (a function, not the array: the Workers runtime only expects classes and functions as exports). */
+export function discoverList() { return DISCOVER; }
+
 export class EvadeSocial extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -457,7 +534,12 @@ export class EvadeSocial extends DurableObject {
                    CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, src TEXT NOT NULL, dst TEXT NOT NULL,
                      reason TEXT NOT NULL, created INTEGER NOT NULL);
                    CREATE TABLE IF NOT EXISTS rate (k TEXT PRIMARY KEY, start INTEGER NOT NULL, n INTEGER NOT NULL);
-                   CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
+                   CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+                   CREATE TABLE IF NOT EXISTS activity (uuid TEXT PRIMARY KEY, kind TEXT NOT NULL, since INTEGER NOT NULL);
+                   CREATE TABLE IF NOT EXISTS backups (uuid TEXT PRIMARY KEY, blob TEXT NOT NULL, salt TEXT NOT NULL,
+                     iters INTEGER NOT NULL, format INTEGER NOT NULL, size INTEGER NOT NULL, label TEXT NOT NULL DEFAULT '',
+                     updated INTEGER NOT NULL, used INTEGER NOT NULL);
+                   CREATE INDEX IF NOT EXISTS backups_by_used ON backups (used);`);
     /** Ping times per sender (memory only: pings are never written down). */
     this.pingTimes = new Map();
     /** Pings waiting for a polling client's next /state, by recipient (memory only, kept 15 s). */
@@ -470,6 +552,8 @@ export class EvadeSocial extends DurableObject {
     this.pollEvents = new Map();
     /** When each leader last brought their party somewhere (memory only). */
     this.summonTimes = new Map();
+    /** When each player last sent Open to Friends invites (memory only). */
+    this.worldInviteTimes = new Map();
     try { ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong")); } catch { /* older runtime */ }
     ctx.blockConcurrencyWhile(async () => {
       if (!(await ctx.storage.getAlarm())) await ctx.storage.setAlarm(Date.now() + 60 * 1000);
@@ -521,6 +605,18 @@ export class EvadeSocial extends DurableObject {
     } catch (e) {
       if (e instanceof SocialError) return { status: e.status, body: { error: e.message, ...(e.extra || {}) } };
       console.error("social", op, e);
+      return { status: 500, body: { error: "server error" } };
+    }
+  }
+
+  /** One /api/backup/* request (the worker checked the token). Returns { status, body }. */
+  async backup(uuid, op, args) {
+    try {
+      this.flood(uuid);
+      return { status: 200, body: this.runBackup(uuid, op, args || {}) };
+    } catch (e) {
+      if (e instanceof SocialError) return { status: e.status, body: { error: e.message, ...(e.extra || {}) } };
+      console.error("backup", op, e);
       return { status: 500, body: { error: "server error" } };
     }
   }
@@ -813,8 +909,34 @@ export class EvadeSocial extends DurableObject {
         for (const m of this.members(party)) if (m !== me && !this.blockedEither(me, m) && this.relay(m, msg, now)) delivered++;
         return { delivered };
       }
+      case "world.invite": {
+        // Open to Friends: the address of your singleplayer world (an e4mc tunnel) to chosen friends / party members
+        // who are online. Never stored; the recipient joins only by clicking Join and confirming.
+        const address = worldAddress(a.address);
+        if (!address) throw new SocialError(400, "Only an Open to Friends address can be shared");
+        if (!Array.isArray(a.uuids) || !a.uuids.length) throw new SocialError(400, "Pick who to invite");
+        if (a.uuids.length > SOCIAL.MAX_WORLD_INVITE) throw new SocialError(400, "Invite " + SOCIAL.MAX_WORLD_INVITE + " players at most at once");
+        const world = typeof a.world === "string" ? a.world.replace(/[\u0000-\u001f\u007f-\u009f\u00a7\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, " ")
+          .replace(/\s+/g, " ").trim().slice(0, 48) : "";
+        const last = this.worldInviteTimes.get(me) || 0;
+        if (now - last < SOCIAL.WORLD_INVITE_GAP_MS) throw new SocialError(429, "You just sent invites", { retryAfter: last + SOCIAL.WORLD_INVITE_GAP_MS - now });
+        this.limit(me + ":world", SOCIAL.WORLD_INVITE_HOUR, 3600 * 1000, "too many world invites; try again later");
+        this.worldInviteTimes.set(me, now);
+        if (this.worldInviteTimes.size > 5000) for (const [k, v] of this.worldInviteTimes) if (v <= now - SOCIAL.WORLD_INVITE_GAP_MS) this.worldInviteTimes.delete(k);
+        const party = this.partyOf(me);
+        const msg = { type: "world.invite", from: this.who(me), address, world, at: now };
+        let delivered = 0;
+        for (const u of new Set(a.uuids.map(normUuid))) {
+          if (!UUID.test(u) || u === me) continue;
+          const allowed = this.areFriends(me, u) || (party && this.partyOf(u) === party);
+          if (!allowed || this.blockedEither(me, u)) continue;
+          if (this.relay(u, msg, now)) delivered++;
+        }
+        return { delivered };
+      }
       case "delete": {
         this.purge(me, true);
+        this.sql.exec("DELETE FROM backups WHERE uuid = ?", me); // asked for: the cloud backup goes too
         for (const ws of this.socketsOf(me)) this.closeSocket(ws, 4002, "social data deleted");
         return { deleted: true };
       }
@@ -913,7 +1035,36 @@ export class EvadeSocial extends DurableObject {
     this.sql.exec("UPDATE profiles SET name = ?, name_lc = ?, server = ?, last_seen = ?, poll_at = ? WHERE uuid = ?",
       name, name.toLowerCase(), server, now, polling ? now : p.poll_at, me);
     if (polling && !p.poll_at) this.alarmBy(now + SOCIAL.POLL_ONLINE_MS + 1000).catch((e) => console.error("social alarm", e));
-    if (!wasOnline || server !== p.server || name !== p.name) this.broadcastStatus(me);
+    const activityChanged = this.setActivity(me, a, now);
+    if (!wasOnline || server !== p.server || name !== p.name || activityChanged) this.broadcastStatus(me);
+  }
+
+  /**
+   * Richer presence: what the player is doing ({@code a.activity}: menus, singleplayer, server or afk; null clears it)
+   * and since when ({@code a.since}, ms). Older clients send neither, which leaves it as it was. Returns whether it
+   * changed. Unknown values are ignored rather than refused, so a newer client never breaks.
+   */
+  setActivity(me, a, now) {
+    if (a.activity === undefined) return false;
+    const old = this.sql.exec("SELECT kind, since FROM activity WHERE uuid = ?", me).toArray()[0];
+    if (a.activity === null) {
+      if (!old) return false;
+      this.sql.exec("DELETE FROM activity WHERE uuid = ?", me);
+      return true;
+    }
+    if (!ACTIVITIES.has(a.activity)) return false;
+    let since = Number(a.since);
+    if (!Number.isSafeInteger(since) || since > now || since < now - 7 * 24 * 3600 * 1000) since = now;
+    if (old && old.kind === a.activity && Math.abs(old.since - since) < 60 * 1000) return false;
+    this.sql.exec("INSERT OR REPLACE INTO activity (uuid, kind, since) VALUES (?, ?, ?)", me, a.activity, since);
+    return true;
+  }
+
+  /** {activity, activeSince} to show for an online account, or {} (offline, or an older client that never sent one). */
+  shownActivity(uuid, online) {
+    if (!online) return {};
+    const r = this.sql.exec("SELECT kind, since FROM activity WHERE uuid = ?", uuid).toArray()[0];
+    return r ? { activity: r.kind, activeSince: r.since } : {};
   }
 
   /** {uuid, name} for events and lists. */
@@ -1041,6 +1192,7 @@ export class EvadeSocial extends DurableObject {
    */
   offline(uuid, lastActive = Date.now()) {
     this.sql.exec("UPDATE profiles SET server = NULL, poll_at = 0, last_seen = MAX(last_seen, ?) WHERE uuid = ?", lastActive, uuid);
+    this.sql.exec("DELETE FROM activity WHERE uuid = ?", uuid);
     this.broadcastStatus(uuid);
   }
 
@@ -1052,7 +1204,7 @@ export class EvadeSocial extends DurableObject {
     const p = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
     if (!p) return;
     const online = this.isOnline(uuid);
-    const msg = JSON.stringify({ type: "friend.status", uuid, name: p.name, online, server: this.shownServer(p, online) });
+    const msg = JSON.stringify({ type: "friend.status", uuid, name: p.name, online, server: this.shownServer(p, online), ...this.shownActivity(uuid, online) });
     for (const r of this.sql.exec("SELECT b FROM friends WHERE a = ?", uuid).toArray()) this.sendRaw(r.b, msg);
     const party = this.partyOf(uuid);
     if (party) this.pushParty(party, uuid);
@@ -1137,7 +1289,7 @@ export class EvadeSocial extends DurableObject {
     const person = (uuid) => {
       const q = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
       const online = !!q && this.isOnline(uuid);
-      return { uuid, name: q ? q.name : "", online, server: this.shownServer(q, online), lastSeen: q ? q.last_seen : 0 };
+      return { uuid, name: q ? q.name : "", online, server: this.shownServer(q, online), lastSeen: q ? q.last_seen : 0, ...this.shownActivity(uuid, online) };
     };
     const friends = this.sql.exec("SELECT b, since FROM friends WHERE a = ?", me).toArray()
       .map((r) => ({ ...person(r.b), since: r.since }))
@@ -1184,7 +1336,9 @@ export class EvadeSocial extends DurableObject {
     this.sql.exec("DELETE FROM reports WHERE src = ?", uuid);
     this.sql.exec("DELETE FROM rate WHERE k >= ? AND k < ?", uuid + ":", uuid + ";");
     this.sql.exec("DELETE FROM profiles WHERE uuid = ?", uuid);
+    this.sql.exec("DELETE FROM activity WHERE uuid = ?", uuid);
     this.pingTimes.delete(uuid);
+    this.worldInviteTimes.delete(uuid);
     this.pollPings.delete(uuid);
     this.chatTimes.delete(uuid);
     this.pollEvents.delete(uuid);
@@ -1216,5 +1370,57 @@ export class EvadeSocial extends DurableObject {
     this.sql.exec("DELETE FROM invites WHERE created <= ?", now - SOCIAL.INVITE_MS);
     this.sql.exec("DELETE FROM reports WHERE created <= ?", now - SOCIAL.REPORT_KEEP_MS);
     this.sql.exec("DELETE FROM rate WHERE start <= ?", now - 24 * 3600 * 1000);
+    this.sql.exec("DELETE FROM backups WHERE used <= ?", now - BACKUP.UNUSED_MS);
+    this.sql.exec("DELETE FROM activity WHERE uuid NOT IN (SELECT uuid FROM profiles)");
+  }
+
+  // ------------------------------------------------------------------ cloud backup
+
+  /**
+   * Opt-in cloud backup: one encrypted blob per account. The client encrypts it (AES-GCM, key from the player's own
+   * passphrase) before upload, so this object stores bytes it can't read. Deleted after 90 days without a backup or
+   * restore, or at once with delete (or Delete my social data, which deletes the backup too).
+   */
+  runBackup(me, op, a) {
+    const now = Date.now();
+    const info = (r) => r ? { exists: true, size: r.size, updated: r.updated, label: r.label, salt: r.salt, iters: r.iters, format: r.format,
+      expires: r.used + BACKUP.UNUSED_MS } : { exists: false };
+    switch (op) {
+      case "info": {
+        const r = this.sql.exec("SELECT size, updated, label, salt, iters, format, used FROM backups WHERE uuid = ?", me).toArray()[0];
+        return { backup: info(r), limits: { maxBytes: BACKUP.MAX_BLOB } };
+      }
+      case "get": {
+        this.limit(me + ":backup.get", BACKUP.GETS_PER_DAY, 24 * 3600 * 1000, "too many restores today; try again tomorrow");
+        const r = this.sql.exec("SELECT * FROM backups WHERE uuid = ?", me).toArray()[0];
+        if (!r) throw new SocialError(404, "No cloud backup for this account");
+        this.sql.exec("UPDATE backups SET used = ? WHERE uuid = ?", now, me);
+        return { backup: info({ ...r, used: now }), blob: r.blob };
+      }
+      case "put": {
+        const blob = a.blob, salt = a.salt;
+        if (typeof blob !== "string" || !B64.test(blob) || blob.length % 4 !== 0) throw new SocialError(400, "bad backup");
+        if (blob.length > BACKUP.MAX_BLOB_B64) throw new SocialError(413, "That backup is too big (" + Math.round(BACKUP.MAX_BLOB / 1024) + " KB at most)");
+        if (blob.length < 40) throw new SocialError(400, "bad backup");
+        if (typeof salt !== "string" || !/^[A-Za-z0-9+/=]{16,64}$/.test(salt)) throw new SocialError(400, "bad salt");
+        const iters = Number(a.iters);
+        if (!Number.isSafeInteger(iters) || iters < 100000 || iters > 5000000) throw new SocialError(400, "bad iterations");
+        const format = Number(a.format ?? 1);
+        if (!Number.isSafeInteger(format) || format < 1 || format > 100) throw new SocialError(400, "bad format");
+        const label = typeof a.label === "string" ? a.label.replace(/[\u0000-\u001f\u007f-\u009f\u00a7]/g, " ").trim().slice(0, 64) : "";
+        this.limit(me + ":backup.put", BACKUP.PUTS_PER_DAY, 24 * 3600 * 1000, "too many backups today; try again tomorrow");
+        const old = this.sql.exec("SELECT size FROM backups WHERE uuid = ?", me).toArray()[0];
+        const total = this.sql.exec("SELECT COALESCE(SUM(size), 0) AS n FROM backups").one().n - (old ? old.size : 0);
+        if (total + blob.length > BACKUP.MAX_TOTAL) throw new SocialError(507, "Cloud backup is full right now; try again later");
+        this.sql.exec("INSERT OR REPLACE INTO backups (uuid, blob, salt, iters, format, size, label, updated, used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          me, blob, salt, iters, format, blob.length, label, now, now);
+        return { backup: info({ size: blob.length, updated: now, label, salt, iters, format, used: now }) };
+      }
+      case "delete": {
+        const n = this.sql.exec("DELETE FROM backups WHERE uuid = ? RETURNING uuid", me).toArray().length;
+        return { deleted: n > 0 };
+      }
+    }
+    throw new SocialError(404, "unknown request");
   }
 }

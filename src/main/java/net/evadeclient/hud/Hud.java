@@ -4,7 +4,9 @@ import net.evadeclient.EvadeClient;
 import net.evadeclient.gui.HudEditorScreen;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.ModuleManager;
+import net.evadeclient.module.client.HudToggle;
 import net.evadeclient.util.ClickTracker;
+import net.evadeclient.util.HudCache;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -45,6 +47,8 @@ public final class Hud {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClickTracker.update();
         if (mc.player == null || EvadeClient.modules == null) return;
+        // Toggle Evade HUD key, or a screenshot being taken without Evade's HUD: vanilla's HUD stays.
+        if (HudToggle.hiddenNow()) return;
 
         // Labels that follow world positions (waypoints, TNT timers) stay visible with F3 open.
         if (!mc.options.hudHidden) {
@@ -77,11 +81,12 @@ public final class Hud {
                 // hidden in this replay (the replay editor's HUD mods list)
                 if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
                 try {
+                    // HUD Refresh: reuse the widget's last drawing while it's still current (see HudCache).
                     if (PROFILE != null) {
                         long t = System.nanoTime();
-                        el.renderScaled(ctx, sw, sh, false);
+                        HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
                         PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
-                    } else el.renderScaled(ctx, sw, sh, false);
+                    } else HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
                 } catch (Exception e) {
                     ModuleManager.crashed(el, e, "HUD");
                 }
