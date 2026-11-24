@@ -63,7 +63,7 @@ cat > clips-share/public/downloads/clips.json <<JSON
 JSON
 # Evade Server API plugin for Paper servers (needs repo.papermc.io; skipped if it can't build).
 if ./gradlew :server-plugin:build --no-daemon -q; then
-  cp server-plugin/build/libs/EvadeServerAPI-*.jar site/downloads/EvadeServerAPI.jar
+  cp "$(ls -t server-plugin/build/libs/EvadeServerAPI-*.jar | head -1)" site/downloads/EvadeServerAPI.jar
 fi
 python3 scripts/build-pages.py
 echo "site/ updated: Evade ${VERSION} ($(kb "$JAR")), installer exe $(kb "$EXE"), installer jar $(kb "$IJAR"), Evade Clips ${CLIPS_VERSION} ($(kb "$CEXE") exe, $(kb "$CJAR") jar)"

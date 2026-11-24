@@ -1,6 +1,25 @@
 {
- "version": "2.4.0",
+ "version": "2.5.0",
  "entries": [
+  {
+   "id": "v2.5.0",
+   "title": "v2.5.0",
+   "date": "2026-11-24",
+   "dateText": "24 Nov 2026",
+   "summary": "More FPS on laptops, a better chat, Open to Friends, and a client that recovers on its own.",
+   "items": [
+    "Tuned for laptops: on integrated graphics Evade now starts on a laptop setup (Max FPS, Render Scale 65% with Evade's new upscaler, unlocked FPS). FPS Modes also tune Sodium, the HUD is cached at high frame rates, on battery the FPS is held at 60 (you choose), Smooth Pacing evens out frame times, and .bench scene runs a repeatable 60-second benchmark with a shareable result.",
+    "Chat: chat heads, chat tabs (Party, Guild, DMs, Friends and your own), smooth chat and emoji shortcodes with a picker.",
+    "New mods: Look Info (the block or mob you're looking at, your tool and the light level, never anyone's health), Light Overlay (spawnable spots, never through walls), Item Highlight with a new item picker, HUD Toggle, and Clear Glass, No Map Bobbing, fishing line colour and spyglass options in Pack Tweaks.",
+    "Open to Friends: share your singleplayer world with Evade friends from the pause menu (turn on the \"Open to Friends\" extra in the launcher). They always click Join themselves.",
+    "Friends: see what friends are doing (menus, singleplayer, a server or AFK), player cards with add, invite, voice volume and hide, and Discover servers on the title screen.",
+    "Media: a session recap in Evade Clips (one video from the day's best moments, also vertical), and a replay render queue with share links.",
+    "Cloud backup (opt-in): your settings, HUD, profiles and waypoints, encrypted on your PC with a passphrase only you know.",
+    "Safe Start: if Evade fails to start twice, it starts with its mods off and shows what probably caused it, with a button per mod to turn it back on. Many features now switch themselves off instead of crashing the game.",
+    "Server API v2: server prompts, transfers you confirm, balance and timer widgets and player-card actions, with server plugin 1.1.0."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.5.0"
+  },
   {
    "id": "v2.4.0",
    "title": "v2.4.0",
@@ -86,26 +105,6 @@
     "Fullbright now tells you when shaders are on, because shader packs do their own lighting and ignore it."
    ],
    "url": "https://evadeclient.com/changelog#v2.0.1"
-  },
-  {
-   "id": "v2.0.0",
-   "title": "v2.0.0",
-   "date": "2026-11-23",
-   "dateText": "23 Nov 2026",
-   "summary": "A new look, a much bigger FPS boost, deeper mods, a minimap, and Evade icons that work.",
-   "items": [
-    "New look: smooth rounded shapes, soft shadows, sharp Inter text at every GUI scale, and animations throughout the menu: opening, page changes, scrolling, hover and every switch and slider. The three menu styles and the HUD keep their layouts, just cleaner.",
-    "FPS Mode (Performance): one-click Max FPS, Balanced (default) or Quality. Unlock FPS turns VSync off and removes the frame cap, and Render Distance Cap keeps far chunks from eating your frame rate. Turning the Performance mod off puts all your own settings back.",
-    "Benchmark: type .bench to measure your average FPS and 1% low over 30 seconds and compare with your last run.",
-    "Installer: on Windows, Minecraft now runs on your fast graphics card (laptops often picked the slow one). The Shaders option now installs Photon by SixthSurge, with Complementary Reimagined beside it as a lighter choice, and the new Shaders setting switches between them in game.",
-    "Minimap (new HUD element): terrain only, never players, mobs or caves, so it's safe on servers.",
-    "Deeper mods: about 1,050 settings now, up from 329. New: Watermark, Tab Tweaks, Hitboxes (restyles F3+B), Motion Blur, Screenshot Tools, Sound Tweaks and Camera Distance (replaces Camera Clip).",
-    "Evade icons now work: sign-in never succeeded before, so no icons appeared. Your account is now checked with the chat key Mojang gives every Microsoft account. Your login still never leaves the game.",
-    "Server friendly: servers can switch off any Evade mod for their players; those mods show Disabled by this server. AutoTip only runs on Hypixel, AutoReconnect gives up after a few tries and never rejoins after a ban, and Camera Distance stops at 8 blocks. See Servers.",
-    "Evade Clips now works only with Evade Client. It records Minecraft only, with support for other games removed. On Windows it records the screen Minecraft is on, so fullscreen works.",
-    "Hundreds of smaller fixes across the client, the installer and Evade Clips."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.0.0"
   }
  ]
 }

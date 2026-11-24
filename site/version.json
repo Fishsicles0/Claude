@@ -1,18 +1,18 @@
 {
-  "version": "2.4.0",
+  "version": "2.5.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "4241 KB",
-  "sha256": "eed3aac602da4c47c549567cc741f4bdd9b145e470e8ccfaddfe98e9688f6bc3",
+  "size": "4502 KB",
+  "sha256": "872feb189bb67cf941fb4e7b5bd68b785433d39d363568f03e4083bbdac7698f",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7814 KB", "sha256": "8b2b443685f3aaf2ad3e111500b7944d5bdffc0b0ae5171a7acd16dc80086afd" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7702 KB", "sha256": "bc4328aa7402e8016427bd8aabb23630a2afb757340f3a79de788853a1249d04" }
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7822 KB", "sha256": "14d5bf2e179e6b2d4d97c644aa35b657b866c2a0056ab58301c7655ef06c69a4" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7710 KB", "sha256": "def47957812ee36daca30b1c56f13d0fdeb8086c3ce1b2c6bd1c67032ea2c3c3" }
   },
   "clips": {
     "version": "1.1.0",
-    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4069 KB", "sha256": "d4c1af4b97d47b5d4cc7e87e53c244ac9d97ea1ddc9e49ac1ef86d74c7149356" },
-    "jar": { "file": "downloads/EvadeClips.jar", "size": "3957 KB", "sha256": "9625b8511318909ef8f8ff2ddb532e08008dc467c56c057cf25cdef2a807ba2a" },
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4077 KB", "sha256": "5677d7fdb4fe64904f3640b255c3c8f5a5186b78f4da075080dfbcedd256642d" },
+    "jar": { "file": "downloads/EvadeClips.jar", "size": "3965 KB", "sha256": "e33a781998ac4c83d6e6aa84bce713b6fc7076f6179fd17608e89b69d9f75215" },
     "ffmpeg": {
       "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
       "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"

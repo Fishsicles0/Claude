@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.4.0</span>
+      <span class="nav-ver">v2.5.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -127,7 +127,7 @@
 
       <div class="doc-sec rv" id="owners">
         <h2>For server owners</h2>
-        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=f111b934ef">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
+        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=4e54d4b2a3">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
         <p>You can switch off any Evade mod for players on your server. Send a plugin message on the channel <span class="mono">evade:rules</span> after a player joins, with a UTF-8 JSON body:</p>
         <pre class="code">{"disable": ["Freelook", "Minimap", "Fullbright"]}</pre>
         <p>Use the mod names exactly as they appear in Evade's menu (case doesn't matter). Evade turns those mods off straight away, stops players turning them back on while they're connected, and shows <b>Disabled by this server</b> on them. Send the message again to change the list, or <span class="mono">{"disable": []}</span> to allow everything. Nothing carries over to other servers.</p>
@@ -235,11 +235,11 @@ getServer().getMessenger().registerIncomingPluginChannel(this, "evade:hello", (c
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=d4c1af4b97">Download</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=5677d7fdb4">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.5.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
