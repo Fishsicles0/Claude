@@ -64,6 +64,7 @@ final class GameController implements GamePages.Actions {
     /** Starts watching (call once, on the UI thread). */
     void start() {
         loadNotices();
+        scanOldJars();
         work.submit(() -> InstanceTrash.finishLeftovers(settings));
         new Timer(2000, e -> { poll(); saveNoticesIfChanged(); }).start();
         new Timer(1000, e -> tailLog()).start();
@@ -94,9 +95,14 @@ final class GameController implements GamePages.Actions {
         if (polling) return;
         polling = true;
         List<Launcher.Instance> list = List.copyOf(view.instances);
+        Launcher.Instance sel = view.selected();
+        if (view.play != LauncherView.Play.LAUNCHED && pages.wrongProfile == null) launchedAt = 0;
+        else if (view.play == LauncherView.Play.LAUNCHED && launchedAt == 0) launchedAt = System.currentTimeMillis() - 5000;
+        long launched = launchedAt;
         work.submit(() -> {
             try {
                 long now = System.currentTimeMillis();
+                checkProfile(list, sel, launched, now);
                 for (Launcher.Instance i : list) {
                     if (!Files.isDirectory(i.dir)) continue;
                     InstanceExtras x = extras(i);
@@ -139,8 +145,6 @@ final class GameController implements GamePages.Actions {
                                 + InstallerCore.str(req, "name");
                         in.requestAt = req == null ? 0 : req.get("created").getAsLong();
                         // The launcher stays open after Play: once the game is up, Home shows it playing (and Play again after).
-                        if (view.play != LauncherView.Play.LAUNCHED) launchedAt = 0;
-                        else if (launchedAt == 0) launchedAt = System.currentTimeMillis() - 5000;
                         if (view.play == LauncherView.Play.LAUNCHED && i.id.equals(settings.selected) && s != null
                                 && (in.running() || s.started() > launchedAt)) view.play = LauncherView.Play.IDLE;
                         if (found != null) {
@@ -156,6 +160,72 @@ final class GameController implements GamePages.Actions {
                 polling = false;
             }
         });
+    }
+
+    /**
+     * After Play: the right profile's heartbeat should show up. If another game folder's log moves instead, or
+     * Minecraft runs with no heartbeat for 90 s, Home says which profile to pick in the Minecraft Launcher.
+     */
+    private void checkProfile(List<Launcher.Instance> list, Launcher.Instance sel, long launched, long now) {
+        if (sel == null || launched == 0) return;
+        GameState.Session s = GameState.readSession(sel.dir);
+        boolean ok = s != null && s.started() >= launched && GameState.alive(s.pid());
+        String why = null;
+        if (!ok || s.gameDir() != null) {
+            Path other = ProfileCheck.otherGameStarted(settings.minecraftDir(), list, sel, launched);
+            boolean mc = other == null && now - launched > ProfileCheck.NO_BEAT_MS && ProfileCheck.minecraftRunning();
+            why = ProfileCheck.verdict(s, sel.dir, launched, now, other, mc);
+        }
+        List<Path> old = why != null ? ProfileCheck.oldEvadeJars(settings.minecraftDir()) : null;
+        String w = why;
+        ui(() -> {
+            if (w == null) {
+                if (ok) pages.wrongProfile = null;
+                return;
+            }
+            if (pages.wrongProfile == null) {
+                view.notice("Minecraft started a different profile", "Pick “" + sel.profileName() + "” in the Minecraft Launcher", true);
+                notifyOs("Minecraft started a different profile", "Pick “" + sel.profileName() + "” in the Minecraft Launcher, then press Play.");
+            }
+            pages.wrongProfile = w;
+            pages.wrongInstance = sel;
+            pages.oldJars = old;
+            if (view.play == LauncherView.Play.LAUNCHED) view.play = LauncherView.Play.IDLE;
+        });
+    }
+
+    /** Looks for an old one-file Evade in the normal .minecraft/mods (once at start: a bell notice). */
+    private void scanOldJars() {
+        work.submit(() -> {
+            List<Path> old = ProfileCheck.oldEvadeJars(settings.minecraftDir());
+            ui(() -> {
+                pages.oldJars = old;
+                if (!old.isEmpty()) view.notice("Old Evade in your normal Minecraft", old.get(0).getFileName() + " is in .minecraft/mods. Switch it off on the Game page.", false);
+            });
+        });
+    }
+
+    @Override public void disableOldJars() {
+        List<Path> old = pages.oldJars;
+        if (old == null || old.isEmpty()) return;
+        work.submit(() -> {
+            try {
+                int n = ProfileCheck.disable(old);
+                ui(() -> {
+                    pages.oldJars = ProfileCheck.oldEvadeJars(settings.minecraftDir());
+                    view.toast("Switched off " + n + " old Evade file" + (n == 1 ? "" : "s") + " in .minecraft/mods (renamed to .disabled)");
+                });
+            } catch (Exception e) {
+                ui(() -> view.toast("Couldn't switch it off (is Minecraft open?): " + EvadeInstaller.friendly(e)));
+            }
+        });
+    }
+
+    @Override public void retryProfile() {
+        Launcher.Instance i = pages.wrongInstance;
+        pages.wrongProfile = null;
+        launchedAt = 0;
+        if (i != null) selectAndPlay(i);
     }
 
     private static long mtime(Path p) {

@@ -21,7 +21,8 @@ import java.util.Locale;
 /**
  * The small file channel between the game and the Evade Launcher, inside the game folder's {@code .evade/}:
  * <ul>
- *   <li>{@code session.json}: a heartbeat every 5 seconds (process id, start time, last beat, menu / world / server),
+ *   <li>{@code session.json}: a heartbeat every 5 seconds (process id, start time, last beat, Evade version, game
+ *   folder, menu / world / server),
  *   marked {@code clean} when the game closes normally. The launcher shows "Playing", can stop a hung game, and
  *   spots a session that ended without closing cleanly (a crash).</li>
  *   <li>{@code playtime.json}: total play time, sessions and last played, kept here so it is counted even while the
@@ -117,6 +118,7 @@ public final class LauncherBridge {
         o.addProperty("started", STARTED);
         o.addProperty("beat", now);
         o.addProperty("version", EvadeClient.VERSION);
+        o.addProperty("gameDir", dir.getParent().toAbsolutePath().normalize().toString());
         o.addProperty("state", state);
         if (server != null) o.addProperty("server", server);
         if (serverName != null) o.addProperty("serverName", serverName);

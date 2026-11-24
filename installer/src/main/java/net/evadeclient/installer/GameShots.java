@@ -23,7 +23,7 @@ final class GameShots {
         // ---- playing
         GamePages.Info m = gp.info(main);
         m.session = new GameState.Session(48211, now - 23 * 60_000, now - 2000, "2.3.0", "multiplayer", "practice.example.net",
-                "Evade Practice", null, null, 0, false);
+                "Evade Practice", null, null, 0, false, null);
         m.run = GameState.Run.RUNNING;
         m.playtime = new GameState.Playtime(41 * 3_600_000L + 12 * 60_000, now, 87, "Survival Island", "Survival Island", "practice.example.net");
         m.lastWorld = new String[]{"Survival Island", "Survival Island"};
@@ -35,13 +35,13 @@ final class GameShots {
         // ---- not playing: Continue on Home, then a crash card
         m.run = GameState.Run.ENDED_CLEAN;
         m.session = new GameState.Session(48211, now - 3 * 3_600_000L, now - 2 * 3_600_000L, "2.3.0", "singleplayer", null, null,
-                "Survival Island", "Survival Island", now - 2 * 3_600_000L, true);
+                "Survival Island", "Survival Island", now - 2 * 3_600_000L, true, null);
         v.page = LauncherView.Page.HOME;
         save(v, out, "32-home-continue");
         GamePages.Info p = gp.info(pvp);
         p.playtime = new GameState.Playtime(6 * 3_600_000L, now - 26 * 3_600_000L, 14, null, null, "practice.example.net");
         p.run = GameState.Run.ENDED_BADLY;
-        p.session = new GameState.Session(51920, now - 40 * 60_000, now - 31 * 60_000, "2.3.0", "multiplayer", "practice.example.net", "Evade Practice", null, null, now - 31 * 60_000, false);
+        p.session = new GameState.Session(51920, now - 40 * 60_000, now - 31 * 60_000, "2.3.0", "multiplayer", "practice.example.net", "Evade Practice", null, null, now - 31 * 60_000, false, null);
         Path jar = pvp.dir.resolve("mods").resolve("fancy-hats-1.4.2+1.21.4.jar");
         List<Mods.Entry> mods = List.of(new Mods.Entry(jar, true, "fancyhats", "Fancy Hats", "1.4.2", "", "", null, 1));
         String report = """
@@ -63,13 +63,18 @@ final class GameShots {
         v.overlay = "server:0";
         save(v, out, "35-home-server-join");
         v.closeOverlays();
+        gp.wrongProfile = "Minecraft is running, but not this Evade instance.";
+        gp.wrongInstance = main;
+        gp.oldJars = List.of(Path.of("C:/Users/Player/AppData/Roaming/.minecraft/mods/evade-client-1.4.0.jar"));
+        save(v, out, "35b-home-wrong-profile");
+        gp.wrongProfile = null;
 
         // ---- the Game page
         v.page = LauncherView.Page.GAME;
         gp.tab = "overview";
         m.run = GameState.Run.RUNNING;
         m.session = new GameState.Session(48211, now - 23 * 60_000, now - 2000, "2.3.0", "multiplayer", "practice.example.net",
-                "Evade Practice", null, null, 0, false);
+                "Evade Practice", null, null, 0, false, null);
         m.reports = List.of();
         save(v, out, "36-game-overview-playing");
         v.focusedId = "pvp";

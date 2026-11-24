@@ -71,6 +71,33 @@ public final class EvadeInstaller {
     }
 
     /** Best-effort: start the official Minecraft Launcher on each OS. True once one of the attempts started. */
+    /**
+     * An official Minecraft Launcher that is already open never reads the profile list again, so it would start
+     * whatever profile it had selected (often an older Evade or plain Fabric) instead of this instance. Closes it
+     * first when no game it started is running. Returns false when a game from it is running (then it's left alone).
+     */
+    static boolean closeIdleMinecraftLauncher() {
+        if (!OS.contains("win")) return true;
+        java.util.List<ProcessHandle> open = new java.util.ArrayList<>();
+        ProcessHandle.allProcesses().forEach(ph -> {
+            String cmd = ph.info().command().orElse("").toLowerCase(java.util.Locale.ROOT);
+            if (cmd.endsWith("\\minecraftlauncher.exe")) open.add(ph);
+        });
+        if (open.isEmpty()) return true;
+        for (ProcessHandle ph : open) {
+            boolean game = ph.descendants().anyMatch(d -> d.info().command().orElse("").toLowerCase(java.util.Locale.ROOT).matches(".*\\\\javaw?\\.exe"));
+            if (game) return false;
+        }
+        for (ProcessHandle ph : open) ph.destroy();
+        long until = System.currentTimeMillis() + 5000;
+        for (ProcessHandle ph : open) {
+            while (ph.isAlive() && System.currentTimeMillis() < until) {
+                try { Thread.sleep(150); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return true; }
+            }
+        }
+        return true;
+    }
+
     static boolean openLauncher() {
         List<List<String>> attempts = new ArrayList<>();
         if (OS.contains("win")) {

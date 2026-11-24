@@ -26,7 +26,7 @@ final class GameState {
 
     /** One game session as its heartbeat file describes it. */
     record Session(long pid, long started, long beat, String version, String state, String server, String serverName,
-                   String world, String worldFolder, long ended, boolean clean) {
+                   String world, String worldFolder, long ended, boolean clean, String gameDir) {
         boolean endedCleanly() { return ended > 0 && clean; }
     }
 
@@ -47,7 +47,7 @@ final class GameState {
             return new Session(o.get("pid").getAsLong(), num(o, "started"), num(o, "beat"), InstallerCore.str(o, "version"),
                     InstallerCore.str(o, "state"), InstallerCore.str(o, "server"), InstallerCore.str(o, "serverName"),
                     InstallerCore.str(o, "world"), InstallerCore.str(o, "worldFolder"), num(o, "ended"),
-                    o.has("clean") && o.get("clean").getAsBoolean());
+                    o.has("clean") && o.get("clean").getAsBoolean(), InstallerCore.str(o, "gameDir"));
         } catch (RuntimeException e) {
             return null;
         }

@@ -32,6 +32,9 @@ public final class LauncherBridgeTest {
         long pid = ProcessHandle.current().pid();
         check(s.has("pid") && s.get("pid").getAsLong() == pid, "Heartbeat names this game's process id");
         check(System.currentTimeMillis() - s.get("beat").getAsLong() < 15_000, "Heartbeat is fresh");
+        check(s.get("version").getAsString().equals(EvadeClient.VERSION)
+                && java.nio.file.Path.of(s.get("gameDir").getAsString()).equals(dir.getParent().toAbsolutePath().normalize()),
+                "Heartbeat names the Evade version and the game folder");
         check("singleplayer".equals(s.get("state").getAsString()) && s.has("worldFolder"), "Heartbeat says a world is open: " + s);
         check(!s.get("clean").getAsBoolean() && s.get("ended").getAsLong() == 0, "Running session isn't marked ended");
         JsonObject p = read(dir.resolve(LauncherBridge.PLAYTIME));

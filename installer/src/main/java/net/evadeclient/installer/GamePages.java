@@ -65,6 +65,8 @@ final class GamePages {
         default void undoDelete() {}
         default void osNotifyChanged(boolean on) {}
         default void tabShown(String tab) {}
+        default void disableOldJars() {}
+        default void retryProfile() {}
     }
 
     /** What's known about one instance's game (filled in by the controller). */
@@ -86,6 +88,11 @@ final class GamePages {
     final LauncherView v;
     Actions actions = new Actions() {};
     final Map<String, Info> info = new HashMap<>();
+    /** After Play the Minecraft Launcher started another profile: why (null: it didn't), and for which instance. */
+    String wrongProfile;
+    Launcher.Instance wrongInstance;
+    /** Old one-file Evade jars in the normal .minecraft/mods (null or empty: none). */
+    List<Path> oldJars;
     /** The Game page's tab: "overview", "logs" or "settings". */
     String tab = "overview";
     boolean osNotify = true;
@@ -395,6 +402,18 @@ final class GamePages {
             v.textLink(g, "gp-req-cancel", "Cancel", ix + iw - 16, ry + 27, 1);
             name("gp-req-cancel", "Cancel the waiting request");
             v.animating = true;
+        }
+        if (oldJars != null && !oldJars.isEmpty()) {
+            int oy = by + 110;
+            g.setColor(new Color(245, 165, 36, 22));
+            g.fill(new RoundRectangle2D.Double(ix, oy, iw, 64, 24, 24));
+            g.setFont(v.interBold.deriveFont(12.5f));
+            g.setColor(TEXT);
+            g.drawString("Old Evade in your normal Minecraft", ix + 16, oy + 26);
+            g.setFont(v.inter.deriveFont(11.5f));
+            g.setColor(DIM);
+            g.drawString(LauncherView.ellipsizeEnd(g, oldJars.get(0).getFileName() + " in .minecraft/mods loads with plain profiles", iw - 210), ix + 16, oy + 45);
+            ghost(g, "gp-old-off", ix + iw - 180, oy + 14, 168, 36, "Switch it off", false, null, "Switch off the old Evade in .minecraft/mods");
         }
         // play time
         int sy = y + h - 132;
@@ -808,6 +827,10 @@ final class GamePages {
 
     /** Home's bottom row while a crash is waiting: the crash card instead of the news. True when drawn. */
     boolean paintHomeCrash(Graphics2D g, int x, int y, int w, int h) {
+        if (wrongProfile != null && wrongInstance != null) {
+            paintWrongProfile(g, x, y, w, h);
+            return true;
+        }
         for (Launcher.Instance i : v.instances) {
             CrashHelper.Diagnosis d = info(i).crash;
             if (d != null) {
@@ -817,6 +840,37 @@ final class GamePages {
             }
         }
         return false;
+    }
+
+    /** "Minecraft started a different profile": which one to pick, Retry, and switching off an old one-file Evade. */
+    private void paintWrongProfile(Graphics2D g, int x, int y, int w, int h) {
+        v.card(g, x, y, w, h, false);
+        g.setColor(new Color(245, 165, 36, 16));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
+        g.setColor(new Color(245, 165, 36, 70));
+        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 32, 32));
+        int ix = x + 24, iw = w - 48;
+        g.setColor(new Color(245, 165, 36, 40));
+        g.fill(new RoundRectangle2D.Double(ix, y + 20, 40, 40, 20, 20));
+        LauncherView.icon(g, "alert", ix + 20, y + 40, 18, AMBER);
+        g.setFont(v.interBold.deriveFont(10f));
+        g.setColor(AMBER);
+        v.spaced(g, "THIS ISN'T " + wrongInstance.name.toUpperCase() + " RUNNING", ix + 54, y + 34, 1.2f);
+        g.setFont(v.interBold.deriveFont(16f));
+        g.setColor(TEXT);
+        g.drawString("Minecraft started a different profile", ix + 54, y + 56);
+        v.iconButton(g, "gp-wrong-x", x + w - 24 - 28, y + 20, 28, "close-x", false);
+        name("gp-wrong-x", "Dismiss");
+        g.setFont(v.inter.deriveFont(12.5f));
+        g.setColor(DIM);
+        boolean old = oldJars != null && !oldJars.isEmpty();
+        String body = "In the Minecraft Launcher, pick “" + wrongInstance.profileName() + "” in the list next to Play, then press Play. "
+                + wrongProfile + (old ? " Your normal .minecraft/mods also has an old Evade (" + oldJars.get(0).getFileName() + ")." : "");
+        int ly = y + 86;
+        for (String l : LauncherView.wrapLines(g, body, iw - 360, 3)) { g.drawString(l, ix, ly); ly += 18; }
+        int bh = 40, by = y + h - 24 - bh, bx = x + w - 24 - 150;
+        primary(g, "gp-wrong-retry", bx, by, 150, bh, "Retry", "play", "Retry: open the Minecraft Launcher with the right profile");
+        if (old) ghost(g, "gp-old-off", bx - 12 - 200, by, 200, bh, "Switch off old Evade", false, null, "Switch off the old Evade in .minecraft/mods");
     }
 
     /** The instance whose crash card is showing (its buttons act on it). */
@@ -987,6 +1041,9 @@ final class GamePages {
             case "gp-java-browse" -> { if (foc != null) actions.browseJava(foc); }
             case "gp-java-clear" -> java.setText("");
             case "gp-undo" -> { undoText = null; actions.undoDelete(); }
+            case "gp-wrong-x" -> wrongProfile = null;
+            case "gp-wrong-retry" -> actions.retryProfile();
+            case "gp-old-off" -> actions.disableOldJars();
             case "gp-join" -> {
                 if (joinIndex >= 0 && joinIndex < v.settings.servers.size()) actions.joinServer(v.settings.servers.get(joinIndex));
                 v.overlay = null;

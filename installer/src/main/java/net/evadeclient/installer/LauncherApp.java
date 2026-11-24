@@ -619,6 +619,9 @@ final class LauncherApp implements LauncherView.Actions {
                 }
                 // The profile, last used now, so the Minecraft Launcher preselects this instance.
                 InstallerCore.Options o = Launcher.options(settings, i, false, false, true);
+                // An already-open Minecraft Launcher keeps its old selection (it would start the wrong profile).
+                if (!setupOnly && !EvadeInstaller.closeIdleMinecraftLauncher())
+                    skipped.add("The Minecraft Launcher was already running a game: pick \"" + o.profileName() + "\" in it");
                 InstallerCore.writeProfiles(o);
                 try { game.applyExtras(i); } catch (Exception e) { skipped.add("This instance's own Java, window and icon settings weren't applied"); }
                 String java = settings.javaPath == null || settings.javaPath.isBlank() ? null : settings.javaPath.strip();
