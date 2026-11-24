@@ -78,8 +78,8 @@
    "files": {
     "item.json": "df1a9c2060422492c08e99022288c900d793eaf0cd76a964f5ce0ff3db0c7135",
     "model.json": "c40ea5940f160f5a6149c80aa2cd5ccc0b33e534561a5f10da237d3ac1a1a5a2",
-    "texture.png": "7d55972c7725560edc21cd59cbd90bf95cb339e4e42f0ace15f431572fa74d00",
-    "thumb.png": "f48042c80119995e9bec3a65df88f0239581e13b094f601db90fcd6c69a856a9"
+    "texture.png": "6a07d91d5c2c1de587993b0bc0230dfc65061c38deaad667f56fbdcde8ebefee",
+    "thumb.png": "44240f96f36bf49597649c421b550b2b955d59f8ee3718c85ff4f18ddc421534"
    }
   },
   {
@@ -94,8 +94,8 @@
    "files": {
     "item.json": "0788f1ceb246eebe60d3943289df883b31faa2503d5bd864bdc63d90b8ecb22c",
     "model.json": "4441f6144b86ac070d7eb9610642228202c9c595698ebb3a91de5ef62ded7e1f",
-    "texture.png": "213b10042472505034c602bd7278b83f0b717e06e6c927406d8098050ae779be",
-    "thumb.png": "491170b6b7154f820096874090d328f104f97b103565983fb2e885fe6cf8454d"
+    "texture.png": "f6efd0c1939d121e546a37d1d1ff86946b53851dbaa4a0fd99cde6e036fb6ab4",
+    "thumb.png": "d8f9f1e37363c2208e855364a0e965d4c73e45d056f717a2a4f3bf8ead2c4697"
    }
   },
   {
@@ -111,7 +111,7 @@
     "item.json": "62269f2ee4eda14dfb985ba3ccce1226114c5f8ff13d5147136fc7837e41d0f3",
     "model.json": "39ebc2cbcfc905194bbbd6c70e5d6a8382b943825035f37cf229b2db4266542f",
     "texture.png": "0c6781d0dc8da5734dc4cf14e837952a18e16d572d2dbfc49baa0e93a575d535",
-    "thumb.png": "7bd32148faf200b0a0101541bbd532b97d80c576717c687db94cba184e95155c"
+    "thumb.png": "079faa2c989a09e08f29e65dea71670edc203018e75481ac442f13aa48571697"
    }
   },
   {
@@ -249,7 +249,7 @@
     "item.json": "92ee0b0b60d3dc913abd7dc805f11802199c556f2327915fe5da5f9067c5dd50",
     "model.json": "de793e158a94a32d4f11e86753ff158f9417a35166b73725dc5defda149f2b51",
     "texture.png": "3b830637bfe2c387852a6ecdab8504852ffad3a498f93dd9b3945ebc42c84f89",
-    "thumb.png": "b7e47c0a6ec6d8b330e1f0a0ef28fde0b876eae62ec35a4fbd400ad22f2cbfd6"
+    "thumb.png": "9e579bb8bc7d6dc2a7b25c9cf7fedcb655d3df1955a1d33628350e0e72daa50d"
    }
   },
   {

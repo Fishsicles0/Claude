@@ -416,24 +416,36 @@ item("chevron_standard", "Chevron Standard", "CAPE", "COMMON", 299,
 # ---------------------------------------------------------------------------------------------- wings
 # Swept back from the shoulder blades and semi-transparent, so they never hide the player's outline.
 
+def wing_root(face, cv):
+    """0 at the wing tip, 1 at the shoulder, whichever side of the plane this face is (see ModelPart.Cuboid UVs)."""
+    return cv.xx() if face == "north" else 1 - cv.xx()
+
+
+def wing_mask(face, cv, scallops=4):
+    r, t = wing_root(face, cv), cv.yy()
+    # long at the shoulder, short at the tip, with a scalloped trailing edge and a rounded tip
+    edge = 0.28 + 0.66 * smooth(r) ** 0.8 - 0.07 * np.abs(np.sin(r * math.pi * scallops))
+    return (t < edge) & (r + t * 0.25 > 0.06)
+
+
 def aurora_membrane(face, cv):
-    t, x = cv.yy(), cv.xx()
-    # cyan at the root to violet at the tips, see-through towards the trailing edge
-    col = mix(hexc("#3ef0d0"), hexc("#7b4dff"), smooth(x * 0.9 + t * 0.3)[..., None])
-    col[..., 3] = 0.62 - 0.25 * smooth(t)
+    r, t = wing_root(face, cv), cv.yy()
+    # cyan at the shoulder to violet at the tips, more see-through towards the trailing edge
+    col = mix(hexc("#3ef0d0"), hexc("#7b4dff"), smooth(1 - r * 0.85 + t * 0.2)[..., None])
+    col[..., 3] = 0.68 - 0.3 * smooth(t)
+    col[~wing_mask(face, cv)] = 0
     cv.arr[:] = col
-    # scalloped trailing edge
-    edge = 0.78 + 0.1 * np.sin(x * math.pi * 5)
-    cv.arr[t > edge] = 0
     grain(cv, 0.05, 2.0)
 
 
 def aurora_veins(face, cv):
     clear(cv)
-    t, x = cv.yy(), cv.xx()
-    for k in range(4):
-        line = np.abs(t - (0.1 + k * 0.2) - x * 0.15) < 0.035
-        cv.arr[line & (t < 0.78)] = hexc("#c9fff4", 0.85)
+    r, t = wing_root(face, cv), cv.yy()
+    # veins fan out from the shoulder joint (top right) towards the trailing edge
+    ang = np.arctan2(t + 0.02, (1.02 - r))
+    for a in (0.18, 0.5, 0.85, 1.2):
+        line = np.abs(ang - a) < 0.045
+        cv.arr[line & wing_mask(face, cv) & (r > 0.08)] = hexc("#c9fff4", 0.9)
 
 
 def aurora_spar(face, cv):
@@ -457,15 +469,16 @@ def wings_aurora():
 
 def feather_paint(c_root, c_tip, alpha):
     def p(face, cv):
-        t, x = cv.yy(), cv.xx()
+        t, x = cv.yy(), wing_root(face, cv)
         col = mix(hexc(c_root), hexc(c_tip), smooth(t * 1.1)[..., None])
         # individual feathers: vertical shafts with slightly darker gaps
         shaft = (np.sin(x * math.pi * cv.w / TEX_SCALE / 1.5) > 0.6)
         col[..., :3] *= np.where(shaft, 1.08, 0.9)[..., None]
         col[..., 3] = alpha
         # rounded feather tips at the bottom edge
-        tip = 0.86 + 0.12 * np.abs(np.sin(x * math.pi * cv.w / TEX_SCALE / 3))
+        tip = 0.8 + 0.18 * np.abs(np.sin(x * math.pi * cv.w / TEX_SCALE / 3))
         col[t > tip] = 0
+        col[x < 0.06 + t * 0.12] = 0    # feathers taper towards the wing tip
         cv.arr[:] = np.clip(col, 0, 1)
         grain(cv, 0.06)
     return p
@@ -529,7 +542,7 @@ item("comet_cap", "Comet Cap", "HAT", "COMMON", 249,
                                     Cube((-4, -6.5, -4), (8, 1, 8), knit_band, inflate=1.05)], tint=True),
       Bone("pompom", "head", (0, -10, 0), cubes=[Cube((-1.5, -12.6, -1.5), (3, 3, 3), pompom)], emissive=True,
            anim={"type": "bob", "amp": 0.25, "speed": 2.0}, tint=True)],
-     colourable=True, default_color="#3D7BFF", view={"yaw": 25, "pitch": 18, "focus": "head"})
+     colourable=True, default_color="#3D7BFF", view={"yaw": 25, "pitch": 26, "focus": "head"})
 
 
 def gold(face, cv):
@@ -1052,7 +1065,7 @@ def thumb_model(it, tex_arr, tw, th):
     scene = Scene()
     view = it["view"]
     focus = view.get("focus")
-    parts = {"head": {"head"}, "shoulder": {"head", "body", "leftArm", "rightArm"}}.get(focus)
+    parts = {"head": {"head"}, "shoulder": {"head"}}.get(focus)
     mats = add_mannequin(scene, parts=parts) if focus != "item" else {}
     for b in it["bones"]:
         base = mats.get(ATTACH.get(b.attach)) if ATTACH.get(b.attach) else np.eye(4)
