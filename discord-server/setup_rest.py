@@ -311,6 +311,8 @@ class Setup:
                          "color": layout.CLIENT["color"],
                          "fields": [{"name": fmt(n), "value": fmt(v), "inline": inl} for n, v, inl in spec.get("fields", [])],
                          "footer": {"text": f"{layout.CLIENT['name']} · {MARKER}{key}:{i}"}}
+                if spec.get("image"):
+                    embed["image"] = {"url": spec["image"]}
                 old = mine.get(f"{key}:{i}")
                 if old is None:
                     old = self.api("POST", f"/channels/{ch['id']}/messages", {"embeds": [embed]})

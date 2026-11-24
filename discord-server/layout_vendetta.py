@@ -38,7 +38,8 @@ SECURITY = {
     "max_open_tickets": 1,
     "ticket_cooldown": 600,
     "members_can_invite": False,
-    "verification_level": "high",
+    "verification_level": "low",    # leadership approves everyone by hand, so no 10-minute wait
+    "verify_mode": "approval",      # Verify sends a request to #verify-requests instead of a code check
 }
 
 _BASE = [
@@ -102,11 +103,12 @@ LOG_OFF = {**_HIDE, **_see("mod", "admin", send=False)}
 
 CATEGORIES = [
     {"key": "gate", "name": "✅ Start Here", "perms": GATE, "channels": [
+        {"key": "welcome", "emoji": "👋", "name": "welcome", "perms": GATE_RULES,
+         "topic": "Start here: who we are, how to get in, and where everything is."},
         {"key": "rules", "emoji": "📖", "name": "rules", "perms": GATE_RULES, "topic": "Read the rules, then verify."},
         {"key": "verify", "emoji": "✅", "name": "verify", "topic": "Press Verify to get in."},
     ]},
     {"key": "public", "name": "🩸 Vendetta", "perms": PUBLIC_RO, "channels": [
-        {"key": "welcome", "emoji": "👋", "name": "welcome"},
         {"key": "about", "emoji": "🩸", "name": "about-vendetta"},
         {"key": "announcements", "emoji": "📢", "name": "announcements", "type": "news"},
         {"key": "wins", "emoji": "🏆", "name": "wins-and-ftop", "topic": "Raids, F-Top placements and season results."},
@@ -153,6 +155,8 @@ CATEGORIES = [
         {"key": "applications-review", "emoji": "📋", "name": "applications-review"},
         {"key": "punishments", "emoji": "⚖️", "name": "punishments"},
         {"key": "co-leaders", "emoji": "🗝️", "name": "co-leaders", "perms": LEADERS},
+        {"key": "verify-requests", "emoji": "🛂", "name": "verify-requests", "perms": LEADERS,
+         "topic": "Approve or deny people who pressed Verify. Co-Leaders, the Leader and admins only."},
         {"key": "leaders-voice", "emoji": "🔊", "name": "Leadership", "type": "voice"},
     ]},
     {"key": "logs", "name": "📜 Logs", "perms": LOG_LEAD, "channels": [
@@ -191,6 +195,11 @@ TICKET_TYPES = [
     {"key": "other", "label": "Contact leadership", "emoji": "💬", "staff": TICKET_STAFF},
 ]
 
+# Welcome cards for newly approved members go in the public lobby; #welcome stays a clean landing page.
+WELCOME_CHANNEL = "lobby"
+VERIFY_APPROVERS = ["admin"]   # Co-Leader; the Leader, owner and Administrator roles can always approve
+BANNER = "https://cdn.discordapp.com/banners/1574756781174038608/edd24cdc063a4709910a8541fc14952b.png?size=1024"
+
 WELCOME_LINES = [
     "🩸 Read about us in #about",
     "📝 Want in? Check #recruitment and apply in #create-ticket",
@@ -223,7 +232,35 @@ POSTS = {
         "**6. Leadership has the final say.** Disagree in #create-ticket, not in public.\n\n"
         "**7. Follow Discord's Terms of Service.**\n\n"
         "Read them? Head to #verify."))],
-    "welcome": [_p("👋 Welcome", "New people are greeted here once they verify. Applying? Start in #recruitment.")],
+    "welcome": [
+        {**_p("Welcome to Vendetta", (
+            "**Vendetta** is a competitive Minecraft factions team. We raid, we defend, and we play for F-Top.\n\n"
+            "Whether you're here to join, to talk alliances, or just to hang out, start below.")), "image": BANNER},
+        _p("🚪 How to get in", (
+            "**1.** Read #rules.\n"
+            "**2.** Press **Verify** in #verify.\n"
+            "**3.** Leadership reviews your request by hand. You'll get a **DM** the moment you're approved, "
+            "and the server unlocks for you.\n"
+            "**4.** Want to join the faction? Read #recruitment, then apply in #create-ticket.\n\n"
+            "Requests are checked by real people, so give it a little time. Pressing Verify again won't speed it up.")),
+        _p("🗺️ Where everything is", (
+            "**Everyone (after approval)**\n"
+            "🩸 #about · 📢 #announcements · 🏆 #wins · 📝 #recruitment · 🎫 #create-ticket · 💬 #lobby\n\n"
+            "**Recruits and up**\n"
+            "⚔️ Faction chat, raid planning, cannoning, grinding, loot log, clips and schematics\n\n"
+            "**Members and up**\n"
+            "🔒 Base coords, wall checks and raid alerts\n\n"
+            "**Allies**\n"
+            "🤝 Ally chat and Ally Comms voice")),
+        _p("🎖️ Ranks", (
+            "**Leader**: runs Vendetta\n"
+            "**Co-Leader**: leadership, approves new people and alliances\n"
+            "**Officer**: runs raids and defence, reviews applications, moderates\n"
+            "**Member**: full faction member, sees the base\n"
+            "**Recruit**: on trial; prove yourself to become a Member\n"
+            "**Ally**: from an allied faction\n"
+            "**Verified**: approved guest, can talk in the lobby and apply")),
+    ],
     "about": [_p("🩸 About Vendetta", (
         "**Vendetta** is a competitive factions team. We play to win: raids, F-Top and season placements.\n\n"
         "**What we do**\n"
@@ -252,7 +289,9 @@ POSTS = {
         "🤝 **Alliance or truce request**: for other factions' leaders\n"
         "🚩 **Report someone** · ⚖️ **Appeal** · 💬 **Contact leadership**\n\n"
         "Each opens a private channel that only you and leadership can see."))],
-    "lobby": [_p("💬 Lobby", "Public chat for guests, applicants and allies. No faction business here: no coords, no plans.")],
+    "lobby": [_p("💬 Lobby", (
+        "Public chat for guests, applicants and allies. New people get their welcome here once they're approved.\n\n"
+        "No faction business here: no coords, no plans."))],
     "faction-rules": [_p("📜 Faction Rules", (
         "**Activity**\n• Check in daily during the season. Tell an Officer if you'll be away.\n\n"
         "**Base & security**\n• Never share coords, screenshots with F3, or plans outside #base-coords.\n"

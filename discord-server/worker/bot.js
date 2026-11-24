@@ -102,11 +102,12 @@ async function followup(env, interaction, data) {
 
 // ── Verification ──────────────────────────────────────────────────────────────
 
-async function startVerify(env, it) {
+async function startVerify(env, it, ctx) {
   const m = it.member, uid = m.user.id;
   if (m.roles.includes(CONFIG.roles.member)) return reply("You're already verified.");
   if ((await kvGet(env, "raid")) === "on")
     return reply("Verification is paused for a moment while staff deal with a raid. Please try again later.");
+  if (CONFIG.security.verify_mode === "approval") return requestApproval(env, it, ctx);
   const ageDays = (Date.now() - snowflakeTime(uid)) / 86400000;
   if (ageDays < CONFIG.security.min_account_age_days) {
     await log(env, "member-log", { title: "Verification blocked: new account", color: ORANGE,
@@ -159,7 +160,7 @@ async function answerCaptcha(env, it, ctx) {
 
 // Welcome card in #welcome (falls back to #general) once someone verifies.
 async function welcome(env, user) {
-  const ch = CONFIG.channels.welcome || CONFIG.channels.general;
+  const ch = CONFIG.channels[CONFIG.welcome_channel] || CONFIG.channels.welcome || CONFIG.channels.general;
   if (!ch) return;
   let count = null;
   try { count = (await discord(env, "GET", `/guilds/${CONFIG.guild_id}?with_counts=true`)).approximate_member_count; } catch (e) { /* optional */ }
@@ -185,6 +186,79 @@ async function welcome(env, user) {
     }],
     components: buttons.length ? [{ type: 1, components: buttons }] : [],
   });
+}
+
+// ── Verification by approval (verify_mode "approval") ────────────────────────
+// Pressing Verify sends a request to #verify-requests; an approver presses Approve or Deny.
+
+const APPROVERS = () => CONFIG.verify_approvers?.length ? CONFIG.verify_approvers : CONFIG.admins;
+
+async function requestApproval(env, it, ctx) {
+  const m = it.member, user = m.user, uid = user.id;
+  const ch = CONFIG.channels["verify-requests"];
+  if (!ch) return reply("Verification isn't set up yet. Ask an admin.");
+  if (await kvGet(env, `vpend:${uid}`)) return reply("⏳ Your request is already waiting for leadership. You'll get a DM when it's reviewed.");
+  const denied = Number(await kvGet(env, `vdeny:${uid}`)) || 0;
+  if (denied > Date.now()) return reply(`Your last request wasn't approved. You can ask again ${relTime(denied)}.`);
+  const created = snowflakeTime(uid), ageDays = (Date.now() - created) / 86400000;
+  const young = ageDays < CONFIG.security.min_account_age_days;
+  const avatar = user.avatar ? `https://cdn.discordapp.com/avatars/${uid}/${user.avatar}.png?size=256` : undefined;
+  const pings = APPROVERS().map((k) => CONFIG.roles[k]).filter(Boolean);
+  await discord(env, "POST", `/channels/${ch}/messages`, {
+    content: pings.map((r) => `<@&${r}>`).join(" ") + " new verification request",
+    allowed_mentions: { roles: pings },
+    embeds: [{
+      title: "🛂 Verification request", color: young ? ORANGE : COLOR,
+      description: `<@${uid}> · **${user.global_name || user.username}** (\`${user.username}\`)`,
+      thumbnail: avatar ? { url: avatar } : undefined,
+      fields: [
+        { name: "Account created", value: `${relTime(created)}${young ? " ⚠️ **new account**" : ""}`, inline: true },
+        { name: "Joined server", value: m.joined_at ? relTime(Date.parse(m.joined_at)) : "?", inline: true },
+        { name: "User ID", value: `\`${uid}\``, inline: true },
+      ],
+      footer: { text: `vreq:${uid}` }, timestamp: new Date().toISOString(),
+    }],
+    components: [{ type: 1, components: [
+      { type: 2, style: 3, label: "Approve", emoji: { name: "✅" }, custom_id: `vreq:ok:${uid}` },
+      { type: 2, style: 4, label: "Deny", emoji: { name: "⛔" }, custom_id: `vreq:no:${uid}` },
+    ] }],
+  });
+  await kvPut(env, `vpend:${uid}`, Date.now(), 7 * 86400);
+  ctx.waitUntil(log(env, "member-log", { title: "Verification requested", color: GREY, description: `<@${uid}>${young ? " ⚠️ new account" : ""}` }));
+  return reply(`✅ **Request sent!** ${CONFIG.name} leadership reviews every request by hand. You'll get access and a DM as soon as you're approved.`);
+}
+
+async function decideApproval(env, it, ctx) {
+  const [, verdict, uid] = it.data.custom_id.split(":");
+  if (!hasRole(it.member, APPROVERS())) return reply("Only leadership can approve or deny verification requests.");
+  const by = it.member.user.id;
+  const embed = it.message.embeds[0];
+  await kvDel(env, `vpend:${uid}`);
+  if (verdict === "ok") {
+    try {
+      await discord(env, "PUT", `/guilds/${CONFIG.guild_id}/members/${uid}/roles/${CONFIG.roles.member}`, undefined,
+        { reason: `Verification approved by ${it.member.user.username}` });
+    } catch (e) {
+      return reply("I couldn't give them the Verified role. They may have left the server.");
+    }
+    embed.color = GREEN;
+    embed.fields = [...(embed.fields || []), { name: "Result", value: `✅ Approved by <@${by}> ${relTime(Date.now())}`, inline: false }];
+    ctx.waitUntil(Promise.all([
+      dm(env, uid, { title: `You're in! Welcome to ${CONFIG.name}`, color: GREEN, description: "Your verification was approved. The server is unlocked for you now." }),
+      discord(env, "GET", `/guilds/${CONFIG.guild_id}/members/${uid}`).then((mem) => welcome(env, mem.user)).catch(() => {}),
+      log(env, "member-log", { title: "Verified (approved)", color: GREEN, description: `<@${uid}> approved by <@${by}>` }),
+    ]));
+  } else {
+    await kvPut(env, `vdeny:${uid}`, Date.now() + 86400000, 86400);
+    embed.color = RED;
+    embed.fields = [...(embed.fields || []), { name: "Result", value: `⛔ Denied by <@${by}> ${relTime(Date.now())}`, inline: false }];
+    ctx.waitUntil(Promise.all([
+      dm(env, uid, { title: `Verification not approved`, color: RED,
+        description: `Leadership didn't approve your request to join ${CONFIG.name}. You can ask again in 24 hours.` }),
+      log(env, "member-log", { title: "Verification denied", color: RED, description: `<@${uid}> denied by <@${by}>` }),
+    ]));
+  }
+  return update({ embeds: [embed], components: [] });
 }
 
 // ── Tickets ───────────────────────────────────────────────────────────────────
@@ -678,8 +752,11 @@ export function panels() {
   return {
     verify: {
       embeds: [{ title: `Welcome to ${CONFIG.name}`, color: COLOR, description:
-        "Read the rules, then press **Verify** to unlock the server.\n\nYou'll be asked to pick a code to prove you're human. " +
-        `Accounts younger than ${s.min_account_age_days} days can't verify automatically. If that's you, wait a little or ask staff.` }],
+        (s.verify_mode === "approval"
+          ? "Read the rules, then press **Verify** to request access.\n\nLeadership reviews every request by hand. " +
+            "You'll get a DM and the server unlocks as soon as you're approved."
+          : "Read the rules, then press **Verify** to unlock the server.\n\nYou'll be asked to pick a code to prove you're human. " +
+            `Accounts younger than ${s.min_account_age_days} days can't verify automatically. If that's you, wait a little or ask staff.`) }],
       components: [{ type: 1, components: [{ type: 2, style: 3, label: "Verify", emoji: { name: "✅" }, custom_id: "verify:start" }] }],
     },
     ticket: {
@@ -709,7 +786,8 @@ async function handle(env, it, ctx) {
   if (it.type === 2) return command(env, it, ctx);
   if (it.type === 3) {
     const id = it.data.custom_id;
-    if (id === "verify:start") return startVerify(env, it);
+    if (id === "verify:start") return startVerify(env, it, ctx);
+    if (id.startsWith("vreq:")) return decideApproval(env, it, ctx);
     if (id.startsWith("cap:")) return answerCaptcha(env, it, ctx);
     if (id === "ticket:open") return openTicketMenu(env, it);
     if (id === "ticket:claim") return claimTicket(it);
