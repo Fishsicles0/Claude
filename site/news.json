@@ -1,0 +1,90 @@
+{
+ "version": "2.1.0",
+ "entries": [
+  {
+   "id": "v2.1.0",
+   "title": "v2.1.0",
+   "date": "2026-11-24",
+   "dateText": "24 Nov 2026",
+   "summary": "The Evade Launcher, a mod browser, Hypixel tools and a server API.",
+   "items": [
+    "Evade Launcher: the installer is now a full launcher with Evade Clips built in. One app: a home screen with your servers and news, instances (separate setups with their own mods and settings), a mod browser, and Clips' library, recorder and editor. Play opens the Minecraft Launcher with your instance selected, so sign-in stays with Microsoft. It updates itself.",
+    "Mod Browser in game and in the launcher: search Modrinth and install Fabric mods with one click, with their required libraries, each checked before it's installed.",
+    "Hypixel: a Quick Play menu, BedWars and SkyWars stats in the tab list (with your own Hypixel API key) and a BedWars helper that tracks generator timers and team upgrades.",
+    "New mods: Snaplook, Text Hotkeys, Totem Counter, Day Counter, Menu Blur, an Evade title screen, pack favourites and Discord status.",
+    "Evade Server API: servers can show waypoints, cooldowns, notifications, titles, team markers, borders, beams and holograms to Evade players, and switch mods off. A free server plugin sets it up."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.1.0"
+  },
+  {
+   "id": "v2.0.1",
+   "title": "v2.0.1",
+   "date": "2026-11-23",
+   "dateText": "23 Nov 2026",
+   "summary": "Updating is painless, and one mod removed.",
+   "items": [
+    "The installer updates itself: open the copy you already have and it fetches the newest installer from evadeclient.com, checks it and switches to it. No more downloading it again.",
+    "Evade Clips updates even while it's open: the installer closes it, waits out antivirus scans, or installs the new version beside the running one.",
+    "Downloads always come straight from the latest build, never from an old cached copy.",
+    "Removed Nametags: restyling other players' name tags isn't allowed on many servers.",
+    "Fullbright now tells you when shaders are on, because shader packs do their own lighting and ignore it."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.0.1"
+  },
+  {
+   "id": "v2.0.0",
+   "title": "v2.0.0",
+   "date": "2026-11-23",
+   "dateText": "23 Nov 2026",
+   "summary": "A new look, a much bigger FPS boost, deeper mods, a minimap, and Evade icons that work.",
+   "items": [
+    "New look: smooth rounded shapes, soft shadows, sharp Inter text at every GUI scale, and animations throughout the menu: opening, page changes, scrolling, hover and every switch and slider. The three menu styles and the HUD keep their layouts, just cleaner.",
+    "FPS Mode (Performance): one-click Max FPS, Balanced (default) or Quality. Unlock FPS turns VSync off and removes the frame cap, and Render Distance Cap keeps far chunks from eating your frame rate. Turning the Performance mod off puts all your own settings back.",
+    "Benchmark: type .bench to measure your average FPS and 1% low over 30 seconds and compare with your last run.",
+    "Installer: on Windows, Minecraft now runs on your fast graphics card (laptops often picked the slow one). The Shaders option now installs Photon by SixthSurge, with Complementary Reimagined beside it as a lighter choice, and the new Shaders setting switches between them in game.",
+    "Minimap (new HUD element): terrain only, never players, mobs or caves, so it's safe on servers.",
+    "Deeper mods: about 1,050 settings now, up from 329. New: Watermark, Tab Tweaks, Hitboxes (restyles F3+B), Motion Blur, Screenshot Tools, Sound Tweaks and Camera Distance (replaces Camera Clip).",
+    "Evade icons now work: sign-in never succeeded before, so no icons appeared. Your account is now checked with the chat key Mojang gives every Microsoft account. Your login still never leaves the game.",
+    "Server friendly: servers can switch off any Evade mod for their players; those mods show Disabled by this server. AutoTip only runs on Hypixel, AutoReconnect gives up after a few tries and never rejoins after a ban, and Camera Distance stops at 8 blocks. See Servers.",
+    "Evade Clips now works only with Evade Client. It records Minecraft only, with support for other games removed. On Windows it records the screen Minecraft is on, so fullscreen works.",
+    "Hundreds of smaller fixes across the client, the installer and Evade Clips."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.0.0"
+  },
+  {
+   "id": "v1.18.1",
+   "title": "v1.1 – v1.18",
+   "date": "2026-11-23",
+   "dateText": "23 Nov 2026",
+   "summary": "Evade Clips, voice chat, themes, shareable profiles and a benchmarked FPS boost.",
+   "items": [
+    "Evade Clips: a companion app for instant replay with sound, full recordings, a clip library and an editor, set up by the installer. It clips kills, totem pops, wins and advancements automatically, and makes share links that play inside Discord.",
+    "Voice chat through Simple Voice Chat, added by the installer. Press V or type .voice.",
+    "FPS boost: the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against its checksum. Evade's own Performance mod adds Low-End PC Mode, low FPS when AFK or tabbed out, and Effects settings that cut particles, block dust, rain splashes and fire on mobs.",
+    "Themes: Modern, Midnight, OLED or Classic, with eight accent colours, a smooth Inter font, sidebar icons and a two-column Compact view.",
+    "HUD: per-element styling (Evade, Solid, Glass or Outline backgrounds, Chroma text, the smooth font), Hide In Menus and Only In Combat, a snap grid in the editor, Auto HUD Scale and HUD Size, the Frame Time Graph and the Frame Profiler.",
+    "Profiles: share any profile as a code, and link a profile to a server so it loads when you join. Search finds setting names, from anywhere with Ctrl+F.",
+    "Installer: optional shaders through Iris, a recommended memory size for your PC, downloads that can't stall, and clear help when Java is too old.",
+    "Evade icons in the tab list, Pack Tweaks (low fire, no pumpkin blur), a privacy policy, and fixes for Windows players, including the firework \"Ticking Particle\" crash and the menu on scaled screens."
+   ],
+   "url": "https://evadeclient.com/changelog#v1.18.1"
+  },
+  {
+   "id": "v1.0.0",
+   "title": "v0.1 – v1.0",
+   "date": "2026-11-21",
+   "dateText": "21 Nov 2026",
+   "summary": "The first release of Evade: a server-safe, quality-of-life client for Minecraft 1.21.11.",
+   "items": [
+    "A full HUD: cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.",
+    "The menu: List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.",
+    "Profiles: named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.",
+    "Controls & camera: zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and an adjustable third-person camera distance.",
+    "Visuals: NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.",
+    "Quality of life: waypoints, better tooltips, auto-reconnect, better chat, alerts for your own totem pops and low armour, AutoGG, AutoTip, a TNT timer and Nick Hider.",
+    "A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched."
+   ],
+   "url": "https://evadeclient.com/changelog#v1.0.0"
+  }
+ ]
+}

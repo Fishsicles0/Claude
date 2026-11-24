@@ -21,7 +21,12 @@ import java.util.regex.Pattern;
 final class News {
     private News() {}
 
-    record Entry(String id, String title, String date, String summary, List<String> items, String url) {}
+    /** {@code image}: a picture for the Home news card (an absolute URL, or a path on the site), or null. */
+    record Entry(String id, String title, String date, String summary, List<String> items, String url, String image) {
+        Entry(String id, String title, String date, String summary, List<String> items, String url) {
+            this(id, title, date, summary, items, url, null);
+        }
+    }
 
     static List<Entry> fetch(InstallerCore core) throws IOException, InterruptedException {
         JsonObject o = null;
@@ -69,7 +74,7 @@ final class News {
             if (x.has("items") && x.get("items").isJsonArray()) for (JsonElement i : x.getAsJsonArray("items")) if (i.isJsonPrimitive()) items.add(i.getAsString());
             String date = InstallerCore.str(x, "dateText");
             out.add(new Entry(nz(InstallerCore.str(x, "id")), nz(InstallerCore.str(x, "title")), date != null ? date : nz(InstallerCore.str(x, "date")),
-                    nz(InstallerCore.str(x, "summary")), items, InstallerCore.str(x, "url")));
+                    nz(InstallerCore.str(x, "summary")), items, InstallerCore.str(x, "url"), image(InstallerCore.str(x, "image"))));
         }
         return out;
     }
@@ -110,6 +115,16 @@ final class News {
                 .replace("&rarr;", "\u2192").replace("&middot;", "\u00b7").replace("&quot;", "\"").replace("&#39;", "'")
                 .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
         return s.replaceAll("\\s+", " ").strip();
+    }
+
+    /** A news picture as a full https URL (site-relative paths are on evadeclient.com), or null. */
+    static String image(String s) {
+        if (s == null || s.isBlank()) return null;
+        s = s.strip();
+        if (s.startsWith("https://")) return s;
+        if (s.startsWith("/")) return InstallerCore.SITE + s;
+        if (!s.contains(":")) return InstallerCore.SITE + "/" + s;
+        return null;
     }
 
     private static String nz(String s) { return s == null ? "" : s; }

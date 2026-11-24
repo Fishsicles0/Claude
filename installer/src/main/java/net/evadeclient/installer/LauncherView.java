@@ -58,10 +58,16 @@ import java.util.Set;
  * implements; the screenshot mode fills them with sample data instead.
  */
 public final class LauncherView extends JPanel {
-    public static final int W = 1040, H = 660;
-    static final int SIDE = 228, CX = 256, CW = W - CX - 28;
+    public static final int W = 1180, H = 720;
+    /** Sidebar width, expanded and collapsed to icons. */
+    static final int SIDE_OPEN = 212, SIDE_SHUT = 72;
+    /** The sidebar's width as drawn this frame (it slides between the two), and the content area right of it. */
+    int SIDE = SIDE_OPEN, CX = SIDE_OPEN + 26, CW = W - CX - 26;
 
-    enum Page { HOME, INSTANCES, MODS, SETTINGS }
+    enum Page { HOME, INSTANCES, MODS, CLIPS, SETTINGS }
+
+    /** Something the launcher told the player (the bell lists them). */
+    record Notice(String title, String body, long at, boolean error) {}
 
     /** Where Play is: updating the instance, opening the Minecraft Launcher, waiting for the player there, or stuck. */
     enum Play { IDLE, UPDATING, LAUNCHING, LAUNCHED, NO_LAUNCHER, ERROR }
@@ -94,11 +100,23 @@ public final class LauncherView extends JPanel {
         default void browseJava() {}
         default void openFolder(Path p) {}
         default void openUrl(String url) {}
-        default void openClips() {}
-        default void installClips() {}
         default void openLauncherAgain() {}
         default void close() { System.exit(0); }
+        default void sidebarToggled() {}
+        default void saveServer(int index, String name, String address) {}
+        default void removeServer(int index) {}
+        default void refreshServers() {}
+        default void copyText(String text) {}
+        default void clipsPage(String id) {}
+        default void setReplay(boolean on) {}
+        default void saveClip() {}
+        default void noticesSeen() {}
+        default void removeLegacyClips() {}
+        default void pageShown(Page p) {}
     }
+
+    // ------------------------------------------------------------------ links (empty = not shown)
+    static final String DISCORD = "", YOUTUBE = "", TIKTOK = "";
 
     private final Font inter, interBold;
     private final Image mark, word;
@@ -115,10 +133,43 @@ public final class LauncherView extends JPanel {
     List<News.Entry> news = List.of();
     String newsError;
     boolean newsLoading = true;
-    /** Evade Clips: the installed app (null if none) and its version. */
-    boolean clipsPresent;
-    String clipsVersion;
+    /** The built-in Evade Clips (null when it couldn't start, e.g. the old separate app holds its folder). */
+    net.evadeclient.clips.ui.App clips;
+    /** The Clips pages, shown inside the Clips section (null until the window exists). */
+    javax.swing.JComponent clipsHost;
+    /** Which Clips page is open ("library", "record", "editor", "settings"). */
+    String clipsPage = "library";
+    /** Why Clips isn't available (shown on its page), or null. */
+    String clipsNote;
+    /** The old separate Evade Clips app is still installed (Settings offers to remove it). */
+    boolean legacyClips;
     String version = "2.0.0";
+
+    // home: player, servers, notices, slides
+    String playerName;
+    String playerUuid;
+    Image playerFace;
+    final Map<String, ServerPing.Status> serverStatus = new HashMap<>();
+    final Map<String, Image> serverIcons = new HashMap<>();
+    /** Addresses being pinged now / that didn't answer. */
+    final Set<String> serverPinging = new HashSet<>(), serverDown = new HashSet<>();
+    boolean serversEditing;
+    final List<Notice> notices = new ArrayList<>();
+    int unread;
+    /** News pictures fetched from a news item's "image" (url -> picture). */
+    final Map<String, Image> newsImages = new HashMap<>();
+    private final String[][] slides = {
+            {"menu", "EVADE CLIENT", "Your game, sharper", "A clean menu with every module one click away: search, profiles and keybinds in one place."},
+            {"hud", "HUD", "A HUD you place yourself", "Drag every element where you want it. FPS, CPS, armour, cooldowns and more, server-safe."},
+            {"styles", "STYLES", "Pick the look you like", "Cards, list or compact menus, with themes from classic red to OLED black."},
+            {"clips", "EVADE CLIPS · BUILT IN", "Every clutch, saved", "Instant replay runs while you play. Save the last 30 seconds with one key, then edit and share."}};
+    /** Slide pictures by name (loaded in the background). */
+    final Map<String, Image> heroImages = new java.util.concurrent.ConcurrentHashMap<>();
+    private int slide;
+    private long slideAt = System.currentTimeMillis();
+    private int slideFrom = -1;
+    /** Open over the page: "bell", "server:<index>", or null. */
+    String overlay;
 
     Play play = Play.IDLE;
     /** True while the first-run install runs from the Home page's setup card. */
@@ -133,7 +184,7 @@ public final class LauncherView extends JPanel {
     private final int recommendedGb = InstallerCore.recommendedMemory(), totalGb = InstallerCore.totalMemoryGb();
     private final int[] memoryChoices = InstallerCore.memoryOptions();
     int setupMemory = InstallerCore.clampMemory(recommendedGb);
-    boolean setupCopy = true, setupVoice = true, setupPerf = true, setupShaders = false, setupClips = true;
+    boolean setupCopy = true, setupVoice = true, setupPerf = true, setupShaders = false;
 
     // mods page
     boolean browse;
@@ -155,7 +206,11 @@ public final class LauncherView extends JPanel {
     private Modal modal;
 
     record Popup(String id, int x, int y, int w, List<String[]> items) {}
-    record Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod) {}
+    record Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod, int index) {
+        Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod) {
+            this(kind, title, body, confirm, target, mod, -1);
+        }
+    }
     private String modalCopyFrom = null;
 
     /** Set when the window has per-pixel alpha (rounded, anti-aliased corners). */
@@ -169,10 +224,43 @@ public final class LauncherView extends JPanel {
     private Rectangle clip;
     private String hovered;
     private Point dragFrom;
+    /**
+     * The whole window drawn smaller on small screens (1 = full size): everything is laid out in the 1180×720
+     * design size and painted through this scale, so it stays sharp (vector shapes and text, no bitmap stretch).
+     */
+    float uiScale = 1f;
+    /** The smallest scale used: below it text gets too small to read. */
+    static final float MIN_SCALE = 0.7f;
+
+    /** Picks the scale that fits a usable screen area of {@code w}×{@code h} (from 1 down to {@link #MIN_SCALE}). */
+    static float fitScale(int w, int h) {
+        float s = Math.min(1f, Math.min((w - 12) / (float) W, (h - 12) / (float) H));
+        return Math.max(MIN_SCALE, s);
+    }
+
+    void setUiScale(float s) {
+        uiScale = s;
+        setPreferredSize(new java.awt.Dimension(Math.round(W * s), Math.round(H * s)));
+        for (JTextField f : new JTextField[]{searchField, modalField, modalField2, javaField}) f.setFont(inter.deriveFont(13f * s));
+        bgLayer = null;
+        revalidate();
+        repaint();
+    }
+
+    /** A mouse position in design coordinates. */
+    private Point logical(MouseEvent e) {
+        return new Point(Math.round(e.getX() / uiScale), Math.round(e.getY() / uiScale));
+    }
+
+    private Rectangle toScreen(Rectangle r) {
+        if (r == null || uiScale == 1f) return r;
+        int x = Math.round(r.x * uiScale), y = Math.round(r.y * uiScale);
+        return new Rectangle(x, y, Math.round((r.x + r.width) * uiScale) - x, Math.round((r.y + r.height) * uiScale) - y);
+    }
     private final long start = System.currentTimeMillis();
     private boolean animating;
 
-    final JTextField searchField, modalField, javaField;
+    final JTextField searchField, modalField, modalField2, javaField;
     private boolean syncingFields;
 
     // cached layers
@@ -193,10 +281,22 @@ public final class LauncherView extends JPanel {
 
         searchField = field("Search Modrinth for Fabric mods");
         modalField = field("Instance name");
+        modalField2 = field("Address");
         javaField = field("");
         add(searchField);
         add(modalField);
+        add(modalField2);
         add(javaField);
+        modalField2.addActionListener(e -> confirmModal());
+        Thread loader = new Thread(() -> {
+            for (String n : new String[]{"menu", "hud", "styles", "clips", "settings", "theme"}) {
+                Image img = image("/evade/hero/" + n + ".jpg");
+                if (img.getWidth(null) > 1) heroImages.put(n, img);
+            }
+            SwingUtilities.invokeLater(this::repaint);
+        }, "hero-images");
+        loader.setDaemon(true);
+        loader.start();
         searchField.addActionListener(e -> actions.search(searchField.getText(), false));
         Timer debounce = new Timer(450, e -> {
             if (!searchField.getText().strip().equals(lastQuery.strip())) actions.search(searchField.getText(), false);
@@ -210,21 +310,26 @@ public final class LauncherView extends JPanel {
             actions.settingsChanged();
         }));
 
-        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "escape");
-        getActionMap().put("escape", new AbstractAction() {
+        AbstractAction escape = new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) {
                 if (popup != null) popup = null;
-                else if (modal != null) modal = null;
+                else if (overlay != null) overlay = null;
+                else if (modal != null) { modal = null; requestFocusInWindow(); }
                 repaint();
             }
-        });
+        };
+        setFocusable(true);
+        for (JComponent c : new JComponent[]{this, searchField, modalField, modalField2, javaField}) {
+            c.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ESCAPE"), "escape");
+            c.getActionMap().put("escape", escape);
+        }
 
         MouseAdapter ma = new MouseAdapter() {
-            @Override public void mouseMoved(MouseEvent e) { updateHover(e.getPoint()); }
+            @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
             @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
             @Override public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
-                if (e.getY() < 44 && hit(e.getPoint()) == null) dragFrom = e.getPoint();
+                if (logical(e).y < 44 && hit(logical(e)) == null) dragFrom = e.getPoint();
             }
             @Override public void mouseReleased(MouseEvent e) { dragFrom = null; }
             @Override public void mouseDragged(MouseEvent e) {
@@ -233,9 +338,9 @@ public final class LauncherView extends JPanel {
                 if (w != null) w.setLocation(e.getXOnScreen() - dragFrom.x, e.getYOnScreen() - dragFrom.y);
             }
             @Override public void mouseClicked(MouseEvent e) {
-                if (e.getButton() == MouseEvent.BUTTON1) click(hit(e.getPoint()));
+                if (e.getButton() == MouseEvent.BUTTON1) click(hit(logical(e)));
             }
-            @Override public void mouseWheelMoved(MouseWheelEvent e) { wheel(e.getPoint(), e.getPreciseWheelRotation()); }
+            @Override public void mouseWheelMoved(MouseWheelEvent e) { wheel(logical(e), e.getPreciseWheelRotation()); }
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
@@ -248,7 +353,11 @@ public final class LauncherView extends JPanel {
                 else s[1] = s[0];
             }
             boolean busy = play == Play.UPDATING || play == Play.LAUNCHING || searching || modState.containsValue("installing");
-            if (animating || scrolling || busy || toast != null || Math.abs(progress - shownProgress) > 1e-4) repaint();
+            boolean showing = isShowing();
+            if (showing && page == Page.HOME && !firstRun() && System.currentTimeMillis() - slideAt > 8000 && modal == null) nextSlide(1);
+            boolean fading = slideFrom >= 0 && System.currentTimeMillis() - slideAt < 700;
+            if (!fading) slideFrom = -1;
+            if (showing && (animating || scrolling || busy || fading || toast != null || Math.abs(progress - shownProgress) > 1e-4)) repaint();
         }).start();
     }
 
@@ -302,7 +411,9 @@ public final class LauncherView extends JPanel {
     void showPage(Page p) {
         page = p;
         popup = null;
+        overlay = null;
         if (p == Page.MODS && selected() != null) actions.showMods(selected());
+        actions.pageShown(p);
         repaint();
     }
 
@@ -349,21 +460,47 @@ public final class LauncherView extends JPanel {
             popup = null;
             if (id.equals("dismiss")) { repaint(); return; }
         }
+        if (overlay != null && !id.startsWith("ov-") && !id.equals("close") && !id.equals("min")) {
+            overlay = null;
+            if (id.equals("dismiss") || id.equals("bell")) { repaint(); return; }
+        }
         switch (id) {
             case "close" -> { if (play != Play.UPDATING) actions.close(); }
             case "min" -> { if (w instanceof java.awt.Frame f) f.setState(java.awt.Frame.ICONIFIED); }
             case "nav-home" -> showPage(Page.HOME);
             case "nav-instances" -> showPage(Page.INSTANCES);
             case "nav-mods" -> showPage(Page.MODS);
+            case "nav-clips" -> showPage(Page.CLIPS);
+            case "nav-collapse" -> { settings.sidebarCollapsed = !settings.sidebarCollapsed; actions.sidebarToggled(); }
+            case "bell" -> { overlay = "bell"; unread = 0; actions.noticesSeen(); }
+            case "ov-clear" -> { notices.clear(); unread = 0; overlay = null; actions.noticesSeen(); }
+            case "servers-edit" -> serversEditing = !serversEditing;
+            case "servers-refresh" -> actions.refreshServers();
+            case "ov-copy" -> { Launcher.Server sv = overlayServer(); if (sv != null) { actions.copyText(sv.address()); overlay = null; } }
+            case "ov-edit" -> { int i = overlayIndex(); overlay = null; if (i >= 0) openServerModal(i); }
+            case "ov-remove" -> { int i = overlayIndex(); overlay = null; if (i >= 0) actions.removeServer(i); }
+            case "clips-replay" -> { if (clips != null) actions.setReplay(!clips.settings.replayEnabled); }
+            case "clips-save" -> actions.saveClip();
+            case "clips-go" -> { showPage(Page.CLIPS); actions.clipsPage("library"); }
+            case "clips-legacy" -> actions.removeLegacyClips();
+            case "slide-prev" -> nextSlide(-1);
+            case "slide-next" -> nextSlide(1);
+            case "link-site" -> actions.openUrl(InstallerCore.SITE);
+            case "link-docs" -> actions.openUrl(InstallerCore.SITE + "/docs");
+            case "link-changelog" -> actions.openUrl(InstallerCore.SITE + "/changelog");
+            case "link-discord" -> actions.openUrl(DISCORD);
+            case "link-youtube" -> actions.openUrl(YOUTUBE);
+            case "link-tiktok" -> actions.openUrl(TIKTOK);
             case "nav-settings" -> showPage(Page.SETTINGS);
             case "side-instance", "home-switch", "mods-instance" -> {
                 List<String[]> items = new ArrayList<>();
                 for (Launcher.Instance i : instances) items.add(new String[]{"pop:sel:" + i.id, i.name, i.id.equals(settings.selected) ? "✓" : ""});
                 Rectangle r = hitMap.get(id);
-                int pw = 240;
+                int pw = 240, ph = items.size() * 38 + 12;
                 int px = id.equals("side-instance") ? r.x : Math.min(W - 28 - pw, r.x);
                 int py = id.equals("side-instance") ? r.y - 12 - items.size() * 38 : r.y + r.height + 6;
-                popup = new Popup(id, px, py, pw, items);
+                if (py + ph > H - 12) py = r.y - 6 - ph;
+                popup = new Popup(id, px, Math.max(12, py), pw, items);
             }
             case "play" -> { if (play == Play.IDLE || play == Play.ERROR || play == Play.NO_LAUNCHER) actions.play(); }
             case "play-again" -> actions.openLauncherAgain();
@@ -381,9 +518,6 @@ public final class LauncherView extends JPanel {
             case "s-voice" -> setupVoice = !setupVoice;
             case "s-perf" -> setupPerf = !setupPerf;
             case "s-shaders" -> setupShaders = !setupShaders;
-            case "s-clips" -> setupClips = !setupClips;
-            case "clips-open" -> actions.openClips();
-            case "clips-install" -> actions.installClips();
             case "news-all" -> actions.openUrl(InstallerCore.SITE + "/changelog");
             // instances
             case "inst-new" -> openModal(new Modal("create", "New instance", "A separate game folder with its own mods, settings and worlds, and its own profile in the Minecraft Launcher.", "Create", null, null), "");
@@ -420,12 +554,13 @@ public final class LauncherView extends JPanel {
             // settings
             case "set-close" -> { settings.closeOnPlay = !settings.closeOnPlay; actions.settingsChanged(); }
             case "set-updates" -> { settings.checkUpdates = !settings.checkUpdates; actions.settingsChanged(); }
-            case "set-clips" -> { settings.clips = !settings.clips; actions.settingsChanged(); }
+            case "set-replay" -> { if (clips != null) actions.setReplay(!clips.settings.replayEnabled); }
+            case "set-tray" -> { if (clips != null) { clips.settings.minimizeToTray = !clips.settings.minimizeToTray; clips.settings.save(); } }
             case "java-browse" -> actions.browseJava();
             case "java-clear" -> { setJavaText(""); settings.javaPath = ""; actions.settingsChanged(); }
             case "open-mc" -> actions.openFolder(settings.minecraftDir());
             case "open-inst" -> { if (sel != null) actions.openFolder(sel.dir); }
-            case "open-clips" -> actions.openFolder(InstallerCore.clipsAppDir());
+            case "open-clips" -> actions.openFolder(clips != null ? clips.library.root() : InstallerCore.clipsDataDir());
             case "open-data" -> actions.openFolder(Launcher.dataDir());
             case "site" -> actions.openUrl(InstallerCore.SITE);
             // modal
@@ -462,6 +597,20 @@ public final class LauncherView extends JPanel {
                         if (!"installing".equals(st) && !"installed".equals(st) && !installedProjects.contains(h.projectId())
                                 && InstallerCore.optionForSlug(h.slug()) == null) actions.installMod(h);
                     }
+                } else if (id.startsWith("server:")) {
+                    int n = Integer.parseInt(id.substring(7));
+                    if (serversEditing) openServerModal(n);
+                    else overlay = "server:" + n;
+                } else if (id.startsWith("server-add")) {
+                    if (settings.servers.size() < Launcher.MAX_SERVERS) openServerModal(-1);
+                } else if (id.startsWith("server-x:")) {
+                    actions.removeServer(Integer.parseInt(id.substring(9)));
+                } else if (id.startsWith("ctab:")) {
+                    String t = id.substring(5);
+                    if (!t.equals("editor") || clipsEditorOpen()) actions.clipsPage(t);
+                } else if (id.startsWith("dot:")) {
+                    int n = Integer.parseInt(id.substring(4));
+                    if (n != slide) { slideFrom = slide; slide = n; slideAt = System.currentTimeMillis(); }
                 } else if (id.startsWith("news:")) {
                     int n = Integer.parseInt(id.substring(5));
                     if (n < news.size() && news.get(n).url() != null) actions.openUrl(news.get(n).url());
@@ -491,6 +640,46 @@ public final class LauncherView extends JPanel {
         if (p != null) repaint();
     }
 
+    private int overlayIndex() {
+        if (overlay == null || !overlay.startsWith("server:")) return -1;
+        int i = Integer.parseInt(overlay.substring(7));
+        return i < settings.servers.size() ? i : -1;
+    }
+
+    private Launcher.Server overlayServer() {
+        int i = overlayIndex();
+        return i < 0 ? null : settings.servers.get(i);
+    }
+
+    private boolean clipsEditorOpen() {
+        return clipsHost instanceof net.evadeclient.clips.ui.ClipsPages p && p.editor.clip() != null;
+    }
+
+    void nextSlide(int d) {
+        slideFrom = slide;
+        slide = Math.floorMod(slide + d, slides.length);
+        slideAt = System.currentTimeMillis();
+        repaint();
+    }
+
+    /** Add (index -1) or edit a server: a name and an address. */
+    void openServerModal(int index) {
+        Launcher.Server sv = index >= 0 && index < settings.servers.size() ? settings.servers.get(index) : null;
+        openModal(new Modal("server", sv == null ? "Add a server" : "Edit server",
+                "It shows in your Servers row and at the top of the Multiplayer list in game.", sv == null ? "Add" : "Save", null, null, index),
+                sv == null ? "" : sv.name());
+        syncingFields = true;
+        modalField2.setText(sv == null ? "" : sv.address());
+        syncingFields = false;
+    }
+
+    void notice(String title, String body, boolean error) {
+        notices.add(0, new Notice(title, body == null ? "" : body, System.currentTimeMillis(), error));
+        while (notices.size() > 30) notices.remove(notices.size() - 1);
+        if (!"bell".equals(overlay)) unread++;
+        repaint();
+    }
+
     private void openModal(Modal m, String text) {
         modal = m;
         modalCopyFrom = m.kind().equals("create") ? Launcher.DEFAULT_ID : null;
@@ -517,6 +706,11 @@ public final class LauncherView extends JPanel {
                 actions.rename(m.target(), text);
             }
             case "delete" -> actions.delete(m.target());
+            case "server" -> {
+                String addr = modalField2.getText().strip();
+                if (addr.isEmpty() || addr.contains(" ")) { modalField2.requestFocusInWindow(); return; }
+                actions.saveServer(m.index(), text.isEmpty() ? addr : text, addr);
+            }
             case "remove-mod" -> actions.removeMod(m.mod());
             default -> { }
         }
@@ -542,24 +736,42 @@ public final class LauncherView extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        if (uiScale != 1f) g.scale(uiScale, uiScale);
         hitMap.clear();
         scrollAreas.clear();
         animating = false;
-        Rectangle search = null, java = null, modalBox = null;
+        // The sidebar slides between its two widths; everything right of it follows.
+        float open = anim("side-open", !settings.sidebarCollapsed);
+        SIDE = Math.round(SIDE_SHUT + (SIDE_OPEN - SIDE_SHUT) * open);
+        CX = SIDE + 26;
+        CW = W - CX - 26;
+        Rectangle search = null, java = null, modalBox = null, clipsBox = null;
         paintBackground(g);
-        paintSidebar(g);
+        paintSidebar(g, open);
         switch (page) {
             case HOME -> { if (firstRun()) paintSetup(g); else paintHome(g); }
             case INSTANCES -> paintInstances(g);
             case MODS -> search = paintMods(g);
+            case CLIPS -> clipsBox = paintClips(g);
             case SETTINGS -> java = paintSettings(g);
         }
+        paintBell(g, W - 114, 12);
         button(g, "min", W - 74, 12, 28, 26, false);
         button(g, "close", W - 42, 12, 28, 26, true);
-        paintToast(g);
         if (modal != null) {
             hitMap.clear();
             modalBox = paintModal(g);
+        }
+        if (overlay != null && modal == null) {
+            Rectangle close = hitMap.get("close"), min = hitMap.get("min"), bell = hitMap.get("bell");
+            hitMap.clear();
+            hitMap.put("dismiss", new Rectangle(0, 0, W, H));
+            if (close != null) hitMap.put("close", close);
+            if (min != null) hitMap.put("min", min);
+            if (bell != null) hitMap.put("bell", bell);
+            if (overlay.equals("bell")) paintNotices(g);
+            else if (overlayServer() != null) paintServerCard(g, overlayIndex());
+            else overlay = null;
         }
         if (popup != null) {
             if (modal == null) {
@@ -579,11 +791,34 @@ public final class LauncherView extends JPanel {
         place(searchField, modal == null ? search : null, pop);
         place(javaField, modal == null ? java : null, pop);
         place(modalField, modalBox, pop);
+        place(modalField2, modalBox == null || !modal.kind().equals("server") ? null
+                : new Rectangle(modalBox.x, modalBox.y + 78, modalBox.width, modalBox.height), pop);
+        if (clipsHost != null) {
+            boolean show = clipsBox != null && modal == null && popup == null && overlay == null;
+            Rectangle cb = toScreen(clipsBox);
+            if (show && !cb.equals(clipsHost.getBounds())) { clipsHost.setBounds(cb); clipsHost.revalidate(); }
+            if (clipsHost.isVisible() != show) clipsHost.setVisible(show);
+        }
+        g.dispose();
+    }
+
+    /** The toast goes over everything, the embedded Clips pages included. */
+    @Override protected void paintChildren(Graphics g0) {
+        super.paintChildren(g0);
+        if (toast == null && sideTip == null) return;
+        Graphics2D g = (Graphics2D) g0.create();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        if (uiScale != 1f) g.scale(uiScale, uiScale);
+        paintSideTip(g);
+        if (toast != null) paintToast(g);
         g.dispose();
     }
 
     private void place(JTextField f, Rectangle r, Rectangle covered) {
         boolean show = r != null && (covered == null || !covered.intersects(r));
+        r = toScreen(r);
         if (show && !r.equals(f.getBounds())) f.setBounds(r);
         if (f.isVisible() != show) f.setVisible(show);
     }
@@ -613,11 +848,6 @@ public final class LauncherView extends JPanel {
                 b.setColor(new Color(255, 255, 255, Math.max(0, 9 - y / 40)));
                 b.fillRect(0, y, W, 1);
             }
-            // sidebar panel
-            b.setColor(new Color(0, 0, 0, 90));
-            b.fillRect(0, 0, SIDE, H);
-            b.setColor(new Color(255, 255, 255, 14));
-            b.fillRect(SIDE, 0, 1, H);
             b.setColor(new Color(255, 255, 255, 18));
             b.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, 21, 21));
             b.dispose();
@@ -625,6 +855,14 @@ public final class LauncherView extends JPanel {
             bgRound = roundCorners;
         }
         g.drawImage(bgLayer, 0, 0, W, H, null);
+        // sidebar panel (its width moves, so it isn't part of the cached layer)
+        Shape was = g.getClip();
+        if (roundCorners) g.clip(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
+        g.setColor(new Color(0, 0, 0, 90));
+        g.fillRect(0, 0, SIDE, H);
+        g.setColor(new Color(255, 255, 255, 14));
+        g.fillRect(SIDE, 0, 1, H);
+        g.setClip(was);
     }
 
     private static BufferedImage deviceImage(int w, int h, double scale) {
@@ -677,66 +915,146 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ sidebar
 
-    private void paintSidebar(Graphics2D g) {
-        g.drawImage(mark, 26, 30, 38, 38, null);
-        int wh = 44, ww = Math.round(wh * 320f / 96f);
-        g.drawImage(word, 68, 30 + (38 - wh) / 2 + 1, ww, wh, null);
-        g.setFont(interBold.deriveFont(8.5f));
-        g.setColor(FAINT);
-        spaced(g, "LAUNCHER", 71, 80, 3.0f);
+    private void paintSidebar(Graphics2D g, float open) {
+        // logo: the mark always, the word mark fading in as the sidebar opens
+        int mx = Math.round(17 + 9 * open);
+        g.drawImage(mark, mx, 30, 38, 38, null);
+        if (open > 0.05f) {
+            Composite c0 = g.getComposite();
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.min(1f, open * open)));
+            Shape was = g.getClip();
+            g.clipRect(0, 0, SIDE - 4, H);
+            int wh = 44, ww = Math.round(wh * 320f / 96f);
+            g.drawImage(word, mx + 42, 30 + (38 - wh) / 2 + 1, ww, wh, null);
+            g.setFont(interBold.deriveFont(8.5f));
+            g.setColor(FAINT);
+            spaced(g, "LAUNCHER", mx + 45, 80, 3.0f);
+            g.setClip(was);
+            g.setComposite(c0);
+        }
 
-        String[][] nav = {{"nav-home", "Home", "home"}, {"nav-instances", "Instances", "layers"}, {"nav-mods", "Mods", "cube"}, {"nav-settings", "Settings", "gear"}};
-        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.SETTINGS};
+        String[][] nav = {{"nav-home", "Home", "home"}, {"nav-instances", "Instances", "layers"}, {"nav-mods", "Mods", "cube"},
+                {"nav-clips", "Clips", "clip"}, {"nav-settings", "Settings", "gear"}};
+        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.CLIPS, Page.SETTINGS};
+        int iw = SIDE - 32;
+        String tip = null;
+        int tipY = 0;
         for (int i = 0; i < nav.length; i++) {
-            int y = 116 + i * 46;
+            int y = 112 + i * 46;
             boolean on = page == pages[i];
             float t = anim(nav[i][0], nav[i][0].equals(hovered));
             float s = anim(nav[i][0] + "-on", on);
             if (s > 0) {
-                g.setPaint(new GradientPaint(18, 0, new Color(225, 29, 46, (int) (56 * s)), 210, 0, new Color(225, 29, 46, (int) (8 * s))));
-                g.fill(new RoundRectangle2D.Double(16, y, 196, 40, 11, 11));
+                g.setPaint(new GradientPaint(16, 0, new Color(225, 29, 46, (int) (56 * s)), 16 + iw, 0, new Color(225, 29, 46, (int) (8 * s))));
+                g.fill(new RoundRectangle2D.Double(16, y, iw, 40, 11, 11));
                 g.setColor(new Color(255, 65, 83, (int) (255 * s)));
                 g.fill(new RoundRectangle2D.Double(16, y + 11, 3, 18, 3, 3));
             }
             if (t > 0 && !on) {
                 g.setColor(new Color(255, 255, 255, (int) (12 * t)));
-                g.fill(new RoundRectangle2D.Double(16, y, 196, 40, 11, 11));
+                g.fill(new RoundRectangle2D.Double(16, y, iw, 40, 11, 11));
             }
             Color c = mix(mix(DIM, TEXT, t), TEXT, s);
-            icon(g, nav[i][2], 44, y + 20, 18, on ? RED_HI : c);
-            g.setFont((on ? interBold : inter).deriveFont(13.5f));
-            g.setColor(c);
-            g.drawString(nav[i][1], 66, y + 25);
-            hit(nav[i][0], new Rectangle(16, y, 196, 40));
+            int ix = Math.round(36 + 8 * open);
+            icon(g, nav[i][2], ix, y + 20, 18, on ? RED_HI : c);
+            if (pages[i] == Page.CLIPS && clips != null) {
+                // live dot: red while recording, green while instant replay runs
+                var st = clips.status;
+                boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
+                if (rec || live) {
+                    g.setColor(BG);
+                    g.fill(new Ellipse2D.Double(ix + 4, y + 8, 10, 10));
+                    g.setColor(rec ? RED_HI : OK);
+                    g.fill(new Ellipse2D.Double(ix + 6, y + 10, 6, 6));
+                }
+            }
+            if (open > 0.4f) {
+                g.setFont((on ? interBold : inter).deriveFont(13.5f));
+                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), Math.round(255 * Math.min(1f, (open - 0.4f) / 0.6f))));
+                g.drawString(nav[i][1], ix + 22, y + 25);
+            }
+            hit(nav[i][0], new Rectangle(16, y, iw, 40));
+            if (open < 0.5f && nav[i][0].equals(hovered)) { tip = nav[i][1]; tipY = y + 20; }
         }
+
+        // collapse / expand
+        int cy = H - 150;
+        float tc = anim("nav-collapse", "nav-collapse".equals(hovered));
+        if (tc > 0) {
+            g.setColor(new Color(255, 255, 255, (int) (12 * tc)));
+            g.fill(new RoundRectangle2D.Double(16, cy, iw, 34, 10, 10));
+        }
+        int cix = Math.round(36 + 8 * open);
+        Graphics2D q = (Graphics2D) g.create();
+        q.rotate(open > 0.5f ? Math.PI / 2 : -Math.PI / 2, cix, cy + 17);
+        icon(q, "chevron-down", cix, cy + 17, 10, mix(FAINT, TEXT, tc));
+        q.dispose();
+        if (open > 0.4f) {
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(mix(FAINT, DIM, tc));
+            g.drawString("Collapse", cix + 22, cy + 21);
+        }
+        hit("nav-collapse", new Rectangle(16, cy, iw, 34));
+        if (open < 0.5f && "nav-collapse".equals(hovered)) { tip = "Expand"; tipY = cy + 17; }
 
         // The instance Play starts, switchable from here.
         Launcher.Instance sel = selected();
-        int bx = 16, by = H - 128, bw = 196, bh = 62;
+        int bx = 16, by = H - 106, bw = iw, bh = 62;
         float t = anim("side-instance", "side-instance".equals(hovered));
         g.setColor(mix(new Color(0x101014), new Color(0x17171D), t));
         g.fill(new RoundRectangle2D.Double(bx, by, bw, bh, 13, 13));
         g.setColor(mix(BORDER, new Color(0x34343E), t));
         g.draw(new RoundRectangle2D.Double(bx + .5, by + .5, bw - 1, bh - 1, 13, 13));
-        g.setFont(interBold.deriveFont(8.5f));
-        g.setColor(FAINT);
-        spaced(g, "PLAYING", bx + 14, by + 21, 1.6f);
-        g.setFont(interBold.deriveFont(13.5f));
-        g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, sel != null ? sel.name : "—", bw - 50), bx + 14, by + 43);
-        statusDot(g, bx + bw - 44, by + 38, sel);
-        icon(g, "chevron-up", bx + bw - 20, by + bh / 2, 10, DIM);
+        if (open > 0.6f) {
+            g.setFont(interBold.deriveFont(8.5f));
+            g.setColor(FAINT);
+            spaced(g, "PLAYING", bx + 14, by + 21, 1.6f);
+            g.setFont(interBold.deriveFont(13.5f));
+            g.setColor(TEXT);
+            g.drawString(ellipsizeEnd(g, sel != null ? sel.name : "—", bw - 50), bx + 14, by + 43);
+            statusDot(g, bx + bw - 44, by + 38, sel);
+            icon(g, "chevron-up", bx + bw - 20, by + bh / 2, 10, DIM);
+        } else {
+            avatar(g, bx + (bw - 30) / 2, by + 10, 30, sel != null ? sel.name : "?", sel != null && sel.isDefault() ? RED.getRGB() : hashColor(sel != null ? sel.name : ""));
+            statusDot(g, bx + bw - 14, by + 50, sel);
+        }
         hit("side-instance", new Rectangle(bx, by, bw, bh));
+        if (open < 0.5f && "side-instance".equals(hovered)) { tip = "Playing: " + (sel != null ? sel.name : "—"); tipY = by + bh / 2; }
 
-        g.setFont(inter.deriveFont(11f));
-        float ts = anim("site", "site".equals(hovered));
-        g.setColor(mix(FAINT, DIM, ts));
-        g.drawString("evadeclient.com", 26, H - 34);
-        int sw = g.getFontMetrics().stringWidth("evadeclient.com");
-        hit("site", new Rectangle(22, H - 48, sw + 8, 20));
-        g.setColor(new Color(0x45454F));
-        String v = "v" + version;
-        g.drawString(v, SIDE - 24 - g.getFontMetrics().stringWidth(v), H - 34);
+        if (open > 0.6f) {
+            g.setFont(inter.deriveFont(11f));
+            float ts = anim("site", "site".equals(hovered));
+            g.setColor(mix(FAINT, DIM, ts));
+            g.drawString("evadeclient.com", 26, H - 22);
+            int sw = g.getFontMetrics().stringWidth("evadeclient.com");
+            hit("site", new Rectangle(22, H - 36, sw + 8, 20));
+            g.setColor(new Color(0x45454F));
+            String v = "v" + version;
+            g.drawString(v, SIDE - 18 - g.getFontMetrics().stringWidth(v), H - 22);
+        }
+        sideTip = tip;
+        sideTipY = tipY;
+    }
+
+    /** The collapsed sidebar's label bubble (painted after the children, so it shows over the Clips pages). */
+    private String sideTip;
+    private int sideTipY;
+
+    private void paintSideTip(Graphics2D g) {
+        String tip = sideTip;
+        int tipY = sideTipY;
+        if (tip != null) {
+            // collapsed: the label as a small bubble next to the icon
+            g.setFont(interBold.deriveFont(12f));
+            int tw = g.getFontMetrics().stringWidth(tip) + 20;
+            int tx = SIDE + 8;
+            g.setColor(new Color(0x1C1C22));
+            g.fill(new RoundRectangle2D.Double(tx, tipY - 14, tw, 28, 10, 10));
+            g.setColor(new Color(255, 255, 255, 26));
+            g.draw(new RoundRectangle2D.Double(tx + .5, tipY - 13.5, tw - 1, 27, 10, 10));
+            g.setColor(TEXT);
+            center(g, tip, tx, tipY - 14, tw, 28);
+        }
     }
 
     /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
@@ -767,16 +1085,36 @@ public final class LauncherView extends JPanel {
 
     private void paintHome(Graphics2D g) {
         Launcher.Instance sel = selected();
-        pageTitle(g, "Home", null);
-        int x = CX, y = 92, w = CW, h = 218;
-        paintHero(g, sel, x, y, w, h);
+        int rw = 248, rx = W - 26 - rw;
+        int x = CX, w = rx - 20 - CX;
+        // greeting
+        g.setFont(interBold.deriveFont(20f));
+        g.setColor(TEXT);
+        String hello = greeting() + (playerName != null ? ", " + playerName : "");
+        g.drawString(ellipsizeEnd(g, hello, w - 120), x, 38);
 
-        int ny = y + h + 22, nh = H - ny - 26, nw = 468;
-        paintNews(g, x, ny, nw, nh);
-        int rx = x + nw + 18, rw = w - nw - 18;
-        int vh = 150;
-        paintVersions(g, sel, rx, ny, rw, vh);
-        paintClipsCard(g, rx, ny + vh + 16, rw, nh - vh - 16);
+        paintHero(g, sel, x, 52, w, 300);
+        paintServers(g, x, 372, w);
+        paintNewsCards(g, x, 502, w, H - 24 - 502);
+
+        paintProfile(g, rx, 52, rw, 136);
+        paintClipsCard(g, rx, 204, rw, 168);
+        paintVersions(g, sel, rx, 388, rw, 132);
+        paintLinks(g, rx, 536, rw, H - 24 - 536);
+    }
+
+    private static String greeting() {
+        int h = java.time.LocalTime.now().getHour();
+        return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    }
+
+    /** Draws {@code img} filling the box (cropped, not stretched), aligned by {@code ax} (0 left … 1 right). */
+    private static void cover(Graphics2D g, Image img, int x, int y, int w, int h, double ax) {
+        int iw = img.getWidth(null), ih = img.getHeight(null);
+        if (iw <= 0 || ih <= 0) return;
+        double s = Math.max(w / (double) iw, h / (double) ih);
+        int dw = (int) Math.ceil(iw * s), dh = (int) Math.ceil(ih * s);
+        g.drawImage(img, x - (int) Math.round((dw - w) * ax), y - (dh - h) / 2, dw, dh, null);
     }
 
     private void paintHero(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
@@ -786,20 +1124,36 @@ public final class LauncherView extends JPanel {
         g.fill(box);
         Shape was = g.getClip();
         g.clip(box);
-        g.setPaint(new RadialGradientPaint(x + w - 150, y + 40, 330, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 85), new Color(225, 29, 46, 0)}));
+        // the slide picture, cross-fading from the previous one
+        long age = System.currentTimeMillis() - slideAt;
+        float fade = slideFrom >= 0 ? Math.min(1f, age / 600f) : 1f;
+        if (slideFrom >= 0 && fade < 1f) {
+            Image from = heroImages.get(slides[slideFrom][0]);
+            if (from != null) cover(g, from, x, y, w, h, 0.7);
+        }
+        Image img = heroImages.get(slides[slide][0]);
+        if (img != null) {
+            Composite c0 = g.getComposite();
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fade));
+            cover(g, img, x, y, w, h, 0.7);
+            g.setComposite(c0);
+        } else {
+            g.setPaint(new RadialGradientPaint(x + w - 150, y + 40, 330, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 85), new Color(225, 29, 46, 0)}));
+            g.fill(box);
+        }
+        // scrims: dark on the left for the text, and along the bottom for the Play bar
+        g.setColor(new Color(8, 8, 10, 70));
         g.fill(box);
-        // a big faint mark on the right
-        Composite c0 = g.getComposite();
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.07f));
-        g.drawImage(mark, x + w - 250, y - 20, 290, 290, null);
-        g.setComposite(c0);
-        // diagonal speed lines
-        for (int i = 0; i < 5; i++) {
-            Path2D band = new Path2D.Double();
-            double bx = x + w - 470 + i * 52;
-            band.moveTo(bx + 60, y); band.lineTo(bx + 76, y); band.lineTo(bx + 16, y + h); band.lineTo(bx, y + h); band.closePath();
-            g.setPaint(new GradientPaint(0, y, new Color(255, 255, 255, 7), 0, y + h, new Color(255, 255, 255, 0)));
-            g.fill(band);
+        g.setPaint(new GradientPaint(x + w * 0.25f, 0, new Color(8, 8, 10, 235), x + w * 0.78f, 0, new Color(8, 8, 10, 30)));
+        g.fill(box);
+        g.setPaint(new GradientPaint(0, y + h - 130, new Color(8, 8, 10, 0), 0, y + h, new Color(8, 8, 10, 235)));
+        g.fill(box);
+        g.setPaint(new RadialGradientPaint(x + 60, y + h, 360, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 60), new Color(225, 29, 46, 0)}));
+        g.fill(box);
+        boolean idle = play == Play.IDLE;
+        if (!idle) {
+            g.setColor(new Color(8, 8, 10, 200));
+            g.fill(box);
         }
         g.setClip(was);
         g.setColor(new Color(255, 255, 255, 22));
@@ -816,28 +1170,53 @@ public final class LauncherView extends JPanel {
     }
 
     private void paintHeroIdle(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
-        label(g, "INSTANCE", x, y + 40);
-        g.setFont(interBold.deriveFont(34f));
+        String[] sl = slides[slide];
+        float a = slideFrom >= 0 ? Math.min(1f, (System.currentTimeMillis() - slideAt) / 500f) : 1f;
+        Composite c0 = g.getComposite();
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+        g.setFont(interBold.deriveFont(9.5f));
+        g.setColor(RED_HI);
+        spaced(g, sl[1], x, y + 40, 2.0f);
+        g.setFont(interBold.deriveFont(30f));
         g.setColor(TEXT);
-        String name = sel != null ? sel.name : "—";
-        String shown = ellipsizeEnd(g, name, w - 300);
-        g.drawString(shown, x - 1, y + 82);
-        int nw = g.getFontMetrics().stringWidth(shown);
-        // switch instance
-        float t = anim("home-switch", "home-switch".equals(hovered));
-        int sx = x + nw + 14, sy = y + 58;
-        g.setColor(mix(new Color(255, 255, 255, 14), new Color(255, 255, 255, 30), t));
-        g.fill(new RoundRectangle2D.Double(sx, sy, 30, 30, 9, 9));
-        icon(g, "chevron-down", sx + 15, sy + 15, 11, mix(DIM, TEXT, t));
-        hit("home-switch", new Rectangle(sx, sy, 30, 30));
-
+        g.drawString(ellipsizeEnd(g, sl[2], w - 60), x - 1, y + 78);
         g.setFont(inter.deriveFont(13f));
-        g.setColor(DIM);
-        String ver = sel != null && sel.installed != null ? "Evade Client v" + sel.installed.evadeVersion() : "Evade Client";
-        g.drawString(ver + "  ·  Minecraft " + InstallerCore.MC_VERSION + "  ·  " + (sel != null ? sel.memoryGb : 0) + " GB"
-                + (sel != null ? "  ·  " + sel.modCount + " mods" : ""), x, y + 110);
+        g.setColor(new Color(0xC9C9D1));
+        int ly = y + 102;
+        for (String line : wrapLines(g, sl[3], Math.min(380, w - 60), 2)) { g.drawString(line, x, ly); ly += 19; }
+        g.setComposite(c0);
 
-        // status pill
+        // slide dots, top right
+        int dx = x + w;
+        for (int i = slides.length - 1; i >= 0; i--) {
+            boolean on = i == slide;
+            int dw = on ? 22 : 8;
+            dx -= dw;
+            g.setColor(on ? RED_HI : new Color(255, 255, 255, 70));
+            g.fill(new RoundRectangle2D.Double(dx, y + 30, dw, 8, 8, 8));
+            hit("dot:" + i, new Rectangle(dx - 3, y + 24, dw + 6, 20));
+            dx -= 6;
+        }
+
+        // instance picker
+        int by = y + h - 92;
+        float t = anim("home-switch", "home-switch".equals(hovered));
+        int sw = Math.min(300, w - 250);
+        g.setColor(mix(new Color(12, 12, 15, 200), new Color(28, 28, 34, 220), t));
+        g.fill(new RoundRectangle2D.Double(x, by, sw, 56, 14, 14));
+        g.setColor(mix(new Color(255, 255, 255, 26), new Color(255, 255, 255, 50), t));
+        g.draw(new RoundRectangle2D.Double(x + .5, by + .5, sw - 1, 55, 14, 14));
+        avatar(g, x + 10, by + 10, 36, sel != null ? sel.name : "?", sel != null && sel.isDefault() ? RED.getRGB() : hashColor(sel != null ? sel.name : ""));
+        g.setFont(interBold.deriveFont(8.5f));
+        g.setColor(FAINT);
+        spaced(g, "INSTANCE", x + 58, by + 22, 1.6f);
+        g.setFont(interBold.deriveFont(15f));
+        g.setColor(TEXT);
+        g.drawString(ellipsizeEnd(g, sel != null ? sel.name : "—", sw - 100), x + 58, by + 42);
+        icon(g, "chevron-down", x + sw - 22, by + 28, 10, mix(DIM, TEXT, t));
+        hit("home-switch", new Rectangle(x, by, sw, 56));
+
+        // status line under it
         String reason = sel != null ? sel.pending : null;
         String pill;
         Color pc;
@@ -848,30 +1227,475 @@ public final class LauncherView extends JPanel {
         else if (reason != null) { pill = "Update ready: " + reason; pc = AMBER; }
         else if (sel.dirty) { pill = "Options changed: applied when you press Play"; pc = AMBER; }
         else { pill = "Up to date"; pc = OK; }
-        g.setFont(inter.deriveFont(12f));
-        pill = ellipsizeEnd(g, pill, w - 300);
-        int pw = g.getFontMetrics().stringWidth(pill) + 34;
-        g.setColor(new Color(pc.getRed(), pc.getGreen(), pc.getBlue(), 24));
-        g.fill(new RoundRectangle2D.Double(x, y + 128, pw, 28, 28, 28));
-        g.setColor(new Color(pc.getRed(), pc.getGreen(), pc.getBlue(), 70));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + 128.5, pw - 1, 27, 27, 27));
+        String meta = sel != null && sel.installed != null ? "  ·  Evade v" + sel.installed.evadeVersion() + "  ·  Minecraft " + InstallerCore.MC_VERSION
+                + "  ·  " + sel.memoryGb + " GB" : "  ·  Minecraft " + InstallerCore.MC_VERSION;
+        g.setFont(inter.deriveFont(11.5f));
+        int sy = y + h - 18;
         g.setColor(pc);
-        g.fill(new Ellipse2D.Double(x + 13, y + 139, 6, 6));
-        g.drawString(pill, x + 25, y + 147);
+        g.fill(new Ellipse2D.Double(x + 1, sy - 7, 6, 6));
+        String ps = ellipsizeEnd(g, pill, w - 250);
+        g.drawString(ps, x + 13, sy);
+        int pw = g.getFontMetrics().stringWidth(ps);
         if (release == null && releaseError != null) {
             float tr = anim("retry-release", "retry-release".equals(hovered));
             g.setColor(mix(DIM, TEXT, tr));
-            g.drawString("Retry", x + pw + 12, y + 147);
-            hit("retry-release", new Rectangle(x + pw + 6, y + 130, 50, 24));
+            g.drawString("Retry", x + 13 + pw + 10, sy);
+            hit("retry-release", new Rectangle(x + 13 + pw + 4, sy - 15, 46, 22));
+        } else {
+            g.setColor(FAINT);
+            g.drawString(ellipsizeEnd(g, meta, Math.max(0, w - 250 - pw)), x + 13 + pw, sy);
         }
-
-        g.setFont(inter.deriveFont(11.5f));
-        g.setColor(FAINT);
-        g.drawString(ellipsizeEnd(g, "Opens the Minecraft Launcher with \u201c" + (sel != null ? sel.profileName() : "Evade Client") + "\u201d selected. Sign-in stays there.", w - 250), x, y + h - 28);
 
         boolean ready = release != null || (releaseError != null && sel != null && sel.installed != null);
         String label = release == null && releaseError == null ? "Checking…" : sel != null && (sel.installed == null || reason != null || sel.dirty) && release != null ? "Update & Play" : "Play";
-        playButton(g, "play", x + w - 220, y + h - 88, 220, 60, label, ready && sel != null);
+        playButton(g, "play", x + w - 210, by - 2, 210, 60, label, ready && sel != null);
+    }
+
+    // ------------------------------------------------------------------ home: servers, news, right rail
+
+    private void paintServers(Graphics2D g, int x, int y, int w) {
+        label(g, "SERVERS", x, y + 4);
+        if (!settings.servers.isEmpty()) {
+            textLink(g, "servers-edit", serversEditing ? "Done" : "Edit", x + w, y + 5, 1);
+            g.setFont(inter.deriveFont(12f));
+            int ew = g.getFontMetrics().stringWidth(serversEditing ? "Done" : "Edit");
+            textLink(g, "servers-refresh", "Refresh", x + w - ew - 18, y + 5, 1);
+        }
+        int n = Launcher.MAX_SERVERS, gap = 10, tw = (w - gap * (n - 1)) / n, ty = y + 16, th = 92;
+        boolean addShown = false;
+        for (int i = 0; i < n; i++) {
+            int tx = x + i * (tw + gap);
+            if (i < settings.servers.size()) {
+                Launcher.Server sv = settings.servers.get(i);
+                String id = "server:" + i;
+                float t = anim(id, id.equals(hovered) || id.equals(overlay));
+                g.setColor(mix(new Color(0x111115), new Color(0x1A1A20), t));
+                g.fill(new RoundRectangle2D.Double(tx, ty, tw, th, 14, 14));
+                g.setColor(mix(BORDER, new Color(225, 29, 46, 120), t));
+                g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, th - 1, 14, 14));
+                int is = Math.min(46, tw - 20), ix = tx + (tw - is) / 2, iy = ty + 10;
+                Image icon = serverIcons.get(ServersDat.key(sv.address()));
+                if (icon != null) {
+                    Shape was = g.getClip();
+                    g.clip(new RoundRectangle2D.Double(ix, iy, is, is, 10, 10));
+                    Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                    g.drawImage(icon, ix, iy, is, is, null);
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+                    g.setClip(was);
+                } else avatar(g, ix, iy, is, sv.name(), hashColor(sv.address()));
+                // online dot
+                String k = ServersDat.key(sv.address());
+                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? RED_HI : FAINT;
+                g.setColor(new Color(0x111115));
+                g.fill(new Ellipse2D.Double(ix + is - 9, iy + is - 9, 14, 14));
+                g.setColor(dc);
+                g.fill(new Ellipse2D.Double(ix + is - 6, iy + is - 6, 8, 8));
+                g.setFont(interBold.deriveFont(11f));
+                g.setColor(TEXT);
+                String nm = ellipsizeEnd(g, sv.name(), tw - 10);
+                center(g, nm, tx, ty + th - 30, tw, 14);
+                g.setFont(inter.deriveFont(10f));
+                g.setColor(FAINT);
+                ServerPing.Status st = serverStatus.get(k);
+                String sub = st != null ? Mods.count(st.online()) + " online" : serverPinging.contains(k) ? "…" : serverDown.contains(k) ? "offline" : "";
+                center(g, ellipsizeEnd(g, sub, tw - 8), tx, ty + th - 16, tw, 12);
+                hit(id, new Rectangle(tx, ty, tw, th));
+                if (serversEditing) {
+                    int bx = tx + tw - 22, by = ty + 4;
+                    String xid = "server-x:" + i;
+                    float tx2 = anim(xid, xid.equals(hovered));
+                    g.setColor(mix(new Color(0x2A2A31), RED, tx2));
+                    g.fill(new Ellipse2D.Double(bx, by, 18, 18));
+                    g.setColor(Color.WHITE);
+                    g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g.draw(new Line2D.Double(bx + 6, by + 6, bx + 12, by + 12));
+                    g.draw(new Line2D.Double(bx + 12, by + 6, bx + 6, by + 12));
+                    g.setStroke(new BasicStroke(1f));
+                    hit(xid, new Rectangle(bx - 2, by - 2, 22, 22));
+                }
+            } else {
+                String id = "server-add:" + i;
+                float t = anim(id, id.equals(hovered));
+                boolean first = !addShown;
+                addShown = true;
+                g.setColor(new Color(255, 255, 255, first ? (int) (6 + 10 * t) : (int) (3 + 8 * t)));
+                g.fill(new RoundRectangle2D.Double(tx, ty, tw, th, 14, 14));
+                g.setColor(mix(new Color(255, 255, 255, first ? 40 : 20), new Color(225, 29, 46, 150), t));
+                g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[]{4f, 4f}, 0f));
+                g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, th - 1, 14, 14));
+                g.setStroke(new BasicStroke(1f));
+                icon(g, "plus", tx + tw / 2, ty + th / 2 - (first ? 8 : 0), 14, mix(first ? DIM : FAINT, TEXT, t));
+                if (first) {
+                    g.setFont(inter.deriveFont(10.5f));
+                    g.setColor(mix(FAINT, DIM, t));
+                    center(g, "Add server", tx, ty + th - 30, tw, 14);
+                }
+                hit(id, new Rectangle(tx, ty, tw, th));
+            }
+        }
+    }
+
+    /** The card for a server in the Servers row: what its status ping says, and its address to copy. */
+    private void paintServerCard(Graphics2D g, int index) {
+        Launcher.Server sv = settings.servers.get(index);
+        int n = Launcher.MAX_SERVERS, gap = 10;
+        int rx = W - 26 - 248, w = rx - 20 - CX, tw = (w - gap * (n - 1)) / n;
+        int cw = 300, ch = 196;
+        int tx = CX + index * (tw + gap);
+        int x = Math.max(CX, Math.min(W - 26 - cw, tx + tw / 2 - cw / 2)), y = 388 - ch - 10;
+        card(g, x, y, cw, ch, true);
+        String k = ServersDat.key(sv.address());
+        Image icon = serverIcons.get(k);
+        if (icon != null) {
+            Shape was = g.getClip();
+            g.clip(new RoundRectangle2D.Double(x + 20, y + 22, 44, 44, 10, 10));
+            g.drawImage(icon, x + 20, y + 22, 44, 44, null);
+            g.setClip(was);
+        } else avatar(g, x + 20, y + 22, 44, sv.name(), hashColor(sv.address()));
+        g.setFont(interBold.deriveFont(15f));
+        g.setColor(TEXT);
+        g.drawString(ellipsizeEnd(g, sv.name(), cw - 100), x + 76, y + 40);
+        g.setFont(inter.deriveFont(12f));
+        g.setColor(DIM);
+        g.drawString(ellipsizeEnd(g, sv.address(), cw - 100), x + 76, y + 59);
+        ServerPing.Status st = serverStatus.get(k);
+        g.setFont(inter.deriveFont(12f));
+        int ly = y + 92;
+        if (st != null) {
+            g.setColor(OK);
+            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 7, 7));
+            g.setColor(TEXT);
+            String line = String.format(java.util.Locale.ROOT, "%,d / %,d online", st.online(), st.max()) + "  ·  " + st.pingMs() + " ms";
+            g.drawString(ellipsizeEnd(g, line, cw - 52), x + 33, ly);
+            g.setColor(FAINT);
+            g.setFont(inter.deriveFont(11f));
+            if (!st.version().isBlank()) g.drawString(ellipsizeEnd(g, st.version(), cw - 40), x + 20, ly + 17);
+            g.setFont(inter.deriveFont(11.5f));
+            g.setColor(DIM);
+            int my = ly + 36;
+            for (String line2 : wrapLines(g, st.motd().replace('\n', ' '), cw - 40, 2)) { g.drawString(line2, x + 20, my); my += 16; }
+        } else {
+            boolean down = serverDown.contains(k);
+            g.setColor(down ? RED_HI : FAINT);
+            g.fill(new Ellipse2D.Double(x + 20, ly - 8, 7, 7));
+            g.setColor(DIM);
+            g.drawString(serverPinging.contains(k) ? "Checking…" : down ? "Didn't answer (offline, or the address is wrong)" : "Not checked yet", x + 33, ly);
+        }
+        int by = y + ch - 50;
+        smallPrimary(g, "ov-copy", x + 20, by, 112, 32, "Copy address", null);
+        ghostButton(g, "ov-edit", x + 140, by, 60, 32, "Edit", false);
+        ghostButton(g, "ov-remove", x + 208, by, 72, 32, "Remove", true);
+        hitMap.put("ov-card", new Rectangle(x, y, cw, ch));
+        // the card's own buttons win over the click-away area
+        for (String id : new String[]{"ov-copy", "ov-edit", "ov-remove"}) { Rectangle r = hitMap.remove(id); if (r != null) hitMap.put(id, r); }
+    }
+
+    private void paintNewsCards(Graphics2D g, int x, int y, int w, int h) {
+        label(g, "NEWS", x, y + 4);
+        textLink(g, "news-all", "View all", x + w, y + 5, 1);
+        int top = y + 16, ch = h - 16;
+        if (news.isEmpty()) {
+            card(g, x, top, w, ch, false);
+            g.setFont(inter.deriveFont(12.5f));
+            g.setColor(newsError != null ? FAINT : DIM);
+            g.drawString(ellipsizeEnd(g, newsLoading ? "Loading the latest news…" : newsError != null ? "News couldn't be loaded. " + EvadeInstaller.sentence(newsError) : "No news yet.", w - 48), x + 24, top + 34);
+            return;
+        }
+        int n = Math.min(3, news.size()), gap = 14, cw = (w - gap * (n - 1)) / n;
+        String[] fallback = {"menu", "hud", "styles", "clips", "settings", "theme"};
+        for (int i = 0; i < n; i++) {
+            News.Entry e = news.get(i);
+            int cx = x + i * (cw + gap);
+            String id = "news:" + i;
+            float t = anim(id, id.equals(hovered));
+            int lift = Math.round(t * 2);
+            shadow(g, cx, top - lift, cw, ch);
+            Shape box = new RoundRectangle2D.Double(cx, top - lift, cw, ch, 16, 16);
+            g.setColor(CARD);
+            g.fill(box);
+            int ih = Math.max(60, ch - 66);
+            Image img = e.image() != null ? newsImages.get(e.image()) : null;
+            if (img == null) img = heroImages.get(fallback[i % fallback.length]);
+            Shape was = g.getClip();
+            g.clip(box);
+            g.clipRect(cx, top - lift, cw, ih);
+            if (img != null) cover(g, img, cx, top - lift, cw, ih, 0.5);
+            g.setPaint(new GradientPaint(0, top - lift + ih - 40, new Color(17, 17, 21, 0), 0, top - lift + ih, new Color(17, 17, 21, 200)));
+            g.fillRect(cx, top - lift, cw, ih);
+            g.setClip(was);
+            if (i == 0) {
+                g.setFont(interBold.deriveFont(9f));
+                int pw = g.getFontMetrics().stringWidth("LATEST") + 14;
+                g.setColor(RED);
+                g.fill(new RoundRectangle2D.Double(cx + 12, top - lift + 12, pw, 18, 18, 18));
+                g.setColor(Color.WHITE);
+                center(g, "LATEST", cx + 12, top - lift + 12, pw, 18);
+            }
+            g.setColor(mix(BORDER, new Color(0x3A3A44), t));
+            g.draw(new RoundRectangle2D.Double(cx + .5, top - lift + .5, cw - 1, ch - 1, 16, 16));
+            int ty = top - lift + ih + 22;
+            g.setFont(interBold.deriveFont(13.5f));
+            g.setColor(TEXT);
+            g.drawString(ellipsizeEnd(g, e.title(), cw - 28), cx + 14, ty);
+            g.setFont(inter.deriveFont(11f));
+            g.setColor(FAINT);
+            g.drawString(e.date(), cx + 14, ty + 18);
+            int dw = g.getFontMetrics().stringWidth(e.date());
+            if (!e.summary().isEmpty()) {
+                g.setColor(DIM);
+                g.drawString(ellipsizeEnd(g, "  ·  " + e.summary(), cw - 28 - dw), cx + 14 + dw, ty + 18);
+            }
+            hit(id, new Rectangle(cx, top, cw, ch));
+        }
+    }
+
+    private void paintProfile(Graphics2D g, int x, int y, int w, int h) {
+        card(g, x, y, w, h, false);
+        int fs = 56, fx = x + 18, fy = y + 20;
+        g.setColor(new Color(0x0C0C0F));
+        g.fill(new RoundRectangle2D.Double(fx - 3, fy - 3, fs + 6, fs + 6, 14, 14));
+        if (playerFace != null) {
+            Shape was = g.getClip();
+            g.clip(new RoundRectangle2D.Double(fx, fy, fs, fs, 10, 10));
+            Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(playerFace, fx, fy, fs, fs, null);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+            g.setClip(was);
+        } else defaultHead(g, fx, fy, fs);
+        g.setColor(new Color(225, 29, 46, 140));
+        g.draw(new RoundRectangle2D.Double(fx - 2.5, fy - 2.5, fs + 5, fs + 5, 13, 13));
+        int tx = fx + fs + 16;
+        g.setFont(interBold.deriveFont(8.5f));
+        g.setColor(FAINT);
+        spaced(g, "PLAYER", tx, fy + 12, 1.6f);
+        g.setFont(interBold.deriveFont(16f));
+        g.setColor(TEXT);
+        g.drawString(ellipsizeEnd(g, playerName != null ? playerName : "Not signed in", x + w - 18 - tx), tx, fy + 34);
+        g.setFont(inter.deriveFont(11f));
+        g.setColor(playerName != null ? OK : DIM);
+        String sub = playerName != null ? "Signed in to the Minecraft Launcher" : "Sign in once in the Minecraft Launcher";
+        List<String> lines = wrapLines(g, sub, x + w - 18 - tx, 2);
+        int ly = fy + 51;
+        for (String l : lines) { g.drawString(l, tx, ly); ly += 14; }
+        g.setColor(BORDER);
+        g.fillRect(x + 18, y + h - 38, w - 36, 1);
+        g.setFont(inter.deriveFont(11.5f));
+        g.setColor(DIM);
+        Launcher.Instance sel = selected();
+        g.drawString(ellipsizeEnd(g, "Playing  " + (sel != null ? sel.name : "—") + "  ·  " + settings.servers.size() + " server" + (settings.servers.size() == 1 ? "" : "s"), w - 36), x + 18, y + h - 15);
+    }
+
+    /** No skin yet: a plain Evade-red head with a simple face (no game art). */
+    private void defaultHead(Graphics2D g, int x, int y, int s) {
+        g.setPaint(new GradientPaint(x, y, new Color(0x3A1218), x + s, y + s, new Color(0x1A0A0D)));
+        g.fill(new RoundRectangle2D.Double(x, y, s, s, 10, 10));
+        int u = s / 8;
+        g.setColor(new Color(255, 255, 255, 200));
+        g.fillRect(x + u, y + 4 * u, u * 2, u);
+        g.fillRect(x + 5 * u, y + 4 * u, u * 2, u);
+        g.setColor(new Color(225, 29, 46, 220));
+        g.fillRect(x + 3 * u, y + 6 * u, u * 2, u / 2 + 1);
+    }
+
+    private void paintClipsCard(Graphics2D g, int x, int y, int w, int h) {
+        card(g, x, y, w, h, false);
+        label(g, "EVADE CLIPS", x + 18, y + 28);
+        if (clips == null) {
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(DIM);
+            int ly = y + 54;
+            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "Starting…", w - 36, 4)) { g.drawString(l, x + 18, ly); ly += 17; }
+            return;
+        }
+        var st = clips.status;
+        boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
+        boolean err = st.state() == net.evadeclient.clips.core.CaptureEngine.State.ERROR;
+        boolean on = clips.settings.replayEnabled;
+        // record icon
+        int ix = x + 18, iy = y + 42;
+        g.setPaint(new GradientPaint(ix, iy, new Color(0x2A1116), ix + 40, iy + 40, new Color(0x16090C)));
+        g.fill(new RoundRectangle2D.Double(ix, iy, 40, 40, 12, 12));
+        g.setColor(new Color(225, 29, 46, 60));
+        g.draw(new RoundRectangle2D.Double(ix + .5, iy + .5, 39, 39, 12, 12));
+        float pulse = rec || live ? (float) (0.6 + 0.4 * Math.sin(System.currentTimeMillis() / 300.0)) : 1f;
+        if (rec || live) animating = true;
+        Color dot = rec ? RED_HI : live ? OK : err ? AMBER : FAINT;
+        g.setColor(new Color(dot.getRed(), dot.getGreen(), dot.getBlue(), Math.round(255 * pulse)));
+        g.fill(new Ellipse2D.Double(ix + 13, iy + 13, 14, 14));
+        g.setFont(interBold.deriveFont(13.5f));
+        g.setColor(TEXT);
+        String title = rec ? "Recording " + net.evadeclient.clips.ui.Theme.time(st.recordingSeconds()) : live ? "Instant replay on"
+                : err ? "Capture error" : on ? "Instant replay ready" : "Instant replay off";
+        g.drawString(ellipsizeEnd(g, title, w - 130), ix + 52, iy + 17);
+        g.setFont(inter.deriveFont(11.5f));
+        g.setColor(DIM);
+        String sub = live ? clips.settings.hotkeySaveClip + " saves the last " + clips.settings.replaySeconds + " s"
+                : on && !rec && !err ? "Starts when Minecraft opens"
+                : clips.library.all().size() + " clip" + (clips.library.all().size() == 1 ? "" : "s") + " in your library";
+        g.drawString(ellipsizeEnd(g, sub, w - 90), ix + 52, iy + 35);
+        toggle(g, "clips-replay-sw", x + w - 18 - 38, iy + 8, on, true);
+        hit("clips-replay", new Rectangle(x + w - 18 - 44, iy + 2, 50, 32));
+        int bw = (w - 36 - 10) / 2, by = y + h - 50;
+        smallPrimary(g, "clips-save", x + 18, by, bw, 34, "Save clip", null);
+        ghostButton(g, "clips-go", x + 18 + bw + 10, by, bw, 34, "Open Clips", false);
+    }
+
+    private void paintLinks(Graphics2D g, int x, int y, int w, int h) {
+        card(g, x, y, w, h, false);
+        label(g, "EVADE", x + 18, y + 28);
+        List<String[]> links = new ArrayList<>();
+        links.add(new String[]{"link-site", "Website", "globe"});
+        links.add(new String[]{"link-docs", "Guides", "book"});
+        links.add(new String[]{"link-changelog", "Changelog", "list"});
+        if (!DISCORD.isBlank()) links.add(new String[]{"link-discord", "Discord", "chat"});
+        if (!YOUTUBE.isBlank()) links.add(new String[]{"link-youtube", "YouTube", "video"});
+        if (!TIKTOK.isBlank()) links.add(new String[]{"link-tiktok", "TikTok", "music"});
+        int cols = 2, gap = 8, bw = (w - 36 - gap) / cols, bh = 34;
+        for (int i = 0; i < links.size(); i++) {
+            int bx = x + 18 + (i % cols) * (bw + gap), by = y + 42 + (i / cols) * (bh + gap);
+            if (by + bh > y + h - 10) break;
+            ghostButton(g, links.get(i)[0], bx, by, bw, bh, links.get(i)[1], false, links.get(i)[2]);
+        }
+    }
+
+    // ------------------------------------------------------------------ bell
+
+    private void paintBell(Graphics2D g, int x, int y) {
+        float t = anim("bell", "bell".equals(hovered) || "bell".equals(overlay));
+        g.setColor(mix(new Color(255, 255, 255, 0), new Color(255, 255, 255, 30), t));
+        g.fill(new RoundRectangle2D.Double(x, y, 30, 26, 8, 8));
+        icon(g, "bell", x + 15, y + 13, 15, mix(DIM, TEXT, t));
+        if (unread > 0) {
+            String n = unread > 9 ? "9+" : String.valueOf(unread);
+            g.setFont(interBold.deriveFont(8.5f));
+            int bw = Math.max(14, g.getFontMetrics().stringWidth(n) + 8);
+            g.setColor(RED);
+            g.fill(new RoundRectangle2D.Double(x + 30 - bw + 4, y - 2, bw, 14, 14, 14));
+            g.setColor(Color.WHITE);
+            center(g, n, x + 30 - bw + 4, y - 2, bw, 14);
+        }
+        hitMap.put("bell", new Rectangle(x, y, 30, 26));
+    }
+
+    private void paintNotices(Graphics2D g) {
+        int w = 340, x = W - 26 - w, y = 46;
+        int rows = Math.min(6, notices.size());
+        int h = 58 + Math.max(1, rows) * 54 + (notices.isEmpty() ? 0 : 4);
+        card(g, x, y, w, h, true);
+        g.setFont(interBold.deriveFont(14f));
+        g.setColor(TEXT);
+        g.drawString("Notifications", x + 20, y + 34);
+        if (!notices.isEmpty()) textLink(g, "ov-clear", "Clear", x + w - 20, y + 34, 1);
+        if (notices.isEmpty()) {
+            g.setFont(inter.deriveFont(12f));
+            g.setColor(DIM);
+            g.drawString("Nothing new. Updates and saved clips show up here.", x + 20, y + 80);
+        }
+        int ry = y + 50;
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < rows; i++) {
+            Notice n = notices.get(i);
+            g.setColor(new Color(255, 255, 255, 6));
+            g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 48, 10, 10));
+            g.setColor(n.error() ? AMBER : RED_HI);
+            g.fill(new Ellipse2D.Double(x + 22, ry + 14, 7, 7));
+            g.setFont(interBold.deriveFont(12.5f));
+            g.setColor(TEXT);
+            String ago = ago(now - n.at());
+            g.drawString(ellipsizeEnd(g, n.title(), w - 90 - 40), x + 38, ry + 20);
+            g.setFont(inter.deriveFont(10.5f));
+            g.setColor(FAINT);
+            g.drawString(ago, x + w - 22 - g.getFontMetrics().stringWidth(ago), ry + 20);
+            g.setFont(inter.deriveFont(11.5f));
+            g.setColor(DIM);
+            g.drawString(ellipsizeEnd(g, n.body(), w - 60), x + 38, ry + 38);
+            ry += 54;
+        }
+        hitMap.put("ov-panel", new Rectangle(x, y, w, h));
+        Rectangle clear = hitMap.remove("ov-clear");
+        if (clear != null) hitMap.put("ov-clear", clear);
+    }
+
+    private static String ago(long ms) {
+        long m = ms / 60_000;
+        if (m < 1) return "now";
+        if (m < 60) return m + " min";
+        if (m < 24 * 60) return (m / 60) + " h";
+        return (m / 1440) + " d";
+    }
+
+    // ------------------------------------------------------------------ clips
+
+    private Rectangle paintClips(Graphics2D g) {
+        pageTitle(g, "Clips", null);
+        int ty = 64;
+        String[][] tabs = {{"library", "Library"}, {"record", "Record"}, {"editor", "Editor"}, {"settings", "Settings"}};
+        int tx = CX + 96;
+        for (String[] t : tabs) {
+            boolean en = !t[0].equals("editor") || clipsEditorOpen();
+            boolean on = clipsPage.equals(t[0]);
+            int count = t[0].equals("library") && clips != null ? clips.library.all().size() : -1;
+            if (clips == null) { en = false; on = false; }
+            String id = "ctab:" + t[0];
+            float a = en ? anim(id, id.equals(hovered)) : 0;
+            g.setFont((on ? interBold : inter).deriveFont(13.5f));
+            g.setColor(on ? TEXT : en ? mix(DIM, TEXT, a) : FAINT);
+            g.drawString(t[1], tx, ty - 14);
+            int lw = g.getFontMetrics().stringWidth(t[1]);
+            if (count >= 0) {
+                g.setFont(interBold.deriveFont(10f));
+                String c = String.valueOf(count);
+                int cw = g.getFontMetrics().stringWidth(c) + 12;
+                g.setColor(on ? new Color(225, 29, 46, 50) : new Color(255, 255, 255, 14));
+                g.fill(new RoundRectangle2D.Double(tx + lw + 7, ty - 27, cw, 16, 16, 16));
+                g.setColor(on ? RED_HI : DIM);
+                center(g, c, tx + lw + 7, ty - 27, cw, 16);
+                lw += cw + 7;
+            }
+            if (on) {
+                g.setColor(RED);
+                g.fill(new RoundRectangle2D.Double(tx, ty - 4, lw, 3, 3, 3));
+            }
+            if (en) hit(id, new Rectangle(tx - 6, ty - 34, lw + 12, 34));
+            tx += lw + 26;
+        }
+        int rx = CX + CW - 118; // keep clear of the window buttons
+        if (clips != null) {
+            var st = clips.status;
+            boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
+            smallPrimary(g, "clips-save", rx - 104, ty - 36, 104, 30, "Save clip", null);
+            g.setFont(inter.deriveFont(12f));
+            String rs = rec ? "Recording" : live ? "Replay on" : clips.settings.replayEnabled ? "Replay waits for Minecraft" : "Replay off";
+            int rw2 = g.getFontMetrics().stringWidth(rs);
+            int sx = rx - 104 - 16 - 38;
+            toggle(g, "clips-replay-sw", sx, ty - 31, clips.settings.replayEnabled, true);
+            hit("clips-replay", new Rectangle(sx - 4, ty - 36, 46, 30));
+            g.setColor(rec ? RED_HI : live ? OK : DIM);
+            g.drawString(rs, sx - 10 - rw2, ty - 16);
+        }
+        g.setColor(BORDER);
+        g.fillRect(CX, ty, CW, 1);
+        Rectangle box = new Rectangle(CX, ty + 14, CW, H - ty - 14 - 24);
+        if (clips == null || clipsHost == null) {
+            card(g, box.x, box.y, box.width, box.height, false);
+            g.setFont(interBold.deriveFont(15f));
+            g.setColor(TEXT);
+            center(g, clips == null ? "Evade Clips isn't running" : "Opening Evade Clips…", box.x, box.y + box.height / 2 - 50, box.width, 20);
+            g.setFont(inter.deriveFont(12.5f));
+            g.setColor(DIM);
+            int ly = box.y + box.height / 2 - 14;
+            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "One moment.", Math.min(520, box.width - 80), 4)) {
+                center(g, l, box.x, ly - 13, box.width, 18);
+                ly += 19;
+            }
+            return null;
+        }
+        // a thin frame around the embedded pages
+        g.setColor(BORDER);
+        g.draw(new RoundRectangle2D.Double(box.x - .5, box.y - .5, box.width, box.height, 6, 6));
+        return box;
     }
 
     private void playButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
@@ -980,7 +1804,7 @@ public final class LauncherView extends JPanel {
     }
 
     private static String skippedText(String s) {
-        return s.equals(InstallerCore.CLIPS_BUSY) ? "Evade Clips wasn't updated (it may be open)" : s;
+        return s;
     }
 
     private void paintHeroNoLauncher(Graphics2D g, int x, int y, int w, int h) {
@@ -1027,125 +1851,27 @@ public final class LauncherView extends JPanel {
         center(g, s, cx - 18, cy - 18, 36, 36);
     }
 
-    private void paintNews(Graphics2D g, int x, int y, int w, int h) {
-        card(g, x, y, w, h, true);
-        label(g, "NEWS", x + 24, y + 32);
-        textLink(g, "news-all", "Full changelog", x + w - 24, y + 32, 1);
-        int top = y + 46, ah = h - 46 - 14;
-        if (news.isEmpty()) {
-            g.setFont(inter.deriveFont(12.5f));
-            g.setColor(newsError != null ? FAINT : DIM);
-            g.drawString(newsLoading ? "Loading the latest news…" : newsError != null ? "News couldn't be loaded. " + EvadeInstaller.sentence(newsError) : "No news yet.", x + 24, top + 22);
-            return;
-        }
-        Rectangle area = new Rectangle(x + 1, top, w - 2, ah);
-        float off = scrollOf("news");
-        Shape was = g.getClip();
-        g.clip(area);
-        clip = area;
-        int cy = top + 8 - Math.round(off);
-        for (int n = 0; n < news.size(); n++) {
-            News.Entry e = news.get(n);
-            int start = cy;
-            boolean latest = n == 0;
-            g.setFont(interBold.deriveFont(15f));
-            g.setColor(TEXT);
-            g.drawString(e.title(), x + 24, cy + 16);
-            int tx = x + 24 + g.getFontMetrics().stringWidth(e.title()) + 10;
-            if (latest) {
-                g.setFont(interBold.deriveFont(9f));
-                int pw = g.getFontMetrics().stringWidth("LATEST") + 14;
-                g.setColor(new Color(225, 29, 46, 40));
-                g.fill(new RoundRectangle2D.Double(tx, cy + 3, pw, 17, 17, 17));
-                g.setColor(RED_HI);
-                center(g, "LATEST", tx, cy + 3, pw, 17);
-            }
-            g.setFont(inter.deriveFont(11.5f));
-            g.setColor(FAINT);
-            g.drawString(e.date(), x + w - 24 - g.getFontMetrics().stringWidth(e.date()), cy + 15);
-            cy += 26;
-            if (!e.summary().isEmpty()) {
-                g.setFont(inter.deriveFont(12.5f));
-                g.setColor(DIM);
-                for (String line : wrapLines(g, e.summary(), w - 48, 2)) { g.drawString(line, x + 24, cy + 12); cy += 18; }
-                cy += 4;
-            }
-            int shown = 0;
-            for (String item : e.items()) {
-                if (shown == (latest ? 5 : 3)) break;
-                shown++;
-                cy = bullet(g, item, x + 24, cy, w - 48);
-            }
-            if (e.items().size() > shown) {
-                g.setFont(inter.deriveFont(11.5f));
-                g.setColor(FAINT);
-                g.drawString("and " + (e.items().size() - shown) + " more", x + 36, cy + 12);
-                cy += 18;
-            }
-            hit("news:" + n, new Rectangle(x + 12, start - 4, w - 24, cy - start + 4));
-            cy += 12;
-            if (n < news.size() - 1) {
-                g.setColor(BORDER);
-                g.fillRect(x + 24, cy - 6, w - 48, 1);
-                cy += 10;
-            }
-        }
-        int content = cy + Math.round(off) - top;
-        g.setClip(was);
-        clip = null;
-        scrollArea(g, "news", area, content);
-    }
-
-    /** One changelog bullet; a bold "Lead:" stays bold. Returns the y below it. */
-    private int bullet(Graphics2D g, String item, int x, int y, int w) {
-        g.setFont(inter.deriveFont(12f));
-        int colon = item.indexOf(": ");
-        String lead = colon > 0 && colon < 42 ? item.substring(0, colon + 1) : null;
-        g.setColor(RED_HI);
-        g.fill(new Ellipse2D.Double(x + 1, y + 8, 4, 4));
-        List<String> lines = wrapLines(g, item, w - 14, 2);
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            int lx = x + 14, ly = y + 13;
-            if (i == 0 && lead != null && line.startsWith(lead)) {
-                g.setFont(interBold.deriveFont(12f));
-                g.setColor(TEXT);
-                g.drawString(lead, lx, ly);
-                int lw = g.getFontMetrics().stringWidth(lead);
-                g.setFont(inter.deriveFont(12f));
-                g.setColor(DIM);
-                g.drawString(line.substring(lead.length()), lx + lw, ly);
-            } else {
-                g.setFont(inter.deriveFont(12f));
-                g.setColor(DIM);
-                g.drawString(line, lx, ly);
-            }
-            y += 17;
-        }
-        return y + 3;
-    }
-
     private void paintVersions(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
         card(g, x, y, w, h, false);
-        label(g, "VERSIONS", x + 20, y + 30);
+        label(g, "VERSIONS", x + 18, y + 28);
         g.setFont(inter.deriveFont(10f));
         g.setColor(FAINT);
         String cols = "INSTALLED → LATEST";
-        g.drawString(cols, x + w - 20 - g.getFontMetrics().stringWidth(cols), y + 30);
+        g.drawString(cols, x + w - 18 - g.getFontMetrics().stringWidth(cols), y + 28);
         InstallerCore.Installed in = sel != null ? sel.installed : null;
         String[][] rows = {
                 {"Evade Client", in != null ? "v" + in.evadeVersion() : "—", release != null ? "v" + release.evadeVersion() : "…"},
                 {"Fabric Loader", in != null ? in.loaderVersion() : "—", release != null ? release.loaderVersion() : "…"},
                 {"Fabric API", in != null ? InstallerCore.shortVersion(in.fabricApiVersion()) : "—", release != null ? InstallerCore.shortVersion(release.fabricApiVersion()) : "…"}};
-        int ry = y + 56;
+        int ry = y + 42;
         for (String[] r : rows) {
             g.setFont(inter.deriveFont(12.5f));
             g.setColor(TEXT);
-            g.drawString(r[0], x + 20, ry + 14);
+            g.drawString(r[0], x + 18, ry + 14);
             boolean same = r[1].equals(r[2]) || release == null;
             g.setFont(interBold.deriveFont(12f));
             FontMetrics fm = g.getFontMetrics();
-            int lx = x + w - 20 - fm.stringWidth(r[2]);
+            int lx = x + w - 18 - fm.stringWidth(r[2]);
             g.setColor(same ? DIM : RED_HI);
             g.drawString(r[2], lx, ry + 14);
             if (!same) {
@@ -1156,38 +1882,8 @@ public final class LauncherView extends JPanel {
             } else {
                 icon(g, "check", lx - 14, ry + 9, 10, release == null ? FAINT : OK);
             }
-            ry += 30;
+            ry += 27;
         }
-    }
-
-    private void paintClipsCard(Graphics2D g, int x, int y, int w, int h) {
-        card(g, x, y, w, h, false);
-        label(g, "EVADE CLIPS", x + 20, y + 30);
-        // record icon
-        int ix = x + 20, iy = y + 46;
-        g.setPaint(new GradientPaint(ix, iy, new Color(0x2A1116), ix + 40, iy + 40, new Color(0x16090C)));
-        g.fill(new RoundRectangle2D.Double(ix, iy, 40, 40, 12, 12));
-        g.setColor(new Color(225, 29, 46, 60));
-        g.draw(new RoundRectangle2D.Double(ix + .5, iy + .5, 39, 39, 12, 12));
-        g.setColor(RED_HI);
-        g.fill(new Ellipse2D.Double(ix + 13, iy + 13, 14, 14));
-        g.setColor(new Color(255, 65, 83, 70));
-        g.setStroke(new BasicStroke(1.6f));
-        g.draw(new Ellipse2D.Double(ix + 8, iy + 8, 24, 24));
-        g.setStroke(new BasicStroke(1f));
-
-        String latest = release != null ? release.clipsVersion() : null;
-        boolean outdated = clipsPresent && latest != null && clipsVersion != null && !latest.equals(clipsVersion);
-        g.setFont(interBold.deriveFont(13.5f));
-        g.setColor(TEXT);
-        g.drawString(clipsPresent ? "Installed" + (clipsVersion != null ? "  v" + clipsVersion : "") : "Not installed", ix + 52, iy + 17);
-        g.setFont(inter.deriveFont(11.5f));
-        g.setColor(outdated ? AMBER : DIM);
-        g.drawString(ellipsizeEnd(g, outdated ? "v" + latest + " is out: updates with Play" : clipsPresent ? "Instant replay, clip library & editor" : "Record kills, pops & wins automatically", w - 92), ix + 52, iy + 35);
-        int by = y + h - 52;
-        if (by < iy + 48) by = iy + 48;
-        if (clipsPresent) ghostButton(g, "clips-open", x + 20, by, w - 40, 34, "Open Evade Clips", false);
-        else ghostButton(g, "clips-install", x + 20, by, w - 40, 34, release != null && release.clipsUrl() == null ? "Not available right now" : "Install Evade Clips", false);
     }
 
     // ------------------------------------------------------------------ first run
@@ -1275,15 +1971,17 @@ public final class LauncherView extends JPanel {
             g.drawString("  ·  " + totalGb + " GB RAM", x + g.getFontMetrics().stringWidth(rec), y + 171);
         }
         String[][] rows = {{"s-copy", "Copy my settings & servers", ""}, {"s-voice", "Voice chat (Simple Voice Chat)", "Voice chat"},
-                {"s-perf", "FPS mods (Sodium & more)", "FPS mods"}, {"s-shaders", "Shaders (Iris + Photon)", "Shaders"},
-                {"s-clips", "Evade Clips (record & edit clips)", "Evade Clips"}};
-        boolean[] values = {setupCopy, setupVoice, setupPerf, setupShaders, setupClips};
+                {"s-perf", "FPS mods (Sodium & more)", "FPS mods"}, {"s-shaders", "Shaders (Iris + Photon)", "Shaders"}};
+        boolean[] values = {setupCopy, setupVoice, setupPerf, setupShaders};
         boolean[] avail = {true, release == null || release.voiceChat() != null, release == null || !release.performance().isEmpty(),
-                release == null || release.iris() != null, release == null || release.clipsUrl() != null};
+                release == null || release.iris() != null};
         for (int i = 0; i < rows.length; i++) {
             int ry = y + 186 + i * 31;
             switchRow(g, rows[i][0], x, ry, w, avail[i] ? rows[i][1] : rows[i][2], values[i], avail[i]);
         }
+        g.setFont(inter.deriveFont(11.5f));
+        g.setColor(FAINT);
+        g.drawString(ellipsizeEnd(g, "Evade Clips is built in: instant replay, clip library & editor.", w), x, y + 186 + rows.length * 31 + 8);
         g.setFont(inter.deriveFont(12f));
         String info;
         Color ic = DIM;
@@ -1318,12 +2016,12 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
         g.drawString(ellipsizeEnd(g, status, w), x, y + 146);
-        boolean clips = setupClips && release != null && release.clipsUrl() != null;
+        boolean clips = InstallerCore.WINDOWS && release != null && release.ffmpegUrl() != null && !InstallerCore.ffmpegPresent();
         boolean extras = setupVoice || setupPerf || setupShaders;
         List<String> steps = new ArrayList<>(List.of("Fabric Loader", "Fabric API", "Evade Client"));
         List<Double> at = new ArrayList<>(List.of(0.15, 0.55, 0.75));
         if (extras) { steps.add("Extra mods"); at.add(0.83); }
-        if (clips) { steps.add("Evade Clips"); at.add(0.96); }
+        if (clips) { steps.add("Video engine for Clips"); at.add(0.96); }
         steps.add("Launcher profile");
         at.add(1.0);
         int sy = y + 180;
@@ -1747,26 +2445,38 @@ public final class LauncherView extends JPanel {
         g.setColor(FAINT);
         g.drawString("Sign-in and the game itself run in the official Minecraft Launcher.", ix + 42, y + h - 24);
 
-        int rx = lx + lw + 18, rw = CW - lw - 18, rh = 226;
+        int rx = lx + lw + 18, rw = CW - lw - 18, rh = 278;
         card(g, rx, y, rw, rh, false);
         int jx = rx + 24, jw = rw - 48;
         g.setFont(interBold.deriveFont(15f));
         g.setColor(TEXT);
         g.drawString("Launcher", jx, y + 38);
-        settingRow(g, "set-close", jx, y + 60, jw, "Close the launcher on Play", "After the Minecraft Launcher opens", settings.closeOnPlay);
+        boolean tray = clips != null && clips.settings.minimizeToTray;
+        settingRow(g, "set-close", jx, y + 60, jw, "Hide the launcher on Play", tray ? "To the tray, so Evade Clips keeps recording" : "After the Minecraft Launcher opens", settings.closeOnPlay);
         settingRow(g, "set-updates", jx, y + 112, jw, "Check for updates on start", "Updates this launcher itself", settings.checkUpdates);
-        settingRow(g, "set-clips", jx, y + 164, jw, "Keep Evade Clips up to date", "Updated along with Play", settings.clips);
+        if (clips != null) {
+            settingRow(g, "set-replay", jx, y + 164, jw, "Instant replay (Evade Clips)", "Records the last moments while Minecraft runs", clips.settings.replayEnabled);
+            settingRow(g, "set-tray", jx, y + 216, jw, "Keep running in the tray", "Closing the window keeps instant replay going", tray);
+        } else {
+            g.setFont(inter.deriveFont(11.5f));
+            g.setColor(FAINT);
+            int ly = y + 182;
+            for (String l : wrapLines(g, clipsNote != null ? clipsNote : "Evade Clips isn't running.", jw, 3)) { g.drawString(l, jx, ly); ly += 16; }
+        }
 
         int fy = y + rh + 16, fh = h - rh - 16;
         card(g, rx, fy, rw, fh, false);
         g.setFont(interBold.deriveFont(15f));
         g.setColor(TEXT);
         g.drawString("Folders", jx, fy + 38);
-        String[][] f = {{"open-mc", "Minecraft"}, {"open-inst", "This instance"}, {"open-clips", "Evade Clips"}, {"open-data", "Launcher"}};
+        String[][] f = {{"open-mc", "Minecraft"}, {"open-inst", "This instance"}, {"open-clips", "Clips"}, {"open-data", "Launcher"}};
         int bw = (jw - 10) / 2;
         for (int i = 0; i < f.length; i++) {
             int bx = jx + (i % 2) * (bw + 10), by = fy + 56 + (i / 2) * 44;
             ghostButton(g, f[i][0], bx, by, bw, 36, f[i][1], false, "folder");
+        }
+        if (legacyClips && fy + 56 + 2 * 44 + 36 < fy + fh - 10) {
+            ghostButton(g, "clips-legacy", jx, fy + 56 + 2 * 44, jw, 36, "Remove the old separate Evade Clips app", true, "trash");
         }
         g.setFont(inter.deriveFont(11f));
         g.setColor(FAINT);
@@ -1837,9 +2547,10 @@ public final class LauncherView extends JPanel {
         g.setColor(new Color(4, 4, 6, 170));
         if (roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
-        boolean text = m.kind().equals("create") || m.kind().equals("rename");
+        boolean server = m.kind().equals("server");
+        boolean text = m.kind().equals("create") || m.kind().equals("rename") || server;
         boolean create = m.kind().equals("create");
-        int w = 440, h = text ? (create ? 346 : 256) : 200;
+        int w = 440, h = text ? (create || server ? 346 : 256) : 200;
         int x = (W - w) / 2, y = (H - h) / 2;
         card(g, x, y, w, h, true);
         int ix = x + 28, iw = w - 56;
@@ -1859,7 +2570,16 @@ public final class LauncherView extends JPanel {
             if (modalField.getText().isEmpty()) {
                 g.setFont(inter.deriveFont(13f));
                 g.setColor(FAINT);
-                g.drawString("PvP, Survival, Builds…", ix + 13, fy + 41);
+                g.drawString(server ? "Optional: shown under the icon" : "PvP, Survival, Builds…", ix + 13, fy + 41);
+            }
+            if (server) {
+                label(g, "ADDRESS", ix, fy + 84);
+                box(g, ix, fy + 94, iw, 40);
+                if (modalField2.getText().isEmpty()) {
+                    g.setFont(inter.deriveFont(13f));
+                    g.setColor(FAINT);
+                    g.drawString("play.example.net or 1.2.3.4:25565", ix + 13, fy + 119);
+                }
             }
             if (create) {
                 label(g, "COPY GAME SETTINGS FROM", ix, fy + 84);
@@ -2249,6 +2969,53 @@ public final class LauncherView extends JPanel {
                 q.draw(new Line2D.Double(-1.5, -1.5, -1.5, 4.5));
                 q.draw(new Line2D.Double(1.5, -1.5, 1.5, 4.5));
             }
+            case "clip" -> {
+                // a film frame with a record dot
+                q.draw(new RoundRectangle2D.Double(-8.5, -6.5, 17, 13, 3.5, 3.5));
+                q.fill(new Ellipse2D.Double(-3, -3, 6, 6));
+                q.draw(new Line2D.Double(-8.5, -2.5, -6, -2.5));
+                q.draw(new Line2D.Double(6, 2.5, 8.5, 2.5));
+            }
+            case "bell" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(-6.5, 4.5); p.lineTo(-6.5, -1.5); p.curveTo(-6.5, -6, -3.5, -8, 0, -8); p.curveTo(3.5, -8, 6.5, -6, 6.5, -1.5);
+                p.lineTo(6.5, 4.5); p.lineTo(8, 6); p.lineTo(-8, 6); p.closePath();
+                q.draw(p);
+                q.draw(new Line2D.Double(-2, 8.5, 2, 8.5));
+            }
+            case "globe" -> {
+                q.draw(new Ellipse2D.Double(-8, -8, 16, 16));
+                q.draw(new Ellipse2D.Double(-3.5, -8, 7, 16));
+                q.draw(new Line2D.Double(-8, 0, 8, 0));
+            }
+            case "book" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(0, -5); p.curveTo(-3, -7.5, -6, -7.5, -8.5, -6.5); p.lineTo(-8.5, 6.5); p.curveTo(-6, 5.5, -3, 5.5, 0, 7.5);
+                p.curveTo(3, 5.5, 6, 5.5, 8.5, 6.5); p.lineTo(8.5, -6.5); p.curveTo(6, -7.5, 3, -7.5, 0, -5); p.lineTo(0, 7.5);
+                q.draw(p);
+            }
+            case "list" -> {
+                for (int i = -1; i <= 1; i++) {
+                    q.fill(new Ellipse2D.Double(-8.5, i * 5.5 - 1.2, 2.4, 2.4));
+                    q.draw(new Line2D.Double(-3.5, i * 5.5, 8, i * 5.5));
+                }
+            }
+            case "chat" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(-8, -6); p.lineTo(8, -6); p.lineTo(8, 4); p.lineTo(-1, 4); p.lineTo(-5, 8); p.lineTo(-5, 4); p.lineTo(-8, 4); p.closePath();
+                q.draw(p);
+            }
+            case "video" -> {
+                q.draw(new RoundRectangle2D.Double(-8.5, -6, 17, 12, 4, 4));
+                Path2D p = new Path2D.Double();
+                p.moveTo(-2, -3); p.lineTo(3.5, 0); p.lineTo(-2, 3); p.closePath();
+                q.fill(p);
+            }
+            case "music" -> {
+                q.draw(new Line2D.Double(2, -8, 2, 4));
+                q.draw(new Line2D.Double(2, -8, 7, -5.5));
+                q.fill(new Ellipse2D.Double(-4.5, 1.5, 7, 6));
+            }
             case "folder" -> {
                 Path2D p = new Path2D.Double();
                 p.moveTo(-8, 6.5); p.lineTo(-8, -6.5); p.lineTo(-2.5, -6.5); p.lineTo(-0.5, -4); p.lineTo(8, -4); p.lineTo(8, 6.5); p.closePath();
@@ -2401,21 +3168,47 @@ public final class LauncherView extends JPanel {
     void closeOverlays() {
         popup = null;
         modal = null;
+        overlay = null;
+    }
+
+    /** Keeps scrolled lists inside their content (headless layout doesn't do it). */
+    private static void clampViewports(java.awt.Component c) {
+        if (c instanceof javax.swing.JViewport v && v.getView() != null) {
+            Point p = v.getViewPosition();
+            int maxY = Math.max(0, v.getView().getHeight() - v.getExtentSize().height);
+            if (p.y > maxY || p.y < 0) v.setViewPosition(new Point(0, Math.max(0, Math.min(p.y, maxY))));
+        }
+        if (c instanceof java.awt.Container k) for (java.awt.Component ch : k.getComponents()) clampViewports(ch);
+    }
+
+    /** Lays out a component tree without a window (screenshots run headless, where validate() does nothing). */
+    private static void layoutTree(java.awt.Component c) {
+        if (c instanceof java.awt.Container k) {
+            k.doLayout();
+            for (java.awt.Component ch : k.getComponents()) layoutTree(ch);
+        }
     }
 
     /** Renders the current state to an image (screenshots and tests). */
     BufferedImage snapshot(float scale) {
-        BufferedImage img = new BufferedImage(Math.round(W * scale), Math.round(H * scale), BufferedImage.TYPE_INT_ARGB);
+        int vw = Math.round(W * uiScale), vh = Math.round(H * uiScale);
+        BufferedImage img = new BufferedImage(Math.round(vw * scale), Math.round(vh * scale), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
         g.scale(scale, scale);
         g.setComposite(AlphaComposite.SrcOver);
-        setSize(W, H);
+        setSize(vw, vh);
         shownProgress = progress;
         for (float[] s : scroll.values()) s[1] = s[0];
         boolean was = roundCorners;
         roundCorners = true;
         // Lay the text fields out first (they're positioned while painting), then paint everything with them.
         paintComponent(img.createGraphics());
+        if (clipsHost != null && clipsHost.isVisible()) {
+            // twice: a scrolling list sizes itself from its width, which the first pass sets
+            layoutTree(clipsHost);
+            layoutTree(clipsHost);
+            clampViewports(clipsHost);
+        }
         paint(g);
         roundCorners = was;
         g.dispose();

@@ -38,11 +38,19 @@ public final class ClipsApp {
     /** Held for as long as this copy runs, so a second copy knows it isn't the first. */
     private static FileChannel instanceChannel;
     private static FileLock instanceLock;
+    /**
+     * Set when Evade Clips runs inside the Evade Launcher: location.json then names the launcher's own file (the .exe,
+     * or the jar; set explicitly so a just-updated copy running from a temporary folder records its real place), and
+     * a pending update left by the old separate app is dropped.
+     */
+    public static volatile boolean hosted;
+    public static volatile Path hostExe, hostJar;
+
     /** Written by a second copy that couldn't reach this one over the control port: "show your window". */
     static final String SHOW_REQUEST = "show.request";
 
     /** True if another Evade Clips answers on the control port; asks it to show its window unless minimized. */
-    static boolean alreadyRunning(int port, boolean minimized) {
+    public static boolean alreadyRunning(int port, boolean minimized) {
         try {
             var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofMillis(700)).build();
             var status = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/status"))
@@ -60,7 +68,7 @@ public final class ClipsApp {
      * Takes the single-instance lock ({@code appdir/instance.lock}). False if another copy holds it. A lock that
      * can't be taken for another reason (a read-only folder) doesn't stop the app.
      */
-    static boolean acquireInstanceLock() {
+    public static boolean acquireInstanceLock() {
         try {
             Path f = Settings.appDir().resolve("instance.lock");
             Files.createDirectories(f.getParent());
@@ -76,13 +84,13 @@ public final class ClipsApp {
     }
 
     /** Asks the copy that's already running to show its window, through a file it watches. */
-    static void requestShow() {
+    public static void requestShow() {
         try { Files.writeString(Settings.appDir().resolve(SHOW_REQUEST), String.valueOf(System.currentTimeMillis())); }
         catch (IOException ignored) {}
     }
 
     /** Brings the window forward whenever another copy asks for it (see {@link #requestShow()}). */
-    static void watchShowRequests(App app) {
+    public static void watchShowRequests(App app) {
         Path f = Settings.appDir().resolve(SHOW_REQUEST);
         try { Files.deleteIfExists(f); } catch (IOException ignored) {}
         Thread t = new Thread(() -> {
@@ -108,8 +116,8 @@ public final class ClipsApp {
      */
     public static void writeLocation(int port) {
         try {
-            String exe = System.getProperty("launch4j.exefile");
-            Path jar = Path.of(ClipsApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            String exe = hostExe != null ? hostExe.toString() : System.getProperty("launch4j.exefile");
+            Path jar = hostJar != null ? hostJar : Path.of(ClipsApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             String javaBin = Path.of(System.getProperty("java.home"), "bin", Ffmpeg.WINDOWS ? "javaw.exe" : "java").toString();
             var o = new com.google.gson.JsonObject();
             if (exe != null) o.addProperty("exe", exe);
@@ -118,7 +126,8 @@ public final class ClipsApp {
             o.addProperty("port", port);
             Path f = Settings.appDir().resolve("location.json");
             // Evade Installer leaves a newer build next to the running one; keep pointing at it while it's there.
-            try {
+            // (Not when the Evade Launcher hosts Clips: a leftover update of the old separate app must not be started.)
+            if (!hosted) try {
                 if (Files.exists(f)) {
                     var old = com.google.gson.JsonParser.parseString(Files.readString(f));
                     if (old.isJsonObject() && old.getAsJsonObject().has("pendingUpdate")) {
@@ -143,7 +152,7 @@ public final class ClipsApp {
      * Copies everything printed to the console into {@code appdir/logs/clips.log} (with the time on each line),
      * starting over in clips.1.log past 1 MB, so problems can be looked at after the fact.
      */
-    static void installLog() {
+    public static void installLog() {
         try {
             Path dir = Settings.appDir().resolve("logs");
             Files.createDirectories(dir);
@@ -220,7 +229,7 @@ public final class ClipsApp {
     // ------------------------------------------------------------------ first-run ffmpeg
 
     /** Offers to download ffmpeg (Windows, first run). Call on the UI thread. */
-    static void offerFfmpeg(App app, Window owner) {
+    public static void offerFfmpeg(App app, Window owner) {
         int ok = JOptionPane.showConfirmDialog(owner,
                 "Evade Clips records and edits video with ffmpeg, which isn't on this PC yet.\nDownload it now? (about 90 MB, one time)",
                 "Evade Clips", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
@@ -300,6 +309,29 @@ public final class ClipsApp {
 
     // ------------------------------------------------------------------ start
 
+    /**
+     * Everything but the window: the log file, location.json, the app (capture, library index) and its shutdown
+     * hook, and the encoder probe. Call after taking the single-instance lock; then build the UI and call
+     * {@code new Thread(app::start).start()}.
+     */
+    public static App startCore(Settings settings) {
+        installLog();
+        writeLocation(settings.controlPort);
+        App app = new App(settings);
+        Runtime.getRuntime().addShutdownHook(new Thread(app::shutdown, "shutdown"));
+        // Encoder tests take a few seconds: run them now, so the Record page has them by the time it's opened.
+        Thread probe = new Thread(() -> {
+            if (!Ffmpeg.available()) return;
+            Ffmpeg.captureEncoders("h264");
+            Ffmpeg.captureEncoders("hevc");
+        }, "encoder-probe");
+        probe.setDaemon(true);
+        probe.start();
+        // Just the index (no probing), so the library shows its clips as soon as the window opens.
+        app.library.loadIndex();
+        return app;
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length > 0 && args[0].equals("--selftest")) {
             System.exit(SelfTest.run(Path.of(args.length > 1 ? args[1] : "build/selftest")));
@@ -326,20 +358,7 @@ public final class ClipsApp {
         }
         // An older version (without the lock) may still be running.
         if (alreadyRunning(settings.controlPort, minimized)) System.exit(0);
-        installLog();
-        writeLocation(settings.controlPort);
-        App app = new App(settings);
-        Runtime.getRuntime().addShutdownHook(new Thread(app::shutdown, "shutdown"));
-        // Encoder tests take a few seconds: run them now, so the Record page has them by the time it's opened.
-        Thread probe = new Thread(() -> {
-            if (!Ffmpeg.available()) return;
-            Ffmpeg.captureEncoders("h264");
-            Ffmpeg.captureEncoders("hevc");
-        }, "encoder-probe");
-        probe.setDaemon(true);
-        probe.start();
-        // Just the index (no probing), so the library shows its clips as soon as the window opens.
-        app.library.loadIndex();
+        App app = startCore(settings);
         MainWindow[] window = new MainWindow[1];
         SwingUtilities.invokeAndWait(() -> {
             Theme.install();

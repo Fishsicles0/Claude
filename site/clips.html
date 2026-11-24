@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evade Clips · Evade Client</title>
-<meta name="description" content="Evade Clips records, stores and edits your Minecraft gameplay. It works with Evade Client: instant replay with near-zero FPS cost, auto-clips on kills and wins, voice commands, a full editor and share links that play in Discord. Free, installed with Evade Client.">
+<meta name="description" content="Evade Clips records, stores and edits your Minecraft gameplay. It works with Evade Client: instant replay with near-zero FPS cost, auto-clips on kills and wins, voice commands, a full editor and share links that play in Discord. Free, built into the Evade Launcher.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/clips">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Evade Clips · Evade Client">
-<meta property="og:description" content="Evade Clips records, stores and edits your Minecraft gameplay. It works with Evade Client: instant replay with near-zero FPS cost, auto-clips on kills and wins, voice commands, a full editor and share links that play in Discord. Free, installed with Evade Client.">
+<meta property="og:description" content="Evade Clips records, stores and edits your Minecraft gameplay. It works with Evade Client: instant replay with near-zero FPS cost, auto-clips on kills and wins, voice commands, a full editor and share links that play in Discord. Free, built into the Evade Launcher.">
 <meta property="og:url" content="https://evadeclient.com/clips">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=8ef32a6d55">
+<link rel="stylesheet" href="/assets/site.css?v=f23c3beb2b">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="clips">
@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.0.1</span>
+      <span class="nav-ver">v2.1.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -69,15 +69,15 @@
 <header class="page-hero wrap">
   <div class="eyebrow rv">Evade Clips &middot; v1.1.0</div>
   <h1 class="rv d1">Clip it. Edit it. <span class="red">Share it.</span></h1>
-  <p class="rv d2">The companion app to Evade Client: Evade Clips works with Minecraft running Evade Client. It keeps your last moments ready to save at a key press, a voice command, or automatically when something happens in game. Then you can edit and share them without leaving the app. Free, with no watermark and no ads.</p>
+  <p class="rv d2">Built into the Evade Launcher: Evade Clips works with Minecraft running Evade Client. It keeps your last moments ready to save at a key press, a voice command, or automatically when something happens in game. Then you can edit and share them without leaving the app. Free, with no watermark and no ads.</p>
   <div class="cta rv d3">
-    <a class="btn btn-red btn-lg" href="/downloads/Evade-Clips.exe?v=98101a2a8c" download>
+    <a class="btn btn-red btn-lg" href="/downloads/Evade-Installer.exe?v=fe9450616e" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-      Download for Windows</a>
-    <a class="btn btn-ghost btn-lg" href="/downloads/EvadeClips.jar?v=460a83324d" download>macOS / Linux (.jar)</a>
+      Get the Evade Launcher</a>
+    <a class="btn btn-ghost btn-lg" href="/download">macOS / Linux</a>
     <a class="btn btn-ghost btn-lg" href="https://clips.evadeclient.com">Open clips.evadeclient.com &rarr;</a>
   </div>
-  <p class="cta-meta rv d3">Evade-Clips.exe &middot; 3598 KB &middot; EvadeClips.jar &middot; 3486 KB<br>Windows: nothing else to install. It uses the Java that comes with the Minecraft Launcher and offers to download ffmpeg on first launch. macOS/Linux: Java 17+ and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager). Evade Clips records Minecraft with Evade Client: the <a href="/download" class="link-inline">Evade Installer</a> sets up both (ffmpeg included on Windows).</p>
+  <p class="cta-meta rv d3">Evade Clips is the Clips section of the Evade Launcher: one download for the client and Clips. Close the launcher and it keeps instant replay running in the tray. Windows: nothing else to install (ffmpeg is fetched with Evade Client). macOS/Linux: Java 17+ and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager).<br>Already have the separate app? The launcher takes over its clips and settings. The standalone <a href="/downloads/Evade-Clips.exe?v=2b04668829" class="link-inline" download>Evade-Clips.exe</a> (3601 KB) and <a href="/downloads/EvadeClips.jar?v=20cb689830" class="link-inline" download>EvadeClips.jar</a> (3489 KB) stay available for now.</p>
 </header>
 
 <section class="wrap">
@@ -143,11 +143,11 @@
   <div class="sec-head rv">
     <div class="eyebrow">With Evade Client</div>
     <h2>Clip in game. Edit in Evade Clips.</h2>
-    <p>Install Evade Client with the installer and Evade Clips comes with it.</p>
+    <p>Evade Clips is part of the Evade Launcher, so it's there as soon as Evade Client is.</p>
   </div>
   <div class="steps">
-    <div class="card step rv"><h4>Install once</h4><p>The <a href="/download" class="link-inline">Evade Installer</a> sets up the client and Evade Clips together.</p></div>
-    <div class="card step rv d1"><h4>Play</h4><p>Evade Clips starts with Minecraft, so instant replay is running before your first fight.</p></div>
+    <div class="card step rv"><h4>Install once</h4><p>The <a href="/download" class="link-inline">Evade Launcher</a> installs the client; Clips is built in.</p></div>
+    <div class="card step rv d1"><h4>Play</h4><p>Evade Client starts the launcher in the tray with Minecraft, so instant replay is running before your first fight.</p></div>
     <div class="card step rv d2"><h4>Clip</h4><p>Your key, <span class="mono">.clips save</span>, or automatic: kills, pops, wins and advancements. You'll see a pop-up in game.</p></div>
     <div class="card step rv d3"><h4>Edit &amp; share</h4><p><span class="mono">.clips last</span> opens your newest clip in the editor. One click gives you a link for Discord.</p></div>
   </div>
@@ -177,11 +177,11 @@
     <h2>Start <span class="red">clipping</span>.</h2>
     <p>Free. No account needed to record or edit.</p>
     <div class="cta">
-      <a class="btn btn-red btn-lg" href="/downloads/Evade-Clips.exe?v=98101a2a8c" download>
+      <a class="btn btn-red btn-lg" href="/downloads/Evade-Installer.exe?v=fe9450616e" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
-        Download Evade Clips</a>
+        Get the Evade Launcher</a>
       <a class="btn btn-ghost btn-lg" href="https://clips.evadeclient.com">clips.evadeclient.com</a>
-      <a class="btn btn-ghost btn-lg" href="/download">Evade Client + Clips installer</a>
+      <a class="btn btn-ghost btn-lg" href="/download">All downloads</a>
     </div>
   </div>
 </div>
@@ -197,11 +197,11 @@
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=98101a2a8c">Download</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=2b04668829">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.0.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.1.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>

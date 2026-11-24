@@ -93,8 +93,6 @@ public final class InstallerCore {
     /** Groups of extra mods, recorded per file in the install marker. */
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
 
-    /** Reported when Evade Clips is open and its app file can't be replaced. */
-    public static final String CLIPS_BUSY = "Evade Clips couldn't be updated (it may be running). Close it from the tray and run the installer again.";
 
     public interface Progress {
         void update(double fraction, String message);
@@ -187,10 +185,6 @@ public final class InstallerCore {
     /** An extra mod to install, and the option ("perf", "voice", "shaders") it comes from. */
     private record Extra(ModFile file, String group) {}
 
-    /** Evade Clips is running, so its new version was left next to it (see {@link #CLIPS_BUSY}). */
-    static final class ClipsBusyException extends IOException {
-        ClipsBusyException(Throwable cause) { super(CLIPS_BUSY, cause); }
-    }
 
     static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private final HttpClient http = HttpClient.newBuilder()
@@ -414,127 +408,36 @@ public final class InstallerCore {
         return clipsDataDir().resolve("app");
     }
 
+    /** True when ffmpeg is already where the built-in Evade Clips looks (its data folder or the old separate app's). */
+    static boolean ffmpegPresent() {
+        String exe = WINDOWS ? "ffmpeg.exe" : "ffmpeg";
+        for (Path d : new Path[]{clipsDataDir().resolve("ffmpeg").resolve("bin"), clipsDataDir().resolve("ffmpeg"),
+                clipsAppDir().resolve("ffmpeg").resolve("bin"), clipsAppDir().resolve("ffmpeg")})
+            if (Files.isRegularFile(d.resolve(exe))) return true;
+        return false;
+    }
+
     /**
-     * Installs Evade Clips: the app, ffmpeg (Windows, if not already there), a Start Menu / app-menu entry, start
-     * at login (in the tray), and the location file Evade Client reads to start it with Minecraft.
-     *
-     * <p>The new app is downloaded next to the old one (".new") and then swapped in. While Evade Clips runs, Windows
-     * keeps its .exe locked: the new copy then stays as "Evade-Clips.exe.new", location.json records it as
-     * {@code pendingUpdate} so it can be swapped in before the next start, and this throws {@link ClipsBusyException}.
+     * Evade Clips is built into the launcher now, so installing it only means getting ffmpeg (Windows; it records
+     * and edits the video) into Clips' data folder, where the app finds it. Skipped when it's already there. A failed
+     * or stalled download is reported but harmless: Clips offers the download itself when it's opened.
      */
-    void installClips(Release r, Progress p) throws Exception {
-        Path app = clipsAppDir();
-        Files.createDirectories(app);
-        boolean exe = r.clipsUrl().replaceFirst("[?#].*$", "").toLowerCase(Locale.ROOT).endsWith(".exe");
-        Path standard = app.resolve(exe ? "Evade-Clips.exe" : "EvadeClips.jar");
-        Path target = standard;
-        Path fresh = app.resolve(target.getFileName() + ".new");
-        p.update(0.84, "Downloading Evade Clips " + r.clipsVersion());
-        download(r.clipsUrl(), fresh, r.clipsSha256(), "SHA-256", 0.84, 0.94, p);
-
-        // Old copies set aside by an earlier update (once nothing is running them any more).
-        try (var old = Files.list(app)) {
-            old.filter(f -> f.getFileName().toString().startsWith(standard.getFileName() + ".old"))
-               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
-        } catch (IOException ignored) { }
-        FileSystemException busy = null;
-        boolean reopen = false;
+    void ensureFfmpeg(Release r, Progress p) throws Exception {
+        if (!WINDOWS || r.ffmpegUrl() == null || ffmpegPresent()) return;
+        Path bin = clipsDataDir().resolve("ffmpeg").resolve("bin");
+        Files.createDirectories(bin);
+        Path zip = bin.resolveSibling("ffmpeg-download.zip");
         try {
-            try {
-                move(fresh, target);
-            } catch (FileSystemException first) {
-                // Evade Clips is open (often only in the tray) and Windows keeps its file locked: close it and retry.
-                if (!WINDOWS) throw first;
-                // Never in the middle of a full recording: then the running copy is set aside below instead, and the
-                // recording carries on; the new version is used from the next start.
-                if (clipsRecording(CLIPS_PORT)) throw first;
-                p.update(0.945, "Closing Evade Clips to update it");
-                // Asked first, so it saves and shuts down cleanly; whatever is still running is then closed.
-                askClipsToQuit(CLIPS_PORT, target);
-                closeRunningClips(target);
-                move(fresh, target);
-                reopen = true;
+            p.update(0.9, "Downloading ffmpeg for Evade Clips (records and edits video)");
+            String expected = null;
+            if (r.ffmpegShaUrl() != null) {
+                HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
+                if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
             }
-        } catch (FileSystemException e) {
-            // Evade Clips is open (often just in the tray). Windows won't let a running program be replaced, but it
-            // can be renamed: set it aside and put the new one in its place; it's used from the next start.
-            try {
-                Path aside = app.resolve(target.getFileName() + ".old-" + System.currentTimeMillis());
-                Files.move(target, aside);
-                move(fresh, target);
-            } catch (IOException e2) {
-                // Still locked: install the new build under its own name beside the running one and point Evade
-                // Client and the shortcuts at it. Nothing has to be replaced, so no lock can stop the update.
-                String name = exe ? "Evade-Clips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".exe"
-                        : "EvadeClips-" + safeName(String.valueOf(r.clipsVersion())) + "-" + System.currentTimeMillis() + ".jar";
-                try {
-                    Path side = app.resolve(name);
-                    move(fresh, side);
-                    target = side;
-                } catch (IOException e3) {
-                    busy = e;
-                }
-            }
-        }
-        // Earlier side-by-side builds that nothing runs any more (a running one stays until next time).
-        final Path current = target;
-        try (var old = Files.list(app)) {
-            String prefix = exe ? "Evade-Clips-" : "EvadeClips-";
-            old.filter(f -> f.getFileName().toString().startsWith(prefix) && !f.equals(current))
-               .forEach(f -> { try { Files.deleteIfExists(f); } catch (IOException ignored) { /* still running */ } });
-        } catch (IOException ignored) { }
-
-        // Where Evade Client finds the app to start it with Minecraft. Other fields (written by the app) are kept.
-        Path locFile = clipsDataDir().resolve("location.json");
-        JsonObject loc = readJsonObject(locFile);
-        if (exe) loc.addProperty("exe", target.toString());
-        else {
-            loc.remove("exe");
-            loc.addProperty("jar", target.toString());
-            loc.addProperty("java", Paths.get(System.getProperty("java.home"), "bin", "java").toString());
-        }
-        if (busy != null) loc.addProperty("pendingUpdate", fresh.toString());
-        else loc.remove("pendingUpdate");
-        Files.createDirectories(clipsDataDir());
-        writeAtomic(locFile, GSON.toJson(loc));
-        if (busy != null) {
-            // Keep the exact reason for support: %APPDATA%\\EvadeClips\\installer-error.log (or ~/.evade-clips).
-            try {
-                java.io.StringWriter sw = new java.io.StringWriter();
-                busy.printStackTrace(new java.io.PrintWriter(sw));
-                Files.writeString(clipsDataDir().resolve("installer-error.log"), java.time.Instant.now() + "\n" + sw);
-            } catch (Exception ignored) { }
-            throw new ClipsBusyException(busy);
-        }
-
-        p.update(0.955, "Adding Evade Clips to your apps");
-        try { shortcuts(target, exe); } catch (Exception e) { System.err.println("Shortcut creation skipped: " + e.getMessage()); }
-        if (reopen) {
-            // back in the tray where it was, now updated
-            try { new ProcessBuilder(target.toString(), "--minimized").directory(app.toFile()).start(); }
-            catch (Exception e) { System.err.println("Couldn't reopen Evade Clips: " + e.getMessage()); }
-        }
-
-        // ffmpeg last: it's big (about 100 MB) and its host can be slow, so it never blocks the rest of the install.
-        // If it fails or stalls, Evade Clips downloads it itself the first time it opens.
-        if (r.ffmpegUrl() != null && !Files.exists(app.resolve("ffmpeg").resolve("bin").resolve("ffmpeg.exe"))) {
-            Path zip = app.resolve("ffmpeg-download.zip");
-            try {
-                p.update(0.965, "Downloading ffmpeg (records and edits video)");
-                String expected = null;
-                if (r.ffmpegShaUrl() != null) {
-                    HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
-                    if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
-                }
-                download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.965, 0.995, p, "Downloading ffmpeg");
-                unzipFfmpeg(zip, app.resolve("ffmpeg").resolve("bin"));
-            } catch (InterruptedException e) {
-                throw e;
-            } catch (Exception e) {
-                p.update(0.995, "ffmpeg didn't finish downloading. Evade Clips will get it when you open it.");
-            } finally {
-                try { Files.deleteIfExists(zip); Files.deleteIfExists(zip.resolveSibling(zip.getFileName() + ".part")); } catch (Exception ignored) {}
-            }
+            download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.9, 0.96, p, "Downloading ffmpeg");
+            unzipFfmpeg(zip, bin);
+        } finally {
+            try { Files.deleteIfExists(zip); Files.deleteIfExists(zip.resolveSibling(zip.getFileName() + ".part")); } catch (Exception ignored) {}
         }
     }
 
@@ -554,37 +457,6 @@ public final class InstallerCore {
             }
         }
         if (found < 2) throw new IOException("The ffmpeg download didn't contain ffmpeg.exe and ffprobe.exe");
-    }
-
-    /** Start Menu + login (Windows), or app menu + autostart entries (Linux). */
-    private static void shortcuts(Path target, boolean exe) throws Exception {
-        if (WINDOWS) {
-            String appData = System.getenv("APPDATA");
-            if (appData == null) return;
-            Path programs = Paths.get(appData, "Microsoft", "Windows", "Start Menu", "Programs");
-            Path startup = programs.resolve("Startup");
-            String ps = "$w=New-Object -ComObject WScript.Shell;"
-                    + lnk(programs.resolve("Evade Clips.lnk"), target, "")
-                    + lnk(startup.resolve("Evade Clips.lnk"), target, "--minimized");
-            Process pr = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", ps).redirectErrorStream(true).start();
-            pr.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
-            pr.waitFor();
-        } else if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
-            String java = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-            String cmd = "\"" + java + "\" -jar \"" + target + "\"";
-            String home = System.getProperty("user.home");
-            Path apps = Paths.get(home, ".local", "share", "applications"), auto = Paths.get(home, ".config", "autostart");
-            Files.createDirectories(apps);
-            Files.createDirectories(auto);
-            String entry = "[Desktop Entry]\nType=Application\nName=Evade Clips\nComment=Record, store and edit gameplay clips\nTerminal=false\nCategories=AudioVideo;Game;\n";
-            Files.writeString(apps.resolve("evade-clips.desktop"), entry + "Exec=" + cmd + "\n");
-            Files.writeString(auto.resolve("evade-clips.desktop"), entry + "Exec=" + cmd + " --minimized\n");
-        }
-    }
-
-    private static String lnk(Path at, Path target, String args) {
-        return "$s=$w.CreateShortcut('" + at.toString().replace("'", "''") + "');$s.TargetPath='" + target.toString().replace("'", "''")
-                + "';$s.Arguments='" + args + "';$s.WorkingDirectory='" + target.getParent().toString().replace("'", "''") + "';$s.Save();";
     }
 
     /**
@@ -647,22 +519,16 @@ public final class InstallerCore {
                 }
             }
 
-            // 5. Evade Clips: clipping in the client sends clips here. Optional: a failure is reported, not fatal.
+            // 5. Evade Clips is built into the launcher: it only needs ffmpeg (Windows). Optional: reported, not fatal.
             String clips = prev != null ? str(prev, "clips") : null;
             if (o.installClips()) {
-                if (r.clipsUrl() == null) skipped.add("Evade Clips isn't available right now");
-                else {
-                    try {
-                        installClips(r, p);
-                        clips = r.clipsVersion();
-                    } catch (InterruptedException e) {
-                        throw e;
-                    } catch (ClipsBusyException e) {
-                        skipped.add(CLIPS_BUSY);
-                    } catch (Exception e) {
-                        System.err.println("Evade Clips: " + e.getMessage());
-                        skipped.add("Evade Clips couldn't be " + (e instanceof FileSystemException ? "installed" : "downloaded"));
-                    }
+                try {
+                    ensureFfmpeg(r, p);
+                } catch (InterruptedException e) {
+                    throw e;
+                } catch (Exception e) {
+                    System.err.println("ffmpeg: " + e.getMessage());
+                    skipped.add("ffmpeg for Evade Clips (Clips downloads it when you open it)");
                 }
             }
 
@@ -1055,40 +921,6 @@ public final class InstallerCore {
         return plus > 0 ? v.substring(0, plus) : v;
     }
 
-    /** The Evade Clips app recorded in location.json, if it's still there. */
-    static Path clipsInstalledApp() {
-        JsonObject loc = readJsonObject(clipsDataDir().resolve("location.json"));
-        for (String k : new String[]{"exe", "jar"}) {
-            String v = str(loc, k);
-            if (v == null) continue;
-            try {
-                Path p = Paths.get(v);
-                if (Files.isRegularFile(p)) return p;
-            } catch (RuntimeException ignored) { }
-        }
-        return null;
-    }
-
-    /** Starts the installed Evade Clips app. False when it isn't installed or couldn't start. */
-    static boolean openClips() {
-        Path app = clipsInstalledApp();
-        if (app == null) return false;
-        try {
-            List<String> cmd = new ArrayList<>();
-            if (lower(app.getFileName().toString()).endsWith(".exe")) cmd.add(app.toString());
-            else {
-                String java = str(readJsonObject(clipsDataDir().resolve("location.json")), "java");
-                if (java == null || !Files.exists(Paths.get(java))) java = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-                cmd.addAll(List.of(java, "-jar", app.toString()));
-            }
-            new ProcessBuilder(cmd).directory(app.getParent().toFile()).redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     /** The known extra mod (see {@link #KNOWN}) that a lowercase jar name belongs to, or null. */
     private static String[] knownOwner(String lowerName) {
         String[] best = null;
@@ -1341,39 +1173,6 @@ public final class InstallerCore {
      * Windows: closes a running Evade Clips so its file can be replaced. Asks politely first (like closing the
      * window), then ends it and the Java it started. Waits until the file is free, at most about 8 seconds.
      */
-    /** Evade Clips' local control port (where Evade Client and the installer talk to it). */
-    static final int CLIPS_PORT = 47821;
-
-    /** Whether a running Evade Clips says it's in the middle of a full recording (false when it doesn't answer). */
-    boolean clipsRecording(int port) {
-        try {
-            HttpResponse<String> st = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/status"))
-                    .timeout(java.time.Duration.ofSeconds(2)).GET().build(), HttpResponse.BodyHandlers.ofString());
-            return st.statusCode() == 200 && st.body().replace(" ", "").contains("\"recording\":true");
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Asks a running Evade Clips to quit (it saves and shuts down cleanly) and waits up to 10 s for {@code exe} to be
-     * free. Versions without /quit, or one that doesn't answer, are left to {@link #closeRunningClips}.
-     */
-    boolean askClipsToQuit(int port, Path exe) {
-        try {
-            HttpResponse<String> q = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/quit?client=installer"))
-                    .timeout(java.time.Duration.ofSeconds(3)).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
-            if (q.statusCode() != 200) return false;
-            for (int i = 0; i < 40 && locked(exe); i++) Thread.sleep(250);
-            return !locked(exe);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     static void closeRunningClips(Path exe) {
         String image = exe.getFileName().toString();
         // Evade-Clips.exe only starts Java (javaw.exe) and exits; that Java keeps the .exe open. So match every
@@ -1512,6 +1311,12 @@ public final class InstallerCore {
 
     static void writeAtomic(Path file, String content) throws IOException {
         writeAtomic(file, content, StandardCharsets.UTF_8);
+    }
+
+    static void writeAtomic(Path file, byte[] content) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.write(tmp, content);
+        move(tmp, file);
     }
 
     private static void writeAtomic(Path file, String content, java.nio.charset.Charset cs) throws IOException {

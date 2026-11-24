@@ -53,6 +53,18 @@ public final class Ffmpeg {
 
     private static String exe(String name) { return WINDOWS ? name + ".exe" : name; }
 
+    private static final List<Path> extraDirs = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Another folder to look for ffmpeg in (before the PATH), e.g. the folder of an older separate Evade Clips
+     * install when Clips runs inside the Evade Launcher.
+     */
+    public static synchronized void addSearchDir(Path dir) {
+        if (dir == null || extraDirs.contains(dir)) return;
+        extraDirs.add(dir);
+        if (ffmpeg == null) ffprobe = null; // looked up again next time
+    }
+
     /** Path to ffmpeg, or null when none can be found. */
     private static String queueCheckedFor;
     private static boolean inputQueue;
@@ -116,6 +128,7 @@ public final class Ffmpeg {
                 own.add(Settings.appDir().resolve("ffmpeg").resolve(exe(name)));
                 own.add(Settings.appDir().resolve("ffmpeg").resolve("bin").resolve(exe(name)));
             } catch (RuntimeException ignored) {}
+            for (Path d : extraDirs) { own.add(d.resolve(exe(name))); own.add(d.resolve("bin").resolve(exe(name))); }
             for (Path c : own) if (runnable(c)) return c.toString();
 
             String path = System.getenv("PATH");

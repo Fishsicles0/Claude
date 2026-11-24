@@ -43,6 +43,7 @@ nav: servers
 
       <div class="doc-sec rv" id="owners">
         <h2>For server owners</h2>
+        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
         <p>You can switch off any Evade mod for players on your server. Send a plugin message on the channel <span class="mono">evade:rules</span> after a player joins, with a UTF-8 JSON body:</p>
         <pre class="code">{"disable": ["Freelook", "Minimap", "Fullbright"]}</pre>
         <p>Use the mod names exactly as they appear in Evade's menu (case doesn't matter). Evade turns those mods off straight away, stops players turning them back on while they're connected, and shows <b>Disabled by this server</b> on them. Send the message again to change the list, or <span class="mono">{"disable": []}</span> to allow everything. Nothing carries over to other servers.</p>

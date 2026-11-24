@@ -1,6 +1,7 @@
 package net.evadeclient.installer;
 
 import javax.imageio.ImageIO;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -52,12 +53,29 @@ final class Screenshots {
         builds.shaders = true;
         v.instances = new ArrayList<>(List.of(main, pvp, builds));
         v.settings.selected = "default";
-        v.clipsPresent = true;
-        v.clipsVersion = "1.4.0";
+        sampleHome(v);
         save(v, out, "04-home");
+        v.settings.sidebarCollapsed = true;
+        save(v, out, "04b-home-collapsed");
+        v.settings.sidebarCollapsed = false;
+        v.overlay = "server:1";
+        save(v, out, "04c-home-server-card");
+        v.overlay = "bell";
+        save(v, out, "04d-home-notifications");
+        v.overlay = null;
+        v.unread = 0;
+        v.openServerModal(-1);
+        v.modalField.setText("Practice");
+        v.modalField2.setText("practice.example.net");
+        save(v, out, "04e-home-add-server");
+        v.closeOverlays();
+        v.nextSlide(1);
+        v.nextSlide(1);
+        v.nextSlide(1);
+        save(v, out, "04f-home-slide-clips");
+        v.nextSlide(1);
 
         v.settings.selected = "pvp";
-        v.clipsVersion = "1.3.2";
         save(v, out, "05-home-update");
         v.play = LauncherView.Play.UPDATING;
         v.playName = "PvP";
@@ -73,7 +91,6 @@ final class Screenshots {
         save(v, out, "09-home-error");
         v.play = LauncherView.Play.IDLE;
         v.settings.selected = "default";
-        v.clipsVersion = "1.4.0";
 
         // ---- instances
         v.page = LauncherView.Page.INSTANCES;
@@ -106,11 +123,130 @@ final class Screenshots {
 
         // ---- settings
         v.page = LauncherView.Page.SETTINGS;
+        v.legacyClips = true;
         save(v, out, "15-settings");
+        v.legacyClips = false;
+
+        // ---- small screens: 1366×768 at 125% (about 1092×582 usable) and a 1280×720 laptop with a taskbar
+        v.page = LauncherView.Page.HOME;
+        v.setUiScale(LauncherView.fitScale(1092, 582));
+        save(v, out, "21-small-1366x768-125pct");
+        v.setUiScale(LauncherView.fitScale(1280, 680));
+        save(v, out, "22-small-1280x720");
+        v.page = LauncherView.Page.INSTANCES;
+        v.setUiScale(LauncherView.fitScale(1092, 582));
+        save(v, out, "23-small-instances");
+        v.setUiScale(1f);
+        v.page = LauncherView.Page.SETTINGS;
+
+        // ---- clips (the real Clips pages, with the self-test's sample library when it's there)
+        clipsPages(v, out);
         v.page = LauncherView.Page.HOME;
         v.openPopupFor("home-switch");
         save(v, out, "16-home-switch-instance");
         v.closeOverlays();
+    }
+
+    /** Sample player, servers (with drawn icons, no real server art), notices and a Clips stand-in for Home. */
+    private static void sampleHome(LauncherView v) throws Exception {
+        long t0 = System.currentTimeMillis();
+        while (v.heroImages.size() < 6 && System.currentTimeMillis() - t0 < 5000) Thread.sleep(50);
+        v.playerName = "Player";
+        v.settings.servers.clear();
+        String[][] servers = {{"Evade Practice", "practice.example.net", "1834", "4000", "41"}, {"Skyblock", "sky.example.org", "612", "1000", "63"},
+                {"Friends SMP", "smp.example.com:25570", "4", "20", "18"}, {"Build Comp", "build.example.net", null, null, null}};
+        int[] colors = {0xE11D2E, 0x3D8BFF, 0x3DDC84, 0xF5A524};
+        for (int i = 0; i < servers.length; i++) {
+            String[] sv = servers[i];
+            v.settings.servers.add(new Launcher.Server(sv[0], sv[1]));
+            String k = ServersDat.key(sv[1]);
+            if (sv[2] != null) {
+                v.serverStatus.put(k, new ServerPing.Status(i == 0 ? "Evade Practice · duels, FFA and parkour" : i == 1 ? "Season 4 is live: new islands" : "Just us. Be nice.",
+                        Integer.parseInt(sv[2]), Integer.parseInt(sv[3]), "1.21.11", null, Long.parseLong(sv[4])));
+                v.serverIcons.put(k, icon(colors[i], i));
+            } else v.serverDown.add(k);
+        }
+        long now = System.currentTimeMillis();
+        v.notices.add(new LauncherView.Notice("Clip saved", "1v3 clutch at mid · 0:30", now - 4 * 60_000, false));
+        v.notices.add(new LauncherView.Notice("Update ready for PvP", "Evade Client v2.0.1 is out. Press Play to update.", now - 26 * 60_000, false));
+        v.notices.add(new LauncherView.Notice("Evade Clips is built in now", "The separate Evade Clips app isn't needed any more.", now - 3 * 3_600_000, false));
+        v.unread = 2;
+        v.clipsNote = "Instant replay, the clip library and the editor run inside the launcher.";
+    }
+
+    /** A simple 64×64 server icon: a coloured tile with a pixel letter shape (made here, no real server art). */
+    private static java.awt.image.BufferedImage icon(int rgb, int kind) {
+        var img = new java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        var g = img.createGraphics();
+        java.awt.Color c = new java.awt.Color(rgb);
+        g.setPaint(new java.awt.GradientPaint(0, 0, c, 64, 64, c.darker().darker()));
+        g.fillRect(0, 0, 64, 64);
+        g.setColor(new java.awt.Color(255, 255, 255, 230));
+        int[][] shapes = {
+                {0b111110, 0b100000, 0b111100, 0b100000, 0b111110},
+                {0b011110, 0b100000, 0b011100, 0b000010, 0b111100},
+                {0b111110, 0b100000, 0b111100, 0b100000, 0b100000},
+                {0b111100, 0b100010, 0b111100, 0b100010, 0b111100}};
+        int[] sh = shapes[kind % shapes.length];
+        for (int r = 0; r < 5; r++) for (int col = 0; col < 6; col++)
+            if ((sh[r] >> (5 - col) & 1) == 1) g.fillRect(14 + col * 6, 17 + r * 6, 6, 6);
+        g.dispose();
+        return img;
+    }
+
+    /** The Clips section with the real Clips pages (headless: laid out by hand). */
+    private static void clipsPages(LauncherView v, Path out) {
+        try {
+            Path data = Path.of(System.getProperty("clips.shots.data", "clips/build/selftest"));
+            net.evadeclient.clips.core.Settings.overrideAppDir(out.resolve("clips-appdata").toAbsolutePath());
+            net.evadeclient.clips.core.Settings s = new net.evadeclient.clips.core.Settings();
+            s.clipsFolder = (Files.isDirectory(data.resolve("clips")) ? data.resolve("clips") : out.resolve("clips-sample")).toAbsolutePath().toString();
+            s.source = "test";
+            s.playSound = false;
+            s.showToast = false;
+            s.controlServer = false;
+            net.evadeclient.clips.ui.Theme.install();
+            var app = new net.evadeclient.clips.ui.App(s);
+            app.library.load();
+            int n = 0;
+            String[] names = {"1v3 clutch at mid", "Crystal PvP final", "Bridge fight", "Pearl escape", "Totem pop chain", "Montage draft"};
+            for (var c : app.library.query("", "all", null, "newest")) if (n < names.length && c.kind != net.evadeclient.clips.core.Clip.Kind.EXPORT) c.title = names[n++];
+            v.clips = app;
+            v.clipsNote = null;
+            var pages = new net.evadeclient.clips.ui.ClipsPages(app);
+            pages.onPageChanged(p -> v.clipsPage = p);
+            v.clipsHost = pages;
+            v.add(pages);
+            v.page = LauncherView.Page.CLIPS;
+            Thread.sleep(1500); // thumbnails
+            saveEdt(v, out, "17-clips-library");
+            javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("record"));
+            saveEdt(v, out, "18-clips-record");
+            javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("settings"));
+            saveEdt(v, out, "19-clips-settings");
+            v.page = LauncherView.Page.HOME;
+            saveEdt(v, out, "20-home-with-clips");
+            v.page = LauncherView.Page.CLIPS;
+            javax.swing.SwingUtilities.invokeAndWait(() -> pages.show("library"));
+            v.setUiScale(LauncherView.fitScale(1092, 582));
+            saveEdt(v, out, "24-small-clips-library");
+            v.setUiScale(1f);
+            app.shutdown();
+        } catch (Throwable e) {
+            System.err.println("Clips pages not rendered: " + e);
+            e.printStackTrace();
+        }
+    }
+
+    /** Like {@link #save}, on the UI thread, letting the Clips pages' background work (thumbnails) land between passes. */
+    private static void saveEdt(LauncherView v, Path dir, String name) throws Exception {
+        for (int i = 0; i < 6; i++) {
+            javax.swing.SwingUtilities.invokeAndWait(() -> v.snapshot(1f));
+            Thread.sleep(250);
+        }
+        java.awt.image.BufferedImage[] img = new java.awt.image.BufferedImage[1];
+        javax.swing.SwingUtilities.invokeAndWait(() -> { v.snapshot(2f); img[0] = v.snapshot(2f); });
+        ImageIO.write(img[0], "png", dir.resolve(name + ".png").toFile());
     }
 
     private static Launcher.Instance instance(String id, Path dir, String name, InstallerCore.Installed installed, int mem, int mods) {

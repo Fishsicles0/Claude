@@ -11,6 +11,8 @@ repositories { mavenCentral() }
 
 dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
+    // Evade Clips is built in: one jar/exe runs the launcher and the clip recorder (tray, control server, editor).
+    implementation project(':clips')
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
@@ -21,7 +23,7 @@ tasks.withType(JavaCompile).configureEach { options.release = 17; options.encodi
 sourceSets { boot { java { srcDir 'src/boot/java' } } }
 tasks.named('compileBootJava') { options.release = 8; options.compilerArgs += ['-Xlint:-options'] }
 
-// Single self-contained jar: Gson is bundled so it runs with just `java -jar`.
+// Single self-contained jar: Gson and Evade Clips (with FlatLaf, JNativeHook, ZXing) are bundled so it runs with just `java -jar`.
 tasks.named('jar') {
     archiveFileName = 'EvadeInstaller.jar'
     from sourceSets.boot.output
