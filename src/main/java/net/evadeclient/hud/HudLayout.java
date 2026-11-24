@@ -164,26 +164,39 @@ public final class HudLayout {
         if (text == null || text.isBlank()) return new ImportResult(0, "Nothing to paste: copy a HUD code first");
         int at = text.indexOf(CODE_PREFIX);
         if (at < 0) return new ImportResult(0, "Not a HUD code");
-        StringBuilder payload = new StringBuilder();
+        // Chat apps break long codes over lines and people paste words around them: the code is the run of
+        // base64 pieces after the prefix. Try all of them joined, then fewer, until one decodes.
+        List<String> pieces = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        int total = 0;
         for (int i = at + CODE_PREFIX.length(); i < text.length(); i++) {
             char c = text.charAt(i);
-            if (Character.isWhitespace(c)) continue;
-            if (Character.isLetterOrDigit(c) || c == '-' || c == '_') payload.append(c);
-            else break;
-            if (payload.length() > MAX_CODE_CHARS) return new ImportResult(0, "That code is too large to be a HUD layout");
-        }
-        JsonObject root;
-        try {
-            byte[] raw = Base64.getUrlDecoder().decode(payload.toString());
-            byte[] json;
-            try (GZIPInputStream gz = new GZIPInputStream(new ByteArrayInputStream(raw))) {
-                json = gz.readNBytes(MAX_JSON_BYTES + 1);
+            if (Character.isWhitespace(c)) {
+                if (!cur.isEmpty()) { pieces.add(cur.toString()); cur.setLength(0); }
+                continue;
             }
-            if (json.length > MAX_JSON_BYTES) return new ImportResult(0, "That code is too large to be a HUD layout");
-            root = JsonParser.parseString(new String(json, StandardCharsets.UTF_8)).getAsJsonObject();
-        } catch (Exception e) {
-            return new ImportResult(0, "The code looks damaged or cut off; copy it again");
+            if (!(Character.isLetterOrDigit(c) || c == '-' || c == '_')) break;
+            cur.append(c);
+            if (++total > MAX_CODE_CHARS) return new ImportResult(0, "That code is too large to be a HUD layout");
         }
+        if (!cur.isEmpty()) pieces.add(cur.toString());
+        JsonObject root = null;
+        boolean tooLarge = false;
+        for (int n = pieces.size(); n >= 1 && root == null; n--) {
+            try {
+                byte[] raw = Base64.getUrlDecoder().decode(String.join("", pieces.subList(0, n)));
+                byte[] json;
+                try (GZIPInputStream gz = new GZIPInputStream(new ByteArrayInputStream(raw))) {
+                    json = gz.readNBytes(MAX_JSON_BYTES + 1);
+                }
+                if (json.length > MAX_JSON_BYTES) { tooLarge = true; break; }
+                root = JsonParser.parseString(new String(json, StandardCharsets.UTF_8)).getAsJsonObject();
+            } catch (Exception e) {
+                // not this many pieces
+            }
+        }
+        if (tooLarge) return new ImportResult(0, "That code is too large to be a HUD layout");
+        if (root == null) return new ImportResult(0, "The code looks damaged or cut off; copy it again");
         if (root.has("v") && root.get("v").isJsonPrimitive() && root.get("v").getAsInt() > 1)
             return new ImportResult(0, "That code is from a newer Evade; update to use it");
         if (!root.has("e") || !root.get("e").isJsonObject()) return new ImportResult(0, "The code looks damaged; copy it again");

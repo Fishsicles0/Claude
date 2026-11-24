@@ -215,16 +215,31 @@ public class HudEditorScreen extends Screen {
     }
 
     private String hint1() {
-        return "Drag to move  •  Shift+click or drag a box to pick several  •  Scroll to resize  •  Right-click: settings, or add a widget";
+        return "Drag to move  •  Shift+click or drag a box to pick several  •  Scroll to resize  •  Right-click: settings / add widget";
     }
 
     private String hint2() {
         return "Arrows nudge (Shift: 10)  •  Ctrl+Z undo, Ctrl+Y redo  •  L lock  •  Del hide  •  R reset  •  G grid " + (grid() ? "on" : "off");
     }
 
+    /** The hints, wrapped between their parts so every line fits the screen. */
     private String[] hintLines() {
-        String one = hint1() + "  •  " + hint2();
-        return textRenderer.getWidth(one) + 16 <= width ? new String[]{one} : new String[]{hint1(), hint2()};
+        String sep = "  •  ";
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String part : (hint1() + sep + hint2()).split(" {2}• {2}")) {
+            String next = line.isEmpty() ? part : line + sep + part;
+            if (!line.isEmpty() && textRenderer.getWidth(next) + 16 > width) {
+                lines.add(line.toString());
+                line.setLength(0);
+                line.append(part);
+            } else {
+                line.setLength(0);
+                line.append(next);
+            }
+        }
+        if (!line.isEmpty()) lines.add(line.toString());
+        return lines.toArray(new String[0]);
     }
 
     private int btnW(String label) { return textRenderer.getWidth(label) + 14; }

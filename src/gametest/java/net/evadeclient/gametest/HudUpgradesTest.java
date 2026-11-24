@@ -265,7 +265,7 @@ public final class HudUpgradesTest {
     private static void editor(ClientGameTestContext ctx) {
         ctx.runOnClient(c -> {
             // FPS, CPS and Ping in a loose column at the left, unlocked.
-            int[][] at = {{4, 4}, {200, 8}, {230, 70}};
+            int[][] at = {{4, 4}, {30, 100}, {20, 150}};
             Class<?>[] types = {FpsHud.class, CpsHud.class, PingHud.class};
             for (int i = 0; i < 3; i++) {
                 @SuppressWarnings("unchecked")
