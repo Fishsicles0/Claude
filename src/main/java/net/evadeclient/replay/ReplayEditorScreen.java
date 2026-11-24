@@ -101,6 +101,9 @@ public final class ReplayEditorScreen extends Screen {
 
     private void cameraTab(int x, int y) {
         ReplayProject pr = project();
+        toggle(x, y, 188, () -> "View: " + ReplayOverrides.povName(player), () -> ReplayOverrides.cyclePov(player),
+                "Watch through a player's eyes (V while watching): who recorded, then each other player, then the free camera. Renders use it too");
+        y += 20;
         action(x, y, 92, "Add keyframe", () -> addKeyframe(player), "A keyframe where the camera is now, at this moment (K while flying)");
         action(x + 96, y, 92, "Delete key", () -> { if (selectedKey >= 0 && selectedKey < pr.camera.size()) pr.camera.remove(selectedKey); selectedKey = -1; }, "Delete the selected keyframe (click one on the timeline)");
         y += 20;

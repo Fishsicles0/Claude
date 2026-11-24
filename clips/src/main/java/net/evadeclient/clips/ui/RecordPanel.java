@@ -448,6 +448,8 @@ public final class RecordPanel extends JPanel {
     private void loadDevices() {
         Map<String, String> d = CaptureSource.audioDevices(true);
         String defSys = CaptureSource.defaultSystemAudio(), defMic = CaptureSource.defaultMic();
+        // Windows records the speakers directly, so Default always has game sound there
+        boolean speakers = net.evadeclient.clips.core.LoopbackAudio.windowsAvailable();
         SwingUtilities.invokeLater(() -> {
             devices = d;
             loading = true;
@@ -456,7 +458,7 @@ public final class RecordPanel extends JPanel {
                 micDevice.removeAllItems();
                 voiceDevice.removeAllItems();
                 voiceDevice.addItem("Choose a device");
-                sysDevice.addItem("Default" + (defSys == null ? " (none found)" : ""));
+                sysDevice.addItem("Default" + (speakers ? " (what you hear)" : defSys == null ? " (none found)" : ""));
                 micDevice.addItem("Default" + (defMic == null ? " (none found)" : ""));
                 for (String name : d.keySet()) { sysDevice.addItem(name); micDevice.addItem(name); voiceDevice.addItem(name); }
                 selectDevice(sysDevice, app.settings.systemAudioDevice);
@@ -465,7 +467,7 @@ public final class RecordPanel extends JPanel {
             } finally {
                 loading = false;
             }
-            noDefaultSys = defSys == null;
+            noDefaultSys = defSys == null && !speakers;
             noDefaultMic = defMic == null;
             devicesLoaded = true;
             updateEnabled();

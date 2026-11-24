@@ -37,6 +37,7 @@ public final class Replays {
             ReplayRecorder.tick();
             ReplayAudio.onTick(ReplayPlayer.current());
             if (ReplayPlayer.active()) {
+                ReplayOverrides.applyPov(ReplayPlayer.current());
                 ReplayOverrides.onTick();
                 keys();
             }
@@ -101,7 +102,7 @@ public final class Replays {
         ReplayPlayer p = ReplayPlayer.current();
         if (p == null || mc.currentScreen != null || ReplayRender.rendering()) {
             // keep edge state in sync so a key held while a screen closes doesn't fire
-            for (int k : new int[]{GLFW.GLFW_KEY_P, GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_E})
+            for (int k : new int[]{GLFW.GLFW_KEY_P, GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_E, GLFW.GLFW_KEY_V})
                 down[k] = GLFW.glfwGetKey(mc.getWindow().getHandle(), k) == GLFW.GLFW_PRESS;
             return;
         }
@@ -115,6 +116,7 @@ public final class Replays {
             net.evadeclient.util.Notifications.push("Camera", p.project.camera.size() + " keyframes", true);
         }
         if (pressed(GLFW.GLFW_KEY_E)) mc.setScreen(new ReplayEditorScreen());
+        if (pressed(GLFW.GLFW_KEY_V)) net.evadeclient.util.Notifications.push("View", ReplayOverrides.cyclePov(p), true);
     }
 
     // ------------------------------------------------------------------ the playback bar
@@ -134,7 +136,7 @@ public final class Replays {
         String state = p.seeking() ? "Loading..." : (p.playing() ? "▶ " : "❚❚ ") + time(now) + " / " + time(total)
                 + (Math.abs(p.speed() - 1) > 1e-3 ? String.format(Locale.ROOT, "   %sx", trim(p.speed())) : "");
         ctx.drawTextWithShadow(mc.textRenderer, state, x0, y - 12, 0xFFFFFFFF);
-        String hint = "P play · ←/→ 5 s · ↑/↓ speed · K keyframe · E editor";
+        String hint = "P play · ←/→ 5 s · ↑/↓ speed · V view · K keyframe · E editor";
         ctx.drawTextWithShadow(mc.textRenderer, hint, x1 - mc.textRenderer.getWidth(hint), y - 12, 0xFF9A9AA6);
         ctx.fill(x0, y + 4, x1, y + 8, 0xFF3A3A44);
         int span = Math.max(1, p.endTick() - p.startTick());

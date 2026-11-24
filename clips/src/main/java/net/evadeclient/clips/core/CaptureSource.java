@@ -189,8 +189,15 @@ public final class CaptureSource {
             Map<String, String> devices = null; // scanned at most once per build
             if (s.recordSystemAudio) {
                 String dev = s.systemAudioDevice;
-                if (dev.isBlank()) dev = defaultSystemAudio(devices = devicesFor(devices));
-                if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
+                // Windows, Default: what the speakers play, straight from Windows (no Stereo Mix or virtual cable)
+                LoopbackAudio.Stream speakers = dev.isBlank() ? LoopbackAudio.windows() : null;
+                if (speakers != null) {
+                    a.addAll(speakers.ffmpegInput());
+                    tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
+                } else {
+                    if (dev.isBlank()) dev = defaultSystemAudio(devices = devicesFor(devices));
+                    if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
+                }
             }
             if (s.recordMic) {
                 String dev = s.micDevice;

@@ -244,14 +244,16 @@ public final class CaptureEngine {
         // encoder makes it skip frames, instead of buffering seconds (and gigabytes) of raw frames that leave
         // replays ending before the key press. Audio packets are tiny, so audio gets a deep queue.
         // Not for filter-graph inputs (-f lavfi, e.g. Windows ddagrab): newer ffmpeg refuses the option there
-        // ("cannot be applied to input url ddagrab=...") and the capture never starts.
+        // ("cannot be applied to input url ddagrab=...") and the capture never starts. And not at all with an ffmpeg
+        // that refuses it on inputs altogether (checked once per ffmpeg).
+        boolean queue = Ffmpeg.inputThreadQueue();
         int input = 0;
         String format = null;
         for (String v : in.args()) {
             if (v.equals("-i")) {
                 boolean filterInput = "lavfi".equals(format);
                 int n = input++;
-                if (!filterInput) args.addAll(List.of("-thread_queue_size", n == 0 ? "16" : "512"));
+                if (queue && !filterInput) args.addAll(List.of("-thread_queue_size", n == 0 ? "16" : "512"));
                 format = null;
             }
             if (format == null && !args.isEmpty() && "-f".equals(args.get(args.size() - 1))) format = v;

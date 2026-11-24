@@ -66,6 +66,39 @@ public final class Ffmpeg {
     }
 
     /** Path to ffmpeg, or null when none can be found. */
+    private static String queueCheckedFor;
+    private static boolean inputQueue;
+
+    /**
+     * Whether this ffmpeg takes {@code -thread_queue_size} on a plain input (an audio device or raw stream). Filter-
+     * graph inputs never get it (see CaptureEngine); this guards against builds that refuse it on every input, which
+     * would stop capture from starting. Tried once per ffmpeg on a tiny raw-audio input.
+     */
+    public static synchronized boolean inputThreadQueue() {
+        String exe = ffmpeg();
+        if (exe == null) return false;
+        if (exe.equals(queueCheckedFor)) return inputQueue;
+        boolean ok;
+        try {
+            // a plain (non-filter-graph) input, like the audio devices: a few bytes of raw PCM from a temp file
+            Path raw = Files.createTempFile("evade-queue-check", ".pcm");
+            try {
+                Files.write(raw, new byte[1920]);
+                Process p = new ProcessBuilder(exe, "-hide_banner", "-loglevel", "error", "-thread_queue_size", "8",
+                        "-f", "s16le", "-ar", "48000", "-ch_layout", "mono", "-i", raw.toString(), "-f", "null", "-").redirectErrorStream(true).start();
+                p.getInputStream().readAllBytes();
+                ok = p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+            } finally {
+                Files.deleteIfExists(raw);
+            }
+        } catch (Exception e) {
+            ok = false;
+        }
+        queueCheckedFor = exe;
+        inputQueue = ok;
+        return ok;
+    }
+
     public static synchronized String ffmpeg() {
         if (ffmpeg == null) ffmpeg = locate("ffmpeg");
         return ffmpeg;

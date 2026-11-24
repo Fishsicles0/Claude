@@ -325,6 +325,41 @@ final class ReplayTest {
         check(quarter > 0.7 * normal && quarter < 1.4 * normal, String.format(java.util.Locale.ROOT,
                 "free camera at 0.25x replay speed flies at %.1f blocks/s, like at normal speed (%.1f blocks/s)", quarter, normal));
 
+        // player POV: watch through the recorded player's eyes (V), render from there, then back to the free camera
+        ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.seek(p.startTick() + 40); });
+        ctx.waitFor(c -> !ReplayPlayer.current().seeking() && c.currentScreen == null, 20 * 60);
+        String view = ctx.computeOnClient(c -> net.evadeclient.replay.ReplayOverrides.cyclePov(ReplayPlayer.current()));
+        ctx.runOnClient(c -> ReplayPlayer.current().setPlaying(true));
+        ctx.waitTicks(10);
+        ctx.runOnClient(c -> ReplayPlayer.current().setPlaying(false));
+        ctx.waitTicks(3);
+        String pov = ctx.computeOnClient(c -> {
+            var p = ReplayPlayer.current();
+            var self = p.self();
+            var cam = c.gameRenderer.getCamera();
+            double off = cam.getCameraPos().distanceTo(self.getEyePos());
+            float turn = Math.abs(net.minecraft.util.math.MathHelper.wrapDegrees(cam.getYaw() - self.getYaw()));
+            return (c.getCameraEntity() == self) + "," + off + "," + turn;
+        });
+        ctx.takeScreenshot("evade-replay-pov");
+        String[] pv = pov.split(",");
+        check(pv[0].equals("true") && Double.parseDouble(pv[1]) < 0.5 && Double.parseDouble(pv[2]) < 5,
+                String.format(java.util.Locale.ROOT, "player POV: \"%s\" puts the camera at their eyes (%.2f blocks off) facing their way (%.1f° off)",
+                        view, Double.parseDouble(pv[1]), Double.parseDouble(pv[2])));
+        ctx.runOnClient(c -> {
+            var p = ReplayPlayer.current();
+            p.project.render.from = p.startTick() + 20;
+            p.project.render.to = p.startTick() + 40;
+            ReplayRender.start();
+        });
+        ctx.waitFor(c -> !ReplayRender.rendering(), 20 * 300);
+        Path povVideo = ReplayRender.lastResult;
+        check(povVideo != null && ReplayRender.lastError == null, "player POV render: " + (povVideo == null ? ReplayRender.lastError : povVideo.getFileName()));
+        String back = ctx.computeOnClient(c -> net.evadeclient.replay.ReplayOverrides.cyclePov(ReplayPlayer.current()));
+        ctx.waitTicks(2);
+        check(back.equals("Free camera") && ctx.computeOnClient(c -> c.getCameraEntity() == c.player), "V again goes back to the free camera");
+        ctx.runOnClient(c -> { var p = ReplayPlayer.current(); p.project.render.from = -1; p.project.render.to = -1; });
+
         // the editor's three tabs
         ctx.runOnClient(c -> { ReplayPlayer.current().seek(ReplayPlayer.current().startTick() + 40); });
         ctx.waitFor(c -> !ReplayPlayer.current().seeking() && c.currentScreen == null, 20 * 60);
