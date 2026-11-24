@@ -51,6 +51,14 @@ public class Friends extends Module {
     public final StringSetting highlightedPlayers = add(new StringSetting("Highlighted Players", "", "names, separated by ,")
             .maxLength(400)
             .describe("Other players whose names also get the friend colour (they don't need Evade). Kept on this PC only."));
+    public final BooleanSetting shareActivity = add(new BooleanSetting("Share Activity", true)
+            .describe("Friends and your party see whether you're in menus, in singleplayer, on a server or AFK, and for how long. Only while you're online."));
+    public final StatusSetting players = add((StatusSetting) new StatusSetting("Player Cards", () -> "click: open", "")
+            .onClick(() -> net.evadeclient.gui.PlayerCardScreen.openList(mc.currentScreen))
+            .describe("The players in the tab list: add a friend, invite to your party, copy a name, or hide someone on your screen for this session (also .card)."));
+    public final StatusSetting cloudBackup = add((StatusSetting) new StatusSetting("Cloud Backup", net.evadeclient.config.CloudBackup::statusLine, "")
+            .onClick(() -> mc.setScreen(new net.evadeclient.gui.CloudBackupScreen(mc.currentScreen)))
+            .describe("Opt-in: keep your profiles, HUD layout and waypoints on evadeclient.com, locked with a passphrase only you know (also .backup)."));
     public final StatusSetting connection = add(new StatusSetting("Connection", SocialClient::status, "auto"));
     /** Set the first time you use Friends: until then nothing is sent to evadeclient.com. */
     private final BooleanSetting activated = add(new BooleanSetting("Activated", false).hidden());
@@ -123,20 +131,35 @@ public class Friends extends Module {
 
     // ------------------------------------------------------------------ commands
 
-    @Override public List<String> commandAliases() { return List.of("friend", "friends", "party", "msg", "pc", "reply", "join"); }
+    @Override public List<String> commandAliases() { return List.of("friend", "friends", "party", "msg", "pc", "reply", "join", "card", "backup"); }
 
     @Override
     public List<String> commandHelp() {
         return List.of("§d.friend§7 add|remove|accept|decline|block|unblock <name>, list, requests - friends",
                 "§d.party§7 invite|kick|leader <name>, accept|decline [name], leave, list, bring - parties",
                 "§d.msg§7 <friend> <text>, §d.reply§7 <text>, §d.pc§7 <text> - message a friend or your party (through Evade, not the server)",
-                "§d.join§7 <friend> - join the server a friend is on (you confirm first)");
+                "§d.join§7 <friend> - join the server a friend is on (you confirm first)",
+                "§d.card§7 [name] - player cards for the players in the tab list",
+                "§d.backup§7 - cloud backup of your profiles, HUD and waypoints (opt-in, encrypted on this PC)");
     }
 
     @Override
     public void command(String[] a) {
-        activate();
         String word = a[0].toLowerCase(Locale.ROOT);
+        // Player cards and cloud backup don't need Friends switched on.
+        if (word.equals("card")) {
+            String name = a.length > 1 ? a[1] : null;
+            mc.send(() -> {
+                if (name == null) net.evadeclient.gui.PlayerCardScreen.openList(null);
+                else if (!net.evadeclient.gui.PlayerCardScreen.openFor(name, null)) Notifications.push("Player card", name + " isn't in the tab list", false);
+            });
+            return;
+        }
+        if (word.equals("backup")) {
+            mc.send(() -> mc.setScreen(new net.evadeclient.gui.CloudBackupScreen(null)));
+            return;
+        }
+        activate();
         if (!SocialClient.ready()) {
             CommandManager.print("§7Friends: " + SocialClient.status() + (SocialClient.link() == SocialClient.Link.OFF ? "" : " §8(try again in a moment)"));
             return;

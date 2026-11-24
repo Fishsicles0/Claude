@@ -365,6 +365,12 @@ public final class App {
                     App.this.notify("Replay render added", c.title, false);
                     return Map.of("ok", true, "id", c.id);
                 }
+                @Override public Map<String, Object> share(String id) throws Exception {
+                    Clip c = library.get(id);
+                    if (c == null) return Map.of("ok", false, "error", "That clip isn't in Evade Clips' library");
+                    if (!cloud.configured()) return Map.of("ok", false, "error", "Set up a share server in Evade Clips: Settings, Sharing & phone");
+                    return Map.of("ok", true, "url", shareNow(c));
+                }
                 @Override public Map<String, Object> clip(int seconds, int after, String title, String game, String tag) throws Exception {
                     return clip(new ControlServer.ClipRequest(seconds, after, title, game, tag, false, 0));
                 }
@@ -709,6 +715,29 @@ public final class App {
         }, onDone);
     }
 
+    /**
+     * Session recap: one video from the automatic clips (kills, pops, wins) saved since {@code since}, captioned,
+     * horizontal or vertical; with {@code share}, a share link is made and copied when it's done.
+     */
+    public ExportJob recap(long since, boolean vertical, boolean share, Consumer<ExportJob> onDone) {
+        List<Clip> list = net.evadeclient.clips.core.SessionRecap.pick(library.all(), since);
+        if (list.isEmpty()) {
+            notify("Nothing to recap yet", "Session recaps use the clips Evade Client saves on kills, pops and wins", true);
+            return null;
+        }
+        String title = net.evadeclient.clips.core.SessionRecap.title(vertical);
+        Path out = Exporter.reserveOutput(library.folder(Clip.Kind.EXPORT), Library.safe(title) + ".mp4");
+        ExportJob job = new ExportJob(list.get(0), vertical ? Exporter.Preset.SHORTS : Exporter.Preset.YOUTUBE, out);
+        job.label = "Montage"; // shows the recap's name in the sidebar
+        return runJob(job, j -> {
+            net.evadeclient.clips.core.SessionRecap.build(list, library.root(), vertical, out, p -> { j.progress = p; jobsChanged(); }, j.job);
+            Clip c = library.addNew(out, Clip.Kind.EXPORT, title, "Minecraft", null, null);
+            if (!c.tags.contains("recap")) { c.tags.add("recap"); library.update(c); }
+            if (share) SwingUtilities.invokeLater(() -> shareClip(c, true));
+            return c;
+        }, onDone);
+    }
+
     /** Re-encodes clips to HEVC in the background, replacing each file only if it saves 15%+. */
     public void shrink(List<Clip> clips) {
         for (Clip c : clips) {
@@ -746,6 +775,36 @@ public final class App {
             }
             return null;
         }, null);
+    }
+
+    /**
+     * Shares a clip now on the calling thread (the share job shows in the sidebar meanwhile) and returns its link;
+     * the link is copied too. Used for Evade Client's replay renders.
+     */
+    public String shareNow(Clip c) throws Exception {
+        if (c.shareId == null && settings.sharePrivateByDefault) c.sharePrivate = true;
+        ExportJob job = new ExportJob(c, Exporter.Preset.SOURCE, library.metaDir().resolve("share-" + c.id + ".mp4"));
+        job.label = "Share";
+        jobs.add(job);
+        jobsChanged();
+        try {
+            job.state = "Exporting";
+            waitForThumb(c);
+            String url = cloud.share(c, library, p -> { job.progress = p; jobsChanged(); }, job.job);
+            job.state = "Done";
+            copyText(url);
+            notify("Link copied", c.title == null ? url : c.title, false);
+            return url;
+        } catch (Exception e) {
+            job.state = "Failed: " + e.getMessage();
+            throw e;
+        } finally {
+            job.done = true;
+            jobsChanged();
+            new java.util.Timer(true).schedule(new java.util.TimerTask() {
+                @Override public void run() { jobs.remove(job); jobsChanged(); }
+            }, 60_000);
+        }
     }
 
     /** Copies text to the clipboard (on the UI thread). */

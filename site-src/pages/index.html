@@ -1,5 +1,5 @@
 title: Evade Client
-description: Evade is a free, server-safe quality-of-life client for Minecraft {{MC}}: a full HUD, zoom, freelook, waypoints and visual mods in one black and red menu. No cheats.
+description: Evade is a free, server-safe client for Minecraft {{MC}}: {{TOTAL}} quality-of-life mods, a World Map, Clips and 3D Replay, friends and party chat, an FPS boost for laptops, and a launcher that fixes crashes for you. No cheats.
 nav: home
 ---
 <header class="hero">
@@ -7,7 +7,7 @@ nav: home
     <div>
       <a class="pill rv" href="/changelog#{{NEWS_ID}}"><b>New in {{NEWS_SERIES}}</b> {{NEWS}} <span class="arrow">&rarr;</span></a>
       <h1 class="rv d1">Your game,<br><span class="red">dialed in.</span></h1>
-      <p class="lead rv d2">Evade is a free, server-safe quality-of-life client for Minecraft {{MC}} &mdash; a full HUD, zoom, freelook, waypoints and visual tweaks. No cheats. Opens with <span class="kbd">Right Shift</span>.</p>
+      <p class="lead rv d2">Evade is a free, server-safe client for Minecraft {{MC}}: {{TOTAL}} quality-of-life mods, a World Map, instant clips and 3D Replay, friends and party chat, more FPS on laptops, and a launcher that sorts out mods, worlds and crashes for you. No cheats. Opens with <span class="kbd">Right Shift</span>.</p>
       <div class="cta rv d3">
         <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
@@ -70,7 +70,7 @@ nav: home
     </a>
     <a class="card tile rv d2" href="/features#visuals">
       <div class="num">{{VISUALS}}</div><h3>Visuals</h3>
-      <div class="chips"><span>Waypoints</span><span>BetterTooltips</span><span>NoFog</span><span>EnchantGlint</span></div>
+      <div class="chips"><span>World Map</span><span>Waypoints</span><span>Item View</span><span>BetterTooltips</span></div>
     </a>
     <a class="card tile rv d1" href="/features#server">
       <div class="num">{{SERVER}}</div><h3>Server-facing</h3>
@@ -78,7 +78,7 @@ nav: home
     </a>
     <a class="card tile rv d2" href="/features#misc">
       <div class="num">{{MISC}}</div><h3>Misc</h3>
-      <div class="chips"><span>BetterChat</span><span>Clips</span><span>Voice Chat</span></div>
+      <div class="chips"><span>Replay</span><span>Clips</span><span>Friends</span><span>Streamer Mode</span></div>
     </a>
   </div>
 </section>
@@ -113,9 +113,49 @@ nav: home
   </div>
 </section>
 
+<section class="wrap" id="more">
+  <div class="sec-head rv">
+    <div class="eyebrow">More than a HUD</div>
+    <h2>The whole setup, in one client.</h2>
+    <p>Mods are only the start. Evade also records, maps, connects you with friends and keeps your game running.</p>
+  </div>
+  <div class="shots">
+    <a class="card shot-card w3 rv" href="/docs#replay">
+      <div class="img"><img src="/assets/tile-replay.webp" alt="The Evade Replay editor: a camera path on the timeline over a recorded world" width="1280" height="720" loading="lazy"></div>
+      <div class="txt"><span class="tag">Replay</span><h3>Fly through your match afterwards</h3><p>Record the world in 3D, then make camera paths, slow motion and orbits, and render them to video with the game's sound.</p></div>
+    </a>
+    <a class="card shot-card w3 rv d1" href="/docs#waypoints">
+      <div class="img"><img src="/assets/tile-world-map.webp" alt="The Evade World Map showing explored ground and the player's arrow" width="854" height="480" loading="lazy"></div>
+      <div class="txt"><span class="tag">World Map</span><h3>A map of where you've been</h3><p>Press <span class="kbd">M</span> for the ground you've explored, saved per server, with waypoints you can add, edit and target. Nothing you haven't seen.</p></div>
+    </a>
+  </div>
+  <div class="bento" style="margin-top:14px">
+    <a class="card tile wide rv" href="/docs#friends">
+      <h3>Friends &amp; party chat</h3>
+      <p>Add friends by Minecraft name, message them and your party, see who's online where, Join with one click (you always confirm), and ping spots for your party.</p>
+      <div class="chips"><span>Messages</span><span>Parties</span><span>Party Ping</span></div>
+    </a>
+    <a class="card tile wide rv d1" href="/docs#performance">
+      <h3>More FPS on laptops</h3>
+      <p>Render Scale keeps the HUD sharp while the world draws lighter, FPS Modes set everything in one click, and the launcher adds Sodium and friends from Modrinth. Measure it yourself with the built-in benchmark.</p>
+      <div class="chips"><span>Render Scale</span><span>FPS Modes</span><span>.bench</span></div>
+    </a>
+    <a class="card tile wide rv" href="/docs#launcher">
+      <h3>A launcher that does the chores</h3>
+      <p>Instances and templates, mods, packs, shaders and modpacks from Modrinth with Update all, pins and undo, world backups, live logs, and crash help with one-click fixes.</p>
+      <div class="chips"><span>Crash help</span><span>Modrinth</span><span>Worlds</span><span>Drag &amp; drop</span></div>
+    </a>
+    <a class="card tile wide rv d1" href="/docs#safe-start">
+      <h3>Never locked out</h3>
+      <p>If a setting or a mod clash stops the game from starting, Safe Start brings it up with Evade's mods off and shows which one to look at. An error in one mod turns off only that mod.</p>
+      <div class="chips"><span>Safe Start</span><span>Safe mode</span></div>
+    </a>
+  </div>
+</section>
+
 <section class="wrap" id="clips">
   <div class="sec-head rv">
-    <div class="eyebrow">New &middot; Evade Clips</div>
+    <div class="eyebrow">Evade Clips</div>
     <h2>Clip it. Edit it. Share it.</h2>
     <p>Evade Clips comes with the client and works with it. It keeps instant replay running while you play Minecraft with Evade Client, saves kills, pops and wins by itself, and edits and shares clips with links that play in Discord.</p>
   </div>
@@ -143,7 +183,8 @@ nav: home
   <div class="table compare rv">
     <div><span><b>Price</b></span><span>Free to play: every mod, Evade Clips and the launcher cost nothing. No mod or feature will ever sit behind a paywall; optional cosmetics may come later.</span></div>
     <div><span><b>Account</b></span><span>None needed. Typical clients often need one.</span></div>
-    <div><span><b>Instant replay &amp; clips</b></span><span>Built in, with an editor and watermark-free share links. Typical clients don't include them.</span></div>
+    <div><span><b>Instant replay &amp; clips</b></span><span>Built in, with an editor and watermark-free share links, plus 3D Replay with camera paths. Typical clients don't include them.</span></div>
+    <div><span><b>Crash recovery</b></span><span>Crash help names the cause with a one-click fix, and Safe Start gets you back into the game. Typical clients rarely help here.</span></div>
     <div><span><b>Verified downloads</b></span><span>SHA-256 checksum for every file. Typical clients rarely publish them.</span></div>
     <div><span><b>FPS boost</b></span><span>Sodium and 10 more FPS mods, presets and a built-in benchmark. Typical clients vary.</span></div>
     <div><span><b>Server friendly</b></span><span>Servers can switch off any Evade mod. Typical clients rarely offer this.</span></div>
@@ -154,12 +195,12 @@ nav: home
   <div class="sec-head rv">
     <div class="eyebrow">Install</div>
     <h2>Two minutes to set up.</h2>
-    <p>The installer does the work and keeps your normal Minecraft untouched.</p>
+    <p>The Evade Launcher does the work and keeps your normal Minecraft untouched.</p>
   </div>
   <div class="steps">
     <div class="card step rv"><h4>Download</h4><p>The <b>.exe</b> on Windows, the <b>.jar</b> on macOS and Linux.</p></div>
-    <div class="card step rv d1"><h4>Click Install</h4><p>Sets up Fabric, Fabric API and Evade in their own folder.</p></div>
-    <div class="card step rv d2"><h4>Pick the profile</h4><p>Choose <b>Evade Client</b> in the Minecraft Launcher.</p></div>
+    <div class="card step rv d1"><h4>Open the launcher</h4><p>It sets up Fabric, Fabric API and Evade in their own folder.</p></div>
+    <div class="card step rv d2"><h4>Press Play</h4><p>The Minecraft Launcher opens with <b>Evade Client</b> already picked. Sign in there as usual.</p></div>
     <div class="card step rv d3"><h4>Play</h4><p>Press <span class="kbd">Right Shift</span> in game to open the menu.</p></div>
   </div>
   <p class="note rv">Every mod is quality-of-life and server-safe &mdash; no combat or movement cheats &mdash; so Evade is welcome on most servers. <a href="/faq#safe">More on that</a></p>
@@ -168,7 +209,7 @@ nav: home
 <div class="wrap">
   <div class="band rv">
     <h2>Ready to <span class="red">evade</span>?</h2>
-    <p>Free. Run the installer, click Install, play.</p>
+    <p>Free. Open the launcher, press Play.</p>
     <div class="cta">
       <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>

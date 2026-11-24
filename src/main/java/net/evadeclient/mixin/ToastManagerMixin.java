@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.NoRender;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,6 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ToastManagerMixin {
     @Inject(method = "add(Lnet/minecraft/client/toast/Toast;)V", at = @At("HEAD"), cancellable = true)
     private void evade$filterToasts(Toast toast, CallbackInfo ci) {
-        if (NoRender.hidesToast(toast)) ci.cancel();
+        Guard.run(NoRender.class, "toasts", () -> {
+            if (NoRender.hidesToast(toast)) ci.cancel();
+        });
     }
 }

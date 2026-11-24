@@ -2,6 +2,7 @@ package net.evadeclient.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.evadeclient.module.visuals.NoRender;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.GameRenderer;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,18 +21,18 @@ public abstract class NoRenderGameRendererMixin {
     @ModifyExpressionValue(method = "renderWorld", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/network/ClientPlayerEntity;getEffectFadeFactor(Lnet/minecraft/registry/entry/RegistryEntry;F)F"))
     private float evade$noNauseaWobble(float fade) {
-        return NoRender.hide(n -> n.wobble) ? 0f : fade;
+        return Guard.getFloat(NoRender.class, "nausea wobble", () -> NoRender.hide(n -> n.wobble) ? 0f : fade, fade);
     }
 
     @ModifyExpressionValue(method = "renderWorld", at = @At(value = "FIELD", opcode = Opcodes.GETFIELD,
             target = "Lnet/minecraft/client/network/ClientPlayerEntity;nauseaIntensity:F"))
     private float evade$noPortalWobble(float intensity) {
-        return NoRender.hide(n -> n.wobble) ? 0f : intensity;
+        return Guard.getFloat(NoRender.class, "portal wobble", () -> NoRender.hide(n -> n.wobble) ? 0f : intensity, intensity);
     }
 
     @ModifyExpressionValue(method = "renderWorld", at = @At(value = "FIELD", opcode = Opcodes.GETFIELD,
             target = "Lnet/minecraft/client/network/ClientPlayerEntity;lastNauseaIntensity:F"))
     private float evade$noPortalWobbleLast(float intensity) {
-        return NoRender.hide(n -> n.wobble) ? 0f : intensity;
+        return Guard.getFloat(NoRender.class, "portal wobble", () -> NoRender.hide(n -> n.wobble) ? 0f : intensity, intensity);
     }
 }

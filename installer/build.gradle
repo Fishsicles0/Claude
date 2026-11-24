@@ -30,6 +30,19 @@ dependencies {
     // WebP decoding for Modrinth's mod icons (TwelveMonkeys ImageIO 3.12.0, BSD-3-Clause). Kept in installer/libs
     // (checked against Maven Central's SHA-1s) so the build works offline.
     implementation files(fileTree(dir: 'libs', include: '*.jar'))
+
+    // Unit tests for the launcher's pure logic (`./gradlew :installer:test`): share codes, modpacks, crash help, log
+    // masking, servers.dat, updates and pins, zip paths, Safe Start.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+    // The launcher's code is headless-safe in these tests; keep AWT from looking for a display on CI.
+    systemProperty 'java.awt.headless', 'true'
+    testLogging { events 'failed'; exceptionFormat 'full' }
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }

@@ -134,6 +134,26 @@ public final class SocialJoin {
         lastOfferLine = line.getString();
     }
 
+    /**
+     * Open to Friends: "[Evade] Steve invited you to their world "Island" [Join] [Dismiss]". The address isn't shown
+     * (it's a private tunnel); the confirmation names whose world it is. Render thread.
+     */
+    public static void postWorldInvite(String who, String address, String world) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.inGameHud == null || mc.world == null || !validAddress(address)) return;
+        String code = offer(who + "'s world", address, false);
+        MutableText line = Text.literal("[Evade] ").formatted(Formatting.DARK_GRAY);
+        line.append(Text.literal(who).formatted(Formatting.WHITE));
+        line.append(Text.literal(" invited you to their world").formatted(Formatting.GRAY));
+        if (world != null && !world.isBlank()) line.append(Text.literal(" " + world).formatted(Formatting.AQUA));
+        line.append(Text.literal(" "));
+        line.append(button("[Join]", Formatting.GREEN, "/" + COMMAND + " join " + code, "Join " + who + "'s world (you'll confirm first)"));
+        line.append(Text.literal(" "));
+        line.append(button("[Dismiss]", Formatting.GRAY, "/" + COMMAND + " dismiss " + code, "Stay here"));
+        mc.inGameHud.getChatHud().addMessage(line);
+        lastOfferLine = line.getString();
+    }
+
     private static String lastOfferLine = "";
 
     /** Test hook: the text of the newest [Join] line posted. */
@@ -172,7 +192,7 @@ public final class SocialJoin {
     }
 
     /** Leaves the current world or server, then connects to {@code address} (with its server-list entry when there is one). */
-    private static void connect(String address) {
+    public static void connect(String address) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world != null) {
             boolean sp = mc.isInSingleplayer();

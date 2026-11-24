@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.NickHider;
+import net.evadeclient.util.Guard;
 import net.minecraft.text.StringVisitable;
 import net.minecraft.text.TranslatableTextContent;
 import org.spongepowered.asm.mixin.Final;
@@ -22,8 +23,10 @@ public abstract class NickHiderTranslatableMixin {
 
     @Inject(method = "getArg", at = @At("RETURN"), cancellable = true)
     private void evade$nickArgument(int index, CallbackInfoReturnable<StringVisitable> cir) {
-        if (index >= 0 && index < args.length && args[index] instanceof String s) {
-            cir.setReturnValue(NickHider.translationArgument(s));
-        }
+        Guard.run(NickHider.class, "translated text", () -> {
+            if (index >= 0 && index < args.length && args[index] instanceof String s) {
+                cir.setReturnValue(NickHider.translationArgument(s));
+            }
+        });
     }
 }

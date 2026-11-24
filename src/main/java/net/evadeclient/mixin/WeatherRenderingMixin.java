@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.mods.Performance;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WeatherRendering;
 import net.minecraft.client.render.state.WeatherRenderState;
@@ -15,7 +16,9 @@ public abstract class WeatherRenderingMixin {
     /** Performance "Hide Rain & Snow": skip drawing precipitation (rain sounds and the sky darkening stay). */
     @Inject(method = "renderPrecipitation", at = @At("HEAD"), cancellable = true)
     private void evade$hideWeather(VertexConsumerProvider consumers, Vec3d pos, WeatherRenderState state, CallbackInfo ci) {
-        Performance p = Performance.active();
-        if (p != null && p.hideWeather()) ci.cancel();
+        Guard.run(Performance.class, "hide weather", () -> {
+            Performance p = Performance.active();
+            if (p != null && p.hideWeather()) ci.cancel();
+        });
     }
 }

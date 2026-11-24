@@ -1186,14 +1186,21 @@ public class EvadeMenu extends Screen {
                     if (p.online()) b.add(new FBtn("fmsg:" + p.uuid(), "Message", 0, () -> openChat(p.uuid())));
                     if (p.online() && p.server() != null && !net.evadeclient.social.SocialJoin.onServer(p.server()))
                         b.add(new FBtn("fjoin:" + p.uuid(), "Join", 1, () -> net.evadeclient.social.SocialJoin.ask(name, p.server())));
-                    String sub = p.online() ? (p.server() != null ? "Online  ·  " + net.evadeclient.module.misc.StreamerMode.friendServer(p.server()) : "Online") : "Last seen " + ago(p.lastSeen());
+                    String sub = p.online() ? net.evadeclient.social.SocialPresence.describe(p) : "Last seen " + ago(p.lastSeen());
                     rows.add(fPerson("f:" + p.uuid(), name, sub, p.online() ? Theme.OK : Theme.TEXT_FAINT, inMyParty ? "PARTY" : null, b));
                 }
             }
             case REQUESTS -> {
-                if (s.incoming().isEmpty() && s.outgoing().isEmpty() && s.invites().isEmpty()) {
+                var worlds = net.evadeclient.social.OpenToFriends.invites();
+                if (s.incoming().isEmpty() && s.outgoing().isEmpty() && s.invites().isEmpty() && worlds.isEmpty()) {
                     rows.add(fEmpty("No requests", "Friend requests and party invites show up here.", null));
                     break;
+                }
+                if (!worlds.isEmpty()) {
+                    rows.add(fHead("World invites"));
+                    for (var w : worlds) rows.add(fPerson("w:" + w.at(), w.fromName() + "'s world", w.world().isBlank() ? "Open to Friends" : w.world(), 0, null, List.of(
+                            new FBtn("wjoin:" + w.at(), "Join", 1, () -> net.evadeclient.social.OpenToFriends.join(w)),
+                            new FBtn("wdis:" + w.at(), "Dismiss", 0, () -> net.evadeclient.social.OpenToFriends.dismiss(w)))));
                 }
                 if (!s.invites().isEmpty()) {
                     rows.add(fHead("Party invites"));
@@ -1300,6 +1307,8 @@ public class EvadeMenu extends Screen {
                         s::allowRequests, () -> friendSetting("allowRequests", s.allowRequests() ? "nobody" : "everyone"), ready));
                 rows.add(fToggle("share", "Share my server with friends", "Friends and your party see which server you're on",
                         s::shareServer, () -> friendSetting("shareServer", !s.shareServer()), ready));
+                rows.add(fToggle("shareact", "Share what I'm doing", "In menus, singleplayer, on a server or AFK, and for how long",
+                        f.shareActivity::get, () -> f.shareActivity.set(!f.shareActivity.get()), true));
                 rows.add(fHead("Notifications"));
                 rows.add(fToggle("otoast", "Friend online toasts", null, f.onlineToasts::get, () -> f.onlineToasts.set(!f.onlineToasts.get()), true));
                 rows.add(fToggle("rtoast", "Request and party toasts", null, f.requestToasts::get, () -> f.requestToasts.set(!f.requestToasts.get()), true));
@@ -2296,6 +2305,10 @@ public class EvadeMenu extends Screen {
             icon(ctx, "chevron_l", x1 + 4, midY - 4, 7, Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, hl));
             icon(ctx, "chevron_r", right - 11, midY - 4, 7, Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, hr));
             modeValue(ctx, md, v, x1, right, midY);
+        } else if (row instanceof net.evadeclient.setting.ItemListSetting il) {
+            // Item lists show their items' icons; a click opens the item picker (the setting's click action).
+            int w = ItemListRow.draw(ctx, il, right, midY, rowHover);
+            text(ctx, "click to pick", right - w - 8 - width(Role.SMALL, "click to pick"), midY - 3, Theme.TEXT_FAINT, Role.SMALL);
         } else if (row instanceof StringSetting st) {
             boolean editable = editable(st);
             // Long values (Hidden Modules, custom texts) stop at half the row, so they never run over the label.

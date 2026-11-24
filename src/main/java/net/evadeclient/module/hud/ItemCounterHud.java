@@ -109,9 +109,9 @@ public class ItemCounterHud extends TextHudModule {
                     + "stackable item (so blocks stay counted while you hold a sword)."));
     private final KeySetting pinKey = add(new KeySetting("Pin Held Item", GLFW.GLFW_KEY_UNKNOWN)
             .describe("Press to pin the item in your hand to the Pinned row."));
-    private final StringSetting pinned = add(new StringSetting("Pinned Item", "minecraft:arrow", "Pin key / .counter pin")
-            .maxLength(96))
-            .describe("The item the Pinned row counts, as an item id. Set it with the Pin Held Item key or .counter pin.");
+    private final StringSetting pinned = add(new net.evadeclient.setting.ItemListSetting("Pinned Item", "minecraft:arrow",
+            "Pin key / .counter pin", true))
+            .describe("The item the Pinned row counts. Click to pick it, or use the Pin Held Item key or .counter pin.");
 
     /** One counted row, rebuilt once a tick. {@code real} is false for a row with nothing to count (empty hand). */
     private record Row(int tracker, String label, ItemStack icon, int count, int maxStack, boolean real) {}

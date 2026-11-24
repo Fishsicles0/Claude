@@ -378,9 +378,18 @@ public final class ReplayRender {
                         + "&title=" + java.net.URLEncoder.encode(file.getFileName().toString().replace(".mp4", ""), java.nio.charset.StandardCharsets.UTF_8) + "&client=evade"))
                         .timeout(java.time.Duration.ofSeconds(10)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
                 var res = http.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
-                if (res.statusCode() == 200) mc.execute(() -> Notifications.push("Evade Clips", "Render added to your library", true));
+                if (res.statusCode() == 200) {
+                    mc.execute(() -> Notifications.push("Evade Clips", "Render added to your library", true));
+                    String id = null;
+                    try {
+                        var o = com.google.gson.JsonParser.parseString(res.body()).getAsJsonObject();
+                        if (o.has("id") && o.get("id").isJsonPrimitive()) id = o.get("id").getAsString();
+                    } catch (RuntimeException ignored) {}
+                    RenderQueue.imported(file, id);
+                } else RenderQueue.imported(file, null);
             } catch (Exception ignored) {
                 // Evade Clips isn't running: the video is in .minecraft/evade/renders
+                RenderQueue.imported(file, null);
             }
         }, "Evade render to Clips");
         t.setDaemon(true);

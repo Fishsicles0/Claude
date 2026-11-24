@@ -87,6 +87,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             VisualsV24Test.run(ctx, sp);
             MapsTest.run(ctx, sp);
             AddonAndShotsTest.run(ctx, sp);
+            PerfV25Test.run(ctx, sp);
+            FeaturesV25Test.run(ctx, sp);
+            ReliabilityV25Test.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);

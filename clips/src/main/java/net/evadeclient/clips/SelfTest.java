@@ -325,6 +325,7 @@ final class SelfTest {
                 "montage of 3 clips: " + mi.width() + "x" + mi.height() + " " + String.format("%.2f", mi.duration()) + " s, "
                         + mstreams.size() + " audio stream" + (mstreams.size() == 1 ? "" : "s") + " (want 1, default, "
                         + String.format("%.2f", want) + " s; got " + mstreams + ")");
+        recapTests(lib, replay);
         upgradeTests(lib, dir, src);
         shareTests(lib, dir);
         regressionTests(dir);
@@ -334,6 +335,35 @@ final class SelfTest {
         check(editFailures == 0, "editor tools: " + (editFailures == 0 ? "all edit checks passed" : editFailures + " edit checks failed"));
         lib.shutdown();
         return finish();
+    }
+
+    /** Session recap: picks today's automatic clips in order, captions them, and builds a vertical cut. */
+    private void recapTests(Library lib, Clip replay) throws Exception {
+        long now = System.currentTimeMillis(), today = net.evadeclient.clips.core.SessionRecap.startOfToday();
+        Clip a = new Clip(), b = new Clip(), old = new Clip(), manual = new Clip(), rec = new Clip();
+        for (Clip c : List.of(a, b, old, manual, rec)) { c.file = "x.mp4"; c.duration = 5; c.kind = Clip.Kind.REPLAY; }
+        a.tags.add("kill"); a.title = "Triple kill · play.example.net"; a.created = Math.max(today, now - 2000);
+        b.tags.add("win"); b.title = "Win · play.example.net"; b.created = Math.max(today, now - 3000);
+        old.tags.add("kill"); old.created = today - 1000;
+        manual.created = now; // saved by hand: not in a recap
+        rec.tags.add("kill"); rec.kind = Clip.Kind.RECORDING; rec.created = now;
+        var picked = net.evadeclient.clips.core.SessionRecap.pick(List.of(a, b, old, manual, rec), today);
+        check(picked.equals(List.of(b, a)), "recap picks today's automatic clips, oldest first (got " + picked.size() + ")");
+        check(net.evadeclient.clips.core.SessionRecap.caption(a).equals("Triple kill"), "recap caption drops the server name");
+        var spec = net.evadeclient.clips.core.SessionRecap.captions(List.of(b, a), 10);
+        check(spec.captions.size() == 2 && Math.abs(spec.captions.get(1).start - 5) < 0.01 && spec.captions.get(0).text.equals("Win"),
+                "recap captions start where each clip starts");
+        if (replay == null) return;
+        boolean hadTag = replay.tags.contains("kill");
+        if (!hadTag) replay.tags.add("kill");
+        Path out = Library.unique(lib.folder(Clip.Kind.EXPORT), "recap.mp4");
+        net.evadeclient.clips.core.SessionRecap.build(List.of(replay), lib.root(), true, out, null, null);
+        Ffmpeg.MediaInfo ri = Ffmpeg.probe(out);
+        double want = (replay.edit != null ? replay.edit : EditSpec.whole(replay.duration)).outputDuration();
+        check(ri.width() == 1080 && ri.height() == 1920 && Math.abs(ri.duration() - want) < 0.6 && ri.hasAudio(),
+                "vertical session recap: " + ri.width() + "x" + ri.height() + " " + String.format("%.2f", ri.duration()) + " s (want 1080x1920, "
+                        + String.format("%.2f", want) + " s, with sound)");
+        if (!hadTag) replay.tags.remove("kill");
     }
 
     /** Minecraft events → clips, and Minecraft-only game detection. */

@@ -58,6 +58,11 @@ public final class ControlServer {
         /** Adds a video file to the library (copied in), e.g. a replay render from Evade Client. */
         default Map<String, Object> importFile(java.nio.file.Path file, String title) throws Exception { return Map.of("ok", false); }
         /**
+         * Uploads a library clip to the share server set up in Settings and answers {@code {ok, url}} once the link
+         * works (Evade Client's replay render queue asks for this). Nothing is uploaded without a share server.
+         */
+        default Map<String, Object> share(String clipId) throws Exception { return Map.of("ok", false, "error", "Update Evade Clips to share renders"); }
+        /**
          * The installer asks Evade Clips to quit so it can update it (Windows won't replace a running app). Refused
          * (false) while a full recording is running, so an update never cuts one short.
          */
@@ -70,7 +75,7 @@ public final class ControlServer {
             "Evade Clips only works with Evade Client. Save clips from Minecraft with Evade Client's Clips mod.");
 
     /** Endpoints only Evade Client may use (it sends {@code client=evade}). */
-    static final java.util.Set<String> EVADE_ONLY = java.util.Set.of("/clip", "/record/start", "/record/stop", "/record/toggle", "/marker", "/import");
+    static final java.util.Set<String> EVADE_ONLY = java.util.Set.of("/clip", "/record/start", "/record/stop", "/record/toggle", "/marker", "/import", "/share");
 
     private static final Gson GSON = new Gson();
     private HttpServer server;
@@ -122,6 +127,13 @@ public final class ControlServer {
                             return;
                         }
                         send(ex, 200, h.importFile(f, q.get("title")));
+                    }
+                    case "/share" -> {
+                        if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }
+                        String id = q.get("clip");
+                        if (id == null || id.isBlank() || id.length() > 64) { send(ex, 400, Map.of("error", "which clip?")); return; }
+                        Map<String, Object> r = h.share(id);
+                        send(ex, Boolean.TRUE.equals(r.get("ok")) ? 200 : 409, r);
                     }
                     case "/quit" -> {
                         if (!post) { send(ex, 405, Map.of("error", "use POST")); return; }

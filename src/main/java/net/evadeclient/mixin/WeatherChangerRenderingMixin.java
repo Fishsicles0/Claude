@@ -3,6 +3,7 @@ package net.evadeclient.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.evadeclient.module.mods.WeatherChanger;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.WeatherRendering;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.sound.SoundCategory;
@@ -25,9 +26,11 @@ public abstract class WeatherChangerRenderingMixin {
     /** Snow modes and Precipitation: rain or snow everywhere it would fall. Dry biomes stay dry. */
     @Inject(method = "getPrecipitationAt", at = @At("RETURN"), cancellable = true)
     private void evade$precipitation(World world, BlockPos pos, CallbackInfoReturnable<Biome.Precipitation> cir) {
-        Biome.Precipitation original = cir.getReturnValue();
-        Biome.Precipitation shown = WeatherChanger.precipitation(world, original);
-        if (shown != original) cir.setReturnValue(shown);
+        Guard.run(WeatherChanger.class, "precipitation", () -> {
+            Biome.Precipitation original = cir.getReturnValue();
+            Biome.Precipitation shown = WeatherChanger.precipitation(world, original);
+            if (shown != original) cir.setReturnValue(shown);
+        });
     }
 
     /** Rain Volume: both rain sounds (on you, and on a roof above you) are scaled, and not played at all at 0%. */

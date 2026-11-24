@@ -131,6 +131,7 @@ public record SocialState(boolean loaded, UUID me, String myName, boolean allowR
         UUID u = uuid(str(o, "uuid"));
         if (u == null) return null;
         String server = o.has("server") && o.get("server").isJsonPrimitive() ? o.get("server").getAsString() : null;
+        SocialPresence.read(u, o);
         return new Person(u, str(o, "name"), bool(o, "online"), server, lng(o, "lastSeen"), bool(o, "leader"));
     }
 

@@ -167,10 +167,12 @@ public class CommandManager {
             case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
             case "bench", "benchmark" -> {
                 if (a.length > 1 && a[1].equalsIgnoreCase("stop")) {
-                    if (net.evadeclient.util.BenchmarkAll.running()) net.evadeclient.util.BenchmarkAll.cancel();
+                    if (net.evadeclient.util.BenchmarkScene.running()) { net.evadeclient.util.BenchmarkScene.cancel(); print("Benchmark scene stopped."); }
+                    else if (net.evadeclient.util.BenchmarkAll.running()) net.evadeclient.util.BenchmarkAll.cancel();
                     else { net.evadeclient.util.Benchmark.cancel(); print("Benchmark stopped."); }
                 }
                 else if (a.length > 1 && a[1].equalsIgnoreCase("all")) net.evadeclient.util.BenchmarkAll.start(net.evadeclient.util.BenchmarkAll.DEFAULT_SECONDS);
+                else if (a.length > 1 && a[1].equalsIgnoreCase("scene")) net.evadeclient.util.BenchmarkScene.command(a);
                 else {
                     int secs = 30;
                     if (a.length > 1) try { secs = Integer.parseInt(a[1]); } catch (NumberFormatException ignored) {}
@@ -217,6 +219,7 @@ public class CommandManager {
         print("§d.voice§7 - open the voice chat menu");
         print("§d.bench [seconds]§7 - measure your FPS (average and 1% low) and compare with the last run");
         print("§d.bench all§7 - measure every FPS Mode and recommend the best one for this PC");
+        print("§d.bench scene§7 - a repeatable 60 s flight in a temporary fixed-seed world, with a result card");
         print("§d.save§7 / §d.load§7 - config");
         print("§d.clips§7 [last|save]§7 - open Evade Clips (or the clips folder), edit your last clip, or save one now");
         for (Module m : EvadeClient.modules.all()) {

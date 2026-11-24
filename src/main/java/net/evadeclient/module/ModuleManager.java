@@ -69,6 +69,8 @@ public class ModuleManager {
         register(new Hitboxes());
         register(new ItemView());
         register(new DamageNumbers());
+        register(new LightOverlay());
+        register(new ItemHighlight());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
@@ -80,6 +82,7 @@ public class ModuleManager {
         register(new WeatherChanger());
         register(new FovChanger());
         register(new Performance());
+        register(new net.evadeclient.module.client.HudToggle());
         register(new SoundTweaks());
         // Chat, interface & convenience
         register(new AutoReconnect());
@@ -96,6 +99,10 @@ public class ModuleManager {
         register(new VoiceChat());
         register(new ScreenshotTools());
         register(new StreamerMode());
+        register(new ChatHeads());
+        register(new ChatTabs());
+        register(new SmoothChat());
+        register(new ChatEmoji());
         // HUD
         register(new WatermarkHud());
         register(new ModuleListHud());
@@ -142,6 +149,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.hud.NetworkHud());
         register(new net.evadeclient.module.hud.PingGraphHud());
         register(new net.evadeclient.module.hud.PaperDollHud());
+        register(new net.evadeclient.module.hud.LookInfoHud());
         // Client
         register(new ClientSettings());
     }

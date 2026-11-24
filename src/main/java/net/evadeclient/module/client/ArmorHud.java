@@ -74,9 +74,9 @@ public class ArmorHud extends HudElementModule {
     private final BooleanSetting supplies = add(new BooleanSetting("Supplies", true));
     private final ModeSetting supplyPreset = add(new ModeSetting("Supply Preset", "PvP", "PvP", "Crystal", "Builder", "Archery", "Custom")
             .describe("Which supplies to count. Custom counts the items listed in Custom Supplies."));
-    private final StringSetting customSupplies = add(new StringSetting("Custom Supplies",
+    private final StringSetting customSupplies = add(new net.evadeclient.setting.ItemListSetting("Custom Supplies",
             "minecraft:totem_of_undying,minecraft:golden_apple", ".set ArmorHUD CustomSupplies <ids>")
-            .describe("Item ids counted by the Custom preset, separated by commas (e.g. ender_pearl,cobweb)."));
+            .describe("The items counted by the Custom preset. Click to pick them from a searchable grid."));
     private final BooleanSetting showEmptySupplies = add(new BooleanSetting("Show Empty Supplies", false)
             .describe("Keep supplies you've run out of on the panel, with a red 0."));
     private final BooleanSetting absorptionTimer = add(new BooleanSetting("Absorption Timer", false)

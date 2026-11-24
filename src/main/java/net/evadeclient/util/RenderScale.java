@@ -1,20 +1,14 @@
 package net.evadeclient.util;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.evadeclient.EvadeClient;
 import net.evadeclient.mixin.RenderScaleWorldRendererAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gl.SimpleFramebuffer;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
 
 import java.util.OptionalInt;
 import java.util.function.Supplier;
@@ -30,7 +24,7 @@ import java.util.function.Supplier;
  * entities, sky, clouds, weather, particles, the hand, the block outline, waypoints and other world-space overlays,
  * the transparency and entity-outline post chains) lands in it at the smaller size: every render pass sets its
  * viewport from its target, and the frame graph sizes its own targets from that framebuffer. Then the scaled image is
- * drawn over the real main framebuffer (bilinear or nearest, optionally with a light contrast-adaptive sharpen), and
+ * drawn over the real main framebuffer by the {@link Upscaler} (Evade's edge-aware upscaler, bilinear or nearest), and
  * the rest of the frame (GUI, screens, menu blur, toasts) runs against the full-size framebuffer as usual. So
  * screenshots, Clips, replay renders and anything reading the main framebuffer after the frame see a full window-size
  * image; mouse and GUI coordinates never change.
@@ -42,23 +36,12 @@ import java.util.function.Supplier;
 public final class RenderScale {
     private RenderScale() {}
 
-    /** Light contrast-adaptive sharpen; samples its four neighbours one source texel away. */
-    private static final RenderPipeline SHARPEN = RenderPipeline.builder()
-            .withLocation(Identifier.of("evade", "pipeline/render_scale_sharpen"))
-            .withVertexShader("core/screenquad")
-            .withFragmentShader(Identifier.of("evade", "core/render_scale_sharpen"))
-            .withSampler("InSampler")
-            .withDepthWrite(false)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-            .build();
-    /** A plain full-screen copy (vanilla's own blit pipeline: no blending, writes colour and alpha). */
-    private static final RenderPipeline PLAIN = RenderPipelines.TRACY_BLIT;
     private static final Supplier<String> LABEL = () -> "Evade render scale upscale";
 
     /** Wanted scale (1 = off), set every client tick by Performance. */
     private static double scale = 1;
-    private static boolean nearest, sharpen = true;
+    private static Upscaler.Mode mode = Upscaler.Mode.SMOOTH;
+    private static boolean sharpen = true;
 
     /** True only while the world pass runs into the scaled framebuffer: getFramebuffer() returns it then. */
     private static boolean redirect;
@@ -67,7 +50,6 @@ public final class RenderScale {
     private static Framebuffer realMain;
     /** The entity-outline framebuffer was resized to the scaled size (and must go back to the window size). */
     private static boolean outlineScaled;
-    private static boolean sharpenBroken;
     /** Render Scale can't work in this session (its hooks aren't applied, or the framebuffer couldn't be made). */
     private static boolean broken;
     /** Size of the world pass on the last scaled frame, and of the window it was scaled to (for status and tests). */
@@ -81,11 +63,19 @@ public final class RenderScale {
      * framebuffer straight away (client tick = render thread).
      */
     public static void configure(double scale, boolean nearest, boolean sharpen) {
+        configure(scale, nearest ? Upscaler.Mode.SHARP : Upscaler.Mode.SMOOTH, sharpen);
+    }
+
+    /** Like {@link #configure(double, boolean, boolean)} with an {@link Upscaler} mode (Evade, Smooth or Sharp). */
+    public static void configure(double scale, Upscaler.Mode mode, boolean sharpen) {
         RenderScale.scale = scale >= 0.999 ? 1 : Math.max(0.25, scale);
-        RenderScale.nearest = nearest;
+        RenderScale.mode = mode == null ? Upscaler.Mode.SMOOTH : mode;
         RenderScale.sharpen = sharpen;
         if (RenderScale.scale >= 1) release();
     }
+
+    /** The upscaler in use (tests and the status line). */
+    public static Upscaler.Mode mode() { return mode; }
 
     /** Whether the world is drawn below full resolution right now (configured below 100%). */
     public static boolean enabled() { return scale < 1; }
@@ -149,20 +139,12 @@ public final class RenderScale {
         realMain = null;
         if (scaled == null || scaled.getColorAttachmentView() == null || main.getColorAttachmentView() == null) return;
         GpuDevice device = RenderSystem.getDevice();
-        RenderPipeline pipeline = PLAIN;
-        if (sharpen && !sharpenBroken) {
-            // Cached after the first frame (one map lookup); invalid only if the shader failed to compile.
-            if (device.precompilePipeline(SHARPEN).isValid()) pipeline = SHARPEN;
-            else {
-                sharpenBroken = true;
-                EvadeClient.LOG.warn("Render Scale: the sharpen shader didn't compile, scaling without it");
-            }
-        }
+        RenderPipeline pipeline = Upscaler.pipeline(device, mode, sharpen);
         try (RenderPass pass = device.createCommandEncoder().createRenderPass(LABEL, main.getColorAttachmentView(), OptionalInt.empty())) {
             pass.setPipeline(pipeline);
             RenderSystem.bindDefaultUniforms(pass);
             pass.bindTexture("InSampler", scaled.getColorAttachmentView(),
-                    RenderSystem.getSamplerCache().get(nearest ? FilterMode.NEAREST : FilterMode.LINEAR));
+                    RenderSystem.getSamplerCache().get(Upscaler.filter(mode)));
             pass.draw(0, 3);
         }
         scaledFrames++;

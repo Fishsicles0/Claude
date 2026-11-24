@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.NickHider;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.font.TextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,6 +16,6 @@ public abstract class NickHiderTextRendererMixin {
     @ModifyVariable(method = "prepare(Ljava/lang/String;FFIZI)Lnet/minecraft/client/font/TextRenderer$GlyphDrawable;",
             at = @At("HEAD"), argsOnly = true)
     private String evade$nick(String text) {
-        return NickHider.replace(text);
+        return Guard.get(NickHider.class, "text renderer", () -> NickHider.replace(text), text);
     }
 }

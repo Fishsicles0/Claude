@@ -47,10 +47,14 @@ public class ProfilerHud extends TextHudModule {
             long dCount = lastGcCount < 0 ? 0 : count - lastGcCount, dMillis = lastGcCount < 0 ? 0 : millis - lastGcMillis;
             lastGcCount = count; lastGcMillis = millis;
             float avgMs = second[0] > 0 ? 1000f / second[0] : 0;
-            shown = List.of(
+            List<String> l = new ArrayList<>(List.of(
                     Math.round(second[0]) + " FPS  ·  1% low " + Math.round(window[1]),
                     String.format(Locale.ROOT, "%.1f ms  ·  worst %.1f ms", avgMs, second[2]),
-                    String.format(Locale.ROOT, "HUD %.2f ms  ·  GC %d/s, %d ms", hudMs, dCount, dMillis));
+                    String.format(Locale.ROOT, "HUD %.2f ms  ·  GC %d/s, %d ms", hudMs, dCount, dMillis)));
+            // How long the game took to start, and Evade's share of it.
+            String boot = net.evadeclient.util.BootTimer.profilerLine();
+            if (boot != null) l.add(boot);
+            shown = List.copyOf(l);
         }
         return new ArrayList<>(shown);
     }

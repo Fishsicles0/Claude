@@ -1,5 +1,5 @@
 title: Docs
-description: How to use Evade Client {{VERSION}}: the menu and three GUI styles, keybinds, chat commands, the HUD editor and waypoints.
+description: How to use Evade Client {{VERSION}}: the launcher, the menu, keybinds, chat commands, the HUD editor, waypoints and the World Map, Replay, Streamer Mode and Safe Start.
 nav: docs
 ---
 <header class="page-hero wrap">
@@ -12,7 +12,11 @@ nav: docs
   <div class="faq-layout">
     <aside class="faq-nav" aria-label="Docs sections">
       <a href="#launcher">The launcher</a>
+      <a href="#game">Game page &amp; crash help</a>
+      <a href="#content">Mods, packs &amp; worlds</a>
+      <a href="#safe-start">Safe Start</a>
       <a href="#menu">The menu</a>
+      <a href="#keybinds">Keybinds page</a>
       <a href="#themes">Themes</a>
       <a href="#profiles">Profiles</a>
       <a href="#performance">Performance</a>
@@ -20,10 +24,15 @@ nav: docs
       <a href="#icons">Evade icons</a>
       <a href="#friends">Friends &amp; parties</a>
       <a href="#clips">Clips</a>
+      <a href="#replay">Replay</a>
+      <a href="#streamer">Streamer Mode</a>
       <a href="#keys">Default keys</a>
       <a href="#commands">Chat commands</a>
       <a href="#hud">HUD editor</a>
-      <a href="#waypoints">Waypoints</a>
+      <a href="#custom-text">Custom Text</a>
+      <a href="#waypoints">Waypoints &amp; World Map</a>
+      <a href="#visuals">Item View &amp; Damage Numbers</a>
+      <a href="#screenshots">Screenshots</a>
       <a href="#config">Config files</a>
       <a href="#addons">For mod developers</a>
     </aside>
@@ -33,7 +42,36 @@ nav: docs
         <p>The Evade Launcher installs Evade and keeps it up to date. Press <b>Play</b> on its Home page: if Evade, Fabric or one of the extras has a new version it updates them first, then it opens the official Minecraft Launcher with the right profile already selected. Press Play there. Signing in stays with the Minecraft Launcher and your Microsoft account; the Evade Launcher never asks for your password. Home also has your servers (they're added to the Multiplayer list in game too), the latest news, which versions you have and Evade Clips. Evade Clips is built into the launcher: open it from <b>Clips</b> in the sidebar. Closing the window while instant replay is on keeps it running in the tray (right-click the tray icon to save a clip or quit).</p>
         <p><b>Instances</b> are separate setups, each with its own mods, settings, worlds and memory, and its own profile in the Minecraft Launcher (<b>Evade Client &mdash; PvP</b>, for example). Your first one is <b>Main</b> in <span class="mono">.minecraft/evade</span>; new ones go in <span class="mono">.minecraft/evade-instances</span>. Create, rename, duplicate or delete them, switch <b>FPS mods</b>, <b>Shaders</b> and <b>Voice chat</b> per instance, and copy game settings from another instance or your normal game. Changes are applied the next time you press Play.</p>
         <p><b>Mods</b> lists the mods in an instance. Switch your own mods off and on (the file is renamed to <span class="mono">.jar.disabled</span>, so nothing is lost) or remove them, and use <b>Browse Modrinth</b> to add Fabric mods for {{MC}}: the newest compatible version is installed with the libraries it needs, each checked against Modrinth's SHA-512. Evade, Fabric API and the extras are managed by Play and the instance's switches.</p>
-        <p><b>Settings</b> has the Minecraft folder, the memory for new instances, an optional Java path, whether the launcher closes when you press Play, update checks, and buttons to open each folder.</p>
+        <p><b>New instance</b> offers templates: <b>Blank</b> (the usual Evade setup), <b>PvP (lean)</b> (FPS mods and faster start-up, nothing else), <b>Survival + shaders</b> (shaders, dynamic lights, voice chat and Open to Friends), <b>Building</b> (adds <a href="https://modrinth.com/mod/litematica" target="_blank" rel="noopener">Litematica</a> by masa for schematics) and <b>Low-end laptop</b> (the lightest setup, with memory sized for shared graphics). Everything a template sets can be changed later. Instances can be put in folders, pinned and sorted, exported as a <span class="mono">.zip</span> (with or without worlds) to move to another PC, and imported again. <b>Import from another launcher</b> finds Minecraft 1.21 instances in the usual launcher folders, without changing anything there, and copies game settings, keybinds, the server list, packs and (if you choose) worlds; mods are fetched again from Modrinth as their {{MC}} Fabric build. A desktop shortcut starts an instance in one click.</p>
+        <p><b>Optional extras</b> per instance, all off by default and downloaded from Modrinth when you switch them on: <b>Faster start-up</b> (<a href="https://modrinth.com/mod/lazy-language-loader" target="_blank" rel="noopener">Lazy Language Loader</a>), <b>More FPS</b> (<a href="https://modrinth.com/mod/particle-core" target="_blank" rel="noopener">Particle Core</a> and <a href="https://modrinth.com/mod/entity-view-distance" target="_blank" rel="noopener">Entity View Distance</a>), <b>Singleplayer chunk speed</b>, experimental (<a href="https://modrinth.com/mod/c2me-fabric" target="_blank" rel="noopener">C2ME</a> and <a href="https://modrinth.com/mod/scalablelux" target="_blank" rel="noopener">ScalableLux</a>) and <b>Open to Friends</b> (<a href="https://modrinth.com/mod/e4mc" target="_blank" rel="noopener">e4mc</a>).</p>
+        <p><b>Memory:</b> on a laptop whose only graphics are built into the processor, the graphics share your RAM, so the launcher recommends 3&ndash;4&nbsp;GB and warns when an instance is given more than half your RAM. On PCs with RAM to spare, the Game page's settings offer a ZGC preset for steadier frame times.</p>
+        <p><b>Settings</b> has the Minecraft folder, the memory for new instances, an optional Java path, whether the launcher closes when you press Play, update checks, a light theme, accent colours, larger text and reduce motion, and buttons to open each folder. The whole launcher works from the keyboard: press <span class="kbd">F1</span> for the shortcuts.</p>
+      </div>
+
+      <div class="doc-sec rv" id="game">
+        <h2>Game page, logs &amp; crash help</h2>
+        <p>The launcher stays open after <b>Play</b> and shows when you're playing, your play time per instance and a <b>Stop</b> button for a game that hangs. Click an instance's <b>Game</b> page for its status, play time and settings: memory, Java, window size and icon.</p>
+        <p><b>Logs</b> follows the game's log live. Filter it to warnings or errors, search it, or open older logs. <b>Share log</b> copies it with what shouldn't leave your PC hidden first: sign-in tokens and session IDs, IP addresses, your Windows or Linux user name in file paths, and your Minecraft name.</p>
+        <p><b>Crash help:</b> when a game ends badly, the launcher reads the crash report (or the end of the log) and says what probably happened in plain words, with a one-click fix where there is one: switch off the mod that crashed, give the game more (or less) memory, update the graphics driver, use the Minecraft Launcher's own Java, or open the report. <b>Start in safe mode</b> starts the game with every Evade mod off; see <a href="#safe-start">Safe Start</a>.</p>
+      </div>
+
+      <div class="doc-sec rv" id="content">
+        <h2>Mods, packs &amp; worlds</h2>
+        <p>An instance's <b>Mods</b> page has four tabs:</p>
+        <ul>
+          <li><b>Installed</b> &mdash; your mods, resource packs and shader packs, with search, sort and where each came from (Evade, Modrinth or added by hand). Update chips show newer versions on Modrinth and <b>Update all</b> installs them; Evade's own files are never touched. Click a mod's version to pick any build for {{MC}} with its changelog. <b>Pin</b> a mod to keep it where it is (Update all skips it), and <b>Undo last update</b> puts the previous files back. A check warns about missing libraries, mods that don't work together and two mods doing the same job, and one switch turns off every non-Evade mod to find a troublemaker (with Restore).</li>
+          <li><b>Browse Modrinth</b> &mdash; mods, resource packs, shaders, data packs (into a world you choose) and modpacks, each with what it needs.</li>
+          <li><b>Worlds</b> &mdash; back up a world to a zip (the newest backups are kept), restore, duplicate, rename, delete to the Recycle Bin, copy the seed, and manage its data packs. Nothing is changed while the game has the world open.</li>
+          <li><b>Modpacks &amp; sharing</b> &mdash; import a Modrinth <span class="mono">.mrpack</span> (Fabric {{MC}}) or an instance code (they start with <span class="mono">EVI1-</span>) into a new instance, or export this one. Instance codes list Modrinth projects, never files.</li>
+        </ul>
+        <p><b>Drag and drop</b> a file onto the launcher window: a Fabric mod goes into <span class="mono">mods</span>, a resource or shader pack into its folder, and a <span class="mono">.mrpack</span> or exported instance zip becomes a new instance. Each file is checked first (a Forge mod or one for another Minecraft version is refused with the reason) and looked up on Modrinth so it gets update checks too.</p>
+      </div>
+
+      <div class="doc-sec rv" id="safe-start">
+        <h2>Safe Start</h2>
+        <p>A broken setting or a clash with another mod should never lock you out of the game. If two starts in a row stop before the title screen, the next start comes up with <b>every Evade mod off</b>. The same happens once when you click <b>Start in safe mode</b> in the Evade Launcher (a request older than ten minutes is ignored).</p>
+        <p>On the title screen, <b>Safe Start</b> lists the mods that were on and, when the crash report names one, the suspect. Turn them back on one at a time, playing a little after each, to find the one that breaks; <b>Turn all back on</b> restores everything, and <b>Keep them off</b> closes the list. Nothing comes back on without your click.</p>
+        <p>While you play, an error inside one Evade mod switches off only that mod with a "Turned off after an error" message, instead of crashing the game. Turn it back on from the menu once you've changed the setting that caused it.</p>
       </div>
 
       <div class="doc-sec rv" id="menu">
@@ -48,6 +86,12 @@ nav: docs
         </ul>
         <p>Every setting and its default is listed on the <a href="/features">features page</a>: open any mod to see them.</p>
         <p><b>Three menu styles.</b> Under <b>Settings &rarr; GUI Style</b> you can switch between <b>List</b> (the default: spacious full-width rows with a description, keybind chip and settings), <b>Cards</b> (a grid of cards) and <b>Compact</b> (a dense single-column list). The <b>All / Enabled</b> filter at the top right shows either every module or only the ones you have on. The controls are the same in all three.</p>
+      </div>
+
+      <div class="doc-sec rv" id="keybinds">
+        <h2>Keybinds page</h2>
+        <p>Open <b>Keybinds</b> in the menu's sidebar to see every key in one place: each mod's toggle key, the keys mods use while they're on, and the game's own controls, grouped and searchable. Keys used twice are shown in red. Click a key and press the new one; hold <span class="kbd">Ctrl</span>, <span class="kbd">Shift</span> or <span class="kbd">Alt</span> with it to make a combo, so <span class="kbd">Ctrl</span>+<span class="kbd">K</span> and plain <span class="kbd">K</span> can do different things. Right-click clears a key and <b>Reset</b> puts one back. A mod's key can <b>Toggle</b> it or work while you <b>Hold</b> it.</p>
+        <p><b>Pin</b> the mods you use most to keep them at the top of the menu, and share one mod's settings as a code from its settings page.</p>
       </div>
 
       <div class="doc-sec rv" id="themes">
@@ -97,6 +141,8 @@ nav: docs
         <p><b>Benchmark Every FPS Mode</b> (or <span class="mono">.bench all</span>) measures Max FPS, Balanced and Quality in turn and recommends the best-looking one that keeps up with your monitor. <b>Borderless Fullscreen</b> fills the screen with a frameless window for instant Alt-Tab.</p>
         <p><b>Memory:</b> the Evade Launcher recommends how much memory to give Minecraft based on your PC. More isn't faster: an oversized heap makes garbage-collection pauses longer.</p>
         <p>The Evade Launcher also adds <a href="https://modrinth.com/mod/sodium" target="_blank" rel="noopener">Sodium</a>, <a href="https://modrinth.com/mod/lithium" target="_blank" rel="noopener">Lithium</a>, <a href="https://modrinth.com/mod/ferrite-core" target="_blank" rel="noopener">FerriteCore</a>, <a href="https://modrinth.com/mod/immediatelyfast" target="_blank" rel="noopener">ImmediatelyFast</a>, <a href="https://modrinth.com/mod/entityculling" target="_blank" rel="noopener">EntityCulling</a>, <a href="https://modrinth.com/mod/moreculling" target="_blank" rel="noopener">MoreCulling</a> (with its library, Cloth Config), <a href="https://modrinth.com/mod/krypton" target="_blank" rel="noopener">Krypton</a>, <a href="https://modrinth.com/mod/badoptimizations" target="_blank" rel="noopener">BadOptimizations</a> and <a href="https://modrinth.com/mod/sodium-extra" target="_blank" rel="noopener">Sodium Extra</a>, plus <a href="https://modrinth.com/mod/fast-ip-ping" target="_blank" rel="noopener">Fast IP Ping</a> and <a href="https://modrinth.com/mod/fastquit" target="_blank" rel="noopener">FastQuit</a> for a quicker server list and instant world quitting from Modrinth (leave <b>FPS mods</b> on). They stack with Evade's own mod; the <b>FPS Mods Installed</b> line in Performance's settings shows which are loaded. It also sets low-pause memory settings for smoother frame times.</p>
+        <p><b>Render Scale</b> (Performance) draws the world at a lower resolution and sharpens it, while the HUD, menus and text stay crisp: the biggest single gain in fullscreen on a laptop. Balanced uses 80% and Max FPS 60%. The first-run setup's <b>Tune for my PC</b> measures your frame rate for 10 seconds and picks an FPS Mode for your hardware; type <span class="mono">.setup</span> to run the setup again.</p>
+        <p><b>Measure it yourself.</b> We don't publish FPS numbers we haven't measured on your kind of PC, so Evade gives you the tools: <span class="mono">.bench</span> for average FPS and 1% lows, <b>Benchmark Every FPS Mode</b> to compare modes on your own PC, and the two widgets below. Each run is saved, so you can see what a change really did.</p>
         <p>Turn on the <b>Frame Time Graph</b> (HUD) to see how smooth your game really is: one bar per frame (green inside a 60 FPS budget, yellow slower, red for stutters), plus your average FPS, your <b>1% low</b> (the FPS of your slowest frames, which is what you feel) and your worst frame.</p>
       </div>
 
@@ -144,6 +190,30 @@ nav: docs
         <p>Evade Clips works only with Evade Client: it records the Minecraft window while Minecraft with Evade Client is open, and only accepts clips from Evade Client.</p>
       </div>
 
+      <div class="doc-sec rv" id="replay">
+        <h2>Replay</h2>
+        <p><b>Replay</b> (Misc) records the world in 3D as you play: blocks, players, mobs, items, effects and sounds. Afterwards you fly through it with a free camera, make camera paths and render them as video. It's on by default and keeps the current session ready, so <b>Start recording</b> in the pause menu (or the <b>Start / Save Key</b>, or <span class="mono">.replay</span>) works mid-match too; <b>Record Every Session</b> records everything. Add markers for the moments you want with the <b>Marker Key</b> or <span class="mono">.replay marker &lt;name&gt;</span>.</p>
+        <ul>
+          <li>Open saved replays from the <b>Replays</b> button on the title screen.</li>
+          <li>In a replay, close the editor (<span class="kbd">E</span>) to fly, and press <span class="kbd">K</span> to add a camera keyframe where you are. Move on in time, fly somewhere else, press <span class="kbd">K</span> again: that's a camera path.</li>
+          <li><b>Camera</b>: keyframes with field of view and roll, look at or orbit a player or mob, and speed keyframes for slow motion and time-lapse. <b>Scene</b>: time of day, weather, fog, name tags, hiding players or mobs, and a green screen. <b>Render</b>: resolution, frame rate and quality, then render to an MP4 with the game's sound.</li>
+          <li>With Simple Voice Chat, <b>Record Voice Chat</b> keeps what players near you said, played back from where they stood. Switch off <b>Record My Voice</b> to leave yours out.</li>
+        </ul>
+        <p>A replay only holds what your own game received while you played, so it shows nothing you couldn't see at the time.</p>
+      </div>
+
+      <div class="doc-sec rv" id="streamer">
+        <h2>Streamer Mode</h2>
+        <p>Switch on <b>Streamer Mode</b> (Misc) before you go live. It keeps private details off your screen:</p>
+        <ul>
+          <li><b>Hide Coordinates</b> &mdash; the Coordinates widget, waypoint labels and shared waypoints leave out where you are.</li>
+          <li><b>Hide Server Address</b> &mdash; the Server widget shows the server's name from your list instead of its address.</li>
+          <li><b>Turn On Nick Hider</b> &mdash; your name is replaced on screen (and Nick Hider goes back off afterwards if it was off).</li>
+          <li><b>Hide Friend Servers</b> &mdash; friends' servers and message previews are hidden in the friends list and toasts.</li>
+          <li><b>Indicator</b> &mdash; a small Streamer tag in the top-right corner, so you know it's on.</li>
+        </ul>
+      </div>
+
       <div class="doc-sec rv" id="keys">
         <h2>Default keys</h2>
         <div class="table">
@@ -152,6 +222,7 @@ nav: docs
           <div><span class="kbd">Left Alt</span><span>Freelook (switched off on servers that forbid it)</span></div>
           <div><span class="kbd">V</span><span>Voice chat menu</span></div>
           <div><span class="kbd">F8</span><span>Save a clip (with Clips on)</span></div>
+          <div><span class="kbd">M</span><span>World Map</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
         <p>Every other mod starts unbound. Bind the ones you use most from their settings page or with <span class="mono">.bind</span>.</p>
@@ -171,14 +242,17 @@ nav: docs
           <div><span class="cmds"><code>.clip</code> or <code>.clips save</code></span><span>Save a clip now</span></div>
           <div><code>.clips</code><span>Open Evade Clips, or the clips folder without it</span></div>
           <div><code>.clips last</code><span>Open your last clip in the Evade Clips editor</span></div>
+          <div><code>.replay [start|save|pause|marker &lt;name&gt;|list]</code><span>Record the world in 3D (see <a href="#replay">Replay</a>)</span></div>
+          <div><code>.map</code><span>Open the World Map</span></div>
           <div><code>.nick &lt;name&gt;</code><span>Set the name Nick Hider shows instead of yours</span></div>
-          <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>)</span></div>
+          <div><code>.waypoint add &lt;name&gt; | del &lt;name&gt; | list | clear</code><span>Waypoints (short: <code>.wp</code>); <code>.wp gui</code> opens the Waypoint Manager</span></div>
           <div><code>.friend add | remove | accept | decline | block | unblock &lt;name&gt;</code><span>Friends; <code>.friend list</code> shows who's online, <code>.friend requests</code> what's waiting</span></div>
           <div><code>.party invite | kick | leader &lt;name&gt;</code><span>Your party; also <code>.party accept</code>, <code>.party decline</code>, <code>.party leave</code>, <code>.party list</code> and <code>.party bring</code> (leader: ask the party to join your server)</span></div>
           <div><code>.msg &lt;friend&gt; &lt;text&gt;</code> · <code>.reply &lt;text&gt;</code> · <code>.pc &lt;text&gt;</code><span>Message a friend, answer the last one who messaged you, or talk to your party. Sent through Evade, not the server; plain text, 256 characters</span></div>
           <div><code>.join &lt;friend&gt;</code><span>Join the server a friend is sharing (you confirm first)</span></div>
           <div><code>.ping [danger|loot]</code><span>Ping where you're looking, for your party on the same server</span></div>
           <div><code>.shots</code><span>Open the screenshot gallery</span></div>
+          <div><code>.setup</code><span>Run the first-run setup again (play style and Tune for my PC)</span></div>
           <div><code>.save</code><span>Save your config now</span></div>
           <div><code>.load</code><span>Reload your config from disk</span></div>
         </div>
@@ -195,12 +269,42 @@ nav: docs
         </ul>
         <p><b>Stacks:</b> pick two or more widgets (Shift+click or drag a box) and click <b>Stack</b>. They then move together and sit one under another with a small gap, closing up when one of them has nothing to show. A stack hangs from its top widget, or grows upwards when its bottom widget sits against the bottom of the screen. Click any widget in a stack to pick the whole stack (Shift+click picks one on its own); <b>Unstack</b> separates them. Stacks are saved with your config and profiles.</p>
         <p>The <b>Frame Profiler</b> element shows where your frame time goes: FPS and 1% low, average and worst frame time, how long Evade's HUD takes, and garbage-collection pauses (the usual cause of micro-stutter).</p>
+        <p>The editor also has undo and redo (<span class="kbd">Ctrl</span>+<span class="kbd">Z</span> / <span class="kbd">Ctrl</span>+<span class="kbd">Y</span>), arrow keys to nudge, align buttons for several widgets, locks, right-click on empty space to add a widget, ready-made layouts, and HUD codes to share your layout.</p>
+      </div>
+
+      <div class="doc-sec rv" id="custom-text">
+        <h2>Custom Text</h2>
+        <p>The three <b>Custom Text</b> widgets show your own text with live values. Type the values in curly brackets:</p>
+        <div class="table code">
+          <div><span class="cmds"><code>{fps}</code> · <code>{ping}</code> · <code>{cps}</code> · <code>{rcps}</code></span><span>Frame rate, your ping, left and right clicks per second</span></div>
+          <div><span class="cmds"><code>{x}</code> <code>{y}</code> <code>{z}</code> · <code>{nether_x}</code> <code>{nether_z}</code></span><span>Your position, and where it lands in the Nether (or the Overworld)</span></div>
+          <div><span class="cmds"><code>{biome}</code> · <code>{dimension}</code> · <code>{facing}</code> · <code>{facing_short}</code> · <code>{yaw}</code> · <code>{pitch}</code></span><span>Where you are and which way you look</span></div>
+          <div><span class="cmds"><code>{time}</code> · <code>{time:HH:mm}</code> · <code>{day}</code></span><span>Your clock (any format) and the in-game day</span></div>
+          <div><span class="cmds"><code>{health}</code> · <code>{food}</code> · <code>{armor}</code> · <code>{level}</code> · <code>{speed}</code></span><span>Your own health, hunger, armour points, XP level and speed in blocks per second</span></div>
+          <div><span class="cmds"><code>{held}</code> · <code>{durability}</code> · <code>{count:totem_of_undying}</code></span><span>The item in your hand, its durability, and how many of an item you carry</span></div>
+          <div><span class="cmds"><code>{mod:Zoom}</code> · <code>{server}</code> · <code>{username}</code></span><span>Whether a mod is on, the server you're on, your name</span></div>
+          <div><span class="cmds"><code>{memory}</code> · <code>{memory_used}</code> · <code>{memory_max}</code></span><span>Minecraft's memory use</span></div>
+        </div>
+        <p>Colours: <span class="mono">&lt;red&gt;</span>, <span class="mono">&lt;#FF8800&gt;</span> or <span class="mono">&lt;accent&gt;</span> colour the text that follows, <span class="mono">&lt;/&gt;</span> goes back to the colour before and <span class="mono">&lt;reset&gt;</span> to the widget's own. Conditions: <span class="mono">{if ping&gt;150}High ping{else}OK{end}</span> (also <span class="mono">&lt; &gt;= &lt;= = !=</span>, and <span class="mono">{if mod:Zoom}</span> for "is on"). <span class="mono">\n</span> starts a new line. Every value is something the game already shows you about yourself; coordinates and the biome follow the server's Reduced Debug Info rule, like the Coordinates widget.</p>
       </div>
 
 
       <div class="doc-sec rv" id="waypoints">
-        <h2>Waypoints</h2>
-        <p>Waypoints are on by default. <span class="mono">.waypoint add Base</span> saves where you stand; it shows as a red beam with its name and distance. They're saved per server (or singleplayer world) and per dimension. When you die, a <b>Death</b> waypoint is added automatically; turn that off in the Waypoints settings.</p>
+        <h2>Waypoints &amp; World Map</h2>
+        <p>Waypoints are on by default. <span class="mono">.waypoint add Base</span> saves where you stand; it shows as a beam with its name and distance. They're saved per server (or singleplayer world) and per dimension. When you die, a <b>Death</b> waypoint is added automatically; turn that off in the Waypoints settings.</p>
+        <p>The <b>Waypoint Manager</b> (Waypoints settings, the World Map's <b>Waypoints</b> button, or <span class="mono">.wp gui</span>) lists this world's points nearest first, or by name or age, with search. Change a point's name, colour, icon, beam and how far away it still shows; hide it, make it your target, delete it (with Undo), or put its coordinates in the chat box to send yourself. Nothing teleports and nothing is sent for you.</p>
+        <p>The <b>World Map</b> (Visuals, on by default) opens with <span class="kbd">M</span> or <span class="mono">.map</span>: a full-screen map of the ground you've explored, saved per server and world and shared with the Minimap. Drag to move, scroll to zoom, click to add a waypoint, and right-click a waypoint to edit it, target it or delete it. It only shows surface terrain your game has actually loaded: nothing underground, no other players, and no coordinates where a server hides them from F3. <b>Memory Limit</b> caps how much map stays in memory; older areas are saved and reloaded when you look at them.</p>
+      </div>
+
+      <div class="doc-sec rv" id="visuals">
+        <h2>Item View &amp; Damage Numbers</h2>
+        <p><b>Item View</b> (Visuals) moves, tilts, turns and resizes the item in each hand, changes how fast the swing animation looks (attack timing is untouched), and can hide your shield when you aren't blocking. <b>1.7 Animations</b> brings back the old sword-block pose, red armour when hurt, the old hurt tilt, sneak camera and heart flash.</p>
+        <p><b>Damage Numbers</b> (Visuals) shows a floating number, or a hit marker, on things you hit, and only once the server confirms the hit was yours. It never shows anyone's health.</p>
+      </div>
+
+      <div class="doc-sec rv" id="screenshots">
+        <h2>Screenshots</h2>
+        <p>Open <b>Screenshots</b> in the menu (or type <span class="mono">.shots</span>) to browse this game folder's <span class="mono">screenshots</span>. Copy one to the clipboard, rename it, show it in its folder or delete it; deleted ones go to <span class="mono">screenshots/.trash</span> for a week, and <b>Undo</b> (<span class="kbd">Ctrl</span>+<span class="kbd">Z</span>) brings one back.</p>
       </div>
 
 
@@ -209,8 +313,10 @@ nav: docs
         <div class="table code">
           <div><code>.minecraft/evade/config/evade/config.json</code><span>Mods, settings, keybinds, HUD layout</span></div>
           <div><code>.minecraft/evade/config/evade/waypoints.json</code><span>Waypoints</span></div>
+          <div><code>.minecraft/evade/config/evade/profiles/</code><span>Profiles, one file each</span></div>
+          <div><code>.minecraft/evade/config/evade/maps/</code><span>World Map tiles, per server and dimension</span></div>
+          <div><code>.minecraft/evade/.evade/</code><span>The launcher's files for this instance (play time, Safe Start, backups)</span></div>
         </div>
-        <p>Screenshots: open <b>Screenshots</b> in the menu (or type <span class="mono">.shots</span>) to browse this game folder's <span class="mono">screenshots</span>. Copy, rename, show in folder or delete them; deleted ones go to <span class="mono">screenshots/.trash</span> for a week, and <b>Undo</b> (Ctrl+Z) brings one back.</p>
         <p>Paths are for the Evade Launcher's <b>Main</b> instance. Other instances keep theirs in <span class="mono">.minecraft/evade-instances/&lt;name&gt;/config/evade</span>. If you dropped the jar into your own Fabric install, they're inside that game folder instead.</p>
       </div>
 

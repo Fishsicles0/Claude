@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
@@ -23,8 +24,10 @@ public abstract class OldSneakCameraMixin {
 
     @Inject(method = "updateEyeHeight", at = @At("TAIL"))
     private void evade$instantSneak(CallbackInfo ci) {
-        Entity e = this.focusedEntity;
-        if (e == null || e != MinecraftClient.getInstance().player || OldAnimations.with(o -> o.oldSneak) == null) return;
-        this.cameraY = this.lastCameraY = e.getStandingEyeHeight();
+        Guard.run(OldAnimations.class, "sneak camera", () -> {
+            Entity e = this.focusedEntity;
+            if (e == null || e != MinecraftClient.getInstance().player || OldAnimations.with(o -> o.oldSneak) == null) return;
+            this.cameraY = this.lastCameraY = e.getStandingEyeHeight();
+        });
     }
 }

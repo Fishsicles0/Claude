@@ -39,13 +39,18 @@ public final class Benchmark {
 
     /** Starts a run of {@code seconds}. False if one is already running or there's no world. */
     public static boolean start(int seconds) {
+        return start(seconds, MinecraftClient.getInstance().isInSingleplayer());
+    }
+
+    /** Like {@link #start(int)}; {@code turn} turns the camera one full circle (singleplayer only). */
+    public static boolean start(int seconds, boolean turn) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (running() || mc.player == null || mc.world == null) return false;
         frames = new float[MAX_FRAMES];
         count = 0;
         durationNanos = Math.max(5, Math.min(120, seconds)) * 1_000_000_000L;
         startNanos = System.nanoTime();
-        spin = mc.isInSingleplayer();
+        spin = turn && mc.isInSingleplayer();
         startYaw = mc.player.getYaw();
         return true;
     }
@@ -63,6 +68,7 @@ public final class Benchmark {
         long elapsed = System.nanoTime() - startNanos;
         if (count < MAX_FRAMES) frames[count++] = ms;
         if (spin) mc.player.setYaw(startYaw + 360f * (float) Math.min(1.0, elapsed / (double) durationNanos));
+        BenchmarkScene.onFrame(elapsed, durationNanos);
         if (elapsed >= durationNanos) finish(elapsed / 1e9);
     }
 

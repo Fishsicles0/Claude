@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.mods.TimeChanger;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.SkyRendering;
 import net.minecraft.client.render.state.SkyRenderState;
@@ -20,12 +21,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class SkyRenderingMixin {
     @Inject(method = "updateRenderState", at = @At("TAIL"))
     private void evade$timeChangerSky(ClientWorld world, float tickProgress, Camera camera, SkyRenderState state, CallbackInfo ci) {
-        if (state.skybox != DimensionType.Skybox.OVERWORLD) return;
-        TimeChanger tc = TimeChanger.active();
-        if (tc == null) return;
-        MoonPhase phase = tc.moonPhase();
-        if (phase != null) state.moonPhase = phase;
-        // Stars fade in at dusk (brightness 0 by day): brighten only stars vanilla already shows, never daytime ones.
-        if (tc.brightStars() && state.starBrightness > 0f) state.starBrightness = Math.min(1f, state.starBrightness * 4f);
+        Guard.run(TimeChanger.class, "sky", () -> {
+            if (state.skybox != DimensionType.Skybox.OVERWORLD) return;
+            TimeChanger tc = TimeChanger.active();
+            if (tc == null) return;
+            MoonPhase phase = tc.moonPhase();
+            if (phase != null) state.moonPhase = phase;
+            // Stars fade in at dusk (brightness 0 by day): brighten only stars vanilla already shows, never daytime ones.
+            if (tc.brightStars() && state.starBrightness > 0f) state.starBrightness = Math.min(1f, state.starBrightness * 4f);
+        });
     }
 }

@@ -178,6 +178,14 @@ public final class ReplayEditorScreen extends Screen {
         y += 24;
         action(x, y, 188, "Render video", () -> { save(); ReplayRender.start(); },
                 "Renders frame by frame (smooth whatever your FPS) to an MP4 in .minecraft/evade/renders, and into Evade Clips when it's open");
+        y += 24;
+        action(x, y, 188, "Add to render queue", () -> {
+            save();
+            ReplayPlayer p = ReplayPlayer.current();
+            if (p == null) return;
+            RenderQueue.add(p.file, RenderQueue.shareNew);
+            net.evadeclient.util.Notifications.push("Render queue", RenderQueue.jobs().size() + " in the queue. Run it from Replays on the title screen", true);
+        }, "Render it later with these settings, with other queued replays one after another (Replays, Render queue)");
     }
 
     // ------------------------------------------------------------------ camera actions

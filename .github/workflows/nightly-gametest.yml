@@ -1,0 +1,59 @@
+# Nightly in-game test: starts Minecraft with Evade (and the mods the launcher can add, from Modrinth) under a
+# virtual screen, builds a world and runs the full client gametest (about 400 checks, ~15 minutes). The PASS count
+# goes in the run summary; screenshots and the log are kept for a week. Needs no secrets.
+name: Nightly in-game test
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gametest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Virtual screen and software OpenGL
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb mesa-utils libgl1-mesa-dri
+      - name: Mods the launcher can add (downloaded from Modrinth, never bundled)
+        run: python3 scripts/fetch-test-mods.py
+      # Start-up and memory budgets compare against this machine type's recent runs (ReliabilityV25Test).
+      - uses: actions/cache@v4
+        with:
+          path: build/run/clientGameTest/evade-test-budgets.json
+          key: gametest-budgets-${{ github.run_id }}
+          restore-keys: gametest-budgets-
+      - name: Run the in-game test
+        run: |
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1920x1080x24" ./gradlew runClientGameTest --no-daemon 2>&1 | tee gametest.log
+      - name: Summary
+        if: always()
+        run: |
+          pass=$(grep -c '\[gametest\] PASS:' gametest.log || true)
+          fail=$(grep -m1 'FAILED:' gametest.log || true)
+          {
+            echo "## In-game test"
+            echo "**${pass} checks passed**"
+            if [ -n "$fail" ]; then echo; echo '```'; echo "$fail"; echo '```'; fi
+            grep -m1 'Start-up:' gametest.log | sed 's/.*Start-up:/Start-up:/' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gametest-${{ github.run_number }}
+          retention-days: 7
+          path: |
+            gametest.log
+            build/run/clientGameTest/screenshots
+            build/run/clientGameTest/logs/latest.log
+          if-no-files-found: ignore

@@ -1,6 +1,7 @@
 package net.evadeclient.mixin;
 
 import net.evadeclient.module.visuals.OldAnimations;
+import net.evadeclient.util.Guard;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -26,8 +27,10 @@ public abstract class RedArmorMixin {
             index = 5)
     private int evade$redArmor(Model<?> model, Object state, MatrixStack matrices, RenderLayer layer, int light, int overlay,
                                int tint, Sprite sprite, int outline, ModelCommandRenderer.CrumblingOverlayCommand crumbling) {
-        if (!(state instanceof LivingEntityRenderState s) || !s.hurt) return overlay;
-        if (OldAnimations.with(o -> o.redArmor) == null) return overlay;
-        return OverlayTexture.packUv(OverlayTexture.getU(0f), OverlayTexture.getV(true));
+        return Guard.getInt(OldAnimations.class, "red armor", () -> {
+            if (!(state instanceof LivingEntityRenderState s) || !s.hurt) return overlay;
+            if (OldAnimations.with(o -> o.redArmor) == null) return overlay;
+            return OverlayTexture.packUv(OverlayTexture.getU(0f), OverlayTexture.getV(true));
+        }, overlay);
     }
 }
