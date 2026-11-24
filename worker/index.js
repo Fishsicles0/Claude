@@ -312,6 +312,9 @@ export class EvadeIcons extends DurableObject {
 //   /api/social/party/invite {uuid}  (a friend; creates your party if you have none)
 //   /api/social/party/accept|decline {party}, /party/leave {}, /party/kick|transfer {uuid} -> { ok, state }
 //   /api/social/ping {x, y, z, dimension, server, kind?: "location"|"danger"|"loot"} -> { ok }
+//   /api/social/msg {uuid, text}   (a friend who is online; plain text, 256 characters at most) -> { ok, delivered }
+//   /api/social/party/msg {text}   (party chat)                                     -> { ok, delivered }
+//   /api/social/party/summon {server}  (leader: "Bring party here", members choose to join) -> { ok, delivered }
 //   /api/social/delete {}                                             -> { ok, deleted }  (all your social data)
 // WebSocket: GET /api/social/ws (wss) with the same Authorization header, or ?token=, or send
 //   {"op":"auth","token":"..."} as the first message (within 30 s). The text "ping" is answered "pong" without waking
@@ -320,11 +323,17 @@ export class EvadeIcons extends DurableObject {
 //   hello {state} | state {state} | friend.request {from} | friend.accepted {friend} | friend.removed {uuid}
 //   friend.status {uuid, name, online, server} | party.invite {party, from, size} | party.joined {member}
 //   party.left {member, kicked} | party.kicked {by} | party.leader {leader} | ping {from, x, y, z, dimension, kind, at}
-//   where from/friend/member = {uuid, name}.
+//   msg {from, text, at} | party.msg {from, text, at} | party.summon {from, server, at}
+//   where from/friend/member = {uuid, name}. A polling client gets pings in /state "pings" and the msg, party.msg and
+//   party.summon events in /state "events" (both only for its next /state, 15-30 s at most). Clients ignore types
+//   they don't know, so older clients are unaffected by newer events.
 //
 // Pings are relayed straight to the sender's party members who are online on the same server address (normalized:
-// lower case, default port 25565 dropped; private/LAN addresses never match) and are never stored. Social data of an
-// account unused for 90 days is deleted; /api/social/delete deletes it at once.
+// lower case, default port 25565 dropped; private/LAN addresses never match) and are never stored. Messages, party
+// chat and "Bring party here" are relayed the same way: only to friends / party members who are online right now, only
+// between players who haven't blocked each other, and never written down (a polling recipient's copy waits in memory
+// for its next /state, 30 s at most). Social data of an account unused for 90 days is deleted; /api/social/delete
+// deletes it at once.
 
 const SOCIAL = {
   MAX_FRIENDS: 300, MAX_PENDING: 30, MAX_BLOCKS: 1000, MAX_PARTY: 8, MAX_SOCKETS: 3,
@@ -336,10 +345,28 @@ const SOCIAL = {
   PING_GAP_MS: 1500, PING_WINDOW_MS: 10 * 1000, PING_MAX: 5,
   AUTH_GRACE_MS: 30 * 1000,              // a socket that hasn't sent its token by then is closed
   MAX_MESSAGE: 4096,
+  CHAT_MAX: 256,                         // characters in one friend or party message
+  CHAT_GAP_MS: 300, CHAT_WINDOW_MS: 10 * 1000, CHAT_BURST: 8, CHAT_HOUR: 600,
+  SUMMON_GAP_MS: 15 * 1000, SUMMON_HOUR: 20,
+  POLL_EVENT_MS: 30 * 1000,              // how long a polling client's relayed message waits for its next /state
 };
 const PING_KINDS = new Set(["location", "danger", "loot"]);
 const DIMENSION = /^[a-z0-9_.-]{1,32}:[a-z0-9_./-]{1,64}$/;
 const PARTY_ID = /^[0-9a-f]{16}$/;
+
+/**
+ * A friend or party message as it is relayed: plain text with control, bidi-override and formatting (§) characters
+ * removed and runs of white space made one space. Throws a 400 for anything that isn't a non-empty string of at most
+ * {@code SOCIAL.CHAT_MAX} characters.
+ */
+export function chatText(t) {
+  if (typeof t !== "string" || t.length > SOCIAL.CHAT_MAX * 4) throw new SocialError(400, "Messages are " + SOCIAL.CHAT_MAX + " characters at most");
+  const s = t.replace(/[\u0000-\u001f\u007f-\u009f\u00a7\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/g, " ")
+    .replace(/\s+/g, " ").trim();
+  if (!s) throw new SocialError(400, "Type a message");
+  if ([...s].length > SOCIAL.CHAT_MAX) throw new SocialError(400, "Messages are " + SOCIAL.CHAT_MAX + " characters at most");
+  return s;
+}
 
 /**
  * A server address as the key pings are routed by: lower case, no trailing dot, no ":25565". Null for anything that
@@ -437,6 +464,12 @@ export class EvadeSocial extends DurableObject {
     this.pollPings = new Map();
     /** Request counts per account for the short flood limit (memory only). */
     this.bursts = new Map();
+    /** Message send times per sender (memory only: messages are never written down). */
+    this.chatTimes = new Map();
+    /** Messages and summons waiting for a polling client's next /state, by recipient (memory only, 30 s). */
+    this.pollEvents = new Map();
+    /** When each leader last brought their party somewhere (memory only). */
+    this.summonTimes = new Map();
     try { ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong")); } catch { /* older runtime */ }
     ctx.blockConcurrencyWhile(async () => {
       if (!(await ctx.storage.getAlarm())) await ctx.storage.setAlarm(Date.now() + 60 * 1000);
@@ -480,6 +513,9 @@ export class EvadeSocial extends DurableObject {
         this.pollPings.delete(uuid);
         const now = Date.now();
         body.pings = (waiting || []).filter((p) => p.at > now - 15000);
+        const events = this.pollEvents.get(uuid);
+        this.pollEvents.delete(uuid);
+        body.events = (events || []).filter((e) => e.at > now - SOCIAL.POLL_EVENT_MS);
       }
       return { status: 200, body };
     } catch (e) {
@@ -742,6 +778,41 @@ export class EvadeSocial extends DurableObject {
         this.ping(me, a, now);
         return {};
       }
+      case "msg": {
+        const u = this.uuidArg(a);
+        if (u === me) throw new SocialError(400, "That's you");
+        const text = chatText(a.text);
+        if (!this.areFriends(me, u) || this.blockedEither(me, u)) throw new SocialError(404, "You can only message friends");
+        const name = this.who(u).name || "They";
+        if (!this.isOnline(u)) throw new SocialError(409, name + " is offline (messages aren't kept for later)");
+        this.chatLimit(me, now);
+        const delivered = this.relay(u, { type: "msg", from: this.who(me), text, at: now }, now);
+        return { delivered };
+      }
+      case "party.msg": {
+        const text = chatText(a.text);
+        const party = this.partyOf(me);
+        if (!party) throw new SocialError(409, "Join a party to use party chat");
+        this.chatLimit(me, now);
+        const msg = { type: "party.msg", from: this.who(me), text, at: now };
+        let delivered = 0;
+        for (const m of this.members(party)) if (m !== me && !this.blockedEither(me, m) && this.relay(m, msg, now)) delivered++;
+        return { delivered };
+      }
+      case "party.summon": {
+        const party = this.leaderParty(me);
+        const server = normServer(a.server);
+        if (!server) throw new SocialError(400, "Bring your party to a multiplayer server (not singleplayer or LAN)");
+        const last = this.summonTimes.get(me) || 0;
+        if (now - last < SOCIAL.SUMMON_GAP_MS) throw new SocialError(429, "You just did that", { retryAfter: last + SOCIAL.SUMMON_GAP_MS - now });
+        this.limit(me + ":summon", SOCIAL.SUMMON_HOUR, 3600 * 1000, "too many party summons; try again later");
+        this.summonTimes.set(me, now);
+        if (this.summonTimes.size > 5000) for (const [k, v] of this.summonTimes) if (v <= now - SOCIAL.SUMMON_GAP_MS) this.summonTimes.delete(k);
+        const msg = { type: "party.summon", from: this.who(me), server, at: now };
+        let delivered = 0;
+        for (const m of this.members(party)) if (m !== me && !this.blockedEither(me, m) && this.relay(m, msg, now)) delivered++;
+        return { delivered };
+      }
       case "delete": {
         this.purge(me, true);
         for (const ws of this.socketsOf(me)) this.closeSocket(ws, 4002, "social data deleted");
@@ -790,6 +861,33 @@ export class EvadeSocial extends DurableObject {
         this.pollPings.set(m, q);
       }
     }
+  }
+
+  /** Message rate: one per 0.3 s, 8 per 10 s (memory), 600 an hour (a counter only, never the text). */
+  chatLimit(me, now) {
+    const times = (this.chatTimes.get(me) || []).filter((t) => t > now - SOCIAL.CHAT_WINDOW_MS);
+    const wait = times.length >= SOCIAL.CHAT_BURST ? times[times.length - SOCIAL.CHAT_BURST] + SOCIAL.CHAT_WINDOW_MS - now
+      : times.length ? times[times.length - 1] + SOCIAL.CHAT_GAP_MS - now : 0;
+    if (wait > 0) { this.chatTimes.set(me, times); throw new SocialError(429, "Sending too fast", { retryAfter: wait }); }
+    this.limit(me + ":chat", SOCIAL.CHAT_HOUR, 3600 * 1000, "too many messages this hour; try again later");
+    times.push(now);
+    this.chatTimes.set(me, times);
+    if (this.chatTimes.size > 5000) for (const [k, v] of this.chatTimes) if (!v.length || v[v.length - 1] < now - SOCIAL.CHAT_WINDOW_MS) this.chatTimes.delete(k);
+  }
+
+  /**
+   * Hands {@code msg} to {@code uuid} if it is online: to its sockets, or (polling) into memory for its next /state.
+   * Returns whether it was delivered. Nothing is stored.
+   */
+  relay(uuid, msg, now) {
+    if (this.socketsOf(uuid).length) { this.send(uuid, msg); return true; }
+    const p = this.sql.exec("SELECT poll_at FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    if (!p || p.poll_at <= now - SOCIAL.POLL_ONLINE_MS) return false;
+    const q = (this.pollEvents.get(uuid) || []).filter((e) => e.at > now - SOCIAL.POLL_EVENT_MS).slice(-19);
+    q.push(msg);
+    this.pollEvents.set(uuid, q);
+    if (this.pollEvents.size > 5000) for (const [k, v] of this.pollEvents) if (!v.length || v[v.length - 1].at <= now - SOCIAL.POLL_EVENT_MS) this.pollEvents.delete(k);
+    return true;
   }
 
   // ------------------------------------------------------------------ helpers: accounts
@@ -1088,6 +1186,9 @@ export class EvadeSocial extends DurableObject {
     this.sql.exec("DELETE FROM profiles WHERE uuid = ?", uuid);
     this.pingTimes.delete(uuid);
     this.pollPings.delete(uuid);
+    this.chatTimes.delete(uuid);
+    this.pollEvents.delete(uuid);
+    this.summonTimes.delete(uuid);
     if (notify) {
       for (const f of friends) { this.send(f, { type: "friend.removed", uuid }); this.pushState(f); }
       for (const u of asked) this.pushState(u);

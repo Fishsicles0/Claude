@@ -142,7 +142,7 @@ public abstract class EvadePanelScreen extends Screen {
             hits.add(new Hit(cx, wy + 12, cx + 46, wy + 28, b -> close()));
             text(ctx, title.getString(), cx + 56, wy + 12, Theme.TEXT, Role.TITLE);
             String sub = subtitle();
-            if (!sub.isEmpty()) text(ctx, ellipsize(sub, Role.SMALL, cw - 260), cx + 56, wy + 30, Theme.TEXT_DIM, Role.SMALL);
+            if (!sub.isEmpty()) text(ctx, ellipsize(sub, Role.SMALL, cw - 200), cx + 56, wy + 30, Theme.TEXT_DIM, Role.SMALL);
             renderHeaderRight(ctx, cx + cw, wy + 13, mx, my);
             Theme.fill(ctx, cx, wy + 42, cx + cw, wy + 43, Theme.DIVIDER);
 

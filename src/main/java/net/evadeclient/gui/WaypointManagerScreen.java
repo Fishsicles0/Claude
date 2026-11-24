@@ -156,7 +156,7 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         if (p.hidden()) sub.append("  ·  hidden");
         if (p.equals(w.target())) sub.append("  ·  target");
         if (p.range() > 0) sub.append("  ·  shows within ").append(p.range()).append("m");
-        text(ctx, ellipsize(sub.toString(), Role.SMALL, cw / 2 + 20), tx, y + 17, Theme.TEXT_DIM, Role.SMALL);
+        text(ctx, ellipsize(sub.toString(), Role.SMALL, cw - 34 - 300), tx, y + 17, Theme.TEXT_DIM, Role.SMALL);
 
         // Clicking the row itself opens or closes its editor (the buttons, registered after, are checked first).
         contentHit(cx, y, cx + cw, y + ROW_H - 3, b -> { if (p.equals(editing)) closeEditor(); else openEditor(p); });

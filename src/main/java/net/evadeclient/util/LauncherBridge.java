@@ -52,7 +52,7 @@ public final class LauncherBridge {
     /** One-time setup from the client initializer. */
     public static void register() {
         try {
-            dir = MinecraftClient.getInstance().runDirectory.toPath().resolve(DIR);
+            dir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve(DIR);
             Files.createDirectories(dir);
         } catch (Exception e) {
             EvadeClient.LOG.warn("Launcher bridge off: {}", e.toString());
