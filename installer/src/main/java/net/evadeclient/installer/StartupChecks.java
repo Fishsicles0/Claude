@@ -64,7 +64,7 @@ final class StartupChecks {
         try {
             HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NORMAL).build();
             HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(InstallerCore.SITE + "/version.json?t=" + System.currentTimeMillis()))
-                    .timeout(Duration.ofSeconds(6)).header("user-agent", "EvadeInstaller").GET().build(), HttpResponse.BodyHandlers.ofString());
+                    .timeout(Duration.ofSeconds(6)).header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200) return null;
             JsonObject inst = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonObject("installer");
             JsonObject pick = inst == null ? null : inst.getAsJsonObject(exe ? "windows" : "jar");

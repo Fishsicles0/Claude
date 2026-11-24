@@ -36,7 +36,7 @@ final class ContentApi {
     static final String API = "https://api.modrinth.com/v2";
     /** Where a .mrpack may download files from (the format's allowed hosts). */
     static final Set<String> PACK_HOSTS = Set.of("cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com");
-    private static final String USER_AGENT = "EvadeLauncher/2.3 (+https://evadeclient.com)";
+    private static final String USER_AGENT = LauncherInfo.USER_AGENT;
     /** No single file over this is downloaded (the biggest mods and packs are far smaller). */
     static final long MAX_FILE = 512L << 20;
 

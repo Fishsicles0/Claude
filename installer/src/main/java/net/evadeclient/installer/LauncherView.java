@@ -154,7 +154,7 @@ public final class LauncherView extends JPanel {
     String clipsNote;
     /** The old separate Evade Clips app is still installed (Settings offers to remove it). */
     boolean legacyClips;
-    String version = "2.0.0";
+    String version = LauncherInfo.VERSION;
 
     // home: player, servers, notices, slides
     String playerName;
@@ -1065,8 +1065,10 @@ public final class LauncherView extends JPanel {
     private void topButton(Graphics2D g, String id, int x, String iconKind, boolean danger) {
         int y = 22, s = 40;
         float t = anim(id, id.equals(hovered) || id.equals(overlay));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(0x141418), danger ? RED : new Color(0x202026), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         g.setColor(HAIRLINE);
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 24, 24));
         Color c = mix(DIM, TEXT, t);
@@ -1949,6 +1951,7 @@ public final class LauncherView extends JPanel {
     }
 
     void badge(Graphics2D g, int cx, int cy, String s) {
+        int was = ThemedGraphics.danger(g); // "!" means a problem: red whatever the accent
         g.setColor(new Color(225, 29, 46, 40));
         g.fill(new Ellipse2D.Double(cx - 26, cy - 26, 52, 52));
         g.setColor(RED);
@@ -1956,6 +1959,7 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(20f));
         g.setColor(Color.WHITE);
         center(g, s, cx - 18, cy - 18, 36, 36);
+        ThemedGraphics.mode(g, was);
     }
 
     /** A solid red button with a play icon (the hero's other states: try again, get the launcher). */
@@ -2127,7 +2131,7 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12f));
         String info;
         Color ic = DIM;
-        if (releaseError != null) { info = EvadeInstaller.sentence(releaseError) + " Check your connection and press Retry."; ic = RED_HI; }
+        if (releaseError != null) { info = EvadeInstaller.sentence(releaseError) + " Check your connection and press Retry."; ic = LauncherTheme.DANGER; }
         else if (release == null) info = "Checking for the latest version…";
         else info = "Evade Client v" + release.evadeVersion() + " for Minecraft " + InstallerCore.MC_VERSION;
         List<String> lines = wrapLines(g, info, w - 14, 2);
@@ -2448,7 +2452,7 @@ public final class LauncherView extends JPanel {
         card(g, x, ly, w, lh, false);
         if (hits.isEmpty()) {
             g.setFont(inter.deriveFont(12.5f));
-            g.setColor(searchError != null ? RED_HI : DIM);
+            g.setColor(searchError != null ? LauncherTheme.DANGER : DIM);
             String msg = searching ? "Searching Modrinth…" : searchError != null ? EvadeInstaller.sentence(searchError) : "No mods found for “" + lastQuery + "”.";
             center(g, msg, x, ly + lh / 2 - 20, w, 18);
             if (searchError != null && !searching) ghostButton(g, "search-retry", x + w / 2 - 70, ly + lh / 2 + 6, 140, 34, "Try again", false);
@@ -2893,8 +2897,10 @@ public final class LauncherView extends JPanel {
 
     private void button(Graphics2D g, String id, int x, int y, int w, int h, boolean danger) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(255, 255, 255, 0), danger ? RED : new Color(255, 255, 255, 30), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 8, 8));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         g.setColor(mix(DIM, TEXT, t));
         g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         double cx = x + w / 2.0, cy = y + h / 2.0;
@@ -2957,6 +2963,7 @@ public final class LauncherView extends JPanel {
 
     void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1; // Delete stays red whatever the accent
         Color base = solid ? new Color(0x3A1218) : new Color(0x1C1C22);
         int r = Math.min(h, 24);
         g.setColor(danger ? mix(base, new Color(0x4A141B), t) : mix(base, new Color(0x26262D), t));
@@ -2976,6 +2983,7 @@ public final class LauncherView extends JPanel {
         if (iconKind != null) icon(g, iconKind, tx + iw / 2, y + h / 2, iw, danger ? fg : mix(DIM, TEXT, t));
         g.setColor(fg);
         g.drawString(s, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label);
     }
@@ -2993,9 +3001,11 @@ public final class LauncherView extends JPanel {
 
     void iconButton(Graphics2D g, String id, int x, int y, int s, String kind, boolean danger) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(255, 255, 255, 0), danger ? new Color(225, 29, 46, 60) : new Color(255, 255, 255, 24), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 9, 9));
         icon(g, kind, x + s / 2, y + s / 2, 14, mix(FAINT, danger ? RED_HI : TEXT, t));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, s, s));
     }
 

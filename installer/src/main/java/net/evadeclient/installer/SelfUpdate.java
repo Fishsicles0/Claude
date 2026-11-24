@@ -44,7 +44,7 @@ final class SelfUpdate {
             HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
                     .followRedirects(HttpClient.Redirect.NORMAL).build();
             HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(InstallerCore.SITE + "/version.json?t=" + System.currentTimeMillis()))
-                    .timeout(Duration.ofSeconds(6)).header("user-agent", "EvadeInstaller").GET().build(), HttpResponse.BodyHandlers.ofString());
+                    .timeout(Duration.ofSeconds(6)).header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200) return false;
             JsonObject inst = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonObject("installer");
             JsonObject pick = inst == null ? null : inst.getAsJsonObject(exe ? "windows" : "jar");
@@ -55,7 +55,7 @@ final class SelfUpdate {
             Path dir = Files.createTempDirectory("evade-installer-update");
             Path fresh = dir.resolve(exe ? "Evade-Installer.exe" : "EvadeInstaller.jar");
             HttpResponse<InputStream> dl = http.send(HttpRequest.newBuilder(URI.create(InstallerCore.SITE + "/" + file + "?v=" + want.substring(0, 10)))
-                    .timeout(Duration.ofSeconds(60)).header("user-agent", "EvadeInstaller").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+                    .timeout(Duration.ofSeconds(60)).header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
             if (dl.statusCode() != 200) return false;
             try (InputStream in = dl.body()) { Files.copy(in, fresh, StandardCopyOption.REPLACE_EXISTING); }
             if (!want.equals(sha256(fresh))) { Files.deleteIfExists(fresh); return false; }

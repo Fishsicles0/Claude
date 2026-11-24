@@ -40,7 +40,7 @@ final class ThemedGraphics extends Graphics2D {
     private Font font;
     /** Text size factor for this graphics (1: as set). */
     float fontScale = 1f;
-    /** 0: themed; 1: a dark island (accent only, no light theme); 2: colours as given. */
+    /** 0: themed; 1: a dark island (accent only, no light theme); 2: colours as given; 3: danger (light theme, never the accent). */
     private int mode;
 
     ThemedGraphics(Graphics2D d) {
@@ -77,7 +77,16 @@ final class ThemedGraphics extends Graphics2D {
     /** Paints as a dark island (the dark look with the accent, even in the light theme); returns the previous mode. */
     static int island(Graphics2D g) { return mode(g, 1); }
 
-    /** Sets the colour mode (0 themed, 1 dark island, 2 as given); returns the previous one. */
+    /**
+     * Paints danger and error colours (Delete, failures, crash cards) red whatever the accent: the light theme still
+     * applies. Inside a dark island (or raw painting) colours are taken as given. Returns the previous mode.
+     */
+    static int danger(Graphics2D g) {
+        if (!(g instanceof ThemedGraphics t)) return 0;
+        return mode(g, t.mode == 1 || t.mode == 2 ? 2 : 3);
+    }
+
+    /** Sets the colour mode (0 themed, 1 dark island, 2 as given, 3 danger); returns the previous one. */
     static int mode(Graphics2D g, int mode) {
         if (!(g instanceof ThemedGraphics t)) return 0;
         int was = t.mode;
@@ -87,7 +96,9 @@ final class ThemedGraphics extends Graphics2D {
         return was;
     }
 
-    private Color m(Color c) { return mode == 2 ? c : mode == 1 ? LauncherTheme.mapDark(c) : LauncherTheme.map(c); }
+    private Color m(Color c) {
+        return mode == 2 ? c : mode == 1 ? LauncherTheme.mapDark(c) : mode == 3 ? LauncherTheme.mapDanger(c) : LauncherTheme.map(c);
+    }
 
     private Paint m(Paint p) {
         if (mode == 2 || p == null) return p;

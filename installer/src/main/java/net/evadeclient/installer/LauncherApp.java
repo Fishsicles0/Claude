@@ -392,7 +392,7 @@ final class LauncherApp implements LauncherView.Actions {
             if (url == null) continue;
             try {
                 var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(6))
-                        .header("user-agent", "EvadeLauncher").build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+                        .header("User-Agent", LauncherInfo.USER_AGENT).build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
                 if (res.statusCode() != 200 || res.body().length > 4_000_000) continue;
                 BufferedImage raw = ImageIO.read(new java.io.ByteArrayInputStream(res.body()));
                 BufferedImage img = raw == null ? null : LauncherView.argb(raw);

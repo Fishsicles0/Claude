@@ -5,7 +5,21 @@ plugins {
 
 // Version of the Evade Launcher itself (independent of the mod version it installs). The files keep their old
 // installer names (Evade-Installer.exe, EvadeInstaller.jar) so existing downloads and self-update keep working.
-version = '2.0.0'
+// LauncherInfo.VERSION holds the same number for the code (User-Agents, About, What's new): set both per release.
+version = '2.5.0'
+
+// Fails the build when build.gradle and LauncherInfo.VERSION disagree, so the two can never drift apart again.
+tasks.register('checkLauncherVersion') {
+    def src = file('src/main/java/net/evadeclient/installer/LauncherInfo.java')
+    inputs.file(src)
+    doLast {
+        def m = (src.text =~ /static final String VERSION = "([^"]+)"/)
+        if (!m.find()) throw new GradleException('LauncherInfo.VERSION not found')
+        if (m.group(1) != project.version.toString())
+            throw new GradleException("Launcher version mismatch: build.gradle says ${project.version}, LauncherInfo.VERSION says ${m.group(1)}")
+    }
+}
+tasks.named('compileJava') { dependsOn 'checkLauncherVersion' }
 
 repositories { mavenCentral() }
 

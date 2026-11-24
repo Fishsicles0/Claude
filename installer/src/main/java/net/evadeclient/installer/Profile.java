@@ -117,7 +117,7 @@ final class Profile {
         for (String url : urls) {
             try {
                 HttpResponse<byte[]> res = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(5))
-                        .header("user-agent", "EvadeLauncher").GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+                        .header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
                 if (res.statusCode() != 200) continue;
                 BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(res.body()));
                 if (img == null) continue;
