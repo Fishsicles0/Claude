@@ -1549,7 +1549,7 @@ public class EvadeMenu extends Screen {
         text(ctx, ellipsize(Role.LABEL, user.isEmpty() ? "Player" : user, tw), tx, top + 4,
                 Theme.lerpColor(Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t), Theme.RED_BRIGHT, act), Role.LABEL);
         String line = !on ? "Friends  ·  Evade v" + EvadeClient.VERSION
-                : s.loaded() ? s.onlineFriends() + (s.onlineFriends() == 1 ? " friend" : " friends") + " online" + (s.inParty() ? "  ·  in a party" : "")
+                : s.loaded() ? s.onlineFriends() + (s.onlineFriends() == 1 ? " friend" : " friends") + " online"
                 : "Friends  ·  connecting";
         text(ctx, ellipsize(Role.SMALL, line, tw), tx, top + 15, Theme.TEXT_FAINT, Role.SMALL);
         if (hover) setTip(mx, my, List.of(new TipLine("Friends and party  ·  Evade v" + EvadeClient.VERSION, Theme.TEXT_SOFT)));

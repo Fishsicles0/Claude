@@ -28,13 +28,11 @@ import net.minecraft.client.gui.screen.option.LanguageOptionsScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.PressableTextWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
 import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -76,7 +74,6 @@ public class EvadeTitleScreen extends Screen {
     private String versionText = "";
     private final List<String> newsLines = new ArrayList<>(4);
     private String greeting = "", playerName = "", accountNote = "";
-    private PressableTextWidget copyright;
 
     public EvadeTitleScreen() {
         super(Text.translatable("narrator.screen.title"));
@@ -132,12 +129,12 @@ public class EvadeTitleScreen extends Screen {
         int rowH = compact ? 20 : 22, primH = compact ? 22 : 26, gap = compact ? 4 : 5;
         if (height < 236) { rowH = 18; primH = 20; gap = 3; }
         float sx = wide ? -10f : 0f, sy = wide ? 0f : 8f;
-        double d = 120;
+        double d = 60;
         int x = colX;
 
         add(new TitleButton(x, y, colW, primH, Text.translatable("menu.singleplayer"), Style.PRIMARY, "profiles",
                 () -> client.setScreen(new SelectWorldScreen(this))).intro(intro, d, sx, sy));
-        y += primH + gap; d += 35;
+        y += primH + gap; d += 25;
 
         TitleButton mp = add(new TitleButton(x, y, colW, primH, Text.translatable("menu.multiplayer"), Style.PRIMARY, "users",
                 this::openMultiplayer).intro(intro, d, sx, sy));
@@ -145,7 +142,7 @@ public class EvadeTitleScreen extends Screen {
             mp.active = false;
             mp.setTooltip(Tooltip.of(mpDisabled));
         }
-        y += primH + gap; d += 35;
+        y += primH + gap; d += 25;
 
         if (last != null) {
             String name = last[0], address = last[1];
@@ -155,7 +152,7 @@ public class EvadeTitleScreen extends Screen {
             if (e != null) rejoin.favicon(e::favicon).trailing(e::shortStatus, e::dot);
             rejoin.setTooltip(Tooltip.of(Text.literal("Join " + name + " (" + address + ") again")));
             if (mpDisabled != null) rejoin.active = false;
-            y += rowH + gap; d += 35;
+            y += rowH + gap; d += 25;
         }
         y += compact ? 4 : 6;
 
@@ -166,7 +163,7 @@ public class EvadeTitleScreen extends Screen {
         add(new TitleButton(x2, y, half, rowH, Text.literal("Evade Clips"), Style.SECONDARY, "clips",
                 this::openClips).centered(true).intro(intro, d + 20, sx, sy))
                 .setTooltip(Tooltip.of(Text.literal("Open Evade Clips, or your clips folder")));
-        y += rowH + gap; d += 35;
+        y += rowH + gap; d += 25;
 
         Runnable options = () -> client.setScreen(new OptionsScreen(this, client.options));
         Runnable quit = () -> client.scheduleStop();
@@ -175,7 +172,7 @@ public class EvadeTitleScreen extends Screen {
                     .centered(true).intro(intro, d, sx, sy));
             add(new TitleButton(x2, y, half, rowH, Text.translatable("menu.options"), Style.SECONDARY, "settings", options)
                     .centered(true).intro(intro, d + 20, sx, sy));
-            y += rowH + gap; d += 35;
+            y += rowH + gap; d += 25;
             add(new TitleButton(x, y, colW, rowH, Text.translatable("menu.quit"), Style.GHOST, "power", quit)
                     .centered(true).danger().intro(intro, d, sx, sy));
         } else {
@@ -192,21 +189,17 @@ public class EvadeTitleScreen extends Screen {
         int fb = 16, fy = footerCy - fb / 2, fx = wide ? margin : 8;
         add(new TitleButton(fx, fy, fb, fb, Text.translatable("options.language"), Style.ICON, "server",
                 () -> client.setScreen(new LanguageOptionsScreen(this, client.options, client.getLanguageManager())))
-                .intro(intro, 420, 0, 4)).setTooltip(Tooltip.of(Text.translatable("options.language")));
+                .intro(intro, 260, 0, 4)).setTooltip(Tooltip.of(Text.translatable("options.language")));
         add(new TitleButton(fx + fb + 4, fy, fb, fb, Text.translatable("options.accessibility"), Style.ICON, "access",
                 () -> client.setScreen(new AccessibilityOptionsScreen(this, client.options)))
-                .intro(intro, 450, 0, 4)).setTooltip(Tooltip.of(Text.translatable("options.accessibility")));
+                .intro(intro, 280, 0, 4)).setTooltip(Tooltip.of(Text.translatable("options.accessibility")));
         versionX = fx + 2 * fb + 4 + 8;
 
-        // The required notice, in the menu's own type when Smooth Font is on.
-        Text credit = TitleArt.smooth()
-                ? COPYRIGHT.copy().setStyle(net.evadeclient.util.UiFont.style(Role.SMALL, Theme.gs())).withColor(0xFF9A9AA6)
-                : COPYRIGHT.copy().formatted(Formatting.GRAY);
-        int cw = textRenderer.getWidth(credit);
+        // The required notice, clickable to the credits like vanilla's, in the menu's own type.
+        int cw = TitleArt.width(COPYRIGHT.getString(), Role.SMALL);
         int rx = wide ? width - margin : width - 8;
-        copyright = addDrawableChild(new PressableTextWidget(rx - cw, footerCy - (TitleArt.smooth() ? 4 : 5), cw, 10, credit,
-                b -> client.setScreen(new CreditsAndAttributionScreen(this)), textRenderer));
-        copyright.setAlpha(0f);
+        add(new TitleButton(rx - cw, footerCy - 5, cw, 10, COPYRIGHT, Style.LINK, null,
+                () -> client.setScreen(new CreditsAndAttributionScreen(this))).intro(intro, 260, 0, 4));
 
         versionText = "Minecraft " + SharedConstants.getGameVersion().name() + "  ·  " + EvadeClient.NAME + " " + EvadeClient.VERSION;
         showVersion = (mod == null || mod.showVersion.get())
@@ -281,8 +274,8 @@ public class EvadeTitleScreen extends Screen {
 
     private void addCardWidgets(RecentServers recent, Text mpDisabled) {
         int x = cardsX, w = cardsW;
-        double d = 220;
-        if (accountY >= 0) d += 60;
+        double d = 140;
+        if (accountY >= 0) d += 45;
         // Continue playing: the server rows and a link to the full list.
         String all = "All servers";
         int lw = TitleArt.width(all, Role.SMALL) + 10;
@@ -291,7 +284,7 @@ public class EvadeTitleScreen extends Screen {
         if (mpDisabled != null) allLink.active = false;
         List<RecentServers.Entry> entries = recent.entries();
         int ry = serversY + 28;
-        double rd = d + 30;
+        double rd = d + 20;
         for (RecentServers.Entry e : entries) {
             ServerRow row = add(new ServerRow(x + 5, ry, w - 10, 26, e, this::join, intro, rd));
             if (mpDisabled != null) {
@@ -299,7 +292,7 @@ public class EvadeTitleScreen extends Screen {
                 row.setTooltip(Tooltip.of(mpDisabled));
             }
             ry += 28;
-            rd += 30;
+            rd += 25;
         }
         if (entries.isEmpty()) {
             String add = "Add a server";
@@ -308,12 +301,12 @@ public class EvadeTitleScreen extends Screen {
                     this::openMultiplayer).intro(intro, rd, 12, 0));
             if (mpDisabled != null) a.active = false;
         }
-        d += 60;
+        d += 45;
         if (newsY >= 0) {
             String more = "Read the changelog";
             int mw = TitleArt.width(more, Role.SMALL) + 12;
             add(new TitleButton(x + 12, newsY + newsH - 18, mw, 10, Text.literal(more), Style.LINK, "external",
-                    () -> ConfirmLinkScreen.open(this, WhatsNew.URL)).intro(intro, d + 30, 12, 0));
+                    () -> ConfirmLinkScreen.open(this, WhatsNew.URL)).intro(intro, d + 20, 12, 0));
         }
     }
 
@@ -473,8 +466,7 @@ public class EvadeTitleScreen extends Screen {
         }
         drawLogo(ctx);
         if (wide) drawCards(ctx);
-        float c = intro.p(420, 450);
-        if (copyright != null) copyright.setAlpha(c);
+        float c = intro.p(260, 320);
         super.render(ctx, mouseX, mouseY, delta);
         if (showVersion && c > 0.01f) {
             float base = Theme.fade;
@@ -485,7 +477,7 @@ public class EvadeTitleScreen extends Screen {
     }
 
     private void drawLogo(DrawContext ctx) {
-        float in = intro.p(60, 620);
+        float in = intro.p(0, 500);
         if (in <= 0.001f) return;
         float base = Theme.fade;
         var m = ctx.getMatrices();
@@ -498,7 +490,7 @@ public class EvadeTitleScreen extends Screen {
             if (tagline) {
                 int tx = TitleArt.wordX(logoX, markSize) + Math.max(1, markSize / 30);
                 int ty = logoY + markSize + 2;
-                float tin = intro.p(260, 500);
+                float tin = intro.p(160, 420);
                 Theme.fade = tin;
                 TitleArt.caps(ctx, "Your game, sharper", tx, ty, 0xFFB4B4C0, Role.CAPS_SM, 1.6f);
             }
@@ -515,7 +507,7 @@ public class EvadeTitleScreen extends Screen {
      */
     private void sweep(DrawContext ctx) {
         if (!intro.full()) return;
-        double t = intro.elapsed() - 700;
+        double t = intro.elapsed() - 600;
         if (t < 0 || t > 900) return;
         float p = Motion.cubicOut((float) (t / 900));
         int lw = TitleArt.lockupWidth(markSize);
@@ -539,11 +531,11 @@ public class EvadeTitleScreen extends Screen {
 
     private void drawCards(DrawContext ctx) {
         int x = cardsX, w = cardsW;
-        double d = 220;
+        double d = 140;
         if (accountY >= 0) {
             float in = card(ctx, x, accountY, w, 48, d);
             if (in > 0) drawAccount(ctx, x, accountY, w, in);
-            d += 60;
+            d += 45;
         }
         float in = card(ctx, x, serversY, w, serversH, d);
         if (in > 0) {
@@ -557,7 +549,7 @@ public class EvadeTitleScreen extends Screen {
                 endCard(ctx, base);
             }
         }
-        d += 60;
+        d += 45;
         if (newsY >= 0) {
             float nin = card(ctx, x, newsY, w, newsH, d);
             if (nin > 0) {
@@ -583,7 +575,7 @@ public class EvadeTitleScreen extends Screen {
 
     /** Draws a card's body (shadow, glass fill, rim) as it slides in; returns its intro progress. */
     private float card(DrawContext ctx, int x, int y, int w, int h, double delay) {
-        float in = intro.p(delay, 480);
+        float in = intro.p(delay, 380);
         if (in <= 0.001f) return 0f;
         float base = Theme.fade;
         var m = ctx.getMatrices();

@@ -57,7 +57,7 @@ public class ServerRow extends PressableWidget {
         long nowNs = System.nanoTime();
         float dt = Math.min(0.1f, (nowNs - lastFrame) / 1e9f);
         lastFrame = nowNs;
-        float in = intro.p(delayMs, 460);
+        float in = intro.p(delayMs, 380);
         if (in <= 0.001f) return;
         boolean keyboardFocus = isFocused() && MinecraftClient.getInstance().getNavigationType().isKeyboard();
         boolean hot = active && (isHovered() || keyboardFocus);

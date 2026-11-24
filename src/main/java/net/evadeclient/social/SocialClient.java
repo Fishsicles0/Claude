@@ -70,6 +70,8 @@ public final class SocialClient {
     private static volatile long nextConnectAt, nextPollAt, lastKeepAlive;
     private static final AtomicInteger failures = new AtomicInteger();
     private static final AtomicInteger IDS = new AtomicInteger();
+    /** Bumped by {@link #stop}: a connection or poll started before it is dropped when it completes. */
+    private static final AtomicInteger GEN = new AtomicInteger();
     private static final Map<Integer, CompletableFuture<JsonObject>> PENDING = new ConcurrentHashMap<>();
     /** Sends on one socket must not overlap: each waits for the one before. */
     private static CompletableFuture<?> sendTail = CompletableFuture.completedFuture(null);
@@ -141,6 +143,7 @@ public final class SocialClient {
     private static void connect(String token) {
         connecting = true;
         if (!polling) { link = Link.CONNECTING; status = "Connecting..."; }
+        int gen = GEN.get();
         Listener listener = new Listener();
         HTTP.newWebSocketBuilder()
                 .header("authorization", "Bearer " + token)
@@ -148,6 +151,10 @@ public final class SocialClient {
                 .connectTimeout(Duration.ofSeconds(10))
                 .buildAsync(WS, listener)
                 .whenComplete((w, err) -> {
+                    if (gen != GEN.get()) { // switched off meanwhile
+                        if (w != null) w.abort();
+                        return;
+                    }
                     connecting = false;
                     if (err != null) {
                         Throwable c = err instanceof CompletionException && err.getCause() != null ? err.getCause() : err;
@@ -192,6 +199,7 @@ public final class SocialClient {
 
     /** Switches everything off: closes the socket, stops polling and forgets the state. */
     public static void stop(String why) {
+        GEN.incrementAndGet();
         closeSocket(1000, "bye");
         polling = false;
         connecting = false;
@@ -275,9 +283,11 @@ public final class SocialClient {
 
     private static void poll(MinecraftClient mc, String token) {
         pollInFlight = true;
+        int gen = GEN.get();
         JsonObject b = presenceBody(mc);
         http("state", b, token).whenComplete((res, err) -> {
             pollInFlight = false;
+            if (gen != GEN.get()) return;
             long now = System.currentTimeMillis();
             if (err != null) {
                 nextPollAt = now + 30_000;
@@ -361,8 +371,9 @@ public final class SocialClient {
         } else {
             f = http(op, args == null ? new JsonObject() : args, token);
         }
+        int gen = GEN.get();
         return f.thenApply(r -> {
-            if (r.has("state") && r.get("state").isJsonObject()) setState(SocialState.parse(r.getAsJsonObject("state")));
+            if (gen == GEN.get() && r.has("state") && r.get("state").isJsonObject()) setState(SocialState.parse(r.getAsJsonObject("state")));
             return r;
         });
     }

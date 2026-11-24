@@ -78,6 +78,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testRenderScale(ctx, sp);
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
+            SocialTest.run(ctx, sp);
+            ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);
             testClips(ctx, sp);
