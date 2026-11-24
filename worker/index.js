@@ -13,6 +13,9 @@
 //   POST /api/presence/hide (Bearer)   -> stops showing the player's icon right away
 //   POST /api/icons {uuids: [...]}      -> { icons: { uuid: "evade" }, ttl }   (only active Evade users)
 //
+// Friends, parties and party pings (/api/social/*, Bearer token from /api/auth/*) live in the EvadeSocial Durable
+// Object below; its header comment lists the endpoints and the WebSocket messages.
+//
 // Everyone gets the same free icon: there are no tiers or paid extras.
 import { DurableObject } from "cloudflare:workers";
 
@@ -58,6 +61,12 @@ async function body(req) {
 }
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 
+/** The UUID a request's "Authorization: Bearer <token>" was signed for, or null (no token, bad or expired one). */
+async function bearerUuid(req, store) {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? await store.verify(auth.slice(7)) : null;
+}
+
 /** True when this caller is over the sign-in rate limit (no binding configured, or the limiter failing, means no limit). */
 async function limited(limiter, req) {
   if (!limiter) return false;
@@ -83,6 +92,7 @@ export default {
     }
     const store = env.ICONS.get(env.ICONS.idFromName("global"));
     try {
+      if (url.pathname.startsWith("/api/social/")) return await socialRoute(req, env, url, store);
       switch (url.pathname) {
         case "/api/health": {
           if (url.searchParams.get("mojang") !== "1") return json({ ok: true });
@@ -167,8 +177,7 @@ export default {
 
         case "/api/presence": {
           await body(req);
-          const auth = req.headers.get("authorization") || "";
-          const uuid = auth.startsWith("Bearer ") ? await store.verify(auth.slice(7)) : null;
+          const uuid = await bearerUuid(req, store);
           if (!uuid) throw new HttpError(401, "sign in again");
           await store.seen(uuid);
           return json({ ok: true });
@@ -176,8 +185,7 @@ export default {
 
         case "/api/presence/hide": {
           await body(req);
-          const auth = req.headers.get("authorization") || "";
-          const uuid = auth.startsWith("Bearer ") ? await store.verify(auth.slice(7)) : null;
+          const uuid = await bearerUuid(req, store);
           if (!uuid) throw new HttpError(401, "sign in again");
           await store.hide(uuid);
           return json({ ok: true });
@@ -282,5 +290,830 @@ export class EvadeIcons extends DurableObject {
 
   hide(uuid) {
     this.sql.exec("DELETE FROM presence WHERE uuid = ?", uuid);
+  }
+}
+
+// ====================================================================== friends, parties and party pings
+//
+// Everything below is EvadeSocial: one SQLite-backed Durable Object ("global") holding social profiles, friends,
+// friend requests, blocks, parties and party invites, plus the open WebSockets. Accounts are the UUIDs that
+// /api/auth/* proves (the same Bearer token as /api/presence). Names are what the client reports and are only shown,
+// never trusted: the client looks up a name's UUID with Mojang itself before adding someone (see /privacy).
+//
+// HTTP (all POST with "Authorization: Bearer <token>", JSON body; answers JSON, errors as { error } with a status):
+//   /api/social/state     {name?, server?}          -> state (also marks a polling client online for 90 s)
+//   /api/social/presence  {name?, server?}          -> { ok }   server: address you're playing on, or null
+//   /api/social/settings  {allowRequests?: "everyone"|"nobody", shareServer?: bool} -> { ok, state }
+//   /api/social/friend/request {uuid? | name?}      -> { ok, state, accepted? }  (accepts their request to you)
+//   /api/social/friend/accept|decline|cancel|remove {uuid}            -> { ok, state }
+//   /api/social/block {uuid? | name?} , /api/social/unblock {uuid}    -> { ok, state }
+//   /api/social/report {uuid, reason}                                 -> { ok }
+//   /api/social/party/create {}                                       -> { ok, state }
+//   /api/social/party/invite {uuid}  (a friend; creates your party if you have none)
+//   /api/social/party/accept|decline {party}, /party/leave {}, /party/kick|transfer {uuid} -> { ok, state }
+//   /api/social/ping {x, y, z, dimension, server, kind?: "location"|"danger"|"loot"} -> { ok }
+//   /api/social/delete {}                                             -> { ok, deleted }  (all your social data)
+// WebSocket: GET /api/social/ws (wss) with the same Authorization header, or ?token=, or send
+//   {"op":"auth","token":"..."} as the first message (within 30 s). The text "ping" is answered "pong" without waking
+//   the object. Requests are {"op":"friend.request","id":7,...same fields as HTTP} -> {"type":"result","id":7,"ok":true,...}
+//   or {"type":"result","id":7,"ok":false,"error":"...","status":429}. Pushed events:
+//   hello {state} | state {state} | friend.request {from} | friend.accepted {friend} | friend.removed {uuid}
+//   friend.status {uuid, name, online, server} | party.invite {party, from, size} | party.joined {member}
+//   party.left {member, kicked} | party.kicked {by} | party.leader {leader} | ping {from, x, y, z, dimension, kind, at}
+//   where from/friend/member = {uuid, name}.
+//
+// Pings are relayed straight to the sender's party members who are online on the same server address (normalized:
+// lower case, default port 25565 dropped; private/LAN addresses never match) and are never stored. Social data of an
+// account unused for 90 days is deleted; /api/social/delete deletes it at once.
+
+const SOCIAL = {
+  MAX_FRIENDS: 300, MAX_PENDING: 30, MAX_BLOCKS: 1000, MAX_PARTY: 8, MAX_SOCKETS: 3,
+  INVITE_MS: 10 * 60 * 1000,             // a party invite lapses after 10 minutes
+  POLL_ONLINE_MS: 90 * 1000,             // a polling client counts as online this long after its last /state
+  INACTIVE_MS: 90 * 24 * 3600 * 1000,    // social data is deleted after 90 days without use
+  PARTY_IDLE_MS: 12 * 3600 * 1000,       // a party with nobody online for 12 hours is disbanded
+  REPORT_KEEP_MS: 90 * 24 * 3600 * 1000,
+  PING_GAP_MS: 1500, PING_WINDOW_MS: 10 * 1000, PING_MAX: 5,
+  AUTH_GRACE_MS: 30 * 1000,              // a socket that hasn't sent its token by then is closed
+  MAX_MESSAGE: 4096,
+};
+const PING_KINDS = new Set(["location", "danger", "loot"]);
+const DIMENSION = /^[a-z0-9_.-]{1,32}:[a-z0-9_./-]{1,64}$/;
+const PARTY_ID = /^[0-9a-f]{16}$/;
+
+/**
+ * A server address as the key pings are routed by: lower case, no trailing dot, no ":25565". Null for anything that
+ * isn't a public host name or address (singleplayer, LAN and loopback addresses, which aren't the same server for
+ * two different players).
+ */
+export function normServer(s) {
+  if (typeof s !== "string") return null;
+  s = s.trim().toLowerCase();
+  if (!s || s.length > 260) return null;
+  let host, port, m;
+  if ((m = s.match(/^\[([0-9a-f:.]+)\](?::(\d{1,5}))?$/))) { host = m[1]; port = m[2]; }
+  else if ((m = s.match(/^([a-z0-9._-]+?)\.?(?::(\d{1,5}))?$/))) { host = m[1]; port = m[2]; }
+  else if (/^[0-9a-f:]+$/.test(s) && s.includes("::")) { host = s; }
+  else return null;
+  if (!host || host.length > 253 || host.startsWith(".") || host.includes("..")) return null;
+  if (isPrivateHost(host)) return null;
+  const p = port === undefined ? 25565 : Number(port);
+  if (!(p >= 1 && p <= 65535)) return null;
+  const h = host.includes(":") ? "[" + host + "]" : host;
+  return p === 25565 ? h : h + ":" + p;
+}
+
+function isPrivateHost(h) {
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".lan") || h.endsWith(".internal")
+    || h.endsWith(".home.arpa")) return true;
+  if (!h.includes(".") && !h.includes(":")) return true; // a bare machine name
+  const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  if (h.includes(":")) return h === "::1" || h === "::" || /^(fe8|fe9|fea|feb|fc|fd)/.test(h) || h.startsWith("::ffff:");
+  return false;
+}
+
+class SocialError extends Error { constructor(status, msg, extra) { super(msg); this.status = status; this.extra = extra; } }
+
+/** /api/social/*: checks the token here (the EvadeIcons object holds the signing key), then hands over to EvadeSocial. */
+async function socialRoute(req, env, url, store) {
+  if (!env.SOCIAL) throw new HttpError(503, "friends aren't available right now");
+  const social = env.SOCIAL.get(env.SOCIAL.idFromName("global"));
+  if (url.pathname === "/api/social/ws") {
+    if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") throw new HttpError(426, "expected a WebSocket");
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer /, "") || url.searchParams.get("token") || "";
+    let uuid = null;
+    if (token) {
+      uuid = await store.verify(token);
+      if (!uuid) throw new HttpError(401, "sign in again");
+    }
+    // Only this worker sets x-evade-uuid: whatever a client sent under that name is dropped first.
+    const headers = new Headers(req.headers);
+    headers.delete("x-evade-uuid");
+    headers.delete("authorization");
+    if (uuid) headers.set("x-evade-uuid", uuid);
+    return social.fetch(new Request("https://social.internal/ws", { method: "GET", headers }));
+  }
+  const args = await body(req);
+  const uuid = await bearerUuid(req, store);
+  if (!uuid) throw new HttpError(401, "sign in again");
+  const op = url.pathname.slice("/api/social/".length).replace(/\//g, ".");
+  const r = await social.http(uuid, op, args);
+  return json(r.body, r.status, r.status === 429 && r.body.retryAfter ? { "retry-after": String(Math.ceil(r.body.retryAfter / 1000)) } : undefined);
+}
+
+export class EvadeSocial extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS profiles (uuid TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '',
+                     name_lc TEXT NOT NULL DEFAULT '', allow_requests INTEGER NOT NULL DEFAULT 1,
+                     share_server INTEGER NOT NULL DEFAULT 1, server TEXT, poll_at INTEGER NOT NULL DEFAULT 0,
+                     last_seen INTEGER NOT NULL, created INTEGER NOT NULL);
+                   CREATE INDEX IF NOT EXISTS profiles_by_name ON profiles (name_lc);
+                   CREATE INDEX IF NOT EXISTS profiles_by_seen ON profiles (last_seen);
+                   CREATE TABLE IF NOT EXISTS friends (a TEXT NOT NULL, b TEXT NOT NULL, since INTEGER NOT NULL, PRIMARY KEY (a, b));
+                   CREATE TABLE IF NOT EXISTS requests (src TEXT NOT NULL, dst TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (src, dst));
+                   CREATE INDEX IF NOT EXISTS requests_by_dst ON requests (dst);
+                   CREATE TABLE IF NOT EXISTS blocks (src TEXT NOT NULL, dst TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (src, dst));
+                   CREATE INDEX IF NOT EXISTS blocks_by_dst ON blocks (dst);
+                   CREATE TABLE IF NOT EXISTS parties (id TEXT PRIMARY KEY, leader TEXT NOT NULL, created INTEGER NOT NULL);
+                   CREATE TABLE IF NOT EXISTS members (uuid TEXT PRIMARY KEY, party TEXT NOT NULL, joined INTEGER NOT NULL);
+                   CREATE INDEX IF NOT EXISTS members_by_party ON members (party);
+                   CREATE TABLE IF NOT EXISTS invites (party TEXT NOT NULL, dst TEXT NOT NULL, src TEXT NOT NULL,
+                     created INTEGER NOT NULL, PRIMARY KEY (party, dst));
+                   CREATE INDEX IF NOT EXISTS invites_by_dst ON invites (dst);
+                   CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, src TEXT NOT NULL, dst TEXT NOT NULL,
+                     reason TEXT NOT NULL, created INTEGER NOT NULL);
+                   CREATE TABLE IF NOT EXISTS rate (k TEXT PRIMARY KEY, start INTEGER NOT NULL, n INTEGER NOT NULL);
+                   CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
+    /** Ping times per sender (memory only: pings are never written down). */
+    this.pingTimes = new Map();
+    /** Pings waiting for a polling client's next /state, by recipient (memory only, kept 15 s). */
+    this.pollPings = new Map();
+    /** Request counts per account for the short flood limit (memory only). */
+    this.bursts = new Map();
+    try { ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong")); } catch { /* older runtime */ }
+    ctx.blockConcurrencyWhile(async () => {
+      if (!(await ctx.storage.getAlarm())) await ctx.storage.setAlarm(Date.now() + 60 * 1000);
+    });
+  }
+
+  // ------------------------------------------------------------------ entry points
+
+  /** WebSocket upgrades forwarded by the worker (x-evade-uuid is set only by the worker, after checking the token). */
+  async fetch(req) {
+    if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return new Response("expected a WebSocket", { status: 426 });
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    const uuid = req.headers.get("x-evade-uuid");
+    await this.accept(server, UUID.test(uuid || "") ? uuid : null);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** Takes a server-side socket into the hibernation API, signed in already ({@code uuid}) or waiting for its token. */
+  async accept(ws, uuid) {
+    const now = Date.now();
+    if (uuid) {
+      this.trimSockets(uuid, SOCIAL.MAX_SOCKETS - 1);
+      this.ctx.acceptWebSocket(ws, [uuid]);
+      ws.serializeAttachment({ uuid, at: now });
+      this.online(uuid, ws);
+    } else {
+      this.ctx.acceptWebSocket(ws, ["pending"]);
+      ws.serializeAttachment({ uuid: null, at: now });
+      await this.alarmBy(now + SOCIAL.AUTH_GRACE_MS + 1000);
+    }
+  }
+
+  /** One HTTP request (see the header comment). Returns { status, body }. */
+  async http(uuid, op, args) {
+    try {
+      this.flood(uuid);
+      const body = await this.run(uuid, op, args || {}, false);
+      if (op === "state") {
+        const waiting = this.pollPings.get(uuid);
+        this.pollPings.delete(uuid);
+        const now = Date.now();
+        body.pings = (waiting || []).filter((p) => p.at > now - 15000);
+      }
+      return { status: 200, body };
+    } catch (e) {
+      if (e instanceof SocialError) return { status: e.status, body: { error: e.message, ...(e.extra || {}) } };
+      console.error("social", op, e);
+      return { status: 500, body: { error: "server error" } };
+    }
+  }
+
+  async webSocketMessage(ws, message) {
+    const att = ws.deserializeAttachment() || {};
+    if (typeof message !== "string" || message.length > SOCIAL.MAX_MESSAGE) { this.closeSocket(ws, 1009, "message too large"); return; }
+    let m;
+    try { m = JSON.parse(message); } catch { m = null; }
+    if (!m || typeof m !== "object" || typeof m.op !== "string") { this.reply(ws, m, { ok: false, status: 400, error: "bad message" }); return; }
+    if (!att.uuid) {
+      // Signing in over the socket: the token goes to the EvadeIcons object, which holds the signing key.
+      if (m.op !== "auth" || typeof m.token !== "string" || !this.env.ICONS) { this.closeSocket(ws, 4001, "sign in first"); return; }
+      const uuid = await this.env.ICONS.get(this.env.ICONS.idFromName("global")).verify(m.token);
+      if (!uuid) { this.closeSocket(ws, 4001, "sign in again"); return; }
+      this.trimSockets(uuid, SOCIAL.MAX_SOCKETS - 1, ws);
+      ws.serializeAttachment({ uuid, at: Date.now() });
+      this.reply(ws, m, { ok: true });
+      this.online(uuid, ws);
+      return;
+    }
+    try {
+      this.flood(att.uuid);
+      const body = await this.run(att.uuid, m.op, m, true);
+      this.reply(ws, m, { ok: true, ...body });
+    } catch (e) {
+      if (e instanceof SocialError) this.reply(ws, m, { ok: false, status: e.status, error: e.message, ...(e.extra || {}) });
+      else { console.error("social ws", m.op, e); this.reply(ws, m, { ok: false, status: 500, error: "server error" }); }
+    }
+  }
+
+  async webSocketClose(ws, code, reason) {
+    try { ws.close(code === 1005 || code === 1006 ? 1000 : code, "bye"); } catch { /* already closed */ }
+    this.socketGone(ws);
+  }
+
+  async webSocketError(ws) {
+    this.socketGone(ws);
+  }
+
+  socketGone(ws) {
+    const att = ws.deserializeAttachment() || {};
+    if (att.uuid && !this.isOnline(att.uuid, ws)) this.offline(att.uuid);
+  }
+
+  async alarm() {
+    const now = Date.now();
+    // Sockets that never signed in.
+    for (const ws of this.ctx.getWebSockets("pending")) {
+      const att = ws.deserializeAttachment() || {};
+      if (!att.uuid && att.at < now - SOCIAL.AUTH_GRACE_MS) this.closeSocket(ws, 4001, "sign in first");
+    }
+    // Polling clients that stopped polling go offline.
+    for (const r of this.sql.exec("SELECT uuid, poll_at FROM profiles WHERE poll_at > 0 AND poll_at <= ?", now - SOCIAL.POLL_ONLINE_MS).toArray()) {
+      this.sql.exec("UPDATE profiles SET poll_at = 0 WHERE uuid = ?", r.uuid);
+      if (!this.isOnline(r.uuid)) this.offline(r.uuid, r.poll_at);
+    }
+    const nextSweep = Number(this.meta("sweep_at") || 0);
+    if (now >= nextSweep) {
+      this.sweep(now);
+      this.setMeta("sweep_at", String(now + 6 * 3600 * 1000));
+    }
+    // Next: when the next polling client would time out, when a pending socket's grace ends, or the next sweep.
+    let next = Number(this.meta("sweep_at"));
+    const poll = this.sql.exec("SELECT MIN(poll_at) AS t FROM profiles WHERE poll_at > 0").one().t;
+    if (poll) next = Math.min(next, poll + SOCIAL.POLL_ONLINE_MS + 1000);
+    if (this.ctx.getWebSockets("pending").some((ws) => !(ws.deserializeAttachment() || {}).uuid)) next = Math.min(next, now + 10 * 1000);
+    await this.ctx.storage.setAlarm(Math.max(next, now + 5000));
+  }
+
+  // ------------------------------------------------------------------ operations
+
+  async run(me, op, a, viaSocket) {
+    const now = Date.now();
+    switch (op) {
+      case "state": {
+        this.touch(me, a, !viaSocket);
+        return { state: this.state(me) };
+      }
+      case "presence": {
+        this.touch(me, a, !viaSocket);
+        return {};
+      }
+      case "settings": {
+        this.profile(me);
+        const sets = [];
+        if (a.allowRequests !== undefined) {
+          if (a.allowRequests !== "everyone" && a.allowRequests !== "nobody") throw new SocialError(400, "allowRequests is everyone or nobody");
+          this.sql.exec("UPDATE profiles SET allow_requests = ? WHERE uuid = ?", a.allowRequests === "everyone" ? 1 : 0, me);
+        }
+        if (a.shareServer !== undefined) {
+          if (typeof a.shareServer !== "boolean") throw new SocialError(400, "shareServer is true or false");
+          this.sql.exec("UPDATE profiles SET share_server = ? WHERE uuid = ?", a.shareServer ? 1 : 0, me);
+          sets.push("share");
+        }
+        if (sets.length) this.broadcastStatus(me);
+        return { state: this.state(me) };
+      }
+      case "friend.request": {
+        this.profile(me);
+        this.limit(me + ":req", 20, 3600 * 1000, "too many friend requests; try again later");
+        const them = this.target(a, me);
+        const refuse = () => new SocialError(404, "No Evade player called " + (them.name || "that") + " is taking friend requests");
+        if (!them.profile) throw refuse();
+        const u = them.uuid;
+        if (this.areFriends(me, u)) throw new SocialError(409, "You're already friends with " + them.profile.name);
+        if (this.blockedEither(me, u)) throw refuse();
+        if (this.has("requests", "src", u, "dst", me)) {
+          this.makeFriends(me, u, now);
+          return { state: this.state(me), accepted: true };
+        }
+        if (!them.profile.allow_requests) throw refuse();
+        if (this.has("requests", "src", me, "dst", u)) throw new SocialError(409, "You've already sent " + them.profile.name + " a request");
+        if (this.count("SELECT COUNT(*) AS n FROM friends WHERE a = ?", me) >= SOCIAL.MAX_FRIENDS) throw new SocialError(409, "You have the most friends Evade allows (" + SOCIAL.MAX_FRIENDS + ")");
+        if (this.count("SELECT COUNT(*) AS n FROM friends WHERE a = ?", u) >= SOCIAL.MAX_FRIENDS) throw refuse();
+        if (this.count("SELECT COUNT(*) AS n FROM requests WHERE src = ?", me) >= SOCIAL.MAX_PENDING) throw new SocialError(409, "Too many requests waiting; cancel some first");
+        if (this.count("SELECT COUNT(*) AS n FROM requests WHERE dst = ?", u) >= SOCIAL.MAX_PENDING) throw refuse();
+        this.sql.exec("INSERT INTO requests (src, dst, created) VALUES (?, ?, ?)", me, u, now);
+        this.send(u, { type: "friend.request", from: this.who(me) });
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "friend.accept": {
+        const u = this.uuidArg(a);
+        if (!this.has("requests", "src", u, "dst", me)) throw new SocialError(404, "That request is gone");
+        if (this.count("SELECT COUNT(*) AS n FROM friends WHERE a = ?", me) >= SOCIAL.MAX_FRIENDS) throw new SocialError(409, "You have the most friends Evade allows (" + SOCIAL.MAX_FRIENDS + ")");
+        if (this.count("SELECT COUNT(*) AS n FROM friends WHERE a = ?", u) >= SOCIAL.MAX_FRIENDS) throw new SocialError(409, "They have the most friends Evade allows");
+        this.makeFriends(me, u, now);
+        return { state: this.state(me) };
+      }
+      case "friend.decline": {
+        const u = this.uuidArg(a);
+        this.sql.exec("DELETE FROM requests WHERE src = ? AND dst = ?", u, me);
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "friend.cancel": {
+        const u = this.uuidArg(a);
+        this.sql.exec("DELETE FROM requests WHERE src = ? AND dst = ?", me, u);
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "friend.remove": {
+        const u = this.uuidArg(a);
+        if (!this.areFriends(me, u)) throw new SocialError(404, "You aren't friends");
+        this.sql.exec("DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)", me, u, u, me);
+        this.send(u, { type: "friend.removed", uuid: me });
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "block": {
+        this.profile(me);
+        const them = this.target(a, me);
+        if (!them.uuid) throw new SocialError(404, "No Evade player called " + (them.name || "that"));
+        const u = them.uuid;
+        if (this.count("SELECT COUNT(*) AS n FROM blocks WHERE src = ?", me) >= SOCIAL.MAX_BLOCKS) throw new SocialError(409, "You've blocked too many players");
+        this.sql.exec("INSERT OR IGNORE INTO blocks (src, dst, created) VALUES (?, ?, ?)", me, u, now);
+        const wereFriends = this.areFriends(me, u);
+        this.sql.exec("DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)", me, u, u, me);
+        this.sql.exec("DELETE FROM requests WHERE (src = ? AND dst = ?) OR (src = ? AND dst = ?)", me, u, u, me);
+        this.sql.exec("DELETE FROM invites WHERE (src = ? AND dst = ?) OR (src = ? AND dst = ?)", me, u, u, me);
+        if (wereFriends) this.send(u, { type: "friend.removed", uuid: me });
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "unblock": {
+        const u = this.uuidArg(a);
+        this.sql.exec("DELETE FROM blocks WHERE src = ? AND dst = ?", me, u);
+        return { state: this.state(me) };
+      }
+      case "report": {
+        const u = this.uuidArg(a);
+        const reason = typeof a.reason === "string" ? a.reason.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 500) : "";
+        if (!reason) throw new SocialError(400, "Say what happened");
+        this.limit(me + ":report", 5, 24 * 3600 * 1000, "too many reports today");
+        this.sql.exec("INSERT INTO reports (src, dst, reason, created) VALUES (?, ?, ?, ?)", me, u, reason, now);
+        console.log("social report", JSON.stringify({ from: me, about: u, reason }));
+        return {};
+      }
+      case "party.create": {
+        this.profile(me);
+        if (this.partyOf(me)) throw new SocialError(409, "You're already in a party");
+        this.createParty(me, now);
+        return { state: this.state(me) };
+      }
+      case "party.invite": {
+        this.profile(me);
+        const them = this.target(a, me);
+        const u = them.uuid;
+        if (!u || !this.areFriends(me, u)) throw new SocialError(404, "You can only invite friends");
+        if (this.blockedEither(me, u)) throw new SocialError(404, "You can only invite friends");
+        this.limit(me + ":invite", 30, 3600 * 1000, "too many invites; try again later");
+        let party = this.partyOf(me) || this.createParty(me, now);
+        if (this.partyOf(u) === party) throw new SocialError(409, (them.profile?.name || "They") + " is already in your party");
+        this.sql.exec("DELETE FROM invites WHERE created <= ?", now - SOCIAL.INVITE_MS);
+        const size = this.count("SELECT COUNT(*) AS n FROM members WHERE party = ?", party)
+          + this.count("SELECT COUNT(*) AS n FROM invites WHERE party = ? AND dst != ?", party, u);
+        if (size >= SOCIAL.MAX_PARTY) throw new SocialError(409, "A party holds " + SOCIAL.MAX_PARTY + " players (invites count)");
+        this.sql.exec("INSERT OR REPLACE INTO invites (party, dst, src, created) VALUES (?, ?, ?, ?)", party, u, me, now);
+        this.send(u, { type: "party.invite", party, from: this.who(me), size: this.members(party).length });
+        this.pushState(u);
+        this.pushParty(party, me);
+        return { state: this.state(me) };
+      }
+      case "party.accept": {
+        const party = this.partyArg(a);
+        const inv = this.sql.exec("SELECT src FROM invites WHERE party = ? AND dst = ? AND created > ?", party, me, now - SOCIAL.INVITE_MS).toArray()[0];
+        if (!inv || !this.sql.exec("SELECT id FROM parties WHERE id = ?", party).toArray().length) {
+          this.sql.exec("DELETE FROM invites WHERE party = ? AND dst = ?", party, me);
+          throw new SocialError(404, "That invite has expired");
+        }
+        if (this.partyOf(me) === party) {
+          this.sql.exec("DELETE FROM invites WHERE party = ? AND dst = ?", party, me);
+          throw new SocialError(409, "You're already in that party");
+        }
+        if (this.count("SELECT COUNT(*) AS n FROM members WHERE party = ?", party) >= SOCIAL.MAX_PARTY) throw new SocialError(409, "That party is full");
+        if (this.partyOf(me)) this.leaveParty(me, false);
+        this.sql.exec("DELETE FROM invites WHERE party = ? AND dst = ?", party, me);
+        this.sql.exec("INSERT INTO members (uuid, party, joined) VALUES (?, ?, ?)", me, party, now);
+        for (const m of this.members(party)) if (m !== me) this.send(m, { type: "party.joined", member: this.who(me) });
+        this.pushParty(party, me);
+        return { state: this.state(me) };
+      }
+      case "party.decline": {
+        const party = this.partyArg(a);
+        const inv = this.sql.exec("SELECT src FROM invites WHERE party = ? AND dst = ?", party, me).toArray()[0];
+        this.sql.exec("DELETE FROM invites WHERE party = ? AND dst = ?", party, me);
+        if (inv) this.pushParty(party, null);
+        return { state: this.state(me) };
+      }
+      case "party.leave": {
+        if (!this.partyOf(me)) throw new SocialError(404, "You aren't in a party");
+        this.leaveParty(me, false);
+        return { state: this.state(me) };
+      }
+      case "party.kick": {
+        const u = this.uuidArg(a);
+        const party = this.leaderParty(me);
+        if (u === me || this.partyOf(u) !== party) throw new SocialError(404, "They aren't in your party");
+        this.send(u, { type: "party.kicked", by: this.who(me) });
+        this.leaveParty(u, true);
+        this.pushState(u);
+        return { state: this.state(me) };
+      }
+      case "party.transfer": {
+        const u = this.uuidArg(a);
+        const party = this.leaderParty(me);
+        if (u === me || this.partyOf(u) !== party) throw new SocialError(404, "They aren't in your party");
+        this.sql.exec("UPDATE parties SET leader = ? WHERE id = ?", u, party);
+        for (const m of this.members(party)) this.send(m, { type: "party.leader", leader: this.who(u) });
+        this.pushParty(party, me);
+        return { state: this.state(me) };
+      }
+      case "ping": {
+        this.ping(me, a, now);
+        return {};
+      }
+      case "delete": {
+        this.purge(me, true);
+        for (const ws of this.socketsOf(me)) this.closeSocket(ws, 4002, "social data deleted");
+        return { deleted: true };
+      }
+      case "auth":
+        throw new SocialError(400, "already signed in");
+    }
+    throw new SocialError(404, "unknown request");
+  }
+
+  /** Relays a ping to the sender's party members on the same server. Nothing about it is written down. */
+  ping(me, a, now) {
+    const x = Number(a.x), y = Number(a.y), z = Number(a.z);
+    if (![x, y, z].every(Number.isFinite) || Math.abs(x) > 30000000 || Math.abs(z) > 30000000 || Math.abs(y) > 20000) throw new SocialError(400, "bad position");
+    const dimension = typeof a.dimension === "string" ? a.dimension.toLowerCase() : "";
+    if (!DIMENSION.test(dimension)) throw new SocialError(400, "bad dimension");
+    const kind = a.kind === undefined || a.kind === null ? "location" : a.kind;
+    if (!PING_KINDS.has(kind)) throw new SocialError(400, "kind is location, danger or loot");
+    const server = normServer(a.server);
+    if (!server) throw new SocialError(400, "pings only work on a multiplayer server");
+    // 1 ping per 1.5 s, at most 5 per 10 s.
+    const times = (this.pingTimes.get(me) || []).filter((t) => t > now - SOCIAL.PING_WINDOW_MS);
+    const wait = times.length >= SOCIAL.PING_MAX ? times[times.length - SOCIAL.PING_MAX] + SOCIAL.PING_WINDOW_MS - now
+      : times.length ? times[times.length - 1] + SOCIAL.PING_GAP_MS - now : 0;
+    if (wait > 0) { this.pingTimes.set(me, times); throw new SocialError(429, "Pinging too fast", { retryAfter: wait }); }
+    times.push(now);
+    this.pingTimes.set(me, times);
+    if (this.pingTimes.size > 5000) for (const [k, v] of this.pingTimes) if (!v.length || v[v.length - 1] < now - SOCIAL.PING_WINDOW_MS) this.pingTimes.delete(k);
+
+    const party = this.partyOf(me);
+    if (!party) throw new SocialError(409, "Join a party to ping");
+    const p = this.profile(me);
+    // The ping says where the sender is playing now: keep their presence in step with it.
+    if (p.server !== server) this.touch(me, { server }, false);
+    const msg = { type: "ping", from: this.who(me), x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, z: Math.round(z * 10) / 10, dimension, kind, at: now };
+    for (const m of this.members(party)) {
+      if (m === me || this.blockedEither(me, m)) continue;
+      const mp = this.sql.exec("SELECT server, poll_at FROM profiles WHERE uuid = ?", m).toArray()[0];
+      if (!mp || mp.server !== server) continue;
+      const sockets = this.socketsOf(m);
+      if (sockets.length) this.send(m, msg);
+      else if (mp.poll_at > now - SOCIAL.POLL_ONLINE_MS) {
+        const q = (this.pollPings.get(m) || []).filter((e) => e.at > now - 15000).slice(-9);
+        q.push(msg);
+        this.pollPings.set(m, q);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ helpers: accounts
+
+  /** My profile row, created on first use. */
+  profile(uuid) {
+    let p = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    if (!p) {
+      const now = Date.now();
+      this.sql.exec("INSERT INTO profiles (uuid, last_seen, created) VALUES (?, ?, ?)", uuid, now, now);
+      p = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    }
+    return p;
+  }
+
+  /** Records a sign of life: name, current server ({@code a.server}, null for none) and, for HTTP clients, polling. */
+  touch(me, a, polling) {
+    const p = this.profile(me);
+    const now = Date.now();
+    const name = typeof a.name === "string" && NAME.test(a.name) ? a.name : p.name;
+    const server = a.server === undefined ? p.server : normServer(a.server);
+    const wasOnline = polling ? this.isOnline(me) : true;
+    this.sql.exec("UPDATE profiles SET name = ?, name_lc = ?, server = ?, last_seen = ?, poll_at = ? WHERE uuid = ?",
+      name, name.toLowerCase(), server, now, polling ? now : p.poll_at, me);
+    if (polling && !p.poll_at) this.alarmBy(now + SOCIAL.POLL_ONLINE_MS + 1000).catch((e) => console.error("social alarm", e));
+    if (!wasOnline || server !== p.server || name !== p.name) this.broadcastStatus(me);
+  }
+
+  /** {uuid, name} for events and lists. */
+  who(uuid) {
+    const p = this.sql.exec("SELECT name FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    return { uuid, name: p ? p.name : "" };
+  }
+
+  /** The account a request names: {uuid} (preferred: the client looked it up with Mojang) or {name}. */
+  target(a, me) {
+    if (typeof a.uuid === "string") {
+      const u = normUuid(a.uuid);
+      if (!UUID.test(u)) throw new SocialError(400, "bad uuid");
+      if (u === me) throw new SocialError(400, "That's you");
+      const profile = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", u).toArray()[0];
+      return { uuid: u, profile, name: profile ? profile.name : (typeof a.name === "string" && NAME.test(a.name) ? a.name : "") };
+    }
+    if (typeof a.name !== "string" || !NAME.test(a.name)) throw new SocialError(400, "Type a Minecraft name");
+    // Names are only what clients report, so a name two accounts claim is never guessed between.
+    const rows = this.sql.exec("SELECT * FROM profiles WHERE name_lc = ? ORDER BY last_seen DESC LIMIT 2", a.name.toLowerCase()).toArray();
+    if (rows.length !== 1) return { uuid: null, profile: null, name: a.name };
+    if (rows[0].uuid === me) throw new SocialError(400, "That's you");
+    return { uuid: rows[0].uuid, profile: rows[0], name: a.name };
+  }
+
+  uuidArg(a) {
+    const u = normUuid(a.uuid);
+    if (!UUID.test(u)) throw new SocialError(400, "bad uuid");
+    return u;
+  }
+
+  partyArg(a) {
+    if (typeof a.party !== "string" || !PARTY_ID.test(a.party)) throw new SocialError(400, "bad party");
+    return a.party;
+  }
+
+  areFriends(a, b) { return this.has("friends", "a", a, "b", b); }
+
+  blockedEither(a, b) {
+    return this.sql.exec("SELECT 1 FROM blocks WHERE (src = ? AND dst = ?) OR (src = ? AND dst = ?) LIMIT 1", a, b, b, a).toArray().length > 0;
+  }
+
+  has(table, c1, v1, c2, v2) {
+    return this.sql.exec(`SELECT 1 FROM ${table} WHERE ${c1} = ? AND ${c2} = ? LIMIT 1`, v1, v2).toArray().length > 0;
+  }
+
+  count(q, ...binds) { return this.sql.exec(q, ...binds).one().n; }
+
+  makeFriends(me, u, now) {
+    this.sql.exec("INSERT OR IGNORE INTO friends (a, b, since) VALUES (?, ?, ?)", me, u, now);
+    this.sql.exec("INSERT OR IGNORE INTO friends (a, b, since) VALUES (?, ?, ?)", u, me, now);
+    this.sql.exec("DELETE FROM requests WHERE (src = ? AND dst = ?) OR (src = ? AND dst = ?)", me, u, u, me);
+    this.send(u, { type: "friend.accepted", friend: this.who(me) });
+    this.pushState(u);
+  }
+
+  /** A counter kept in storage: at most {@code limit} per {@code windowMs}, else a 429. */
+  limit(key, limit, windowMs, msg) {
+    const now = Date.now();
+    const row = this.sql.exec("SELECT start, n FROM rate WHERE k = ?", key).toArray()[0];
+    if (!row || row.start <= now - windowMs) {
+      this.sql.exec("INSERT OR REPLACE INTO rate (k, start, n) VALUES (?, ?, 1)", key, now);
+      return;
+    }
+    if (row.n >= limit) throw new SocialError(429, msg, { retryAfter: row.start + windowMs - now });
+    this.sql.exec("UPDATE rate SET n = n + 1 WHERE k = ?", key);
+  }
+
+  /** A short flood limit on everything an account sends: 40 requests per 10 seconds (memory only). */
+  flood(uuid) {
+    const now = Date.now();
+    let b = this.bursts.get(uuid);
+    if (!b || b.start <= now - 10000) { b = { start: now, n: 0 }; this.bursts.set(uuid, b); }
+    if (++b.n > 40) throw new SocialError(429, "Slow down", { retryAfter: b.start + 10000 - now });
+    if (this.bursts.size > 5000) for (const [k, v] of this.bursts) if (v.start <= now - 10000) this.bursts.delete(k);
+  }
+
+  meta(k) { const r = this.sql.exec("SELECT v FROM meta WHERE k = ?", k).toArray()[0]; return r ? r.v : null; }
+  setMeta(k, v) { this.sql.exec("INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)", k, v); }
+
+  async alarmBy(at) {
+    const cur = await this.ctx.storage.getAlarm();
+    if (!cur || cur > at) await this.ctx.storage.setAlarm(at);
+  }
+
+  // ------------------------------------------------------------------ helpers: sockets and presence
+
+  /** Open sockets signed in as {@code uuid} (tagged at accept, or signed in later over the socket), minus {@code except}. */
+  socketsOf(uuid, except) {
+    const out = this.ctx.getWebSockets(uuid).filter((ws) => ws !== except);
+    for (const ws of this.ctx.getWebSockets("pending")) {
+      if (ws !== except && (ws.deserializeAttachment() || {}).uuid === uuid) out.push(ws);
+    }
+    return out;
+  }
+
+  /** Closes the oldest of {@code uuid}'s sockets until at most {@code keep} are left (a game opened a 4th time). */
+  trimSockets(uuid, keep, except) {
+    const list = this.socketsOf(uuid, except).sort((a, b) => (a.deserializeAttachment()?.at || 0) - (b.deserializeAttachment()?.at || 0));
+    while (list.length > keep) this.closeSocket(list.shift(), 4000, "signed in somewhere else");
+  }
+
+  closeSocket(ws, code, reason) {
+    try { ws.close(code, reason); } catch { /* gone */ }
+  }
+
+  isOnline(uuid, except) {
+    if (this.socketsOf(uuid, except).length) return true;
+    const p = this.sql.exec("SELECT poll_at FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    return !!p && p.poll_at > Date.now() - SOCIAL.POLL_ONLINE_MS;
+  }
+
+  /** A socket just signed in: say hello with the full state, and tell friends if this account just came online. */
+  online(uuid, ws) {
+    const wasOnline = this.isOnline(uuid, ws);
+    const p = this.profile(uuid);
+    this.sql.exec("UPDATE profiles SET last_seen = ? WHERE uuid = ?", Date.now(), uuid);
+    try { ws.send(JSON.stringify({ type: "hello", state: this.state(uuid) })); } catch { /* gone */ }
+    if (!wasOnline && p) this.broadcastStatus(uuid);
+  }
+
+  /**
+   * Nobody is signed in as {@code uuid} any more (since {@code lastActive}, now by default): forget the server address
+   * and tell friends and the party.
+   */
+  offline(uuid, lastActive = Date.now()) {
+    this.sql.exec("UPDATE profiles SET server = NULL, poll_at = 0, last_seen = MAX(last_seen, ?) WHERE uuid = ?", lastActive, uuid);
+    this.broadcastStatus(uuid);
+  }
+
+  /** The server {@code p} shows friends and party members: only with Share My Server on, and only while online. */
+  shownServer(p, online) { return online && p && p.share_server ? p.server : null; }
+
+  /** Tells {@code uuid}'s online friends and party members its online state and (if shared) its server. */
+  broadcastStatus(uuid) {
+    const p = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+    if (!p) return;
+    const online = this.isOnline(uuid);
+    const msg = JSON.stringify({ type: "friend.status", uuid, name: p.name, online, server: this.shownServer(p, online) });
+    for (const r of this.sql.exec("SELECT b FROM friends WHERE a = ?", uuid).toArray()) this.sendRaw(r.b, msg);
+    const party = this.partyOf(uuid);
+    if (party) this.pushParty(party, uuid);
+  }
+
+  send(uuid, obj) { this.sendRaw(uuid, JSON.stringify(obj)); }
+
+  sendRaw(uuid, text) {
+    for (const ws of this.socketsOf(uuid)) { try { ws.send(text); } catch { /* closing */ } }
+  }
+
+  reply(ws, m, body) {
+    try { ws.send(JSON.stringify({ type: "result", id: m && (typeof m.id === "number" || typeof m.id === "string") ? m.id : null, ...body })); } catch { /* gone */ }
+  }
+
+  /** Sends {@code uuid} its full state, if it has a socket open. */
+  pushState(uuid) {
+    const sockets = this.socketsOf(uuid);
+    if (!sockets.length) return;
+    const text = JSON.stringify({ type: "state", state: this.state(uuid) });
+    for (const ws of sockets) { try { ws.send(text); } catch { /* closing */ } }
+  }
+
+  /** Sends every member of {@code party} (but {@code except}) its fresh state. */
+  pushParty(party, except) {
+    for (const m of this.members(party)) if (m !== except) this.pushState(m);
+  }
+
+  // ------------------------------------------------------------------ helpers: parties
+
+  partyOf(uuid) {
+    const r = this.sql.exec("SELECT party FROM members WHERE uuid = ?", uuid).toArray()[0];
+    return r ? r.party : null;
+  }
+
+  members(party) {
+    return this.sql.exec("SELECT uuid FROM members WHERE party = ? ORDER BY joined", party).toArray().map((r) => r.uuid);
+  }
+
+  leaderParty(me) {
+    const party = this.partyOf(me);
+    if (!party) throw new SocialError(404, "You aren't in a party");
+    const p = this.sql.exec("SELECT leader FROM parties WHERE id = ?", party).toArray()[0];
+    if (!p || p.leader !== me) throw new SocialError(403, "Only the party leader can do that");
+    return party;
+  }
+
+  createParty(me, now) {
+    const id = hex(8);
+    this.sql.exec("INSERT INTO parties (id, leader, created) VALUES (?, ?, ?)", id, me, now);
+    this.sql.exec("INSERT OR REPLACE INTO members (uuid, party, joined) VALUES (?, ?, ?)", me, id, now);
+    return id;
+  }
+
+  /** Takes {@code uuid} out of its party: the next member leads if it was the leader; the last one out ends the party. */
+  leaveParty(uuid, kicked) {
+    const party = this.partyOf(uuid);
+    if (!party) return;
+    this.sql.exec("DELETE FROM members WHERE uuid = ?", uuid);
+    const rest = this.members(party);
+    if (!rest.length) {
+      this.sql.exec("DELETE FROM parties WHERE id = ?", party);
+      this.sql.exec("DELETE FROM invites WHERE party = ?", party);
+      return;
+    }
+    const p = this.sql.exec("SELECT leader FROM parties WHERE id = ?", party).toArray()[0];
+    if (p && p.leader === uuid) {
+      this.sql.exec("UPDATE parties SET leader = ? WHERE id = ?", rest[0], party);
+      for (const m of rest) this.send(m, { type: "party.leader", leader: this.who(rest[0]) });
+    }
+    // Invites the leaver sent stay valid: the party still wants them.
+    for (const m of rest) this.send(m, { type: "party.left", member: this.who(uuid), kicked: !!kicked });
+    this.pushParty(party, null);
+  }
+
+  // ------------------------------------------------------------------ state
+
+  /** Everything the client shows: settings, friends (online first), requests, blocks, party and invites. */
+  state(me) {
+    const now = Date.now();
+    const p = this.profile(me);
+    const person = (uuid) => {
+      const q = this.sql.exec("SELECT * FROM profiles WHERE uuid = ?", uuid).toArray()[0];
+      const online = !!q && this.isOnline(uuid);
+      return { uuid, name: q ? q.name : "", online, server: this.shownServer(q, online), lastSeen: q ? q.last_seen : 0 };
+    };
+    const friends = this.sql.exec("SELECT b, since FROM friends WHERE a = ?", me).toArray()
+      .map((r) => ({ ...person(r.b), since: r.since }))
+      .sort((x, y) => (y.online - x.online) || x.name.localeCompare(y.name));
+    const incoming = this.sql.exec("SELECT src, created FROM requests WHERE dst = ? ORDER BY created DESC", me).toArray()
+      .map((r) => ({ ...this.who(r.src), at: r.created }));
+    const outgoing = this.sql.exec("SELECT dst, created FROM requests WHERE src = ? ORDER BY created DESC", me).toArray()
+      .map((r) => ({ ...this.who(r.dst), at: r.created }));
+    const blocked = this.sql.exec("SELECT dst FROM blocks WHERE src = ? ORDER BY created DESC", me).toArray().map((r) => this.who(r.dst));
+    let party = null;
+    const pid = this.partyOf(me);
+    if (pid) {
+      const pr = this.sql.exec("SELECT leader FROM parties WHERE id = ?", pid).toArray()[0];
+      party = {
+        id: pid,
+        leader: pr ? pr.leader : null,
+        members: this.members(pid).map((u) => ({ ...person(u), leader: !!pr && pr.leader === u })),
+        invited: this.sql.exec("SELECT dst FROM invites WHERE party = ? AND created > ?", pid, now - SOCIAL.INVITE_MS).toArray().map((r) => this.who(r.dst)),
+      };
+    }
+    const invites = this.sql.exec("SELECT party, src, created FROM invites WHERE dst = ? AND created > ? ORDER BY created DESC", me, now - SOCIAL.INVITE_MS).toArray()
+      .map((r) => ({ party: r.party, from: this.who(r.src), size: this.count("SELECT COUNT(*) AS n FROM members WHERE party = ?", r.party), at: r.created }));
+    return {
+      me: { uuid: me, name: p.name, allowRequests: p.allow_requests ? "everyone" : "nobody", shareServer: !!p.share_server },
+      friends, incoming, outgoing, blocked, party, invites,
+      limits: { friends: SOCIAL.MAX_FRIENDS, pending: SOCIAL.MAX_PENDING, party: SOCIAL.MAX_PARTY },
+    };
+  }
+
+  // ------------------------------------------------------------------ retention
+
+  /**
+   * Deletes everything social about {@code uuid}: profile, friendships, requests both ways, the blocks it made,
+   * invites, party membership and reports it sent. Blocks other players made against it are theirs and stay.
+   */
+  purge(uuid, notify) {
+    const friends = this.sql.exec("SELECT b FROM friends WHERE a = ?", uuid).toArray().map((r) => r.b);
+    const asked = this.sql.exec("SELECT dst FROM requests WHERE src = ? UNION SELECT src FROM requests WHERE dst = ?", uuid, uuid).toArray().map((r) => r.dst);
+    this.leaveParty(uuid, false);
+    this.sql.exec("DELETE FROM friends WHERE a = ? OR b = ?", uuid, uuid);
+    this.sql.exec("DELETE FROM requests WHERE src = ? OR dst = ?", uuid, uuid);
+    this.sql.exec("DELETE FROM blocks WHERE src = ?", uuid);
+    this.sql.exec("DELETE FROM invites WHERE src = ? OR dst = ?", uuid, uuid);
+    this.sql.exec("DELETE FROM reports WHERE src = ?", uuid);
+    this.sql.exec("DELETE FROM rate WHERE k >= ? AND k < ?", uuid + ":", uuid + ";");
+    this.sql.exec("DELETE FROM profiles WHERE uuid = ?", uuid);
+    this.pingTimes.delete(uuid);
+    this.pollPings.delete(uuid);
+    if (notify) {
+      for (const f of friends) { this.send(f, { type: "friend.removed", uuid }); this.pushState(f); }
+      for (const u of asked) this.pushState(u);
+    }
+  }
+
+  /** Every few hours: inactive accounts, idle parties, lapsed invites, old reports and rate counters. */
+  sweep(now) {
+    for (const r of this.sql.exec("SELECT uuid FROM profiles WHERE last_seen < ? LIMIT 500", now - SOCIAL.INACTIVE_MS).toArray()) {
+      if (!this.socketsOf(r.uuid).length) this.purge(r.uuid, true);
+    }
+    for (const r of this.sql.exec("SELECT id FROM parties").toArray()) {
+      const ms = this.members(r.id);
+      const active = ms.some((m) => {
+        if (this.isOnline(m)) return true;
+        const q = this.sql.exec("SELECT last_seen FROM profiles WHERE uuid = ?", m).toArray()[0];
+        return q && q.last_seen > now - SOCIAL.PARTY_IDLE_MS;
+      });
+      if (!active) {
+        this.sql.exec("DELETE FROM members WHERE party = ?", r.id);
+        this.sql.exec("DELETE FROM invites WHERE party = ?", r.id);
+        this.sql.exec("DELETE FROM parties WHERE id = ?", r.id);
+      }
+    }
+    this.sql.exec("DELETE FROM invites WHERE created <= ?", now - SOCIAL.INVITE_MS);
+    this.sql.exec("DELETE FROM reports WHERE created <= ?", now - SOCIAL.REPORT_KEEP_MS);
+    this.sql.exec("DELETE FROM rate WHERE start <= ?", now - 24 * 3600 * 1000);
   }
 }

@@ -1,5 +1,5 @@
 // Cloudflare Workers Builds runs `npx wrangler deploy` from the repo root.
-// Serves the static site in ./site, and /api/* (Evade icons in the tab list) from worker/index.js.
+// Serves the static site in ./site, and /api/* (Evade icons in the tab list, friends and parties) from worker/index.js.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "evade-client",
@@ -12,9 +12,16 @@
     "run_worker_first": ["/api/*"]
   },
   // One SQLite-backed Durable Object holds icon state and the one-time sign-in ids; Cloudflare creates it on
-  // deploy (free plan supports it).
-  "durable_objects": { "bindings": [{ "name": "ICONS", "class_name": "EvadeIcons" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EvadeIcons"] }],
+  // deploy (free plan supports it). A second one, EvadeSocial, holds friends, parties and the party-ping WebSockets
+  // (/api/social/*). Migrations only ever get appended: v1 must stay exactly as it was deployed.
+  "durable_objects": { "bindings": [
+    { "name": "ICONS", "class_name": "EvadeIcons" },
+    { "name": "SOCIAL", "class_name": "EvadeSocial" }
+  ] },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["EvadeIcons"] },
+    { "tag": "v2", "new_sqlite_classes": ["EvadeSocial"] }
+  ],
   // Sign-in requests (/api/auth/challenge and /api/auth/verify together), per IP address and Cloudflare location.
   // One sign-in is two requests and lasts a day. Needs Wrangler 4.36 or later; without this binding nothing is limited.
   "ratelimits": [{ "name": "AUTH_RL", "namespace_id": "7001", "simple": { "limit": 10, "period": 60 } }]
