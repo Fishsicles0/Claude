@@ -118,7 +118,7 @@
     "RenderScaleWorldRendererAccessor",
     "RenderSystemPacingMixin",
     "DrawContextStateAccessor",
-    "GuiRenderStateRecordMixin",
+    "GameRendererFogAccessor",
     "KeyboardScreenshotMixin",
     "PerfFrameEndMixin",
     "TextureManagerWarmupAccessor",

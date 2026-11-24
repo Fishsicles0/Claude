@@ -15,7 +15,7 @@ import net.minecraft.util.Identifier;
  * {@link RenderScale#endWorld}; falls back to a plain filtered copy if a shader fails to compile on this driver.
  *
  * <ul>
- *   <li>{@link Mode#EVADE}: Evade's own edge-aware upscaler ({@code evade:core/evade_upscale}): a 16-tap windowed-sinc
+ *   <li>{@link Mode#EVADE}: Evade's own edge-aware upscaler ({@code evade:core/evade_upscale}): a 12-tap Lanczos-like
  *       filter stretched along edges and squeezed across them, de-ringed, with a contrast-adaptive sharpen. It reads
  *       exact texels, so the sampler filter doesn't matter. The best-looking choice at 50 to 80%.</li>
  *   <li>{@link Mode#SMOOTH}: bilinear, with the light 5-tap sharpen when Sharpen is on.</li>

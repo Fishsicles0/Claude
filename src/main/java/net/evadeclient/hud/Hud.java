@@ -76,21 +76,31 @@ public final class Hud {
         ctx.getMatrices().scale(k, k);
         try {
             HudStacks.apply(sw, sh, false);
+            // HUD Refresh: widgets that don't move every frame come from the HUD cache's texture (see HudCache),
+            // drawn under the ones that do.
+            boolean cache = HudCache.active();
+            java.util.List<HudElementModule> cached = cache ? new java.util.ArrayList<>() : java.util.List.of();
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled() || !el.shouldShow()) continue;
-                try {
-                    // HUD Refresh: reuse the widget's last drawing while it's still current (see HudCache).
-                    if (PROFILE != null) {
-                        long t = System.nanoTime();
-                        HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
-                        PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
-                    } else HudCache.draw(el, ctx, sw, sh, () -> el.renderScaled(ctx, sw, sh, false));
-                } catch (Exception e) {
-                    ModuleManager.crashed(el, e, "HUD");
-                }
+                if (cache && !HudCache.animated(el)) { cached.add(el); continue; }
+                drawWidget(ctx, el, sw, sh);
             }
+            if (!cached.isEmpty()) HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
         } finally {
             ctx.getMatrices().popMatrix();
+        }
+    }
+
+    /** One widget, timed for the profiler, switched off if it throws. */
+    private static void drawWidget(DrawContext ctx, HudElementModule el, int sw, int sh) {
+        try {
+            if (PROFILE != null) {
+                long t = System.nanoTime();
+                el.renderScaled(ctx, sw, sh, false);
+                PROFILE.merge(el.getName(), System.nanoTime() - t, Long::sum);
+            } else el.renderScaled(ctx, sw, sh, false);
+        } catch (Exception e) {
+            ModuleManager.crashed(el, e, "HUD");
         }
     }
 

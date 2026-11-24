@@ -1,8 +1,11 @@
 package net.evadeclient.util;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
 import net.evadeclient.EvadeClient;
 import net.evadeclient.addon.AddonHudElement;
 import net.evadeclient.mixin.DrawContextStateAccessor;
+import net.evadeclient.mixin.GameRendererFogAccessor;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.TextHudModule;
 import net.evadeclient.module.hud.CompassHud;
@@ -11,14 +14,17 @@ import net.evadeclient.module.hud.KeystrokesHud;
 import net.evadeclient.module.hud.MinimapHud;
 import net.evadeclient.module.hud.PaperDollHud;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gl.SimpleFramebuffer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.gui.render.state.GuiRenderState;
-import net.minecraft.client.gui.render.state.ItemGuiElementRenderState;
-import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
-import net.minecraft.client.gui.render.state.TextGuiElementRenderState;
-import net.minecraft.client.gui.render.state.special.SpecialGuiElementRenderState;
+import net.minecraft.client.gui.render.state.TexturedQuadGuiElementRenderState;
+import net.minecraft.client.render.fog.FogRenderer;
+import net.minecraft.client.texture.TextureSetup;
+import org.joml.Matrix3x2f;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,31 +33,26 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * HUD Refresh (Performance): Evade's corner widgets are drawn into a recording once and the recording is repeated on
- * the frames in between, so at hundreds of FPS the HUD costs almost nothing.
+ * HUD Refresh (Performance): Evade's corner widgets are drawn into an off-screen texture 60 or 30 times a second (and
+ * at once when one changes), and every frame in between shows that texture as a single quad. At hundreds of FPS
+ * the HUD then costs almost nothing.
  *
- * <p>Minecraft 1.21.11 draws the GUI in two steps: during the frame, widgets add small immutable "render states"
- * (a quad, a line of text, an item) to the frame's GUI state; at the end of the frame the GUI renderer turns them all
- * into vertices in one go. The costly part of a widget is the first step (its layout, text and shapes). So a widget
- * is drawn with its elements recorded (see {@code GuiRenderStateRecordMixin}), and until the recording goes stale the
- * same elements are added again in the same order. Text elements even keep their laid-out glyphs. The picture is
- * identical to drawing the widget again: that is the same as an off-screen copy of the HUD, without a texture or an
- * extra pass on the graphics card.
+ * <p>Why a texture: in 1.21.11 every widget adds dozens of small render states (quads, text, items) to the frame's
+ * GUI state, and the game sorts each one into layers and builds its vertices again every frame; with 20 to 40 widgets
+ * that is most of the HUD's cost, whatever the widgets themselves do. Here the widgets are drawn into a GUI state of
+ * Evade's own and rendered by a second GUI renderer into a window-sized framebuffer (through the same
+ * {@code getFramebuffer} hook Render Scale uses), then composited with premultiplied alpha, so the picture is the
+ * same pixel for pixel.
  *
- * <p>A recording is used again only while all of this holds; otherwise the widget is drawn (and recorded) afresh:
- * <ul>
- *   <li>it is younger than the refresh period (1/60 or 1/30 s);</li>
- *   <li>the widget sits at the same spot and scale, on a window of the same size and HUD scale;</li>
- *   <li>for text widgets, the text is unchanged (checked once a tick: a changed number redraws at once);</li>
- *   <li>no screen other than chat is open (settings may be changing) and no resource reload is running.</li>
- * </ul>
- * Widgets that move every frame (minimap, compass, keystrokes, the frame-time graph, the paper doll, Chroma text and
- * other mods' widgets) are always drawn every frame. Render thread only.
+ * <p>The texture is redrawn when it is older than the refresh period, when a widget moves, is resized, turns on or off,
+ * or (text widgets, checked once a tick) its text changes, and when the window or HUD scale changes. Widgets that move
+ * every frame (minimap, compass, keystrokes, the frame-time graph, the paper doll, Chroma text and other mods'
+ * widgets) are drawn live on top as usual. While a screen other than chat is open everything is drawn live (settings
+ * may be changing). If anything fails, the cache turns itself off for the session and the HUD is drawn as before.
+ * Render thread only.
  */
 public final class HudCache {
     private HudCache() {}
-
-    public static final int ITEM = 0, TEXT = 1, SPECIAL = 2, SIMPLE = 3, UNREPLAYABLE = 4;
 
     /** Auto: cache only while the game runs faster than this. */
     private static final double AUTO_MIN_FPS = 90;
@@ -59,6 +60,10 @@ public final class HudCache {
     private static String mode = "Every Frame";
     private static long periodNanos;
     private static boolean auto;
+    /** Test hook: draw every widget every frame regardless of the setting. */
+    public static boolean forceOff;
+    /** Something failed: drawn live for the rest of the session. */
+    private static boolean broken;
 
     /** Follows HUD Refresh ("Auto", "Every Frame", "60 Hz", "30 Hz"); every client tick. */
     public static void configure(String refresh) {
@@ -71,52 +76,17 @@ public final class HudCache {
             case "60 Hz", "Auto" -> 1_000_000_000L / 60;
             default -> 0;
         };
-        clear();
+        lastSignature = 0;
+        if (periodNanos <= 0) release();
     }
 
-    /** Whether recordings are reused on this frame (Auto checks the frame rate). */
+    /** Whether the cache is used on this frame (Auto checks the frame rate). */
     public static boolean active() {
-        if (periodNanos <= 0 || forceOff) return false;
-        if (!auto) return true;
+        if (periodNanos <= 0 || forceOff || broken) return false;
         MinecraftClient mc = MinecraftClient.getInstance();
-        return mc.getCurrentFps() > AUTO_MIN_FPS;
-    }
-
-    /** Test hook: draw every widget every frame regardless of the setting. */
-    public static boolean forceOff;
-
-    // ------------------------------------------------------------------ recording (GuiRenderState mixin)
-
-    private static List<Object> recording;
-    private static boolean recordingBroken;
-
-    public static boolean recording() { return recording != null; }
-
-    public static void record(int kind, Object state) {
-        if (kind == UNREPLAYABLE || state == null) { recordingBroken = true; return; }
-        recording.add(kind);
-        recording.add(state);
-    }
-
-    // ------------------------------------------------------------------ per-widget cache
-
-    private static final class Entry {
-        Object[] ops = new Object[0];
-        long at;
-        int x, y, sw, sh, width, height;
-        float scale, hudScale;
-        Object content;
-        long contentTick = -1;
-        boolean valid;
-    }
-
-    private static final Map<HudElementModule, Entry> entries = new IdentityHashMap<>();
-    private static long hits, misses, live;
-    private static int lastOps;
-
-    /** Drops every recording (setting changed, resources reloaded). */
-    public static void clear() {
-        entries.clear();
+        if (mc.getOverlay() != null) return false; // a resource reload replaces textures and fonts
+        if (mc.currentScreen != null && !(mc.currentScreen instanceof net.minecraft.client.gui.screen.ChatScreen)) return false;
+        return !auto || mc.getCurrentFps() > AUTO_MIN_FPS;
     }
 
     /** Widgets that move every frame: always drawn live. */
@@ -128,96 +98,161 @@ public final class HudCache {
         return el instanceof TextHudModule t && t.chroma.get();
     }
 
-    /**
-     * Draws {@code el} through the cache: replays its recording when still good, else runs {@code draw} (which
-     * renders the widget) while recording it.
-     */
-    public static void draw(HudElementModule el, DrawContext ctx, int sw, int sh, Runnable draw) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.getOverlay() != null) clear(); // a resource reload replaces the font's glyph textures
-        boolean screenOpen = mc.currentScreen != null && !(mc.currentScreen instanceof net.minecraft.client.gui.screen.ChatScreen);
-        if (!active() || screenOpen || animated(el) || recording != null || !(ctx instanceof DrawContextStateAccessor acc)) {
-            live++;
-            draw.run();
-            return;
+    // ------------------------------------------------------------------ the texture
+
+    private static SimpleFramebuffer fb;
+    private static GuiRenderer renderer;
+    private static GuiRenderState state;
+    /** While set, the game's getFramebuffer() returns the HUD texture (the second GUI renderer draws into it). */
+    private static Framebuffer redirect;
+    private static long lastSignature, drawnAt;
+    private static long hits, redraws, live;
+    private static int lastWidgets;
+
+    /** {@code MinecraftClient.getFramebuffer()} while the cached HUD is rendered (see {@link RenderScale#redirect}). */
+    static Framebuffer redirect() { return redirect; }
+
+    private record Content(long tick, Object text) {}
+
+    private static final Map<HudElementModule, Content> contents = new IdentityHashMap<>();
+
+    /** Text widgets' text, read once a tick (the rate they rebuild it at); null for other widgets. */
+    private static Object content(HudElementModule el) {
+        if (!(el instanceof TextHudModule t)) return null;
+        Content c = contents.get(el);
+        if (c == null || c.tick() != EvadeClient.ticks) {
+            c = new Content(EvadeClient.ticks, t.textForTest());
+            contents.put(el, c);
         }
-        long now = System.nanoTime();
-        int x = el.resolveX(sw), y = el.resolveY(sh);
-        float scale = el.scale.getFloat(), hudScale = net.evadeclient.hud.Hud.scale();
-        Entry e = entries.computeIfAbsent(el, k -> new Entry());
-        Object content = e.content;
-        if (el instanceof TextHudModule t && e.contentTick != EvadeClient.ticks) {
-            // Once a tick, the same rate text widgets rebuild their text at.
-            content = t.textForTest();
-            e.contentTick = EvadeClient.ticks;
-        }
-        boolean fresh = e.valid && now - e.at < periodNanos && e.x == x && e.y == y && e.sw == sw && e.sh == sh
-                && e.scale == scale && e.hudScale == hudScale && Objects.equals(e.content, content)
-                && e.width == el.getWidth() && e.height == el.getHeight();
-        if (fresh) {
-            replay(acc.evade$state(), e.ops);
-            hits++;
-            return;
-        }
-        List<Object> rec = new ArrayList<>(Math.max(16, e.ops.length));
-        recording = rec;
-        recordingBroken = false;
-        try {
-            draw.run();
-        } finally {
-            recording = null;
-        }
-        e.ops = rec.toArray();
-        lastOps = e.ops.length / 2;
-        e.valid = !recordingBroken;
-        e.at = now;
-        e.x = x; e.y = y; e.sw = sw; e.sh = sh; e.scale = scale; e.hudScale = hudScale;
-        e.content = content;
-        e.width = el.getWidth();
-        e.height = el.getHeight();
-        misses++;
+        return c.text();
     }
 
-    private static void replay(GuiRenderState state, Object[] ops) {
-        for (int i = 0; i < ops.length; i += 2) {
-            Object s = ops[i + 1];
-            switch ((Integer) ops[i]) {
-                case ITEM -> state.addItem((ItemGuiElementRenderState) s);
-                case TEXT -> state.addText((TextGuiElementRenderState) s);
-                case SPECIAL -> state.addSpecialElement((SpecialGuiElementRenderState) s);
-                default -> state.addSimpleElement((SimpleGuiElementRenderState) s);
+    /**
+     * Draws {@code widgets} (the cacheable ones on screen this frame) through the texture: redrawn into it when stale,
+     * then shown as one quad. {@code draw} renders one widget into a context (with the HUD's scale already applied).
+     * Falls back to drawing them live when the cache can't be used.
+     */
+    public static void draw(DrawContext ctx, List<HudElementModule> widgets, int sw, int sh, float k,
+                            java.util.function.BiConsumer<DrawContext, HudElementModule> draw) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (widgets.isEmpty()) return;
+        if (!active() || !(ctx instanceof DrawContextStateAccessor acc)) {
+            for (HudElementModule el : widgets) { live++; draw.accept(ctx, el); }
+            return;
+        }
+        var win = mc.getWindow();
+        int fw = win.getFramebufferWidth(), fh = win.getFramebufferHeight();
+        long sig = 17;
+        sig = sig * 31 + fw; sig = sig * 31 + fh; sig = sig * 31 + sw; sig = sig * 31 + sh;
+        sig = sig * 31 + Float.floatToIntBits(k); sig = sig * 31 + win.getScaleFactor();
+        for (HudElementModule el : widgets) {
+            sig = sig * 31 + System.identityHashCode(el);
+            sig = sig * 31 + el.resolveX(sw); sig = sig * 31 + el.resolveY(sh);
+            sig = sig * 31 + Float.floatToIntBits(el.scale.getFloat());
+            sig = sig * 31 + el.getWidth() * 7919L + el.getHeight();
+            sig = sig * 31 + Objects.hashCode(content(el));
+        }
+        long now = System.nanoTime();
+        try {
+            if (fb == null || sig != lastSignature || now - drawnAt >= periodNanos) {
+                redraw(mc, widgets, fw, fh, k, draw);
+                lastSignature = sig;
+                drawnAt = now;
+                redraws++;
+            } else {
+                hits++;
             }
+            lastWidgets = widgets.size();
+            // The texture covers the window: GUI coordinates 0..fw/scale, which can be a fraction past the last whole one.
+            double gs = win.getScaleFactor();
+            int gw = ctx.getScaledWindowWidth(), gh = ctx.getScaledWindowHeight();
+            float u2 = (float) Math.min(1.0, gw * gs / fw), v2 = (float) Math.min(1.0, gh * gs / fh);
+            acc.evade$state().addSimpleElement(new TexturedQuadGuiElementRenderState(RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
+                    TextureSetup.of(fb.getColorAttachmentView(), RenderSystem.getSamplerCache().get(FilterMode.NEAREST)),
+                    new Matrix3x2f(), 0, 0, gw, gh, 0f, u2, 1f, 1f - v2, 0xFFFFFFFF, null));
+        } catch (RuntimeException e) {
+            broken = true;
+            redirect = null;
+            EvadeClient.LOG.error("HUD cache: failed, drawing the HUD every frame from now on", e);
+            release();
+            for (HudElementModule el : widgets) { live++; draw.accept(ctx, el); }
+        }
+    }
+
+    private static void redraw(MinecraftClient mc, List<HudElementModule> widgets, int fw, int fh, float k,
+                               java.util.function.BiConsumer<DrawContext, HudElementModule> draw) {
+        if (fb == null) fb = new SimpleFramebuffer("Evade HUD cache", fw, fh, true);
+        else if (fb.textureWidth != fw || fb.textureHeight != fh) fb.resize(fw, fh);
+        if (renderer == null) {
+            state = new GuiRenderState();
+            // Special elements (3D models in the GUI) have no renderer here: widgets that draw them are kept live.
+            renderer = new GuiRenderer(state, mc.getBufferBuilders().getEntityVertexConsumers(),
+                    mc.gameRenderer.getEntityRenderCommandQueue(), mc.gameRenderer.getEntityRenderDispatcher(), List.of());
+        }
+        DrawContext hctx = new DrawContext(mc, state, -1, -1);
+        hctx.getMatrices().pushMatrix();
+        hctx.getMatrices().scale(k, k);
+        try {
+            for (HudElementModule el : widgets) draw.accept(hctx, el);
+        } finally {
+            hctx.getMatrices().popMatrix();
+        }
+        var encoder = RenderSystem.getDevice().createCommandEncoder();
+        encoder.clearColorAndDepthTextures(fb.getColorAttachment(), 0, fb.getDepthAttachment(), 1.0);
+        FogRenderer fog = ((GameRendererFogAccessor) mc.gameRenderer).evade$fogRenderer();
+        redirect = fb;
+        try {
+            renderer.render(fog.getFogBuffer(FogRenderer.FogType.NONE));
+            renderer.incrementFrame();
+        } finally {
+            redirect = null;
+        }
+    }
+
+    /** Frees the texture and the second GUI renderer (HUD Refresh set to Every Frame, or a failure). */
+    public static void release() {
+        lastSignature = 0;
+        contents.clear();
+        if (fb != null) { fb.delete(); fb = null; }
+        if (renderer != null) {
+            try { renderer.close(); } catch (RuntimeException ignored) {}
+            renderer = null;
+            state = null;
         }
     }
 
     // ------------------------------------------------------------------ status and tests
 
-    /** {hits, misses, live} since the last call (resets). */
+    /** {frames shown from the texture, redraws of it, widget draws done live} since the last call (resets). */
     public static long[] takeCounts() {
-        long[] c = {hits, misses, live};
-        hits = misses = live = 0;
+        long[] c = {hits, redraws, live};
+        hits = redraws = live = 0;
         return c;
     }
 
-    /** Elements in the most recent recording (tests). */
-    public static int lastRecordedElements() { return lastOps; }
+    /** Widgets in the texture at the last frame (tests). */
+    public static int lastWidgets() { return lastWidgets; }
 
-    private static long statusHits, statusMisses, statusAt;
+    public static boolean broken() { return broken; }
+
+    private static long statusHits, statusRedraws, statusAt;
     private static String statusText = "";
 
-    /** "Reusing 92% of widget draws" for Performance, refreshed once a second. */
+    /** "Redrawn 31 times a second, reused 270 times" for Performance, refreshed once a second. */
     public static String status() {
         if (periodNanos <= 0) return "Off: every widget is drawn every frame";
-        if (auto && !active()) return "Waiting: the game runs under " + (int) AUTO_MIN_FPS + " FPS";
+        if (broken) return "Unavailable: drawing every frame";
+        if (auto && MinecraftClient.getInstance().getCurrentFps() <= AUTO_MIN_FPS) return "Waiting: the game runs under " + (int) AUTO_MIN_FPS + " FPS";
         long now = System.currentTimeMillis();
         if (now - statusAt >= 1000) {
-            long h = hits - statusHits, m = misses - statusMisses;
+            long h = hits - statusHits, r = redraws - statusRedraws;
+            double secs = statusAt == 0 ? 1 : (now - statusAt) / 1000.0;
             statusHits = hits;
-            statusMisses = misses;
+            statusRedraws = redraws;
             statusAt = now;
-            if (h < 0 || m < 0) { h = 0; m = 0; } // counters were taken by a test meanwhile
-            statusText = h + m == 0 ? "Nothing cached yet (in a world)"
-                    : String.format(Locale.ROOT, "Reusing %d%% of widget draws", Math.round(100.0 * h / (h + m)));
+            if (h < 0 || r < 0) { h = 0; r = 0; } // counters were taken by a test meanwhile
+            statusText = h + r == 0 ? "Nothing cached yet (in a world)"
+                    : String.format(Locale.ROOT, "Redrawn %.0f times a second, reused %.0f", r / secs, h / secs);
         }
         return statusText;
     }
