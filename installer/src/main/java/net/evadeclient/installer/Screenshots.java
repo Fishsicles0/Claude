@@ -55,9 +55,8 @@ final class Screenshots {
         v.settings.selected = "default";
         sampleHome(v);
         save(v, out, "04-home");
-        v.settings.sidebarCollapsed = true;
-        save(v, out, "04b-home-collapsed");
-        v.settings.sidebarCollapsed = false;
+        v.overlay = "friends";
+        save(v, out, "04b-home-friends");
         v.overlay = "server:1";
         save(v, out, "04c-home-server-card");
         v.overlay = "bell";
@@ -107,13 +106,35 @@ final class Screenshots {
 
         // ---- mods
         v.page = LauncherView.Page.MODS;
-        v.mods = sampleMods(main.dir.resolve("mods"));
+        // With -Devade.shots.instance=<a game folder>, its real mods (and their real icons) are listed.
+        String real = System.getProperty("evade.shots.instance");
+        if (real != null && Files.isDirectory(Path.of(real, "mods"))) {
+            v.mods = Mods.list(Path.of(real));
+            for (int i = 0; i < 30; i++) {
+                for (Mods.Entry e : v.mods) ModIcons.get(e.file(), null);
+                Thread.sleep(200);
+            }
+        } else v.mods = sampleMods(main.dir.resolve("mods"));
         save(v, out, "13-mods");
         v.browse = true;
         v.searchField.setText("");
         v.lastQuery = "";
         v.hits = sampleHits();
         v.hitsTotal = 4210;
+        if (Boolean.getBoolean("evade.shots.live")) {
+            // the real Modrinth results, with their icons
+            try {
+                Mods.Page page = Mods.search(new InstallerCore(), "", 0);
+                v.hits = page.hits();
+                v.hitsTotal = page.total();
+                for (int i = 0; i < 30; i++) {
+                    for (Mods.Hit h : v.hits) ModIcons.url(h.iconUrl(), null);
+                    Thread.sleep(200);
+                }
+            } catch (Exception e) {
+                System.err.println("Live Modrinth results skipped: " + e.getMessage());
+            }
+        }
         v.installedProjects.add("w7ThoJFB");
         v.modState.put("1IjD5062", "installing");
         v.modProgress = 0.55;
@@ -126,6 +147,12 @@ final class Screenshots {
         v.legacyClips = true;
         save(v, out, "15-settings");
         v.legacyClips = false;
+        v.clipsBlocked = true;
+        save(v, out, "15b-settings-old-clips-running");
+        v.page = LauncherView.Page.CLIPS;
+        save(v, out, "15c-clips-old-app-running");
+        v.clipsBlocked = false;
+        v.page = LauncherView.Page.SETTINGS;
 
         // ---- small screens: 1366×768 at 125% (about 1092×582 usable) and a 1280×720 laptop with a taskbar
         v.page = LauncherView.Page.HOME;

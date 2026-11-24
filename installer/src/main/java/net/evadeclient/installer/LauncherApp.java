@@ -50,28 +50,64 @@ final class LauncherApp implements LauncherView.Actions {
     });
     private final AtomicInteger searchSeq = new AtomicInteger();
     /** The built-in Evade Clips, or null when it couldn't start ({@link LauncherView#clipsNote} says why). */
-    private final App clips;
+    private App clips;
     private ClipsPages clipsPages;
     private JFrame frame;
     private TrayIcon tray;
     private volatile boolean busy;
     private boolean started, ffmpegOffered;
 
-    LauncherApp(App clips, String clipsNote) {
-        this.clips = clips;
-        view.clips = clips;
+    LauncherApp(App clips, String clipsNote, boolean blocked) {
         view.clipsNote = clipsNote;
+        view.clipsBlocked = blocked;
         view.actions = this;
         view.settings = settings;
         view.version = EvadeInstaller.launcherVersion();
         view.setupMemory = settings.defaultMemoryGb;
         view.setJavaText(settings.javaPath);
         view.legacyClips = AppHost.legacyAppInstalled();
-        if (clips != null) {
-            clips.onNotice((title, body, error) -> SwingUtilities.invokeLater(() -> view.notice(title, body, error)));
-            clips.engine.onStatus(st -> SwingUtilities.invokeLater(view::repaint));
-        }
+        if (clips != null) attach(clips);
     }
+
+    /** Wires the built-in Clips into the launcher (at start, or once the old separate app was closed). */
+    private void attach(App app) {
+        clips = app;
+        view.clips = app;
+        app.onNotice((title, body, error) -> SwingUtilities.invokeLater(() -> view.notice(title, body, error)));
+        app.engine.onStatus(st -> SwingUtilities.invokeLater(view::repaint));
+        if (frame != null) addClipsPages();
+    }
+
+    /**
+     * The old separate Evade Clips app holds Clips' folder: close it, then start the built-in Clips here (pages,
+     * tray, control server for Evade Client).
+     */
+    @Override public void takeOverClips() {
+        view.clipsBusy = true;
+        view.repaint();
+        work.submit(() -> {
+            App app = AppHost.takeOver();
+            ui(() -> {
+                view.clipsBusy = false;
+                if (app == null) {
+                    view.toast("The old Evade Clips app didn't close. Quit it from its tray icon, then try again.");
+                    return;
+                }
+                view.clipsBlocked = false;
+                view.clipsNote = null;
+                attach(app);
+                app.toast = new net.evadeclient.clips.ui.Toast();
+                app.showWindow = this::showWindow;
+                installTray();
+                net.evadeclient.clips.ClipsApp.watchShowRequests(app);
+                new Thread(app::start, "clips-startup").start();
+                view.toast("Evade Clips is running in the launcher now");
+                view.legacyClips = AppHost.legacyAppInstalled();
+            });
+        });
+    }
+
+    @Override public void manageAccount() { openUrl("https://www.minecraft.net/msaprofile"); }
 
     /** Starts the background work (versions, news, player, servers). Call once, on the UI thread. */
     void startBackground() {
@@ -129,21 +165,7 @@ final class LauncherApp implements LauncherView.Actions {
         }
         view.setOpaque(!perPixel);
         view.roundCorners = perPixel;
-        if (clips != null) {
-            clipsPages = new ClipsPages(clips);
-            clipsPages.setBorder(javax.swing.BorderFactory.createEmptyBorder());
-            clipsPages.setVisible(false);
-            clipsPages.onPageChanged(p -> { view.clipsPage = p; view.repaint(); });
-            view.clipsHost = clipsPages;
-            view.add(clipsPages);
-            clips.window = frame;
-            clips.openEditor = c -> SwingUtilities.invokeLater(() -> {
-                if (c == null) { clipsPages.editor.close(); clipsPage("library"); return; }
-                showClips();
-                clipsPages.editor.open(c);
-                clipsPage("editor");
-            });
-        }
+        if (clips != null) addClipsPages();
         // Ctrl+1 … Ctrl+4 open Clips' Library, Record, Editor and Settings (as in the Clips app).
         var im = frame.getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         var am = frame.getRootPane().getActionMap();
@@ -190,6 +212,23 @@ final class LauncherApp implements LauncherView.Actions {
         }
     }
 
+    private void addClipsPages() {
+        if (clipsPages != null || clips == null) return;
+        clipsPages = new ClipsPages(clips);
+        clipsPages.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        clipsPages.setVisible(false);
+        clipsPages.onPageChanged(p -> { view.clipsPage = p; view.repaint(); });
+        view.clipsHost = clipsPages;
+        view.add(clipsPages);
+        clips.window = frame;
+        clips.openEditor = c -> SwingUtilities.invokeLater(() -> {
+            if (c == null) { clipsPages.editor.close(); clipsPage("library"); return; }
+            showClips();
+            clipsPages.editor.open(c);
+            clipsPage("editor");
+        });
+    }
+
     private static boolean perPixelTranslucency() {
         try {
             return GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
@@ -201,7 +240,7 @@ final class LauncherApp implements LauncherView.Actions {
 
     /** The tray icon: Open Evade, Save clip, Quit. Clicking the icon opens the window. */
     void installTray() {
-        if (clips == null || !SystemTray.isSupported()) return;
+        if (clips == null || tray != null || !SystemTray.isSupported()) return;
         Image icon = LauncherView.image("/evade/icon-128.png");
         PopupMenu m = new PopupMenu();
         MenuItem open = new MenuItem("Open Evade");
@@ -326,10 +365,13 @@ final class LauncherApp implements LauncherView.Actions {
                 view.playerName = a != null ? a.name() : null;
                 view.playerUuid = a != null ? a.uuid() : null;
                 view.playerFace = null;
+                view.playerBody = null;
             });
             if (a == null) return;
             BufferedImage face = Profile.face(a.uuid());
             if (face != null) ui(() -> { if (a.uuid().equals(view.playerUuid)) view.playerFace = face; });
+            BufferedImage body = Profile.body(a.uuid());
+            if (body != null) ui(() -> { if (a.uuid().equals(view.playerUuid)) view.playerBody = body; });
         });
     }
 
