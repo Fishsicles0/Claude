@@ -121,7 +121,7 @@ public final class LauncherView extends JPanel {
     }
 
     // ------------------------------------------------------------------ links (empty = not shown)
-    static final String DISCORD = "", YOUTUBE = "", TIKTOK = "";
+    static final String DISCORD = "https://discord.gg/PZSzSFX7DD", YOUTUBE = "", TIKTOK = "";
 
     private final Font inter, interBold;
     private final Image mark, word;
@@ -3331,8 +3331,11 @@ public final class LauncherView extends JPanel {
 
     static Image image(String path) {
         try (InputStream in = LauncherView.class.getResourceAsStream(path)) {
-            return ImageIO.read(in);
-        } catch (Exception e) {
+            Image img = in == null ? null : ImageIO.read(in);
+            if (img == null) System.err.println("[launcher] no picture at " + path);
+            return img != null ? img : new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        } catch (Throwable e) {
+            System.err.println("[launcher] couldn't read " + path + ": " + e);
             return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         }
     }
