@@ -48,6 +48,7 @@ public class ModuleManager {
         register(new CameraClip());
         register(new MotionBlur());
         register(new Waypoints());
+        register(new net.evadeclient.module.visuals.WorldMap());
         register(new Fullbright());
         register(new DamageTint());
         register(new ClearWater());
@@ -66,6 +67,8 @@ public class ModuleManager {
         register(new ShinyPots());
         register(new EnchantGlint());
         register(new Hitboxes());
+        register(new ItemView());
+        register(new DamageNumbers());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
@@ -134,6 +137,11 @@ public class ModuleManager {
         register(new net.evadeclient.module.misc.QuickPlay());
         register(new net.evadeclient.module.misc.HypixelStats());
         register(new net.evadeclient.module.hud.ProfilerHud());
+        register(new net.evadeclient.module.hud.TpsHud());
+        register(new net.evadeclient.module.hud.ConnectionWatchHud());
+        register(new net.evadeclient.module.hud.NetworkHud());
+        register(new net.evadeclient.module.hud.PingGraphHud());
+        register(new net.evadeclient.module.hud.PaperDollHud());
         // Client
         register(new ClientSettings());
     }

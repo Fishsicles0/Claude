@@ -188,23 +188,39 @@ public final class AddonAndShotsTest {
             throw new AssertionError("FAILED: couldn't write test screenshots: " + e);
         }
         try {
-            List<Screenshots.Shot> list = Screenshots.list();
-            int ia = indexOf(list, a), ib = indexOf(list, b);
-            check(ia >= 0 && ib >= 0 && ib < ia, "Screenshots: the gallery lists the folder's PNGs, newest first");
-            check(Screenshots.cleanName("../evil") == null && Screenshots.cleanName("a/b.png") == null
-                    && "nice shot.png".equals(Screenshots.cleanName("nice shot")), "Screenshots: rename only takes plain file names");
-            Path renamed = Screenshots.rename(a, "evade-gallery-test-renamed");
-            check(Files.exists(renamed) && !Files.exists(a) && renamed.getFileName().toString().equals("evade-gallery-test-renamed.png"),
-                    "Screenshots: rename keeps the file in the folder with .png");
-            boolean taken;
-            try { Screenshots.rename(renamed, "evade-gallery-test-b"); taken = false; } catch (java.io.IOException e) { taken = true; }
-            check(taken && Files.exists(renamed), "Screenshots: rename won't overwrite another screenshot");
-            Screenshots.Trashed t = Screenshots.trash(renamed);
-            check(!Files.exists(renamed) && Files.exists(t.inTrash()) && t.inTrash().getParent().equals(Screenshots.trashFolder()),
-                    "Screenshots: delete moves the file to screenshots/.trash");
-            Screenshots.restore(t);
-            check(Files.exists(renamed) && !Files.exists(t.inTrash()), "Screenshots: undo puts a deleted screenshot back");
-            a = renamed;
+            // file operations (on the client thread: the folder comes from the game)
+            Path fa = a;
+            String ops = ctx.computeOnClient(c -> {
+                StringBuilder out = new StringBuilder();
+                try {
+                    List<Screenshots.Shot> list = Screenshots.list();
+                    int ia = indexOf(list, fa), ib = indexOf(list, b);
+                    out.append(ia >= 0 && ib >= 0 && ib < ia).append('|');
+                    out.append(Screenshots.cleanName("../evil") == null && Screenshots.cleanName("a/b.png") == null
+                            && "nice shot.png".equals(Screenshots.cleanName("nice shot"))).append('|');
+                    Path renamed = Screenshots.rename(fa, "evade-gallery-test-renamed");
+                    out.append(Files.exists(renamed) && !Files.exists(fa) && renamed.getFileName().toString().equals("evade-gallery-test-renamed.png")).append('|');
+                    boolean taken;
+                    try { Screenshots.rename(renamed, "evade-gallery-test-b"); taken = false; } catch (java.io.IOException e) { taken = true; }
+                    out.append(taken && Files.exists(renamed)).append('|');
+                    Screenshots.Trashed t = Screenshots.trash(renamed);
+                    out.append(!Files.exists(renamed) && Files.exists(t.inTrash()) && t.inTrash().getParent().equals(Screenshots.trashFolder())).append('|');
+                    Screenshots.restore(t);
+                    out.append(Files.exists(renamed) && !Files.exists(t.inTrash()));
+                } catch (Exception e) {
+                    out.append("error ").append(e);
+                }
+                return out.toString();
+            });
+            String[] r = ops.split("\\|");
+            check(r.length == 6, "Screenshots: file operations ran (" + ops + ")");
+            check(r[0].equals("true"), "Screenshots: the gallery lists the folder's PNGs, newest first");
+            check(r[1].equals("true"), "Screenshots: rename only takes plain file names");
+            check(r[2].equals("true"), "Screenshots: rename keeps the file in the folder with .png");
+            check(r[3].equals("true"), "Screenshots: rename won't overwrite another screenshot");
+            check(r[4].equals("true"), "Screenshots: delete moves the file to screenshots/.trash");
+            check(r[5].equals("true"), "Screenshots: undo puts a deleted screenshot back");
+            a = dir.resolve("evade-gallery-test-renamed.png");
 
             // the screen: lists, loads thumbnails and the full view, deletes with undo
             ctx.setScreen(() -> new ScreenshotGalleryScreen(null));
@@ -225,14 +241,12 @@ public final class AddonAndShotsTest {
             check(Files.exists(b), "Screenshot gallery: Undo brings it back");
             ctx.waitTicks(5);
             ctx.setScreen(() -> null);
-        } catch (java.io.IOException e) {
-            throw new AssertionError("FAILED: screenshot files: " + e);
         } finally {
             try {
                 Files.deleteIfExists(a);
                 Files.deleteIfExists(b);
                 Files.deleteIfExists(dir.resolve("evade-gallery-test-a.png"));
-                try (var s = Files.list(Screenshots.trashFolder())) {
+                try (var s = Files.list(dir.resolve(Screenshots.TRASH))) {
                     for (Path p : s.toList()) if (p.getFileName().toString().startsWith("evade-gallery-test")) Files.deleteIfExists(p);
                 } catch (Exception ignored) {}
                 // the screenshot the test just took stays: it is the test's own output

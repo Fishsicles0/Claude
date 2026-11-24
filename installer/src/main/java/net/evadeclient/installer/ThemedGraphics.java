@@ -40,8 +40,8 @@ final class ThemedGraphics extends Graphics2D {
     private Font font;
     /** Text size factor for this graphics (1: as set). */
     float fontScale = 1f;
-    /** Colours pass through unchanged (a dark island in the light theme). */
-    private boolean raw;
+    /** 0: themed; 1: a dark island (accent only, no light theme); 2: colours as given; 3: danger (light theme, never the accent). */
+    private int mode;
 
     ThemedGraphics(Graphics2D d) {
         this.d = d;
@@ -58,7 +58,7 @@ final class ThemedGraphics extends Graphics2D {
         font = from.font;
         background = from.background;
         fontScale = from.fontScale;
-        raw = from.raw;
+        mode = from.mode;
     }
 
     /** The graphics with text scaled by the text-size setting (wrapping {@code g} when it isn't themed yet). */
@@ -71,20 +71,37 @@ final class ThemedGraphics extends Graphics2D {
         return t;
     }
 
-    /** Turns colour mapping off (true) or back on for {@code g}; returns the previous state. */
-    static boolean raw(Graphics2D g, boolean on) {
-        if (!(g instanceof ThemedGraphics t)) return false;
-        boolean was = t.raw;
-        t.raw = on;
+    /** Turns colour mapping off (true) or back to themed (false) for {@code g}; returns the previous mode. */
+    static int raw(Graphics2D g, boolean on) { return mode(g, on ? 2 : 0); }
+
+    /** Paints as a dark island (the dark look with the accent, even in the light theme); returns the previous mode. */
+    static int island(Graphics2D g) { return mode(g, 1); }
+
+    /**
+     * Paints danger and error colours (Delete, failures, crash cards) red whatever the accent: the light theme still
+     * applies. Inside a dark island (or raw painting) colours are taken as given. Returns the previous mode.
+     */
+    static int danger(Graphics2D g) {
+        if (!(g instanceof ThemedGraphics t)) return 0;
+        return mode(g, t.mode == 1 || t.mode == 2 ? 2 : 3);
+    }
+
+    /** Sets the colour mode (0 themed, 1 dark island, 2 as given, 3 danger); returns the previous one. */
+    static int mode(Graphics2D g, int mode) {
+        if (!(g instanceof ThemedGraphics t)) return 0;
+        int was = t.mode;
+        t.mode = mode;
         t.setPaint(t.paint);
         t.setBackground(t.background);
         return was;
     }
 
-    private Color m(Color c) { return raw ? c : LauncherTheme.map(c); }
+    private Color m(Color c) {
+        return mode == 2 ? c : mode == 1 ? LauncherTheme.mapDark(c) : mode == 3 ? LauncherTheme.mapDanger(c) : LauncherTheme.map(c);
+    }
 
     private Paint m(Paint p) {
-        if (raw || p == null) return p;
+        if (mode == 2 || p == null) return p;
         if (p instanceof Color c) return m(c);
         if (p instanceof GradientPaint gp)
             return new GradientPaint(gp.getPoint1(), m(gp.getColor1()), gp.getPoint2(), m(gp.getColor2()), gp.isCyclic());

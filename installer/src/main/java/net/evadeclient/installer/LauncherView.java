@@ -76,7 +76,7 @@ public final class LauncherView extends JPanel {
     // palette
     static final Color BG = new Color(0x0B0B0E), CARD = new Color(0x121216), CARD_2 = new Color(0x18181D),
             BORDER = new Color(0x232329), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x7C7C88), // FAINT: 4.5:1 on cards OK = new Color(0x3DDC84),
+            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x7C7C88) /* 4.5:1 on cards */, OK = new Color(0x3DDC84),
             AMBER = new Color(0xF5A524), FIELD = new Color(0x0E0E12),
             /** the rail's panel, page hairlines, and panels raised over the page */
             RAIL_BG = new Color(0x0E0E11), HAIRLINE = new Color(255, 255, 255, 14), RAISED = new Color(0x18181D);
@@ -154,7 +154,7 @@ public final class LauncherView extends JPanel {
     String clipsNote;
     /** The old separate Evade Clips app is still installed (Settings offers to remove it). */
     boolean legacyClips;
-    String version = "2.0.0";
+    String version = LauncherInfo.VERSION;
 
     // home: player, servers, notices, slides
     String playerName;
@@ -806,9 +806,9 @@ public final class LauncherView extends JPanel {
     @Override
     protected void paintComponent(Graphics g0) {
         // A repaint only inside the (opaque) Clips pages doesn't need the whole launcher painted under it.
-        Rectangle cb = g0.getClipBounds();
-        if (cb != null && page == Page.CLIPS && clipsHost != null && clipsHost.isVisible() && clipsHost.isOpaque() && !hitMap.isEmpty()
-                && modal == null && overlay == null && popup == null && toScreen(clipsBoxShown) != null && toScreen(clipsBoxShown).contains(cb)) return;
+        Rectangle dirty = g0.getClipBounds();
+        if (dirty != null && page == Page.CLIPS && clipsHost != null && clipsHost.isVisible() && clipsHost.isOpaque() && !hitMap.isEmpty()
+                && modal == null && overlay == null && popup == null && clipsBoxShown != null && toScreen(clipsBoxShown).contains(dirty)) return;
         if (themeGen != LauncherTheme.generation()) { themeGen = LauncherTheme.generation(); bgLayer = null; }
         Graphics2D g = ThemedGraphics.withText((Graphics2D) g0.create());
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -1065,8 +1065,10 @@ public final class LauncherView extends JPanel {
     private void topButton(Graphics2D g, String id, int x, String iconKind, boolean danger) {
         int y = 22, s = 40;
         float t = anim(id, id.equals(hovered) || id.equals(overlay));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(0x141418), danger ? RED : new Color(0x202026), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         g.setColor(HAIRLINE);
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 24, 24));
         Color c = mix(DIM, TEXT, t);
@@ -1223,7 +1225,7 @@ public final class LauncherView extends JPanel {
                     g.draw(new RoundRectangle2D.Double(bx + 1, by + 1, 30, 30, 16, 16));
                     g.setStroke(new BasicStroke(1f));
                 }
-                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? RED_HI : null;
+                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? LauncherTheme.DANGER : null;
                 if (dc != null) {
                     g.setColor(new Color(0x141418));
                     g.fill(new Ellipse2D.Double(bx + 22, by + 22, 11, 11));
@@ -1256,6 +1258,13 @@ public final class LauncherView extends JPanel {
     }
 
     private void paintHero(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
+        // The photo-backed hero keeps the dark look in every theme (light text on a dimmed picture).
+        int mode = ThemedGraphics.island(g);
+        paintHeroCard(g, sel, x, y, w, h);
+        ThemedGraphics.mode(g, mode);
+    }
+
+    private void paintHeroCard(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
         Shape box = new RoundRectangle2D.Double(x, y, w, h, 40, 40);
         g.setColor(CARD);
         g.fill(box);
@@ -1942,6 +1951,7 @@ public final class LauncherView extends JPanel {
     }
 
     void badge(Graphics2D g, int cx, int cy, String s) {
+        int was = ThemedGraphics.danger(g); // "!" means a problem: red whatever the accent
         g.setColor(new Color(225, 29, 46, 40));
         g.fill(new Ellipse2D.Double(cx - 26, cy - 26, 52, 52));
         g.setColor(RED);
@@ -1949,6 +1959,7 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(20f));
         g.setColor(Color.WHITE);
         center(g, s, cx - 18, cy - 18, 36, 36);
+        ThemedGraphics.mode(g, was);
     }
 
     /** A solid red button with a play icon (the hero's other states: try again, get the launcher). */
@@ -1966,6 +1977,7 @@ public final class LauncherView extends JPanel {
         g.setColor(fg);
         g.drawString(label, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, label);
     }
 
     /** A small dot: green when the instance is up to date, amber when Play will update it first, grey before the check. */
@@ -2119,7 +2131,7 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12f));
         String info;
         Color ic = DIM;
-        if (releaseError != null) { info = EvadeInstaller.sentence(releaseError) + " Check your connection and press Retry."; ic = RED_HI; }
+        if (releaseError != null) { info = EvadeInstaller.sentence(releaseError) + " Check your connection and press Retry."; ic = LauncherTheme.DANGER; }
         else if (release == null) info = "Checking for the latest version…";
         else info = "Evade Client v" + release.evadeVersion() + " for Minecraft " + InstallerCore.MC_VERSION;
         List<String> lines = wrapLines(g, info, w - 14, 2);
@@ -2186,55 +2198,9 @@ public final class LauncherView extends JPanel {
         pageTitle(g, "Instances", "Each has its own mods, settings, worlds and Minecraft Launcher profile.");
         int lx = CX, ly = 100, lw = 320, lh = H - ly - 24;
         card(g, lx, ly, lw, lh, false);
-        Rectangle area = new Rectangle(lx + 1, ly + 8, lw - 2, lh - 16 - 60);
-        float off = scrollOf("instances");
-        Shape was = g.getClip();
-        g.clip(area);
-        clip = area;
-        int y = ly + 12 - Math.round(off);
-        Launcher.Instance foc = focused();
-        for (Launcher.Instance i : instances) {
-            String id = "inst:" + i.id;
-            boolean on = i == foc;
-            float t = anim(id, id.equals(hovered));
-            if (on) {
-                g.setColor(new Color(225, 29, 46, 34));
-                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(lx + 12, y + 18, 3, 28, 3, 3));
-            } else if (t > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(8 * t)));
-                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
-            }
-            instanceTile(g, lx + 28, y + 12, 40, i);
-            g.setFont(interBold.deriveFont(14f));
-            g.setColor(TEXT);
-            boolean playing = i.id.equals(settings.selected);
-            String nm = ellipsizeEnd(g, i.name, lw - 140 - (playing ? 64 : 0));
-            g.drawString(nm, lx + 80, y + 29);
-            if (playing) {
-                int px = lx + 80 + g.getFontMetrics().stringWidth(nm) + 8;
-                g.setFont(interBold.deriveFont(9f));
-                int pw = g.getFontMetrics().stringWidth("ACTIVE") + 14;
-                g.setColor(new Color(225, 29, 46, 44));
-                g.fill(new RoundRectangle2D.Double(px, y + 17, pw, 16, 16, 16));
-                g.setColor(RED_HI);
-                center(g, "ACTIVE", px, y + 17, pw, 16);
-            }
-            g.setFont(inter.deriveFont(12f));
-            g.setColor(DIM);
-            String sub = (i.installed != null ? "v" + i.installed.evadeVersion() : "Not installed yet") + "  ·  " + i.modCount + " mods  ·  " + i.memoryGb + " GB" + game.playtimeShort(i);
-            g.drawString(ellipsizeEnd(g, sub, lw - 130), lx + 80, y + 48);
-            if (!game.rowPlaying(g, lx + lw - 40, y + 35, i)) statusDot(g, lx + lw - 40, y + 35, i);
-            hit(id, new Rectangle(lx + 12, y, lw - 24, 64));
-            y += 70;
-        }
-        int content = y + Math.round(off) - (ly + 12);
-        g.setClip(was);
-        clip = null;
-        scrollArea(g, "instances", area, content);
+        extras.paintInstanceList(g, lx, ly, lw, lh);
         ghostButton(g, "inst-new", lx + 16, ly + lh - 60, lw - 32, 44, "New instance", false, "plus");
-
+        Launcher.Instance foc = focused();
         if (foc != null) paintInstanceDetail(g, foc, lx + lw + 24, ly, CW - lw - 24, lh);
     }
 
@@ -2271,11 +2237,12 @@ public final class LauncherView extends JPanel {
         instanceTile(g, ix, y + 26, 52, i);
         g.setFont(interBold.deriveFont(22f));
         g.setColor(TEXT);
-        g.drawString(ellipsizeEnd(g, i.name, iw - 220), ix + 68, y + 50);
+        g.drawString(ellipsizeEnd(g, i.name, iw - 340), ix + 68, y + 50);
         g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
-        g.drawString(ellipsizeEnd(g, "Profile “" + i.profileName() + "”", iw - 220), ix + 68, y + 72);
+        g.drawString(ellipsizeEnd(g, "Profile “" + i.profileName() + "”", iw - 340), ix + 68, y + 72);
         boolean playing = i.id.equals(settings.selected);
+        int toolsRight = ix + iw - 140 - 12;
         if (playing) {
             g.setFont(interBold.deriveFont(12f));
             String s2 = "Play starts this one";
@@ -2285,11 +2252,16 @@ public final class LauncherView extends JPanel {
             g.setColor(OK);
             g.fill(new Ellipse2D.Double(ix + iw - sw + 14, y + 45, 7, 7));
             g.drawString(s2, ix + iw - sw + 28, y + 53);
+            toolsRight = ix + iw - sw - 12;
         } else smallPrimary(g, "inst-use", ix + iw - 140, y + 30, 140, 40, "Play this", "play");
+        extras.paintInstanceTools(g, i, toolsRight, y + 30);
 
         int ctl = 300, cx = ix + iw - ctl, ry = y + 100, rh = 64;
-        rowLabel(g, ix, ry, rh, "Folder", ellipsize(g, i.dir.toString(), iw - ctl - 120), false, iw);
+        rowLabel(g, ix, ry, rh, "Folder", ellipsize(g, i.dir.toString(), iw - 280), false, iw);
+        ghostButton(g, "inst-export", ix + iw - 248, ry + 14, 120, 36, "Export", false, "external");
         ghostButton(g, "inst-folder", ix + iw - 120, ry + 14, 120, 36, "Open", false, "folder");
+        game.name("inst-folder", "Open the instance folder in the file manager");
+        game.name("inst-export", "Export this instance as a zip");
         ry += rh;
         rowLabel(g, ix, ry, rh, "Memory", "How much Minecraft may use", false, iw);
         memoryChips(g, cx, ry + 14, ctl, i.memoryGb);
@@ -2307,6 +2279,7 @@ public final class LauncherView extends JPanel {
             rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", k == rows.length - 1, iw);
             toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + oh / 2 - 12, val[k], av[k]);
             if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, oh));
+            game.name(rows[k][0], rows[k][1] + ", " + (val[k] ? "on" : "off"));
             ry += oh;
         }
         g.setFont(inter.deriveFont(12f));
@@ -2377,6 +2350,7 @@ public final class LauncherView extends JPanel {
             g.fill(new RoundRectangle2D.Double(x, y + 34, w, 3, 3, 3));
         }
         hit(id, new Rectangle(x - 6, y, w + 12, 36));
+        game.name(id, label + " tab" + (count >= 0 ? ", " + count : "") + (on ? ", selected" : ""));
     }
 
     private void paintInstalledMods(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
@@ -2478,7 +2452,7 @@ public final class LauncherView extends JPanel {
         card(g, x, ly, w, lh, false);
         if (hits.isEmpty()) {
             g.setFont(inter.deriveFont(12.5f));
-            g.setColor(searchError != null ? RED_HI : DIM);
+            g.setColor(searchError != null ? LauncherTheme.DANGER : DIM);
             String msg = searching ? "Searching Modrinth…" : searchError != null ? EvadeInstaller.sentence(searchError) : "No mods found for “" + lastQuery + "”.";
             center(g, msg, x, ly + lh / 2 - 20, w, 18);
             if (searchError != null && !searching) ghostButton(g, "search-retry", x + w / 2 - 70, ly + lh / 2 + 6, 140, 34, "Try again", false);
@@ -2565,7 +2539,11 @@ public final class LauncherView extends JPanel {
             clipsBanner(g, CX, y, CW);
             y += 76 + 16;
         }
-        int lw = 600, rw = CW - lw - 24, h = Math.min(H - 24 - y, 56 + 4 * 66 + 84);
+        int lw = 600, rw = CW - lw - 24;
+        // Game on top, Appearance under it (one line per row when the window is short of room)
+        int full = 56 + 4 * 66 + 44, room = H - 24 - y - 24;
+        boolean compactLook = room - full < ViewExtras.appearanceHeight(false);
+        int h = Math.min(full, room - ViewExtras.appearanceHeight(compactLook));
         // ---- Game
         int lx = CX;
         card(g, lx, y, lw, h, false);
@@ -2604,12 +2582,15 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12f));
         g.setColor(FAINT);
         int hy = ry + rh + 24;
-        for (String line : wrapLines(g, "Java: only set one if you know you need it. The Minecraft Launcher picks the right Java for "
-                + InstallerCore.MC_VERSION + "; a path set here is used by every Evade instance (javaw.exe on Windows).", iw, 3)) {
+        String hint = h >= 56 + 4 * 66 + 84 ? "Java: only set one if you know you need it. The Minecraft Launcher picks the right Java for "
+                + InstallerCore.MC_VERSION + "; a path set here is used by every Evade instance (javaw.exe on Windows)."
+                : "Java: leave it empty unless you need it; Minecraft picks the right one.";
+        for (String line : wrapLines(g, hint, iw, 3)) {
             if (hy > y + h - 16) break;
             g.drawString(line, ix, hy);
             hy += 17;
         }
+        extras.paintAppearance(g, lx, y + h + 24, lw, H - 24 - (y + h + 24));
 
         // ---- Launcher
         int rx = lx + lw + 24, jx = rx + 24, jw = rw - 48;
@@ -2659,6 +2640,7 @@ public final class LauncherView extends JPanel {
         rowLabel(g, x, y, h, title, sub, last, w);
         toggle(g, id + "-sw", x + w - 40, y + h / 2 - 10, on, true);
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, title + ", " + (on ? "on" : "off") + (sub != null ? ". " + sub : ""));
         return y + h;
     }
 
@@ -2915,8 +2897,10 @@ public final class LauncherView extends JPanel {
 
     private void button(Graphics2D g, String id, int x, int y, int w, int h, boolean danger) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(255, 255, 255, 0), danger ? RED : new Color(255, 255, 255, 30), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 8, 8));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         g.setColor(mix(DIM, TEXT, t));
         g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         double cx = x + w / 2.0, cy = y + h / 2.0;
@@ -2939,6 +2923,7 @@ public final class LauncherView extends JPanel {
         g.setColor(enabled ? Color.WHITE : FAINT);
         center(g, label, x, y, w, h);
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, label + (enabled ? "" : ", not available"));
     }
 
     /** A soft red glow: an elliptical radial gradient that fades to nothing before its edges (no visible box). */
@@ -2965,6 +2950,7 @@ public final class LauncherView extends JPanel {
         g.setColor(Color.WHITE);
         g.drawString(label, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, label);
     }
 
     void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger) {
@@ -2977,6 +2963,7 @@ public final class LauncherView extends JPanel {
 
     void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1; // Delete stays red whatever the accent
         Color base = solid ? new Color(0x3A1218) : new Color(0x1C1C22);
         int r = Math.min(h, 24);
         g.setColor(danger ? mix(base, new Color(0x4A141B), t) : mix(base, new Color(0x26262D), t));
@@ -2996,7 +2983,9 @@ public final class LauncherView extends JPanel {
         if (iconKind != null) icon(g, iconKind, tx + iw / 2, y + h / 2, iw, danger ? fg : mix(DIM, TEXT, t));
         g.setColor(fg);
         g.drawString(s, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, label);
     }
 
     void smallButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
@@ -3007,13 +2996,16 @@ public final class LauncherView extends JPanel {
         g.setColor(TEXT);
         center(g, label, x, y, w, h);
         hit(id, new Rectangle(x, y, w, h));
+        game.name(id, label);
     }
 
     void iconButton(Graphics2D g, String id, int x, int y, int s, String kind, boolean danger) {
         float t = anim(id, id.equals(hovered));
+        int was = danger ? ThemedGraphics.danger(g) : -1;
         g.setColor(mix(new Color(255, 255, 255, 0), danger ? new Color(225, 29, 46, 60) : new Color(255, 255, 255, 24), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 9, 9));
         icon(g, kind, x + s / 2, y + s / 2, 14, mix(FAINT, danger ? RED_HI : TEXT, t));
+        if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, s, s));
     }
 
@@ -3026,6 +3018,7 @@ public final class LauncherView extends JPanel {
         g.setColor(mix(FAINT, TEXT, t));
         g.drawString(s, lx, y);
         hit(id, new Rectangle(lx - 6, y - 15, w + 12, 22));
+        game.name(id, s);
     }
 
     /** A rounded tile with the first letter of a name, tinted with {@code rgb}. */

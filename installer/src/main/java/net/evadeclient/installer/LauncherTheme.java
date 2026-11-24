@@ -24,6 +24,14 @@ final class LauncherTheme {
     static final String[] ACCENT_NAMES = {"Evade red", "Orange", "Green", "Teal", "Blue", "Purple", "Pink"};
     static final int[] ACCENTS = {0xE11D2E, 0xF97316, 0x22C55E, 0x14B8A6, 0x3D8BFF, 0x8B5CF6, 0xEC4899};
 
+    /** A red that means a problem (a server offline): never turned into the accent colour. */
+    static final Color DANGER = new Color(0xFF4155);
+    /*
+     * Danger and error colours (Delete buttons, failed installs, crash cards) are painted in danger mode
+     * (ThemedGraphics.danger): the light theme still applies, so they read on white, but the accent never turns
+     * them into its own hue. A blue accent keeps Delete red.
+     */
+
     private static volatile boolean light;
     private static volatile int accent;
     private static volatile float accentHue = hue(ACCENTS[0]);
@@ -40,6 +48,8 @@ final class LauncherTheme {
         textScale = p.textSize / 100f;
         reduceMotion = p.reduceMotion;
         cache.clear();
+        darkCache.clear();
+        dangerCache.clear();
         generation++;
     }
 
@@ -70,15 +80,36 @@ final class LauncherTheme {
     static Color map(Color c) {
         if (c == null || identity()) return c;
         int argb = c.getRGB();
-        return cache.computeIfAbsent(argb, k -> new Color(mapArgb(k), true));
+        return cache.computeIfAbsent(argb, k -> new Color(mapArgb(k, light), true));
     }
 
-    static int mapArgb(int argb) {
+    /** The accent only (a dark island, such as the photo-backed Home hero, in the light theme). */
+    static Color mapDark(Color c) {
+        if (c == null || accent == 0) return c;
+        return darkCache.computeIfAbsent(c.getRGB(), k -> new Color(mapArgb(k, false), true));
+    }
+
+    private static final ConcurrentHashMap<Integer, Color> darkCache = new ConcurrentHashMap<>();
+
+    /** A danger or error colour: the light theme applies, the accent never does (Delete stays red with a blue accent). */
+    static Color mapDanger(Color c) {
+        if (c == null || !light) return c;
+        return dangerCache.computeIfAbsent(c.getRGB(), k -> new Color(mapArgb(k, true, false), true));
+    }
+
+    private static final ConcurrentHashMap<Integer, Color> dangerCache = new ConcurrentHashMap<>();
+
+    static int mapArgb(int argb) { return mapArgb(argb, light); }
+
+    static int mapArgb(int argb, boolean light) { return mapArgb(argb, light, true); }
+
+    static int mapArgb(int argb, boolean light, boolean useAccent) {
         int a = argb >>> 24, r = (argb >> 16) & 255, gr = (argb >> 8) & 255, b = argb & 255;
         float[] hsl = hsl(r, gr, b);
         float h = hsl[0], s = hsl[1], l = hsl[2];
-        boolean red = s > 0.22f && (h >= 0.93f || h <= 0.035f);
-        if (accent != 0 && red) {
+        // Evade's reds follow the accent; DANGER (offline, failed) stays red whatever the accent
+        boolean red = s > 0.22f && (h >= 0.93f || h <= 0.035f) && (argb & 0xFFFFFF) != (DANGER.getRGB() & 0xFFFFFF);
+        if (useAccent && accent != 0 && red) {
             float d = h > 0.5f ? h - 1f : h; // signed distance from pure red
             h = accentHue + (d - (hue(ACCENTS[0]) - 1f));
             h -= (float) Math.floor(h);

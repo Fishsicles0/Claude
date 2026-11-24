@@ -27,7 +27,8 @@ import java.util.Set;
  * optional grid) and guide lines; scroll to resize; right-click a widget for its settings, or empty space to add one.
  *
  * <p>Several widgets at once: Shift+click, drag a box on empty space, or Ctrl+A. A selection moves, resizes, nudges,
- * locks and hides together, and can be aligned and spaced out evenly from the toolbar. Arrow keys nudge (Shift: 10),
+ * locks and hides together, and can be aligned and spaced out evenly from the toolbar. Stack groups the selection
+ * (see {@link net.evadeclient.hud.HudStacks}): stacked widgets move together and sit one under another; Unstack parts them. Arrow keys nudge (Shift: 10),
  * L locks, Delete hides, R resets; Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo every change made here.
  * Layouts offers the built-in layouts and HUD-only share codes (Ctrl+C / Ctrl+V copy and paste one).
  */

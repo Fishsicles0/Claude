@@ -44,6 +44,8 @@ final class ViewExtras {
         t.setDaemon(true);
         return t;
     });
+    /** Screenshots: draw the focus ring without the window having the keyboard. */
+    boolean alwaysShowFocus;
     /** Export / import running: what, and how far. */
     String busy;
     double busyProgress;
@@ -293,12 +295,12 @@ final class ViewExtras {
             String id = "ap-accent:" + k;
             int sx = x + k * (s + gap), sy = y + 5;
             float t = v.anim(id, id.equals(v.hovered));
-            boolean was = ThemedGraphics.raw(g, true);
+            int was = ThemedGraphics.raw(g, true);
             Color c = new Color(LauncherTheme.ACCENTS[k]);
             if (LauncherTheme.light()) c = new Color(LauncherTheme.mapArgbLightOnly(LauncherTheme.ACCENTS[k]));
             g.setColor(c);
             g.fill(new Ellipse2D.Double(sx - t, sy - t, s + 2 * t, s + 2 * t));
-            ThemedGraphics.raw(g, was);
+            ThemedGraphics.mode(g, was);
             if (prefs.accent == k) {
                 g.setColor(TEXT);
                 g.setStroke(new BasicStroke(2f));

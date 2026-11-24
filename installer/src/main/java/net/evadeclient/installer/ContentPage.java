@@ -936,7 +936,7 @@ final class ContentPage {
         v.card(g, x, y, w, h, false);
         if (hits.isEmpty()) {
             g.setFont(v.inter.deriveFont(12.5f));
-            g.setColor(searchError != null ? RED_HI : DIM);
+            g.setColor(searchError != null ? LauncherTheme.DANGER : DIM);
             String msg = searching ? "Searching Modrinth…" : searchError != null ? EvadeInstaller.sentence(searchError)
                     : "No " + browseType.label.toLowerCase(Locale.ROOT) + " found" + (lastQuery.isEmpty() ? "" : " for “" + lastQuery + "”") + ".";
             center(g, msg, x, y + h / 2 - 20, w, 18);
@@ -1309,7 +1309,7 @@ final class ContentPage {
             progressPill(g, x + w - 26 - 220, sy + 21, 220, 28, packProgress, Math.round(packProgress * 100) + "%");
         } else if (resultTitle != null) {
             v.card(g, x, sy, w, sh, false);
-            icon(g, resultError ? "alert" : "check", x + 30, sy + 30, 14, resultError ? RED_HI : OK);
+            icon(g, resultError ? "alert" : "check", x + 30, sy + 30, 14, resultError ? LauncherTheme.DANGER : OK);
             g.setFont(v.interBold.deriveFont(13f));
             g.setColor(TEXT);
             g.drawString(ellipsizeEnd(g, resultTitle, w - 120), x + 52, sy + 35);

@@ -217,7 +217,7 @@ public final class MapStore {
         if (w != world || !mapping) return;
         pending.add(p.toLong());
         // Its first row shades against this chunk: re-map the one to the south if we have it.
-        if (w.isChunkLoaded(p.x, p.z + 1)) pending.add(ChunkPos.toLong(p.x, p.z + 1));
+        if (w.getChunkManager().getChunk(p.x, p.z + 1, ChunkStatus.FULL, false) != null) pending.add(ChunkPos.toLong(p.x, p.z + 1));
     }
 
     /** From {@code MapBlockChangeMixin}: a block changed. Only changes near the surface can change the map. */

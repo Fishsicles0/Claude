@@ -228,14 +228,14 @@ final class GamePages {
     void name(String id, String label) { names.put(id, label); }
 
     private void moveFocus(int d) {
-        List<String> ids = new ArrayList<>();
-        for (String id : order) if (v.hitMap.containsKey(id)) ids.add(id);
+        // every control on screen, in the order painted (dialogs and menus clear the rest, so Tab stays inside them)
+        List<String> ids = v.extras.focusOrder();
         if (ids.isEmpty()) { if (d > 0) v.transferFocus(); else v.transferFocusBackward(); return; }
         int at = ids.indexOf(focusId);
         int n = at < 0 ? (d > 0 ? 0 : ids.size() - 1) : Math.floorMod(at + d, ids.size());
         focusId = ids.get(n);
         keyNav = true;
-        String label = names.getOrDefault(focusId, focusId);
+        String label = names.getOrDefault(focusId, v.extras.labelFor(focusId));
         v.getAccessibleContext().setAccessibleName(label);
         v.getAccessibleContext().setAccessibleDescription(label + ". Press Enter to activate.");
         v.repaint();
@@ -498,6 +498,7 @@ final class GamePages {
     /** The crash card: what happened, the likely cause, and the fixes. {@code compact}: Home's shorter version. */
     void paintCrash(Graphics2D g, Launcher.Instance i, CrashHelper.Diagnosis d, int x, int y, int w, int h, boolean compact) {
         v.card(g, x, y, w, h, false);
+        int was = ThemedGraphics.danger(g); // a crash is an error: its frame and heading stay red whatever the accent
         g.setColor(new Color(225, 29, 46, 16));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
         g.setColor(new Color(225, 29, 46, 60));
@@ -509,6 +510,7 @@ final class GamePages {
         g.setFont(v.interBold.deriveFont(10f));
         g.setColor(RED_HI);
         v.spaced(g, ("YOUR LAST SESSION " + (i != null ? "OF " + i.name.toUpperCase() + " " : "") + "CRASHED"), ix + 54, y + 34, 1.2f);
+        ThemedGraphics.mode(g, was);
         g.setFont(v.interBold.deriveFont(compact ? 16f : 18f));
         g.setColor(TEXT);
         g.drawString(LauncherView.ellipsizeEnd(g, d.title(), iw - 54 - (compact ? 40 : 0)), ix + 54, y + 56);
@@ -624,7 +626,7 @@ final class GamePages {
         }
         if (filtered.isEmpty()) {
             g.setFont(v.inter.deriveFont(13f));
-            g.setColor(logError != null ? RED_HI : DIM);
+            g.setColor(logError != null ? LauncherTheme.DANGER : DIM);
             String msg = logError != null ? logError : logLines.isEmpty() ? (logFile == null ? "This instance has no logs yet. They appear once the game has run." : "Loading…")
                     : "No lines match.";
             LauncherView.center(g, msg, x, ly + lh / 2 - 20, w, 20);
@@ -648,10 +650,12 @@ final class GamePages {
         for (int n = first; n < last; n++) {
             LogTools.Line l = filtered.get(n);
             int ry = top + 4 + n * rowH - Math.round(off);
+            int was = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
             if (l.level() == LogTools.Level.ERROR) { g.setColor(new Color(225, 29, 46, 22)); g.fillRect(x + 10, ry, w - 30, rowH); }
             else if (l.level() == LogTools.Level.WARN) { g.setColor(new Color(245, 165, 36, 14)); g.fillRect(x + 10, ry, w - 30, rowH); }
             g.setColor(l.level() == LogTools.Level.ERROR ? new Color(0xFF7A86) : l.level() == LogTools.Level.WARN ? AMBER : new Color(0xC6C6CE));
             g.drawString(LauncherView.ellipsizeEnd(g, LogTools.mask(l.text().replace('\t', ' '), player), w - 50), x + 18, ry + 13);
+            if (was >= 0) ThemedGraphics.mode(g, was);
         }
         g.setClip(was);
         v.scrollArea(g, "gp-log", area, content);
@@ -972,7 +976,7 @@ final class GamePages {
             }
         }
         // focus ring (keyboard only)
-        if (keyNav && focusId != null && v.isFocusOwner()) {
+        if (keyNav && focusId != null && (v.isFocusOwner() || v.extras.alwaysShowFocus)) {
             Rectangle r = v.hitMap.get(focusId);
             if (r != null) {
                 g.setColor(new Color(255, 65, 83, 220));

@@ -109,7 +109,7 @@ public final class InstallerCore {
     static final String FABRIC_API_ID = "P7dR8mSH";
     /** Sodium's Modrinth project id (Iris pins an exact Sodium build) and the shader pack the Shaders option adds. */
     private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "photon-shader", LIGHT_PACK = "complementary-reimagined";
-    private static final String USER_AGENT = "EvadeLauncher/2.0 (+https://evadeclient.com)";
+    private static final String USER_AGENT = LauncherInfo.USER_AGENT;
     /** Groups of extra mods, recorded per file in the install marker. */
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders",
             PACKS_GROUP = "packs", LIGHTS_GROUP = "lights";

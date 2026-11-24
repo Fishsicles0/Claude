@@ -258,7 +258,7 @@ final class ModIcons {
                 body.add("hashes", hashes);
                 body.addProperty("algorithm", "sha1");
                 HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create("https://api.modrinth.com/v2/version_files"))
-                        .timeout(Duration.ofSeconds(8)).header("user-agent", "EvadeLauncher").header("content-type", "application/json")
+                        .timeout(Duration.ofSeconds(8)).header("User-Agent", LauncherInfo.USER_AGENT).header("content-type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(), HttpResponse.BodyHandlers.ofString());
                 Map<String, String> projectOf = new java.util.HashMap<>();
                 if (res.statusCode() == 200) {
@@ -271,7 +271,7 @@ final class ModIcons {
                     for (String p : new java.util.LinkedHashSet<>(projectOf.values())) if (p != null) ids.add(p);
                     HttpResponse<String> pr = http.send(HttpRequest.newBuilder(URI.create("https://api.modrinth.com/v2/projects?ids="
                                     + java.net.URLEncoder.encode(ids.toString(), StandardCharsets.UTF_8)))
-                            .timeout(Duration.ofSeconds(8)).header("user-agent", "EvadeLauncher").GET().build(), HttpResponse.BodyHandlers.ofString());
+                            .timeout(Duration.ofSeconds(8)).header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofString());
                     if (pr.statusCode() == 200)
                         for (JsonElement e : JsonParser.parseString(pr.body()).getAsJsonArray())
                             iconOf.put(InstallerCore.str(e.getAsJsonObject(), "id"), InstallerCore.str(e.getAsJsonObject(), "icon_url"));
@@ -311,7 +311,7 @@ final class ModIcons {
         try {
             if (!url.startsWith("https://")) return null;
             HttpResponse<byte[]> r = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(8))
-                    .header("user-agent", "EvadeLauncher").GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+                    .header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
             return r.statusCode() == 200 && r.body().length < 3_000_000 ? r.body() : null;
         } catch (Exception e) {
             return null;

@@ -8,13 +8,14 @@ import net.evadeclient.api.ApiTeams;
 import net.evadeclient.hud.HudDraw;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.module.visuals.Waypoints;
+import net.evadeclient.map.MapShading;
+import net.evadeclient.map.MapStore;
 import net.evadeclient.setting.BooleanSetting;
+import net.evadeclient.setting.KeySetting;
 import net.evadeclient.setting.ColorSetting;
 import net.evadeclient.setting.ModeSetting;
 import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.util.Theme;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.MapColor;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
@@ -24,21 +25,15 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureSetup;
-import net.minecraft.client.world.ClientChunkManager;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.world.chunk.WorldChunk;
 import org.joml.Matrix3x2f;
 import org.joml.Matrix3x2fc;
 import org.joml.Vector2f;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Arrays;
 
@@ -53,8 +48,12 @@ import java.util.Arrays;
  * ({@code team.set}), and only those already loaded near you. Servers can still switch it off with
  * {@code evade:rules} ("Minimap").
  *
+ * <p><b>Shared with the World Map.</b> Terrain comes from {@link net.evadeclient.map.MapStore}, the explored-map
+ * cache (biome grass, foliage and water colours; slope shading and water depth chosen here), so ground you explored
+ * earlier shows beyond the loaded chunks too (Show Explored), but never ground you haven't loaded.
+ *
  * <p><b>Cheap to draw.</b> Terrain is painted into a world-aligned texture used as a torus (block (x, z) lives at
- * texel (x mod T, z mod T)), a few chunks per tick, nearest first, each chunk uploaded as its own 16 x 16
+ * texel (x mod T, z mod T)), only chunks whose map revision changed, nearest first, each uploaded as its own 16 x 16
  * sub-image. Moving never shifts or rebuilds it: chunks entering the window just take over their slot. Each frame
  * is one textured polygon (a quad, or a 64-sided disc for Circle) whose UVs place you in the middle and turn the
  * map with you; the texture's repeat sampler wraps the torus. No per-frame texture work and no per-frame arrays.
@@ -64,8 +63,8 @@ public class MinimapHud extends HudElementModule {
     private static final int PAD = 3, LINE = 11;
     /** Colour of ground the client hasn't loaded (yet). */
     private static final int UNKNOWN = 0xFF17171B;
-    /** Chunks painted per tick (256 columns each), nearest first. */
-    private static final int PAINT_PER_TICK = 6;
+    /** Chunks copied from the explored map per tick (256 columns each), nearest first. */
+    private static final int PAINT_PER_TICK = 24;
     /** Segments of the circular map and its border. */
     private static final int SEGMENTS = 64;
     private static final float[] COS = new float[SEGMENTS + 1], SIN = new float[SEGMENTS + 1];
@@ -101,6 +100,18 @@ public class MinimapHud extends HudElementModule {
             .describe("Colour of the border when Border is Custom."));
     private final ColorSetting arrowColor = add(new ColorSetting("Arrow Color", 0xFFFFFFFF)
             .describe("Colour of your position arrow."));
+    private final ModeSetting shading = add(new ModeSetting("Height Shading", "Smooth", MapShading.MODES)
+            .describe("Shade slopes so hills stand out: Classic uses three steps like a vanilla map, Smooth one per block."));
+    private final BooleanSetting waterDepth = add(new BooleanSetting("Water Depth", true)
+            .describe("Deeper water is drawn darker."));
+    private final BooleanSetting chunkGrid = add(new BooleanSetting("Chunk Grid", false)
+            .describe("Faint lines on chunk borders."));
+    private final BooleanSetting showExplored = add(new BooleanSetting("Show Explored", true)
+            .describe("Also show ground you explored earlier beyond the chunks loaded now (the World Map's saved tiles)."));
+    private final KeySetting zoomKey = add(new KeySetting("Zoom Key", GLFW.GLFW_KEY_UNKNOWN)
+            .describe("Steps the zoom through 0.5, 1, 2 and 4 pixels per block."));
+    private static final double[] ZOOM_STEPS = {0.5, 1, 2, 4};
+    private boolean zoomWasDown;
 
     // ---- terrain texture (a torus of chunks x chunks slots, 16 texels each)
     private NativeImageBackedTexture texture;
@@ -109,13 +120,16 @@ public class MinimapHud extends HudElementModule {
     /** Which chunk each slot holds, and whether it is painted from real terrain (else cleared to UNKNOWN). */
     private int[] slotCx, slotCz;
     private byte[] slotState;
+    /** The {@link MapStore#revision} each slot was painted from. */
+    private int[] slotRev;
+    /** Shading, depth and grid the slots were painted with (a change repaints everything). */
+    private int paintedStyle = -1;
+    private final int[] column = new int[256];
     private static final byte SLOT_FREE = 0, SLOT_CLEARED = 1, SLOT_PAINTED = 2;
     /** Chunk offsets of the window, nearest first. */
     private int[] ringDx, ringDz;
     private int nearCount, nearCursor, farCursor;
     private ClientWorld lastWorld;
-    private final BlockPos.Mutable pos = new BlockPos.Mutable();
-    private final int[] northHeights = new int[16], rowHeights = new int[16];
 
     // ---- per-frame geometry (two sets, alternated per draw, so nothing is allocated per frame)
     private final Geometry[] bgGeo = {new Geometry(4 * 4 * (SEGMENTS / 2)), new Geometry(4 * 4 * (SEGMENTS / 2))};
@@ -146,6 +160,7 @@ public class MinimapHud extends HudElementModule {
     @Override
     protected void onDisable() {
         release();
+        MapStore.released();
     }
 
     /** Test hook: how many chunk slots hold real terrain right now (0 with no texture, e.g. in the Nether). */
@@ -166,6 +181,8 @@ public class MinimapHud extends HudElementModule {
         ClientWorld world = mc.world;
         ClientPlayerEntity p = mc.player;
         if (world == null || p == null) return;
+        MapStore.tick();
+        stepZoom();
         if (world.getDimension().hasCeiling()) {
             // Nothing is mapped under a ceiling; free the memory until we leave.
             if (texture != null) release();
@@ -177,6 +194,17 @@ public class MinimapHud extends HudElementModule {
         else if (world != lastWorld) clearAll();
         lastWorld = world;
         update(world, p);
+    }
+
+    /** Zoom Key: the next zoom step up from the current zoom (wrapping to the smallest). */
+    private void stepZoom() {
+        boolean down = zoomKey.isDown();
+        if (down && !zoomWasDown) {
+            double z = zoom.get(), next = ZOOM_STEPS[0];
+            for (double step : ZOOM_STEPS) if (step > z + 1e-6) { next = step; break; }
+            zoom.set(next);
+        }
+        zoomWasDown = down;
     }
 
     /** Slots per side for the current Size and Zoom: the map's half-diagonal plus two chunks of slack, rounded up to 8. */
@@ -194,6 +222,7 @@ public class MinimapHud extends HudElementModule {
         slotCx = new int[n * n];
         slotCz = new int[n * n];
         slotState = new byte[n * n];
+        slotRev = new int[n * n];
         // Window offsets [-n/2, n/2) sorted by distance (key: squared distance, then index).
         int half = n / 2;
         long[] keys = new long[n * n];
@@ -221,6 +250,7 @@ public class MinimapHud extends HudElementModule {
         chunks = texSize = 0;
         slotCx = slotCz = null;
         slotState = null;
+        slotRev = null;
         ringDx = ringDz = null;
         lastWorld = null;
     }
@@ -236,116 +266,61 @@ public class MinimapHud extends HudElementModule {
     }
 
     /**
-     * One tick of painting: walk the window nearest first, painting loaded chunks whose slot doesn't hold them yet
-     * (at most {@link #PAINT_PER_TICK}) and clearing slots that a chunk not loaded has just taken over. Then
-     * repaint one chunk around you (block changes nearby show within half a second) and, every other tick, one
-     * chunk anywhere in range.
+     * One tick of painting from the shared explored map ({@link MapStore}): walk the window nearest first, copying
+     * chunks whose revision differs from what their slot shows (at most {@link #PAINT_PER_TICK}) and clearing slots
+     * whose chunk holds nothing. Unchanged chunks cost one revision lookup, so block changes show within a tick or
+     * two of being mapped, with no polling of the world. Ground beyond the loaded chunks shows when Show Explored is
+     * on and the server allows the World Map.
      */
     private void update(ClientWorld world, ClientPlayerEntity p) {
         NativeImage img = texture.getImage();
         if (img == null) return;
-        ClientChunkManager cm = world.getChunkManager();
+        int style = MapShading.mode(shading.get()) * 4 + (waterDepth.get() ? 2 : 0) + (chunkGrid.get() ? 1 : 0);
+        if (style != paintedStyle) {
+            paintedStyle = style;
+            Arrays.fill(slotRev, -1);
+        }
+        boolean liveOnly = !showExplored.get() || !MapStore.exploredAllowed();
         int pcx = p.getBlockX() >> 4, pcz = p.getBlockZ() >> 4;
-        int reach = mc.options.getClampedViewDistance() + 2;
         int paint = PAINT_PER_TICK, clear = 2 * chunks;
-        int total = ringDx.length;
-        for (int i = 0; i < total && (paint > 0 || clear > 0); i++) {
-            int dx = ringDx[i], dz = ringDz[i];
-            int cx = pcx + dx, cz = pcz + dz;
+        for (int i = 0, total = ringDx.length; i < total && (paint > 0 || clear > 0); i++) {
+            int cx = pcx + ringDx[i], cz = pcz + ringDz[i];
             int slot = slot(cx, cz);
+            int rev = liveOnly && world.getChunkManager().getChunk(cx, cz, net.minecraft.world.chunk.ChunkStatus.FULL, false) == null ? 0 : MapStore.revision(cx, cz);
             boolean ours = slotState[slot] != SLOT_FREE && slotCx[slot] == cx && slotCz[slot] == cz;
-            if (ours && slotState[slot] == SLOT_PAINTED) continue;
-            WorldChunk chunk = paint > 0 && Math.max(Math.abs(dx), Math.abs(dz)) <= reach
-                    ? cm.getChunk(cx, cz, ChunkStatus.FULL, false) : null;
-            if (chunk != null) {
-                paintChunk(world, cm, img, chunk, cx, cz, slot);
+            if (ours && slotRev[slot] == rev) continue;
+            int bx = Math.floorMod(cx, chunks) * 16, bz = Math.floorMod(cz, chunks) * 16;
+            if (rev != 0 && paint > 0 && MapStore.copyChunk(cx, cz, column)) {
+                paintSlot(img, bx, bz);
+                slotState[slot] = SLOT_PAINTED;
                 paint--;
-            } else if (!ours && clear > 0) {
-                int bx = Math.floorMod(cx, chunks) * 16, bz = Math.floorMod(cz, chunks) * 16;
+            } else if (rev == 0 && clear > 0) {
                 img.fillRect(bx, bz, 16, 16, UNKNOWN);
                 uploadSlot(img, bx, bz);
-                slotCx[slot] = cx;
-                slotCz[slot] = cz;
                 slotState[slot] = SLOT_CLEARED;
                 clear--;
-            }
+            } else continue;
+            slotCx[slot] = cx;
+            slotCz[slot] = cz;
+            slotRev[slot] = rev;
         }
-        // Refresh: blocks change (you build, dig, water flows); this picks the changes up without a world hook.
-        if (nearCount > 0) refresh(world, cm, img, pcx, pcz, nearCursor++ % nearCount, reach);
-        if ((EvadeClient.ticks & 1) == 0) refresh(world, cm, img, pcx, pcz, farCursor++ % total, reach);
-        if (nearCursor >= nearCount * 1000) nearCursor = 0;
-        if (farCursor >= total * 1000) farCursor = 0;
-    }
-
-    private void refresh(ClientWorld world, ClientChunkManager cm, NativeImage img, int pcx, int pcz, int i, int reach) {
-        int dx = ringDx[i], dz = ringDz[i];
-        if (Math.max(Math.abs(dx), Math.abs(dz)) > reach) return;
-        int cx = pcx + dx, cz = pcz + dz;
-        WorldChunk chunk = cm.getChunk(cx, cz, ChunkStatus.FULL, false);
-        if (chunk != null) paintChunk(world, cm, img, chunk, cx, cz, slot(cx, cz));
     }
 
     private int slot(int cx, int cz) {
         return Math.floorMod(cz, chunks) * chunks + Math.floorMod(cx, chunks);
     }
 
-    /** Paints one chunk's 16 x 16 columns into its slot and uploads just that square. */
-    private void paintChunk(ClientWorld world, ClientChunkManager cm, NativeImage img, WorldChunk chunk, int cx, int cz, int slot) {
-        int bx = Math.floorMod(cx, chunks) * 16, bz = Math.floorMod(cz, chunks) * 16;
-        int x0 = cx << 4, z0 = cz << 4;
-        int bottom = world.getBottomY();
-        // Heights of the row just north of the chunk, for the shading of its first row.
-        WorldChunk north = cm.getChunk(cx, cz - 1, ChunkStatus.FULL, false);
-        for (int lx = 0; lx < 16; lx++)
-            northHeights[lx] = north != null ? north.sampleHeightmap(Heightmap.Type.WORLD_SURFACE, lx, 15) : Integer.MIN_VALUE;
-        for (int lz = 0; lz < 16; lz++) {
-            for (int lx = 0; lx < 16; lx++) {
-                int x = x0 + lx, z = z0 + lz;
-                int y = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE, lx, lz);
-                int argb;
-                if (y < bottom) {
-                    argb = UNKNOWN; // the void (End islands' edges)
-                    rowHeights[lx] = Integer.MIN_VALUE;
-                } else {
-                    pos.set(x, y, z);
-                    BlockState state = chunk.getBlockState(pos);
-                    MapColor color = state.getMapColor(world, pos);
-                    // See-through blocks (glass, barriers) show what's under them, as on a vanilla map.
-                    for (int steps = 0; color == MapColor.CLEAR && y > bottom && steps < 16; steps++) {
-                        pos.setY(--y);
-                        state = chunk.getBlockState(pos);
-                        color = state.getMapColor(world, pos);
-                    }
-                    FluidState fluid = state.getFluidState();
-                    if (!fluid.isEmpty() && fluid.isIn(FluidTags.WATER)) {
-                        // Depth tint: count the water below the surface (up to 12 blocks).
-                        int depth = 1;
-                        while (depth < 12 && y - depth > bottom) {
-                            pos.setY(y - depth);
-                            if (!chunk.getBlockState(pos).getFluidState().isIn(FluidTags.WATER)) break;
-                            depth++;
-                        }
-                        MapColor.Brightness b = depth <= 2 ? MapColor.Brightness.HIGH
-                                : depth <= 5 ? MapColor.Brightness.NORMAL
-                                : depth <= 9 ? MapColor.Brightness.LOW : MapColor.Brightness.LOWEST;
-                        argb = MapColor.WATER_BLUE.getRenderColor(b);
-                    } else if (color == MapColor.CLEAR) {
-                        argb = UNKNOWN;
-                    } else {
-                        int northY = lz == 0 ? northHeights[lx] : rowHeights[lx];
-                        MapColor.Brightness b = northY == Integer.MIN_VALUE || northY == y ? MapColor.Brightness.NORMAL
-                                : y > northY ? MapColor.Brightness.HIGH : MapColor.Brightness.LOW;
-                        argb = color.getRenderColor(b);
-                    }
-                    rowHeights[lx] = y;
-                }
-                img.setColorArgb(bx + lx, bz + lz, argb | 0xFF000000);
-            }
+    /** Shades {@link #column} into a slot (with the chunk grid's darker top and left edge) and uploads it. */
+    private void paintSlot(NativeImage img, int bx, int bz) {
+        int mode = MapShading.mode(shading.get());
+        boolean wd = waterDepth.get(), grid = chunkGrid.get();
+        for (int i = 0; i < 256; i++) {
+            int lx = i & 15, lz = i >> 4;
+            int argb = MapShading.argb(column[i], mode, wd, UNKNOWN);
+            if (grid && (lx == 0 || lz == 0)) argb = MapShading.darken(argb, 0.7f);
+            img.setColorArgb(bx + lx, bz + lz, argb);
         }
         uploadSlot(img, bx, bz);
-        slotCx[slot] = cx;
-        slotCz[slot] = cz;
-        slotState[slot] = SLOT_PAINTED;
     }
 
     private void uploadSlot(NativeImage img, int bx, int bz) {

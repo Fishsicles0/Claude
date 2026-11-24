@@ -25,6 +25,7 @@ nav: docs
       <a href="#hud">HUD editor</a>
       <a href="#waypoints">Waypoints</a>
       <a href="#config">Config files</a>
+      <a href="#addons">For mod developers</a>
     </aside>
     <div class="doc">
       <div class="doc-sec rv" id="launcher">
@@ -177,6 +178,7 @@ nav: docs
           <div><code>.msg &lt;friend&gt; &lt;text&gt;</code> · <code>.reply &lt;text&gt;</code> · <code>.pc &lt;text&gt;</code><span>Message a friend, answer the last one who messaged you, or talk to your party. Sent through Evade, not the server; plain text, 256 characters</span></div>
           <div><code>.join &lt;friend&gt;</code><span>Join the server a friend is sharing (you confirm first)</span></div>
           <div><code>.ping [danger|loot]</code><span>Ping where you're looking, for your party on the same server</span></div>
+          <div><code>.shots</code><span>Open the screenshot gallery</span></div>
           <div><code>.save</code><span>Save your config now</span></div>
           <div><code>.load</code><span>Reload your config from disk</span></div>
         </div>
@@ -191,6 +193,7 @@ nav: docs
           <li>Text elements: <b>Text Color</b>, <b>Text Shadow</b>, <b>Chroma</b> (a flowing rainbow), <b>Smooth Font</b> and <b>Brackets</b>.</li>
           <li><b>Hide In Menus</b> hides it while a menu is open; <b>Only In Combat</b> shows it only for a few seconds after you hit something or take damage.</li>
         </ul>
+        <p><b>Stacks:</b> pick two or more widgets (Shift+click or drag a box) and click <b>Stack</b>. They then move together and sit one under another with a small gap, closing up when one of them has nothing to show. A stack hangs from its top widget, or grows upwards when its bottom widget sits against the bottom of the screen. Click any widget in a stack to pick the whole stack (Shift+click picks one on its own); <b>Unstack</b> separates them. Stacks are saved with your config and profiles.</p>
         <p>The <b>Frame Profiler</b> element shows where your frame time goes: FPS and 1% low, average and worst frame time, how long Evade's HUD takes, and garbage-collection pauses (the usual cause of micro-stutter).</p>
       </div>
 
@@ -207,7 +210,52 @@ nav: docs
           <div><code>.minecraft/evade/config/evade/config.json</code><span>Mods, settings, keybinds, HUD layout</span></div>
           <div><code>.minecraft/evade/config/evade/waypoints.json</code><span>Waypoints</span></div>
         </div>
+        <p>Screenshots: open <b>Screenshots</b> in the menu (or type <span class="mono">.shots</span>) to browse this game folder's <span class="mono">screenshots</span>. Copy, rename, show in folder or delete them; deleted ones go to <span class="mono">screenshots/.trash</span> for a week, and <b>Undo</b> (Ctrl+Z) brings one back.</p>
         <p>Paths are for the Evade Launcher's <b>Main</b> instance. Other instances keep theirs in <span class="mono">.minecraft/evade-instances/&lt;name&gt;/config/evade</span>. If you dropped the jar into your own Fabric install, they're inside that game folder instead.</p>
+      </div>
+
+      <div class="doc-sec rv" id="addons">
+        <h2>For mod developers</h2>
+        <p>Other client-side Fabric mods can add their own modules, settings and HUD widgets to Evade with the <b>Evade Addon API</b> (package <span class="mono">net.evadeclient.addon</span>). They show up in the menu with an <b>Addon: &lt;your mod&gt;</b> tag, in search, keybinds, profiles, <code>.toggle</code> and <code>.set</code>, and widgets appear in the HUD editor. Their settings are saved in Evade's config. This is separate from the <a href="/servers">Server API</a>, which is for Minecraft servers.</p>
+        <p>Compile against the Evade jar without bundling it (for example <span class="mono">modCompileOnly files("libs/evade-client.jar")</span>), then list an entrypoint called <span class="mono">evade</span> in your <span class="mono">fabric.mod.json</span>:</p>
+        <pre class="code">"entrypoints": { "evade": ["com.example.MyEvadeAddon"] },
+"suggests": { "evade": "*" }</pre>
+        <pre class="code">public final class MyEvadeAddon implements EvadeAddon {
+    @Override
+    public void register(AddonRegistry registry) {
+        registry.module(new Greeter());
+        registry.hud(new SessionTimer());
+    }
+}
+
+public final class Greeter extends AddonModule {
+    final BooleanSetting loud = toggle("Loud", false, "Say it in capitals.");
+    final NumberSetting times = slider("Times", 1, 1, 5, 1, "How many times to say it.");
+    final ModeSetting style = mode("Style", "Friendly", "How it sounds.", "Friendly", "Formal");
+    final ColorSetting tint = color("Tint", 0xFF3BE37A, "Colour of the greeting.");
+    final KeySetting greetKey = key("Greet Key", GLFW.GLFW_KEY_UNKNOWN, "Hold to greet.");
+    final StringSetting greeting = text("Greeting", "Hello", 32, "What it says.");
+
+    public Greeter() { super("Greeter", "Says hello when you join a world.", AddonCategory.MISC); }
+
+    @Override protected void onEnable() { /* ... */ }
+}
+
+public final class SessionTimer extends AddonTextHud {
+    private final long start = System.currentTimeMillis();
+    public SessionTimer() { super("Session Timer", "How long you've been playing.", 4, 60); }
+
+    @Override protected List&lt;String&gt; lines(boolean preview) {
+        return List.of("Session: " + (System.currentTimeMillis() - start) / 60000 + " min");
+    }
+}</pre>
+        <ul>
+          <li><b>Modules</b> extend <span class="mono">AddonModule</span> and get the usual hooks: <span class="mono">onTick</span>, <span class="mono">onRender</span>, <span class="mono">onHud</span>, <span class="mono">onEnable</span>/<span class="mono">onDisable</span> and chat commands. They start off.</li>
+          <li><b>Widgets</b> extend <span class="mono">AddonTextHud</span> (lines of text, styled like Evade's own) or <span class="mono">AddonHudElement</span> (draw anything; call <span class="mono">size(w, h)</span>). Both get Scale, Background, Hide In Menus and the other widget settings.</li>
+          <li><b>Settings</b>: <span class="mono">toggle</span>, <span class="mono">slider</span>, <span class="mono">mode</span>, <span class="mono">color</span>, <span class="mono">key</span> and <span class="mono">text</span>. Keep module and setting names stable: saved values are keyed by them. A name that clashes with another module is refused.</li>
+          <li><b>Server rules apply.</b> Servers can switch addon modules off with <span class="mono">evade:rules</span> by name, all of them with <span class="mono">"@addons"</span>, or one mod's with <span class="mono">"@addon:&lt;modid&gt;"</span>. Addons can't turn a module on past that. A module that throws an error is switched off.</li>
+        </ul>
+        <p><b>Your addon is your responsibility.</b> Evade can't review other mods' code, so it always shows which mod added each module. Please keep to Evade's own rules: nothing that shows what the game hides, and no automation of combat, movement or inventory. Servers may ban mods that do.</p>
       </div>
     </div>
   </div>

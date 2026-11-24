@@ -25,8 +25,20 @@ import net.minecraft.client.network.ServerInfo;
 public class TitleScreenModule extends Module {
     public final BooleanSetting lastServerButton = add(new BooleanSetting("Last Server Button", true)
             .describe("A button that joins the last server you played on again, in one click."));
-    public final BooleanSetting panorama = add(new BooleanSetting("Panorama", true)
-            .describe("The game's rotating panorama behind the menu. Off: a plain dark background."));
+    public final net.evadeclient.setting.ModeSetting background = add(new net.evadeclient.setting.ModeSetting("Background", "Panorama",
+            "Panorama", "Evade Animated", "Evade Grid", "Solid Color", "Custom Image")
+            .describe("Behind the menu: the game's panorama, Evade's animated or plain backdrop, one colour, or your own picture."));
+    public final net.evadeclient.setting.ColorSetting backgroundColor = add(new net.evadeclient.setting.ColorSetting("Background Color", 0xFF101015)
+            .opaque().describe("The colour of Background: Solid Color."));
+    /** The picture chosen for Custom Image (a file name in config/evade/backgrounds), "" for the first one there. */
+    public final StringSetting imageFile = add(new StringSetting("Background Image File", "", "").maxLength(200).hidden());
+    public final net.evadeclient.setting.StatusSetting image = add(new net.evadeclient.setting.StatusSetting("Background Image",
+            this::imageStatus, "click: next picture").onClick(this::nextImage)
+            .describe("The picture for Custom Image: a .png in config/evade/backgrounds. Click to switch to the next one."));
+    public final net.evadeclient.setting.StatusSetting openFolder = add(new net.evadeclient.setting.StatusSetting("Backgrounds Folder",
+            () -> "config/evade/backgrounds", "click: open folder").onClick(() ->
+            net.minecraft.util.Util.getOperatingSystem().open(net.evadeclient.gui.title.TitleBackground.folder()))
+            .describe("Opens the folder Custom Image reads .png pictures from."));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Panorama", false)
             .describe("Softens the panorama with the game's menu blur (its strength is Menu Background Blur in Accessibility)."));
     public final BooleanSetting sidePanels = add(new BooleanSetting("Side Panels", true)
@@ -50,6 +62,35 @@ public class TitleScreenModule extends Module {
         INSTANCE = this;
         setEnabled(true); // the Evade main menu is the default start screen
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> remember(client)));
+    }
+
+    /** The Background mode in use, with Custom Image falling back to Evade Grid when no picture can be shown. */
+    public String backgroundMode() { return background.get(); }
+
+    private String imageStatus() {
+        String n = net.evadeclient.gui.title.TitleBackground.resolve(imageFile.get());
+        return n == null ? "No .png in the folder" : n;
+    }
+
+    /** Custom Image: step to the next picture in the folder (wrapping round). */
+    public void nextImage() {
+        var all = net.evadeclient.gui.title.TitleBackground.images();
+        if (all.isEmpty()) {
+            net.evadeclient.util.Notifications.push(getName(), "Put .png pictures in config/evade/backgrounds", false);
+            return;
+        }
+        String cur = net.evadeclient.gui.title.TitleBackground.resolve(imageFile.get());
+        int i = cur == null ? -1 : all.indexOf(cur);
+        imageFile.set(all.get((i + 1) % all.size()));
+        if (EvadeClient.config != null) EvadeClient.config.save();
+    }
+
+    /** Configs from before Background: "Panorama" off meant Evade's plain grid backdrop. */
+    @Override
+    public void onConfigLoaded(com.google.gson.JsonObject saved) {
+        if (saved == null || saved.has("Background") || !saved.has("Panorama")) return;
+        var old = saved.get("Panorama");
+        if (old.isJsonPrimitive() && old.getAsJsonPrimitive().isBoolean() && !old.getAsBoolean()) background.set("Evade Grid");
     }
 
     /** Works on the title screen, before any world. */
