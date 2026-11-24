@@ -1223,7 +1223,7 @@ public final class LauncherView extends JPanel {
                     g.draw(new RoundRectangle2D.Double(bx + 1, by + 1, 30, 30, 16, 16));
                     g.setStroke(new BasicStroke(1f));
                 }
-                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? RED_HI : null;
+                Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? LauncherTheme.DANGER : null;
                 if (dc != null) {
                     g.setColor(new Color(0x141418));
                     g.fill(new Ellipse2D.Double(bx + 22, by + 22, 11, 11));

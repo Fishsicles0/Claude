@@ -24,6 +24,9 @@ final class LauncherTheme {
     static final String[] ACCENT_NAMES = {"Evade red", "Orange", "Green", "Teal", "Blue", "Purple", "Pink"};
     static final int[] ACCENTS = {0xE11D2E, 0xF97316, 0x22C55E, 0x14B8A6, 0x3D8BFF, 0x8B5CF6, 0xEC4899};
 
+    /** A red that means a problem (a server offline): never turned into the accent colour. */
+    static final Color DANGER = new Color(0xFF4155);
+
     private static volatile boolean light;
     private static volatile int accent;
     private static volatile float accentHue = hue(ACCENTS[0]);
@@ -88,7 +91,8 @@ final class LauncherTheme {
         int a = argb >>> 24, r = (argb >> 16) & 255, gr = (argb >> 8) & 255, b = argb & 255;
         float[] hsl = hsl(r, gr, b);
         float h = hsl[0], s = hsl[1], l = hsl[2];
-        boolean red = s > 0.22f && (h >= 0.93f || h <= 0.035f);
+        // Evade's reds follow the accent; DANGER (offline, failed) stays red whatever the accent
+        boolean red = s > 0.22f && (h >= 0.93f || h <= 0.035f) && (argb & 0xFFFFFF) != (DANGER.getRGB() & 0xFFFFFF);
         if (accent != 0 && red) {
             float d = h > 0.5f ? h - 1f : h; // signed distance from pure red
             h = accentHue + (d - (hue(ACCENTS[0]) - 1f));
