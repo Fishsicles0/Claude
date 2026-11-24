@@ -18,7 +18,7 @@ const tmp = mkdtempSync(join(tmpdir(), "evade-social-"));
 writeFileSync(join(tmp, "index.mjs"), src);
 globalThis.WebSocketRequestResponsePair = class { constructor(a, b) { this.a = a; this.b = b; } };
 const worker = await import(pathToFileURL(join(tmp, "index.mjs")).href);
-const { EvadeSocial, normServer } = worker;
+const { EvadeSocial, normServer, chatText } = worker;
 
 // ---------------------------------------------------------------- fakes
 let now = 1_800_000_000_000;
@@ -387,6 +387,112 @@ await test("worker routing: token checked, x-evade-uuid can't be forged, presenc
   assert.equal(r.status, 200);
   r = await call("/api/presence", { method: "POST", body: "{}" });
   assert.equal(r.status, 401);
+});
+
+await test("chatText: plain text only, 256 characters at most", () => {
+  assert.equal(chatText("  hi   there \n you "), "hi there you");
+  assert.equal(chatText("§chello‮!"), "chello !");
+  assert.equal(chatText("x".repeat(256)).length, 256);
+  assert.equal([...chatText("\u{1F600}".repeat(256))].length, 256); // counted in characters, not UTF-16 units
+  for (const bad of ["", "   ", "\u0000\u0001", "x".repeat(257), 5, null, undefined, {}, ["a"]]) {
+    assert.throws(() => chatText(bad), (e) => e.status === 400, String(bad));
+  }
+});
+
+await test("messages: friends only, online only, blocked never, nothing stored", async () => {
+  const s = makeSocial();
+  for (const [p, n] of [[A, "Alice"], [B, "Bob"], [C, "Cara"]]) await ok(s, p, "state", { name: n });
+  await friends(s, A, B);
+  now += 200_000; // polling sessions lapse: nobody is online
+  await s.alarm();
+  await fails(s, A, "msg", { uuid: B, text: "hi" }, 409); // offline: not kept for later
+  const wsB = await connect(s, B);
+  wsB.take();
+  const r = await ok(s, A, "msg", { uuid: B, text: "  hello §cBob " });
+  assert.equal(r.delivered, true);
+  const got = wsB.take("msg");
+  assert.equal(got.length, 1);
+  assert.deepEqual({ ...got[0], at: 0 }, { type: "msg", from: { uuid: A, name: "Alice" }, text: "hello cBob", at: 0 });
+  await fails(s, A, "msg", { uuid: C, text: "hi" }, 404); // not a friend
+  await fails(s, A, "msg", { uuid: A, text: "hi" }, 400);
+  await fails(s, A, "msg", { uuid: B, text: "x".repeat(257) }, 400);
+  await fails(s, A, "msg", { uuid: B, text: "" }, 400);
+  await fails(s, A, "msg", { uuid: "nope", text: "hi" }, 400);
+  // nothing about messages is in storage
+  const tables = s.sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((t) => t.name);
+  for (const t of tables) {
+    for (const row of s.sql.exec(`SELECT * FROM ${t}`).toArray()) assert.ok(!JSON.stringify(row).includes("hello"), t + " holds a message");
+  }
+  // blocked: refused like a stranger, and nothing arrives
+  await ok(s, B, "block", { uuid: A });
+  now += 1000;
+  await fails(s, A, "msg", { uuid: B, text: "hi" }, 404);
+  assert.equal(wsB.take("msg").length, 0);
+});
+
+await test("messages are rate limited (0.3 s apart, 8 per 10 s)", async () => {
+  const s = makeSocial();
+  await ok(s, A, "state", { name: "Alice" });
+  await ok(s, B, "state", { name: "Bob" });
+  await friends(s, A, B);
+  const wsB = await connect(s, B);
+  await ok(s, A, "msg", { uuid: B, text: "1" });
+  const fast = await fails(s, A, "msg", { uuid: B, text: "2" }, 429);
+  assert.ok(fast.retryAfter > 0 && fast.retryAfter <= 300);
+  for (let i = 0; i < 7; i++) { now += 400; await ok(s, A, "msg", { uuid: B, text: "m" + i }); }
+  now += 400;
+  await fails(s, A, "msg", { uuid: B, text: "too many" }, 429);
+  now += 10_000;
+  await ok(s, A, "msg", { uuid: B, text: "again" });
+  assert.equal(wsB.take("msg").length, 9);
+});
+
+await test("party chat reaches online members (not blocked ones); polling members get it with /state", async () => {
+  const s = makeSocial();
+  for (const [p, n] of [[A, "Alice"], [B, "Bob"], [C, "Cara"], [D, "Dex"]]) await ok(s, p, "state", { name: n });
+  await friends(s, A, B); await friends(s, A, C); await friends(s, A, D);
+  await fails(s, A, "party.msg", { text: "anyone?" }, 409); // no party
+  const party = (await ok(s, A, "party.create")).state.party.id;
+  for (const p of [B, C, D]) { await ok(s, A, "party.invite", { uuid: p }); await ok(s, p, "party.accept", { party }); }
+  now += 200_000;
+  await s.alarm(); // everyone's polling lapses
+  const wsB = await connect(s, B), wsC = await connect(s, C);
+  await ok(s, D, "state", {}); // D polls
+  await ok(s, C, "block", { uuid: A });
+  [wsB, wsC].forEach((w) => w.take());
+  const r = await ok(s, A, "party.msg", { text: "gg" });
+  assert.equal(r.delivered, 2); // B by socket, D by poll; C blocked A
+  assert.equal(wsB.take("party.msg")[0].text, "gg");
+  assert.equal(wsC.take("party.msg").length, 0);
+  const st = await ok(s, D, "state", {});
+  assert.equal(st.events.length, 1);
+  assert.equal(st.events[0].type, "party.msg");
+  assert.equal((await ok(s, D, "state", {})).events.length, 0); // only once
+  // a member who isn't the leader can't summon; the leader can, to a public server only
+  await fails(s, B, "party.summon", { server: "play.example.net" }, 403);
+  await fails(s, A, "party.summon", { server: "192.168.1.4" }, 400);
+  await fails(s, A, "party.summon", {}, 400);
+  const sum = await ok(s, A, "party.summon", { server: "Play.Example.net:25565" });
+  assert.equal(sum.delivered, 2);
+  const ev = wsB.take("party.summon");
+  assert.equal(ev.length, 1);
+  assert.deepEqual({ ...ev[0], at: 0 }, { type: "party.summon", from: { uuid: A, name: "Alice" }, server: "play.example.net", at: 0 });
+  await fails(s, A, "party.summon", { server: "play.example.net" }, 429); // once per 15 s
+  now += 16_000;
+  await ok(s, A, "party.summon", { server: "play.example.net" });
+});
+
+await test("older clients: unknown ops are a 404 and old ops answer as before", async () => {
+  const s = makeSocial();
+  await ok(s, A, "state", { name: "Alice" });
+  await fails(s, A, "party.teleport", {}, 404);
+  const st = await ok(s, A, "state", {});
+  assert.ok(Array.isArray(st.pings) && Array.isArray(st.events) && st.state.me.uuid === A);
+  const ws = await connect(s, A);
+  await s.webSocketMessage(ws, JSON.stringify({ op: "msg", id: 3, uuid: B, text: "x" }));
+  const res = ws.take("result")[0];
+  assert.equal(res.ok, false);
+  assert.equal(res.id, 3);
 });
 
 console.log(`\n${passed} passed` + (process.exitCode ? ", some FAILED" : ""));
