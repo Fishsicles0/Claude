@@ -194,7 +194,7 @@ public final class RecordPanel extends JPanel {
     private void relayout(int viewportWidth) {
         boolean two = viewportWidth >= 1100;
         if (two != twoColumns) setColumns(two);
-        hero.setCompact(viewportWidth - 52 < 960);
+        hero.setCompact(viewportWidth - 52 < 1090);
     }
 
     private void setColumns(boolean two) {
@@ -648,6 +648,8 @@ public final class RecordPanel extends JPanel {
         final JButton save = Theme.button("", Theme.icon(Theme.Glyph.CLOCK, 18, Color.WHITE), true);
         final JButton record = Theme.button("", REC_ICON, false);
         final JButton marker = Theme.button("Marker", Theme.icon(Theme.Glyph.BOOKMARK, 16, Theme.GOLD), false);
+        /** The whole buffer in the editor, to find any moment of the last few minutes. */
+        final JButton lookBack = Theme.button("Look back", null, false);
         /** Narrow windows: the save / record / marker buttons go on a second row. */
         private boolean compact;
         private Rectangle detailsHit = new Rectangle();
@@ -660,6 +662,8 @@ public final class RecordPanel extends JPanel {
             save.addActionListener(e -> app.saveClip(0, null, null, null));
             record.addActionListener(e -> app.toggleRecording());
             marker.addActionListener(e -> app.marker());
+            lookBack.addActionListener(e -> app.lookBack());
+            lookBack.setToolTipText("Open everything in the replay buffer and pick any moment to keep");
             marker.setToolTipText("Bookmark this moment (" + app.settings.hotkeyMarker + ")");
             replayLen.setToolTipText("How much the replay buffer keeps");
             replayLen.getAccessibleContext().setAccessibleName("Replay length");
@@ -668,6 +672,7 @@ public final class RecordPanel extends JPanel {
             add(save);
             add(record);
             add(marker);
+            add(lookBack);
             add(replayLen);
             add(postRoll);
             MouseAdapter ma = new MouseAdapter() {
@@ -731,6 +736,7 @@ public final class RecordPanel extends JPanel {
             marker.setBounds(bx -= 110, by, 110, 40);
             record.setBounds(bx -= 186, by, 176, 40);
             save.setBounds(bx -= 226, by, 216, 40);
+            lookBack.setBounds(bx -= 130, by, 120, 40);
         }
 
         @Override protected void paintComponent(Graphics g0) {
@@ -805,6 +811,27 @@ public final class RecordPanel extends JPanel {
             g.setColor(Theme.FAINT);
             String buf = live ? Math.round(st.bufferedSeconds()) + " s buffered" : "";
             g.drawString(buf, mx + mw - g.getFontMetrics().stringWidth(buf), my + 24);
+            // live level meters, one per audio track: you can see each source is being picked up
+            if (live) {
+                int lx = mx, ly = my + 15, room = mw - g.getFontMetrics().stringWidth(buf) - 24;
+                for (var lv : app.engine.levels()) {
+                    String name = lv.track();
+                    int nw = g.getFontMetrics().stringWidth(name);
+                    if (lx + nw + 6 + 56 > mx + room) break;
+                    g.setColor(Theme.FAINT);
+                    g.drawString(name, lx, my + 24);
+                    int bx = lx + nw + 6, bw = 56;
+                    g.setColor(Theme.CARD_HI);
+                    g.fill(new RoundRectangle2D.Double(bx, ly + 2, bw, 6, 6, 6));
+                    // -60 dB (nothing) .. 0 dB (full); red near the top so clipping shows
+                    double lf = Double.isInfinite(lv.peakDb()) ? 0 : Math.max(0, Math.min(1, (lv.peakDb() + 60) / 60));
+                    if (lf > 0) {
+                        g.setColor(lv.peakDb() > -3 ? Theme.RED : lv.peakDb() > -12 ? Theme.GOLD : Theme.OK);
+                        g.fill(new RoundRectangle2D.Double(bx, ly + 2, Math.max(4, bw * lf), 6, 6, 6));
+                    }
+                    lx = bx + bw + 16;
+                }
+            }
             g.dispose();
         }
     }

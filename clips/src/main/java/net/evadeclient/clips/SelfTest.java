@@ -67,6 +67,11 @@ final class SelfTest {
         while (!engine.isLive() || System.currentTimeMillis() - t0 < 7000) Thread.sleep(200);
         engine.addMarker();
         Thread.sleep(2000);
+        // level meters: the three test tones (game, mic, voice chat) each peak at about -21 dBFS
+        var levels = engine.levels();
+        check(levels.size() == 3 && levels.stream().allMatch(l -> Math.abs(l.peakDb() + 21) < 3)
+                        && levels.stream().map(CaptureEngine.Level::track).toList().equals(List.of("Game", "Mic", "Voice chat")),
+                "live level meters for each audio track (" + levels + ")");
 
         Clip replay = engine.saveReplay(5, "Test replay", "Minecraft");
         check(replay != null && Math.abs(replay.duration - 5) < 1.6, "instant replay saved, ~5 s (got " + (replay == null ? "-" : String.format("%.2f", replay.duration)) + ")");
@@ -75,6 +80,20 @@ final class SelfTest {
                 "game, mic and voice chat are separate, named audio tracks (" + (replay == null ? "-" : replay.trackNames) + ")");
         check(replay != null && replay.markers.size() == 1 && Math.abs(replay.markers.get(0) - (replay.duration - 2.5)) < 1.2,
                 "marker pressed 2 s before saving lands ~2 s from the end (" + (replay == null ? "-" : replay.markers) + ")");
+
+        // look back: the whole buffer (here up to its 10 s) comes out as one clip; untouched it's discarded on leaving
+        // the editor, trimmed it's kept
+        double buffered = engine.bufferedSeconds();
+        Clip look = engine.saveReplay((int) Math.ceil(buffered), "Look back", "Minecraft");
+        boolean fresh = net.evadeclient.clips.ui.App.untouched(look);
+        look.edit = EditSpec.whole(look.duration);
+        boolean whole = net.evadeclient.clips.ui.App.untouched(look);
+        look.edit.splitAt(look.duration / 2);
+        look.edit.segments.remove(0);
+        boolean trimmed = !net.evadeclient.clips.ui.App.untouched(look);
+        check(look.duration >= 8 && look.duration <= buffered + 1.5 && fresh && whole && trimmed,
+                String.format(java.util.Locale.ROOT, "look back: the whole buffer (%.1f s of %.1f s buffered) opens as one clip, kept only once trimmed", look.duration, buffered));
+        lib.delete(List.of(look));
 
         engine.addMarker("Kill Steve");
         Clip named = engine.saveReplay(3, null, null);

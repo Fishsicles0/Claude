@@ -259,13 +259,66 @@ public final class CaptureEngine {
             if (format == null && !args.isEmpty() && "-f".equals(args.get(args.size() - 1))) format = v;
             args.add(v);
         }
-        args.addAll(List.of("-filter_complex", in.filterComplex(), "-map", "[v]"));
-        for (String l : in.audioLabels()) args.addAll(List.of("-map", l));
+        // The replay buffer also measures each audio track (peak level, ten times a second) for the level meters on
+        // the Record page: a copy of each track is split off, measured and dropped; what's recorded is unchanged.
+        String fc = in.filterComplex();
+        List<String> maps = new ArrayList<>(in.audioLabels());
+        if (withProgress) {
+            StringBuilder m = new StringBuilder(fc);
+            for (int i = 0; i < maps.size(); i++) {
+                String l = maps.get(i), out = l.replace("]", "o]"), meter = "[meter" + i + "]";
+                m.append(";").append(l).append("asplit=2").append(out).append(meter).append(";").append(meter)
+                        .append("asetnsamples=n=4800:p=0,astats=metadata=1:reset=1,")
+                        .append("ametadata=mode=print:key=lavfi.astats.Overall.Peak_level:direct=1:file=meter").append(i).append(".txt,anullsink");
+                maps.set(i, out);
+            }
+            fc = m.toString();
+            meterTracks = new ArrayList<>(in.audioTitles());
+        }
+        args.addAll(List.of("-filter_complex", fc, "-map", "[v]"));
+        for (String l : maps) args.addAll(List.of("-map", l));
         args.addAll(Ffmpeg.liveEncoderArgs(encoder, settings.quality, settings.fps, in.outW(), in.outH(), (long) (mbps * 1_000_000)));
         args.addAll(List.of("-r", String.valueOf(settings.fps)));
         if (in.hasAudio()) args.addAll(List.of("-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"));
         for (int i = 0; i < in.audioTitles().size(); i++) args.addAll(List.of("-metadata:s:a:" + i, "title=" + in.audioTitles().get(i)));
         return args;
+    }
+
+    private volatile List<String> meterTracks = List.of();
+
+    /** One audio track's current level, for the meters: its name and peak in dBFS ({@code -inf} when silent). */
+    public record Level(String track, double peakDb) {}
+
+    /**
+     * The live level of each audio track being captured, newest reading first per track; empty while capture is
+     * off. A track that hasn't reported for over a second and a half (its source stalled) is left out.
+     */
+    public List<Level> levels() {
+        Path dir = bufferDir;
+        List<String> tracks = meterTracks;
+        if (dir == null || process == null || tracks.isEmpty()) return List.of();
+        List<Level> out = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < tracks.size(); i++) {
+            Path f = dir.resolve("meter" + i + ".txt");
+            try (java.io.RandomAccessFile r = new java.io.RandomAccessFile(f.toFile(), "r")) {
+                if (now - Files.getLastModifiedTime(f).toMillis() > 1500) continue;
+                long len = r.length();
+                int n = (int) Math.min(len, 512);
+                byte[] b = new byte[n];
+                r.seek(len - n);
+                r.readFully(b);
+                String tail = new String(b, java.nio.charset.StandardCharsets.US_ASCII);
+                int at = tail.lastIndexOf("Peak_level=");
+                if (at < 0) continue;
+                String v = tail.substring(at + 11).split("\\s")[0].trim();
+                double db = v.startsWith("-inf") || v.isEmpty() ? Double.NEGATIVE_INFINITY : Double.parseDouble(v);
+                out.add(new Level(tracks.get(i), db));
+            } catch (IOException | NumberFormatException e) {
+                // not written yet, or mid-line: next time
+            }
+        }
+        return out;
     }
 
     /** Separate encode for recordings with their own bitrate (null when recordings share the replay buffer's). */
@@ -716,6 +769,9 @@ public final class CaptureEngine {
         return Math.min(settings.replayEnabled ? settings.replaySeconds : 0, total);
     }
 
+    /** Seconds of gameplay in the replay buffer right now. */
+    public synchronized double bufferedSeconds() { return buffered(); }
+
     private void fire() {
         Status s;
         synchronized (this) {
@@ -742,6 +798,8 @@ public final class CaptureEngine {
      * clip includes what happens right after you press the key.
      */
     public Clip saveReplay(int seconds, int afterSeconds, String title, String game) throws IOException {
+        // never more than the replay length: the buffer keeps a few seconds of slack that belong to no clip
+        if (settings.replayEnabled && settings.replaySeconds > 0) seconds = Math.min(seconds, settings.replaySeconds);
         synchronized (this) {
             if (process == null || segments.isEmpty())
                 throw new IOException(process == null ? "Instant replay is off" : "Replay buffer is still filling");

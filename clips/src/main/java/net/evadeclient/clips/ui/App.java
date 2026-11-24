@@ -446,6 +446,56 @@ public final class App {
         }, "replay-toggle").start();
     }
 
+    /** Tag on the clip a look-back opens: the whole buffer, discarded on leaving the editor unless it was trimmed. */
+    public static final String LOOK_BACK = "look-back";
+
+    /**
+     * Look back: the whole replay buffer (everything from the last few minutes) opens in the editor, to find any
+     * moment and keep just that. Nothing is kept unless you trim it; see {@link EditorPanel}.
+     */
+    public void lookBack() {
+        if (!minecraftRunning()) { notify(NEED_MINECRAFT, null, false); return; }
+        new Thread(() -> {
+            try {
+                if (!engine.isLive()) throw new Exception("Instant replay is off. Turn it on in Record.");
+                int secs = (int) Math.ceil(Math.max(1, status.bufferedSeconds()));
+                Clip c = lookBackNow(secs, null);
+                notify("Look back", "Your last " + Theme.time(c.duration) + ". Trim it to the moment you want: trimmed, it's kept; untouched, it's discarded when you leave.", false);
+                openEditor.accept(c);
+            } catch (Exception e) { notify("Couldn't look back", e.getMessage(), true); }
+        }, "look-back").start();
+    }
+
+    /** The whole buffer (or its last {@code seconds}) as a look-back clip. */
+    public Clip lookBackNow(int seconds, String game) throws Exception {
+        Clip c = engine.saveReplay(seconds, 0, "Look back", gameFor(game));
+        if (!c.tags.contains(LOOK_BACK)) c.tags.add(LOOK_BACK);
+        library.update(c);
+        return c;
+    }
+
+    /**
+     * Leaving a look-back clip in the editor: untouched, it's deleted (nothing to keep); trimmed or otherwise edited,
+     * it becomes an ordinary clip. Returns whether it was deleted.
+     */
+    public boolean settleLookBack(Clip c) {
+        if (c == null || !c.tags.contains(LOOK_BACK)) return false;
+        if (untouched(c)) {
+            library.delete(List.of(c));
+            return true;
+        }
+        c.tags.remove(LOOK_BACK);
+        library.update(c);
+        return false;
+    }
+
+    /** Whether a clip has no edits (or only the default "the whole clip"). */
+    public static boolean untouched(Clip c) {
+        if (c.edit == null) return true;
+        com.google.gson.Gson g = new com.google.gson.Gson();
+        return g.toJson(c.edit).equals(g.toJson(EditSpec.whole(c.duration)));
+    }
+
     /** Async save from a hotkey/button; reports with a toast. */
     public void saveClip(int seconds, String title, String game, String tag) {
         if (!minecraftRunning()) { notify(NEED_MINECRAFT, null, false); return; }
