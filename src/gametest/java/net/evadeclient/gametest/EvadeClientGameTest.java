@@ -2926,6 +2926,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.waitTicks(10);
         clearToasts(ctx);
         ctx.takeScreenshot("evade-hud-1080p");
+        ctx.runOnClient(c -> EvadeMenu.openAllForTest()); // earlier tests may leave another page remembered
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(10);
         clearToasts(ctx);

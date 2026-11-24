@@ -7,7 +7,7 @@ package net.evadeclient.gui.title;
 public final class WhatsNew {
     private WhatsNew() {}
 
-    public static final String VERSION = "v2.4.0";
-    public static final String HEADLINE = "A World Map, Item View, damage numbers, new widgets, a screenshot gallery and addons.";
+    public static final String VERSION = "v2.5.0";
+    public static final String HEADLINE = "Tuned for laptops, chat heads and tabs, Open to Friends, Safe Start and more.";
     public static final String URL = "https://evadeclient.com/changelog";
 }
