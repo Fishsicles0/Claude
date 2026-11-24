@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.1.0</span>
+      <span class="nav-ver">v2.2.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -69,7 +69,7 @@
 <header class="page-hero wrap">
   <div class="eyebrow rv">Privacy</div>
   <h1 class="rv d1">Privacy <span class="red">policy</span>.</h1>
-  <p class="rv d2">Short version: Evade collects as little as it can. No ads, no tracking, no selling data. Last updated 23 November 2026.</p>
+  <p class="rv d2">Short version: Evade collects as little as it can. No ads, no tracking, no selling data. Last updated 24 November 2026.</p>
 </header>
 
 <section class="wrap page-body">
@@ -78,6 +78,7 @@
       <a href="#who">Who we are</a>
       <a href="#client">The client</a>
       <a href="#icons">Evade icons</a>
+      <a href="#friends">Friends and parties</a>
       <a href="#installer">The installer</a>
       <a href="#clips">Evade Clips</a>
       <a href="#site">This website</a>
@@ -93,7 +94,7 @@
       <div class="doc-sec rv" id="client">
         <h2>The client</h2>
         <p>Evade runs on your computer. Your settings, profiles, waypoints and keybinds are saved in your <span class="mono">.minecraft</span> folder and never uploaded. Clips the <b>Clips</b> mod records are saved on your computer too.</p>
-        <p>The only thing the client sends to us (besides the IP address every connection carries) is for Evade icons, below. Switch off <b>Evade Icons</b> and the client sends nothing to us at all.</p>
+        <p>The client only sends us what Evade icons and, once you turn them on, Friends and parties need (besides the IP address every connection carries), both below. Switch off <b>Evade Icons</b> and don't turn on Friends, and the client sends nothing to us at all.</p>
       </div>
 
       <div class="doc-sec rv" id="icons">
@@ -108,6 +109,21 @@
         </ul>
         <p><b>How long:</b> your UUID shows an icon for 15 minutes after the last check-in, and its record is deleted automatically after 7 days without use. Switch off <b>Show That I Use Evade</b> while you're playing and your record is deleted straight away.</p>
         <p><b>Why:</b> to provide the icon feature you can turn off at any time. We never sell or share this data, and we don't use it for anything else.</p>
+      </div>
+
+      <div class="doc-sec rv" id="friends">
+        <h2>Friends and parties</h2>
+        <p>Friends, parties and party pings are off until you click <b>Turn on Friends</b> in the menu (or use a <span class="mono">.friend</span>, <span class="mono">.party</span> or <span class="mono">.ping</span> command). The client proves your account the same way as for Evade icons, then stays connected to us while you play. What we store, on our server at Cloudflare:</p>
+        <ul>
+          <li><b>Your profile:</b> your player UUID, the username your game reports (shown to other players, never used to identify you), your two privacy settings (whether anyone can send you friend requests, and whether friends see your server) and when we last heard from you.</li>
+          <li><b>Your friends list, friend requests, blocked players and party:</b> as player UUIDs, with the time each was made. Party invites lapse after 10 minutes, and a party with nobody online for 12 hours ends.</li>
+          <li><b>The server you're on, only while you're online:</b> the address of the multiplayer server you're playing on (not singleplayer, Realms or LAN addresses). We use it to deliver pings, and show it to your friends and party only if <b>Share my server with friends</b> is on (it is by default; switch it off in Friends &rarr; Settings). It's deleted as soon as you go offline.</li>
+          <li><b>Reports:</b> if you report a player, we keep your UUID, theirs, what you wrote and when, for review, for up to 90 days.</li>
+        </ul>
+        <p><b>Who sees what:</b> your friends see your username, whether you're online, when you were last online and, if you share it, your server. Party members see the same. Someone who sends you a friend request sees your username and whether you accepted. Players can only find you by your exact username, and only while you allow friend requests. When you add someone by name, your game asks Mojang which account has that name, and it asks Mojang for the current names of your friends and of players who send you requests or invites, so names can't be faked; those requests go from your computer to Mojang, not through us.</p>
+        <p><b>Party pings</b> are not stored. A ping (a position, a dimension and a kind such as "danger") is passed straight on only to members of your party who are online on the same server address as you, and to nobody else; your party members see your name, the position and its distance. Turning on a party with someone is both of you choosing to share these positions. Blocking a player stops their requests, invites and pings.</p>
+        <p><b>How long:</b> everything above is deleted automatically once your account hasn't used Friends for <b>90 days</b>. <b>Delete my social data</b> (Friends &rarr; Settings) deletes it all straight away; your friends simply see you removed. Switching Friends off disconnects you.</p>
+        <p><b>Why:</b> to provide friends, parties and pings, which you choose to use. We never sell or share this data, and we don't use it for anything else.</p>
       </div>
 
       <div class="doc-sec rv" id="installer">
@@ -142,7 +158,8 @@
       <div class="doc-sec rv" id="rights">
         <h2>Your choices</h2>
         <ul>
-          <li>Switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, or <b>Evade Icons</b> to stop all contact with us.</li>
+          <li>Switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, or <b>Evade Icons</b> to stop all contact with us for icons.</li>
+          <li><b>Delete my social data</b> in the menu's Friends &rarr; Settings deletes your friends, requests, blocks and party from our server at once. Switch off <b>Share my server with friends</b> to keep your server to yourself, or <b>Allow friend requests</b> to stop new requests.</li>
           <li>Stop sharing any clip in Evade Clips at any time, or delete it together with its link. Shared clips that are no longer in your library can be deleted from the list of clips on the server in Settings &rarr; Sharing &amp; phone.</li>
           <li><b>Delete my shared data</b> in Evade Clips (Settings &rarr; Sharing &amp; phone) deletes everything sharing has stored for you, all at once: every clip, preset and notice, the reports about your clips, and the anonymous account itself. If you can't use the app any more, email us your phone gallery link (it shows the clips are yours) and we'll delete it all for you.</li>
           <li>You can ask us what we hold about your UUID or your shared clips, or ask us to delete it, at the address below. Depending on where you live (for example under the GDPR or CCPA), you may have further rights, including complaining to your data protection authority.</li>
@@ -170,11 +187,11 @@
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=2b04668829">Download</a></div>
+      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=31a626559a">Download</a></div>
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.1.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.2.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
