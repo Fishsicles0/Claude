@@ -220,6 +220,10 @@ public final class App {
                         engine.start();
                         autoStarted = true;
                         notify(game + " detected", "Instant replay is on · " + settings.hotkeySaveClip + " saves a clip", false);
+                    } else if (engine.isLive() && !engine.isRecording() && Ffmpeg.WINDOWS && settings.recordSystemAudio
+                            && settings.gameAudioSeparate && settings.systemAudioDevice.isBlank()) {
+                        // capture was already on: restart it once so the game's sound gets its own track
+                        try { engine.restart(); } catch (Exception e) { System.err.println("[clips] " + e.getMessage()); }
                     }
                 } else if (game == null && before != null && !settings.source.startsWith("test")) {
                     // Minecraft closed: capture only ever records its window, so it stops (a recording is saved).

@@ -41,8 +41,12 @@ public final class LoopbackAudio {
     }
 
     private static final int MAX_FRAMES = 48_000; // one second per read, at most
-    private static LoopbackAudio windows;
-    private static long windowsFailedAt;
+    /** Running Windows streams by what they record ("speakers", or one program's sound), and when one last failed. */
+    private static final java.util.Map<String, LoopbackAudio> streams = new java.util.HashMap<>();
+    private static final java.util.Map<String, Long> failedAt = new java.util.HashMap<>();
+
+    /** Opens a source; may fail. */
+    public interface Opener { Source open() throws Exception; }
 
     private final Supplier<Source> factory;
     private final ServerSocket server;
@@ -64,18 +68,39 @@ public final class LoopbackAudio {
      * (tried again after a minute).
      */
     public static synchronized Stream windows() {
+        return Ffmpeg.WINDOWS ? windowsStream("speakers", WasapiLoopback::open) : null;
+    }
+
+    /**
+     * One program's sound (Windows 10 2022 builds and Windows 11): with {@code include}, only what {@code pid}
+     * plays; without, everything else. Null where Windows can't do that. Streams for an earlier game are stopped.
+     */
+    public static synchronized Stream windowsApp(long pid, boolean include) {
         if (!Ffmpeg.WINDOWS) return null;
-        if (windows != null && windows.running) return windows.stream();
-        if (windowsFailedAt != 0 && System.currentTimeMillis() - windowsFailedAt < 60_000) return null;
+        String prefix = "app:" + pid + ":";
+        streams.entrySet().removeIf(e -> {
+            boolean stale = e.getKey().startsWith("app:") && !e.getKey().startsWith(prefix);
+            if (stale) e.getValue().stop();
+            return stale;
+        });
+        return windowsStream(prefix + include, () -> WasapiLoopback.openProcess(pid, include));
+    }
+
+    private static Stream windowsStream(String key, Opener opener) {
+        LoopbackAudio l = streams.get(key);
+        if (l != null && l.running) return l.stream();
+        Long failed = failedAt.get(key);
+        if (failed != null && System.currentTimeMillis() - failed < 60_000) return null;
         try {
-            windows = start(() -> {
-                try { return WasapiLoopback.open(); } catch (Throwable t) { throw new IllegalStateException(t.getMessage(), t); }
+            l = start(() -> {
+                try { return opener.open(); } catch (Throwable t) { throw new IllegalStateException(t.getMessage(), t); }
             });
-            return windows.stream();
+            streams.put(key, l);
+            return l.stream();
         } catch (Exception e) {
-            System.err.println("[clips] speaker recording unavailable: " + e.getMessage());
-            windowsFailedAt = System.currentTimeMillis();
-            windows = null;
+            System.err.println("[clips] " + key + " sound recording unavailable: " + e.getMessage());
+            failedAt.put(key, System.currentTimeMillis());
+            streams.remove(key);
             return null;
         }
     }

@@ -76,6 +76,8 @@ public final class RecordPanel extends JPanel {
     private final JCheckBox cursor = new JCheckBox("Capture mouse cursor");
     private final JCheckBox sysAudio = new JCheckBox("Record game audio");
     private final JComboBox<String> sysDevice = new JComboBox<>();
+    /** Windows: the game's own sound on the Game track, Discord, music and the rest on their own. */
+    private final JCheckBox gameOnly = new JCheckBox("Game sound on its own track (Discord and music go on another)");
     private final JCheckBox mic = new JCheckBox("Record microphone");
     private final JComboBox<String> micDevice = new JComboBox<>();
     private final JSlider micVol = new JSlider(0, 200, 100);
@@ -301,6 +303,11 @@ public final class RecordPanel extends JPanel {
         sysAudio.setOpaque(false);
         full(c, sysAudio);
         line(c, "Device", sysDevice);
+        gameOnly.setOpaque(false);
+        gameOnly.setToolTipText("Windows 10 (2022 builds) and 11, with Device on Default: the Game track has only Minecraft's sound, "
+                + "everything else is on an \"Other sound\" track you can mute in the editor");
+        gameOnly.setVisible(Ffmpeg.WINDOWS);
+        full(c, gameOnly);
         mic.setOpaque(false);
         full(c, mic);
         line(c, "Device", micDevice);
@@ -372,6 +379,7 @@ public final class RecordPanel extends JPanel {
             codec.setSelectedIndex(switch (s.codec) { case "h264" -> 1; case "hevc" -> 2; default -> 0; });
             cursor.setSelected(s.captureCursor);
             sysAudio.setSelected(s.recordSystemAudio);
+            gameOnly.setSelected(s.gameAudioSeparate);
             mic.setSelected(s.recordMic);
             micVol.setValue((int) Math.round(s.micVolume * 100));
             voice.setSelected(s.recordVoice);
@@ -509,6 +517,7 @@ public final class RecordPanel extends JPanel {
             }
             s.captureCursor = cursor.isSelected();
             s.recordSystemAudio = sysAudio.isSelected();
+            s.gameAudioSeparate = gameOnly.isSelected();
             if (devicesLoaded) s.systemAudioDevice = deviceId(sysDevice);
             s.recordMic = mic.isSelected();
             if (devicesLoaded) s.micDevice = deviceId(micDevice);
@@ -534,7 +543,7 @@ public final class RecordPanel extends JPanel {
             }, "voice-mic").start();
         };
         for (JComboBox<?> b : List.of(fps, res, quality, codec, encoder, replayRate, recordRate, sysDevice, micDevice, voiceDevice)) b.addActionListener(e -> apply.run());
-        for (JCheckBox b : List.of(cursor, sysAudio, mic, voice)) b.addActionListener(e -> apply.run());
+        for (JCheckBox b : List.of(cursor, sysAudio, mic, voice, gameOnly)) b.addActionListener(e -> apply.run());
         micVol.addChangeListener(e -> { if (!micVol.getValueIsAdjusting()) apply.run(); });
         postRoll.setToolTipText("Keep capturing this long after you press the key, so the clip shows what happens next");
         postRoll.addActionListener(e -> {
@@ -597,6 +606,7 @@ public final class RecordPanel extends JPanel {
         var st = app.settings;
         String s = st.source;
         sysDevice.setEnabled(sysAudio.isSelected());
+        gameOnly.setEnabled(sysAudio.isSelected() && sysDevice.getSelectedIndex() <= 0);
         micDevice.setEnabled(mic.isSelected());
         micVol.setEnabled(mic.isSelected());
         voiceDevice.setEnabled(voice.isSelected());
