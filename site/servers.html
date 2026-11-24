@@ -47,7 +47,7 @@
       <a href="/faq">FAQ</a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.3.0</span>
+      <span class="nav-ver">v2.4.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -101,13 +101,14 @@
           <li><b>AutoReconnect</b> gives up after a few tries, waits longer each time, and never rejoins after a ban, a whitelist refusal, an AFK kick or a kick by an operator.</li>
           <li><b>Camera Distance</b> stops at 8 blocks, so the third-person camera can't be used to look over walls.</li>
           <li><b>Minimap</b> shows terrain only: never players, mobs, items, caves or anything underground. The one exception is the server's choice: team mates it shares through the <a href="#api">Evade Server API</a>, and only those already loaded near you.</li>
+          <li><b>World Map</b> shows only the surface of chunks the player has loaded, saved on their own PC: no caves, no Nether, no players except the same server-shared team mates. Disabling <span class="mono">Minimap</span> disables it too.</li>
           <li>Mods a server turns off show <b>Disabled by this server</b> in the menu and come back when you leave.</li>
         </ul>
       </div>
 
       <div class="doc-sec rv" id="owners">
         <h2>For server owners</h2>
-        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=f6a5e715d6">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
+        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=f111b934ef">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
         <p>You can switch off any Evade mod for players on your server. Send a plugin message on the channel <span class="mono">evade:rules</span> after a player joins, with a UTF-8 JSON body:</p>
         <pre class="code">{"disable": ["Freelook", "Minimap", "Fullbright"]}</pre>
         <p>Use the mod names exactly as they appear in Evade's menu (case doesn't matter). Evade turns those mods off straight away, stops players turning them back on while they're connected, and shows <b>Disabled by this server</b> on them. Send the message again to change the list, or <span class="mono">{"disable": []}</span> to allow everything. Nothing carries over to other servers.</p>
@@ -219,7 +220,7 @@ getServer().getMessenger().registerIncomingPluginChannel(this, "evade:hello", (c
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.3.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.4.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
