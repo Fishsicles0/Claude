@@ -181,6 +181,7 @@ public class ModuleManager {
         register(new BlockOutline());
         register(new TimeChanger());
         register(new WeatherChanger());
+        register(new DiscordPresence());
         // Client
         register(new ClientSettings());
     }

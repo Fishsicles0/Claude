@@ -55,7 +55,11 @@ public class EvadeClient implements ClientModInitializer {
         });
         WorldRenderEvents.END_MAIN.register(EvadeClient::onWorldRender);
         ClientSendMessageEvents.ALLOW_CHAT.register(commands::handleChat);
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> config.save());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            config.save();
+            net.evadeclient.module.mods.DiscordPresence.shutdown();
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.mods.DiscordPresence::clientTick);
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) ->
                 net.evadeclient.module.visuals.BetterTooltips.append(stack, lines));
