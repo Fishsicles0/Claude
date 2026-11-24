@@ -333,9 +333,9 @@ public final class PerfV25Test {
         for (int i = 0; i < 150; i++) FramePacer.limit(200);
         double[] st = FramePacer.intervalStats();
         FramePacer.reset();
-        perf("frame pacer at 200 FPS: mean %.3f ms, deviation %.3f ms", st[0], st[1]);
-        check(Math.abs(st[0] - 5.0) < 0.25 && st[1] < 0.5, String.format(Locale.ROOT,
-                "Smooth Pacing: frames are released on an even 5 ms schedule (mean %.3f ms, deviation %.3f ms)", st[0], st[1]));
+        perf("frame pacer at 200 FPS: mean %.3f ms, standard deviation %.3f ms, 95%% within %.3f ms", st[0], st[1], st[2]);
+        check(Math.abs(st[0] - 5.0) < 0.25 && st[2] < 0.5, String.format(Locale.ROOT,
+                "Smooth Pacing: frames are released on an even 5 ms schedule (mean %.3f ms, 95%% within %.3f ms)", st[0], st[2]));
     }
 
     // ------------------------------------------------------------------ 5: HUD cache

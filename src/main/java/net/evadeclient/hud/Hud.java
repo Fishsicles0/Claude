@@ -78,14 +78,18 @@ public final class Hud {
             HudStacks.apply(sw, sh, false);
             // HUD Refresh: widgets that don't move every frame come from the HUD cache's texture (see HudCache),
             // drawn under the ones that do.
-            boolean cache = HudCache.active();
-            java.util.List<HudElementModule> cached = cache ? new java.util.ArrayList<>() : java.util.List.of();
-            for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (!el.isEnabled() || !el.shouldShow()) continue;
-                if (cache && !HudCache.animated(el)) { cached.add(el); continue; }
-                drawWidget(ctx, el, sw, sh);
+            if (HudCache.active()) {
+                java.util.List<HudElementModule> cached = new java.util.ArrayList<>(), moving = new java.util.ArrayList<>();
+                for (HudElementModule el : EvadeClient.modules.hudElements()) {
+                    if (!el.isEnabled() || !el.shouldShow()) continue;
+                    (HudCache.animated(el) ? moving : cached).add(el);
+                }
+                HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
+                for (HudElementModule el : moving) drawWidget(ctx, el, sw, sh);
+            } else {
+                for (HudElementModule el : EvadeClient.modules.hudElements())
+                    if (el.isEnabled() && el.shouldShow()) drawWidget(ctx, el, sw, sh);
             }
-            if (!cached.isEmpty()) HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
         } finally {
             ctx.getMatrices().popMatrix();
         }

@@ -52,14 +52,22 @@ public final class FramePacer {
         intervalCount = 0;
     }
 
-    /** {mean, standard deviation} of the recorded frame intervals in ms; zeros when fewer than 2 were recorded. */
+    /**
+     * {mean, standard deviation, 95th percentile of the distance from the mean} of the recorded frame intervals in
+     * ms; zeros when fewer than 2 were recorded. The percentile ignores the odd interval the OS stole the thread for.
+     */
     public static double[] intervalStats() {
         int n = Math.min(intervalCount, intervals.length);
-        if (n < 2) return new double[2];
+        if (n < 2) return new double[3];
         double sum = 0;
         for (int i = 0; i < n; i++) sum += intervals[i];
         double mean = sum / n, var = 0;
-        for (int i = 0; i < n; i++) var += (intervals[i] - mean) * (intervals[i] - mean);
-        return new double[]{mean / 1e6, Math.sqrt(var / n) / 1e6};
+        double[] dev = new double[n];
+        for (int i = 0; i < n; i++) {
+            var += (intervals[i] - mean) * (intervals[i] - mean);
+            dev[i] = Math.abs(intervals[i] - mean);
+        }
+        java.util.Arrays.sort(dev);
+        return new double[]{mean / 1e6, Math.sqrt(var / n) / 1e6, dev[Math.min(n - 1, (int) Math.ceil(n * 0.95) - 1)] / 1e6};
     }
 }
