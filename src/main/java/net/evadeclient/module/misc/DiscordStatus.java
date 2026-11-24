@@ -23,8 +23,8 @@ import net.minecraft.client.network.ServerInfo;
  * module says so and does nothing.
  */
 public class DiscordStatus extends Module {
-    /** Evade's Discord application id (Developer Portal, OAuth2 Client ID). Empty: not set up yet. */
-    public static final String DISCORD_APP_ID = "";
+    /** Evade's Discord application id (Developer Portal: "Evade Client"). */
+    public static final String DISCORD_APP_ID = "1573553858158923958";
     private static final String NO_ID = "Discord app ID not set";
     /** How often (client ticks) the presence is worked out again; it's only sent when it changed. */
     private static final int EVERY = 20;
