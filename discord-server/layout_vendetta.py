@@ -86,13 +86,14 @@ GATE = {"@everyone": {"view_channel": True, "send_messages": False, "add_reactio
                       "create_public_threads": False, "create_private_threads": False},
         "member": {"view_channel": False}}
 GATE_RULES = {**GATE, "member": {"view_channel": True, "send_messages": False}}
-PUBLIC = {"@everyone": {"view_channel": False}, "member": {"view_channel": True}}
-PUBLIC_RO = {"@everyone": {"view_channel": False},
-             "member": {"view_channel": True, "send_messages": False, "create_public_threads": False,
-                        "send_messages_in_threads": False},
-             **_see("mod", "admin")}
-FACTION = {**_HIDE, **_see("recruit", "faction", "mod", "admin")}
-FACTION_RO = {**_HIDE, **_see("recruit", "faction", send=False), **_see("mod", "admin")}
+# Verified guests (approved, not in the faction) see only #recruitment and #apply-and-contact.
+GUEST_RO = {"@everyone": {"view_channel": False},
+            "member": {"view_channel": True, "send_messages": False, "create_public_threads": False,
+                       "send_messages_in_threads": False},
+            **_see("mod", "admin")}
+# Everything else needs the Member role (or Officer and up).
+FACTION = {**_HIDE, **_see("faction", "mod", "admin")}
+FACTION_RO = {**_HIDE, **_see("faction", send=False), **_see("mod", "admin")}
 MEMBERS = {**_HIDE, **_see("faction", "mod", "admin")}
 ALLIES = {**_HIDE, **_see("ally", "faction", "mod", "admin")}
 OFFICERS = {**_HIDE, **_see("mod", "admin")}
@@ -108,15 +109,15 @@ CATEGORIES = [
         {"key": "rules", "emoji": "📖", "name": "rules", "perms": GATE_RULES, "topic": "Read the rules, then verify."},
         {"key": "verify", "emoji": "✅", "name": "verify", "topic": "Press Verify to get in."},
     ]},
-    {"key": "public", "name": "🩸 Vendetta", "perms": PUBLIC_RO, "channels": [
+    {"key": "public", "name": "🩸 Vendetta", "perms": FACTION_RO, "channels": [
         {"key": "about", "emoji": "🩸", "name": "about-vendetta"},
         {"key": "announcements", "emoji": "📢", "name": "announcements", "type": "news"},
         {"key": "wins", "emoji": "🏆", "name": "wins-and-ftop", "topic": "Raids, F-Top placements and season results."},
-        {"key": "recruitment", "emoji": "📝", "name": "recruitment", "topic": "Requirements and how to apply."},
-        {"key": "create-ticket", "emoji": "🎫", "name": "apply-and-contact",
+        {"key": "recruitment", "emoji": "📝", "name": "recruitment", "perms": GUEST_RO, "topic": "Requirements and how to apply."},
+        {"key": "create-ticket", "emoji": "🎫", "name": "apply-and-contact", "perms": GUEST_RO,
          "topic": "Apply to join, request an alliance, or contact leadership."},
-        {"key": "lobby", "emoji": "💬", "name": "lobby", "perms": PUBLIC, "slowmode": 3,
-         "topic": "Public chat for guests, applicants and allies."},
+        {"key": "lobby", "emoji": "💬", "name": "lobby", "perms": FACTION, "slowmode": 3,
+         "topic": "Chat for Vendetta members."},
     ]},
     {"key": "faction", "name": "⚔️ Faction", "perms": FACTION, "channels": [
         {"key": "faction-rules", "emoji": "📜", "name": "faction-rules", "perms": FACTION_RO},
@@ -141,13 +142,13 @@ CATEGORIES = [
         {"key": "ally-voice", "emoji": "🔊", "name": "Ally Comms", "type": "voice"},
     ]},
     {"key": "voice", "name": "🔊 Voice", "perms": FACTION, "channels": [
-        {"key": "lobby-voice", "emoji": "🛋️", "name": "Lobby", "type": "voice", "perms": PUBLIC},
+        {"key": "lobby-voice", "emoji": "🛋️", "name": "Lobby", "type": "voice"},
         {"key": "raid-1", "emoji": "⚔️", "name": "Raid 1", "type": "voice"},
         {"key": "raid-2", "emoji": "⚔️", "name": "Raid 2", "type": "voice"},
         {"key": "defense", "emoji": "🛡️", "name": "Defense", "type": "voice"},
         {"key": "grind", "emoji": "💰", "name": "Grind", "type": "voice"},
         {"key": "afk", "emoji": "💤", "name": "AFK", "type": "voice",
-         "perms": {**FACTION, "recruit": {"view_channel": True, "speak": False}, "faction": {"view_channel": True, "speak": False}}},
+         "perms": {**FACTION, "faction": {"view_channel": True, "speak": False}}},
     ]},
     {"key": "tickets", "name": "🎫 Open Tickets", "perms": TICKETS, "channels": []},
     {"key": "leadership", "name": "👑 Leadership", "perms": OFFICERS, "channels": [
@@ -201,11 +202,10 @@ VERIFY_APPROVERS = ["admin"]   # Co-Leader; the Leader, owner and Administrator 
 BANNER = "https://cdn.discordapp.com/banners/1574756781174038608/edd24cdc063a4709910a8541fc14952b.png?size=1024"
 
 WELCOME_LINES = [
-    "🩸 Read about us in #about",
-    "📝 Want in? Check #recruitment and apply in #create-ticket",
-    "💬 Hang out in #lobby",
+    "📝 Want in? Read #recruitment and apply in #create-ticket",
+    "Accepted applicants get **Member**, which unlocks the rest of the server.",
 ]
-HELP_LINES = ["Rules: #rules · Apply: #create-ticket · Lobby: #lobby"]
+HELP_LINES = ["Rules: #rules · Recruitment: #recruitment · Apply: #create-ticket"]
 LEGAL_PAGES = False
 LEGAL_NOTE = ""
 
@@ -240,26 +240,30 @@ POSTS = {
             "**1.** Read #rules.\n"
             "**2.** Press **Verify** in #verify.\n"
             "**3.** Leadership reviews your request by hand. You'll get a **DM** the moment you're approved, "
-            "and the server unlocks for you.\n"
-            "**4.** Want to join the faction? Read #recruitment, then apply in #create-ticket.\n\n"
+            "and #recruitment and #create-ticket open up for you.\n"
+            "**4.** Read #recruitment and apply in #create-ticket. If you're accepted you get the **Member** role, "
+            "which unlocks the rest of the server.\n\n"
             "Requests are checked by real people, so give it a little time. Pressing Verify again won't speed it up.")),
         _p("🗺️ Where everything is", (
-            "**Everyone (after approval)**\n"
-            "🩸 #about · 📢 #announcements · 🏆 #wins · 📝 #recruitment · 🎫 #create-ticket · 💬 #lobby\n\n"
-            "**Recruits and up**\n"
-            "⚔️ Faction chat, raid planning, cannoning, grinding, loot log, clips and schematics\n\n"
-            "**Members and up**\n"
-            "🔒 Base coords, wall checks and raid alerts\n\n"
+            "**Everyone**\n"
+            "👋 #welcome · 📖 #rules · ✅ #verify\n\n"
+            "**Once approved**\n"
+            "📝 #recruitment · 🎫 #create-ticket\n\n"
+            "**Members**\n"
+            "🩸 About, announcements, wins and lobby\n"
+            "⚔️ Faction chat, raid planning, cannoning, grinding, loot log, clips and schematics\n"
+            "🔒 Base coords, wall checks and raid alerts\n"
+            "🔊 All voice channels\n\n"
             "**Allies**\n"
             "🤝 Ally chat and Ally Comms voice")),
         _p("🎖️ Ranks", (
             "**Leader**: runs Vendetta\n"
             "**Co-Leader**: leadership, approves new people and alliances\n"
             "**Officer**: runs raids and defence, reviews applications, moderates\n"
-            "**Member**: full faction member, sees the base\n"
-            "**Recruit**: on trial; prove yourself to become a Member\n"
-            "**Ally**: from an allied faction\n"
-            "**Verified**: approved guest, can talk in the lobby and apply")),
+            "**Member**: in the faction; unlocks the whole server\n"
+            "**Recruit**: a tag for Members who are still on trial\n"
+            "**Ally**: from an allied faction; sees the Allies channels only\n"
+            "**Verified**: approved by leadership; can read recruitment and apply")),
     ],
     "about": [_p("🩸 About Vendetta", (
         "**Vendetta** is a competitive factions team. We play to win: raids, F-Top and season placements.\n\n"
@@ -276,7 +280,7 @@ POSTS = {
         "1. Make sure you meet the requirements below.\n"
         "2. Go to #create-ticket and pick **Apply to join Vendetta**.\n"
         "3. Answer the questions honestly. Leadership reviews every application.\n"
-        "4. If accepted, you start as a **Recruit** (trial). Prove yourself and you'll be promoted to **Member**.\n\n"
+        "4. If accepted, you get the **Member** role (plus **Recruit** while you're on trial), which unlocks the server.\n\n"
         "**Requirements**\n"
         "• Active: able to play regularly during the season\n"
         "• Has a mic for raids and defence\n"
@@ -326,7 +330,7 @@ POSTS = {
     "applications-review": [_p("📋 Applications Review", (
         "Applications arrive as tickets in **Open Tickets**. Discuss them here.\n\n"
         "**Before accepting:** check their IGN's history on the server, ask past factions, and vote. "
-        "Accepted players get **Recruit** (and keep Verified)."))],
+        "Accepted players get **Member** (and **Recruit** while on trial)."))],
     "punishments": [_p("⚖️ Punishments", "Record every punishment.\n\n```\nWho:\nWhat they did:\nPunishment:\nBy:\n```")],
     "co-leaders": [_p("🗝️ Co-Leaders", "Co-Leaders and the Leader only.")],
     "security-alerts": [_p("🚨 Security Alerts", "Raid mode, lockdowns and anything urgent.")],
