@@ -36,12 +36,16 @@ public final class GpuInfo {
     // A separate card: NVIDIA, Radeon RX / Pro / W-series, Intel Arc A- or B-series.
     private static final Pattern DISCRETE = Pattern.compile("(?i)(nvidia|geforce|\\brtx\\b|\\bgtx\\b|quadro|radeon\\s*(\\(tm\\)\\s*)?(rx|pro)\\b|"
             + "arc\\s*(\\(tm\\)\\s*)?[ab]\\d{3})");
+    private static final Pattern APU_VEGA = Pattern.compile("(?i)vega\\s*(\\d{1,2})(?!\\d)");
     private static final Pattern SOFTWARE = Pattern.compile("(?i)(llvmpipe|softpipe|swiftshader|microsoft basic render|gdi generic|virgl|svga3d)");
 
     /** The kind of graphics a renderer string names. */
     public static Kind classify(String renderer) {
         if (renderer == null || renderer.isBlank()) return Kind.UNKNOWN;
         if (SOFTWARE.matcher(renderer).find()) return Kind.SOFTWARE;
+        // "Radeon RX Vega 8 Graphics" is a Ryzen APU (Vega 3 to 11); the Vega 56 and 64 cards are discrete.
+        var vega = APU_VEGA.matcher(renderer);
+        if (vega.find() && Integer.parseInt(vega.group(1)) <= 11) return Kind.INTEGRATED;
         if (DISCRETE.matcher(renderer).find()) return Kind.DISCRETE;
         if (INTEGRATED.matcher(renderer).find()) return Kind.INTEGRATED;
         return Kind.UNKNOWN;
