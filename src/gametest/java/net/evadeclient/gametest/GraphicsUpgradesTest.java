@@ -84,6 +84,8 @@ public final class GraphicsUpgradesTest {
         Map<String, JsonElement> saved = ctx.computeOnClient(c -> snapshot(perf));
         Object[] before = ctx.computeOnClient(c -> new Object[]{c.options.getTextureFiltering().getValue(), c.options.getVignette().getValue(),
                 c.options.getWeatherRadius().getValue(), c.options.getCloudRenderDistance().getValue(), c.options.getImprovedTransparency().getValue()});
+        ctx.runOnClient(c -> perf.setEnabled(false)); // hand every option back before setting the test's own values
+        ctx.waitTicks(1);
         ctx.runOnClient(c -> {
             c.options.getTextureFiltering().setValue(TextureFilteringMode.NONE);
             c.options.getVignette().setValue(true);
@@ -98,7 +100,8 @@ public final class GraphicsUpgradesTest {
                 perf.sharperTextures.get()});
         check(max[0] == TextureFilteringMode.NONE && max[1].equals(false) && max[2].equals(3) && (int) max[3] <= 8 && max[4].equals(false)
                         && max[5].equals(false),
-                "Max FPS sets the newer video options (filtering none, no vignette, weather radius 3, clouds <= 8, no improved transparency)");
+                "Max FPS sets the newer video options (filtering none, no vignette, weather radius 3, clouds <= 8, no improved transparency): "
+                        + java.util.Arrays.toString(max));
 
         ctx.runOnClient(c -> perf.fpsMode.set("Quality"));
         ctx.waitTicks(5);
