@@ -121,6 +121,7 @@ CATEGORIES = [
         {"key": "verify", "emoji": "✅", "name": "verify", "topic": "Press Verify to unlock the server."},
     ]},
     {"key": "info", "name": "📌 Info & Announcements", "perms": MEMBER_RO, "channels": [
+        {"key": "welcome", "emoji": "👋", "name": "welcome", "topic": "Say hi to everyone who just joined."},
         {"key": "announcements", "emoji": "📢", "name": "announcements", "type": "news"},
         {"key": "changelog", "emoji": "📝", "name": "changelog", "type": "news",
          "topic": "What changed in each version."},
@@ -284,6 +285,10 @@ POSTS = {
         "When you're ready, head to #verify."))],
 
     # ── Info & Announcements ──
+    "welcome": [_p("👋 Welcome", (
+        "Everyone who joins and verifies gets a welcome here.\n\n"
+        "**New here?** Grab Evade in #download, follow #install-guide, and say hi in #general. "
+        "Need help? #download-help or #create-ticket."))],
     "announcements": [
         _p("📢 Announcements", "New releases, big news and events land here. Only staff can post.\n\n"
            "What changed in each version goes in #changelog."),

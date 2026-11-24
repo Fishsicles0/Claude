@@ -40,7 +40,8 @@ def config() -> dict:
     app = api()("GET", "/applications/@me")
     s = lambda d: {k: str(v) for k, v in d.items()}
     return {
-        "name": layout.CLIENT["name"], "color": layout.CLIENT["color"],
+        "name": layout.CLIENT["name"], "color": layout.CLIENT["color"], "site": layout.CLIENT["site"],
+        "icon": f"https://cdn.discordapp.com/app-icons/{app['id']}/{app['icon']}.png?size=128" if app.get("icon") else "",
         "app_id": app["id"], "public_key": app["verify_key"], "guild_id": str(state["guild_id"]),
         "roles": s(state["roles"]), "channels": s(state["channels"]), "categories": s(state["categories"]),
         "security": layout.SECURITY, "admins": layout.ADMINS, "ticket_staff": layout.TICKET_STAFF,

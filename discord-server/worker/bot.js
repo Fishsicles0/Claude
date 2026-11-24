@@ -152,11 +152,42 @@ async function answerCaptcha(env, it, ctx) {
   }
   ctx.waitUntil(Promise.all([
     log(env, "member-log", { title: "Verified", color: GREEN, description: `<@${uid}>` }),
-    CONFIG.channels.general && discord(env, "POST", `/channels/${CONFIG.channels.general}/messages`, {
-      content: `👋 Welcome <@${uid}> to **${CONFIG.name}**! Grab the client in <#${CONFIG.channels.download}> and say hi.`,
-      allowed_mentions: { users: [uid] } }).catch(() => {}),
+    welcome(env, it.member.user).catch((e) => console.log("welcome failed", e.message)),
   ]));
   return update({ content: "✅ You're verified. Welcome!", embeds: [], components: [] });
+}
+
+// Welcome card in #welcome (falls back to #general) once someone verifies.
+async function welcome(env, user) {
+  const ch = CONFIG.channels.welcome || CONFIG.channels.general;
+  if (!ch) return;
+  let count = null;
+  try { count = (await discord(env, "GET", `/guilds/${CONFIG.guild_id}?with_counts=true`)).approximate_member_count; } catch (e) { /* optional */ }
+  const avatar = user.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
+  const link = (key) => `https://discord.com/channels/${CONFIG.guild_id}/${CONFIG.channels[key]}`;
+  const buttons = [
+    CONFIG.site && { type: 2, style: 5, label: "Download Evade", emoji: { name: "⬇️" }, url: `${CONFIG.site}/download` },
+    CONFIG.channels["install-guide"] && { type: 2, style: 5, label: "Install Guide", emoji: { name: "📘" }, url: link("install-guide") },
+    CONFIG.channels["create-ticket"] && { type: 2, style: 5, label: "Get Help", emoji: { name: "🎫" }, url: link("create-ticket") },
+  ].filter(Boolean);
+  await discord(env, "POST", `/channels/${ch}/messages`, {
+    content: `👋 <@${user.id}>`,
+    allowed_mentions: { users: [user.id] },
+    embeds: [{
+      color: COLOR,
+      author: { name: `Welcome to ${CONFIG.name}!`, icon_url: CONFIG.icon || undefined },
+      description: `Hey **${user.global_name || user.username}**, glad you're here!\n\n` +
+        `⬇️ Grab the client in <#${CONFIG.channels.download}>\n` +
+        `💬 Say hi in <#${CONFIG.channels.general}>\n` +
+        `❓ Questions? <#${CONFIG.channels["download-help"]}> or <#${CONFIG.channels["create-ticket"]}>`,
+      thumbnail: { url: avatar },
+      footer: count ? { text: `Member #${count}` } : undefined,
+      timestamp: new Date().toISOString(),
+    }],
+    components: buttons.length ? [{ type: 1, components: buttons }] : [],
+  });
 }
 
 // ── Tickets ───────────────────────────────────────────────────────────────────
