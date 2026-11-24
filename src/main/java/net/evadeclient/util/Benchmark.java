@@ -28,6 +28,8 @@ public final class Benchmark {
     private static boolean spin;
     private static float startYaw;
     private static Result last;
+    /** Set by {@link BenchmarkAll}: results go to bench.txt but not to chat (it reports them all at the end). */
+    private static boolean quiet;
 
     public record Result(double avgFps, double low1, double low01, double minFps, int frames, double seconds, String setup) {}
 
@@ -50,6 +52,9 @@ public final class Benchmark {
 
     public static void cancel() { frames = null; }
 
+    /** Results are saved but not printed (one summary is printed for several runs instead). */
+    public static void setQuiet(boolean q) { quiet = q; }
+
     /** From {@link FrameStats#frameEnd}: one frame of {@code ms}. */
     static void onFrame(float ms) {
         if (frames == null) return;
@@ -66,7 +71,7 @@ public final class Benchmark {
         frames = null;
         if (f.length < 10) { CommandManager.print("§cBenchmark: too few frames to measure."); return; }
         Result r = compute(f, seconds, setup());
-        report(r, last);
+        if (!quiet) report(r, last);
         save(r);
         last = r;
     }

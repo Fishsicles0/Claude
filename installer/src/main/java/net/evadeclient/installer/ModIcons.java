@@ -120,6 +120,34 @@ final class ModIcons {
         return null;
     }
 
+    /**
+     * A picture stored with content in an instance, or null while it loads: a world's icon.png, or a pack's pack.png
+     * (inside its zip or folder). Never blocks. {@code stamp} (the file's modified time) makes a changed picture load again.
+     */
+    static Image local(Path file, String entry, long stamp, Runnable repaint) {
+        String key = "local:" + file.toAbsolutePath() + "!" + entry + "@" + stamp;
+        Image img = images.get(key);
+        if (img != null) return img == NONE ? null : img;
+        if (pending.add(key)) pool.submit(() -> {
+            Image found = null;
+            try {
+                BufferedImage raw = null;
+                if (entry == null) raw = ImageIO.read(file.toFile());
+                else if (Files.isDirectory(file)) {
+                    if (Files.isRegularFile(file.resolve(entry))) raw = ImageIO.read(file.resolve(entry).toFile());
+                } else {
+                    try (ZipFile z = new ZipFile(file.toFile())) {
+                        ZipEntry e = z.getEntry(entry);
+                        if (e != null && e.getSize() < 4 << 20) try (InputStream in = z.getInputStream(e)) { raw = ImageIO.read(in); }
+                    }
+                }
+                if (raw != null) found = scale(raw);
+            } catch (Exception ignored) { }
+            done(key, found, repaint);
+        });
+        return null;
+    }
+
     private static void done(String key, Image img, Runnable repaint) {
         images.put(key, img == null ? NONE : img);
         pending.remove(key);

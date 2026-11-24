@@ -13,6 +13,7 @@ final class Screenshots {
     private Screenshots() {}
 
     static void render(Path out) throws Exception {
+        if ("content".equals(System.getProperty("evade.shots.only"))) { ContentShots.render(out); return; }
         LauncherView v = new LauncherView();
         v.version = EvadeInstaller.launcherVersion();
         Path mc = Paths.get("C:/Users/Player/AppData/Roaming/.minecraft");
@@ -23,7 +24,7 @@ final class Screenshots {
         InstallerCore.ModFile mod = new InstallerCore.ModFile("Sodium", "0.6.13", "", "", "sodium-fabric-0.6.13+mc1.21.11.jar",
                 "AANobbMI", List.of(), Map.of());
         InstallerCore.Release release = new InstallerCore.Release("2.0.1", "", "", "0.18.6", "0.141.6+1.21.11", "", "", "", mod,
-                List.of(mod), "1.4.0", "downloads/Evade-Clips.exe", "", null, null, mod, mod, mod);
+                List.of(mod), "1.4.0", "downloads/Evade-Clips.exe", "", null, null, mod, mod, mod, List.of(mod), mod);
         v.release = release;
         v.news = sampleNews();
         v.newsLoading = false;
@@ -163,11 +164,14 @@ final class Screenshots {
         v.page = LauncherView.Page.SETTINGS;
 
         // ---- clips (the real Clips pages, with the self-test's sample library when it's there)
+        // ---- game state, logs, crash help, instance settings
+        GameShots.render(v, out);
         clipsPages(v, out);
         v.page = LauncherView.Page.HOME;
         v.openPopupFor("home-switch");
         save(v, out, "16-home-switch-instance");
         v.closeOverlays();
+        ContentShots.render(out);
     }
 
     /** Sample player, servers (with drawn icons, no real server art), notices and a Clips stand-in for Home. */

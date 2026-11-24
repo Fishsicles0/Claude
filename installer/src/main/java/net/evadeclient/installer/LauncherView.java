@@ -65,7 +65,7 @@ public final class LauncherView extends JPanel {
     /** The sidebar's width as drawn this frame (it slides between the two), and the content area right of it. */
     int SIDE = SIDE_OPEN, CX = SIDE_OPEN + 26, CW = W - CX - 26;
 
-    enum Page { HOME, INSTANCES, MODS, CLIPS, SETTINGS }
+    enum Page { HOME, INSTANCES, MODS, CLIPS, GAME, SETTINGS }
 
     /** Something the launcher told the player (the bell lists them). */
     record Notice(String title, String body, long at, boolean error) {}
@@ -123,12 +123,14 @@ public final class LauncherView extends JPanel {
     // ------------------------------------------------------------------ links (empty = not shown)
     static final String DISCORD = "https://discord.gg/PZSzSFX7DD", YOUTUBE = "", TIKTOK = "";
 
-    private final Font inter, interBold;
-    private final Image mark, word;
+    final Font inter, interBold;
+    final Image mark, word;
 
     // ------------------------------------------------------------------ state (EDT only)
     Actions actions = new Actions() {};
     Page page = Page.HOME;
+    /** The Mods page (installed content, Modrinth browser, worlds, modpacks); see {@link ContentPage}. */
+    ContentPage content;
     Launcher.Settings settings = new Launcher.Settings();
     List<Launcher.Instance> instances = new ArrayList<>();
     /** The instance shown on the Instances page. */
@@ -215,8 +217,10 @@ public final class LauncherView extends JPanel {
     // overlays
     private String toast;
     private long toastAt;
-    private Popup popup;
-    private Modal modal;
+    Popup popup;
+    Modal modal;
+    /** The game's state, logs, crashes and instance settings (GamePages paints them). */
+    final GamePages game;
 
     record Popup(String id, int x, int y, int w, List<String[]> items) {}
     record Modal(String kind, String title, String body, String confirm, Launcher.Instance target, Mods.Entry mod, int index) {
@@ -230,12 +234,12 @@ public final class LauncherView extends JPanel {
     boolean roundCorners;
 
     // input
-    private final LinkedHashMap<String, Rectangle> hitMap = new LinkedHashMap<>();
+    final LinkedHashMap<String, Rectangle> hitMap = new LinkedHashMap<>();
     private final Map<String, Float> hover = new HashMap<>();
-    private final Map<String, float[]> scroll = new HashMap<>(); // id -> {target, shown}
+    final Map<String, float[]> scroll = new HashMap<>(); // id -> {target, shown}
     private final Map<String, int[]> scrollAreas = new LinkedHashMap<>(); // id -> {x, y, w, h, contentH}
-    private Rectangle clip;
-    private String hovered;
+    Rectangle clip;
+    String hovered;
     private Point dragFrom;
     /**
      * The whole window drawn smaller on small screens (1 = full size): everything is laid out in the 1180×720
@@ -271,7 +275,7 @@ public final class LauncherView extends JPanel {
         return new Rectangle(x, y, Math.round((r.x + r.width) * uiScale) - x, Math.round((r.y + r.height) * uiScale) - y);
     }
     private final long start = System.currentTimeMillis();
-    private boolean animating;
+    boolean animating;
 
     final JTextField searchField, modalField, modalField2, javaField;
     private boolean syncingFields;
@@ -310,6 +314,7 @@ public final class LauncherView extends JPanel {
         }, "hero-images");
         loader.setDaemon(true);
         loader.start();
+        content = new ContentPage(this);
         searchField.addActionListener(e -> actions.search(searchField.getText(), false));
         Timer debounce = new Timer(450, e -> {
             if (!searchField.getText().strip().equals(lastQuery.strip())) actions.search(searchField.getText(), false);
@@ -328,6 +333,7 @@ public final class LauncherView extends JPanel {
                 if (popup != null) popup = null;
                 else if (overlay != null) overlay = null;
                 else if (modal != null) { modal = null; requestFocusInWindow(); }
+                else if (content != null && content.sheet != null) content.sheet = null;
                 repaint();
             }
         };
@@ -336,6 +342,7 @@ public final class LauncherView extends JPanel {
             c.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke("ESCAPE"), "escape");
             c.getActionMap().put("escape", escape);
         }
+        game = new GamePages(this);
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
@@ -458,14 +465,14 @@ public final class LauncherView extends JPanel {
         }
     }
 
-    private float scrollOf(String id) {
+    float scrollOf(String id) {
         float[] s = scroll.get(id);
         return s == null ? 0 : s[1];
     }
 
     void resetScroll(String id) { scroll.remove(id); }
 
-    private void click(String id) {
+    void click(String id) {
         if (id == null) return;
         Window w = SwingUtilities.getWindowAncestor(this);
         Launcher.Instance sel = selected(), foc = focused();
@@ -477,6 +484,7 @@ public final class LauncherView extends JPanel {
             overlay = null;
             if (id.equals("dismiss") || id.equals("bell")) { repaint(); return; }
         }
+        if (content.click(id)) { repaint(); return; }
         switch (id) {
             case "close" -> { if (play != Play.UPDATING) actions.close(); }
             case "min" -> { if (w instanceof java.awt.Frame f) f.setState(java.awt.Frame.ICONIFIED); }
@@ -484,6 +492,7 @@ public final class LauncherView extends JPanel {
             case "nav-instances" -> showPage(Page.INSTANCES);
             case "nav-mods" -> showPage(Page.MODS);
             case "nav-clips" -> showPage(Page.CLIPS);
+            case "nav-game" -> showPage(Page.GAME);
             case "nav-collapse" -> { settings.sidebarCollapsed = !settings.sidebarCollapsed; actions.sidebarToggled(); }
             case "bell" -> { overlay = "bell"; unread = 0; actions.noticesSeen(); }
             case "ov-clear" -> { notices.clear(); unread = 0; overlay = null; actions.noticesSeen(); }
@@ -542,9 +551,9 @@ public final class LauncherView extends JPanel {
             case "inst-rename" -> { if (foc != null) openModal(new Modal("rename", "Rename instance", "The launcher profile is renamed too.", "Rename", foc, null), foc.name); }
             case "inst-dup" -> { if (foc != null) actions.duplicate(foc); }
             case "inst-del" -> {
-                if (foc != null && !foc.isDefault()) openModal(new Modal("delete", "Delete " + foc.name + "?",
-                        "Its folder, with its mods, settings and worlds, goes to the " + (InstallerCore.WINDOWS ? "Recycle Bin" : "Trash")
-                                + ", and its profile leaves the Minecraft Launcher.", "Delete", foc, null), null);
+                if (foc != null && !foc.isDefault() && game.running(foc)) toast(foc.name + " is running. Close the game first.");
+                else if (foc != null && !foc.isDefault()) openModal(new Modal("delete", "Delete " + foc.name + "?",
+                        InstanceTrash.summarize(foc.dir).text(foc.name), "Delete", foc, null), null);
             }
             case "inst-folder" -> { if (foc != null) actions.openFolder(foc.dir); }
             case "inst-mods" -> { if (foc != null) { actions.select(foc); showPage(Page.MODS); } }
@@ -559,6 +568,8 @@ public final class LauncherView extends JPanel {
             case "inst-perf" -> { if (foc != null) { foc.perf = !foc.perf; foc.dirty = true; actions.instanceChanged(foc); } }
             case "inst-shaders" -> { if (foc != null) { foc.shaders = !foc.shaders; foc.dirty = true; actions.instanceChanged(foc); } }
             case "inst-voice" -> { if (foc != null) { foc.voice = !foc.voice; foc.dirty = true; actions.instanceChanged(foc); } }
+            case "inst-packs" -> { if (foc != null) { foc.packs = !foc.packs; foc.dirty = true; actions.instanceChanged(foc); } }
+            case "inst-lights" -> { if (foc != null) { foc.lights = !foc.lights; foc.dirty = true; actions.instanceChanged(foc); } }
             // mods
             case "tab-installed" -> { browse = false; actions.showMods(sel); }
             case "tab-browse" -> {
@@ -592,7 +603,8 @@ public final class LauncherView extends JPanel {
                 popup = new Popup(id, r.x, r.y + r.height + 6, r.width, items);
             }
             default -> {
-                if (id.startsWith("pop:")) popupClick(id.substring(4));
+                if (id.startsWith("gp-")) game.click(id);
+                else if (id.startsWith("pop:")) popupClick(id.substring(4));
                 else if (id.startsWith("mem:")) {
                     int gb = InstallerCore.clampMemory(Integer.parseInt(id.substring(4)));
                     if (page == Page.HOME) setupMemory = gb;
@@ -697,7 +709,7 @@ public final class LauncherView extends JPanel {
         repaint();
     }
 
-    private void openModal(Modal m, String text) {
+    void openModal(Modal m, String text) {
         modal = m;
         modalCopyFrom = m.kind().equals("create") ? Launcher.DEFAULT_ID : null;
         if (text != null) {
@@ -713,6 +725,7 @@ public final class LauncherView extends JPanel {
         Modal m = modal;
         if (m == null) return;
         String text = modalField.getText().strip();
+        if (m.kind().startsWith("c:")) { modal = null; content.confirm(m, text); requestFocusInWindow(); repaint(); return; }
         switch (m.kind()) {
             case "create" -> {
                 if (text.isEmpty()) return;
@@ -769,15 +782,18 @@ public final class LauncherView extends JPanel {
         CX = RAIL + 24;
         CW = W - CX - 24;
         Rectangle search = null, java = null, modalBox = null, clipsBox = null;
+        game.frameStart();
         paintBackground(g);
         paintRail(g);
         switch (page) {
             case HOME -> { if (firstRun()) paintSetup(g); else paintHome(g); }
             case INSTANCES -> paintInstances(g);
-            case MODS -> search = paintMods(g);
+            case MODS -> search = content.paint(g);
             case CLIPS -> clipsBox = paintClips(g);
+            case GAME -> game.paintPage(g);
             case SETTINGS -> java = paintSettings(g);
         }
+        if (page != Page.GAME) game.hideFields();
         paintTopRight(g);
         if (modal != null) {
             hitMap.clear();
@@ -815,12 +831,14 @@ public final class LauncherView extends JPanel {
         place(modalField, modalBox, pop);
         place(modalField2, modalBox == null || !modal.kind().equals("server") ? null
                 : new Rectangle(modalBox.x, modalBox.y + 78, modalBox.width, modalBox.height), pop);
+        content.placeFields(modal != null || overlay != null, pop);
         if (clipsHost != null) {
             boolean show = clipsBox != null && modal == null && popup == null && overlay == null;
             Rectangle cb = toScreen(clipsBox);
             if (show && !cb.equals(clipsHost.getBounds())) { clipsHost.setBounds(cb); clipsHost.revalidate(); }
             if (clipsHost.isVisible() != show) clipsHost.setVisible(show);
         }
+        game.paintOverlay(g);
         g.dispose();
     }
 
@@ -838,7 +856,7 @@ public final class LauncherView extends JPanel {
         g.dispose();
     }
 
-    private void place(JTextField f, Rectangle r, Rectangle covered) {
+    void place(JTextField f, Rectangle r, Rectangle covered) {
         boolean show = r != null && (covered == null || !covered.intersects(r));
         r = toScreen(r);
         if (show && !r.equals(f.getBounds())) f.setBounds(r);
@@ -880,7 +898,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A soft drop shadow under something raised above the page (menus, dialogs, toasts). */
-    private void shadow(Graphics2D g, int x, int y, int w, int h) {
+    void shadow(Graphics2D g, int x, int y, int w, int h) {
         double scale = g.getTransform().getScaleX();
         String key = w + "x" + h + "@" + scale;
         BufferedImage img = shadows.get(key);
@@ -912,7 +930,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A flat card on the page: a slightly lighter surface with a hairline edge, 16px corners. */
-    private void card(Graphics2D g, int x, int y, int w, int h, boolean accent) {
+    void card(Graphics2D g, int x, int y, int w, int h, boolean accent) {
         g.setColor(CARD);
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 16 * 2, 16 * 2));
         g.setColor(HAIRLINE);
@@ -920,7 +938,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A raised panel (menus, dialogs, cards that open over the page): elevated surface and a soft shadow. */
-    private void raised(Graphics2D g, int x, int y, int w, int h) {
+    void raised(Graphics2D g, int x, int y, int w, int h) {
         shadow(g, x, y, w, h);
         g.setColor(RAISED);
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
@@ -933,8 +951,8 @@ public final class LauncherView extends JPanel {
     private void paintRail(Graphics2D g) {
         g.drawImage(mark, (RAIL - 40) / 2, 26, 40, 40, null);
         String[][] nav = {{"nav-home", "Home", "home"}, {"nav-instances", "Instances", "layers"}, {"nav-mods", "Mods", "cube"},
-                {"nav-clips", "Clips", "clip"}};
-        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.CLIPS};
+                {"nav-clips", "Clips", "clip"}, {"nav-game", "Game", "pulse"}};
+        Page[] pages = {Page.HOME, Page.INSTANCES, Page.MODS, Page.CLIPS, Page.GAME};
         String tip = null;
         int tipY = 0;
         for (int i = 0; i <= nav.length; i++) {
@@ -1070,7 +1088,7 @@ public final class LauncherView extends JPanel {
     private int topRightStart = W - 400;
 
     /** A page title in the top bar, with an optional line under it. */
-    private void pageTitle(Graphics2D g, String title, String sub) {
+    void pageTitle(Graphics2D g, String title, String sub) {
         g.setFont(interBold.deriveFont(26f));
         g.setColor(TEXT);
         g.drawString(title, CX, 52);
@@ -1089,7 +1107,7 @@ public final class LauncherView extends JPanel {
         int pw = 296, x = CX, y = 84, hw = CW - 24 - pw, hh = 372;
         paintHero(g, sel, x, y, hw, hh);
         paintProfile(g, x + hw + 24, y, pw, hh);
-        paintNewsRow(g, x, y + hh + 24, CW, H - 24 - (y + hh + 24));
+        if (!game.paintHomeCrash(g, x, y + hh + 24, CW, H - 24 - (y + hh + 24))) paintNewsRow(g, x, y + hh + 24, CW, H - 24 - (y + hh + 24));
     }
 
     /** Top bar, left: Evade's links, then the player's servers (icons, and + to add one). */
@@ -1268,6 +1286,8 @@ public final class LauncherView extends JPanel {
         else if (reason != null) { status = "Update ready: " + reason; sc = AMBER; sub = "UPDATES FIRST"; }
         else if (sel.dirty) { status = "Options changed: applied when you press Play"; sc = AMBER; sub = "UPDATES FIRST"; }
         else { status = "Up to date"; sc = OK; sub = "READY TO LAUNCH"; }
+        String[] running = game.heroStatus(sel);
+        if (running != null) { status = running[0]; sc = OK; sub = running[1]; }
         g.setFont(inter.deriveFont(13f));
         g.setColor(sc);
         g.fill(new Ellipse2D.Double(x + 1, y + 182, 8, 8));
@@ -1285,9 +1305,11 @@ public final class LauncherView extends JPanel {
         boolean ready = release != null || (releaseError != null && sel != null && sel.installed != null);
         boolean checking = release == null && releaseError == null;
         String label = checking ? "CHECKING" : sel != null && (sel.installed == null || reason != null || sel.dirty) && release != null ? "UPDATE & PLAY" : "PLAY";
+        if (running != null) label = "PLAYING";
         int by = y + h - 40 - 64;
         launchButton(g, "play", x, by, 232, 64, label, checking ? "ONE MOMENT" : sub, ready && sel != null);
         squareButton(g, "home-switch", x + 232 + 12, by, 64, "layers", "Switch instance");
+        game.heroButtons(g, sel, x + 232 + 12 + 64 + 12, by);
 
         // artwork dots
         int dx = x + w;
@@ -1343,7 +1365,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A square icon button (glass tile) beside the Play button. */
-    private void squareButton(Graphics2D g, String id, int x, int y, int s, String iconKind, String tipText) {
+    void squareButton(Graphics2D g, String id, int x, int y, int s, String iconKind, String tipText) {
         float t = anim(id, id.equals(hovered));
         g.setColor(mix(new Color(255, 255, 255, 18), new Color(255, 255, 255, 34), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 28, 28));
@@ -1413,7 +1435,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A tinted red button (secondary action on dark cards). */
-    private void accentButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
+    void accentButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
         float t = anim(id, id.equals(hovered));
         g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 80), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
@@ -1502,7 +1524,7 @@ public final class LauncherView extends JPanel {
     /** The card for a server: what its status ping says, and its address to copy. */
     private void paintServerCard(Graphics2D g, int index) {
         Launcher.Server sv = settings.servers.get(index);
-        int cw = 320, ch = 204;
+        int cw = 380, ch = 204;
         int tx = serversPillX + index * 36 + 16;
         int x = Math.max(CX, Math.min(W - 24 - cw, tx - cw / 2)), y = 72;
         raised(g, x, y, cw, ch);
@@ -1545,11 +1567,12 @@ public final class LauncherView extends JPanel {
             g.drawString(serverPinging.contains(k) ? "Checking…" : down ? "No answer (offline, or the address is wrong)" : "Not checked yet", x + 36, ly);
         }
         int by = y + ch - 56;
-        smallPrimary(g, "ov-copy", x + 20, by, 128, 36, "Copy address", "copy");
-        ghostButton(g, "ov-edit", x + 156, by, 64, 36, "Edit", false);
-        ghostButton(g, "ov-remove", x + 228, by, 72, 36, "Remove", true);
+        game.serverJoin(g, x + 20, by, 84, 36, index);
+        ghostButton(g, "ov-copy", x + 112, by, 96, 36, "Copy", false, "copy");
+        ghostButton(g, "ov-edit", x + 216, by, 64, 36, "Edit", false);
+        ghostButton(g, "ov-remove", x + 288, by, 72, 36, "Remove", true);
         hitMap.put("ov-card", new Rectangle(x, y, cw, ch));
-        for (String id : new String[]{"ov-copy", "ov-edit", "ov-remove"}) { Rectangle r = hitMap.remove(id); if (r != null) hitMap.put(id, r); }
+        for (String id : new String[]{"gp-join", "ov-copy", "ov-edit", "ov-remove"}) { Rectangle r = hitMap.remove(id); if (r != null) hitMap.put(id, r); }
     }
 
     private void paintNotices(Graphics2D g) {
@@ -1873,7 +1896,7 @@ public final class LauncherView extends JPanel {
         playButton(g, "play", x + w - 220, y + h - 88, 220, 60, "Try again", true);
     }
 
-    private void badge(Graphics2D g, int cx, int cy, String s) {
+    void badge(Graphics2D g, int cx, int cy, String s) {
         g.setColor(new Color(225, 29, 46, 40));
         g.fill(new Ellipse2D.Double(cx - 26, cy - 26, 52, 52));
         g.setColor(RED);
@@ -1914,7 +1937,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A mod's real icon (rounded), or a neutral tile with its initial while there's none; faded when switched off. */
-    private void modIcon(Graphics2D g, int x, int y, int s, String name, Image img, boolean enabled) {
+    void modIcon(Graphics2D g, int x, int y, int s, String name, Image img, boolean enabled) {
         Composite c0 = g.getComposite();
         if (!enabled) g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
         if (img != null && img.getWidth(null) > 1) {
@@ -1935,7 +1958,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A neutral rounded tile with the first letter of a name (when there's no picture). */
-    private void tile(Graphics2D g, int x, int y, int s, String name) {
+    void tile(Graphics2D g, int x, int y, int s, String name) {
         g.setColor(new Color(0x24242B));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, s * 0.6, s * 0.6));
         String letter = name == null || name.isBlank() ? "?" : name.strip().substring(0, 1).toUpperCase();
@@ -2155,9 +2178,9 @@ public final class LauncherView extends JPanel {
             }
             g.setFont(inter.deriveFont(12f));
             g.setColor(DIM);
-            String sub = (i.installed != null ? "v" + i.installed.evadeVersion() : "Not installed yet") + "  ·  " + i.modCount + " mods  ·  " + i.memoryGb + " GB";
+            String sub = (i.installed != null ? "v" + i.installed.evadeVersion() : "Not installed yet") + "  ·  " + i.modCount + " mods  ·  " + i.memoryGb + " GB" + game.playtimeShort(i);
             g.drawString(ellipsizeEnd(g, sub, lw - 130), lx + 80, y + 48);
-            statusDot(g, lx + lw - 40, y + 35, i);
+            if (!game.rowPlaying(g, lx + lw - 40, y + 35, i)) statusDot(g, lx + lw - 40, y + 35, i);
             hit(id, new Rectangle(lx + 12, y, lw - 24, 64));
             y += 70;
         }
@@ -2171,7 +2194,8 @@ public final class LauncherView extends JPanel {
     }
 
     /** An instance's tile: Evade's mark for Main, else a neutral tile with its initial. */
-    private void instanceTile(Graphics2D g, int x, int y, int s, Launcher.Instance i) {
+    void instanceTile(Graphics2D g, int x, int y, int s, Launcher.Instance i) {
+        if (game.paintIcon(g, x, y, s, i)) return;
         if (i.isDefault()) {
             g.setColor(new Color(225, 29, 46, 40));
             g.fill(new RoundRectangle2D.Double(x, y, s, s, s * 0.6, s * 0.6));
@@ -2180,7 +2204,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A settings row: the name (and a line under it) on the left, the control on the right, a hairline below. */
-    private void rowLabel(Graphics2D g, int x, int y, int h, String title, String sub, boolean last, int w) {
+    void rowLabel(Graphics2D g, int x, int y, int h, String title, String sub, boolean last, int w) {
         g.setFont(interBold.deriveFont(13.5f));
         g.setColor(TEXT);
         int ty = sub == null ? y + h / 2 + 5 : y + h / 2 - 3;
@@ -2227,13 +2251,18 @@ public final class LauncherView extends JPanel {
         ry += rh;
         boolean voice = release == null || release.voiceChat() != null, perf = release == null || !release.performance().isEmpty(), sh = release == null || release.iris() != null;
         String[][] rows = {{"inst-perf", "FPS mods", "Sodium, Lithium and friends"}, {"inst-shaders", "Shaders", "Iris with the Photon pack"},
-                {"inst-voice", "Voice chat", "Simple Voice Chat"}};
-        boolean[] val = {i.perf, i.shaders, i.voice}, av = {perf, sh, voice};
+                {"inst-voice", "Voice chat", "Simple Voice Chat"},
+                {"inst-packs", "Resource pack features", "Connected textures, custom items, entities and skies"},
+                {"inst-lights", "Dynamic lights", "Held torches light up the area"}};
+        boolean packs = release == null || !release.packFeatures().isEmpty(), lights = release == null || release.dynamicLights() != null;
+        boolean[] val = {i.perf, i.shaders, i.voice, i.packs, i.lights}, av = {perf, sh, voice, packs, lights};
+        // Rows tighten on small windows so the note and the buttons below stay clear.
+        int oh = Math.max(44, Math.min(rh - 8, (y + h - 28 - 40 - 40 - ry) / rows.length));
         for (int k = 0; k < rows.length; k++) {
-            rowLabel(g, ix, ry, rh - 8, rows[k][1], av[k] ? rows[k][2] : "Not available right now", k == rows.length - 1, iw);
-            toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + (rh - 8) / 2 - 12, val[k], av[k]);
-            if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, rh - 8));
-            ry += rh - 8;
+            rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", k == rows.length - 1, iw);
+            toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + oh / 2 - 12, val[k], av[k]);
+            if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, oh));
+            ry += oh;
         }
         g.setFont(inter.deriveFont(12f));
         g.setColor(i.dirty ? AMBER : FAINT);
@@ -2282,7 +2311,7 @@ public final class LauncherView extends JPanel {
         return paintBrowse(g, CX, y, CW, h);
     }
 
-    private void tab(Graphics2D g, String id, int x, int y, String label, int count, boolean on) {
+    void tab(Graphics2D g, String id, int x, int y, String label, int count, boolean on) {
         float t = anim(id, id.equals(hovered));
         g.setFont((on ? interBold : inter).deriveFont(13.5f));
         g.setColor(on ? TEXT : mix(DIM, TEXT, t));
@@ -2580,7 +2609,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A label with a line under it on the left and a switch on the right. Returns the y of the next row. */
-    private int toggleRow(Graphics2D g, String id, int x, int y, int w, String title, String sub, boolean on, boolean last) {
+    int toggleRow(Graphics2D g, String id, int x, int y, int w, String title, String sub, boolean on, boolean last) {
         int h = 58;
         rowLabel(g, x, y, h, title, sub, last, w);
         toggle(g, id + "-sw", x + w - 40, y + h / 2 - 10, on, true);
@@ -2690,7 +2719,7 @@ public final class LauncherView extends JPanel {
         if (roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
         boolean server = m.kind().equals("server");
-        boolean text = m.kind().equals("create") || m.kind().equals("rename") || server;
+        boolean text = m.kind().equals("create") || m.kind().equals("rename") || server || m.kind().startsWith("c:text");
         boolean create = m.kind().equals("create");
         int w = 440, h = text ? (create || server ? 346 : 256) : 200;
         int x = (W - w) / 2, y = (H - h) / 2;
@@ -2706,13 +2735,13 @@ public final class LauncherView extends JPanel {
         Rectangle field = null;
         if (text) {
             int fy = ly + 8;
-            label(g, "NAME", ix, fy + 6);
+            label(g, m.kind().startsWith("c:") ? content.fieldLabel(m) : "NAME", ix, fy + 6);
             box(g, ix, fy + 16, iw, 40);
             field = new Rectangle(ix + 12, fy + 22, iw - 24, 28);
             if (modalField.getText().isEmpty()) {
                 g.setFont(inter.deriveFont(13f));
                 g.setColor(FAINT);
-                g.drawString(server ? "Optional: shown under the icon" : "PvP, Survival, Builds…", ix + 13, fy + 41);
+                g.drawString(server ? "Optional: shown under the icon" : m.kind().startsWith("c:") ? content.fieldHint(m) : "PvP, Survival, Builds…", ix + 13, fy + 41);
             }
             if (server) {
                 label(g, "ADDRESS", ix, fy + 84);
@@ -2740,7 +2769,7 @@ public final class LauncherView extends JPanel {
                 hitMap.put("modal-copy", new Rectangle(ix, fy + 94, iw, 40));
             }
         }
-        boolean danger = m.kind().equals("delete") || m.kind().equals("remove-mod");
+        boolean danger = m.kind().equals("delete") || m.kind().equals("remove-mod") || m.kind().startsWith("c:del");
         int bw = 130;
         ghostButton(g, "modal-cancel", x + w - 28 - 2 * bw - 10, y + h - 64, bw, 40, "Cancel", false);
         if (danger) ghostButton(g, "modal-ok", x + w - 28 - bw, y + h - 64, bw, 40, m.confirm(), true, null, true);
@@ -2750,12 +2779,12 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ widgets
 
-    private void hit(String id, Rectangle r) {
+    void hit(String id, Rectangle r) {
         if (clip != null) r = r.intersection(clip);
         if (!r.isEmpty()) hitMap.put(id, r);
     }
 
-    private void scrollArea(Graphics2D g, String id, Rectangle area, int contentH) {
+    void scrollArea(Graphics2D g, String id, Rectangle area, int contentH) {
         scrollAreas.put(id, new int[]{area.x, area.y, area.width, area.height, contentH});
         float[] s = scroll.computeIfAbsent(id, k -> new float[2]);
         float max = Math.max(0, contentH - area.height);
@@ -2773,7 +2802,7 @@ public final class LauncherView extends JPanel {
         }
     }
 
-    private void memoryChips(Graphics2D g, int x, int y, int w, int value) {
+    void memoryChips(Graphics2D g, int x, int y, int w, int value) {
         int[] opts = memoryChoices;
         // one segmented control: a dark track, the chosen size filled red
         g.setColor(FIELD);
@@ -2817,7 +2846,7 @@ public final class LauncherView extends JPanel {
         }
     }
 
-    private void toggle(Graphics2D g, String id, int tx, int ry, boolean value, boolean enabled) {
+    void toggle(Graphics2D g, String id, int tx, int ry, boolean value, boolean enabled) {
         float on = anim(id + "-on", value);
         if (enabled) {
             Color off = new Color(0x2A2A31);
@@ -2856,7 +2885,7 @@ public final class LauncherView extends JPanel {
         hitMap.put(id, new Rectangle(x, y, w, h));
     }
 
-    private void bigButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
+    void bigButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
         float t = enabled ? anim(id, id.equals(hovered)) : 0;
         if (enabled) shadowGlow(g, x, y, w, h, t);
         g.setColor(enabled ? mix(RED, RED_HI, t) : new Color(0x2A1418));
@@ -2879,7 +2908,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** A compact red button, optionally with an icon before the label. */
-    private void smallPrimary(Graphics2D g, String id, int x, int y, int w, int h, String label, String iconKind) {
+    void smallPrimary(Graphics2D g, String id, int x, int y, int w, int h, String label, String iconKind) {
         float t = anim(id, id.equals(hovered));
         g.setColor(mix(RED, RED_HI, t));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 24), Math.min(h, 24)));
@@ -2893,15 +2922,15 @@ public final class LauncherView extends JPanel {
         hit(id, new Rectangle(x, y, w, h));
     }
 
-    private void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger) {
+    void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger) {
         ghostButton(g, id, x, y, w, h, label, danger, null, false);
     }
 
-    private void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind) {
+    void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind) {
         ghostButton(g, id, x, y, w, h, label, danger, iconKind, false);
     }
 
-    private void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
+    void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
         float t = anim(id, id.equals(hovered));
         Color base = solid ? new Color(0x3A1218) : new Color(0x1C1C22);
         int r = Math.min(h, 24);
@@ -2925,7 +2954,7 @@ public final class LauncherView extends JPanel {
         hit(id, new Rectangle(x, y, w, h));
     }
 
-    private void smallButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
+    void smallButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
         float hc = anim(id, id.equals(hovered));
         g.setColor(mix(new Color(0x24242B), new Color(0x2E2E36), hc));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 20), Math.min(h, 20)));
@@ -2935,7 +2964,7 @@ public final class LauncherView extends JPanel {
         hit(id, new Rectangle(x, y, w, h));
     }
 
-    private void iconButton(Graphics2D g, String id, int x, int y, int s, String kind, boolean danger) {
+    void iconButton(Graphics2D g, String id, int x, int y, int s, String kind, boolean danger) {
         float t = anim(id, id.equals(hovered));
         g.setColor(mix(new Color(255, 255, 255, 0), danger ? new Color(225, 29, 46, 60) : new Color(255, 255, 255, 24), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 9, 9));
@@ -2944,7 +2973,7 @@ public final class LauncherView extends JPanel {
     }
 
     /** Underline-free text link. align: 0 left, 1 right, 2 centred on x. */
-    private void textLink(Graphics2D g, String id, String s, int x, int y, int align) {
+    void textLink(Graphics2D g, String id, String s, int x, int y, int align) {
         float t = anim(id, id.equals(hovered));
         g.setFont(inter.deriveFont(12f));
         int w = g.getFontMetrics().stringWidth(s);
@@ -3005,14 +3034,14 @@ public final class LauncherView extends JPanel {
         g.drawString(name, x + 32, y + 15);
     }
 
-    private void box(Graphics2D g, int x, int y, int w, int h) {
+    void box(Graphics2D g, int x, int y, int w, int h) {
         g.setColor(FIELD);
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 20, 20));
         g.setColor(HAIRLINE);
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 20, 20));
     }
 
-    private void label(Graphics2D g, String s, int x, int y) {
+    void label(Graphics2D g, String s, int x, int y) {
         g.setFont(interBold.deriveFont(10f));
         g.setColor(FAINT);
         spaced(g, s, x, y, 1.4f);
@@ -3213,6 +3242,11 @@ public final class LauncherView extends JPanel {
                 p.moveTo(-8, 6.5); p.lineTo(-8, -6.5); p.lineTo(-2.5, -6.5); p.lineTo(-0.5, -4); p.lineTo(8, -4); p.lineTo(8, 6.5); p.closePath();
                 q.draw(p);
             }
+            case "pulse" -> {
+                Path2D p = new Path2D.Double();
+                p.moveTo(-9, 0); p.lineTo(-4.5, 0); p.lineTo(-2, -6.5); p.lineTo(2, 6.5); p.lineTo(4.5, 0); p.lineTo(9, 0);
+                q.draw(p);
+            }
             case "download" -> {
                 q.setStroke(new BasicStroke(2.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 q.draw(new Line2D.Double(0, -8, 0, 3));
@@ -3228,7 +3262,7 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ text helpers
 
-    private void spaced(Graphics2D g, String s, int x, int y, float spacing) {
+    void spaced(Graphics2D g, String s, int x, int y, float spacing) {
         float cx = x;
         FontMetrics fm = g.getFontMetrics();
         for (char c : s.toCharArray()) {
@@ -3237,7 +3271,7 @@ public final class LauncherView extends JPanel {
         }
     }
 
-    private static void center(Graphics2D g, String s, int x, int y, int w, int h) {
+    static void center(Graphics2D g, String s, int x, int y, int w, int h) {
         FontMetrics fm = g.getFontMetrics();
         g.drawString(s, x + (w - fm.stringWidth(s)) / 2f, y + (h - fm.getHeight()) / 2f + fm.getAscent());
     }
@@ -3289,7 +3323,7 @@ public final class LauncherView extends JPanel {
         return e;
     }
 
-    private static String ellipsize(Graphics2D g, String s, int w) {
+    static String ellipsize(Graphics2D g, String s, int w) {
         FontMetrics fm = g.getFontMetrics();
         if (fm.stringWidth(s) <= w) return s;
         String e = "…";
@@ -3302,7 +3336,7 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ misc
 
-    private float anim(String id, boolean target) {
+    float anim(String id, boolean target) {
         float to = target ? 1f : 0f;
         float v = hover.getOrDefault(id, to);
         v += (to - v) * 0.22f;

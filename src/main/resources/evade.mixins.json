@@ -11,6 +11,11 @@
     "FogRendererMixin",
     "GameRendererMixin",
     "InGameHudMixin",
+    "InGameHudTextAccessor",
+    "HudTextPlacementMixin",
+    "SubtitlesHudAccessor",
+    "SubtitleEntryAccessor",
+    "SubtitlesPlacementMixin",
     "InGameOverlayRendererMixin",
     "ItemCooldownManagerAccessor",
     "MouseMixin",
@@ -100,7 +105,8 @@
     "WindowTitleMixin",
     "RenderScaleClientMixin",
     "RenderScaleGameRendererMixin",
-    "RenderScaleWorldRendererAccessor"
+    "RenderScaleWorldRendererAccessor",
+    "ChatScreenEvadeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

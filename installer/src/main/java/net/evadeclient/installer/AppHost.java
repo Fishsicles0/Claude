@@ -34,6 +34,9 @@ final class AppHost {
         boolean minimized = args.contains("--minimized"), clipsFirst = args.contains("--clips");
         Settings cs = Settings.load();
         // Already running (this program, or an old one without the lock): bring it forward and stop here.
+        // Another Evade Launcher (this program) already runs: show it and stop here. Only the old separate app is
+        // ever closed; a running launcher is never mistaken for it.
+        if (otherLauncherRunning(cs.controlPort) && ClipsApp.alreadyRunning(cs.controlPort, minimized)) { System.exit(0); return; }
         Path legacy = legacyRunningApp();
         if (legacy == null && ClipsApp.alreadyRunning(cs.controlPort, minimized)) { System.exit(0); return; }
 
@@ -104,15 +107,63 @@ final class AppHost {
      * Null when the old app wouldn't close. Runs off the UI thread (closing can take several seconds).
      */
     static synchronized App takeOver() {
-        Path legacy = legacyRunningApp();
-        if (legacy != null) closeLegacy(legacy);
-        if (!lock(40)) return null;
         Settings cs = Settings.load();
-        if (ClipsApp.alreadyRunning(cs.controlPort, true)) return null;
+        // Ask whatever answers on the Clips port to quit cleanly first (the old app, or an older launcher copy that
+        // hosts Clips): it saves its buffer and lets go of the lock. Then close the old app by its file, if any.
+        askToQuit(cs.controlPort);
+        if (!lock(32)) {
+            Path legacy = legacyRunningApp();
+            if (legacy != null) closeLegacy(legacy);
+            if (!lock(40)) return null;
+        }
+        if (ClipsApp.alreadyRunning(cs.controlPort, true)) {
+            askToQuit(cs.controlPort);
+            for (int i = 0; i < 20 && ClipsApp.alreadyRunning(cs.controlPort, true); i++) {
+                try { Thread.sleep(250); } catch (InterruptedException e) { return null; }
+            }
+            if (ClipsApp.alreadyRunning(cs.controlPort, true)) return null;
+        }
         return startClips(cs);
     }
 
+    /** What answers on the Clips port: its /status body, or null when nothing does. */
+    private static String clipsStatus(int port) {
+        try {
+            var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofMillis(700)).build();
+            var r = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/status"))
+                    .timeout(java.time.Duration.ofSeconds(2)).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+            return r.statusCode() == 200 && r.body().contains("Evade Clips") ? r.body() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** True when the Clips on the port is hosted by another Evade Launcher (v2.3+), not the old separate app. */
+    static boolean otherLauncherRunning(int port) {
+        String st = clipsStatus(port);
+        return st != null && st.replace(" ", "").contains("\"host\":\"launcher\"");
+    }
+
+    /** Asks the Clips on the port to save and quit (it refuses while a manual recording runs). */
+    private static void askToQuit(int port) {
+        if (clipsStatus(port) == null || otherLauncherRunning(port)) return;
+        try {
+            var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofMillis(700)).build();
+            http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + port + "/quit"))
+                    .timeout(java.time.Duration.ofSeconds(3)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build(),
+                    java.net.http.HttpResponse.BodyHandlers.discarding());
+        } catch (Exception ignored) { }
+    }
+
     private static boolean haveLock;
+
+    /** True when nobody holds the Clips lock (taking it for a moment, then letting go). */
+    private static boolean lockFree() {
+        if (haveLock) return true;
+        if (!ClipsApp.acquireInstanceLock()) return false;
+        ClipsApp.releaseInstanceLock();
+        return true;
+    }
 
     private static boolean lock(int tries) {
         if (haveLock) return true;
@@ -145,6 +196,11 @@ final class AppHost {
 
     /** The separate app, when location.json says it's what runs (it writes the file when it starts). */
     static Path legacyRunningApp() {
+        // location.json stays behind after the old app quits: it only counts while something really holds Clips
+        // (the lock or the port) and that something isn't an Evade Launcher.
+        int port = Settings.load().controlPort;
+        if (otherLauncherRunning(port)) return null;
+        if (clipsStatus(port) == null && lockFree()) return null;
         var loc = InstallerCore.readJsonObject(InstallerCore.clipsDataDir().resolve("location.json"));
         for (String k : new String[]{"exe", "jar"}) {
             String v = InstallerCore.str(loc, k);

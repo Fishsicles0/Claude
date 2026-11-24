@@ -76,6 +76,9 @@ public final class LibraryPanel extends JPanel {
     private final Map<String, JToggleButton> filters = new java.util.LinkedHashMap<>();
     private String filter = "all";
     private final Grid grid = new Grid();
+    /** The Screenshots filter shows the game's screenshots instead of clips. */
+    private final ShotsGrid shots;
+    private JScrollPane scroll;
     private final JLabel count = Theme.label("", 12f, false, Theme.DIM);
     private final JLabel storage = Theme.label("", 12f, false, Theme.DIM);
     private final Set<String> selected = new LinkedHashSet<>();
@@ -121,6 +124,7 @@ public final class LibraryPanel extends JPanel {
     public LibraryPanel(App app) {
         super(new BorderLayout());
         this.app = app;
+        shots = new ShotsGrid(app);
         setBackground(Theme.PANEL);
 
         // Header
@@ -181,7 +185,7 @@ public final class LibraryPanel extends JPanel {
         header.add(Box.createVerticalStrut(10));
 
         JPanel chips = row();
-        for (String[] f : new String[][]{{"all", "All"}, {"favorites", "★ Favorites"}, {"replays", "Replays"}, {"recordings", "Recordings"}, {"exports", "Exports"}, {"imports", "Imported"}}) {
+        for (String[] f : new String[][]{{"all", "All"}, {"favorites", "★ Favorites"}, {"replays", "Replays"}, {"recordings", "Recordings"}, {"exports", "Exports"}, {"imports", "Imported"}, {"screenshots", "Screenshots"}}) {
             JToggleButton b = new JToggleButton(f[1], f[0].equals("all"));
             b.setRequestFocusEnabled(false); // Tab reaches the filters; a click doesn't take focus
             b.putClientProperty("JButton.buttonType", "roundRect");
@@ -190,6 +194,8 @@ public final class LibraryPanel extends JPanel {
             b.addActionListener(e -> {
                 filter = f[0];
                 filters.values().forEach(x -> x.setSelected(x == b));
+                java.awt.Component view = filter.equals("screenshots") ? shots : grid;
+                if (scroll.getViewport().getView() != view) { scroll.setViewportView(view); scroll.getViewport().setBackground(Theme.PANEL); }
                 refresh();
             });
             filters.put(f[0], b);
@@ -200,7 +206,7 @@ public final class LibraryPanel extends JPanel {
         header.add(chips);
         add(header, BorderLayout.NORTH);
 
-        JScrollPane scroll = new JScrollPane(grid);
+        scroll = new JScrollPane(grid);
         scroll.setBorder(null);
         scroll.getVerticalScrollBar().setUnitIncrement(24);
         scroll.getViewport().setBackground(Theme.PANEL);
@@ -359,6 +365,12 @@ public final class LibraryPanel extends JPanel {
         game.setSelectedItem(cur != null && (games.contains(cur) || "All games".equals(cur)) ? cur : "All games");
         updatingGames = false;
 
+        if (filter.equals("screenshots")) {
+            selected.clear(); // clip shortcuts (Delete, Ctrl+A) never act on hidden clips
+            shots.reload(search.getText(), (String) sort.getSelectedItem());
+            count.setText(shots.countText());
+            return;
+        }
         String g = game.getSelectedItem() == null || "All games".equals(game.getSelectedItem()) ? null : (String) game.getSelectedItem();
         String leadId = lead >= 0 && lead < shown.size() ? shown.get(lead).id : null;
         String anchorId = anchor >= 0 && anchor < shown.size() ? shown.get(anchor).id : null;

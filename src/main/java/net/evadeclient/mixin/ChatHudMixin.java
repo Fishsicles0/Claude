@@ -49,7 +49,15 @@ public abstract class ChatHudMixin {
      * exactly as vanilla would.
      */
     @WrapMethod(method = ADD_MESSAGE)
-    private void evade$betterChat(Text message, MessageSignatureData signature, MessageIndicator indicator, Operation<Void> original) {
+    private void evade$betterChat(Text received, MessageSignatureData signature, MessageIndicator indicator, Operation<Void> original) {
+        // Friend Colours and Hypixel Stats' chat stat first (display only), then BetterChat.
+        Text message = received;
+        try {
+            message = net.evadeclient.module.misc.HypixelStats.chatDecorate(net.evadeclient.social.FriendColors.chat(received));
+        } catch (RuntimeException e) {
+            if (!evade$warned) EvadeClient.LOG.error("Could not colour friends in a chat line", e);
+            evade$warned = true;
+        }
         BetterChat bc = message == null ? null : BetterChat.active();
         BetterChat.Prepared p = null;
         if (bc != null) {
@@ -61,7 +69,20 @@ public abstract class ChatHudMixin {
             }
         }
         if (p == null) {
-            original.call(message, signature, indicator);
+            if (message == received) {
+                original.call(message, signature, indicator);
+                return;
+            }
+            Text prevRaw = evade$undecorated;
+            MessageIndicator prevIndicator = evade$rawIndicator;
+            evade$undecorated = received;
+            evade$rawIndicator = indicator;
+            try {
+                original.call(message, signature, indicator);
+            } finally {
+                evade$undecorated = prevRaw;
+                evade$rawIndicator = prevIndicator;
+            }
             return;
         }
         if (p.stackIndex() >= 0 && p.stackIndex() < messages.size() && messages.get(p.stackIndex()) == p.replaces()) {
@@ -70,7 +91,7 @@ public abstract class ChatHudMixin {
         ChatHudLine before = messages.isEmpty() ? null : messages.getFirst();
         Text prevRaw = evade$undecorated;
         MessageIndicator prevIndicator = evade$rawIndicator;
-        evade$undecorated = message;
+        evade$undecorated = received;
         evade$rawIndicator = indicator;
         try {
             original.call(p.text(), signature, p.indicator());

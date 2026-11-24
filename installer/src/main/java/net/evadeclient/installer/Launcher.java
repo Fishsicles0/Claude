@@ -44,7 +44,7 @@ final class Launcher {
         String selected = DEFAULT_ID; // instance Play starts
         int defaultMemoryGb = InstallerCore.clampMemory(InstallerCore.recommendedMemory());
         String javaPath = "";         // blank: the Minecraft Launcher's own Java
-        boolean closeOnPlay = true;
+        boolean closeOnPlay = false; // the launcher stays open after Play unless the player turns this on
         boolean checkUpdates = true;
         boolean clips = true;         // ffmpeg for the built-in Evade Clips (older launchers: install the separate app)
         String clipsVersion;          // the separate Evade Clips version installed last (older launchers)
@@ -83,7 +83,7 @@ final class Launcher {
         if (InstallerCore.str(o, "selected") != null) s.selected = InstallerCore.str(o, "selected");
         try { if (o.has("defaultMemoryGb")) s.defaultMemoryGb = InstallerCore.clampMemory(o.get("defaultMemoryGb").getAsInt()); } catch (RuntimeException ignored) { }
         if (InstallerCore.str(o, "javaPath") != null) s.javaPath = InstallerCore.str(o, "javaPath");
-        s.closeOnPlay = bool(o, "closeOnPlay", true);
+        s.closeOnPlay = bool(o, "hideOnPlay", false); // new key: older installs saved closeOnPlay=true by default, so they start open again
         s.checkUpdates = bool(o, "checkUpdates", true);
         s.clips = bool(o, "clips", true);
         s.clipsVersion = InstallerCore.str(o, "clipsVersion");
@@ -107,7 +107,7 @@ final class Launcher {
         o.addProperty("selected", s.selected);
         o.addProperty("defaultMemoryGb", s.defaultMemoryGb);
         o.addProperty("javaPath", s.javaPath == null ? "" : s.javaPath);
-        o.addProperty("closeOnPlay", s.closeOnPlay);
+        o.addProperty("hideOnPlay", s.closeOnPlay);
         o.addProperty("checkUpdates", s.checkUpdates);
         o.addProperty("clips", s.clips);
         if (s.clipsVersion != null) o.addProperty("clipsVersion", s.clipsVersion);
@@ -142,6 +142,8 @@ final class Launcher {
         String name;
         int memoryGb;
         boolean perf = true, shaders = false, voice = true;
+        /** Resource pack features (connected textures, CIT, ETF/EMF, skies; on by default) and dynamic lights (off). */
+        boolean packs = true, lights = false;
         /** Options changed since the last install: Play brings the folder in line first. */
         boolean dirty;
         String created;
@@ -201,6 +203,8 @@ final class Launcher {
                 i.perf = notBlank(InstallerCore.str(marker, "performanceMods"));
                 i.voice = notBlank(InstallerCore.str(marker, "voiceChat"));
                 i.shaders = notBlank(InstallerCore.str(marker, "shaders"));
+                if (marker.has("packFeatures")) i.packs = notBlank(InstallerCore.str(marker, "packFeatures"));
+                i.lights = notBlank(InstallerCore.str(marker, "dynamicLights"));
             }
             i.memoryGb = profileMemory(s.minecraftDir(), i.profileKey(), s.defaultMemoryGb);
         } else {
@@ -208,6 +212,8 @@ final class Launcher {
             i.perf = bool(o, "perf", true);
             i.shaders = bool(o, "shaders", false);
             i.voice = bool(o, "voice", true);
+            i.packs = bool(o, "packs", true);
+            i.lights = bool(o, "lights", false);
             i.dirty = bool(o, "dirty", false);
             i.created = InstallerCore.str(o, "created");
             i.javaDirWritten = InstallerCore.str(o, "javaDir");
@@ -228,7 +234,7 @@ final class Launcher {
 
     /** Works out {@link Instance#pending} against the release on evadeclient.com (unknown while it's being checked). */
     static void check(Instance i, InstallerCore.Release r) {
-        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders);
+        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders, i.packs, i.lights);
     }
 
     static void save(Instance i) throws IOException {
@@ -238,6 +244,8 @@ final class Launcher {
         o.addProperty("perf", i.perf);
         o.addProperty("shaders", i.shaders);
         o.addProperty("voice", i.voice);
+        o.addProperty("packs", i.packs);
+        o.addProperty("lights", i.lights);
         o.addProperty("dirty", i.dirty);
         o.addProperty("created", i.created != null ? i.created : Instant.now().toString());
         if (i.javaDirWritten != null) o.addProperty("javaDir", i.javaDirWritten);
@@ -336,9 +344,11 @@ final class Launcher {
         i.perf = src.perf;
         i.shaders = src.shaders;
         i.voice = src.voice;
+        i.packs = src.packs;
+        i.lights = src.lights;
         i.dirty = src.dirty;
         i.created = Instant.now().toString();
-        copyTree(src.dir, i.dir, Set.of("logs", "crash-reports", ".evade-staging", INSTANCE_FILE, "debug", "screenshots"));
+        copyTree(src.dir, i.dir, Set.of("logs", "crash-reports", ".evade-staging", INSTANCE_FILE, "debug", "screenshots", GameState.DIR));
         save(i);
         refresh(i);
         return i;
@@ -379,7 +389,7 @@ final class Launcher {
             else if (i.javaDirWritten != null) java = "";
         }
         return new InstallerCore.Options(s.minecraftDir(), i.dir, i.memoryGb, copySettings, i.voice, i.perf, updateClips, i.shaders,
-                i.profileKey(), i.profileName(), java);
+                i.profileKey(), i.profileName(), java, i.packs, i.lights);
     }
 
     /** Copies a folder tree, leaving out top-level entries named in {@code skip}. */

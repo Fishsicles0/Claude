@@ -139,6 +139,15 @@ public abstract class Module {
     public List<Setting<?>> getSettings() { return settings; }
     public int getKey() { return key; }
     public void setKey(int key) { this.key = key; }
+
+    /** Hold mode: the mod is on only while its key is held (instead of each press toggling it). */
+    private boolean holdBind;
+    /** Modifier keys the bind needs held with its key, as {@link net.evadeclient.util.Keybinds} flags. */
+    private int bindMods;
+    public boolean isHoldBind() { return holdBind; }
+    public void setHoldBind(boolean hold) { this.holdBind = hold; }
+    public int getBindMods() { return bindMods; }
+    public void setBindMods(int mods) { this.bindMods = mods & net.evadeclient.util.Keybinds.ALL_MODS; }
     public boolean isVisible() { return visible; }
     protected void setVisible(boolean visible) { this.visible = visible; }
 }

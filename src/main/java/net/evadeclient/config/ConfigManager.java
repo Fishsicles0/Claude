@@ -48,6 +48,7 @@ public class ConfigManager {
     /** Each module's state before any config touched it, captured on first use: enabled, and x/y for HUD elements. */
     private final Map<String, Boolean> defaultEnabled = new HashMap<>();
     private final Map<String, int[]> defaultPos = new HashMap<>();
+    private final Map<String, Integer> defaultKey = new HashMap<>();
     private boolean defaultsCaptured;
 
     public ConfigManager() {
@@ -78,6 +79,8 @@ public class ConfigManager {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", m.isEnabled());
             obj.addProperty("key", m.getKey());
+            if (m.isHoldBind()) obj.addProperty("bindMode", "hold");
+            if (m.getBindMods() != 0) obj.addProperty("bindMods", m.getBindMods());
             JsonObject settings = new JsonObject();
             for (Setting<?> s : m.getSettings()) settings.add(s.getName(), s.toJson());
             obj.add("settings", settings);
@@ -184,6 +187,15 @@ public class ConfigManager {
                 EvadeClient.LOG.warn("Ignored a broken keybind for {}", m.getName());
             }
         }
+        // Bind mode and modifiers travel with the key: a config without them is a plain toggle bind.
+        if (key != null) {
+            JsonElement mode = obj.get("bindMode");
+            m.setHoldBind(mode != null && mode.isJsonPrimitive() && "hold".equalsIgnoreCase(mode.getAsString()));
+            JsonElement mods = obj.get("bindMods");
+            int bm = 0;
+            try { if (mods != null) bm = mods.getAsInt(); } catch (RuntimeException ignored) {}
+            m.setBindMods(bm);
+        }
         JsonElement saved = obj.get("settings");
         if (saved != null && saved.isJsonObject()) {
             JsonObject settings = saved.getAsJsonObject();
@@ -247,6 +259,7 @@ public class ConfigManager {
         defaultsCaptured = true;
         for (Module m : EvadeClient.modules.all()) {
             defaultEnabled.put(m.getName(), m.isEnabled());
+            defaultKey.put(m.getName(), m.getKey());
             if (m instanceof HudElementModule h) defaultPos.put(m.getName(), new int[]{h.x, h.y});
         }
     }
@@ -255,6 +268,12 @@ public class ConfigManager {
     boolean defaultEnabled(Module m) {
         captureDefaults();
         return defaultEnabled.getOrDefault(m.getName(), false);
+    }
+
+    /** {@code m}'s toggle key in a fresh install (what the Keybinds page's Reset puts back). */
+    public int defaultKey(Module m) {
+        captureDefaults();
+        return defaultKey.getOrDefault(m.getName(), GLFW.GLFW_KEY_UNKNOWN);
     }
 
     /** Where a HUD element sits in a fresh install, as {x, y}. */

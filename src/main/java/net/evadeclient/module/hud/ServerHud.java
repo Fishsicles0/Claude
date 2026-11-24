@@ -132,6 +132,13 @@ public class ServerHud extends TextHudModule {
         String address = trimAddress(entry.address);
         String name = serverName(entry);
         if (address.isEmpty()) address = name != null ? name : "Multiplayer";
+        if (net.evadeclient.module.misc.StreamerMode.hidesServerAddress()) {
+            // Streamer Mode: the list name only, unless that name is itself the address.
+            boolean nameIsAddress = name == null || entry.address == null || name.equalsIgnoreCase(address)
+                    || name.equalsIgnoreCase(entry.address.strip());
+            out.add(new Part(nameIsAddress ? "Multiplayer" : name));
+            return;
+        }
         switch (show.get()) {
             case "Server Name" -> out.add(new Part(name != null ? name : address));
             case "Name + Address" -> {

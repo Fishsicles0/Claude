@@ -77,11 +77,31 @@ public final class InstallerCore {
             {"fastquit", "FastQuit", "fastquit"},
     };
     /**
+     * Resource pack features (on by default): mods that read the extra pack formats many resource packs use, so those
+     * packs look as their artists made them. Connected and emissive textures, custom item textures, random and emissive
+     * entity textures, custom entity models, and custom skies. All are client-side rendering only, and all come from
+     * Modrinth at install time (LGPL, MIT and GPL; never hosted by us). Skyboxify brings YACL as a library.
+     */
+    private static final String[][] PACK_FEATURES = {
+            {"continuity", "Continuity", "continuity"},
+            {"cit-resewn-continuation", "CIT Resewn", "citresewn"},
+            {"entitytexturefeatures", "Entity Texture Features", "entity_texture_features", "entitytexturefeatures"},
+            {"entity-model-features", "Entity Model Features", "entity_model_features", "entitymodelfeatures"},
+            {"skyboxify", "Skyboxify", "skyboxify"},
+    };
+    /**
+     * Dynamic lights (off by default): held torches and glowing items light up what you can already see. Custom
+     * Lambda License, so it's only ever downloaded from Modrinth when the player turns it on.
+     */
+    private static final String[] DYNAMIC_LIGHTS = {"lambdynamiclights", "LambDynamicLights", "lambdynamiclights"};
+    /**
      * Every mod the installer adds besides Fabric API and Evade, with the filename prefixes of its jars. A jar belongs
      * to the entry with the longest matching prefix, so "sodium" never claims Sodium Extra's jar.
      */
     private static final List<String[]> KNOWN = new ArrayList<>(List.of(PERF));
     static {
+        KNOWN.addAll(List.of(PACK_FEATURES));
+        KNOWN.add(DYNAMIC_LIGHTS);
         KNOWN.add(new String[]{"iris", "Iris", "iris"});
         KNOWN.add(new String[]{"simple-voice-chat", "Simple Voice Chat", "voicechat"});
     }
@@ -91,7 +111,8 @@ public final class InstallerCore {
     private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "photon-shader", LIGHT_PACK = "complementary-reimagined";
     private static final String USER_AGENT = "EvadeLauncher/2.0 (+https://evadeclient.com)";
     /** Groups of extra mods, recorded per file in the install marker. */
-    private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders";
+    private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders",
+            PACKS_GROUP = "packs", LIGHTS_GROUP = "lights";
 
 
     public interface Progress {
@@ -157,7 +178,15 @@ public final class InstallerCore {
      */
     public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                           boolean performanceMods, boolean installClips, boolean shaders,
-                          String profileKey, String profileName, String javaDir) {
+                          String profileKey, String profileName, String javaDir,
+                          boolean packFeatures, boolean dynamicLights) {
+        /** Resource pack features on and dynamic lights off: the defaults. */
+        public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                       boolean performanceMods, boolean installClips, boolean shaders,
+                       String profileKey, String profileName, String javaDir) {
+            this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, shaders,
+                    profileKey, profileName, javaDir, true, false);
+        }
         public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                        boolean performanceMods, boolean installClips, boolean shaders) {
             this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, shaders,
@@ -174,7 +203,18 @@ public final class InstallerCore {
                           String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
                           ModFile voiceChat, java.util.List<ModFile> performance,
                           String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
-                          ModFile iris, ModFile irisSodium, ModFile shaderPack) {}
+                          ModFile iris, ModFile irisSodium, ModFile shaderPack,
+                          java.util.List<ModFile> packFeatures, ModFile dynamicLights) {
+        public Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
+                       String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
+                       ModFile voiceChat, java.util.List<ModFile> performance,
+                       String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
+                       ModFile iris, ModFile irisSodium, ModFile shaderPack) {
+            this(evadeVersion, evadeUrl, evadeSha256, loaderVersion, fabricApiVersion, fabricApiUrl, fabricApiSha512, fabricApiFile,
+                    voiceChat, performance, clipsVersion, clipsUrl, clipsSha256, ffmpegUrl, ffmpegShaUrl, iris, irisSodium, shaderPack,
+                    java.util.List.of(), null);
+        }
+    }
 
     /** A mod file on Modrinth, with the project ids of the mods it needs. */
     public record ModFile(String name, String version, String url, String sha512, String filename,
@@ -286,35 +326,11 @@ public final class InstallerCore {
         ModFile voice = null;
         try { voice = latestOnModrinth("Simple Voice Chat", SVC + query); } catch (Exception e) { /* optional: install without voice chat */ }
 
-        java.util.List<ModFile> perf = new java.util.ArrayList<>();
-        for (String[] m : PERF) {
-            try {
-                ModFile f = latestOnModrinth(m[1], "https://api.modrinth.com/v2/project/" + m[0] + "/version" + query);
-                if (f != null) perf.add(f);
-            } catch (Exception e) { /* optional: skip that one */ }
-        }
-        // Libraries those mods need (e.g. Cloth Config for MoreCulling), resolved from Modrinth's dependency lists.
-        Set<String> have = new HashSet<>(), missing = new HashSet<>();
-        for (ModFile f : perf) have.add(f.projectId());
-        for (int i = 0; i < perf.size(); i++) {
-            for (String dep : perf.get(i).requires()) {
-                if (dep == null || dep.equals(FABRIC_API_ID) || have.contains(dep) || missing.contains(dep)) continue;
-                try {
-                    String title = str(getJson("https://api.modrinth.com/v2/project/" + dep).getAsJsonObject(), "title");
-                    ModFile lib = latestOnModrinth(title != null ? title : dep, "https://api.modrinth.com/v2/project/" + dep + "/version" + query);
-                    if (lib != null) { perf.add(lib); have.add(dep); } else missing.add(dep);
-                } catch (Exception e) {
-                    missing.add(dep);
-                }
-            }
-        }
-        // Minecraft refuses to start when a mod's required library is missing, so a mod whose library couldn't be
-        // found is left out (and so is anything that needs that mod).
-        for (boolean changed = true; changed; ) {
-            Set<String> ids = new HashSet<>();
-            for (ModFile f : perf) ids.add(f.projectId());
-            changed = perf.removeIf(f -> f.requires().stream().anyMatch(d -> d != null && !d.equals(FABRIC_API_ID) && !ids.contains(d)));
-        }
+        java.util.List<ModFile> perf = modsWithLibraries(PERF, query);
+        java.util.List<ModFile> packFeatures = modsWithLibraries(PACK_FEATURES, query);
+        java.util.List<ModFile> lightsList = modsWithLibraries(new String[][]{DYNAMIC_LIGHTS}, query);
+        // LambDynamicLights only needs Fabric API; anything more (a library we couldn't add) leaves it out.
+        ModFile dynamicLights = lightsList.size() == 1 ? lightsList.get(0) : null;
 
         // Shaders (optional): Iris, the exact Sodium build it asks for, and the Photon shader pack (Complementary Reimagined is added beside it as a lighter choice).
         ModFile iris = null, irisSodium = null, pack = null;
@@ -355,7 +371,42 @@ public final class InstallerCore {
             }
         }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, apiVersion, apiUrl, apiSha, apiFile, voice, perf,
-                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack);
+                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights);
+    }
+
+    /**
+     * The newest build of each listed mod for this Minecraft version, plus the libraries they need (e.g. Cloth Config
+     * for MoreCulling), resolved from Modrinth's dependency lists. A mod with no build is skipped, and so is one whose
+     * library couldn't be found: Minecraft refuses to start when a required library is missing.
+     */
+    private java.util.List<ModFile> modsWithLibraries(String[][] list, String query) {
+        java.util.List<ModFile> out = new java.util.ArrayList<>();
+        for (String[] m : list) {
+            try {
+                ModFile f = latestOnModrinth(m[1], "https://api.modrinth.com/v2/project/" + m[0] + "/version" + query);
+                if (f != null) out.add(f);
+            } catch (Exception e) { /* optional: skip that one */ }
+        }
+        Set<String> have = new HashSet<>(), missing = new HashSet<>();
+        for (ModFile f : out) have.add(f.projectId());
+        for (int i = 0; i < out.size(); i++) {
+            for (String dep : out.get(i).requires()) {
+                if (dep == null || dep.equals(FABRIC_API_ID) || have.contains(dep) || missing.contains(dep)) continue;
+                try {
+                    String title = str(getJson("https://api.modrinth.com/v2/project/" + dep).getAsJsonObject(), "title");
+                    ModFile lib = latestOnModrinth(title != null ? title : dep, "https://api.modrinth.com/v2/project/" + dep + "/version" + query);
+                    if (lib != null) { out.add(lib); have.add(dep); } else missing.add(dep);
+                } catch (Exception e) {
+                    missing.add(dep);
+                }
+            }
+        }
+        for (boolean changed = true; changed; ) {
+            Set<String> ids = new HashSet<>();
+            for (ModFile f : out) ids.add(f.projectId());
+            changed = out.removeIf(f -> f.requires().stream().anyMatch(d -> d != null && !d.equals(FABRIC_API_ID) && !ids.contains(d)));
+        }
+        return out;
     }
 
     /** Newest release for this Minecraft version (falling back to the newest beta), or null if there's none. */
@@ -590,6 +641,11 @@ public final class InstallerCore {
         for (ModFile f : perfList) if (SODIUM_ID.equals(f.projectId())) perfSodium = f;
         boolean perfOn = o.performanceMods(), voiceOn = o.voiceChat(), shadersOn = o.shaders();
         boolean perfAvail = !perfList.isEmpty(), voiceAvail = r.voiceChat() != null;
+        List<ModFile> packList = r.packFeatures() == null ? List.of() : r.packFeatures();
+        boolean packsOn = o.packFeatures(), lightsOn = o.dynamicLights();
+        boolean packsAvail = !packList.isEmpty(), lightsAvail = r.dynamicLights() != null;
+        if (packsOn && !packsAvail) skipped.add("Resource pack features aren't available right now");
+        if (lightsOn && !lightsAvail) skipped.add("Dynamic lights aren't available right now");
         ModFile irisSodium = r.irisSodium() != null ? r.irisSodium() : perfOn ? perfSodium : null;
         boolean shadersGo = shadersOn && r.iris() != null && irisSodium != null;
         if (perfOn && !perfAvail) skipped.add("FPS mods aren't available right now");
@@ -602,6 +658,8 @@ public final class InstallerCore {
         if (perfOn && !perfAvail) keepGroups.add(PERF_GROUP);
         if (voiceOn && !voiceAvail) keepGroups.add(VOICE_GROUP);
         if (shadersOn && !shadersGo) keepGroups.add(SHADERS_GROUP);
+        if (packsOn && !packsAvail) keepGroups.add(PACKS_GROUP);
+        if (lightsOn && !lightsAvail) keepGroups.add(LIGHTS_GROUP);
 
         List<Extra> wanted = new ArrayList<>();
         if (perfOn) for (ModFile f : perfList) wanted.add(new Extra(f, PERF_GROUP));
@@ -615,6 +673,8 @@ public final class InstallerCore {
             wanted.removeIf(e -> SODIUM_ID.equals(e.file().projectId()));
         }
         if (voiceOn && voiceAvail) wanted.add(new Extra(r.voiceChat(), VOICE_GROUP));
+        if (packsOn) for (ModFile f : packList) wanted.add(new Extra(f, PACKS_GROUP));
+        if (lightsOn && lightsAvail) wanted.add(new Extra(r.dynamicLights(), LIGHTS_GROUP));
         Set<String> seen = new HashSet<>();
         wanted.removeIf(e -> e.file().projectId() != null && !seen.add(e.file().projectId()));
         Map<String, String> names = new HashMap<>();
@@ -681,8 +741,8 @@ public final class InstallerCore {
         // C. Swap in what arrived.
         JsonArray added = new JsonArray();
         JsonObject groups = new JsonObject(), projects = new JsonObject();
-        List<String> perfNames = new ArrayList<>();
-        String voiceVersion = "";
+        List<String> perfNames = new ArrayList<>(), packNames = new ArrayList<>();
+        String voiceVersion = "", lightsVersion = "";
         boolean irisReady = false;
         Set<Extra> swapFailed = new HashSet<>();
         for (var en : fetched.entrySet()) {
@@ -702,6 +762,8 @@ public final class InstallerCore {
             record(added, groups, projects, name, en.getKey().group(), f.projectId());
             if (en.getKey().group().equals(VOICE_GROUP)) voiceVersion = f.version();
             else if (en.getKey().group().equals(PERF_GROUP)) perfNames.add(f.name() + " " + f.version());
+            else if (en.getKey().group().equals(PACKS_GROUP)) packNames.add(f.name() + " " + f.version());
+            else if (en.getKey().group().equals(LIGHTS_GROUP)) lightsVersion = f.version();
             if (r.iris() != null && f.projectId() != null && f.projectId().equals(r.iris().projectId())) irisReady = true;
         }
         for (var en : kept.entrySet()) {
@@ -731,8 +793,7 @@ public final class InstallerCore {
             if (!l.endsWith(".jar") || !Files.isRegularFile(q) || placed.contains(l) || keep.contains(l)) continue;
             String[] owner = knownOwner(l);
             if (owner == null && !prevAdded.contains(l)) continue;
-            String group = prevGroup.getOrDefault(l, owner == null ? PERF_GROUP
-                    : owner[1].equals("Iris") ? SHADERS_GROUP : owner[1].equals("Simple Voice Chat") ? VOICE_GROUP : PERF_GROUP);
+            String group = prevGroup.getOrDefault(l, groupOf(owner));
             boolean sodium = owner != null && owner[1].equals("Sodium");
             if (keepGroups.contains(group) || (sodium && (keepGroups.contains(PERF_GROUP) || keepGroups.contains(SHADERS_GROUP)))) {
                 record(added, groups, projects, n, group, projectOf.get(l));
@@ -798,6 +859,8 @@ public final class InstallerCore {
         JsonObject marker = new JsonObject();
         marker.addProperty("voiceChat", voiceVersion);
         marker.addProperty("performanceMods", String.join(", ", perfNames));
+        marker.addProperty("packFeatures", String.join(", ", packNames));
+        marker.addProperty("dynamicLights", lightsVersion);
         marker.addProperty("shaders", packVersion);
         if (packFile != null) marker.addProperty("shaderPackFile", packFile);
         if (lightPack != null) marker.addProperty("lightPackFile", lightPack);
@@ -865,7 +928,19 @@ public final class InstallerCore {
         if (slug.equals("iris")) return "Shaders";
         if (slug.equals("simple-voice-chat")) return "Voice chat";
         for (String[] m : PERF) if (m[0].equals(slug)) return "FPS mods";
+        for (String[] m : PACK_FEATURES) if (m[0].equals(slug)) return "Pack features";
+        if (slug.equals(DYNAMIC_LIGHTS[0])) return "Dynamic lights";
         return null;
+    }
+
+    /** The option group a known mod (a {@link #KNOWN} entry, or null for a library) belongs to. */
+    private static String groupOf(String[] owner) {
+        if (owner == null) return PERF_GROUP;
+        if (owner[1].equals("Iris")) return SHADERS_GROUP;
+        if (owner[1].equals("Simple Voice Chat")) return VOICE_GROUP;
+        if (owner == DYNAMIC_LIGHTS) return LIGHTS_GROUP;
+        for (String[] m : PACK_FEATURES) if (m == owner) return PACKS_GROUP;
+        return PERF_GROUP;
     }
 
     /** The option a jar in mods/ belongs to, from the install marker's record and the known names; null for the player's own. */
@@ -879,13 +954,15 @@ public final class InstallerCore {
         }
         String[] owner = knownOwner(l);
         if (owner == null) return null;
-        return owner[1].equals("Iris") ? "Shaders" : owner[1].equals("Simple Voice Chat") ? "Voice chat" : "FPS mods";
+        return groupLabel(groupOf(owner));
     }
 
     private static String groupLabel(String group) {
         return switch (group) {
             case SHADERS_GROUP -> "Shaders";
             case VOICE_GROUP -> "Voice chat";
+            case PACKS_GROUP -> "Pack features";
+            case LIGHTS_GROUP -> "Dynamic lights";
             default -> "FPS mods";
         };
     }
@@ -895,6 +972,10 @@ public final class InstallerCore {
      * a newer Evade / Fabric Loader / Fabric API, or a newer version of an extra mod its options ask for.
      */
     static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders) {
+        return updateReason(gameDir, r, perf, voice, shaders, false, false);
+    }
+
+    static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders, boolean packs, boolean lights) {
         JsonObject m = readMarker(gameDir);
         if (m == null) return "Evade Client isn't installed in this instance yet";
         if (r == null) return null;
@@ -913,6 +994,17 @@ public final class InstallerCore {
             }
         }
         if (shaders && r.shaderPack() != null && !r.shaderPack().version().equals(str(m, "shaders"))) return r.shaderPack().name() + " " + r.shaderPack().version() + " is out";
+        if (packs && r.packFeatures() != null && !r.packFeatures().isEmpty()) {
+            Set<String> have = new HashSet<>();
+            // A library both groups need is recorded once, under whichever group asked first.
+            for (String key : new String[]{"packFeatures", "performanceMods"}) {
+                String names = str(m, key);
+                if (names != null) for (String n : names.split(",\\s*")) have.add(n.trim());
+            }
+            for (ModFile f : r.packFeatures()) if (!have.contains(f.name() + " " + f.version())) return f.name() + " " + f.version() + " is out";
+        }
+        if (lights && r.dynamicLights() != null && !r.dynamicLights().version().equals(str(m, "dynamicLights")))
+            return r.dynamicLights().name() + " " + r.dynamicLights().version() + " is out";
         return null;
     }
 

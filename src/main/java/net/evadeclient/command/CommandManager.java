@@ -35,7 +35,8 @@ public class CommandManager {
 
     /** Built-in command words. Module-owned command aliases must be accepted by {@link #isCommand} too. */
     public static final Set<String> COMMANDS = Set.of("help", "clips", "clip", "t", "toggle", "bind", "set",
-            "waypoint", "waypoints", "wp", "modules", "list", "nick", "voice", "save", "load", "menu", "gui", "evade", "bench", "benchmark");
+            "waypoint", "waypoints", "wp", "modules", "list", "nick", "voice", "save", "load", "menu", "gui", "evade", "bench", "benchmark",
+            "binds", "keybinds", "reset", "profile", "profiles", "share", "import", "setup");
 
     /** Set while re-sending an escaped ".." message, so it isn't parsed again. */
     private boolean resending;
@@ -165,7 +166,11 @@ public class CommandManager {
             }
             case "voice" -> net.evadeclient.module.misc.VoiceChat.openMenu();
             case "bench", "benchmark" -> {
-                if (a.length > 1 && a[1].equalsIgnoreCase("stop")) { net.evadeclient.util.Benchmark.cancel(); print("Benchmark stopped."); }
+                if (a.length > 1 && a[1].equalsIgnoreCase("stop")) {
+                    if (net.evadeclient.util.BenchmarkAll.running()) net.evadeclient.util.BenchmarkAll.cancel();
+                    else { net.evadeclient.util.Benchmark.cancel(); print("Benchmark stopped."); }
+                }
+                else if (a.length > 1 && a[1].equalsIgnoreCase("all")) net.evadeclient.util.BenchmarkAll.start(net.evadeclient.util.BenchmarkAll.DEFAULT_SECONDS);
                 else {
                     int secs = 30;
                     if (a.length > 1) try { secs = Integer.parseInt(a[1]); } catch (NumberFormatException ignored) {}
@@ -173,6 +178,12 @@ public class CommandManager {
                     else print("§cJoin a world first (or a benchmark is already running).");
                 }
             }
+            case "binds", "keybinds" -> ExtraCommands.binds(a);
+            case "reset" -> ExtraCommands.reset(a);
+            case "profile", "profiles" -> ExtraCommands.profile(a);
+            case "share" -> ExtraCommands.share(a);
+            case "import" -> ExtraCommands.importCode(a);
+            case "setup" -> ExtraCommands.setup();
             case "save" -> { EvadeClient.config.save(); print("Config saved."); }
             case "load" -> { EvadeClient.config.load(); print("Config loaded."); }
             case "menu", "gui", "evade" -> {
@@ -193,12 +204,19 @@ public class CommandManager {
         print("§d.bind <mod> <key|mouse4|none>§7 - set a keybind");
         print("§d.set <mod> <setting> [value]§7 - change a setting, or show it");
         print("§d.modules§7 - list mods");
+        print("§d.binds§7 [conflicts|gui] - list keybinds, or open the Keybinds page");
+        print("§d.reset <mod> [setting]§7 - put a mod's settings (or one setting) back to default");
+        print("§d.profile§7 [list|load|save|new|delete] [name] - switch and manage profiles");
+        print("§d.share <mod>§7 / §d.import <code>§7 - copy one mod's settings as a code, or apply one");
+        print("§d.setup§7 - run the first-time setup again");
+        print("§7Press §dTab§7 while typing a command to complete it");
         print("§d.menu§7 - open the Evade menu");
         print("§d.wp§7 - waypoints (add, del, list, near, color, hide, show, rename, share, target, clear)");
         print("§d.nick <name>§7 - set your Nick Hider name");
         print("§d.clip§7 - save the last seconds as a clip");
         print("§d.voice§7 - open the voice chat menu");
         print("§d.bench [seconds]§7 - measure your FPS (average and 1% low) and compare with the last run");
+        print("§d.bench all§7 - measure every FPS Mode and recommend the best one for this PC");
         print("§d.save§7 / §d.load§7 - config");
         print("§d.clips§7 [last|save]§7 - open Evade Clips (or the clips folder), edit your last clip, or save one now");
         for (Module m : EvadeClient.modules.all()) {
@@ -255,7 +273,7 @@ public class CommandManager {
     }
 
     /** A setting by name, ignoring case, spaces, symbols and units, with or without the mod's name in front. */
-    private static Setting<?> setting(Module m, String typed) {
+    static Setting<?> setting(Module m, String typed) {
         String t = ModuleManager.normalize(typed);
         if (t.isEmpty()) return null;
         String mod = ModuleManager.normalize(m.getName());
@@ -351,7 +369,7 @@ public class CommandManager {
     }
 
     /** A ModeSetting's options in menu order. */
-    private static List<String> modeOptions(ModeSetting md) {
+    static List<String> modeOptions(ModeSetting md) {
         return md.getModes();
     }
 
@@ -422,10 +440,10 @@ public class CommandManager {
 
     // ---- mod names --------------------------------------------------------
 
-    private record Match(Module module, int end) {}
+    record Match(Module module, int end) {}
 
     /** The longest run of words from {@code from} (ending at or before {@code maxEnd}) that names a mod. */
-    private static Match longestModule(String[] a, int from, int maxEnd) {
+    static Match longestModule(String[] a, int from, int maxEnd) {
         for (int end = maxEnd; end > from; end--) {
             Module m = EvadeClient.modules.get(join(a, from, end));
             if (m != null) return new Match(m, end);
@@ -446,7 +464,7 @@ public class CommandManager {
         return out;
     }
 
-    private static CommandError notFound(String typed) {
+    static CommandError notFound(String typed) {
         String guess = closestModule(typed);
         return new CommandError("No mod named \"" + typed + "\"." + (guess == null ? " Try .modules" : " Did you mean " + guess + "?"));
     }
@@ -484,11 +502,11 @@ public class CommandManager {
 
     // ---- helpers ----------------------------------------------------------
 
-    private static String join(String[] a, int from, int to) {
+    static String join(String[] a, int from, int to) {
         return from >= to ? "" : String.join(" ", java.util.Arrays.copyOfRange(a, from, to)).trim();
     }
 
-    private static void need(String[] a, int n, String usage) {
+    static void need(String[] a, int n, String usage) {
         if (a.length < n) throw new CommandError("Usage: " + usage);
     }
 

@@ -104,6 +104,9 @@ public class EvadeClient implements ClientModInitializer {
                 client.execute(net.evadeclient.module.misc.AutoTip::onDisconnect));
         ClientTickEvents.END_CLIENT_TICK.register(net.evadeclient.module.misc.AutoReconnect::clientTick);
         net.evadeclient.replay.Replays.init();
+        net.evadeclient.gui.FirstRun.init(); // first-run setup (once) and Tune for my PC
+        // Evade Launcher: heartbeat, play time and launcher-requested joins (files in the game folder's .evade/).
+        net.evadeclient.util.LauncherBridge.register();
         // Fabric gives a screen fresh per-screen events on every init and resize, so these are added each time.
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (screen instanceof net.minecraft.client.gui.screen.DisconnectedScreen) {

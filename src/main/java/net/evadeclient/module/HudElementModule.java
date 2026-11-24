@@ -46,6 +46,8 @@ public abstract class HudElementModule extends Module {
             .describe("Shows it only during a fight: for 8 seconds after you hit something or take damage."));
     public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", false)
             .describe("Draw this widget's text in Evade's smooth font instead of the pixel font."));
+    /** Locked in the HUD editor: it can't be dragged, nudged or resized there until unlocked (L). Saved, never shown. */
+    public final BooleanSetting locked = add(new BooleanSetting("Locked", false).hidden());
 
     /**
      * The smooth (Inter) HUD font at one fixed raster (4 device pixels per unit). Widgets no longer draw with it:

@@ -55,6 +55,8 @@ final class LauncherApp implements LauncherView.Actions {
     private JFrame frame;
     private TrayIcon tray;
     private volatile boolean busy;
+    /** Game state, logs, crashes and instance settings (files the Evade mod shares with the launcher). */
+    private final GameController game;
     private boolean started, ffmpegOffered;
 
     LauncherApp(App clips, String clipsNote, boolean blocked) {
@@ -66,6 +68,7 @@ final class LauncherApp implements LauncherView.Actions {
         view.setupMemory = settings.defaultMemoryGb;
         view.setJavaText(settings.javaPath);
         view.legacyClips = AppHost.legacyAppInstalled();
+        game = new GameController(view, settings, work, this::play, this::reloadInstances, () -> tray, () -> frame);
         ModIcons.registerWebp();
         if (clips != null) attach(clips);
     }
@@ -75,6 +78,7 @@ final class LauncherApp implements LauncherView.Actions {
         clips = app;
         view.clips = app;
         app.onNotice((title, body, error) -> SwingUtilities.invokeLater(() -> view.notice(title, body, error)));
+        app.screenshotSources = () -> ContentPage.screenshotSources(view);
         app.engine.onStatus(st -> SwingUtilities.invokeLater(view::repaint));
         if (frame != null) addClipsPages();
     }
@@ -91,7 +95,7 @@ final class LauncherApp implements LauncherView.Actions {
             ui(() -> {
                 view.clipsBusy = false;
                 if (app == null) {
-                    view.toast("The old Evade Clips app didn't close. Quit it from its tray icon, then try again.");
+                    view.toast("Clips is still held by another program. Quit Evade from the tray (or end Java in Task Manager), then try again.");
                     return;
                 }
                 view.clipsBlocked = false;
@@ -120,6 +124,7 @@ final class LauncherApp implements LauncherView.Actions {
         loadNews();
         loadProfile();
         loadServerIcons();
+        game.start();
         refreshServers();
         if (view.legacyClips && !settings.legacyClipsHandled)
             view.notice("Evade Clips is built in now", "The separate Evade Clips app isn't needed any more. Remove it in Settings.", false);
@@ -289,6 +294,7 @@ final class LauncherApp implements LauncherView.Actions {
         if (frame != null) frame.setVisible(false);
         if (tray != null) try { SystemTray.getSystemTray().remove(tray); } catch (RuntimeException ignored) { }
         new Thread(() -> {
+            game.finishPending();
             if (clips != null) clips.shutdown();
             System.exit(0);
         }, "quit").start();
@@ -534,6 +540,7 @@ final class LauncherApp implements LauncherView.Actions {
         Launcher.check(i, r);
         String reason = i.pending;
         boolean update = i.installed == null || i.dirty || reason != null;
+        if (game.blockPlay(i, update && r != null)) return;
         if (update && r == null) {
             if (i.installed == null) {
                 view.playName = i.name;
@@ -612,7 +619,11 @@ final class LauncherApp implements LauncherView.Actions {
                 }
                 // The profile, last used now, so the Minecraft Launcher preselects this instance.
                 InstallerCore.Options o = Launcher.options(settings, i, false, false, true);
+                // An already-open Minecraft Launcher keeps its old selection (it would start the wrong profile).
+                if (!setupOnly && !EvadeInstaller.closeIdleMinecraftLauncher())
+                    skipped.add("The Minecraft Launcher was already running a game: pick \"" + o.profileName() + "\" in it");
                 InstallerCore.writeProfiles(o);
+                try { game.applyExtras(i); } catch (Exception e) { skipped.add("This instance's own Java, window and icon settings weren't applied"); }
                 String java = settings.javaPath == null || settings.javaPath.isBlank() ? null : settings.javaPath.strip();
                 i.javaDirWritten = java;
                 if (!i.isDefault() || update || java != null || Files.exists(i.dir.resolve(Launcher.INSTANCE_FILE))) Launcher.save(i);
@@ -679,6 +690,7 @@ final class LauncherApp implements LauncherView.Actions {
         Launcher.saveSettings(settings);
         if (view.play != LauncherView.Play.UPDATING && view.play != LauncherView.Play.LAUNCHING) view.play = LauncherView.Play.IDLE;
         if (view.page == LauncherView.Page.MODS) showMods(i);
+        if (view.page == LauncherView.Page.GAME) game.pageShown();
         view.repaint();
     }
 
@@ -728,19 +740,12 @@ final class LauncherApp implements LauncherView.Actions {
 
     @Override public void delete(Launcher.Instance i) {
         if (busy) { view.toast("Wait until the update finishes"); return; }
-        work.submit(() -> {
-            try {
-                Launcher.delete(settings, i);
-                ui(() -> {
-                    if (settings.selected.equals(i.id)) settings.selected = Launcher.DEFAULT_ID;
-                    view.focusedId = settings.selected;
-                    Launcher.saveSettings(settings);
-                    reloadInstances();
-                    view.toast("Deleted " + i.name);
-                });
-            } catch (Exception e) {
-                fail("Couldn't delete it", e);
-            }
+        // Moved aside with a 10-second Undo, then to the Recycle Bin / Trash.
+        game.delete(i, () -> {
+            if (settings.selected.equals(i.id)) settings.selected = Launcher.DEFAULT_ID;
+            view.focusedId = settings.selected;
+            Launcher.saveSettings(settings);
+            reloadInstances();
         });
     }
 
@@ -917,6 +922,7 @@ final class LauncherApp implements LauncherView.Actions {
     }
 
     @Override public void pageShown(LauncherView.Page p) {
+        if (p == LauncherView.Page.GAME) game.pageShown();
         if (p != LauncherView.Page.CLIPS || clips == null || frame == null) return;
         if (clipsPages != null) SwingUtilities.invokeLater(() -> { if (clipsPages.isShowing()) clipsPages.focusLibrary(); });
         // Windows without ffmpeg: offer it once (Clips can't record or edit without it).
@@ -936,7 +942,7 @@ final class LauncherApp implements LauncherView.Actions {
         if (clips != null) clips.saveClip(0, null, null, null);
     }
 
-    @Override public void noticesSeen() { view.repaint(); }
+    @Override public void noticesSeen() { game.noticesSeen(); view.repaint(); }
 
     @Override public void removeLegacyClips() {
         view.toast("Removing the old Evade Clips app…");

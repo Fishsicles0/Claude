@@ -48,6 +48,8 @@ public final class App {
     public Consumer<Clip> openEditor = c -> {};
     /** Brings the main window forward (set by the window). */
     public Runnable showWindow = () -> {};
+    /** Folders of game screenshots the library's Screenshots view shows (the launcher lists each instance's). */
+    public volatile java.util.function.Supplier<java.util.List<ShotsGrid.Source>> screenshotSources = ShotsGrid.defaultSources();
     /** The main window, as the parent of dialogs the app asks from background work (null until it exists). */
     public volatile java.awt.Window window;
     /**
@@ -329,6 +331,8 @@ public final class App {
                     CaptureEngine.Status s = status;
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("app", "Evade Clips");
+                    // "launcher": Clips inside the Evade Launcher; "app": the old separate app (a new launcher closes that one)
+                    m.put("host", net.evadeclient.clips.ClipsApp.hosted ? "launcher" : "app");
                     m.put("state", s.state().name().toLowerCase());
                     m.put("recording", s.recording());
                     m.put("buffered", Math.round(s.bufferedSeconds()));
