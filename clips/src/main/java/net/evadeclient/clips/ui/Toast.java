@@ -33,6 +33,11 @@ public final class Toast {
     private volatile boolean hovered;
     private long shownAt, holdMs;
 
+    /**
+     * Windows: a plain opaque, square window with no fade. Window opacity (the fade) and window shapes (rounded
+     * corners) both make it a "layered" window, which Java draws with misaligned rows on scaled displays (125%,
+     * 150%...): the toast shows as repeated, slanted copies of itself. Elsewhere it's see-through, rounded and fades.
+     */
     private static final boolean OPAQUE = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
 
     public void show(String title, String body, boolean error) {
@@ -60,7 +65,7 @@ public final class Toast {
                 }
             };
             MouseAdapter ma = new MouseAdapter() {
-                @Override public void mouseEntered(MouseEvent e) { hovered = true; alpha = 1; setOpacity(1); }
+                @Override public void mouseEntered(MouseEvent e) { hovered = true; alpha = 1; if (!OPAQUE) setOpacity(1); }
                 @Override public void mouseExited(MouseEvent e) { hovered = false; shownAt = System.currentTimeMillis(); }
                 @Override public void mouseClicked(MouseEvent e) { dismiss(); }
             };
@@ -75,12 +80,9 @@ public final class Toast {
         int h = lines.isEmpty() ? 54 : 72 + (lines.size() - 1) * LINE;
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
         window.setSize(new Dimension(W, h));
-        if (OPAQUE) {
-            try { window.setShape(new RoundRectangle2D.Double(0, 0, W, h, 14, 14)); } catch (Exception ignored) {} // no shaped windows: square corners
-        }
         window.setLocation(screen.x + screen.width - W - 24, screen.y + 24);
         alpha = 1;
-        setOpacity(1f);
+        if (!OPAQUE) setOpacity(1f);
         window.setVisible(true);
         window.repaint();
         if (hide != null) hide.stop();
@@ -89,6 +91,7 @@ public final class Toast {
         hide = new Timer(30, e -> {
             if (hovered) return;
             if (System.currentTimeMillis() - shownAt > holdMs) {
+                if (OPAQUE) { dismiss(); return; } // no fade on Windows (see OPAQUE)
                 alpha -= 0.08f;
                 if (alpha <= 0) { dismiss(); return; }
                 setOpacity(Math.max(0, alpha));
@@ -152,11 +155,12 @@ public final class Toast {
     private void paintToast(Graphics2D g, int w, int h) {
         Theme.hq(g);
         g.setColor(new Color(0x111115));
-        g.fill(new RoundRectangle2D.Double(0, 0, w, h, 14, 14));
+        double r = OPAQUE ? 0 : 14; // square on Windows: the window itself is a plain rectangle there
+        g.fill(new RoundRectangle2D.Double(0, 0, w, h, r, r));
         g.setColor(Theme.BORDER);
-        g.draw(new RoundRectangle2D.Double(0.5, 0.5, w - 1, h - 1, 14, 14));
+        g.draw(new RoundRectangle2D.Double(0.5, 0.5, w - 1, h - 1, r, r));
         g.setColor(error ? Theme.GOLD : Theme.RED);
-        g.fill(new RoundRectangle2D.Double(0, 0, 5, h, 4, 4));
+        g.fill(new RoundRectangle2D.Double(0, 0, 5, h, OPAQUE ? 0 : 4, OPAQUE ? 0 : 4));
         if (Theme.mark != null) g.drawImage(Theme.mark, 16, lines.isEmpty() ? (h - 26) / 2 : 17, 26, 26, null);
         Font tf = Theme.interBold.deriveFont(14f);
         g.setFont(tf);
