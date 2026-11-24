@@ -7,7 +7,7 @@ package net.evadeclient.gui.title;
 public final class WhatsNew {
     private WhatsNew() {}
 
-    public static final String VERSION = "v2.1.0";
-    public static final String HEADLINE = "The Evade Launcher, a mod browser, Hypixel tools and a server API.";
+    public static final String VERSION = "v2.2.0";
+    public static final String HEADLINE = "Friends, parties and pings, Render Scale for more FPS, and a brand-new look.";
     public static final String URL = "https://evadeclient.com/changelog";
 }

@@ -351,7 +351,8 @@ final class LauncherApp implements LauncherView.Actions {
                 var res = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(6))
                         .header("user-agent", "EvadeLauncher").build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray());
                 if (res.statusCode() != 200 || res.body().length > 4_000_000) continue;
-                BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(res.body()));
+                BufferedImage raw = ImageIO.read(new java.io.ByteArrayInputStream(res.body()));
+                BufferedImage img = raw == null ? null : LauncherView.argb(raw);
                 if (img != null) ui(() -> view.newsImages.put(url, img));
             } catch (Exception ignored) { /* the card shows an Evade picture instead */ }
         }
@@ -409,7 +410,8 @@ final class LauncherApp implements LauncherView.Actions {
                 try {
                     Path f = iconFile(s.address());
                     if (!Files.exists(f)) continue;
-                    BufferedImage img = ImageIO.read(f.toFile());
+                    BufferedImage raw = ImageIO.read(f.toFile());
+                    BufferedImage img = raw == null ? null : LauncherView.argb(raw);
                     String k = ServersDat.key(s.address());
                     if (img != null) ui(() -> view.serverIcons.putIfAbsent(k, img));
                 } catch (Exception ignored) { }
@@ -433,6 +435,7 @@ final class LauncherApp implements LauncherView.Actions {
                 if (st.favicon() != null) {
                     try {
                         icon = ImageIO.read(new java.io.ByteArrayInputStream(st.favicon()));
+                        if (icon != null) icon = LauncherView.argb(icon);
                         if (icon != null) {
                             Path f = iconFile(address);
                             Files.createDirectories(f.getParent());

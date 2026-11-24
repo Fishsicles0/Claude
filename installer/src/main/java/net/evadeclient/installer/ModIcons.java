@@ -169,7 +169,7 @@ final class ModIcons {
     /** Down to twice the shown size, smoothly (pixel art stays pixel art when it's already small). */
     static BufferedImage scale(BufferedImage raw) {
         int t = SIZE * 2;
-        if (raw.getWidth() <= t && raw.getHeight() <= t) return raw;
+        if (raw.getWidth() <= t && raw.getHeight() <= t) return LauncherView.argb(raw);
         BufferedImage cur = raw;
         int w = raw.getWidth(), h = raw.getHeight();
         while (w > t * 2 || h > t * 2) {
@@ -215,7 +215,7 @@ final class ModIcons {
             try {
                 String sha = sha1(j);
                 Path cached = cacheDir().resolve("m-" + sha + ".png"), miss = cacheDir().resolve("m-" + sha + ".none");
-                if (fresh(cached)) resolved.put(key(j), ImageIO.read(cached.toFile()));
+                if (fresh(cached)) { BufferedImage c = ImageIO.read(cached.toFile()); resolved.put(key(j), c == null ? null : LauncherView.argb(c)); }
                 else if (fresh(miss)) resolved.put(key(j), null);
                 else bySha.put(sha, j);
             } catch (Exception e) {

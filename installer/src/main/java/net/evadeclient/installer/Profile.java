@@ -111,7 +111,7 @@ final class Profile {
     private static BufferedImage fetch(Path cache, String... urls) {
         try {
             if (Files.exists(cache) && System.currentTimeMillis() - Files.getLastModifiedTime(cache).toMillis() < 86_400_000L)
-                return ImageIO.read(cache.toFile());
+                { BufferedImage c = ImageIO.read(cache.toFile()); return c == null ? null : LauncherView.argb(c); }
         } catch (IOException ignored) { }
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NORMAL).build();
         for (String url : urls) {
@@ -121,6 +121,7 @@ final class Profile {
                 if (res.statusCode() != 200) continue;
                 BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(res.body()));
                 if (img == null) continue;
+                img = LauncherView.argb(img);
                 try {
                     Files.createDirectories(cache.getParent());
                     Files.write(cache, res.body());
@@ -128,6 +129,9 @@ final class Profile {
                 return img;
             } catch (Exception ignored) { }
         }
-        try { return Files.exists(cache) ? ImageIO.read(cache.toFile()) : null; } catch (IOException e) { return null; }
+        try {
+            BufferedImage c = Files.exists(cache) ? ImageIO.read(cache.toFile()) : null;
+            return c == null ? null : LauncherView.argb(c);
+        } catch (IOException e) { return null; }
     }
 }

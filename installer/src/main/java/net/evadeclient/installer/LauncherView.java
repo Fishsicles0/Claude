@@ -3331,13 +3331,26 @@ public final class LauncherView extends JPanel {
 
     static Image image(String path) {
         try (InputStream in = LauncherView.class.getResourceAsStream(path)) {
-            Image img = in == null ? null : ImageIO.read(in);
+            BufferedImage img = in == null ? null : ImageIO.read(in);
             if (img == null) System.err.println("[launcher] no picture at " + path);
-            return img != null ? img : new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+            return img != null ? argb(img) : new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         } catch (Throwable e) {
             System.err.println("[launcher] couldn't read " + path + ": " + e);
             return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         }
+    }
+
+    /**
+     * The picture as plain 32-bit ARGB. JPEGs decode as 3-byte BGR, which some window surfaces (a translucent,
+     * round-cornered window on Linux) silently fail to draw.
+     */
+    static BufferedImage argb(BufferedImage img) {
+        if (img.getType() == BufferedImage.TYPE_INT_ARGB || img.getType() == BufferedImage.TYPE_INT_ARGB_PRE) return img;
+        BufferedImage out = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(img, 0, 0, null);
+        g.dispose();
+        return out;
     }
 
     /** Opens a popup the way a click on {@code id} would (for screenshots). */
