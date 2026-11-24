@@ -43,7 +43,7 @@ public class EvadeMenu extends Screen {
     private enum Page {
         ALL("All Mods", null), MODS("Controls", Category.MODS), SERVER("Server-facing", Category.SERVER),
         MISC("Misc", Category.MISC), HUD("HUD", Category.HUD), VISUALS("Visuals", Category.VISUALS),
-        PROFILES("Profiles", null), SETTINGS("Settings", Category.CLIENT);
+        PROFILES("Profiles", null), FRIENDS("Friends", null), SETTINGS("Settings", Category.CLIENT);
 
         final String label;
         final Category category;
@@ -210,6 +210,13 @@ public class EvadeMenu extends Screen {
     /** Test hook: jump the menu straight to the Profiles page. */
     public static void openProfilesForTest() { page = Page.PROFILES; selected = null; }
 
+    /** Test hook: jump the menu straight to the Friends page, on one of its tabs (0 Friends, 1 Requests, 2 Party, 3 Settings). */
+    public static void openFriendsForTest(int tab) {
+        page = Page.FRIENDS;
+        selected = null;
+        friendsTab = FTab.values()[Math.max(0, Math.min(FTab.values().length - 1, tab))];
+    }
+
     /** Open the menu, optionally straight onto a module's settings page. */
     public static EvadeMenu open(Module select) {
         return open(select, null);
@@ -351,6 +358,7 @@ public class EvadeMenu extends Screen {
         hoverSlider = null;
         tip = null;
         if (pendingDelete != null && now - pendingDeleteAt > DELETE_CONFIRM_MS) pendingDelete = null;
+        if (friendConfirm != null && now - friendConfirmAt > DELETE_CONFIRM_MS) friendConfirm = null;
 
         ww = Math.min(width - 40, 780);
         wh = Math.min(height - 36, 470);
@@ -405,6 +413,7 @@ public class EvadeMenu extends Screen {
                 if (selected != null) renderSettingsPage(ctx, mouseX, mouseY, selected);
                 else if (page == Page.SETTINGS) renderSettingsPage(ctx, mouseX, mouseY, settings());
                 else if (page == Page.PROFILES) renderProfilesPage(ctx, mouseX, mouseY);
+                else if (page == Page.FRIENDS) renderFriendsPage(ctx, mouseX, mouseY);
                 else {
                     renderSearch(ctx, mouseX, mouseY);
                     renderHeader(ctx, mouseX, mouseY);
@@ -510,11 +519,8 @@ public class EvadeMenu extends Screen {
         }
         if (clip) ctx.disableScissor();
 
-        String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
         Theme.fill(ctx, wx + 16, wy + wh - 32, wx + SIDEBAR - 16, wy + wh - 31, Theme.DIVIDER);
-        int footW = SIDEBAR - 32;
-        text(ctx, ellipsize(Role.LABEL, user.isEmpty() ? "Player" : user, footW), wx + 16, wy + wh - 25, Theme.TEXT_DIM, Role.LABEL);
-        text(ctx, ellipsize(Role.SMALL, "Evade v" + EvadeClient.VERSION, footW), wx + 16, wy + wh - 15, Theme.TEXT_FAINT, Role.SMALL);
+        renderAccountFooter(ctx, mx, my);
     }
 
     /** Whether {@code n} is the page on screen (none is while a mod's settings are open). */
@@ -971,6 +977,582 @@ public class EvadeMenu extends Screen {
         int n = profiles.list().size() + 1;
         while (profiles.exists("Profile " + n)) n++;
         return "Profile " + n;
+    }
+
+    // ---- friends page -------------------------------------------------
+    // Friends, requests, the party and social settings (net.evadeclient.social). Built from rows that rendering and
+    // clicks lay out the same way, like the profiles page. Opened from the account footer at the bottom of the sidebar.
+
+    private enum FTab {
+        FRIENDS("Friends"), REQUESTS("Requests"), PARTY("Party"), SETTINGS("Settings");
+        final String label;
+        FTab(String label) { this.label = label; }
+    }
+
+    private static FTab friendsTab = FTab.FRIENDS;
+    private String friendInput = "";
+    private boolean friendFocused;
+    /** A button that asks twice (remove, block, kick, leave, delete) clicked once: a second click within
+     *  {@link #DELETE_CONFIRM_MS} does it. */
+    private String friendConfirm;
+    private double friendConfirmAt;
+    /** Buttons whose request is on its way: they show "..." until the answer comes. */
+    private final java.util.Set<String> friendBusy = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final int FRIEND_ROW_H = 40, FRIEND_HEAD_H = 24, FRIEND_NOTE_H = 16, FRIEND_EMPTY_H = 84, FTAB_W = 74;
+    private static final int FR_HEAD = 0, FR_ROW = 1, FR_TOGGLE = 2, FR_NOTE = 3, FR_EMPTY = 4;
+
+    /** A button on a friends row. {@code style}: 0 plain, 1 accent, 2 danger (asks twice). Listed right to left. */
+    private record FBtn(String id, String label, int style, Runnable action) {}
+
+    /** A row of the friends page: a header, a person (or action) row, a toggle, a note, or a big empty-state card. */
+    private record FRow(String key, int kind, String title, String sub, int dot, String chip, List<FBtn> buttons,
+                        java.util.function.BooleanSupplier on, Runnable toggle, boolean enabled) {
+        int h() {
+            return switch (kind) {
+                case FR_HEAD -> FRIEND_HEAD_H;
+                case FR_TOGGLE -> ROW_H;
+                case FR_NOTE -> FRIEND_NOTE_H;
+                case FR_EMPTY -> FRIEND_EMPTY_H;
+                default -> FRIEND_ROW_H + GAP / 2;
+            };
+        }
+    }
+
+    private static FRow fHead(String title) { return new FRow("h:" + title, FR_HEAD, title, null, 0, null, List.of(), null, null, true); }
+    private static FRow fNote(String text) { return new FRow("n:" + text, FR_NOTE, text, null, 0, null, List.of(), null, null, true); }
+    private static FRow fEmpty(String title, String sub, FBtn button) {
+        return new FRow("e:" + title, FR_EMPTY, title, sub, 0, null, button == null ? List.of() : List.of(button), null, null, true);
+    }
+    private static FRow fToggle(String key, String title, String sub, java.util.function.BooleanSupplier on, Runnable toggle, boolean enabled) {
+        return new FRow("t:" + key, FR_TOGGLE, title, sub, 0, null, List.of(), on, toggle, enabled);
+    }
+    private static FRow fPerson(String key, String title, String sub, int dot, String chip, List<FBtn> buttons) {
+        return new FRow("p:" + key, FR_ROW, title, sub, dot, chip, buttons, null, null, true);
+    }
+
+    private static boolean friendsOn() {
+        var f = net.evadeclient.module.misc.Friends.get();
+        return f != null && f.isEnabled() && f.activated();
+    }
+
+    private int friendAddX() { return contentRight() - 70; }
+    private int friendInputW() { return friendAddX() - 8 - cx; }
+
+    private void renderFriendsPage(DrawContext ctx, int mx, int my) {
+        boolean on = friendsOn();
+        var s = net.evadeclient.social.SocialClient.state();
+        boolean ready = on && net.evadeclient.social.SocialClient.ready() && s.loaded();
+
+        // Add-a-friend field and button (only once Friends is on).
+        if (on) {
+            int inW = friendInputW();
+            boolean hin = mx >= cx && mx < cx + inW && my >= searchY && my < searchY + 24;
+            float focus = focusGlow(ctx, "friend", friendFocused, cx, searchY, cx + inW, searchY + 24);
+            Theme.roundBordered(ctx, cx, searchY, cx + inW, searchY + 24, Theme.INPUT, inputBorder("friend", hin, focus));
+            icon(ctx, "friends", cx + 7, searchY + 6, 11, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, focus));
+            if (friendInput.isEmpty() && !friendFocused) {
+                text(ctx, "Add a friend by Minecraft name", cx + 24, searchY + 8, Theme.TEXT_FAINT, false);
+            } else {
+                text(ctx, friendInput + (friendFocused && blink(0) ? "_" : ""), cx + 24, searchY + 8, Theme.TEXT, false);
+            }
+            int bx = friendAddX(), br = contentRight();
+            boolean hb = mx >= bx && mx < br && my >= searchY && my < searchY + 24;
+            button(ctx, "fadd", bx, searchY, br, searchY + 24, hb, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
+            drawCentered(ctx, friendBusy.contains("fadd") ? "..." : "Add", bx, br, searchY + 8, Theme.ON_ACCENT, Role.STRONG);
+        }
+
+        // Title, a status line and the tabs.
+        text(ctx, "Friends", cx, headerY, Theme.TEXT, Role.TITLE);
+        int tw = width(Role.TITLE, "Friends");
+        String status;
+        if (!on) status = "Off";
+        else if (!ready) status = net.evadeclient.social.SocialClient.status();
+        else status = s.onlineFriends() + " of " + s.friends().size() + " online" + (s.inParty() ? "  ·  party of " + s.party().members().size() : "");
+        int tabsX = cx + cw - FTab.values().length * FTAB_W;
+        text(ctx, ellipsize(Role.LABEL, status, (on ? tabsX - 10 : cx + cw) - (cx + tw + 10)), cx + tw + 10, headerY + 6, Theme.TEXT_DIM, Role.LABEL);
+        if (on) renderFriendTabs(ctx, mx, my, tabsX, s);
+
+        List<FRow> rows = friendRows(on, ready, s);
+        int contentH = 0;
+        for (FRow r : rows) contentH += r.h();
+        clampScroll(contentH, ch);
+        int si = scrollPx();
+        ctx.enableScissor(cx - 2, cy, cx + cw + 2, cy + ch);
+        pushScrollFraction(ctx, si);
+        try {
+            int y = cy - si;
+            for (FRow r : rows) {
+                if (y + r.h() >= cy && y <= cy + ch) renderFriendRow(ctx, r, y, mx, my);
+                y += r.h();
+            }
+        } finally {
+            ctx.getMatrices().popMatrix();
+        }
+        ctx.disableScissor();
+        edgeFades(ctx, cy, cy + ch);
+        scrollbar(ctx, mx, my, contentH, cy, ch);
+    }
+
+    private void renderFriendTabs(DrawContext ctx, int mx, int my, int x, net.evadeclient.social.SocialState s) {
+        FTab[] tabs = FTab.values();
+        int segY = headerY - 3, w = tabs.length * FTAB_W;
+        Theme.roundBordered(ctx, x, segY, x + w, segY + 22, Theme.INPUT, Theme.BORDER);
+        // The knob glides between tabs on a spring, in device pixels.
+        float kx = spring("ftab", friendsTab.ordinal() * FTAB_W, 30f, 0.85f);
+        var km = ctx.getMatrices();
+        km.pushMatrix();
+        km.translate(Theme.snap(ctx, kx), 0);
+        Theme.round(ctx, x + 2, segY + 2, x + FTAB_W - 2, segY + 20, Theme.alpha(Theme.RED, 0.9f), Theme.R_XS);
+        km.popMatrix();
+        int waiting = s.incoming().size() + s.invites().size();
+        for (FTab t : tabs) {
+            int tx = x + t.ordinal() * FTAB_W;
+            float sel = settled(animate("ftabA:" + t, t == friendsTab ? 1 : 0, 18));
+            boolean hover = t != friendsTab && mx >= tx && mx < tx + FTAB_W && my >= segY && my < segY + 22;
+            float h = animate("ftabH:" + t, hover ? 1 : 0, 22);
+            int color = Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, h), Theme.ON_ACCENT, sel);
+            String label = t.label;
+            if (t == FTab.REQUESTS && waiting > 0) {
+                // A count pill after the label.
+                String cnt = String.valueOf(waiting);
+                int lw = width(label), cwid = Math.max(11, width(Role.SMALL, cnt) + 6), total = lw + 4 + cwid;
+                int lx = tx + (FTAB_W - total) / 2;
+                text(ctx, label, lx, segY + 7, color, false);
+                int px = lx + lw + 4;
+                Theme.pill(ctx, px, segY + 6, px + cwid, segY + 16, Theme.lerpColor(Theme.RED, Theme.alpha(0xFFFFFFFF, 0.25f), sel));
+                text(ctx, cnt, px + (cwid - width(Role.SMALL, cnt) + 1) / 2, segY + 8, Theme.ON_ACCENT, Role.SMALL);
+            } else {
+                drawCentered(ctx, label, tx, tx + FTAB_W, segY + 7, color);
+            }
+        }
+    }
+
+    /** The rows of the current tab (or the intro while Friends is off, or the connection state while it connects). */
+    private List<FRow> friendRows(boolean on, boolean ready, net.evadeclient.social.SocialState s) {
+        List<FRow> rows = new ArrayList<>();
+        if (!on) {
+            rows.add(fEmpty("Play with your friends", "See who's online and on which server, make a party, and ping spots for your party.",
+                    new FBtn("fstart", "Turn on Friends", 1, () -> {
+                        var f = net.evadeclient.module.misc.Friends.get();
+                        if (f != null) f.activate();
+                        friendsTab = FTab.FRIENDS;
+                    })));
+            rows.add(fNote("Friends uses evadeclient.com and signs in with your Minecraft account (no password). See evadeclient.com/privacy."));
+            rows.add(fNote("Nothing is sent until you turn it on. Party pings only reach your party on the same server."));
+            return rows;
+        }
+        if (!ready && friendsTab != FTab.SETTINGS) {
+            rows.add(fEmpty(net.evadeclient.social.SocialClient.status(), "Friends connect once Evade has checked your Minecraft account.", null));
+            return rows;
+        }
+        switch (friendsTab) {
+            case FRIENDS -> {
+                if (s.friends().isEmpty()) {
+                    rows.add(fEmpty("No friends yet", "Type a friend's Minecraft name above. They need Evade and Friends turned on.", null));
+                    break;
+                }
+                for (var p : s.friends()) {
+                    String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                    List<FBtn> b = new ArrayList<>();
+                    b.add(new FBtn("frm:" + p.uuid(), "Remove", 2, () -> friendAct("frm:" + p.uuid(),
+                            net.evadeclient.module.misc.Friends.withUuid("friend.remove", p.uuid()), "Friends", "Removed " + name)));
+                    b.add(new FBtn("fbl:" + p.uuid(), "Block", 2, () -> friendAct("fbl:" + p.uuid(),
+                            net.evadeclient.module.misc.Friends.withUuid("block", p.uuid()), "Friends", "Blocked " + name)));
+                    boolean inMyParty = s.party() != null && s.party().has(p.uuid());
+                    if (!inMyParty && p.online()) b.add(new FBtn("finv:" + p.uuid(), "Invite", 0, () -> friendAct("finv:" + p.uuid(),
+                            net.evadeclient.module.misc.Friends.withUuid("party.invite", p.uuid()), "Party", "Invited " + name)));
+                    String sub = p.online() ? (p.server() != null ? "Online  ·  " + p.server() : "Online") : "Last seen " + ago(p.lastSeen());
+                    rows.add(fPerson("f:" + p.uuid(), name, sub, p.online() ? Theme.OK : Theme.TEXT_FAINT, inMyParty ? "PARTY" : null, b));
+                }
+            }
+            case REQUESTS -> {
+                if (s.incoming().isEmpty() && s.outgoing().isEmpty() && s.invites().isEmpty()) {
+                    rows.add(fEmpty("No requests", "Friend requests and party invites show up here.", null));
+                    break;
+                }
+                if (!s.invites().isEmpty()) {
+                    rows.add(fHead("Party invites"));
+                    for (var i : s.invites()) {
+                        String from = net.evadeclient.social.MojangNames.shown(i.from(), i.fromName());
+                        com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+                        body.addProperty("party", i.party());
+                        long left = Math.max(0, 10 * 60_000L - (System.currentTimeMillis() - i.at())) / 60_000L;
+                        rows.add(fPerson("i:" + i.party(), from + "'s party", i.size() + (i.size() == 1 ? " player" : " players") + "  ·  ends in " + Math.max(1, left) + "m", 0, null, List.of(
+                                new FBtn("ijoin:" + i.party(), "Join", 1, () -> friendAct("ijoin:" + i.party(),
+                                        net.evadeclient.social.SocialClient.call("party.accept", body), "Party", "You joined " + from + "'s party")),
+                                new FBtn("idec:" + i.party(), "Decline", 0, () -> friendAct("idec:" + i.party(),
+                                        net.evadeclient.social.SocialClient.call("party.decline", body), "Party", null)))));
+                    }
+                }
+                if (!s.incoming().isEmpty()) {
+                    rows.add(fHead("Friend requests"));
+                    for (var r : s.incoming()) {
+                        String name = net.evadeclient.social.MojangNames.shown(r.uuid(), r.name());
+                        boolean checked = net.evadeclient.social.MojangNames.confirmed(r.uuid(), name);
+                        rows.add(fPerson("in:" + r.uuid(), name, (checked ? "Name checked with Mojang" : "Checking the name with Mojang...") + "  ·  " + ago(r.at()), 0, null, List.of(
+                                new FBtn("racc:" + r.uuid(), "Accept", 1, () -> friendAct("racc:" + r.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("friend.accept", r.uuid()), "Friends", "You're now friends with " + name)),
+                                new FBtn("rdec:" + r.uuid(), "Decline", 0, () -> friendAct("rdec:" + r.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("friend.decline", r.uuid()), "Friends", null)),
+                                new FBtn("rbl:" + r.uuid(), "Block", 2, () -> friendAct("rbl:" + r.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("block", r.uuid()), "Friends", "Blocked " + name)))));
+                    }
+                }
+                if (!s.outgoing().isEmpty()) {
+                    rows.add(fHead("Sent"));
+                    for (var r : s.outgoing()) {
+                        String name = net.evadeclient.social.MojangNames.shown(r.uuid(), r.name());
+                        rows.add(fPerson("out:" + r.uuid(), name, "Waiting for them  ·  sent " + ago(r.at()), 0, null, List.of(
+                                new FBtn("rcan:" + r.uuid(), "Cancel", 0, () -> friendAct("rcan:" + r.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("friend.cancel", r.uuid()), "Friends", null)))));
+                    }
+                }
+            }
+            case PARTY -> {
+                var party = s.party();
+                if (party == null) {
+                    rows.add(fEmpty("You're not in a party", "Invite an online friend from Friends, or start an empty party.",
+                            new FBtn("pcreate", "Create party", 1, () -> friendAct("pcreate",
+                                    net.evadeclient.social.SocialClient.call("party.create", new com.google.gson.JsonObject()), "Party", "Party created"))));
+                } else {
+                    boolean lead = s.isLeader();
+                    rows.add(fHead("Members  " + party.members().size() + " / 8"));
+                    for (var p : party.members()) {
+                        boolean me = p.uuid().equals(s.me());
+                        String name = me ? "You" : net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                        List<FBtn> b = new ArrayList<>();
+                        if (lead && !me) {
+                            b.add(new FBtn("pkick:" + p.uuid(), "Kick", 2, () -> friendAct("pkick:" + p.uuid(),
+                                    net.evadeclient.module.misc.Friends.withUuid("party.kick", p.uuid()), "Party", "Removed " + name)));
+                            b.add(new FBtn("plead:" + p.uuid(), "Make leader", 0, () -> friendAct("plead:" + p.uuid(),
+                                    net.evadeclient.module.misc.Friends.withUuid("party.transfer", p.uuid()), "Party", name + " leads the party now")));
+                        }
+                        String sub = p.online() ? (p.server() != null ? "Online  ·  " + p.server() : "Online") : "Offline";
+                        rows.add(fPerson("m:" + p.uuid(), name, sub, p.online() ? Theme.OK : Theme.TEXT_FAINT, p.leader() ? "LEADER" : null, b));
+                    }
+                    for (var p : party.invited()) {
+                        String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                        rows.add(fPerson("pi:" + p.uuid(), name, "Invited  ·  waiting for them", Theme.TEXT_FAINT, null, List.of()));
+                    }
+                    rows.add(fPerson("pleave", "Leave party", lead && party.members().size() > 1 ? "The next member who joined leads after you"
+                            : "Your party ends when its last member leaves", 0, null, List.of(
+                            new FBtn("pleave", "Leave", 2, () -> friendAct("pleave",
+                                    net.evadeclient.social.SocialClient.call("party.leave", new com.google.gson.JsonObject()), "Party", "You left the party")))));
+                }
+                List<net.evadeclient.social.SocialState.Person> invitable = new ArrayList<>();
+                for (var p : s.friends()) if (p.online() && (party == null || (!party.has(p.uuid()) && party.invited().stream().noneMatch(q -> q.uuid().equals(p.uuid()))))) invitable.add(p);
+                if (!invitable.isEmpty()) {
+                    rows.add(fHead("Invite friends"));
+                    for (var p : invitable) {
+                        String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                        rows.add(fPerson("pinv:" + p.uuid(), name, p.server() != null ? "Online  ·  " + p.server() : "Online", Theme.OK, null, List.of(
+                                new FBtn("pinvb:" + p.uuid(), "Invite", 1, () -> friendAct("pinvb:" + p.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("party.invite", p.uuid()), "Party", "Invited " + name)))));
+                    }
+                }
+                var pp = net.evadeclient.module.misc.PartyPing.get();
+                if (pp != null) rows.add(fNote("Ping a spot: " + KeySetting.keyName(pp.pingKey.get()) + " (Party Ping), Sneak for danger, or .ping. Only your party on the same server sees it."));
+            }
+            case SETTINGS -> {
+                var f = net.evadeclient.module.misc.Friends.get();
+                var pp = net.evadeclient.module.misc.PartyPing.get();
+                if (f == null) break;
+                rows.add(fHead("Privacy"));
+                rows.add(fToggle("allow", "Allow friend requests", "Off: nobody can send you new requests",
+                        s::allowRequests, () -> friendSetting("allowRequests", s.allowRequests() ? "nobody" : "everyone"), ready));
+                rows.add(fToggle("share", "Share my server with friends", "Friends and your party see which server you're on",
+                        s::shareServer, () -> friendSetting("shareServer", !s.shareServer()), ready));
+                rows.add(fHead("Notifications"));
+                rows.add(fToggle("otoast", "Friend online toasts", null, f.onlineToasts::get, () -> f.onlineToasts.set(!f.onlineToasts.get()), true));
+                rows.add(fToggle("rtoast", "Request and party toasts", null, f.requestToasts::get, () -> f.requestToasts.set(!f.requestToasts.get()), true));
+                if (pp != null) {
+                    rows.add(fHead("Party Ping"));
+                    rows.add(fToggle("pping", "Party Ping", null, pp::isEnabled, pp::toggle, true));
+                    rows.add(fToggle("psound", "Ping sound", null, pp.sound::get, () -> pp.sound.set(!pp.sound.get()), true));
+                    rows.add(fPerson("ppage", "Ping key, beams and minimap", "Ping Key: " + KeySetting.keyName(pp.pingKey.get()), 0, null, List.of(
+                            new FBtn("ppage", "Open", 0, () -> { selected = pp; pageChanged(1); resetScroll(); }))));
+                }
+                if (!s.blocked().isEmpty()) {
+                    rows.add(fHead("Blocked"));
+                    for (var p : s.blocked()) {
+                        String name = net.evadeclient.social.MojangNames.shown(p.uuid(), p.name());
+                        rows.add(fPerson("b:" + p.uuid(), name, "No requests, invites or pings from them", 0, null, List.of(
+                                new FBtn("unb:" + p.uuid(), "Unblock", 0, () -> friendAct("unb:" + p.uuid(),
+                                        net.evadeclient.module.misc.Friends.withUuid("unblock", p.uuid()), "Friends", "Unblocked " + name)))));
+                    }
+                }
+                rows.add(fHead("Account"));
+                rows.add(fToggle("use", "Use Friends", "Off: disconnects from evadeclient.com", f::isEnabled, f::toggle, true));
+                rows.add(fPerson("fdel", "Delete my social data", "Friends, requests, blocks and party, from evadeclient.com, now", 0, null, List.of(
+                        new FBtn("fdel", "Delete", 2, () -> friendAct("fdel", net.evadeclient.social.SocialClient.call("delete", new com.google.gson.JsonObject()),
+                                "Friends", "Your social data was deleted", r -> { f.deactivate(); net.evadeclient.social.SocialClient.stop("Off"); })))));
+                rows.add(fNote("Status: " + net.evadeclient.social.SocialClient.status() + ". Unused social data is deleted after 90 days."));
+            }
+        }
+        return rows;
+    }
+
+    private void friendSetting(String key, Object value) {
+        com.google.gson.JsonObject b = new com.google.gson.JsonObject();
+        if (value instanceof Boolean v) b.addProperty(key, v); else b.addProperty(key, String.valueOf(value));
+        friendAct("set:" + key, net.evadeclient.social.SocialClient.call("settings", b), "Friends", null);
+    }
+
+    private void friendAct(String id, java.util.concurrent.CompletableFuture<com.google.gson.JsonObject> f, String title, String success) {
+        friendAct(id, f, title, success, null);
+    }
+
+    /** Runs a request for button {@code id} (which shows "..." meanwhile) and toasts the outcome. */
+    private void friendAct(String id, java.util.concurrent.CompletableFuture<com.google.gson.JsonObject> f, String title, String success,
+                           java.util.function.Consumer<com.google.gson.JsonObject> done) {
+        friendBusy.add(id);
+        f.whenComplete((r, e) -> friendBusy.remove(id));
+        net.evadeclient.module.misc.Friends.run(f, title, success, done);
+    }
+
+    /** "just now", "5m ago", "3h ago", "2d ago". */
+    private static String ago(long at) {
+        if (at <= 0) return "a while ago";
+        long min = Math.max(0, System.currentTimeMillis() - at) / 60_000L;
+        if (min < 1) return "just now";
+        if (min < 60) return min + "m ago";
+        long h = min / 60;
+        return h < 24 ? h + "h ago" : h / 24 + "d ago";
+    }
+
+    /** The buttons of a row laid out right to left from the row's right edge: {x1, x2} per button. */
+    private int[][] friendButtonsAt(FRow r) {
+        int[][] out = new int[r.buttons().size()][];
+        int right = cx + cw - 12;
+        for (int i = 0; i < r.buttons().size(); i++) {
+            FBtn b = r.buttons().get(i);
+            int w = Math.max(44, width(Role.LABEL, friendLabel(b)) + 16);
+            out[i] = new int[]{right - w, right};
+            right -= w + 6;
+        }
+        return out;
+    }
+
+    private String friendLabel(FBtn b) {
+        if (friendBusy.contains(b.id())) return "...";
+        return b.style() == 2 && b.id().equals(friendConfirm) ? b.label() + "?" : b.label();
+    }
+
+    private void renderFriendRow(DrawContext ctx, FRow r, int y, int mx, int my) {
+        boolean inView = my >= cy && my < cy + ch;
+        switch (r.kind()) {
+            case FR_HEAD -> caps(ctx, r.title(), cx + 2, y + 10, Theme.TEXT_HEADER, Role.CAPS, 1.5f);
+            case FR_NOTE -> text(ctx, ellipsize(Role.SMALL, r.title(), cw - 4), cx + 2, y + 4, Theme.TEXT_FAINT, Role.SMALL);
+            case FR_EMPTY -> {
+                Theme.roundBordered(ctx, cx, y + 4, cx + cw, y + FRIEND_EMPTY_H - 8, Theme.CARD, Theme.BORDER);
+                drawCentered(ctx, ellipsize(Role.STRONG, r.title(), cw - 20), cx, cx + cw, y + 16, Theme.TEXT, Role.STRONG);
+                if (r.sub() != null) drawCentered(ctx, ellipsize(Role.LABEL, r.sub(), cw - 20), cx, cx + cw, y + 30, Theme.TEXT_DIM, Role.LABEL);
+                if (!r.buttons().isEmpty()) {
+                    FBtn b = r.buttons().get(0);
+                    int bw = width(Role.STRONG, friendLabel(b)) + 24, bx = cx + (cw - bw) / 2, by = y + 46;
+                    boolean hb = inView && mx >= bx && mx < bx + bw && my >= by && my < by + 20;
+                    button(ctx, b.id(), bx, by, bx + bw, by + 20, hb, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
+                    drawCentered(ctx, friendLabel(b), bx, bx + bw, by + 6, Theme.ON_ACCENT, Role.STRONG);
+                }
+            }
+            case FR_TOGGLE -> {
+                boolean hover = inView && mx >= cx && mx < cx + cw && my >= y && my < y + ROW_H - 3;
+                float rh = animate("frow:" + r.key(), hover && r.enabled() ? 1 : 0, 22);
+                float base = Theme.fade;
+                if (!r.enabled()) Theme.fade = base * 0.45f;
+                try {
+                    Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, rh));
+                    text(ctx, r.title(), cx + 10, y + 7, Theme.TEXT, false);
+                    if (r.sub() != null) {
+                        int sx = cx + 10 + width(r.title()) + 10;
+                        text(ctx, ellipsize(Role.SMALL, r.sub(), controlRight() - 30 - sx), sx, y + 8, Theme.TEXT_FAINT, Role.SMALL);
+                    }
+                    Theme.toggle(ctx, controlRight() - 20, y + (ROW_H - 3) / 2 - 5, animate("ftog:" + r.key(), r.on().getAsBoolean() ? 1 : 0, 14));
+                } finally {
+                    Theme.fade = base;
+                }
+            }
+            default -> {
+                int h = FRIEND_ROW_H;
+                boolean hover = inView && mx >= cx && mx < cx + cw && my >= y && my < y + h;
+                float hv = animate("frow:" + r.key(), hover ? 1 : 0, 14);
+                Theme.roundBordered(ctx, cx, y, cx + cw, y + h, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, hv),
+                        Theme.lerpColor(Theme.BORDER, Theme.RED, hv * 0.6f));
+                int[][] at = friendButtonsAt(r);
+                int textRight = cx + cw - 12;
+                for (int[] b : at) textRight = Math.min(textRight, b[0]);
+                int tx = cx + 14;
+                if (r.dot() != 0) {
+                    Theme.disc(ctx, cx + 12, y + (h - 6) / 2, 6, r.dot());
+                    tx = cx + 26;
+                }
+                int titleW = textRight - 10 - tx;
+                String title = ellipsize(Role.BODY, r.title(), titleW - (r.chip() != null ? width(Role.CAPS, r.chip()) + 16 : 0));
+                text(ctx, title, tx, y + 9, Theme.TEXT, false);
+                if (r.chip() != null) {
+                    int px = tx + width(title) + 8, pw = width(Role.CAPS, r.chip()) + 10;
+                    Theme.pill(ctx, px, y + 8, px + pw, y + 19, Theme.alpha(Theme.RED, 0.3f));
+                    text(ctx, r.chip(), px + 5, y + 11, Theme.RED_BRIGHT, Role.CAPS);
+                }
+                if (r.sub() != null) text(ctx, ellipsize(Role.SMALL, r.sub(), titleW), tx, y + 24, Theme.TEXT_DIM, Role.SMALL);
+                int by = y + (h - 18) / 2;
+                for (int i = 0; i < at.length; i++) {
+                    FBtn b = r.buttons().get(i);
+                    boolean hb = inView && mx >= at[i][0] && mx < at[i][1] && my >= by && my < by + 18;
+                    boolean confirm = b.style() == 2 && b.id().equals(friendConfirm);
+                    String label = friendLabel(b);
+                    switch (b.style()) {
+                        case 1 -> {
+                            button(ctx, b.id(), at[i][0], by, at[i][1], by + 18, hb, Theme.RED, Theme.RED_BRIGHT, Theme.RED, Theme.RED_BRIGHT);
+                            drawCentered(ctx, label, at[i][0], at[i][1], by + 5, Theme.ON_ACCENT, Role.STRONG);
+                        }
+                        case 2 -> {
+                            float bh = button(ctx, b.id(), at[i][0], by, at[i][1], by + 18, hb,
+                                    confirm ? Theme.alpha(Theme.DANGER, 0.18f) : Theme.CONTROL,
+                                    Theme.alpha(Theme.DANGER, confirm ? 0.3f : 0.15f),
+                                    confirm ? Theme.DANGER : Theme.BORDER, Theme.DANGER);
+                            drawCentered(ctx, label, at[i][0], at[i][1], by + 6, confirm ? Theme.DANGER
+                                    : Theme.lerpColor(Theme.TEXT_SOFT, Theme.DANGER, bh), Role.LABEL);
+                            if (hb && confirm) setTip(mx, my, List.of(new TipLine("Click again to confirm", Theme.TEXT_SOFT)));
+                        }
+                        default -> {
+                            float bh = button(ctx, b.id(), at[i][0], by, at[i][1], by + 18, hb, Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.RED);
+                            drawCentered(ctx, label, at[i][0], at[i][1], by + 6, Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, bh), Role.LABEL);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean clickFriends(double mx, double my) {
+        String confirming = friendConfirm;
+        friendConfirm = null; // any click but the confirming one cancels a pending confirm
+        boolean on = friendsOn();
+        var s = net.evadeclient.social.SocialClient.state();
+        boolean ready = on && net.evadeclient.social.SocialClient.ready() && s.loaded();
+        if (on) {
+            friendFocused = mx >= cx && mx < cx + friendInputW() && my >= searchY && my < searchY + 24;
+            if (friendFocused) return true;
+            if (mx >= friendAddX() && mx < contentRight() && my >= searchY && my < searchY + 24) {
+                press("fadd");
+                addFriendFromInput();
+                return true;
+            }
+            int tabsX = cx + cw - FTab.values().length * FTAB_W, segY = headerY - 3;
+            if (mx >= tabsX && mx < cx + cw && my >= segY && my < segY + 22) {
+                FTab t = FTab.values()[Math.min(FTab.values().length - 1, (int) ((mx - tabsX) / FTAB_W))];
+                if (t != friendsTab) {
+                    friendsTab = t;
+                    pageChanged(0);
+                    resetScroll();
+                    net.evadeclient.social.SocialClient.refresh();
+                }
+                return true;
+            }
+        }
+        if (my < cy || my >= cy + ch || mx < cx || mx >= cx + cw) return true;
+        int y = cy - scrollPx();
+        for (FRow r : friendRows(on, ready, s)) {
+            int h = r.h();
+            if (my >= y && my < y + h) {
+                switch (r.kind()) {
+                    case FR_TOGGLE -> {
+                        if (r.enabled() && my < y + ROW_H - 3) { r.toggle().run(); press("ftog:" + r.key()); }
+                    }
+                    case FR_EMPTY -> {
+                        if (r.buttons().isEmpty()) break;
+                        FBtn b = r.buttons().get(0);
+                        int bw = width(Role.STRONG, friendLabel(b)) + 24, bx = cx + (cw - bw) / 2, by = y + 46;
+                        if (mx >= bx && mx < bx + bw && my >= by && my < by + 20) { press(b.id()); b.action().run(); }
+                    }
+                    case FR_ROW -> {
+                        int by = y + (FRIEND_ROW_H - 18) / 2;
+                        if (my < by || my >= by + 18) break;
+                        friendConfirm = confirming; // lay out as drawn (a pending confirm is wider)
+                        int[][] at = friendButtonsAt(r);
+                        friendConfirm = null;
+                        for (int i = 0; i < at.length; i++) {
+                            if (mx < at[i][0] || mx >= at[i][1]) continue;
+                            FBtn b = r.buttons().get(i);
+                            if (friendBusy.contains(b.id())) return true;
+                            press(b.id());
+                            if (b.style() == 2 && !b.id().equals(confirming)) {
+                                friendConfirm = b.id();
+                                friendConfirmAt = clock.getAsDouble();
+                            } else {
+                                b.action().run();
+                            }
+                            return true;
+                        }
+                    }
+                    default -> { }
+                }
+                return true;
+            }
+            y += h;
+        }
+        return true;
+    }
+
+    private void addFriendFromInput() {
+        String name = friendInput.strip();
+        if (name.isEmpty()) { friendFocused = true; return; }
+        if (!net.evadeclient.social.SocialClient.ready()) {
+            Notifications.push("Friends", "Still connecting: " + net.evadeclient.social.SocialClient.status(), false);
+            return;
+        }
+        friendInput = "";
+        friendAct("fadd", net.evadeclient.module.misc.Friends.addFriend(name), "Friends", null, r ->
+                Notifications.push("Friends", r.has("accepted") && r.get("accepted").getAsBoolean()
+                        ? "You're now friends with " + name : "Friend request sent to " + name, true));
+    }
+
+    // ---- account footer (opens Friends) --------------------------------
+
+    private int footerTop() { return wy + wh - 31; }
+
+    /** The sidebar's account footer: your name, and Friends at a glance. Clicking it opens the Friends page. */
+    private void renderAccountFooter(DrawContext ctx, int mx, int my) {
+        int x1 = wx + 10, x2 = wx + SIDEBAR - 10, top = footerTop() + 2, bot = wy + wh - 4;
+        boolean hover = mx >= x1 && mx < x2 && my >= top && my < bot;
+        boolean active = page == Page.FRIENDS && selected == null;
+        float t = animate("foot", hover ? 0.4f : 0, 16);
+        float act = settled(animate("footA", active ? 1 : 0, 22));
+        if (act > 0.01f) {
+            float base = Theme.fade;
+            Theme.fade = base * act;
+            try {
+                Theme.roundBordered(ctx, x1, top, x2, bot, Theme.tint(0.11f), Theme.lerpColor(Theme.BORDER, Theme.RED, 0.62f));
+            } finally {
+                Theme.fade = base;
+            }
+        }
+        float hf = t * (1f - act);
+        if (hf > 0.01f) Theme.round(ctx, x1, top, x2, bot, Theme.alpha(Theme.CONTROL_HOVER, hf));
+        int fg = Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, t), Theme.RED_BRIGHT, act);
+        icon(ctx, "friends", x1 + 6, top + (bot - top - ICON) / 2, ICON, fg);
+
+        var s = net.evadeclient.social.SocialClient.state();
+        boolean on = friendsOn();
+        int waiting = on ? s.incoming().size() + s.invites().size() : 0;
+        int pillW = 0;
+        if (waiting > 0) {
+            String cnt = String.valueOf(waiting);
+            pillW = Math.max(13, width(Role.SMALL, cnt) + 8);
+            int px = x2 - 6 - pillW, py = top + (bot - top - 12) / 2;
+            Theme.pill(ctx, px, py, px + pillW, py + 12, Theme.alpha(Theme.RED, 0.85f));
+            text(ctx, cnt, px + (smooth ? (pillW - width(Role.SMALL, cnt) + 1) / 2 : (pillW - width(Role.SMALL, cnt)) / 2 + 1), py + 3, Theme.ON_ACCENT, Role.SMALL);
+        }
+        int tx = x1 + 6 + ICON + 7, tw = x2 - (pillW > 0 ? pillW + 10 : 6) - tx;
+        String user = client != null && client.getSession() != null ? client.getSession().getUsername() : "";
+        text(ctx, ellipsize(Role.LABEL, user.isEmpty() ? "Player" : user, tw), tx, top + 4,
+                Theme.lerpColor(Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, t), Theme.RED_BRIGHT, act), Role.LABEL);
+        String line = !on ? "Friends  ·  Evade v" + EvadeClient.VERSION
+                : s.loaded() ? s.onlineFriends() + (s.onlineFriends() == 1 ? " friend" : " friends") + " online" + (s.inParty() ? "  ·  in a party" : "")
+                : "Friends  ·  connecting";
+        text(ctx, ellipsize(Role.SMALL, line, tw), tx, top + 15, Theme.TEXT_FAINT, Role.SMALL);
+        if (hover) setTip(mx, my, List.of(new TipLine("Friends and party  ·  Evade v" + EvadeClient.VERSION, Theme.TEXT_SOFT)));
     }
 
     // ---- module list --------------------------------------------------
@@ -1872,10 +2454,15 @@ public class EvadeMenu extends Screen {
                     }
                 }
             }
+            if (my >= footerTop() + 2 && my < wy + wh - 4 && mx >= wx + 10 && mx < wx + SIDEBAR - 10) {
+                press("foot");
+                go(Page.FRIENDS);
+            }
             return true;
         }
 
         if (page == Page.PROFILES && selected == null) return clickProfiles(mx, my);
+        if (page == Page.FRIENDS && selected == null) return clickFriends(mx, my);
 
         if (selected != null || page == Page.SETTINGS) {
             // back button / master toggle on settings header
@@ -2092,8 +2679,8 @@ public class EvadeMenu extends Screen {
             // Ctrl+F (Cmd+F): jump to the search box from anywhere in the menu.
             returnTo = null;
             if (selected != null) back(); // slides the list back in from the left
-            else if (page == Page.SETTINGS || page == Page.PROFILES) pageChanged(0);
-            if (page == Page.SETTINGS || page == Page.PROFILES) {
+            else if (page == Page.SETTINGS || page == Page.PROFILES || page == Page.FRIENDS) pageChanged(0);
+            if (page == Page.SETTINGS || page == Page.PROFILES || page == Page.FRIENDS) {
                 page = Page.ALL;
                 resetScroll(); // a new page: its list starts at the top
             }
@@ -2101,17 +2688,22 @@ public class EvadeMenu extends Screen {
             return true;
         }
         boolean profiles = page == Page.PROFILES && selected == null;
-        boolean listPage = selected == null && page != Page.SETTINGS && page != Page.PROFILES;
+        boolean friends = page == Page.FRIENDS && selected == null && friendsOn();
+        boolean listPage = selected == null && page != Page.SETTINGS && page != Page.PROFILES && page != Page.FRIENDS;
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (profiles && (profileFocused || !profileInput.isEmpty())) { profileInput = ""; profileFocused = false; return true; }
+            if (friends && (friendFocused || !friendInput.isEmpty())) { friendInput = ""; friendFocused = false; return true; }
             if (selected != null) { leaveModulePage(); return true; }
             if (!search.isEmpty()) { search = ""; searchFocused = false; resetScroll(); return true; }
             close();
             return true;
         }
-        if (input.isPaste() && (profiles || listPage)) {
+        if (input.isPaste() && (profiles || listPage || friends)) {
             String clip = client != null ? clean(client.keyboard.getClipboard()) : "";
-            if (profiles) {
+            if (friends) {
+                friendFocused = true;
+                friendInput = cap(friendInput + clip.replaceAll("[^A-Za-z0-9_]", ""), 16);
+            } else if (profiles) {
                 profileFocused = true;
                 profileInput = cap(profileInput + clip, 24);
             } else {
@@ -2128,6 +2720,16 @@ public class EvadeMenu extends Screen {
             }
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
                 if (profileFocused) createProfile();
+                return true;
+            }
+        }
+        if (friends) {
+            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!friendInput.isEmpty()) { friendInput = friendInput.substring(0, friendInput.length() - 1); friendFocused = true; }
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+                if (friendFocused) addFriendFromInput();
                 return true;
             }
         }
@@ -2162,7 +2764,7 @@ public class EvadeMenu extends Screen {
             }
         }
         if (key == menuKey) {
-            boolean typing = searchFocused || profileFocused;
+            boolean typing = searchFocused || profileFocused || friendFocused;
             if (isModifier(key)) {
                 // Decided on release: a tap closes, Shift + letter (or + wheel, + click) doesn't. Held keys repeat,
                 // so only the first press starts the tap.
@@ -2172,7 +2774,7 @@ public class EvadeMenu extends Screen {
                 }
                 return true;
             }
-            if (!typing && !profiles) { close(); return true; }
+            if (!typing && !profiles && !friends) { close(); return true; }
         }
         return super.keyPressed(input);
     }
@@ -2198,6 +2800,15 @@ public class EvadeMenu extends Screen {
         if (page == Page.PROFILES) {
             profileFocused = true;
             if (profileInput.length() < 24) profileInput += input.asString();
+            return true;
+        }
+        if (page == Page.FRIENDS) {
+            // Minecraft names: letters, digits and underscores, 16 at most.
+            String c = input.asString();
+            if (friendsOn() && c.matches("[A-Za-z0-9_]+") && friendInput.length() < 16) {
+                friendFocused = true;
+                friendInput += c;
+            }
             return true;
         }
         // Typing anywhere starts a search, like a launcher.
@@ -2469,7 +3080,11 @@ public class EvadeMenu extends Screen {
         profileInput = "";
         profileFocused = false;
         pendingDelete = null;
+        friendInput = "";
+        friendFocused = false;
+        friendConfirm = null;
         resetScroll();
+        if (p == Page.FRIENDS) net.evadeclient.social.SocialClient.refresh();
     }
 
     private void back() {

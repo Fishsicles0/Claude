@@ -198,10 +198,13 @@ public class EvadeTitleScreen extends Screen {
                 .intro(intro, 450, 0, 4)).setTooltip(Tooltip.of(Text.translatable("options.accessibility")));
         versionX = fx + 2 * fb + 4 + 8;
 
-        Text credit = COPYRIGHT.copy().formatted(Formatting.GRAY);
+        // The required notice, in the menu's own type when Smooth Font is on.
+        Text credit = TitleArt.smooth()
+                ? COPYRIGHT.copy().setStyle(net.evadeclient.util.UiFont.style(Role.SMALL, Theme.gs())).withColor(0xFF9A9AA6)
+                : COPYRIGHT.copy().formatted(Formatting.GRAY);
         int cw = textRenderer.getWidth(credit);
         int rx = wide ? width - margin : width - 8;
-        copyright = addDrawableChild(new PressableTextWidget(rx - cw, footerCy - 5, cw, 10, credit,
+        copyright = addDrawableChild(new PressableTextWidget(rx - cw, footerCy - (TitleArt.smooth() ? 4 : 5), cw, 10, credit,
                 b -> client.setScreen(new CreditsAndAttributionScreen(this)), textRenderer));
         copyright.setAlpha(0f);
 
@@ -294,8 +297,6 @@ public class EvadeTitleScreen extends Screen {
             if (mpDisabled != null) {
                 row.active = false;
                 row.setTooltip(Tooltip.of(mpDisabled));
-            } else {
-                row.setTooltip(Tooltip.of(Text.literal(e.info.address)));
             }
             ry += 28;
             rd += 30;

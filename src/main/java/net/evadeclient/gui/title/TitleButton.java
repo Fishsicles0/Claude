@@ -158,13 +158,12 @@ public class TitleButton extends PressableWidget {
             return;
         }
         Theme.shadow(ctx, Theme.SH_CARD, x1, y1 + 2, x2, y2 + 2, Theme.alpha(0xFF000000, 0.55f));
-        if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x2, y2, Theme.alpha(Theme.RED, 0.62f * h));
+        if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x2, y2, Theme.alpha(Theme.RED, 0.85f * h));
         int fill = Theme.lerpColor(Theme.RED | 0xFF000000, Theme.RED_BRIGHT | 0xFF000000, 0.22f * h);
         if (press > 0) fill = Theme.lerpColor(fill, Theme.RED_DARK | 0xFF000000, 0.35f * press);
         Theme.round(ctx, x1, y1, x2, y2, fill, r);
         // A glassy top half and a light catching the top edge.
         Theme.round(ctx, x1, y1, x2, y1 + (y2 - y1) / 2, 0x16FFFFFF, r, Theme.TL | Theme.TR);
-        Theme.round(ctx, x1, y2 - 3, x2, y2, Theme.alpha(Theme.RED_DARK, 0.35f), r, Theme.BL | Theme.BR);
         Theme.fadeLine(ctx, x1 + 2, y1, x2 - 2, Theme.alpha(0xFFFFFFFF, 0.42f + 0.2f * h));
     }
 
