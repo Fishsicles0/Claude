@@ -1,6 +1,17 @@
 {
- "version": "2.5.0",
+ "version": "2.5.1",
  "entries": [
+  {
+   "id": "v2.5.1",
+   "title": "v2.5.1",
+   "date": "2026-11-24",
+   "dateText": "24 Nov 2026",
+   "summary": "",
+   "items": [
+    "The Discover servers button is gone from the title screen. Evade doesn't feature or recommend servers."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.5.1"
+  },
   {
    "id": "v2.5.0",
    "title": "v2.5.0",
@@ -12,7 +23,7 @@
     "Chat: chat heads, chat tabs (Party, Guild, DMs, Friends and your own), smooth chat and emoji shortcodes with a picker.",
     "New mods: Look Info (the block or mob you're looking at, your tool and the light level, never anyone's health), Light Overlay (spawnable spots, never through walls), Item Highlight with a new item picker, HUD Toggle, and Clear Glass, No Map Bobbing, fishing line colour and spyglass options in Pack Tweaks.",
     "Open to Friends: share your singleplayer world with Evade friends from the pause menu (turn on the \"Open to Friends\" extra in the launcher). They always click Join themselves.",
-    "Friends: see what friends are doing (menus, singleplayer, a server or AFK), player cards with add, invite, voice volume and hide, and Discover servers on the title screen.",
+    "Friends: see what friends are doing (menus, singleplayer, a server or AFK), player cards with add, invite, voice volume and hide.",
     "Media: a session recap in Evade Clips (one video from the day's best moments, also vertical), and a replay render queue with share links.",
     "Cloud backup (opt-in): your settings, HUD, profiles and waypoints, encrypted on your PC with a passphrase only you know.",
     "Safe Start: if Evade fails to start twice, it starts with its mods off and shows what probably caused it, with a button per mod to turn it back on. Many features now switch themselves off instead of crashing the game.",
@@ -90,21 +101,6 @@
     "Evade Server API: servers can show waypoints, cooldowns, notifications, titles, team markers, borders, beams and holograms to Evade players, and switch mods off. A free server plugin sets it up."
    ],
    "url": "https://evadeclient.com/changelog#v2.1.0"
-  },
-  {
-   "id": "v2.0.1",
-   "title": "v2.0.1",
-   "date": "2026-11-23",
-   "dateText": "23 Nov 2026",
-   "summary": "Updating is painless, and one mod removed.",
-   "items": [
-    "The installer updates itself: open the copy you already have and it fetches the newest installer from evadeclient.com, checks it and switches to it. No more downloading it again.",
-    "Evade Clips updates even while it's open: the installer closes it, waits out antivirus scans, or installs the new version beside the running one.",
-    "Downloads always come straight from the latest build, never from an old cached copy.",
-    "Removed Nametags: restyling other players' name tags isn't allowed on many servers.",
-    "Fullbright now tells you when shaders are on, because shader packs do their own lighting and ignore it."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.0.1"
   }
  ]
 }
