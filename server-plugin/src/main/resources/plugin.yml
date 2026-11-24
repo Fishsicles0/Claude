@@ -4,8 +4,6 @@ main: net.evadeclient.server.EvadePlugin
 api-version: '1.21'
 description: Talks to players using Evade Client - waypoints, cooldowns, notifications, mod rules and more.
 authors: [Evade Client contributors]
-website: https://github.com/
-load: STARTUP
 
 commands:
   evade:
