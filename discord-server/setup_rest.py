@@ -301,12 +301,24 @@ class Setup:
                          "footer": {"text": f"{layout.CLIENT['name']} · {MARKER}{key}:{i}"}}
                 old = mine.get(f"{key}:{i}")
                 if old is None:
-                    self.api("POST", f"/channels/{ch['id']}/messages", {"embeds": [embed]})
+                    old = self.api("POST", f"/channels/{ch['id']}/messages", {"embeds": [embed]})
                     self.log(f"+ post in {ch['name']}")
                     self.changes += 1
                 elif self.update:
-                    self.api("PATCH", f"/channels/{ch['id']}/messages/{old['id']}", {"embeds": [embed]})
+                    old = self.api("PATCH", f"/channels/{ch['id']}/messages/{old['id']}", {"embeds": [embed]})
                     self.log(f"~ post in {ch['name']}")
+                if i == 0 and not old.get("pinned"):
+                    self.pin(ch["id"], old["id"])
+
+    def pin(self, channel_id, message_id):
+        """Pin a post, then delete Discord's "pinned a message" notice so the channel stays tidy."""
+        try:
+            self.api("PUT", f"/channels/{channel_id}/pins/{message_id}")
+            for m in self.api("GET", f"/channels/{channel_id}/messages?limit=5"):
+                if m.get("type") == 6 and m["author"]["id"] == self.me["id"]:
+                    self.api("DELETE", f"/channels/{channel_id}/messages/{m['id']}")
+        except RuntimeError as e:
+            self.warn(f"couldn't pin in {channel_id}: {e}")
 
 
 def main():
