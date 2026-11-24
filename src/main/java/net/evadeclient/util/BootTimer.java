@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Start-up time: from the Java process starting to the first title screen ("Boot"), how much of it Evade's own
- * set-up took ("Evade"), and the memory in use once the title screen is up. Shown in the Frame Profiler (SafeStart
- * logs the "Evade ready in X ms" line), and kept in {@code config/evade/boot-times.json} (the last ten starts) so a test can
+ * Start-up time: from the Java process starting to the first title screen ("Boot", read from {@link SafeStart}, which
+ * measures and logs it, with its own fallback), how much of it Evade's own set-up took ("Evade"), and the memory in
+ * use once the title screen is up. Shown in the Frame Profiler; Evade's share is kept in {@code config/evade/boot-times.json} (the last ten starts) so a test can
  * tell a slower start from noise.
  */
 public final class BootTimer {
@@ -45,26 +45,32 @@ public final class BootTimer {
         readyMs = Math.max(0, System.currentTimeMillis() - start);
         Runtime rt = Runtime.getRuntime();
         heapMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
-        // SafeStart logs "Evade ready in X ms" itself; this adds Evade's own share for the Frame Profiler.
-        EvadeClient.LOG.info("Boot timing: Evade's own set-up took {} ms of the {} ms to the title screen", evadeInitMs(), readyMs);
+        // SafeStart measures and logs "Evade ready in X ms" and the heap; this only adds Evade's own share.
+        EvadeClient.LOG.info("Boot timing: Evade's own set-up took {} ms", evadeInitMs());
         Thread t = new Thread(BootTimer::save, "Evade boot times");
         t.setDaemon(true);
         t.start();
     }
 
     /** Process start to the first title screen, ms (-1 until it has shown). */
-    public static long readyMs() { return readyMs; }
+    public static long readyMs() {
+        long safe = SafeStart.readyMillis();
+        return safe >= 0 ? safe : readyMs;
+    }
 
     /** Evade's own client initialiser, ms. */
     public static long evadeInitMs() { return initNanos / 1_000_000; }
 
     /** Memory in use at the first title screen, MB (-1 until then). */
-    public static long heapMb() { return heapMb; }
+    public static long heapMb() {
+        long safe = SafeStart.heapAtTitleMb();
+        return safe >= 0 ? safe : heapMb;
+    }
 
     /** "Boot 14.2 s · Evade 0.31 s" for the Frame Profiler, or null before the title screen. */
     public static String profilerLine() {
-        if (readyMs < 0) return null;
-        return String.format(Locale.ROOT, "Boot %.1f s  ·  Evade %.2f s", readyMs / 1000.0, evadeInitMs() / 1000.0);
+        if (readyMs() < 0) return null;
+        return String.format(Locale.ROOT, "Boot %.1f s  ·  Evade %.2f s", readyMs() / 1000.0, evadeInitMs() / 1000.0);
     }
 
     private static Path file() {
@@ -101,8 +107,8 @@ public final class BootTimer {
         JsonArray a = new JsonArray();
         for (long v : all) a.add(v);
         root.add("evadeMs", a);
-        root.addProperty("lastReadyMs", readyMs);
-        root.addProperty("lastHeapMb", heapMb);
+        root.addProperty("lastReadyMs", readyMs());
+        root.addProperty("lastHeapMb", heapMb());
         try {
             Files.createDirectories(file().getParent());
             Files.writeString(file(), root.toString());

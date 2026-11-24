@@ -174,5 +174,8 @@ public final class SocialPresence {
     // ------------------------------------------------------------------ test support
 
     /** Test hook: pretend to be doing {@code a} (null: back to real tracking). */
-    public static void forceForTest(Activity a) { forced = a; }
+    public static void forceForTest(Activity a) {
+        forced = a;
+        if (a == null) lastInput = System.currentTimeMillis();
+    }
 }

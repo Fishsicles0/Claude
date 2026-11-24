@@ -59,7 +59,7 @@ public final class Discover {
                 Screens.getButtons(screen).add(link);
             } else if (screen instanceof TitleScreen) {
                 Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal("Discover"), b -> client.setScreen(new DiscoverScreen(screen)))
-                        .dimensions(80, 6, 70, 20).tooltip(tip).build());
+                        .dimensions(204, 6, 70, 20).tooltip(tip).build()); // after Replays and Auto Reconnect's Rejoin
             }
         });
     }

@@ -101,6 +101,8 @@ public final class PerfV25Test {
                 {"AMD Radeon 780M Graphics", "INTEGRATED"}, {"AMD Radeon(TM) Graphics", "INTEGRATED"},
                 {"AMD Radeon 780M (radeonsi, gfx1103_r1, LLVM 18.1.8, DRM 3.57)", "INTEGRATED"},
                 {"AMD Radeon(TM) 760M", "INTEGRATED"}, {"Radeon RX Vega 8 Graphics", "INTEGRATED"},
+                {"AMD Radeon(TM) Vega 3 Graphics", "INTEGRATED"}, {"AMD Radeon 880M", "INTEGRATED"}, {"AMD Radeon(TM) 610M", "INTEGRATED"},
+                {"AMD Radeon 740M Graphics", "INTEGRATED"}, {"AMD Radeon RX Vega 64", "DISCRETE"},
                 {"Mesa Intel(R) Graphics (ADL GT2)", "INTEGRATED"}, {"Intel(R) Iris(R) Xe Graphics", "INTEGRATED"},
                 {"Intel(R) UHD Graphics 620", "INTEGRATED"}, {"Intel(R) Arc(TM) Graphics", "INTEGRATED"},
                 {"NVIDIA GeForce RTX 4060 Laptop GPU/PCIe/SSE2", "DISCRETE"}, {"AMD Radeon RX 7600 (radeonsi, navi33)", "DISCRETE"},

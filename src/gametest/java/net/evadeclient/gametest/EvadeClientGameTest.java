@@ -63,6 +63,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             check(addons.startsWith("All") && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("moreculling"),
                     "Performance mods load alongside Evade (" + addons + ", MoreCulling too)");
 
+            // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
+            if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -87,8 +89,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             VisualsV24Test.run(ctx, sp);
             MapsTest.run(ctx, sp);
             AddonAndShotsTest.run(ctx, sp);
-            PerfV25Test.run(ctx, sp);
+            SocialV25Test.run(ctx, sp);
             FeaturesV25Test.run(ctx, sp);
+            PerfV25Test.run(ctx, sp);
             ReliabilityV25Test.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);

@@ -241,12 +241,15 @@ public final class FeaturesV25Test {
     private static void lookInfoAndLightOverlay(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         var server = sp.getServer();
         // A closed stone room far from the other tests: dark inside, with a glass block in its floor.
+        // Go there first: the server only edits loaded chunks.
+        server.runCommand("tp @a 300 -60 300 0 90");
+        server.runCommand("item replace entity @a weapon.mainhand with air");
+        server.runCommand("gamemode survival @a");
+        ctx.waitTicks(40);
         server.runCommand("fill 296 -62 296 304 -55 304 stone");
         server.runCommand("fill 297 -61 297 303 -56 303 air");
         server.runCommand("setblock 302 -62 302 glass");
         server.runCommand("tp @a 300 -61 300 0 90");
-        server.runCommand("item replace entity @a weapon.mainhand with air");
-        server.runCommand("gamemode survival @a");
         ctx.waitTicks(40);
         sp.getClientWorld().waitForChunksRender();
 
