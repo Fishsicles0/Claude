@@ -80,11 +80,15 @@ final class ServersDat {
             String k = key(e.ip());
             if (k.isEmpty() || !placed.add(k)) continue;
             boolean had = existing.containsKey(k);
-            if (!had || ownedBefore.contains(k)) owned.add(k);
+            boolean ours2 = !had || ownedBefore.contains(k);
+            if (ours2) owned.add(k);
             Map<String, Object> c = had ? new LinkedHashMap<>(existing.get(k)) : new LinkedHashMap<>();
-            c.put("name", e.name() == null || e.name().isBlank() ? e.ip().strip() : e.name());
-            c.put("ip", e.ip().strip());
-            if (e.icon() != null && !e.icon().isBlank() && e.icon().length() < 60_000) c.put("icon", e.icon());
+            // The player's own entry for the same server only moves to the top: its name stays theirs.
+            if (ours2) {
+                c.put("name", e.name() == null || e.name().isBlank() ? e.ip().strip() : e.name());
+                c.put("ip", e.ip().strip());
+            }
+            if (e.icon() != null && !e.icon().isBlank() && e.icon().length() < 60_000 && (ours2 || !c.containsKey("icon"))) c.put("icon", e.icon());
             out.add(c);
         }
         for (Object x : old) {

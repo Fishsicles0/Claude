@@ -1,6 +1,5 @@
 package net.evadeclient.installer;
 
-import javax.swing.SwingUtilities;
 import java.io.File;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemException;
@@ -16,7 +15,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Evade Launcher (still shipped as EvadeInstaller.jar / Evade-Installer.exe so existing downloads keep updating).
  * <pre>
- *   java -jar EvadeInstaller.jar                      open the launcher window
+ *   java -jar EvadeInstaller.jar                      open the launcher window (Evade Clips runs inside it)
+ *   java -jar EvadeInstaller.jar --minimized          start in the tray only (how Evade Client starts it with Minecraft)
+ *   java -jar EvadeInstaller.jar --clips              open the window on the Clips section
  *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods] [--no-clips] [--shaders]
  *   java -jar EvadeInstaller.jar --screenshots OUTDIR  render every page to PNG (no display needed)
  * </pre>
@@ -30,12 +31,13 @@ public final class EvadeInstaller {
         List<String> a = List.of(args);
         if (a.contains("--cli")) { cli(a); return; }
         if (a.contains("--screenshots")) { screenshots(Paths.get(arg(a, "--screenshots", "screenshots"))); return; }
-        // A newer launcher on evadeclient.com takes over (and replaces this file), so one download lasts.
-        // The player can switch this off in Settings.
-        if (Launcher.loadSettings().checkUpdates && SelfUpdate.run(a)) { System.exit(0); return; }
+        // Evade Clips' own test and tool modes still work from this file.
+        if (!a.isEmpty() && List.of("--selftest", "--edittest", "--sizetest").contains(a.get(0))) { net.evadeclient.clips.ClipsApp.main(args); return; }
         System.setProperty("awt.useSystemAAFontSettings", "lcd");
         System.setProperty("sun.java2d.uiScale.enabled", "true");
-        SwingUtilities.invokeLater(LauncherApp::open);
+        System.setProperty("flatlaf.uiScale.allowScaleDown", "true");
+        // Self-update, single instance, the built-in Evade Clips and the window.
+        AppHost.start(a);
     }
 
     // ------------------------------------------------------------------ system helpers
@@ -119,7 +121,7 @@ public final class EvadeInstaller {
         boolean copy = !a.contains("--no-copy-settings");
         boolean voice = !a.contains("--no-voice-chat");
         boolean perf = !a.contains("--no-performance-mods");
-        boolean clips = !a.contains("--no-clips");
+        boolean clips = !a.contains("--no-clips"); // ffmpeg for the built-in Evade Clips (Windows)
         boolean shaders = a.contains("--shaders");
         InstallerCore core = new InstallerCore();
         System.out.println("Evade Installer");
@@ -150,8 +152,6 @@ public final class EvadeInstaller {
             fail(friendly(e));
             return;
         }
-        if (clips && r.clipsUrl() != null && skipped.stream().noneMatch(s -> s.startsWith("Evade Clips")))
-            System.out.println("Evade Clips " + r.clipsVersion() + " installed: " + InstallerCore.clipsAppDir());
         if (!skipped.isEmpty()) {
             System.out.println("Installed, but some extras were skipped:");
             for (String s : skipped) System.out.println("  - " + s);
@@ -226,7 +226,7 @@ public final class EvadeInstaller {
                     + ". Check that your account can write to that folder, then try again.";
         }
         if (p != null && (under(p, InstallerCore.clipsAppDir()) || under(p, InstallerCore.clipsDataDir()))) {
-            return "Evade Clips is open, so it couldn't be updated. Close it from the tray (right-click its icon, then Quit) and try again.";
+            return "A file Evade Clips uses is busy (" + name + "). Close the old Evade Clips app from its tray icon and try again.";
         }
         if (name.startsWith("launcher_profiles")) {
             return "The Minecraft Launcher is using " + name + ". Close the Minecraft Launcher and try again.";

@@ -921,40 +921,6 @@ public final class InstallerCore {
         return plus > 0 ? v.substring(0, plus) : v;
     }
 
-    /** The Evade Clips app recorded in location.json, if it's still there. */
-    static Path clipsInstalledApp() {
-        JsonObject loc = readJsonObject(clipsDataDir().resolve("location.json"));
-        for (String k : new String[]{"exe", "jar"}) {
-            String v = str(loc, k);
-            if (v == null) continue;
-            try {
-                Path p = Paths.get(v);
-                if (Files.isRegularFile(p)) return p;
-            } catch (RuntimeException ignored) { }
-        }
-        return null;
-    }
-
-    /** Starts the installed Evade Clips app. False when it isn't installed or couldn't start. */
-    static boolean openClips() {
-        Path app = clipsInstalledApp();
-        if (app == null) return false;
-        try {
-            List<String> cmd = new ArrayList<>();
-            if (lower(app.getFileName().toString()).endsWith(".exe")) cmd.add(app.toString());
-            else {
-                String java = str(readJsonObject(clipsDataDir().resolve("location.json")), "java");
-                if (java == null || !Files.exists(Paths.get(java))) java = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
-                cmd.addAll(List.of(java, "-jar", app.toString()));
-            }
-            new ProcessBuilder(cmd).directory(app.getParent().toFile()).redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     /** The known extra mod (see {@link #KNOWN}) that a lowercase jar name belongs to, or null. */
     private static String[] knownOwner(String lowerName) {
         String[] best = null;

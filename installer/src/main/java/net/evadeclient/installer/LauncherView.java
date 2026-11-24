@@ -100,8 +100,6 @@ public final class LauncherView extends JPanel {
         default void browseJava() {}
         default void openFolder(Path p) {}
         default void openUrl(String url) {}
-        default void openClips() {}
-        default void installClips() {}
         default void openLauncherAgain() {}
         default void close() { System.exit(0); }
         default void sidebarToggled() {}
@@ -1095,7 +1093,9 @@ public final class LauncherView extends JPanel {
             g.fill(box);
         }
         // scrims: dark on the left for the text, and along the bottom for the Play bar
-        g.setPaint(new GradientPaint(x, 0, new Color(8, 8, 10, 235), x + w * 0.72f, 0, new Color(8, 8, 10, 40)));
+        g.setColor(new Color(8, 8, 10, 70));
+        g.fill(box);
+        g.setPaint(new GradientPaint(x + w * 0.25f, 0, new Color(8, 8, 10, 235), x + w * 0.78f, 0, new Color(8, 8, 10, 30)));
         g.fill(box);
         g.setPaint(new GradientPaint(0, y + h - 130, new Color(8, 8, 10, 0), 0, y + h, new Color(8, 8, 10, 235)));
         g.fill(box);
@@ -1478,11 +1478,12 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(13.5f));
         g.setColor(TEXT);
         String title = rec ? "Recording " + net.evadeclient.clips.ui.Theme.time(st.recordingSeconds()) : live ? "Instant replay on"
-                : err ? "Capture error" : on ? "Replay waits for Minecraft" : "Instant replay off";
+                : err ? "Capture error" : on ? "Instant replay ready" : "Instant replay off";
         g.drawString(ellipsizeEnd(g, title, w - 130), ix + 52, iy + 17);
         g.setFont(inter.deriveFont(11.5f));
         g.setColor(DIM);
         String sub = live ? clips.settings.hotkeySaveClip + " saves the last " + clips.settings.replaySeconds + " s"
+                : on && !rec && !err ? "Starts when Minecraft opens"
                 : clips.library.all().size() + " clip" + (clips.library.all().size() == 1 ? "" : "s") + " in your library";
         g.drawString(ellipsizeEnd(g, sub, w - 90), ix + 52, iy + 35);
         toggle(g, "clips-replay-sw", x + w - 18 - 38, iy + 8, on, true);
@@ -3118,6 +3119,15 @@ public final class LauncherView extends JPanel {
     void closeOverlays() {
         popup = null;
         modal = null;
+        overlay = null;
+    }
+
+    /** Lays out a component tree without a window (screenshots run headless, where validate() does nothing). */
+    private static void layoutTree(java.awt.Component c) {
+        if (c instanceof java.awt.Container k) {
+            k.doLayout();
+            for (java.awt.Component ch : k.getComponents()) layoutTree(ch);
+        }
     }
 
     /** Renders the current state to an image (screenshots and tests). */
@@ -3133,6 +3143,7 @@ public final class LauncherView extends JPanel {
         roundCorners = true;
         // Lay the text fields out first (they're positioned while painting), then paint everything with them.
         paintComponent(img.createGraphics());
+        if (clipsHost != null && clipsHost.isVisible()) layoutTree(clipsHost);
         paint(g);
         roundCorners = was;
         g.dispose();

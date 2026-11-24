@@ -144,6 +144,22 @@ final class LauncherApp implements LauncherView.Actions {
                 clipsPage("editor");
             });
         }
+        // Ctrl+1 … Ctrl+4 open Clips' Library, Record, Editor and Settings (as in the Clips app).
+        var im = frame.getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+        var am = frame.getRootPane().getActionMap();
+        String[] ids = {"library", "record", "editor", "settings"};
+        int mask = net.evadeclient.clips.core.Ffmpeg.MAC ? java.awt.event.InputEvent.META_DOWN_MASK : java.awt.event.InputEvent.CTRL_DOWN_MASK;
+        for (int k = 0; k < ids.length; k++) {
+            String id = ids[k];
+            im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_1 + k, mask), "clips-" + id);
+            am.put("clips-" + id, new javax.swing.AbstractAction() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                    if (clipsPages == null || (id.equals("editor") && clipsPages.editor.clip() == null)) return;
+                    view.showPage(LauncherView.Page.CLIPS);
+                    clipsPage(id);
+                }
+            });
+        }
         frame.pack();
         frame.setResizable(false);
         if (!perPixel) {

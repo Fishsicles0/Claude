@@ -70,7 +70,6 @@ final class AppHost {
             // ffmpeg from the old separate app's folder still counts.
             Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg").resolve("bin"));
             Ffmpeg.addSearchDir(InstallerCore.clipsAppDir().resolve("ffmpeg"));
-            if (cs.clipsFolder == null || cs.clipsFolder.isBlank()) { /* Clips picks its default folder */ }
             app = ClipsApp.startCore(cs);
         }
         App clips = app;
