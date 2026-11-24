@@ -1,46 +1,109 @@
 package net.evadeclient.util;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Small toasts that slide in from the right (e.g. "Zoom enabled" when you use a keybind). */
+/**
+ * Small toasts that slide in from the right (e.g. "Zoom enabled" when you use a keybind). In game they sit at
+ * the middle of the right edge; while a menu is open they stack from the top-right corner, drawn over the menu.
+ * Safe to push from any thread.
+ */
 public final class Notifications {
-    private record Toast(String title, String text, boolean good, long start) {}
+    /** The toast's side bar and text colour: grey for info, accent for good news, amber for a warning. */
+    public enum Level { INFO, SUCCESS, WARN }
+
+    private record Toast(String title, String text, Level level, long start, long life) {}
 
     private static final List<Toast> toasts = new ArrayList<>();
     private static final long LIFE = 2200;
+    /** Longest a toast may stay up (server notifications ask for their own time). */
+    public static final long MAX_LIFE = 15_000;
+    private static final int MAX_WIDTH = 220;
+    /** Height of one toast; toasts stack 4 px apart. */
+    private static final int H = 26;
+    private static final String ELLIPSIS = "...";
 
     private Notifications() {}
 
     public static void push(String title, String text, boolean good) {
-        toasts.add(new Toast(title, text, good, System.currentTimeMillis()));
-        if (toasts.size() > 5) toasts.removeFirst();
+        push(title, text, good ? Level.SUCCESS : Level.INFO, LIFE);
     }
 
+    /** A toast with its own level and time on screen ({@code lifeMs}, kept between 0.5 and 15 seconds). */
+    public static void push(String title, String text, Level level, long lifeMs) {
+        long life = Math.max(500, Math.min(MAX_LIFE, lifeMs));
+        synchronized (toasts) {
+            toasts.add(new Toast(title == null ? "" : title, text == null ? "" : text, level == null ? Level.INFO : level,
+                    System.currentTimeMillis(), life));
+            if (toasts.size() > 5) toasts.removeFirst();
+        }
+    }
+
+    /** Draws the live toasts in HUD units (see {@link net.evadeclient.hud.Hud#scale()}). */
     public static void render(DrawContext ctx) {
         long now = System.currentTimeMillis();
-        toasts.removeIf(t -> now - t.start > LIFE);
-        var tr = MinecraftClient.getInstance().textRenderer;
-        int sw = ctx.getScaledWindowWidth();
-        int y = ctx.getScaledWindowHeight() / 2 - 20;
-        for (Toast t : toasts) {
-            long age = now - t.start;
-            float in = Math.min(1, age / 180f), out = Math.min(1, (LIFE - age) / 220f);
-            float vis = ease(Math.min(in, out));
-            int w = Math.max(tr.getWidth(t.title), tr.getWidth(t.text)) + 18;
-            int x = sw - Math.round((w + 6) * vis);
-            Theme.round(ctx, x, y, x + w, y + 26, 0xE60A0A0C);
-            ctx.fill(x, y + 2, x + 2, y + 24, t.good ? Theme.RED : Theme.TEXT_FAINT);
-            ctx.drawTextWithShadow(tr, t.title, x + 9, y + 4, Theme.TEXT);
-            ctx.drawTextWithShadow(tr, t.text, x + 9, y + 15, t.good ? Theme.RED_BRIGHT : Theme.TEXT_DIM);
-            // time bar
-            int bw = Math.round((w - 4) * (1 - age / (float) LIFE));
-            ctx.fill(x + 2, y + 25, x + 2 + bw, y + 26, Theme.alpha(Theme.RED, 0.6f));
-            y += 30;
+        List<Toast> live;
+        synchronized (toasts) {
+            toasts.removeIf(t -> now - t.start > t.life);
+            if (toasts.isEmpty()) return;
+            live = new ArrayList<>(toasts);
         }
+        // The built-in clip recorder films the finished frame: keep toasts out of it unless the player opted in
+        // ("Show Overlays In Clips"). Clips shows its own state in the window title meanwhile. Toasts still expire
+        // on time above, so none pops up stale once recording stops.
+        if (net.evadeclient.module.misc.Clips.hideOverlays()) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        TextRenderer tr = mc.textRenderer;
+        float k = net.evadeclient.hud.Hud.scale();
+        int sw = Math.round(ctx.getScaledWindowWidth() / k), sh = Math.round(ctx.getScaledWindowHeight() / k);
+        int maxW = Math.max(60, Math.min(MAX_WIDTH, sw / 3));
+        int y = mc.currentScreen != null ? 6 : sh / 2 - 20;
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        m.scale(k, k);
+        try {
+            for (Toast t : live) {
+                long age = now - t.start;
+                float in = Math.min(1, age / 180f), out = Math.min(1, (t.life - age) / 220f);
+                float vis = ease(Math.max(0, Math.min(in, out)));
+                int w = Math.min(maxW, Math.max(tr.getWidth(t.title), tr.getWidth(t.text)) + 18);
+                String title = fit(tr, t.title, w - 18), text = fit(tr, t.text, w - 18);
+                // Slides in device pixels rather than whole GUI pixels, so the motion stays smooth at any scale.
+                float xf = sw - (w + 6) * vis;
+                m.pushMatrix();
+                m.translate(Theme.snap(ctx, xf), y);
+                try {
+                    Theme.shadow(ctx, Theme.SH_HUD, 0, 0, w, H, Theme.alpha(0xFF000000, 0.5f * vis));
+                    Theme.round(ctx, 0, 0, w, H, 0xE60A0A0C, Theme.R);
+                    // Side bar: accent for good news, amber for warnings, grey otherwise, inset so it clears the
+                    // rounded corners.
+                    int bar = switch (t.level) { case SUCCESS -> Theme.RED; case WARN -> Theme.WARN; default -> Theme.TEXT_FAINT; };
+                    int body = switch (t.level) { case SUCCESS -> Theme.RED_BRIGHT; case WARN -> Theme.WARN; default -> Theme.TEXT_DIM; };
+                    Theme.round(ctx, 0, 3, 2, H - 3, bar, 1);
+                    ctx.drawTextWithShadow(tr, title, 9, 4, Theme.TEXT);
+                    ctx.drawTextWithShadow(tr, text, 9, 15, body);
+                    // Time bar along the bottom edge, kept between the rounded corners.
+                    float remaining = Math.max(0f, 1f - age / (float) t.life);
+                    int bw = Math.round((w - 6) * remaining);
+                    Theme.fill(ctx, 3, H - 1, 3 + bw, H, Theme.alpha(t.level == Level.WARN ? Theme.WARN : Theme.RED, 0.6f));
+                } finally {
+                    m.popMatrix();
+                }
+                y += H + 4;
+            }
+        } finally {
+            m.popMatrix();
+        }
+    }
+
+    /** {@code s} cut to {@code width} pixels, ending in "..." when it had to be shortened. */
+    private static String fit(TextRenderer tr, String s, int width) {
+        if (tr.getWidth(s) <= width) return s;
+        return tr.trimToWidth(s, Math.max(0, width - tr.getWidth(ELLIPSIS))).stripTrailing() + ELLIPSIS;
     }
 
     private static float ease(float t) { return 1 - (1 - t) * (1 - t) * (1 - t); }

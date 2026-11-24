@@ -3,8 +3,15 @@ package net.evadeclient.setting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
+import java.util.Locale;
+
 public class NumberSetting extends Setting<Double> {
     private final double min, max, step;
+    /**
+     * Bounds a server set for this session through the Evade Server API (NaN when none). They limit what
+     * {@link #get()} returns, never the stored value, so the player's own value is saved and comes back on leaving.
+     */
+    private double serverMin = Double.NaN, serverMax = Double.NaN;
 
     public NumberSetting(String name, double value, double min, double max, double step) {
         super(name, value);
@@ -13,22 +20,83 @@ public class NumberSetting extends Setting<Double> {
         this.step = step;
     }
 
+    /** Sets the nearest step inside min..max. NaN is ignored. */
     @Override
     public void set(Double v) {
-        double snapped = Math.round(v / step) * step;
-        value = Math.max(min, Math.min(max, snapped));
+        if (v == null || v.isNaN()) return;
+        value = snap(v);
     }
+
+    /**
+     * Rounds to a whole number of steps, then drops the floating-point noise of that multiplication
+     * (6 * 0.05 is 0.30000000000000004), so values compare and save exactly as they read.
+     */
+    private double snap(double v) {
+        double s = step > 0 ? Math.round(v / step) * step : v;
+        if (Math.abs(s) < 1e9) s = Math.round(s * 1e9) / 1e9;
+        return Math.max(min, Math.min(max, s));
+    }
+
+    /** Back to the exact default, even if it isn't a whole number of steps. */
+    @Override public void reset() { value = getDefault(); }
+
+    /** Within a thousandth of a step of the default counts as the default (configs saved before snapping was exact). */
+    @Override
+    public boolean isDefault() {
+        double tolerance = step > 0 ? step / 1000 : 1e-9;
+        return Math.abs(value - getDefault()) < tolerance;
+    }
+
+    /**
+     * The value in effect: the player's own, held inside the bounds a server set for this session (if any).
+     * The config always saves the player's own value.
+     */
+    @Override
+    public Double get() {
+        if (Double.isNaN(serverMin) && Double.isNaN(serverMax)) return value;
+        double v = value;
+        if (!Double.isNaN(serverMax) && v > serverMax) v = serverMax;
+        if (!Double.isNaN(serverMin) && v < serverMin) v = serverMin;
+        return v;
+    }
+
+    /** Server bounds for this session; NaN leaves that side open. See {@link #get()}. */
+    public void limit(double lo, double hi) {
+        serverMin = lo;
+        serverMax = hi;
+    }
+
+    /** Drops the server's bounds (on leaving the server). */
+    public void clearLimit() {
+        serverMin = Double.NaN;
+        serverMax = Double.NaN;
+    }
+
+    /** Whether a server bounds this setting right now. */
+    public boolean isLimited() { return !Double.isNaN(serverMin) || !Double.isNaN(serverMax); }
 
     public double getMin() { return min; }
     public double getMax() { return max; }
-    public float getFloat() { return value.floatValue(); }
-    public int getInt() { return value.intValue(); }
+    /** The size of one step (the slider and the config snap to multiples of it). */
+    public double getStep() { return step; }
+    public float getFloat() { return get().floatValue(); }
+    public int getInt() { return get().intValue(); }
 
     @Override public JsonElement toJson() { return new JsonPrimitive(value); }
-    @Override public void fromJson(JsonElement json) { set(json.getAsDouble()); }
+
+    /** Non-numbers and infinities load as the default; everything else is snapped and clamped like {@link #set}. */
+    @Override
+    public void fromJson(JsonElement json) {
+        double d = json.getAsDouble();
+        if (Double.isFinite(d)) set(d); else reset();
+    }
 
     @Override
     public String display() {
-        return step >= 1 ? String.valueOf(value.intValue()) : String.format("%.2f", value);
+        double value = get();
+        if (step >= 1) return String.valueOf((int) value);
+        // Two decimals as always; finer steps get as many as they need.
+        int decimals = step > 0 && step < 0.01 ? (int) Math.min(6, Math.ceil(-Math.log10(step) - 1e-9)) : 2;
+        return String.format(Locale.ROOT, "%." + decimals + "f", value);
     }
 }

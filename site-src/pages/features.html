@@ -1,11 +1,11 @@
 title: Features
-description: All {{TOTAL}} mods in Evade Client {{VERSION}} across {{CATS}} categories: combat, PvP macros, movement, server-facing, visuals, world, utility, HUD and more, each with its settings and ban risk.
+description: Every mod in Evade Client {{VERSION}} for Minecraft {{MC}}: {{HUD}} HUD elements plus zoom, freelook, waypoints and quality-of-life mods, each with its settings. Server-safe.
 nav: features
 ---
 <header class="page-hero wrap">
   <div class="eyebrow rv">Features</div>
   <h1 class="rv d1">Every mod in <span class="red">Evade</span>.</h1>
-  <p class="rv d2">{{TOTAL}} mods across {{CATS}} categories and {{SETTINGS}} settings. Open any mod to see every setting and its default, and how likely it is to get you banned.</p>
+  <p class="rv d2">{{TOTAL}} quality-of-life mods across {{CATS}} categories and {{SETTINGS}} settings. All server-safe &mdash; HUD, zoom, freelook, waypoints and visual tweaks, nothing that breaks server rules. Open any mod to see its settings.</p>
 </header>
 
 <section class="wrap page-body">
@@ -18,38 +18,25 @@ nav: features
     </label>
     <div class="tabs" id="tabs">
       <button class="tab on" data-f="all">All <small>{{TOTAL}}</small></button>
-      <button class="tab" data-f="combat">Combat <small>{{COMBAT}}</small></button>
-      <button class="tab" data-f="pvp">PvP macros <small>{{PVP}}</small></button>
-      <button class="tab" data-f="movement">Movement <small>{{MOVEMENT}}</small></button>
-      <button class="tab" data-f="server">Server-facing <small>{{SERVER}}</small></button>
-      <button class="tab" data-f="visuals">Visuals <small>{{VISUALS}}</small></button>
-      <button class="tab" data-f="world">World <small>{{WORLD}}</small></button>
-      <button class="tab" data-f="utility">Utility <small>{{UTILITY}}</small></button>
       <button class="tab" data-f="hud">HUD <small>{{HUD}}</small></button>
-      <button class="tab" data-f="mods">Mods <small>{{MODS}}</small></button>
+      <button class="tab" data-f="visuals">Visuals <small>{{VISUALS}}</small></button>
+      <button class="tab" data-f="mods">Controls <small>{{MODS}}</small></button>
+      <button class="tab" data-f="server">Server-facing <small>{{SERVER}}</small></button>
       <button class="tab" data-f="misc">Misc <small>{{MISC}}</small></button>
       <button class="tab" data-f="new">New <small>{{NEW}}</small></button>
     </div>
   </div>
-  <div class="legend rv">
-    <span>Ban risk:</span>
-    <span><i class="risk low">Low</i> {{RISK_LOW}}</span>
-    <span><i class="risk med">Medium</i> {{RISK_MED}}</span>
-    <span><i class="risk high">High</i> {{RISK_HIGH}}</span>
-    <a class="link-inline" href="/faq#ban">What this means</a>
-  </div>
-  <div class="grid" id="grid" aria-live="polite">
-    <noscript><p>Turn on JavaScript to see the list of mods.</p></noscript>
-  </div>
+  <p class="more" id="more" role="status" hidden></p>
+  <div class="grid" id="grid" aria-live="polite" data-src="/assets/mods.json?v={{MODS_KEY}}">{{MOD_GRID}}</div>
   <p class="empty" id="empty">No mods match that search.</p>
 
-  <div class="card help rv" id="printer">
+  <div class="card help rv">
     <div>
-      <span class="tag">New in v{{VERSION}} &middot; World</span>
-      <h3 style="font-size:22px;margin-bottom:6px">Printer</h3>
-      <p>Builds schematics for you. With Litematica installed it follows Litematica's placement; without it, put <span class="mono">.litematic</span> files in your <span class="mono">schematics</span> folder and use <span class="mono">.printer list</span>, <span class="mono">.printer load &lt;name&gt;</span> and <span class="mono">.printer here</span>. <span class="mono">.printer materials</span> lists the blocks you need.</p>
+      <span class="tag">Server-safe</span>
+      <h3 style="font-size:22px;margin-bottom:6px">Allowed on most servers</h3>
+      <p>Everything here is quality-of-life: a HUD, zoom, freelook, a custom crosshair, waypoints and visual tweaks. There are no combat or movement cheats, so Evade plays nicely with normal servers. You're still responsible for each server's own rules.</p>
     </div>
-    <a class="btn btn-ghost" href="/faq#printer">Printer FAQ</a>
+    <a class="btn btn-ghost" href="/faq#safe">Is it allowed?</a>
   </div>
   </div>
 </section>

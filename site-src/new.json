@@ -1,11 +1,17 @@
 {
- "_note": "Classes added in the latest release (v0.6.0). The features page marks these as New.",
+ "_note": "Module classes added in the latest feature release (version below). The features page marks them New. At each x.y.0 release, set version to it and list that release's new classes (an empty list is fine): the site build stops while version belongs to an older x.y series.",
+ "version": "2.1.0",
  "classes": [
-  "AutoCity",
-  "AutoAnvil",
-  "BedAura",
-  "PacketMine",
-  "Excavator",
-  "AutoSprint"
+  "MenuBlur",
+  "Snaplook",
+  "TextHotkeys",
+  "TitleScreenModule",
+  "PackOrganizer",
+  "DiscordStatus",
+  "TotemCounterHud",
+  "DayCounterHud",
+  "BedWarsHud",
+  "QuickPlay",
+  "HypixelStats"
  ]
 }

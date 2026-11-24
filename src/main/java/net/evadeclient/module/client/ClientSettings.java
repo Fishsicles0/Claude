@@ -10,14 +10,30 @@ import org.lwjgl.glfw.GLFW;
 public class ClientSettings extends Module {
     public final KeySetting menuKey = add(new KeySetting("Menu Key", GLFW.GLFW_KEY_RIGHT_SHIFT));
     public final net.evadeclient.setting.ModeSetting guiStyle =
-            add(new net.evadeclient.setting.ModeSetting("GUI Style", "Cards", "Cards", "Compact", "Doomsday"));
+            add(new net.evadeclient.setting.ModeSetting("GUI Style", "List", "List", "Cards", "Compact"));
+    public final net.evadeclient.setting.ModeSetting theme =
+            add(new net.evadeclient.setting.ModeSetting("Theme", "Modern", net.evadeclient.util.Theme.PRESETS));
+    public final net.evadeclient.setting.ModeSetting accent =
+            add(new net.evadeclient.setting.ModeSetting("Accent Color", "Red", net.evadeclient.util.Theme.ACCENTS));
+    public final BooleanSetting smoothFont = add(new BooleanSetting("Smooth Font", true));
+    public final BooleanSetting autoHudScale = add(new BooleanSetting("Auto HUD Scale", true));
+    public final net.evadeclient.setting.NumberSetting hudSize = add(new net.evadeclient.setting.NumberSetting("HUD Size", 100, 50, 200, 5));
+    public final BooleanSetting hudGrid = add(new BooleanSetting("HUD Editor Grid", false));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true));
     public final BooleanSetting animations = add(new BooleanSetting("Animations", true));
     public final BooleanSetting toggleMessages = add(new BooleanSetting("Keybind Messages", true));
 
     public ClientSettings() {
-        super("Client Settings", "Menu key, blur, animations.", Category.CLIENT);
+        super("Client Settings", "Menu key, theme, accent colour, blur, animations.", Category.CLIENT);
         setVisible(false);
         setEnabled(true);
     }
+
+    /** Called every tick and by the menu each frame so a new theme shows up immediately. */
+    public void applyTheme() {
+        net.evadeclient.util.Theme.apply(theme.get(), accent.get());
+    }
+
+    @Override
+    public void onTick() { applyTheme(); }
 }

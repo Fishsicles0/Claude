@@ -3,159 +3,97 @@ package net.evadeclient.module;
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.client.ArmorHud;
 import net.evadeclient.module.client.ClientSettings;
+import net.evadeclient.module.client.ModuleListHud;
+import net.evadeclient.module.client.WatermarkHud;
 import net.evadeclient.module.hud.*;
 import net.evadeclient.module.mods.*;
 import net.evadeclient.gui.EvadeMenu;
+import net.evadeclient.setting.KeySetting;
+import net.evadeclient.setting.Setting;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.module.client.CooldownHud;
-import net.evadeclient.module.client.HudModule;
-import net.evadeclient.module.client.TargetHud;
-import net.evadeclient.module.combat.*;
-import net.evadeclient.module.movement.*;
-import net.evadeclient.module.player.*;
 import net.evadeclient.module.visuals.*;
-import net.evadeclient.module.world.*;
 import net.evadeclient.module.misc.*;
-import net.evadeclient.module.combat.AimAssist;
-import net.evadeclient.module.combat.AutoClicker;
-import net.evadeclient.module.combat.AutoCritical;
-import net.evadeclient.module.combat.AutoMend;
-import net.evadeclient.module.combat.AutoPot;
-import net.evadeclient.module.combat.AutoTotem;
-import net.evadeclient.module.combat.Hitbox;
-import net.evadeclient.module.combat.Reach;
-import net.evadeclient.module.combat.TriggerBot;
-import net.evadeclient.module.visuals.ChestESP;
-import net.evadeclient.module.visuals.ChunkLocator;
-import net.evadeclient.module.visuals.PlayerTracers;
 import net.evadeclient.render.RenderContext;
-import net.evadeclient.util.TargetTracker;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ModuleManager {
+    /** Every module failure since launch, as "Name: exception" (tests assert this stays empty). */
+    public static final Set<String> CRASHED = ConcurrentHashMap.newKeySet();
+
     private final List<Module> modules = new ArrayList<>();
-    private final Set<Integer> heldKeys = new HashSet<>();
+    /** Key and mouse-button presses seen by the input mixins while no screen was open; drained every tick. */
+    private final ConcurrentLinkedQueue<Integer> bindPresses = new ConcurrentLinkedQueue<>();
+    /** The world the enable hooks were last applied for (null outside a world). */
+    private ClientWorld lastWorld;
 
     public ModuleManager() {
-        // Combat
-        register(new AutoPot());
-        register(new AutoTotem());
-        register(new AutoMend());
-        register(new AimAssist());
-        register(new AutoCritical());
-        register(new AutoClicker());
-        register(new Reach());
-        register(new TriggerBot());
-        register(new Hitbox());
-        register(new KillAura());
-        register(new CrystalAura());
-        register(new AnchorAura());
-        register(new BowAimbot());
-        register(new AutoArmor());
-        register(new Surround());
-        register(new AutoTrap());
-        register(new Velocity());
-        register(new AntiBot());
-        register(new AutoLog());
-        register(new AutoCity());
-        register(new AutoAnvil());
-        register(new BedAura());
-        register(new AutoWeapon());
-        register(new Offhand());
-        register(new SelfTrap());
-        register(new HoleFiller());
-        register(new AutoWeb());
-        register(new BowSpam());
-        // Movement
-        register(new Fly());
-        register(new ElytraFly());
-        register(new Speed());
-        register(new Scaffold());
-        register(new NoFall());
-        register(new Step());
-        register(new Spider());
-        register(new LongJump());
-        register(new HighJump());
-        register(new Jesus());
-        register(new Dolphin());
-        register(new Parkour());
-        register(new AntiVoid());
-        register(new SafeWalk());
-        register(new Blink());
-        register(new net.evadeclient.module.movement.Timer());
-        register(new AutoSprint());
-        register(new NoSlow());
-        register(new InventoryMove());
-        register(new AirJump());
-        register(new ReverseStep());
-        register(new FastClimb());
-        register(new AutoJump());
-        // Visuals
-        register(new ESP());
-        register(new ChestESP());
-        register(new OreESP());
-        register(new ChunkLocator());
-        register(new PlayerTracers());
-        register(new Nametags());
-        register(new Freecam());
+        // Visuals & quality of life
         register(new NoFog());
-        register(new Trajectories());
-        register(new HoleESP());
-        register(new Breadcrumbs());
-        register(new LogoutSpots());
-        register(new Waypoints());
-        register(new LightOverlay());
         register(new NoRender());
         register(new BetterTooltips());
         register(new CameraClip());
-        // World
-        register(new Nuker());
-        register(new AutoMine());
-        register(new VeinMiner());
-        register(new FastPlace());
-        register(new FastBreak());
-        register(new AutoFarm());
-        register(new SpawnProofer());
-        register(new Printer());
-        register(new PacketMine());
-        register(new Excavator());
-        register(new AutoBreed());
-        register(new AutoShearer());
-        register(new AutoSmelter());
-        register(new LiquidFiller());
-        // Player
-        register(new AutoEat());
-        register(new AutoTool());
-        register(new ChestStealer());
-        register(new InventorySorter());
-        register(new AutoFish());
-        register(new AutoRespawn());
-        register(new AntiHunger());
-        register(new AntiAFK());
-        register(new AutoWalk());
-        register(new FakePlayer());
-        register(new AutoReplenish());
-        register(new FastUse());
-        register(new MiddleClickExtra());
-        register(new AirPlace());
-        register(new AutoGap());
-        register(new ChestSwap());
+        register(new MotionBlur());
+        register(new Waypoints());
+        register(new Fullbright());
+        register(new DamageTint());
+        register(new ClearWater());
+        register(new Particles());
+        register(new PackTweaks());
+        register(new InventoryBlur());
+        register(new BossBar());
+        register(new Scoreboard());
+        register(new TntTimer());
+        register(new ChunkBorders());
+        register(new NickHider());
+        register(new TabTweaks());
+        register(new HitColor());
+        register(new OldAnimations());
+        register(new ItemPhysics());
+        register(new ShinyPots());
+        register(new EnchantGlint());
+        register(new Hitboxes());
+        // Controls & camera
+        register(new ToggleSprint());
+        register(new Zoom());
+        register(new Freelook());
+        register(new Crosshair());
+        register(new NoHurtCam());
+        register(new BlockOutline());
+        register(new TimeChanger());
+        register(new WeatherChanger());
+        register(new FovChanger());
+        register(new Performance());
+        register(new SoundTweaks());
+        // Chat, interface & convenience
         register(new AutoReconnect());
         register(new BetterChat());
-        register(new Notifier());
         register(new AutoGG());
+        register(new AutoTip());
+        register(new Notifier());
+        register(new Protection());
+        register(new Clips());
+        register(new net.evadeclient.module.misc.Replay());
+        register(new EvadeIcons());
+        register(new net.evadeclient.module.misc.Friends());
+        register(new net.evadeclient.module.misc.PartyPing());
+        register(new VoiceChat());
+        register(new ScreenshotTools());
         // HUD
-        register(new HudModule());
+        register(new WatermarkHud());
+        register(new ModuleListHud());
         register(new ArmorHud());
-        register(new TargetHud());
         register(new CooldownHud());
         register(new KeystrokesHud());
         register(new CpsHud());
@@ -171,16 +109,24 @@ public class ModuleManager {
         register(new SpeedHud());
         register(new MemoryHud());
         register(new InventoryHud());
-        // Mods
-        register(new ToggleSprint());
-        register(new Zoom());
-        register(new Freelook());
-        register(new Fullbright());
-        register(new Crosshair());
-        register(new NoHurtCam());
-        register(new BlockOutline());
-        register(new TimeChanger());
-        register(new WeatherChanger());
+        register(new StopwatchHud());
+        register(new SaturationHud());
+        register(new ItemCounterHud());
+        register(new PackDisplayHud());
+        register(new FrameTimeHud());
+        register(new net.evadeclient.module.hud.MinimapHud());
+        register(new TotemCounterHud());
+        register(new DayCounterHud());
+        register(new net.evadeclient.module.hud.BedWarsHud());
+        register(new MenuBlur());
+        register(new Snaplook());
+        register(new TextHotkeys());
+        register(new TitleScreenModule());
+        register(new PackOrganizer());
+        register(new DiscordStatus());
+        register(new net.evadeclient.module.misc.QuickPlay());
+        register(new net.evadeclient.module.misc.HypixelStats());
+        register(new net.evadeclient.module.hud.ProfilerHud());
         // Client
         register(new ClientSettings());
     }
@@ -193,13 +139,36 @@ public class ModuleManager {
         return modules.stream().filter(m -> m.getCategory() == category).toList();
     }
 
+    private List<HudElementModule> hudElements;
+
+    /** HUD elements, computed once (modules are registered at startup and never change). */
     public List<HudElementModule> hudElements() {
-        return modules.stream().filter(m -> m instanceof HudElementModule).map(m -> (HudElementModule) m).toList();
+        if (hudElements == null)
+            hudElements = modules.stream().filter(m -> m instanceof HudElementModule).map(m -> (HudElementModule) m).toList();
+        return hudElements;
     }
 
+    /**
+     * A module by name, ignoring case, spaces and punctuation: "Nick Hider", "nickhider" and "NICK-HIDER" all
+     * find Nick Hider.
+     */
     public Module get(String name) {
+        if (name == null) return null;
         for (Module m : modules) if (m.getName().equalsIgnoreCase(name)) return m;
+        String n = normalize(name);
+        if (n.isEmpty()) return null;
+        for (Module m : modules) if (normalize(m.getName()).equals(n)) return m;
         return null;
+    }
+
+    /** Lower case with everything but letters and digits removed, for forgiving name matching. */
+    public static String normalize(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = Character.toLowerCase(s.charAt(i));
+            if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) b.append(c);
+        }
+        return b.toString();
     }
 
     @SuppressWarnings("unchecked")
@@ -211,16 +180,43 @@ public class ModuleManager {
     public void onTick() {
         MinecraftClient mc = MinecraftClient.getInstance();
         pollKeybinds(mc);
+        trackWorld(mc);
         if (mc.player == null || mc.world == null) return;
-        TargetTracker.tick();
+        net.evadeclient.util.Combat.tick(mc);
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
                 m.onTick();
             } catch (Exception e) {
-                crashed(m, e);
+                crashed(m, e, null);
             }
         }
+    }
+
+    /**
+     * Modules switched on before a world existed (config load at startup, a profile applied on the title screen)
+     * get their onEnable once a world has loaded. Modules that change game options undo them when you leave,
+     * so the game never saves Evade's values as your own, and apply them again on the next join.
+     */
+    private void trackWorld(MinecraftClient mc) {
+        ClientWorld world = mc.player == null ? null : mc.world;
+        if (world == lastWorld) return;
+        if (world == null) {
+            for (Module m : modules) {
+                if (!undoesOnLeave(m)) continue;
+                try { m.suspendHooks(); } catch (Exception e) { crashed(m, e, null); }
+            }
+        } else {
+            for (Module m : modules) {
+                try { m.applyPendingEnable(); } catch (Exception e) { crashed(m, e, null); }
+            }
+        }
+        lastWorld = world;
+    }
+
+    /** Modules whose onEnable changes the game's own options (video settings). */
+    private static boolean undoesOnLeave(Module m) {
+        return m instanceof Performance;
     }
 
     public void onRender(RenderContext ctx) {
@@ -231,71 +227,103 @@ public class ModuleManager {
             try {
                 m.onRender(ctx);
             } catch (Exception e) {
-                crashed(m, e);
+                crashed(m, e, null);
             }
         }
     }
 
     public void onAttack(Entity target) {
-        TargetTracker.onAttack(target);
-        for (Module m : modules) {
-            if (m.isEnabled()) m.onAttack(target);
-        }
-    }
-
-    /** @return true if any module wants the packet cancelled. */
-    public boolean onSendPacket(net.minecraft.network.packet.Packet<?> packet) {
-        boolean cancel = false;
+        net.evadeclient.util.Combat.hit();
         for (Module m : modules) {
             if (!m.isEnabled()) continue;
             try {
-                if (m.onSendPacket(packet)) {
-                    cancel = true;
-                    EvadeClient.LOG.debug("{} held back {}", m.getName(), packet.getClass().getSimpleName());
-                }
+                m.onAttack(target);
             } catch (Exception e) {
-                crashed(m, e);
+                crashed(m, e, null);
             }
         }
-        return cancel;
     }
 
-    private static void crashed(Module m, Exception e) {
-        EvadeClient.LOG.error("Module {} crashed, disabling", m.getName(), e);
-        m.setEnabled(false);
+    /**
+     * Log a module failure, record it in {@link #CRASHED} and switch the module off, so a broken module neither
+     * takes the game down nor logs the same error every frame.
+     *
+     * @param where what was running ("HUD", ...), or null for the module's tick/render hooks
+     */
+    public static void crashed(Module m, Throwable e, String where) {
+        String tag = where == null ? m.getName() : m.getName() + " (" + where + ")";
+        CRASHED.add(tag + ": " + e);
+        EvadeClient.LOG.error("Module {} crashed, disabling", tag, e);
+        try {
+            m.setEnabled(false);
+        } catch (Throwable t) {
+            EvadeClient.LOG.error("Module {} also failed while turning off", m.getName(), t);
+        }
+        Notifications.push(m.getName(), "Turned off after an error", false);
     }
 
-    private boolean menuKeyHeld;
+    /** Called by the input mixins for a key (GLFW code) or mouse button ({@link KeySetting#mouseCode}) press. */
+    public void queueBindPress(int code) {
+        if (code == GLFW.GLFW_KEY_UNKNOWN || bindPresses.size() >= 64) return;
+        bindPresses.add(code);
+    }
 
-    /** Edge-triggered key polling so binds work without registering vanilla KeyBindings. */
+    /**
+     * Toggles modules and opens the menu for every bound key pressed since the last tick. Presses are queued by
+     * the input mixins (only while no screen is open and F3 isn't held), so a tap shorter than a tick still counts.
+     */
     private void pollKeybinds(MinecraftClient mc) {
-        if (mc.currentScreen != null) {
-            heldKeys.clear();
-            menuKeyHeld = true; // don't reopen the menu on the same press that closed it
-            return;
-        }
         ClientSettings cs = get(ClientSettings.class);
+        // Backstop: the menu must always be reachable, whatever a config or share code says.
         int menuKey = cs.menuKey.get();
-        boolean menuDown = menuKey != GLFW.GLFW_KEY_UNKNOWN && InputUtil.isKeyPressed(mc.getWindow(), menuKey);
-        if (menuDown && !menuKeyHeld) {
-            menuKeyHeld = true;
-            mc.setScreen(new EvadeMenu());
-            return;
+        if (menuKey == GLFW.GLFW_KEY_UNKNOWN || !cs.menuKey.accepts(menuKey)) {
+            cs.menuKey.reset();
+            menuKey = cs.menuKey.get();
         }
-        menuKeyHeld = menuDown;
-        Set<Integer> pressedNow = new HashSet<>();
-        for (Module m : modules) {
-            int key = m.getKey();
-            if (key != GLFW.GLFW_KEY_UNKNOWN && InputUtil.isKeyPressed(mc.getWindow(), key)) pressedNow.add(key);
-        }
-        for (Module m : modules) {
-            int key = m.getKey();
-            if (pressedNow.contains(key) && !heldKeys.contains(key)) {
+        Integer code;
+        while ((code = bindPresses.poll()) != null) {
+            if (code == menuKey) {
+                if (mc.currentScreen == null) mc.setScreen(new EvadeMenu());
+                continue;
+            }
+            for (Module m : modules) {
+                if (m.getKey() != code) continue;
                 m.toggle();
                 if (cs.toggleMessages.get()) Notifications.push(m.getName(), m.isEnabled() ? "Enabled" : "Disabled", m.isEnabled());
             }
         }
-        heldKeys.clear();
-        heldKeys.addAll(pressedNow);
+    }
+
+    /**
+     * Everything else bound to {@code code}: module toggle keys, key settings (the menu key included) and the
+     * game's own controls. {@code self} (the Module, KeySetting or KeyBinding being edited) is left out.
+     * Used by the menu to warn about conflicts.
+     */
+    public List<String> usersOf(int code, Object self) {
+        List<String> out = new ArrayList<>();
+        if (code == GLFW.GLFW_KEY_UNKNOWN) return out;
+        for (Module m : modules) {
+            if (m != self && m.getKey() == code) out.add(m.getName());
+            for (Setting<?> s : m.getSettings()) {
+                if (s == self || s.isHidden() || !(s instanceof KeySetting k) || k.get() != code) continue;
+                boolean named = m instanceof ClientSettings
+                        || normalize(k.getName()).startsWith(normalize(m.getName()));
+                out.add(named ? k.getName() : m.getName() + " " + k.getName());
+            }
+        }
+        var mc = MinecraftClient.getInstance();
+        if (mc.options != null) {
+            for (KeyBinding kb : mc.options.allKeys) {
+                if (kb == self || kb.isUnbound()) continue;
+                InputUtil.Key bound = net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(kb);
+                int c = switch (bound.getCategory()) {
+                    case KEYSYM -> bound.getCode();
+                    case MOUSE -> KeySetting.mouseCode(bound.getCode());
+                    default -> GLFW.GLFW_KEY_UNKNOWN;
+                };
+                if (c == code) out.add(net.minecraft.text.Text.translatable(kb.getId()).getString());
+            }
+        }
+        return out;
     }
 }

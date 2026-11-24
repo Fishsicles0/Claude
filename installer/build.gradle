@@ -3,22 +3,31 @@ plugins {
     id 'edu.sc.seis.launch4j' version '4.0.0'
 }
 
-// Version of the installer itself (independent of the mod version it installs).
-version = '1.0.1'
+// Version of the Evade Launcher itself (independent of the mod version it installs). The files keep their old
+// installer names (Evade-Installer.exe, EvadeInstaller.jar) so existing downloads and self-update keep working.
+version = '2.0.0'
 
 repositories { mavenCentral() }
 
 dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
+    // Evade Clips is built in: one jar/exe runs the launcher and the clip recorder (tray, control server, editor).
+    implementation project(':clips')
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
 tasks.withType(JavaCompile).configureEach { options.release = 17; options.encoding = 'UTF-8' }
 
-// Single self-contained jar: Gson is bundled so it runs with just `java -jar`.
+// The jar's entry point (Boot) is built for Java 8 so that opening the jar with an old Java shows a clear
+// "needs Java 17" message instead of failing silently. Everything else stays Java 17.
+sourceSets { boot { java { srcDir 'src/boot/java' } } }
+tasks.named('compileBootJava') { options.release = 8; options.compilerArgs += ['-Xlint:-options'] }
+
+// Single self-contained jar: Gson and Evade Clips (with FlatLaf, JNativeHook, ZXing) are bundled so it runs with just `java -jar`.
 tasks.named('jar') {
     archiveFileName = 'EvadeInstaller.jar'
-    manifest { attributes 'Main-Class': 'net.evadeclient.installer.EvadeInstaller', 'Implementation-Version': project.version }
+    from sourceSets.boot.output
+    manifest { attributes 'Main-Class': 'net.evadeclient.installer.Boot', 'Implementation-Version': project.version }
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/9/module-info.class', 'module-info.class'
@@ -32,8 +41,8 @@ launch4j {
     outfile = 'Evade-Installer.exe'
     icon = "${projectDir}/evade.ico"
     headerType = 'gui'
-    productName = 'Evade Installer'
-    fileDescription = 'Evade Client Installer'
+    productName = 'Evade Launcher'
+    fileDescription = 'Evade Launcher'
     companyName = 'Evade Client'
     copyright = 'Evade Client'
     version = project.version
@@ -49,5 +58,5 @@ launch4j {
         '%JAVA_HOME%'
     ].join(';')
     downloadUrl = 'https://adoptium.net/temurin/releases/?version=21'
-    messagesJreNotFoundError = 'Evade Installer needs Java 17 or newer. Open the Minecraft Launcher once (it installs Java), or install Java from adoptium.net.'
+    messagesJreNotFoundError = 'Evade Launcher needs Java 17 or newer. Open the Minecraft Launcher once (it installs Java), or install Java from adoptium.net.'
 }

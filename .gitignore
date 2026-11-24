@@ -10,3 +10,4 @@ remappedSrc/
 libs/test-mods/
 .wrangler/
 __pycache__/
+libJNativeHook-*

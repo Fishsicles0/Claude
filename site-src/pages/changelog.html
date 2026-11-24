@@ -1,120 +1,82 @@
 title: Changelog
-description: What changed in each Evade Client release, from the first PvP build to v{{VERSION}}.
+description: What changed in each Evade Client release, newest first.
 nav: changelog
 ---
 <header class="page-hero wrap">
   <div class="eyebrow rv">Changelog</div>
   <h1 class="rv d1">What's <span class="red">new</span>.</h1>
-  <p class="rv d2">Every release, newest first. Each new mod ships with an automated in-game test where one is possible.</p>
+  <p class="rv d2">Every release, newest first. Each new feature ships with an automated in-game test where one is possible.</p>
 </header>
 
 <section class="wrap page-body">
   <div class="log">
-    <article class="card rel rv" id="v0.10.0">
-      <div class="rel-head"><h2>v0.10.0</h2><span class="pill-sm">Latest</span><time>{{DATE}}</time></div>
-      <p class="rel-sum">Drag the Doomsday panels anywhere, and a full HUD gallery on the site.</p>
+    <article class="card rel rv" id="v2.1.0">
+      <div class="rel-head"><h2>v2.1.0</h2><span class="pill-sm">Latest</span><time datetime="2026-11-24">24 Nov 2026</time></div>
+      <p class="rel-sum">The Evade Launcher, a mod browser, Hypixel tools and a server API.</p>
       <ul>
-        <li><b>Draggable panels</b>: in the Doomsday GUI, drag each category panel by its header to arrange them how you like (Combat top-left, Visuals top-right, and so on). Your layout is saved.</li>
-        <li><b>Showcase</b>: a dedicated section listing all {{HUD_COUNT}} HUD elements, each linking to its settings.</li>
-        <li>Cards is still the default style; Compact and Doomsday are optional under Settings &rarr; GUI Style.</li>
+        <li><b>Evade Launcher:</b> the installer is now a full launcher with Evade Clips built in. One app: a home screen with your servers and news, instances (separate setups with their own mods and settings), a mod browser, and Clips' library, recorder and editor. Play opens the Minecraft Launcher with your instance selected, so sign-in stays with Microsoft. It updates itself.</li>
+        <li><b>Mod Browser</b> in game and in the launcher: search Modrinth and install Fabric mods with one click, with their required libraries, each checked before it's installed.</li>
+        <li><b>Hypixel:</b> a Quick Play menu, BedWars and SkyWars stats in the tab list (with your own Hypixel API key) and a BedWars helper that tracks generator timers and team upgrades.</li>
+        <li><b>New mods:</b> Snaplook, Text Hotkeys, Totem Counter, Day Counter, Menu Blur, an Evade title screen, pack favourites and Discord status.</li>
+        <li><b>Evade Server API:</b> servers can show waypoints, cooldowns, notifications, titles, team markers, borders, beams and holograms to Evade players, and switch mods off. A free <a href="/servers">server plugin</a> sets it up.</li>
       </ul>
     </article>
 
-    <article class="card rel rv" id="v0.9.0">
-      <div class="rel-head"><h2>v0.9.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">The Doomsday menu style is now a full multi-panel ClickGUI.</p>
+    <article class="card rel rv" id="v2.0.1" data-pill="Self-updating installer">
+      <div class="rel-head"><h2>v2.0.1</h2><time datetime="2026-11-23">23 Nov 2026</time></div>
+      <p class="rel-sum">Updating is painless, and one mod removed.</p>
       <ul>
-        <li><b>Doomsday GUI</b>: a panel for every category spread across the screen (masonry-stacked), a top menu bar and a centred search, with active modules highlighted &mdash; the classic ghost-client look. Switch to it under Settings &rarr; GUI Style.</li>
-        <li>Still three styles in total: Cards, Compact and Doomsday.</li>
+        <li><b>The installer updates itself:</b> open the copy you already have and it fetches the newest installer from evadeclient.com, checks it and switches to it. No more downloading it again.</li>
+        <li><b>Evade Clips updates even while it's open:</b> the installer closes it, waits out antivirus scans, or installs the new version beside the running one.</li>
+        <li>Downloads always come straight from the latest build, never from an old cached copy.</li>
+        <li><b>Removed Nametags:</b> restyling other players' name tags isn't allowed on many servers.</li>
+        <li><b>Fullbright</b> now tells you when shaders are on, because shader packs do their own lighting and ignore it.</li>
       </ul>
     </article>
 
-    <article class="card rel rv" id="v0.8.0">
-      <div class="rel-head"><h2>v0.8.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">Reorganized into {{CATS}} categories. {{TOTAL}} mods, nothing removed.</p>
+    <article class="card rel rv" id="v2.0.0" data-pill="New look, FPS Mode, minimap &amp; more">
+      <div class="rel-head"><h2>v2.0.0</h2><time datetime="2026-11-23">23 Nov 2026</time></div>
+      <p class="rel-sum">A new look, a much bigger FPS boost, deeper mods, a minimap, and Evade icons that work.</p>
       <ul>
-        <li>New <b>PvP macros</b> category for the crystal/anchor/totem/pot auto-tools (CrystalAura, AnchorAura, AutoTotem, AutoPot, Surround, AutoCity, AutoWeb and more).</li>
-        <li>New <b>Server-facing</b> category (AntiAFK, AutoLog, AutoReconnect) and a <b>Utility</b> category (AutoArmor, ChestStealer, FastBreak, inventory tools).</li>
-        <li>World tools (Printer, Nuker, Excavator, farming, mining) kept as their own category.</li>
-        <li>First step of a larger module expansion &mdash; more PvP and utility modules are on the way.</li>
+        <li><b>New look:</b> smooth rounded shapes, soft shadows, sharp Inter text at every GUI scale, and animations throughout the menu: opening, page changes, scrolling, hover and every switch and slider. The three menu styles and the HUD keep their layouts, just cleaner.</li>
+        <li><b>FPS Mode</b> (Performance): one-click <b>Max FPS</b>, <b>Balanced</b> (default) or <b>Quality</b>. <b>Unlock FPS</b> turns VSync off and removes the frame cap, and <b>Render Distance Cap</b> keeps far chunks from eating your frame rate. Turning the Performance mod off puts all your own settings back.</li>
+        <li><b>Benchmark:</b> type <span class="mono">.bench</span> to measure your average FPS and 1% low over 30 seconds and compare with your last run.</li>
+        <li><b>Installer:</b> on Windows, Minecraft now runs on your fast graphics card (laptops often picked the slow one). The Shaders option now installs <a href="https://modrinth.com/shader/photon-shader" target="_blank" rel="noopener">Photon</a> by SixthSurge, with Complementary Reimagined beside it as a lighter choice, and the new <b>Shaders</b> setting switches between them in game.</li>
+        <li><b>Minimap</b> (new HUD element): terrain only, never players, mobs or caves, so it's safe on servers.</li>
+        <li><b>Deeper mods:</b> about 1,050 settings now, up from 329. New: Watermark, Tab Tweaks, Hitboxes (restyles F3+B), Motion Blur, Screenshot Tools, Sound Tweaks and Camera Distance (replaces Camera Clip).</li>
+        <li><b>Evade icons now work:</b> sign-in never succeeded before, so no icons appeared. Your account is now checked with the chat key Mojang gives every Microsoft account. Your login still never leaves the game.</li>
+        <li><b>Server friendly:</b> servers can switch off any Evade mod for their players; those mods show <b>Disabled by this server</b>. AutoTip only runs on Hypixel, AutoReconnect gives up after a few tries and never rejoins after a ban, and Camera Distance stops at 8 blocks. See <a href="/servers">Servers</a>.</li>
+        <li><b>Evade Clips</b> now works only with Evade Client. It records Minecraft only, with support for other games removed. On Windows it records the screen Minecraft is on, so fullscreen works.</li>
+        <li>Hundreds of smaller fixes across the client, the installer and Evade Clips.</li>
       </ul>
     </article>
 
-    <article class="card rel rv" id="v0.7.0">
-      <div class="rel-head"><h2>v0.7.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">Three menu styles, and a click-through detail page for every mod.</p>
+    <article class="card rel rv" id="v1.18.1" data-pill="Clips, voice chat, themes, profiles &amp; the FPS boost">
+      <div class="rel-head"><h2>v1.1 &ndash; v1.18</h2><time datetime="2026-11-23">23 Nov 2026</time></div>
+      <p class="rel-sum">Evade Clips, voice chat, themes, shareable profiles and a benchmarked FPS boost.</p>
       <ul>
-        <li><b>GUI styles</b>: pick <b>Cards</b> (the original), <b>Compact</b> (a dense single-column list), or <b>Doomsday</b> (a two-column terminal list). Change it under Settings &rarr; GUI Style.</li>
-        <li><b>Features page</b>: click any mod to open a detail view with what it does, how to turn it on, and a full settings table (type, default, range).</li>
-        <li>Opening the menu now always starts on the mod grid.</li>
+        <li><b>Evade Clips:</b> a companion app for instant replay with sound, full recordings, a clip library and an editor, set up by the installer. It clips kills, totem pops, wins and advancements automatically, and makes share links that play inside Discord.</li>
+        <li><b>Voice chat</b> through <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a>, added by the installer. Press <span class="kbd">V</span> or type <span class="mono">.voice</span>.</li>
+        <li><b>FPS boost:</b> the installer adds Sodium, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, MoreCulling, Krypton, BadOptimizations, Sodium Extra, Fast IP Ping and FastQuit from Modrinth, each checked against its checksum. Evade's own <b>Performance</b> mod adds Low-End PC Mode, low FPS when AFK or tabbed out, and <b>Effects</b> settings that cut particles, block dust, rain splashes and fire on mobs.</li>
+        <li><b>Themes:</b> Modern, Midnight, OLED or Classic, with eight accent colours, a smooth Inter font, sidebar icons and a two-column Compact view.</li>
+        <li><b>HUD:</b> per-element styling (Evade, Solid, Glass or Outline backgrounds, Chroma text, the smooth font), Hide In Menus and Only In Combat, a snap grid in the editor, Auto HUD Scale and HUD Size, the Frame Time Graph and the Frame Profiler.</li>
+        <li><b>Profiles:</b> share any profile as a code, and link a profile to a server so it loads when you join. Search finds setting names, from anywhere with <span class="kbd">Ctrl</span>+<span class="kbd">F</span>.</li>
+        <li><b>Installer:</b> optional shaders through Iris, a recommended memory size for your PC, downloads that can't stall, and clear help when Java is too old.</li>
+        <li>Evade icons in the tab list, Pack Tweaks (low fire, no pumpkin blur), a <a href="/privacy">privacy policy</a>, and fixes for Windows players, including the firework "Ticking Particle" crash and the menu on scaled screens.</li>
       </ul>
     </article>
 
-    <article class="card rel rv" id="v0.6.0">
-      <div class="rel-head"><h2>v0.6.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">6 new mods and sharper combat. 129 mods in total, 442 settings.</p>
-      <div class="rel-cols">
-        <div><h4>Combat</h4><p>AutoCity, AutoAnvil, BedAura</p></div>
-        <div><h4>World</h4><p>PacketMine, Excavator</p></div>
-        <div><h4>Movement</h4><p>AutoSprint</p></div>
-      </div>
+    <article class="card rel rv" id="v1.0.0" data-pill="The first release">
+      <div class="rel-head"><h2>v0.1 &ndash; v1.0</h2><time datetime="2026-11-21">21 Nov 2026</time></div>
+      <p class="rel-sum">The first release of Evade: a server-safe, quality-of-life client for Minecraft {{MC}}.</p>
       <ul>
-        <li>KillAura can hit several targets per swing (Max Targets), to clear a crowd.</li>
-        <li>Nuker has a Sphere/Cube shape; ESP can draw tracers to each entity.</li>
-        <li>AutoCity, AutoAnvil and BedAura target any valid entity, not just players.</li>
-        <li>Download page: a Printer add-ons section linking to the official Litematica, MaLiLib and Fabric API downloads.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v0.5.0">
-      <div class="rel-head"><h2>v0.5.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">35 new mods, a Misc category, waypoints and a test dummy. 123 mods in total.</p>
-      <div class="rel-cols">
-        <div><h4>Combat</h4><p>AutoWeapon, Offhand, SelfTrap, HoleFiller, AutoWeb, BowSpam</p></div>
-        <div><h4>Movement</h4><p>NoSlow, InventoryMove, AirJump, ReverseStep, FastClimb, AutoJump</p></div>
-        <div><h4>Player</h4><p>FakePlayer, AutoReplenish, FastUse, MiddleClickExtra, AirPlace, AutoGap, ChestSwap</p></div>
-        <div><h4>Visuals</h4><p>Waypoints, HoleESP, Breadcrumbs, LogoutSpots, LightOverlay, NoRender, BetterTooltips, CameraClip</p></div>
-        <div><h4>World</h4><p>AutoBreed, AutoShearer, AutoSmelter, LiquidFiller</p></div>
-        <div><h4>Misc (new category)</h4><p>AutoReconnect, BetterChat, Notifier, AutoGG</p></div>
-      </div>
-      <ul>
-        <li>New <span class="mono">.waypoint</span> command.</li>
-        <li>AntiBot leaves the FakePlayer dummy alone, so combat mods can be tried on it.</li>
-        <li>Fix: Time Changer no longer flickers back to the server's time for a moment when the server sends a time update.</li>
-        <li>Website: every mod's settings and defaults on the features page, plus these Docs and Changelog pages.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v0.4.0">
-      <div class="rel-head"><h2>v0.4.0</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">50 new mods, the Printer, and the optional Evade Texture Pack. 88 mods in total.</p>
-      <ul>
-        <li>New mods include KillAura, CrystalAura, AnchorAura, Velocity, Fly, Speed, Scaffold, NoFall, ESP, Freecam, Nametags, Nuker, AutoFarm and the Inventory Viewer HUD.</li>
-        <li>Printer: builds Litematica placements, or loads <span class="mono">.litematic</span> files itself. New <span class="mono">schematics</span> folder.</li>
-        <li>Movement, World and Player categories in the menu.</li>
-        <li>Evade Texture Pack 1.0, a separate optional download.</li>
-        <li>Installer 1.0.1 creates the schematics folder.</li>
-        <li>Website redesign.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="v0.3.1">
-      <div class="rel-head"><h2>v0.3.1</h2><time>2026-11-20</time></div>
-      <p class="rel-sum">New logo and wordmark, the Evade Installer, and evadeclient.com.</p>
-      <ul>
-        <li>One-click installer for Windows (.exe) and macOS/Linux (.jar), with checksums for every download.</li>
-        <li>New Evade logo across the client and the website.</li>
-      </ul>
-    </article>
-
-    <article class="card rel rv" id="early">
-      <div class="rel-head"><h2>Earlier builds</h2></div>
-      <p class="rel-sum">The first PvP release on Minecraft 1.21.11: 38 mods.</p>
-      <ul>
-        <li>Combat: AutoPot, AutoTotem, AutoMend, AimAssist, AutoCritical, AutoClicker, Reach, TriggerBot, Hitbox.</li>
-        <li>Visuals: ChestESP, ChunkLocator, PlayerTracers.</li>
-        <li>HUD: ArmorHUD for you and your target, cooldown timers for pearls, wind charges, spears and gapples, and 15 more elements.</li>
-        <li>The black and red menu, the HUD editor and quality-of-life mods such as Zoom, Freelook and ToggleSprint.</li>
+        <li><b>A full HUD:</b> cooldowns, armour, keystrokes, FPS/CPS, coordinates, a stopwatch, saturation, an item counter and more, each draggable and resizable in the HUD editor.</li>
+        <li><b>The menu:</b> List, Cards and Compact styles, a grouped sidebar, an All / Enabled filter and live search.</li>
+        <li><b>Profiles:</b> named presets that each remember their own mods, settings, keybinds and HUD layout, switched in one click.</li>
+        <li><b>Controls &amp; camera:</b> zoom, freelook, toggle sprint, FOV changer, a custom crosshair, block outline and an adjustable third-person camera distance.</li>
+        <li><b>Visuals:</b> NoFog, NoRender, Fullbright, Clear Water, 1.7 animations, Item Physics, Hit Color, EnchantGlint, ShinyPots, Chunk Borders, Damage Tint, scoreboard and boss bar tweaks, and particle controls.</li>
+        <li><b>Quality of life:</b> waypoints, better tooltips, auto-reconnect, better chat, alerts for your own totem pops and low armour, AutoGG, AutoTip, a TNT timer and Nick Hider.</li>
+        <li>A one-click installer for Windows, macOS and Linux, with a SHA-256 checksum on every file. Evade runs on Fabric, keeps to its own folder and leaves your normal Minecraft untouched.</li>
       </ul>
     </article>
   </div>

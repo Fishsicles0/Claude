@@ -5,6 +5,29 @@ const one = (s, r = document) => r.querySelector(s);
 const all = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// ---------- reveal on scroll (first, so a failure further down can't leave the page hidden)
+const reveal = els => {
+  if (!("IntersectionObserver" in window)) { els.forEach(el => el.classList.add("in")); return; }
+  const io = new IntersectionObserver(es => es.forEach(en => {
+    if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+  }), { threshold: .08, rootMargin: "0px 0px -40px 0px" });
+  els.forEach(el => io.observe(el));
+};
+reveal(all(".rv"));
+// Show an element and everything around it that is still waiting to fade in.
+const revealUp = el => { for (let e = el; e; e = e.parentElement) if (e.classList && e.classList.contains("rv")) e.classList.add("in"); };
+
+// ---------- toast (download started, link copied...)
+const toast = one("#toast"), toastText = one("#toastText");
+let toastTimer;
+const showToast = htmlText => {
+  if (!toast) return;
+  toastText.innerHTML = htmlText;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 5000);
+};
+
 // ---------- nav: border once scrolled, mobile menu
 const navEl = one("nav.top"), burger = one("#burger");
 if (navEl) {
@@ -23,46 +46,64 @@ if (burger) {
   addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 }
 
-// ---------- reveal on scroll
-const reveal = els => {
-  if (!("IntersectionObserver" in window)) { els.forEach(el => el.classList.add("in")); return; }
-  const io = new IntersectionObserver(es => es.forEach(en => {
-    if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-  }), { threshold: .08, rootMargin: "0px 0px -40px 0px" });
-  els.forEach(el => io.observe(el));
+// ---------- deep links to a FAQ answer (/faq#update) open it, also when the hash changes on the same page
+const openHash = () => {
+  let id = "";
+  try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+  const d = id && document.getElementById(id);
+  if (!d || d.tagName !== "DETAILS") return;
+  all("details.hl").forEach(x => x.classList.remove("hl"));
+  d.open = true;
+  d.classList.add("hl");
+  revealUp(d);
+  requestAnimationFrame(() => d.scrollIntoView({ block: "start" }));
 };
-reveal(all(".rv"));
+openHash();
+addEventListener("hashchange", openHash);
 
 // ---------- features page: every mod, read from /assets/mods.json (generated from the client source)
 const grid = one("#grid");
 if (grid) {
-  const q = one("#q"), empty = one("#empty");
+  const q = one("#q"), empty = one("#empty"), more = one("#more");
   let filter = "all";
-  const RISK = { low: "Low risk", med: "Medium risk", high: "High risk" };
+  // "better tooltips", "BetterTooltips" and "better-tooltips" all find BetterTooltips.
+  const flat = s => s.toLowerCase().replace(/[\s_.\-]+/g, "");
+  const inTab = m => filter === "all" || m.dataset.c === filter || (filter === "new" && m.dataset.new === "1");
   const apply = () => {
-    const term = (q.value || "").trim().toLowerCase();
-    let shown = 0;
+    const term = (q.value || "").trim().toLowerCase(), ft = flat(term);
+    let shown = 0, elsewhere = 0;
     all(".mod", grid).forEach(m => {
-      const ok = (filter === "all" || m.dataset.c === filter || (filter === "new" && m.dataset.new === "1")) && (!term || m.dataset.s.includes(term));
+      const hit = !term || m.dataset.s.includes(term) || (ft && flat(m.dataset.s).includes(ft));
+      const ok = hit && inTab(m);
       m.classList.toggle("hide", !ok);
       if (ok) shown++;
+      else if (hit && term) elsewhere++;
     });
     empty.classList.toggle("show", shown === 0);
+    if (more) {
+      more.hidden = !elsewhere;
+      if (elsewhere) more.innerHTML = `<span>${elsewhere} more ${elsewhere === 1 ? "match" : "matches"} in other tabs.</span><button type="button" id="moreAll">Search all mods</button>`;
+    }
   };
   const select = f => {
     filter = f;
-    all(".tab").forEach(x => x.classList.toggle("on", x.dataset.f === f));
+    all(".tab").forEach(x => { const on = x.dataset.f === f; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); });
     apply();
   };
+  if (more) more.addEventListener("click", e => {
+    if (!e.target.closest("#moreAll")) return;
+    select("all");
+    history.replaceState(null, "", location.pathname);
+    q.focus();
+  });
   // A representative screenshot for each category, used on a module's detail hero.
-  const CAT_IMG = { combat: "/assets/hud.webp", pvp: "/assets/hud.webp", movement: "/assets/menu.webp",
-    server: "/assets/menu-settings.webp", visuals: "/assets/hud.webp", world: "/assets/printer.webp",
-    utility: "/assets/menu-settings.webp", hud: "/assets/hud-editor.webp", mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
-  const TYPE = { slider: "Number", toggle: "Toggle", mode: "Mode", color: "Colour", key: "Key" };
+  const CAT_IMG = { server: "/assets/menu-settings.webp", visuals: "/assets/hud.webp", hud: "/assets/hud-editor.webp",
+    mods: "/assets/zoom.webp", misc: "/assets/menu.webp" };
+  const TYPE = { slider: "Number", toggle: "Toggle", mode: "Mode", color: "Colour", key: "Key", text: "Text" };
   const RANGE = st => st.type === "slider" ? `${esc(st.min)} to ${esc(st.max)}`
-    : st.type === "mode" ? st.options.map(esc).join(", ")
-    : st.type === "toggle" ? "On or off" : st.type === "color" ? "Any colour" : st.type === "key" ? "Any key" : "—";
-  const RISKWORD = { low: "Low — only changes what you see, or minor.", med: "Medium — anti-cheats can catch it.", high: "High — obvious to anti-cheats." };
+    : st.type === "mode" ? (st.options.length ? st.options.map(esc).join(", ") : "&mdash;")
+    : st.type === "toggle" ? "On or off" : st.type === "color" ? "Any colour" : st.type === "key" ? "Any key"
+    : st.type === "text" ? "Any text" + (st.hint ? `, or <span class="mono">${esc(st.hint)}</span> in chat` : "") : "&mdash;";
   let MODS = [];
   const detail = one("#detail"), listView = one("#listView");
 
@@ -70,7 +111,7 @@ if (grid) {
     const m = MODS.find(x => x.name === name);
     if (!m) return;
     const c = m.slug;
-    const rows = m.settings.map(st => `<tr><th scope="row">${esc(st.name)}</th><td>${TYPE[st.type] || st.type}</td>`
+    const rows = m.settings.map(st => `<tr><th scope="row">${esc(st.name)}${st.desc ? `<small>${esc(st.desc)}</small>` : ""}</th><td>${TYPE[st.type] || esc(st.type)}</td>`
       + `<td class="def">${st.type === "color" ? `<i class="sw" style="background:${esc(st.default)}"></i>` : ""}${esc(st.default)}</td>`
       + `<td>${RANGE(st)}</td></tr>`).join("");
     detail.innerHTML = `
@@ -78,7 +119,7 @@ if (grid) {
       <div class="detail-hero">
         <img src="${CAT_IMG[c] || "/assets/menu.webp"}" alt="" loading="lazy">
         <div class="detail-hero-in">
-          <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}">${RISK[m.risk]}</span></div>
+          <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk low">Server-safe</span></div>
           <h1>${esc(m.name)}</h1>
           <p>${esc(m.desc)}</p>
         </div>
@@ -86,7 +127,7 @@ if (grid) {
       <div class="detail-body">
         <section class="card detail-sec">
           <h2>What does ${esc(m.name)} do?</h2>
-          <p>${esc(m.desc)} It's in the <b>${esc(m.cat)}</b> category. Ban risk: <span class="risk ${m.risk}">${RISK[m.risk]}</span> &mdash; ${RISKWORD[m.risk]}</p>
+          <p>${esc(m.desc)} It's in the <b>${esc(m.cat)}</b> category, and it's server-safe &mdash; quality of life, not a cheat.</p>
         </section>
         <section class="card detail-sec">
           <h2>How do I turn ${esc(m.name)} on?</h2>
@@ -121,23 +162,32 @@ if (grid) {
     else { closeDetail(); if (all(".tab").some(t => t.dataset.f === h)) select(h); else apply(); }
   };
 
-  fetch("/assets/mods.json").then(r => r.json()).then(mods => {
+  fetch(grid.dataset.src || "/assets/mods.json").then(r => r.json()).then(mods => {
     MODS = mods;
-    grid.innerHTML = mods.map(m => {
-      const c = m.slug, n = m.settings.length;
-      return `<button class="card mod" data-m="${esc(m.name)}" data-c="${c}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
-        <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span><span class="risk ${m.risk}" title="Ban risk">${RISK[m.risk]}</span></div>
+    // The cards are normally already in the page (built from the client source); build them if not.
+    if (!one(".mod", grid)) grid.innerHTML = mods.map(m => {
+      const n = m.settings.length;
+      return `<article class="card mod" data-m="${esc(m.name)}" data-c="${m.slug}" data-new="${m.new ? 1 : 0}" data-s="${esc((m.name + " " + m.desc + " " + m.cat + " " + m.settings.map(x => x.name).join(" ")).toLowerCase())}">
+        <div class="mod-top"><span class="cat">${esc(m.cat)}${m.new ? ' <em class="new">New</em>' : ""}</span></div>
         <h3>${esc(m.name)}</h3><p>${esc(m.desc)}</p>
-        <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></button>`;
+        <span class="mod-foot">${n ? n + " setting" + (n > 1 ? "s" : "") : "No settings"} <em>View &rarr;</em></span></article>`;
     }).join("");
+    // Make the cards keyboard-friendly.
+    all(".mod", grid).forEach(card => { card.tabIndex = 0; card.setAttribute("role", "button"); });
     route(false);
-  }).catch(() => { grid.innerHTML = "<p>Couldn't load the list of mods. Refresh to try again.</p>"; });
+  }).catch(() => {});
 
   grid.addEventListener("click", e => {
-    const card = e.target.closest(".mod"); if (!card) return;
+    if (e.target.closest(".mod-sets")) return;
+    const card = e.target.closest(".mod"); if (!card || !MODS.length) return;
     openDetail(card.dataset.m, true);
   });
+  grid.addEventListener("keydown", e => {
+    const card = e.target.closest(".mod");
+    if (card && (e.key === "Enter" || e.key === " ") && MODS.length) { e.preventDefault(); openDetail(card.dataset.m, true); }
+  });
   addEventListener("popstate", () => route(false));
+  all(".tab").forEach(t => t.setAttribute("aria-pressed", t.classList.contains("on")));
   one("#tabs").addEventListener("click", e => {
     const t = e.target.closest(".tab"); if (!t) return;
     select(t.dataset.f);
@@ -166,6 +216,9 @@ if (showImg) {
     const next = new Image();
     next.onload = () => { showImg.src = next.src; showImg.alt = b.querySelector("h4").textContent; showImg.style.opacity = 1; };
     next.src = b.dataset.img;
+    // Stacked on a phone the picture sits above the list (and sticks); bring it back if it's off screen.
+    const r = showImg.getBoundingClientRect(), top = (navEl ? navEl.offsetHeight : 0);
+    if (r.bottom < top + 40 || r.top > innerHeight - 40) showImg.closest(".sw-view").scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 }
 
@@ -211,26 +264,78 @@ const os = isPhone ? "phone" : isMac ? "mac" : isLinux ? "linux" : "windows";
 document.documentElement.dataset.os = os;
 const setText = (sel, val) => all(sel).forEach(e => e.textContent = val);
 if (os === "mac" || os === "linux") {
-  all(".js-primary").forEach(a => a.setAttribute("href", "/downloads/EvadeInstaller.jar"));
+  const jar = document.querySelector('a[href^="/downloads/EvadeInstaller.jar"]');
+  all(".js-primary").forEach(a => a.setAttribute("href", jar ? jar.getAttribute("href") : "/downloads/EvadeInstaller.jar?v=" + Date.now()));
   setText(".js-primary-label", os === "mac" ? "Download for macOS" : "Download for Linux");
   setText(".js-primary-meta", "One-click installer · needs Java 17+");
 } else if (os === "phone") {
-  setText(".js-primary-meta", "Evade runs on a computer · Windows, macOS, Linux");
+  setText(".js-primary-meta", "Evade runs on a computer: Windows, macOS or Linux");
+  all(".js-meta-more").forEach(e => e.remove());
+  const url = "https://evadeclient.com/download";
+  const send = e => {
+    if (navigator.share) {
+      e.preventDefault();
+      navigator.share({ title: "Evade Client", text: "Download Evade Client on your computer", url }).catch(() => {});
+    } else if (navigator.clipboard && (location.pathname.startsWith("/download") || e.currentTarget.dataset.os)) {
+      e.preventDefault();
+      navigator.clipboard.writeText(url).then(
+        () => showToast("Link copied. Open <b>evadeclient.com/download</b> on your computer."),
+        () => { location.href = "/download"; });
+    }
+  };
+  all(".js-primary").forEach(a => {
+    a.removeAttribute("download");
+    a.setAttribute("href", "/download");
+    a.addEventListener("click", send);
+  });
+  setText(".js-primary-label", "Send it to your computer");
+  // The per-OS installer buttons on /download: share the page rather than put an installer on the phone.
+  all(".os[data-os] a[download]").forEach(a => {
+    a.removeAttribute("download");
+    a.dataset.os = a.closest(".os").dataset.os;
+    a.addEventListener("click", send);
+  });
 }
 all(".os[data-os]").forEach(c => c.classList.toggle("yours", c.dataset.os === os));
 
+// ---------- hero player: the three window dots switch between recordings; each plays through, then the next
+const stageVid = one("#stageVid");
+if (stageVid) {
+  const dots = all(".stage-dot"), label = one("#stageLabel"), bar = one("#stageProgress");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let cur = 0, raf = 0;
+  const tick = () => {
+    if (stageVid.duration) bar.style.transform = `scaleX(${stageVid.currentTime / stageVid.duration})`;
+    raf = requestAnimationFrame(tick);
+  };
+  const show = (i, play) => {
+    cur = (i + dots.length) % dots.length;
+    const d = dots[cur];
+    dots.forEach(x => { const on = x === d; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
+    label.textContent = d.dataset.label;
+    stageVid.poster = d.dataset.poster;
+    stageVid.src = d.dataset.src;
+    bar.style.transform = "scaleX(0)";
+    if (play) stageVid.play().catch(() => {});
+  };
+  if (still) { stageVid.removeAttribute("autoplay"); stageVid.pause(); }
+  dots.forEach((d, i) => d.addEventListener("click", () => show(i, true)));
+  stageVid.addEventListener("ended", () => show(cur + 1, true));
+  stageVid.addEventListener("play", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); });
+  stageVid.addEventListener("pause", () => cancelAnimationFrame(raf));
+  // Don't download or play clips while the hero is off screen.
+  new IntersectionObserver(([e]) => {
+    if (still) return;
+    if (e.isIntersecting) stageVid.play().catch(() => {}); else stageVid.pause();
+  }).observe(stageVid);
+}
+
 // ---------- download toast
-const toast = one("#toast"), toastText = one("#toastText");
-let toastTimer;
 all("a[download]").forEach(a => a.addEventListener("click", () => {
   const href = a.getAttribute("href");
-  toastText.innerHTML = /Texture-Pack/.test(href)
-    ? "Pack downloaded. In Minecraft open <b>Options › Resource Packs › Open Pack Folder</b> and drop it in."
-    : /evade-client/.test(href)
+  showToast(/evade-client/.test(href)
     ? "Mod downloaded. Put it in your <b>mods</b> folder with Fabric API."
-    : "Download started. Open it and click <b>Install</b>.";
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 5000);
+    : /Clips/.test(href) ? "Download started. Open it to start <b>Evade Clips</b>."
+    : "Download started. Open it and click <b>Install</b>.");
 }));
 })();

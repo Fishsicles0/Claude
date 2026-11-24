@@ -1,13 +1,13 @@
 title: Evade Client
-description: Evade Client is a free Fabric client for Minecraft {{MC}}: {{TOTAL}} mods across combat, movement, visuals, world, player, HUD and quality of life, in one black and red menu.
+description: Evade is a free, server-safe quality-of-life client for Minecraft {{MC}}: a full HUD, zoom, freelook, waypoints and visual mods in one black and red menu. No cheats.
 nav: home
 ---
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
-      <a class="pill rv" href="/features"><b>New in v{{VERSION}}</b> {{NEW}} new mods, crystal PvP, Excavator <span class="arrow">&rarr;</span></a>
-      <h1 class="rv d1">{{TOTAL}} mods.<br><span class="red">One client.</span></h1>
-      <p class="lead rv d2">Evade is a free Fabric client for Minecraft {{MC}}. Combat, movement, visuals, world tools and a full HUD, all in one black and red menu that opens with <span class="kbd">Right Shift</span>.</p>
+      <a class="pill rv" href="/changelog#{{NEWS_ID}}"><b>New in {{NEWS_SERIES}}</b> {{NEWS}} <span class="arrow">&rarr;</span></a>
+      <h1 class="rv d1">Your game,<br><span class="red">dialed in.</span></h1>
+      <p class="lead rv d2">Evade is a free, server-safe quality-of-life client for Minecraft {{MC}} &mdash; a full HUD, zoom, freelook, waypoints and visual tweaks. No cheats. Opens with <span class="kbd">Right Shift</span>.</p>
       <div class="cta rv d3">
         <a class="btn btn-red btn-lg js-primary" href="/downloads/Evade-Installer.exe" download>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
@@ -15,7 +15,7 @@ nav: home
         </a>
         <a class="btn btn-ghost btn-lg" href="/features">Browse all {{TOTAL}} mods</a>
       </div>
-      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></p>
+      <p class="cta-meta rv d3"><span class="js-primary-meta">One-click installer &middot; Windows 10/11</span><span class="js-meta-more"> &middot; <a href="/download" class="link-inline">macOS, Linux &amp; mod jar</a></span></p>
       <div class="trust rv d3">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>Free, no account</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>SHA-256 for every file</span>
@@ -24,11 +24,19 @@ nav: home
     </div>
     <div class="stage rv d2">
       <div class="stage-frame">
-        <div class="stage-bar"><i></i><i></i><i></i><span>Evade Client &middot; Right Shift</span></div>
-        <img src="/assets/menu-hero.webp" alt="The Evade Client menu: categories on the left and a grid of mod cards" width="1420" height="799" fetchpriority="high">
+        <div class="stage-bar" role="tablist" aria-label="Evade in action">
+          <button class="stage-dot on" role="tab" aria-selected="true" aria-label="The menu" data-label="The menu" data-src="/assets/menu-clip.mp4" data-poster="/assets/menu-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="HUD editor" data-label="HUD editor" data-src="/assets/hud-clip.mp4" data-poster="/assets/hud-clip.webp"></button>
+          <button class="stage-dot" role="tab" aria-selected="false" aria-label="Zoom and Freelook" data-label="Zoom &amp; Freelook" data-src="/assets/play-clip.mp4" data-poster="/assets/play-clip.webp"></button>
+          <span class="stage-label" id="stageLabel">The menu</span>
+        </div>
+        <div class="stage-screen">
+          <video id="stageVid" src="/assets/menu-clip.mp4" poster="/assets/menu-clip.webp" muted playsinline autoplay preload="auto" width="1280" height="720" aria-label="Recording of Evade in game"></video>
+          <i class="stage-progress" id="stageProgress"></i>
+        </div>
       </div>
-      <img class="float float-a" src="/assets/crop-target.webp" alt="" width="640" height="252" loading="lazy">
-      <img class="float float-b" src="/assets/crop-cooldowns.webp" alt="" width="528" height="340" loading="lazy">
+      <img class="float float-a" src="/assets/crop-keys.webp" alt="" width="438" height="534" loading="lazy">
+      <img class="float float-b" src="/assets/crop-cooldowns.webp" alt="" width="536" height="196" loading="lazy">
     </div>
   </div>
   <div class="wrap">
@@ -45,48 +53,32 @@ nav: home
 <section class="wrap" id="inside">
   <div class="sec-head rv">
     <div class="eyebrow">What's inside</div>
-    <h2>Eight kits. One menu.</h2>
+    <h2>Five kits. One menu.</h2>
     <p>Every mod has its own settings, keybind and on/off switch. Type anywhere in the menu to search.</p>
   </div>
   <div class="bento">
-    <a class="card tile big rv" href="/features#pvp">
-      <div class="num"><em>{{PVP}}</em></div>
-      <h3>PvP macros</h3>
-      <p>Crystal and anchor fights handled for you: CrystalAura, AnchorAura, AutoTotem, AutoPot, Surround, AutoCity and more.</p>
-      <div class="chips"><span>CrystalAura</span><span>AnchorAura</span><span>AutoTotem</span><span>AutoPot</span><span>Surround</span><span>AutoCity</span><span>AutoAnvil</span><span>AutoWeb</span></div>
-      <span class="go">See PvP macros</span>
+    <a class="card tile big rv" href="/features#hud">
+      <div class="num"><em>{{HUD}}</em></div>
+      <h3>HUD</h3>
+      <p>Everything you want on screen: Cooldowns, ArmorHUD, Keystrokes, FPS/CPS/Ping, Coordinates, Stopwatch and more. Drag, snap and resize each one in the HUD editor.</p>
+      <div class="chips"><span>Cooldowns</span><span>ArmorHUD</span><span>Keystrokes</span><span>FPS</span><span>CPS</span><span>Coordinates</span><span>Stopwatch</span></div>
+      <span class="go">See HUD elements</span>
     </a>
-    <a class="card tile rv d1" href="/features#combat">
-      <div class="num">{{COMBAT}}</div><h3>Combat</h3>
-      <div class="chips"><span>KillAura</span><span>AimAssist</span><span>TriggerBot</span><span>Reach</span></div>
+    <a class="card tile rv d1" href="/features#mods">
+      <div class="num">{{MODS}}</div><h3>Controls</h3>
+      <div class="chips"><span>Zoom</span><span>Freelook</span><span>ToggleSprint</span></div>
     </a>
-    <a class="card tile rv d2" href="/features#movement">
-      <div class="num">{{MOVEMENT}}</div><h3>Movement</h3>
-      <div class="chips"><span>Fly</span><span>Speed</span><span>Scaffold</span><span>NoSlow</span></div>
-    </a>
-    <a class="card tile rv d1" href="/features#visuals">
+    <a class="card tile rv d2" href="/features#visuals">
       <div class="num">{{VISUALS}}</div><h3>Visuals</h3>
-      <div class="chips"><span>ESP</span><span>Waypoints</span><span>Freecam</span><span>HoleESP</span></div>
-    </a>
-    <a class="card tile rv d2" href="/features#world">
-      <div class="num">{{WORLD}}</div><h3>World</h3>
-      <div class="chips"><span>Printer</span><span>Nuker</span><span>Excavator</span><span>VeinMiner</span></div>
-    </a>
-    <a class="card tile rv d1" href="/features#utility">
-      <div class="num">{{UTILITY}}</div><h3>Utility</h3>
-      <div class="chips"><span>AutoArmor</span><span>ChestStealer</span><span>FastBreak</span></div>
-    </a>
-    <a class="card tile wide rv" href="/features#hud">
-      <div class="num">{{HUD}}</div><h3>HUD</h3>
-      <p>TargetHUD, Cooldowns, ArmorHUD, Keystrokes, Inventory Viewer and more. Drag, snap and resize each one.</p>
+      <div class="chips"><span>Waypoints</span><span>BetterTooltips</span><span>NoFog</span><span>EnchantGlint</span></div>
     </a>
     <a class="card tile rv d1" href="/features#server">
       <div class="num">{{SERVER}}</div><h3>Server-facing</h3>
-      <div class="chips"><span>AutoReconnect</span><span>AntiAFK</span><span>AutoLog</span></div>
+      <div class="chips"><span>AutoReconnect</span><span>AutoGG</span></div>
     </a>
-    <a class="card tile rv d2" href="/features#mods">
-      <div class="num">{{MODS}}</div><h3>Quality of life</h3>
-      <div class="chips"><span>Zoom</span><span>Freelook</span><span>ToggleSprint</span></div>
+    <a class="card tile rv d2" href="/features#misc">
+      <div class="num">{{MISC}}</div><h3>Misc</h3>
+      <div class="chips"><span>BetterChat</span><span>Clips</span><span>Voice Chat</span></div>
     </a>
   </div>
 </section>
@@ -99,25 +91,62 @@ nav: home
   </div>
   <div class="shots">
     <a class="card shot-card w3 rv" href="/showcase">
-      <div class="img"><img src="/assets/menu.webp" alt="The Evade menu" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">Menu</span><h3>Fast to use, easy to read</h3><p>Categories down the side, every mod one click away, and a search that starts as soon as you type.</p></div>
+      <div class="img"><img src="/assets/menu-settings.webp" alt="A mod's settings in the Evade menu: sliders, switches and a keybind" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu</span><h3>Every setting, one click away</h3><p>Categories down the side, a search that starts as soon as you type, and sliders, modes, colours and keybinds for every mod.</p></div>
     </a>
-    <a class="card shot-card w3 rv d1" href="/features#printer" id="printer-card">
-      <div class="img"><img src="/assets/printer.webp" alt="The Printer building a schematic in game" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">New &middot; World</span><h3>Printer for Litematica</h3><p>Builds the schematic Litematica has placed, or loads <span class="mono">.litematic</span> files from your schematics folder on its own.</p></div>
+    <a class="card shot-card w3 rv d1" href="/showcase">
+      <div class="img"><img src="/assets/gui-styles.webp" alt="The three Evade GUI styles stacked: List, Cards and Compact" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Menu styles</span><h3>Three GUI styles, four themes</h3><p>A spacious list, a grid of cards or a compact view, in Modern, Midnight, OLED or Classic with your choice of accent colour. Switch any time under Settings.</p></div>
     </a>
     <a class="card shot-card w2 rv" href="/showcase">
       <div class="img"><img src="/assets/hud.webp" alt="The in-game HUD" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">HUD</span><h3>Read a fight at a glance</h3><p>Cooldowns, target info, armor and keystrokes.</p></div>
+      <div class="txt"><span class="tag">HUD</span><h3>Everything at a glance</h3><p>Cooldowns, armour and keystrokes.</p></div>
     </a>
     <a class="card shot-card w2 rv d1" href="/showcase">
       <div class="img"><img src="/assets/hud-editor.webp" alt="The HUD editor" width="1920" height="1080" loading="lazy"></div>
       <div class="txt"><span class="tag">HUD editor</span><h3>Put it where you want</h3><p>Drag, snap and resize every element.</p></div>
     </a>
-    <a class="card shot-card w2 rv d2" href="/download#pack">
-      <div class="img"><img src="/assets/pack-title.webp" alt="The title screen with the Evade Texture Pack" width="1920" height="1080" loading="lazy"></div>
-      <div class="txt"><span class="tag">Optional</span><h3>Evade Texture Pack</h3><p>Black and red menus, hotbar and tooltips. A separate download.</p></div>
+    <a class="card shot-card w2 rv d2" href="/docs#profiles">
+      <div class="img"><img src="/assets/gui-profiles.webp" alt="The Evade Profiles page" width="1920" height="1080" loading="lazy"></div>
+      <div class="txt"><span class="tag">Profiles</span><h3>One click, whole setup</h3><p>Separate mods, keybinds and HUD per game.</p></div>
     </a>
+  </div>
+</section>
+
+<section class="wrap" id="clips">
+  <div class="sec-head rv">
+    <div class="eyebrow">New &middot; Evade Clips</div>
+    <h2>Clip it. Edit it. Share it.</h2>
+    <p>Evade Clips comes with the client and works with it. It keeps instant replay running while you play Minecraft with Evade Client, saves kills, pops and wins by itself, and edits and shares clips with links that play in Discord.</p>
+  </div>
+  <div class="shots">
+    <a class="card shot-card w3 rv" href="/clips">
+      <div class="img"><img src="/assets/clips-library.webp" alt="The Evade Clips library" width="1440" height="900" loading="lazy"></div>
+      <div class="txt"><span class="tag">Evade Clips</span><h3>Every play, saved</h3><p>Instant replay, auto-clips, voice commands and full recordings, with near-zero FPS cost.</p></div>
+    </a>
+    <a class="card shot-card w3 rv d1" href="/clips">
+      <div class="img"><img src="/assets/clips-editor.webp" alt="The Evade Clips editor" width="1440" height="900" loading="lazy"></div>
+      <div class="txt"><span class="tag">Editor</span><h3>Edit and share in one place</h3><p>Slow-mo, captions, facecam, vertical for Shorts, and share links with no watermark.</p></div>
+    </a>
+  </div>
+  <div class="cta-row rv">
+    <a class="btn btn-red" href="/clips">Explore Evade Clips <span aria-hidden="true">&rarr;</span></a>
+  </div>
+</section>
+
+<section class="wrap" id="compare">
+  <div class="sec-head rv">
+    <div class="eyebrow">Why Evade</div>
+    <h2>Everything you'd pay for elsewhere. Free.</h2>
+    <p>How Evade compares with a typical Minecraft client.</p>
+  </div>
+  <div class="table compare rv">
+    <div><span><b>Price</b></span><span>Free, with no paid tiers or locked cosmetics. Typical clients have paid cosmetics.</span></div>
+    <div><span><b>Account</b></span><span>None needed. Typical clients often need one.</span></div>
+    <div><span><b>Instant replay &amp; clips</b></span><span>Built in, with an editor and watermark-free share links. Typical clients don't include them.</span></div>
+    <div><span><b>Verified downloads</b></span><span>SHA-256 checksum for every file. Typical clients rarely publish them.</span></div>
+    <div><span><b>FPS boost</b></span><span>Sodium and 10 more FPS mods, presets and a built-in benchmark. Typical clients vary.</span></div>
+    <div><span><b>Server friendly</b></span><span>Servers can switch off any Evade mod. Typical clients rarely offer this.</span></div>
   </div>
 </section>
 
@@ -133,7 +162,7 @@ nav: home
     <div class="card step rv d2"><h4>Pick the profile</h4><p>Choose <b>Evade Client</b> in the Minecraft Launcher.</p></div>
     <div class="card step rv d3"><h4>Play</h4><p>Press <span class="kbd">Right Shift</span> in game to open the menu.</p></div>
   </div>
-  <p class="note rv">Most servers ban cheat clients. Every mod on the <a href="/features">features page</a> shows its ban risk: {{RISK_HIGH}} high, {{RISK_MED}} medium, {{RISK_LOW}} low. <a href="/faq#ban">Read more</a></p>
+  <p class="note rv">Every mod is quality-of-life and server-safe &mdash; no combat or movement cheats &mdash; so Evade is welcome on most servers. <a href="/faq#safe">More on that</a></p>
 </section>
 
 <div class="wrap">

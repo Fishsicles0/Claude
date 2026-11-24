@@ -1,0 +1,32 @@
+// Evade Clips Share: clips.evadeclient.com — the Evade Clips download page, share links and phone sync.
+// Deploy: `npx wrangler r2 bucket create evade-clips` once, then `npx wrangler deploy` (see README.md).
+// Keep "triggers", "ratelimits" and "vars" the same in wrangler.r2-downloads.jsonc.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "evade-clips",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-01",
+  "r2_buckets": [{ "binding": "CLIPS", "bucket_name": "evade-clips" }],
+  // Downloads (Evade-Clips.exe, EvadeClips.jar, clips.json) are copied here by scripts/build-site.sh.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "clips.evadeclient.com", "custom_domain": true }],
+  // Daily at 03:17 UTC: give up uploads left unfinished for a day, recount storage. Hourly at :41: count preset
+  // downloads. (The daily expression is also in src/index.js.)
+  "triggers": { "crons": ["17 3 * * *", "41 * * * *"] },
+  // Per IP address and Cloudflare location. Needs Wrangler 4.36 or later; without these bindings nothing is limited.
+  "ratelimits": [
+    // New accounts.
+    { "name": "REG_RL", "namespace_id": "6001", "simple": { "limit": 3, "period": 60 } },
+    // Reports and preset publishing (counted separately).
+    { "name": "ACT_RL", "namespace_id": "6002", "simple": { "limit": 5, "period": 60 } }
+  ],
+  "vars": {
+    // Storage per account, in GB.
+    "QUOTA_GB": "25",
+    // Storage for the whole server, in GB; new uploads are refused above it. "0" means no limit.
+    "TOTAL_GB": "2000",
+    "SITE_NAME": "Evade Clips"
+    // Secrets (npx wrangler secret put ...): ADMIN_TOKEN for moderation; REGISTER_SECRET to make it invite-only;
+    // IP_SALT (optional) for the hashed IP addresses that keep one report and one counted download per viewer.
+  }
+}

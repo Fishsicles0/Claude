@@ -1,6 +1,7 @@
 package net.evadeclient.render;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -8,8 +9,12 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Per-frame world drawing helpers. Everything drawn here ignores depth, so it shows through walls.
- * Coordinates are absolute world coordinates; the camera offset is applied for you.
+ * Per-frame world drawing helpers. Coordinates are absolute world coordinates; the camera offset is applied for you.
+ *
+ * <p>The plain methods draw on the overlay layers ({@link EvadeRenderLayers#LINES}, {@link EvadeRenderLayers#QUADS}),
+ * which skip the depth test so the overlay is never hidden by terrain. The {@code *Depth} methods are depth-tested
+ * like ordinary world geometry. The world-render pass flushes the two overlay layers after every module has drawn;
+ * code that uses a depth layer, or draws from another hook, calls {@link #flush()} when it is done.
  */
 public final class RenderContext {
     private final MatrixStack matrices;
@@ -29,36 +34,79 @@ public final class RenderContext {
 
     public Vec3d cameraPos() { return cam; }
 
+    // ------------------------------------------------------------------ lines
+
     public void line(Vec3d a, Vec3d b, int color, float width) {
-        VertexConsumer vc = consumers.getBuffer(EvadeRenderLayers.LINES);
-        MatrixStack.Entry e = matrices.peek();
-        float ax = (float) (a.x - cam.x), ay = (float) (a.y - cam.y), az = (float) (a.z - cam.z);
-        float bx = (float) (b.x - cam.x), by = (float) (b.y - cam.y), bz = (float) (b.z - cam.z);
-        float nx = bx - ax, ny = by - ay, nz = bz - az;
+        line(a.x, a.y, a.z, b.x, b.y, b.z, color, width);
+    }
+
+    /** A line on the overlay layer, from primitive coordinates (nothing is allocated). */
+    public void line(double ax, double ay, double az, double bx, double by, double bz, int color, float width) {
+        lineTo(consumers.getBuffer(EvadeRenderLayers.LINES), ax, ay, az, bx, by, bz, color, width);
+    }
+
+    /** A depth-tested line: terrain in front of it hides it. */
+    public void lineDepth(double ax, double ay, double az, double bx, double by, double bz, int color, float width) {
+        lineTo(consumers.getBuffer(EvadeRenderLayers.LINES_DEPTH), ax, ay, az, bx, by, bz, color, width);
+    }
+
+    private void lineTo(VertexConsumer vc, double ax, double ay, double az, double bx, double by, double bz,
+                        int color, float width) {
+        // Subtract in double first: far from the origin a float can't hold the world coordinate itself.
+        float x1 = (float) (ax - cam.x), y1 = (float) (ay - cam.y), z1 = (float) (az - cam.z);
+        float x2 = (float) (bx - cam.x), y2 = (float) (by - cam.y), z2 = (float) (bz - cam.z);
+        float nx = x2 - x1, ny = y2 - y1, nz = z2 - z1;
         float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
         if (len < 1e-6f) return;
         nx /= len; ny /= len; nz /= len;
-        vc.vertex(e, ax, ay, az).color(color).normal(e, nx, ny, nz).lineWidth(width);
-        vc.vertex(e, bx, by, bz).color(color).normal(e, nx, ny, nz).lineWidth(width);
+        MatrixStack.Entry e = matrices.peek();
+        vc.vertex(e, x1, y1, z1).color(color).normal(e, nx, ny, nz).lineWidth(width);
+        vc.vertex(e, x2, y2, z2).color(color).normal(e, nx, ny, nz).lineWidth(width);
     }
+
+    // ------------------------------------------------------------------ boxes
 
     public void boxOutline(Box b, int color, float width) {
-        Vec3d[] c = corners(b);
-        // bottom
-        line(c[0], c[1], color, width); line(c[1], c[2], color, width);
-        line(c[2], c[3], color, width); line(c[3], c[0], color, width);
-        // top
-        line(c[4], c[5], color, width); line(c[5], c[6], color, width);
-        line(c[6], c[7], color, width); line(c[7], c[4], color, width);
-        // verticals
-        for (int i = 0; i < 4; i++) line(c[i], c[i + 4], color, width);
+        boxOutline(b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, color, width);
     }
 
+    /** The twelve edges of a box on the overlay layer. */
+    public void boxOutline(double x1, double y1, double z1, double x2, double y2, double z2, int color, float width) {
+        // bottom
+        line(x1, y1, z1, x2, y1, z1, color, width); line(x2, y1, z1, x2, y1, z2, color, width);
+        line(x2, y1, z2, x1, y1, z2, color, width); line(x1, y1, z2, x1, y1, z1, color, width);
+        // top
+        line(x1, y2, z1, x2, y2, z1, color, width); line(x2, y2, z1, x2, y2, z2, color, width);
+        line(x2, y2, z2, x1, y2, z2, color, width); line(x1, y2, z2, x1, y2, z1, color, width);
+        // verticals
+        line(x1, y1, z1, x1, y2, z1, color, width); line(x2, y1, z1, x2, y2, z1, color, width);
+        line(x2, y1, z2, x2, y2, z2, color, width); line(x1, y1, z2, x1, y2, z2, color, width);
+    }
+
+    /** A filled box on the overlay layer (every face drawn, never hidden by terrain). */
     public void boxFilled(Box b, int color) {
-        VertexConsumer vc = consumers.getBuffer(EvadeRenderLayers.QUADS);
+        filled(EvadeRenderLayers.QUADS, b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, color);
+    }
+
+    /**
+     * A filled box that terrain in front of it hides, and whose far faces are culled so the tint is even. Grow the
+     * box a little past the surface it covers (e.g. {@code expand(0.002)}) so its faces sit in front of that surface.
+     */
+    public void boxFilledDepth(Box b, int color) {
+        boxFilledDepth(b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, color);
+    }
+
+    public void boxFilledDepth(double x1, double y1, double z1, double x2, double y2, double z2, int color) {
+        filled(EvadeRenderLayers.QUADS_DEPTH, x1, y1, z1, x2, y2, z2, color);
+    }
+
+    /** Six faces, each wound counter-clockwise seen from outside the box (front faces for culling). */
+    private void filled(RenderLayer layer, double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+                        int color) {
+        VertexConsumer vc = consumers.getBuffer(layer);
         MatrixStack.Entry e = matrices.peek();
-        float x1 = (float) (b.minX - cam.x), y1 = (float) (b.minY - cam.y), z1 = (float) (b.minZ - cam.z);
-        float x2 = (float) (b.maxX - cam.x), y2 = (float) (b.maxY - cam.y), z2 = (float) (b.maxZ - cam.z);
+        float x1 = (float) (minX - cam.x), y1 = (float) (minY - cam.y), z1 = (float) (minZ - cam.z);
+        float x2 = (float) (maxX - cam.x), y2 = (float) (maxY - cam.y), z2 = (float) (maxZ - cam.z);
         quad(vc, e, color, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2); // bottom
         quad(vc, e, color, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1); // top
         quad(vc, e, color, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1); // north
@@ -85,18 +133,18 @@ public final class RenderContext {
         vc.vertex(e, x4, y4, z4).color(color);
     }
 
-    private static Vec3d[] corners(Box b) {
-        return new Vec3d[]{
-                new Vec3d(b.minX, b.minY, b.minZ), new Vec3d(b.maxX, b.minY, b.minZ),
-                new Vec3d(b.maxX, b.minY, b.maxZ), new Vec3d(b.minX, b.minY, b.maxZ),
-                new Vec3d(b.minX, b.maxY, b.minZ), new Vec3d(b.maxX, b.maxY, b.minZ),
-                new Vec3d(b.maxX, b.maxY, b.maxZ), new Vec3d(b.minX, b.maxY, b.maxZ),
-        };
-    }
+    // ------------------------------------------------------------------ flushing
 
-    /** Point just in front of the camera along the view direction, for tracer origins. */
-    public Vec3d crosshairPoint() {
-        var camera = MinecraftClient.getInstance().gameRenderer.getCamera();
-        return cam.add(Vec3d.fromPolar(camera.getPitch(), camera.getYaw()));
+    /**
+     * Draws everything queued on the Evade layers now: fills before lines, depth-tested before overlay, so overlay
+     * lines end up on top. Only needed when drawing on a depth layer or outside the world-render pass (which flushes
+     * the overlay layers itself); does nothing when the consumers aren't an immediate buffer.
+     */
+    public void flush() {
+        if (!(consumers instanceof VertexConsumerProvider.Immediate immediate)) return;
+        immediate.draw(EvadeRenderLayers.QUADS_DEPTH);
+        immediate.draw(EvadeRenderLayers.LINES_DEPTH);
+        immediate.draw(EvadeRenderLayers.QUADS);
+        immediate.draw(EvadeRenderLayers.LINES);
     }
 }
