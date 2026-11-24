@@ -74,6 +74,7 @@ public class EvadeMenu extends Screen {
                     new Nav("Pinned", Page.PINNED, "star", false),
                     new Nav("Mod Browser", null, "mods", false, net.evadeclient.gui.ModBrowserScreen::open),
                     new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open),
+                    new Nav("Screenshots", null, "camera", false, net.evadeclient.gui.ScreenshotGalleryScreen::openFromCurrent),
                     new Nav("Friends", Page.FRIENDS, "friends", false))));
 
     private static Page page = Page.ALL;
@@ -1734,6 +1735,8 @@ public class EvadeMenu extends Screen {
     private static boolean matches(Module mod, String f) {
         StringBuilder hay = new StringBuilder(mod.getName()).append(' ').append(mod.getDescription()).append(' ')
                 .append(mod.getCategory().displayName);
+        String addon = net.evadeclient.addon.EvadeAddons.ownerName(mod);
+        if (addon != null) hay.append(" addon ").append(addon);
         for (Setting<?> st : mod.getSettings()) {
             if (st.isHidden()) continue;
             hay.append(' ').append(st.getName());
@@ -3813,7 +3816,9 @@ public class EvadeMenu extends Screen {
 
     /** A module's one-line description, or why it can't be used here. */
     private static String blurb(net.evadeclient.module.Module mod) {
-        return net.evadeclient.util.ServerRules.isDisabled(mod) ? "Disabled by this server" : mod.getDescription();
+        if (net.evadeclient.util.ServerRules.isDisabled(mod)) return "Disabled by this server";
+        String addon = net.evadeclient.addon.EvadeAddons.ownerName(mod);
+        return addon == null ? mod.getDescription() : "Addon: " + addon + "  ·  " + mod.getDescription();
     }
 
     private static int blurbColor(net.evadeclient.module.Module mod) {

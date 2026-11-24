@@ -122,9 +122,10 @@ public final class SocialJoin {
         MutableText line = Text.literal("[Evade] ").formatted(Formatting.DARK_GRAY);
         line.append(Text.literal(who).formatted(Formatting.WHITE));
         line.append(Text.literal(summon ? " wants the party on " : " is playing on ").formatted(Formatting.GRAY));
-        line.append(Text.literal(address).formatted(Formatting.AQUA));
+        // Streamer Mode: "a server" instead of the address (the confirmation still names it before you join).
+        line.append(Text.literal(net.evadeclient.module.misc.StreamerMode.friendServer(address)).formatted(Formatting.AQUA));
         line.append(Text.literal(" "));
-        line.append(button("[Join]", Formatting.GREEN, "/" + COMMAND + " join " + code, "Join " + address + " (you'll confirm first)"));
+        line.append(button("[Join]", Formatting.GREEN, "/" + COMMAND + " join " + code, "Join " + net.evadeclient.module.misc.StreamerMode.friendServer(address) + " (you'll confirm first)"));
         if (summon) {
             line.append(Text.literal(" "));
             line.append(button("[Dismiss]", Formatting.GRAY, "/" + COMMAND + " dismiss " + code, "Stay here"));
@@ -219,7 +220,7 @@ public final class SocialJoin {
             if (onServer(server)) return;
             synchronized (SocialJoin.class) { summon = new Offer(name, server, true, System.currentTimeMillis()); }
             boolean inGame = MinecraftClient.getInstance().world != null;
-            Notifications.push("Party", name + " wants the party on " + server + (inGame ? ": [Join] in chat" : ": Join on the Party tab"),
+            Notifications.push("Party", name + " wants the party on " + net.evadeclient.module.misc.StreamerMode.friendServer(server) + (inGame ? ": [Join] in chat" : ": Join on the Party tab"),
                     Notifications.Level.SUCCESS, 8000);
             postOffer(name, server, true);
         });

@@ -101,7 +101,7 @@ public class PartyPing extends Module {
         m.show(p);
         if (m.sound.get()) mc.getSoundManager().play(PositionedSoundInstance.ui(SoundEvents.BLOCK_NOTE_BLOCK_BELL, "danger".equals(p.kind()) ? 0.8f : 1.6f));
         if (m.toasts.get()) {
-            String where = mc.player.hasReducedDebugInfo()
+            String where = mc.player.hasReducedDebugInfo() || StreamerMode.hidesCoordinates()
                     ? Math.round(Math.sqrt(mc.player.squaredDistanceTo(p.x(), p.y(), p.z()))) + "m away"
                     : MathHelper.floor(p.x()) + ", " + MathHelper.floor(p.y()) + ", " + MathHelper.floor(p.z());
             String dim = p.dimension().equals(dimension()) ? "" : " (" + dimensionName(p.dimension()) + ")";

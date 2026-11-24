@@ -219,7 +219,7 @@ public class HudEditorScreen extends Screen {
     }
 
     private String hint2() {
-        return "Arrows nudge (Shift: 10)  •  Ctrl+Z undo, Ctrl+Y redo  •  L lock  •  Del hide  •  R reset  •  G grid " + (grid() ? "on" : "off");
+        return "Arrows nudge (Shift: 10)  •  Ctrl+Z undo, Ctrl+Y redo  •  L lock  •  Del hide  •  R reset  •  Stack groups widgets  •  G grid " + (grid() ? "on" : "off");
     }
 
     /** The hints, wrapped between their parts so every line fits the screen. */
@@ -256,6 +256,8 @@ public class HudEditorScreen extends Screen {
             boolean allLocked = selection.stream().allMatch(e -> e.locked.get());
             row.add(new String[]{"lock", allLocked ? "Unlock" : "Lock"});
             row.add(new String[]{"hide", "Hide"});
+            if (selection.size() >= 2) row.add(new String[]{"stack", "Stack"});
+            if (selection.stream().anyMatch(net.evadeclient.hud.HudStacks::inStack)) row.add(new String[]{"unstack", "Unstack"});
         }
         return row;
     }
@@ -348,10 +350,12 @@ public class HudEditorScreen extends Screen {
         HudElementModule hovered = null;
         if (client.player != null) {
             pruneSelection();
+            net.evadeclient.hud.HudStacks.apply(width, height, true);
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled()) continue;
                 el.renderScaled(ctx, width, height, true);
             }
+            drawStacks(ctx);
             hovered = dragging != null ? dragging : overUi || boxing ? null : at(mouseX, mouseY);
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled()) continue;
@@ -417,6 +421,22 @@ public class HudEditorScreen extends Screen {
         Theme.round(ctx, hx - 6, hy - 3, hx + hw + 6, hy + lines.length * 10 + 1, 0xC0101014);
         for (int i = 0; i < lines.length; i++)
             ctx.drawText(textRenderer, lines[i], (width - textRenderer.getWidth(lines[i])) / 2, hy + i * 10, Theme.TEXT_SOFT, false);
+    }
+
+    /** A faint frame around each stack, so grouped widgets read as one. */
+    private void drawStacks(DrawContext ctx) {
+        for (List<HudElementModule> stack : net.evadeclient.hud.HudStacks.stacks().values()) {
+            int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = Integer.MIN_VALUE, y2 = Integer.MIN_VALUE, n = 0;
+            for (HudElementModule el : stack) {
+                if (!el.isEnabled()) continue;
+                n++;
+                x1 = Math.min(x1, left(el)); y1 = Math.min(y1, top(el));
+                x2 = Math.max(x2, left(el) + el.scaledWidth()); y2 = Math.max(y2, top(el) + el.scaledHeight());
+            }
+            if (n < 2) continue;
+            ctx.drawStrokedRectangle(x1 - 3, y1 - 3, x2 - x1 + 6, y2 - y1 + 6, Theme.alpha(Theme.RED, 0.45f));
+            ctx.fill(x1 - 3, y1 - 3, x1 - 1, y2 + 3, Theme.alpha(Theme.RED, 0.45f));
+        }
     }
 
     /** A tiny padlock with its top-left at (x, y). */
@@ -618,6 +638,21 @@ public class HudEditorScreen extends Screen {
         });
     }
 
+    /** Groups the selection into a stack: they move together and sit one under another (top to bottom as now). */
+    public void stackSelection() {
+        pruneSelection();
+        if (selection.size() < 2) return;
+        List<HudElementModule> els = new ArrayList<>(selection);
+        change(() -> net.evadeclient.hud.HudStacks.group(els, width, height));
+        Notifications.push("HUD stack", els.size() + " widgets stacked: they move together. Unstack to separate them.", true);
+    }
+
+    /** Takes the selected widgets' stacks apart (the widgets stay where they are). */
+    public void unstackSelection() {
+        List<HudElementModule> els = new ArrayList<>(selection);
+        change(() -> net.evadeclient.hud.HudStacks.ungroup(els));
+    }
+
     private List<HudElementModule> movable() {
         pruneSelection();
         List<HudElementModule> out = new ArrayList<>();
@@ -635,6 +670,8 @@ public class HudEditorScreen extends Screen {
             case "back" -> close();
             case "lock" -> toggleLock(new ArrayList<>(selection));
             case "hide" -> hide(new ArrayList<>(selection));
+            case "stack" -> stackSelection();
+            case "unstack" -> unstackSelection();
             case "space:h" -> distribute(true);
             case "space:v" -> distribute(false);
             default -> { if (b.id().startsWith("align:")) align(b.id().substring(6)); }
@@ -681,7 +718,12 @@ public class HudEditorScreen extends Screen {
                 if (!selection.remove(el)) selection.add(el);
                 return true;
             }
-            if (!selection.contains(el)) { selection.clear(); selection.add(el); }
+            if (!selection.contains(el)) {
+                selection.clear();
+                // A stacked widget brings its whole stack (Shift+click picks one on its own).
+                for (HudElementModule m : net.evadeclient.hud.HudStacks.members(el)) if (m.isEnabled()) selection.add(m);
+                selection.add(el);
+            }
             if (el.locked.get()) return true; // picked, but stays put
             dragging = el;
             dragBefore = HudLayout.snapshot();

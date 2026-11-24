@@ -39,6 +39,8 @@ public class EvadeClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         modules = new ModuleManager();
+        // Other mods' modules and widgets (the "evade" entrypoint), before the config loads their saved state.
+        net.evadeclient.addon.EvadeAddons.load(modules);
         commands = new CommandManager();
         config = new ConfigManager();
         config.load();

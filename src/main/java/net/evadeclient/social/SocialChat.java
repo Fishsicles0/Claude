@@ -175,12 +175,18 @@ public final class SocialChat {
         Friends f = Friends.get();
         boolean toast = f == null || f.messageToasts.get(), chat = f == null || f.messagesInChat.get();
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (toast && !reading) Notifications.push(party ? "Party · " + name : name, text, Notifications.Level.SUCCESS, 5000);
+        // Streamer Mode: the toast says a message came, not what it says.
+        String preview = net.evadeclient.module.misc.StreamerMode.hidesMessagePreviews() ? "New message (hidden: Streamer Mode)" : text;
+        if (toast && !reading) Notifications.push(party ? "Party · " + name : name, preview, Notifications.Level.SUCCESS, 5000);
         if (chat && mc.inGameHud != null && mc.world != null) mc.inGameHud.getChatHud().addMessage(chatLine(party, name, text));
     }
 
-    /** "[Evade] Party > Steve: hi" / "[Evade] Steve > you: hi", with a click that starts a reply in the chat box. */
-    static Text chatLine(boolean party, String name, String text) {
+    /**
+     * "[Evade] Party > Steve: hi" / "[Evade] Steve > you: hi", with a click that starts a reply in the chat box. In
+     * Streamer Mode the text is replaced by "(hidden)" and shown only when you hover over it.
+     */
+    public static Text chatLine(boolean party, String name, String text) {
+        if (net.evadeclient.module.misc.StreamerMode.hidesMessagePreviews()) return hiddenLine(party, name, text);
         String reply = party ? ".pc " : ".msg " + name + " ";
         Style click = Style.EMPTY.withClickEvent(new ClickEvent.SuggestCommand(reply))
                 .withHoverEvent(new HoverEvent.ShowText(Text.literal(party ? "Click to reply to your party" : "Click to reply to " + name)));
@@ -188,6 +194,18 @@ public final class SocialChat {
         out.append(Text.literal(party ? "Party > " + name : name + " > you").setStyle(click.withColor(party ? Formatting.BLUE : Formatting.LIGHT_PURPLE)));
         out.append(Text.literal(": ").setStyle(click.withColor(Formatting.GRAY)));
         out.append(Text.literal(text).setStyle(click.withColor(Formatting.WHITE)));
+        return out;
+    }
+
+    /** {@link #chatLine} with the text kept off screen: hover "(message hidden)" to read it, click to reply. */
+    private static Text hiddenLine(boolean party, String name, String text) {
+        String reply = party ? ".pc " : ".msg " + name + " ";
+        Style click = Style.EMPTY.withClickEvent(new ClickEvent.SuggestCommand(reply));
+        MutableText out = Text.literal("[Evade] ").setStyle(click.withColor(Formatting.DARK_GRAY));
+        out.append(Text.literal(party ? "Party > " + name : name + " > you").setStyle(click.withColor(party ? Formatting.BLUE : Formatting.LIGHT_PURPLE)));
+        out.append(Text.literal(": ").setStyle(click.withColor(Formatting.GRAY)));
+        out.append(Text.literal("(message hidden: hover to read)").setStyle(click.withColor(Formatting.DARK_GRAY).withItalic(true)
+                .withHoverEvent(new HoverEvent.ShowText(Text.literal(text)))));
         return out;
     }
 

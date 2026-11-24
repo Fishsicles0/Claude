@@ -54,6 +54,11 @@ public class ScreenshotTools extends Module {
             .describe("A [Delete] button. Click it twice to delete the screenshot."));
     private final BooleanSetting autoCopy = add(new BooleanSetting("Auto Copy", false)
             .describe("Copies every new screenshot to the clipboard as soon as it is saved."));
+    /** Opens the gallery (a read-only row: never saved). */
+    private final net.evadeclient.setting.StatusSetting gallery = add((net.evadeclient.setting.StatusSetting)
+            new net.evadeclient.setting.StatusSetting("Screenshot Gallery", () -> "Open", "click: open")
+                    .onClick(() -> net.evadeclient.gui.ScreenshotGalleryScreen.openFromCurrent())
+                    .describe("Browse this game folder's screenshots: view, copy, rename and delete them (also .shots)."));
 
     /** The client-side command the buttons run. Fabric runs it locally; it is never sent to the server. */
     public static final String COMMAND = "evadeshot";
@@ -81,6 +86,16 @@ public class ScreenshotTools extends Module {
                             run(name, StringArgumentType.getString(ctx, "file"));
                             return 1;
                         }));
+    }
+
+    @Override public List<String> commandAliases() { return List.of("shots", "screenshots"); }
+
+    @Override public List<String> commandHelp() { return List.of("§d.shots§7 - open the screenshot gallery"); }
+
+    /** {@code .shots}: works with the module off too (it only opens the gallery). */
+    @Override
+    public void command(String[] args) {
+        mc.send(() -> net.evadeclient.gui.ScreenshotGalleryScreen.open(null)); // once chat has closed
     }
 
     private static ScreenshotTools active() {
@@ -197,7 +212,7 @@ public class ScreenshotTools extends Module {
     }
 
     /** Opens the screenshots folder, with the file selected where the system's file manager can do that. */
-    private static void openFolder(File file) {
+    public static void openFolder(File file) {
         Path dir = folder();
         Util.getIoWorkerExecutor().execute(() -> {
             try {
@@ -224,7 +239,7 @@ public class ScreenshotTools extends Module {
     // ------------------------------------------------------------------ clipboard
 
     /** Copies the image to the system clipboard on the IO worker, then says how it went. */
-    private static void copy(File file) {
+    public static void copy(File file) {
         Util.getIoWorkerExecutor().execute(() -> {
             String error = copyImage(file);
             EvadeClient.mc().execute(() -> {

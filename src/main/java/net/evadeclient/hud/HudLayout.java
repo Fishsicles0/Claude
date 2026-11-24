@@ -70,7 +70,7 @@ public final class HudLayout {
 
     // ---- snapshots (undo) -----------------------------------------------------------------------------
 
-    /** Every widget's position, scale, visibility and lock, as compact JSON. */
+    /** Every widget's position, scale, visibility, lock and stack, as compact JSON. */
     public static String snapshot() {
         JsonObject root = new JsonObject();
         for (HudElementModule el : EvadeClient.modules.hudElements()) {
@@ -80,6 +80,10 @@ public final class HudLayout {
             o.addProperty("y", el.y);
             o.addProperty("s", el.scale.get());
             o.addProperty("l", el.locked.get());
+            if (HudStacks.inStack(el)) {
+                o.addProperty("g", el.stack.get());
+                o.addProperty("o", el.stackOrder.get());
+            }
             root.add(el.getName(), o);
         }
         return root.toString();
@@ -96,6 +100,8 @@ public final class HudLayout {
             el.y = o.get("y").getAsInt();
             el.scale.set(o.get("s").getAsDouble());
             el.locked.set(o.get("l").getAsBoolean());
+            el.stack.set(o.has("g") ? o.get("g").getAsString() : "");
+            el.stackOrder.set(o.has("o") ? o.get("o").getAsDouble() : 0.0);
             boolean on = o.get("on").getAsBoolean();
             if (el.isEnabled() != on) el.setEnabled(on);
         }
@@ -107,6 +113,8 @@ public final class HudLayout {
     public static boolean applyPreset(String name) {
         List<Place> places = preset(name);
         if (places == null) return false;
+        // A built-in layout places each widget itself: stacks would pull them back together.
+        HudStacks.ungroup(EvadeClient.modules.hudElements());
         Map<String, Place> byName = new LinkedHashMap<>();
         for (Place p : places) byName.put(p.name(), p);
         for (HudElementModule el : EvadeClient.modules.hudElements()) {

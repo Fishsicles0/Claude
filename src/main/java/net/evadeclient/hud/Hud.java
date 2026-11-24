@@ -71,6 +71,7 @@ public final class Hud {
         ctx.getMatrices().pushMatrix();
         ctx.getMatrices().scale(k, k);
         try {
+            HudStacks.apply(sw, sh, false);
             for (HudElementModule el : EvadeClient.modules.hudElements()) {
                 if (!el.isEnabled() || !el.shouldShow()) continue;
                 try {

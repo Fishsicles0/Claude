@@ -481,7 +481,7 @@ public final class SocialClient {
                 String wasServer = before.friends().stream().filter(p -> p.uuid().equals(u)).findFirst().map(SocialState.Person::server).orElse(null);
                 String name = MojangNames.shown(u, SocialState.str(o, "name"));
                 if (online && before.isFriend(u) && on != wasOn) {
-                    Notifications.push("Friends", name + (on ? " is online" + (server != null ? " on " + server : "") : " went offline"), on);
+                    Notifications.push("Friends", name + (on ? " is online" + (server != null ? " on " + net.evadeclient.module.misc.StreamerMode.friendServer(server) : "") : " went offline"), on);
                 }
                 // A [Join] button in chat when a friend starts playing on a server they share (you still confirm).
                 if (before.isFriend(u) && on && server != null && !server.equals(wasServer) && (f == null || f.joinPrompts.get())) {

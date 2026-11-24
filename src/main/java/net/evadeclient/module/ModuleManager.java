@@ -140,6 +140,12 @@ public class ModuleManager {
 
     private void register(Module module) { modules.add(module); }
 
+    /** Adds a module from an Evade addon (net.evadeclient.addon.EvadeAddons checks it first). Startup only. */
+    public void registerAddon(Module module) {
+        modules.add(module);
+        hudElements = null;
+    }
+
     public List<Module> all() { return modules; }
 
     public List<Module> byCategory(Category category) {

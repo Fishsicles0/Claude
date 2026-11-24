@@ -206,7 +206,7 @@ public class Friends extends Module {
                 if (s.friends().isEmpty()) { CommandManager.print("§7No friends yet. §d.friend add <name>"); return; }
                 CommandManager.print("§7Friends: §f" + s.onlineFriends() + "§7 of " + s.friends().size() + " online");
                 for (var p : s.friends()) CommandManager.print((p.online() ? "§a● §f" : "§8● §7") + shown(p.uuid(), p.name())
-                        + (p.server() != null ? " §8on §7" + p.server() : ""));
+                        + (p.server() != null ? " §8on §7" + StreamerMode.friendServer(p.server()) : ""));
             }
             default -> throw new CommandError("Usage: .friend add|remove|accept|decline|cancel|block|unblock <name>, .friend list|requests");
         }
@@ -241,7 +241,7 @@ public class Friends extends Module {
                 }
                 CommandManager.print("§7Party: §f" + s.party().members().size() + "§7 of 8");
                 for (var p : s.party().members()) CommandManager.print((p.online() ? "§a● §f" : "§8● §7") + shown(p.uuid(), p.name())
-                        + (p.leader() ? " §c(leader)" : "") + (p.server() != null ? " §8on §7" + p.server() : ""));
+                        + (p.leader() ? " §c(leader)" : "") + (p.server() != null ? " §8on §7" + StreamerMode.friendServer(p.server()) : ""));
             }
             default -> throw new CommandError("Usage: .party invite|kick|leader <name>, .party accept|decline [name], .party leave|list");
         }
