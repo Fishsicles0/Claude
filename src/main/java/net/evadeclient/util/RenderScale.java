@@ -63,9 +63,13 @@ public final class RenderScale {
     /** True only while the world pass runs into the scaled framebuffer: getFramebuffer() returns it then. */
     private static boolean redirect;
     private static SimpleFramebuffer scaled;
+    /** The real main framebuffer of the frame being scaled: only that one is swapped for the scaled one. */
+    private static Framebuffer realMain;
     /** The entity-outline framebuffer was resized to the scaled size (and must go back to the window size). */
     private static boolean outlineScaled;
     private static boolean sharpenBroken;
+    /** Render Scale can't work in this session (its hooks aren't applied, or the framebuffer couldn't be made). */
+    private static boolean broken;
     /** Size of the world pass on the last scaled frame, and of the window it was scaled to (for status and tests). */
     private static int lastW, lastH, lastOutW, lastOutH;
     private static long scaledFrames;
@@ -88,15 +92,19 @@ public final class RenderScale {
 
     // ------------------------------------------------------------------ frame (GameRenderer mixin)
 
-    /** {@code MinecraftClient.getFramebuffer()} return value hook: the scaled framebuffer while the world pass runs. */
+    /**
+     * {@code MinecraftClient.getFramebuffer()} return value hook: the scaled framebuffer while the world pass runs.
+     * Only the game's own main framebuffer is swapped: if another hook already handed out a framebuffer of its own
+     * (a projection effect drawing the world into its own target, say), that one is left alone.
+     */
     public static Framebuffer redirect(Framebuffer main) {
-        return redirect ? scaled : main;
+        return redirect && main == realMain ? scaled : main;
     }
 
     /** Right before {@code GameRenderer.renderWorld} in {@code GameRenderer.render}. */
     public static void beginWorld(MinecraftClient mc) {
         redirect = false;
-        if (scale >= 1) return;
+        if (scale >= 1 || broken) return;
         if (mc.gameRenderer == null || mc.gameRenderer.isRenderingPanorama()) return;
         Framebuffer main = mc.getFramebuffer();
         int w = main.textureWidth, h = main.textureHeight;
@@ -109,15 +117,25 @@ public final class RenderScale {
             resizeOutline(mc, sw, sh);
         } catch (RuntimeException e) {
             EvadeClient.LOG.error("Render Scale: couldn't create the {}x{} world framebuffer, drawing at full resolution", sw, sh, e);
+            broken = true;
             release();
-            scale = 1;
+            return;
+        }
+        realMain = main;
+        redirect = true;
+        if (mc.getFramebuffer() != scaled) {
+            // The getFramebuffer hook isn't applied (mixin not registered): drawing on would scale an empty image.
+            redirect = false;
+            realMain = null;
+            broken = true;
+            EvadeClient.LOG.error("Render Scale: the framebuffer hook isn't active, drawing at full resolution");
+            release();
             return;
         }
         lastW = sw;
         lastH = sh;
         lastOutW = w;
         lastOutH = h;
-        redirect = true;
     }
 
     /**
@@ -127,7 +145,8 @@ public final class RenderScale {
     public static void endWorld(MinecraftClient mc) {
         if (!redirect) return;
         redirect = false;
-        Framebuffer main = mc.getFramebuffer();
+        Framebuffer main = realMain != null ? realMain : mc.getFramebuffer();
+        realMain = null;
         if (scaled == null || scaled.getColorAttachmentView() == null || main.getColorAttachmentView() == null) return;
         GpuDevice device = RenderSystem.getDevice();
         RenderPipeline pipeline = PLAIN;
@@ -151,8 +170,8 @@ public final class RenderScale {
 
     /** The entity-outline framebuffer follows the world pass's size (the game re-creates it at window size on resize). */
     private static void resizeOutline(MinecraftClient mc, int w, int h) {
-        if (mc.worldRenderer == null) return;
-        Framebuffer outline = ((RenderScaleWorldRendererAccessor) mc.worldRenderer).evade$entityOutlineFramebuffer();
+        if (!((Object) mc.worldRenderer instanceof RenderScaleWorldRendererAccessor acc)) return;
+        Framebuffer outline = acc.evade$entityOutlineFramebuffer();
         if (outline == null) return;
         if (outline.textureWidth != w || outline.textureHeight != h) outline.resize(w, h);
         outlineScaled = true;
@@ -161,15 +180,16 @@ public final class RenderScale {
     /** Frees the scaled framebuffer and puts the entity-outline framebuffer back to the window size. */
     private static void release() {
         redirect = false;
+        realMain = null;
         if (scaled == null && !outlineScaled) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (scaled != null) {
             scaled.delete();
             scaled = null;
         }
-        if (outlineScaled && mc != null && mc.worldRenderer != null && mc.getWindow() != null) {
+        if (outlineScaled && mc != null && (Object) mc.worldRenderer instanceof RenderScaleWorldRendererAccessor acc) {
             outlineScaled = false;
-            Framebuffer outline = ((RenderScaleWorldRendererAccessor) mc.worldRenderer).evade$entityOutlineFramebuffer();
+            Framebuffer outline = acc.evade$entityOutlineFramebuffer();
             int w = mc.getFramebuffer().textureWidth, h = mc.getFramebuffer().textureHeight;
             if (outline != null && w > 0 && h > 0 && (outline.textureWidth != w || outline.textureHeight != h)) outline.resize(w, h);
         }
@@ -185,6 +205,9 @@ public final class RenderScale {
 
     /** Frames scaled up so far (tests: it grows only while Render Scale is drawing). */
     public static long scaledFrames() { return scaledFrames; }
+
+    /** Render Scale gave up for this session (hooks missing or no framebuffer); the world is drawn at full resolution. */
+    public static boolean broken() { return broken; }
 
     /** Whether the world pass is running into the scaled framebuffer right now. */
     public static boolean inScaledPass() { return redirect; }

@@ -75,6 +75,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testWaypoints(ctx);
             testPerformance(ctx, sp);
             testFpsAndServerRules(ctx, sp);
+            testRenderScale(ctx, sp);
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
             testPhase1(ctx, sp);
@@ -2081,6 +2082,36 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(overlay, "The Evade loading screen shows while resources load");
         // The test framework expects every run to end on the game's own title screen.
         disable(ctx, net.evadeclient.module.misc.TitleScreenModule.class);
+    }
+
+    /** Render Scale: the world draws into a smaller framebuffer and is scaled up; the GUI and screenshots stay full size. */
+    private void testRenderScale(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var perfCls = net.evadeclient.module.mods.Performance.class;
+        ctx.runOnClient(c -> { var p = EvadeClient.modules.get(perfCls); p.setEnabled(true); p.fpsMode.set("Custom");
+                p.renderScale.set(100.0); p.unlockFps.set(true); });
+        ctx.waitTicks(60);
+        check(ctx.computeOnClient(c -> net.evadeclient.util.RenderScale.scaledFramebuffer() == null), "Render Scale: nothing allocated at 100%");
+        double fps100 = ctx.computeOnClient(c -> { float[] w = net.evadeclient.util.FrameStats.framesWithin(2000); return 1000.0 * w[0] / w[1]; });
+        ctx.runOnClient(c -> EvadeClient.modules.get(perfCls).renderScale.set(50.0));
+        ctx.waitTicks(60);
+        int[] s = ctx.computeOnClient(c -> { var fb = net.evadeclient.util.RenderScale.scaledFramebuffer(); var m = c.getFramebuffer();
+                return new int[]{fb == null ? 0 : fb.textureWidth, fb == null ? 0 : fb.textureHeight, m.textureWidth, m.textureHeight,
+                        c.getWindow().getFramebufferWidth(), c.getWindow().getFramebufferHeight()}; });
+        check(Math.abs(s[0] * 2 - s[4]) <= 1 && Math.abs(s[1] * 2 - s[5]) <= 1, "Render Scale 50%: world framebuffer is half the window (" + s[0] + "x" + s[1] + ")");
+        check(s[2] == s[4] && s[3] == s[5], "Render Scale: main framebuffer stays window size");
+        long n0 = ctx.computeOnClient(c -> net.evadeclient.util.RenderScale.scaledFrames());
+        ctx.waitTicks(5);
+        check(ctx.computeOnClient(c -> net.evadeclient.util.RenderScale.scaledFrames()) > n0, "Render Scale: frames are being scaled up");
+        java.nio.file.Path shot = ctx.takeScreenshot("evade-render-scale-50");
+        try (var img = net.minecraft.client.texture.NativeImage.read(java.nio.file.Files.newInputStream(shot))) {
+            check(img.getWidth() == s[4] && img.getHeight() == s[5], "Render Scale: screenshot is window size");
+        } catch (java.io.IOException e) { check(false, "Render Scale screenshot readable: " + e); }
+        double fps50 = ctx.computeOnClient(c -> { float[] w = net.evadeclient.util.FrameStats.framesWithin(2000); return 1000.0 * w[0] / w[1]; });
+        EvadeClient.LOG.info("Render Scale FPS: 100% {} -> 50% {}", fps100, fps50); // the software renderer in CI may not show a gain; log, don't assert
+        ctx.runOnClient(c -> EvadeClient.modules.get(perfCls).renderScale.set(100.0));
+        ctx.waitTicks(5);
+        check(ctx.computeOnClient(c -> net.evadeclient.util.RenderScale.scaledFramebuffer() == null), "Render Scale: freed again at 100%");
+        ctx.runOnClient(c -> EvadeClient.modules.get(perfCls).setEnabled(false));
     }
 
     /** Fullbright really lights the picture (with Sodium, BadOptimizations and the other FPS mods loaded). */

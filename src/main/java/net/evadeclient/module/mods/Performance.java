@@ -550,6 +550,7 @@ public class Performance extends Module {
         if (!isEnabled()) return "Off";
         if (renderScale.get() >= 100) return "Full resolution";
         if (renderScalePaused != null) return renderScalePaused;
+        if (RenderScale.broken()) return "Unavailable (drawing at full resolution)";
         int[] s = RenderScale.lastSize();
         if (s[0] == 0 || mc.world == null) return renderScale.getInt() + "% (in a world)";
         return s[0] + "x" + s[1] + " shown at " + s[2] + "x" + s[3];
@@ -623,11 +624,14 @@ public class Performance extends Module {
 
     /** Follows FPS Mode: a newly picked preset is applied once. */
     private void followPreset() {
-        String mode = fpsMode.get();
-        if (mode.equals(appliedMode.get())) return;
+        // The version suffix re-applies a preset once when presets gain new options (v2: Render Scale).
+        String mode = fpsMode.get(), key = mode + PRESET_VERSION;
+        if (key.equals(appliedMode.get())) return;
         applyPreset(mode);
-        appliedMode.set(mode);
+        appliedMode.set(key);
     }
+
+    private static final String PRESET_VERSION = "#2";
 
     /** Unlock FPS: VSync off and the cap at Unlimited. Your own values come back when it's turned off. */
     private void applyUnlock(boolean on) {
