@@ -18,7 +18,7 @@ const tmp = mkdtempSync(join(tmpdir(), "evade-social-"));
 writeFileSync(join(tmp, "index.mjs"), src);
 globalThis.WebSocketRequestResponsePair = class { constructor(a, b) { this.a = a; this.b = b; } };
 const worker = await import(pathToFileURL(join(tmp, "index.mjs")).href);
-const { EvadeSocial, normServer, chatText } = worker;
+const { EvadeSocial, normServer, chatText, worldAddress, discoverList } = worker;
 
 // ---------------------------------------------------------------- fakes
 let now = 1_800_000_000_000;
@@ -493,6 +493,200 @@ await test("older clients: unknown ops are a 404 and old ops answer as before", 
   const res = ws.take("result")[0];
   assert.equal(res.ok, false);
   assert.equal(res.id, 3);
+});
+
+// ---------------------------------------------------------------- v2.5: Open to Friends, presence, backup, discover
+
+await test("worldAddress: only e4mc tunnel hosts", () => {
+  assert.equal(worldAddress("Quiet-Fox.Eu.E4MC.link"), "quiet-fox.eu.e4mc.link");
+  assert.equal(worldAddress("a-b.us.e4mc.link:25565"), "a-b.us.e4mc.link");
+  assert.equal(worldAddress("a-b.us.e4mc.link:25570"), "a-b.us.e4mc.link:25570");
+  for (const bad of ["e4mc.link", "play.example.net", "evil.e4mc.link.example.com", "x.e4mc.links", "-x.e4mc.link",
+    "x.e4mc.link:0", "x.e4mc.link:70000", "x..e4mc.link", "", null, 5, "a b.e4mc.link", "x.e4mc.link/path"]) assert.equal(worldAddress(bad), null, String(bad));
+});
+
+await test("world.invite: friends and party only, online only, blocked never, nothing stored, rate limited", async () => {
+  const s = makeSocial();
+  for (const [u, n] of [[A, "Alice"], [B, "Bob"], [C, "Cara"], [D, "Dan"]]) await ok(s, u, "state", { name: n });
+  await friends(s, A, B);
+  await friends(s, A, C);
+  const wsB = await connect(s, B), wsC = await connect(s, C), wsD = await connect(s, D);
+  await ok(s, C, "block", { uuid: A });
+  // D is not a friend: never reached. C blocked A: never reached.
+  const r = await ok(s, A, "world.invite", { uuids: [B, C, D, A], address: "Quiet-Fox.eu.e4mc.link", world: "My §cWorld\n" });
+  assert.equal(r.delivered, 1);
+  const ev = wsB.take("world.invite");
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].address, "quiet-fox.eu.e4mc.link");
+  assert.equal(ev[0].world, "My cWorld");
+  assert.deepEqual(ev[0].from, { uuid: A, name: "Alice" });
+  assert.equal(wsC.take("world.invite").length, 0);
+  assert.equal(wsD.take("world.invite").length, 0);
+  // only e4mc addresses, a list of people, rate limited
+  now += 10_000;
+  await fails(s, A, "world.invite", { uuids: [B], address: "play.example.net" }, 400);
+  await fails(s, A, "world.invite", { uuids: [], address: "x.e4mc.link" }, 400);
+  await fails(s, A, "world.invite", { uuids: Array(17).fill(B), address: "x.e4mc.link" }, 400);
+  await ok(s, A, "world.invite", { uuids: [B], address: "x.e4mc.link" });
+  await fails(s, A, "world.invite", { uuids: [B], address: "x.e4mc.link" }, 429);
+  // a party member who isn't a friend is reached; a polling one gets it with /state
+  now += 10_000;
+  wsD.close(1000, "bye");
+  s.socketGone(wsD);
+  await ok(s, A, "party.invite", { uuid: B });
+  await ok(s, B, "party.accept", { party: (await ok(s, B, "state", {})).state.invites[0].party });
+  const sp = s.sql;
+  assert.ok(sp);
+  await ok(s, D, "state", { name: "Dan" }); // D polls now
+  const st = await ok(s, A, "state", {});
+  const party = st.state.party.id;
+  // D joins A's party through an invite from B? only friends can be invited: make A and D friends, invite, accept, then unfriend
+  await friends(s, A, D);
+  await ok(s, A, "party.invite", { uuid: D });
+  await ok(s, D, "party.accept", { party });
+  await ok(s, A, "friend.remove", { uuid: D });
+  now += 10_000;
+  const r2 = await ok(s, A, "world.invite", { uuids: [D], address: "x.e4mc.link" });
+  assert.equal(r2.delivered, 1);
+  const evs = (await ok(s, D, "state", {})).events.filter((e) => e.type === "world.invite");
+  assert.equal(evs.length, 1);
+  assert.equal(evs[0].address, "x.e4mc.link");
+  // nothing about invites is written down
+  const tables = s.sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((t) => t.name);
+  for (const t of tables) for (const row of s.sql.exec(`SELECT * FROM ${t}`).toArray()) assert.ok(!JSON.stringify(row).includes("e4mc"), t);
+});
+
+await test("presence: activity and since reach friends, cleared offline, old clients unaffected", async () => {
+  const s = makeSocial();
+  await ok(s, A, "state", { name: "Alice" });
+  await ok(s, B, "state", { name: "Bob" });
+  await friends(s, A, B);
+  const wsB = await connect(s, B);
+  wsB.take();
+  const wsA = await connect(s, A);
+  const since = now - 600_000;
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 1, server: "play.example.net", activity: "server", since }));
+  let st = wsB.take("friend.status");
+  assert.equal(st.at(-1).activity, "server");
+  assert.equal(st.at(-1).activeSince, since);
+  let f = (await ok(s, B, "state", {})).state.friends[0];
+  assert.equal(f.activity, "server");
+  assert.equal(f.activeSince, since);
+  // AFK, then a bad value is ignored (not refused), a far-future "since" becomes now
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 2, activity: "afk", since: now + 1e9 }));
+  assert.equal(wsA.take("result").at(-1).ok, true);
+  f = (await ok(s, B, "state", {})).state.friends[0];
+  assert.equal(f.activity, "afk");
+  assert.equal(f.activeSince, now);
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 3, activity: "flying" }));
+  assert.equal(wsA.take("result").at(-1).ok, true);
+  assert.equal((await ok(s, B, "state", {})).state.friends[0].activity, "afk");
+  // an older client's presence (no activity field) leaves it alone; null clears it
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 4, server: null }));
+  assert.equal((await ok(s, B, "state", {})).state.friends[0].activity, "afk");
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 5, activity: null }));
+  assert.equal((await ok(s, B, "state", {})).state.friends[0].activity, undefined);
+  // going offline forgets it
+  await s.webSocketMessage(wsA, JSON.stringify({ op: "presence", id: 6, activity: "menus" }));
+  wsA.close(1000, "bye");
+  await s.webSocketClose(wsA, 1000, "bye");
+  now += 100_000; // A's earlier /state (polling) lapses too
+  await s.alarm();
+  f = (await ok(s, B, "state", {})).state.friends[0];
+  assert.equal(f.online, false);
+  assert.equal(f.activity, undefined);
+  assert.equal(s.sql.exec("SELECT COUNT(*) AS n FROM activity").one().n, 0);
+});
+
+const blob = (n) => Buffer.alloc(n, 7).toString("base64");
+const SALT = Buffer.alloc(16, 1).toString("base64");
+
+await test("backup: put, info, get, delete; caps and validation; one per account", async () => {
+  const s = makeSocial();
+  const bk = async (u, op, a, status = 200) => { const r = await s.backup(u, op, a); assert.equal(r.status, status, op + " " + JSON.stringify(r.body)); return r.body; };
+  assert.equal((await bk(A, "info", {})).backup.exists, false);
+  await bk(A, "get", {}, 404);
+  const put = await bk(A, "put", { blob: blob(5000), salt: SALT, iters: 200000, format: 1, label: "Laptop\u0000" });
+  assert.equal(put.backup.exists, true);
+  assert.equal(put.backup.label, "Laptop");
+  const info = (await bk(A, "info", {})).backup;
+  assert.equal(info.size, blob(5000).length);
+  assert.equal(info.salt, SALT);
+  assert.equal(info.expires, now + 90 * 24 * 3600 * 1000);
+  const got = await bk(A, "get", {});
+  assert.equal(got.blob, blob(5000));
+  assert.equal((await bk(B, "info", {})).backup.exists, false); // someone else's is invisible
+  // replacing keeps one row
+  await bk(A, "put", { blob: blob(100), salt: SALT, iters: 200000 });
+  assert.equal(s.sql.exec("SELECT COUNT(*) AS n FROM backups").one().n, 1);
+  // validation
+  await bk(A, "put", { blob: "not base64!!", salt: SALT, iters: 200000 }, 400);
+  await bk(A, "put", { blob: blob(10), salt: SALT, iters: 200000 }, 400);
+  await bk(A, "put", { blob: blob(300 * 1024), salt: SALT, iters: 200000 }, 413);
+  await bk(A, "put", { blob: blob(100), salt: "x", iters: 200000 }, 400);
+  await bk(A, "put", { blob: blob(100), salt: SALT, iters: 10 }, 400);
+  await bk(A, "nope", {}, 404);
+  assert.equal((await bk(A, "delete", {})).deleted, true);
+  assert.equal((await bk(A, "info", {})).backup.exists, false);
+});
+
+await test("backup: rate limited, deleted with social data and after 90 days unused", async () => {
+  const s = makeSocial();
+  const bk = (u, op, a) => s.backup(u, op, a);
+  for (let i = 0; i < 30; i++) { now += 1000; assert.equal((await bk(A, "put", { blob: blob(100), salt: SALT, iters: 200000 })).status, 200); }
+  assert.equal((await bk(A, "put", { blob: blob(100), salt: SALT, iters: 200000 })).status, 429);
+  // Delete my social data deletes the backup too
+  await ok(s, A, "state", { name: "Alice" });
+  await ok(s, A, "delete", {});
+  assert.equal((await bk(A, "info", {})).body.backup.exists, false);
+  // retention: 90 days without a backup or restore
+  await bk(B, "put", { blob: blob(100), salt: SALT, iters: 200000 });
+  now += 89 * 24 * 3600 * 1000;
+  assert.equal((await bk(B, "get", {})).status, 200); // a restore counts as use
+  now += 89 * 24 * 3600 * 1000;
+  s.sweep(now);
+  assert.equal((await bk(B, "info", {})).body.backup.exists, true);
+  now += 2 * 24 * 3600 * 1000;
+  s.sweep(now);
+  assert.equal((await bk(B, "info", {})).body.backup.exists, false);
+});
+
+await test("worker routing: /api/backup needs a token and caps the body; /api/discover is a GET list", async () => {
+  const social = makeSocial();
+  const icons = { verify: async (t) => (t.startsWith("tok-") ? t.slice(4) : null) };
+  const env = {
+    ICONS: { idFromName: () => "g", get: () => icons },
+    SOCIAL: { idFromName: () => "g", get: () => ({ http: (u, op, a) => social.http(u, op, a), backup: (u, op, a) => social.backup(u, op, a) }) },
+    ASSETS: { fetch: async () => new Response("site") },
+  };
+  const call = (path, init) => worker.default.fetch(new Request("https://evadeclient.com" + path, init), env);
+  const auth = { authorization: "Bearer tok-" + A };
+  let r = await call("/api/backup/info", { method: "POST", body: "{}" });
+  assert.equal(r.status, 401);
+  r = await call("/api/backup/info", { method: "GET", headers: auth });
+  assert.equal(r.status, 405);
+  r = await call("/api/backup/put", { method: "POST", headers: auth, body: JSON.stringify({ blob: blob(1000), salt: SALT, iters: 200000 }) });
+  assert.equal(r.status, 200);
+  r = await call("/api/backup/get", { method: "POST", headers: auth, body: "{}" });
+  assert.equal((await r.json()).blob, blob(1000));
+  r = await call("/api/backup/put", { method: "POST", headers: auth, body: JSON.stringify({ blob: blob(400 * 1024), salt: SALT, iters: 200000 }) });
+  assert.equal(r.status, 413);
+  r = await call("/api/backup/put", { method: "POST", headers: auth, body: "[1]" });
+  assert.equal(r.status, 400);
+  r = await call("/api/discover", { method: "GET" });
+  assert.equal(r.status, 200);
+  const d = await r.json();
+  assert.ok(Array.isArray(d.servers) && d.servers.length === discoverList().length);
+  for (const sv of d.servers) {
+    assert.ok(typeof sv.name === "string" && sv.name.length <= 32);
+    assert.equal(normServer(sv.address), sv.address, "public address " + sv.address);
+    assert.equal(typeof sv.evade, "boolean");
+  }
+  r = await call("/api/discover", { method: "POST", body: "{}" });
+  assert.equal(r.status, 405);
+  // the old endpoints still answer as before
+  r = await call("/api/social/state", { method: "POST", body: "{}", headers: auth });
+  assert.equal(r.status, 200);
 });
 
 console.log(`\n${passed} passed` + (process.exitCode ? ", some FAILED" : ""));
