@@ -26,7 +26,7 @@ CLIENT = {
     "color": 0xB0141E,     # blood red
 }
 BOT_NAME = "Vendetta"
-ICON_PATH = ""
+ICON_PATH = str(__import__("pathlib").Path(__file__).with_name("assets") / "vendetta" / "bot-avatar.png")
 
 SECURITY = {
     "min_account_age_days": 14,
