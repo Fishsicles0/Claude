@@ -95,7 +95,9 @@
     "PackListWidgetAccessor",
     "PackListWidgetMixin",
     "PackEntryMixin",
-    "HypixelStatsTabMixin"
+    "HypixelStatsTabMixin",
+    "SplashOverlayMixin",
+    "WindowTitleMixin"
   ],
   "injectors": {
     "defaultRequire": 1

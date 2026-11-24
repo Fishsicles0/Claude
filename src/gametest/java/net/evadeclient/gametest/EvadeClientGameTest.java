@@ -37,6 +37,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (Boolean.getBoolean("evade.menushot")) { menuShots(ctx); return; }      // ./gradlew runClientGameTest -PmenuShot
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
 
+        testStartScreens(ctx);
+
         // Switched on before any world exists: the enable hooks must wait for the world (checked once in it).
         boolean[] beforeWorld = ctx.computeOnClient(c -> {
             var fb = EvadeClient.modules.get(net.evadeclient.module.visuals.Fullbright.class);
@@ -2051,6 +2053,32 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         String scr = ctx.computeOnClient(c -> c.currentScreen == null ? "none" : c.currentScreen.getClass().getSimpleName());
         ctx.setScreen(() -> null);
         check(scr.equals("ModBrowserScreen"), "Mod Browser opens (" + scr + ")");
+    }
+
+    /** Evade's start: the title screen it opens by default, the Evade loading screen and the window title. */
+    private void testStartScreens(ClientGameTestContext ctx) {
+        ctx.waitTicks(20);
+        String screen = ctx.computeOnClient(c -> c.currentScreen == null ? "none" : c.currentScreen.getClass().getSimpleName());
+        clearToasts(ctx);
+        ctx.takeScreenshot("evade-title-screen");
+        check(screen.equals("EvadeTitleScreen"), "The Evade title screen opens at start (" + screen + ")");
+        String title = ctx.computeOnClient(c -> {
+            try {
+                var m = net.minecraft.client.MinecraftClient.class.getDeclaredMethod("getWindowTitle");
+                m.setAccessible(true);
+                return (String) m.invoke(c);
+            } catch (ReflectiveOperationException e) {
+                return "unreadable: " + e;
+            }
+        });
+        check(title != null && title.startsWith("Evade Client"), "The window is titled Evade Client (" + title + ")");
+        // A resource reload shows the loading screen: catch it mid-load.
+        ctx.runOnClient(c -> c.reloadResources());
+        ctx.waitTicks(4);
+        ctx.takeScreenshot("evade-loading-screen");
+        boolean overlay = ctx.computeOnClient(c -> c.getOverlay() instanceof net.minecraft.client.gui.screen.SplashOverlay);
+        ctx.waitFor(c -> c.getOverlay() == null, 20 * 60);
+        check(overlay, "The Evade loading screen shows while resources load");
     }
 
     /** Fullbright really lights the picture (with Sodium, BadOptimizations and the other FPS mods loaded). */
