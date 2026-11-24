@@ -84,10 +84,10 @@ public abstract class HeldItemRendererMixin {
     /** Item View Swing Speed: the first-person swing drawn on its own clock; the game's swing is left alone. */
     @ModifyExpressionValue(method = "renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getHandSwingProgress(F)F"))
-    private float evade$visualSwing(float real, float tickProgress, MatrixStack matrices, OrderedRenderCommandQueue queue,
-                                    ClientPlayerEntity player, int light) {
+    private float evade$visualSwing(float real) {
         ItemView iv = ItemView.active();
-        if (iv == null) return real;
+        ClientPlayerEntity player = net.minecraft.client.MinecraftClient.getInstance().player;
+        if (iv == null || player == null) return real;
         return iv.visualSwing(real, ((LivingEntitySwingInvoker) player).evade$swingDuration());
     }
 

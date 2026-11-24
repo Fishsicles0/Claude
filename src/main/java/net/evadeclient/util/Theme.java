@@ -54,6 +54,9 @@ public final class Theme {
     private static final int[] ACCENT_RGB = {0xE11D2E, 0x2F7BFF, 0x8B5CF6, 0xEC4899, 0xF97316, 0xEAB308, 0x22C55E, 0x06B6D4};
     private static String applied = "";
 
+    /** Forget the applied preset so the next {@link #apply} recomputes every colour (Theme Studio overrides). */
+    public static void invalidate() { applied = ""; }
+
     /** Switch to a theme preset and accent colour (cheap no-op when nothing changed). */
     public static void apply(String preset, String accent) {
         String key = preset + "/" + accent;

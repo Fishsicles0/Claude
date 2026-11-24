@@ -14,6 +14,7 @@ final class Screenshots {
 
     static void render(Path out) throws Exception {
         if ("content".equals(System.getProperty("evade.shots.only"))) { ContentShots.render(out); return; }
+        if ("look".equals(System.getProperty("evade.shots.only"))) { LookShots.render(out); return; }
         LauncherView v = new LauncherView();
         v.version = EvadeInstaller.launcherVersion();
         Path mc = Paths.get("C:/Users/Player/AppData/Roaming/.minecraft");
@@ -175,7 +176,7 @@ final class Screenshots {
     }
 
     /** Sample player, servers (with drawn icons, no real server art), notices and a Clips stand-in for Home. */
-    private static void sampleHome(LauncherView v) throws Exception {
+    static void sampleHome(LauncherView v) throws Exception {
         long t0 = System.currentTimeMillis();
         while (v.heroImages.size() < 10 && System.currentTimeMillis() - t0 < 5000) Thread.sleep(50);
         v.playerName = "Player";
@@ -266,7 +267,7 @@ final class Screenshots {
     }
 
     /** Like {@link #save}, on the UI thread, letting the Clips pages' background work (thumbnails) land between passes. */
-    private static void saveEdt(LauncherView v, Path dir, String name) throws Exception {
+    static void saveEdt(LauncherView v, Path dir, String name) throws Exception {
         for (int i = 0; i < 6; i++) {
             javax.swing.SwingUtilities.invokeAndWait(() -> v.snapshot(1f));
             Thread.sleep(250);
@@ -276,7 +277,7 @@ final class Screenshots {
         ImageIO.write(img[0], "png", dir.resolve(name + ".png").toFile());
     }
 
-    private static Launcher.Instance instance(String id, Path dir, String name, InstallerCore.Installed installed, int mem, int mods) {
+    static Launcher.Instance instance(String id, Path dir, String name, InstallerCore.Installed installed, int mem, int mods) {
         Launcher.Instance i = new Launcher.Instance(id, dir, name);
         i.installed = installed;
         i.memoryGb = mem;
@@ -284,7 +285,7 @@ final class Screenshots {
         return i;
     }
 
-    private static List<News.Entry> sampleNews() {
+    static List<News.Entry> sampleNews() {
         return List.of(
                 new News.Entry("v2.0.1", "v2.0.1", "23 Nov 2026", "Updating is painless, and one mod removed.", List.of(
                         "The installer updates itself: open the copy you already have and it fetches the newest installer from evadeclient.com, checks it and switches to it.",
@@ -328,7 +329,7 @@ final class Screenshots {
                 new Mods.Hit("mOgUt4GM", "modmenu", "Mod Menu", "Prospector", "Adds a mod menu to view the list of mods you have installed.", 98_301_559, 0x5A6B7C));
     }
 
-    private static void save(LauncherView v, Path dir, String name) throws Exception {
+    static void save(LauncherView v, Path dir, String name) throws Exception {
         for (int i = 0; i < 40; i++) v.snapshot(1f);
         ImageIO.write(v.snapshot(2f), "png", dir.resolve(name + ".png").toFile());
     }

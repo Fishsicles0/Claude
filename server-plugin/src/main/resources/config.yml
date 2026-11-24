@@ -3,6 +3,8 @@
 
 # Evade mods switched off for every Evade player (names as shown in the Evade menu, case doesn't matter).
 # Players can't turn them back on while they're on this server; they come back when they leave.
+# "Minimap" also switches off the "World Map" (built from the same explored terrain); "World Map" alone keeps the
+# Minimap to the chunks loaded right now.
 disabled-mods:
   - Freelook
 

@@ -104,6 +104,11 @@ public class Crosshair extends Module {
     private final NumberSetting indicatorOffset = add(new NumberSetting("Indicator Offset", 9, 4, 24, 1)
             .describe("How far below the centre the indicator sits; the Ring's radius."));
     private final BooleanSetting thirdPerson = add(new BooleanSetting("Show In 3rd Person", false));
+    public final BooleanSetting hitMarker = add(new BooleanSetting("Hit Marker", false)
+            .describe("A small X flashes around the crosshair when the server confirms a hit you landed (melee or projectile)."));
+    private final ColorSetting hitMarkerColor = add(new ColorSetting("Hit Marker Color", 0xFFFFFFFF));
+    private final NumberSetting hitMarkerTime = add(new NumberSetting("Hit Marker Time", 0.3, 0.1, 1.0, 0.05)
+            .describe("Seconds the hit marker stays before fading out."));
 
     /** The raster for the current settings, rebuilt only when one of them changes. */
     private Shape shape;
@@ -208,7 +213,36 @@ public class Crosshair extends Module {
             if (rot != 0) m.popMatrix();
         }
         drawAttackIndicator(ctx, cx, cy, op);
+        drawHitMarker(ctx, cx, cy, op);
         return true;
+    }
+
+    /**
+     * Hit Marker: four short diagonal strokes around the centre after a confirmed hit (the server named you as the
+     * cause in its damage event; see HitConfirm), fading out over Hit Marker Time.
+     */
+    private void drawHitMarker(DrawContext ctx, int cx, int cy, float op) {
+        if (!hitMarker.get()) return;
+        long life = Math.round(hitMarkerTime.get() * 1000);
+        long since = net.evadeclient.util.HitConfirm.sinceLastHit();
+        if (since > life) return;
+        float a = 1f - since / (float) life;
+        int c = withOpacity(hitMarkerColor.get(), op * a);
+        float x = cx + 0.5f, y = cy + 0.5f, in = 3.5f + 2f * (1 - a), out = in + 4f, w = 0.75f;
+        Batch b = new Batch();
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2) {
+                float ax = x + sx * in, ay = y + sy * in, bx = x + sx * out, by = y + sy * out;
+                // A stroke along the diagonal, w wide on each side of it.
+                float nx = -sy * w, ny = sx * w;
+                b.quad(ax + nx, ay + ny, bx + nx, by + ny, bx - nx, by - ny, ax - nx, ay - ny);
+            }
+        b.submit(ctx, RenderPipelines.GUI, c);
+    }
+
+    /** Test hook: whether a hit marker would be drawn this frame. */
+    public boolean hitMarkerShowing() {
+        return hitMarker.get() && net.evadeclient.util.HitConfirm.sinceLastHit() <= Math.round(hitMarkerTime.get() * 1000);
     }
 
     /** Vanilla's shouldRenderSpectatorCrosshair: an entity or block with a screen to open. */

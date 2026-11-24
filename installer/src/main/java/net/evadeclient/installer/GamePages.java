@@ -228,14 +228,14 @@ final class GamePages {
     void name(String id, String label) { names.put(id, label); }
 
     private void moveFocus(int d) {
-        List<String> ids = new ArrayList<>();
-        for (String id : order) if (v.hitMap.containsKey(id)) ids.add(id);
+        // every control on screen, in the order painted (dialogs and menus clear the rest, so Tab stays inside them)
+        List<String> ids = v.extras.focusOrder();
         if (ids.isEmpty()) { if (d > 0) v.transferFocus(); else v.transferFocusBackward(); return; }
         int at = ids.indexOf(focusId);
         int n = at < 0 ? (d > 0 ? 0 : ids.size() - 1) : Math.floorMod(at + d, ids.size());
         focusId = ids.get(n);
         keyNav = true;
-        String label = names.getOrDefault(focusId, focusId);
+        String label = names.getOrDefault(focusId, v.extras.labelFor(focusId));
         v.getAccessibleContext().setAccessibleName(label);
         v.getAccessibleContext().setAccessibleDescription(label + ". Press Enter to activate.");
         v.repaint();
@@ -972,7 +972,7 @@ final class GamePages {
             }
         }
         // focus ring (keyboard only)
-        if (keyNav && focusId != null && v.isFocusOwner()) {
+        if (keyNav && focusId != null && (v.isFocusOwner() || v.extras.alwaysShowFocus)) {
             Rectangle r = v.hitMap.get(focusId);
             if (r != null) {
                 g.setColor(new Color(255, 65, 83, 220));

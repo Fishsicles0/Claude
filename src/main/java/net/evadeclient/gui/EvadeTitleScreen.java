@@ -42,7 +42,7 @@ import java.util.function.Supplier;
 /**
  * Evade's main menu (the Title Screen module), opened in place of the vanilla title screen.
  *
- * <p>The vanilla panorama keeps turning behind a dark vignette with a soft accent glow (or, with Panorama off, an
+ * <p>The vanilla panorama keeps turning behind a dark vignette with a soft accent glow (or, with another Background, an
  * Evade backdrop). The Evade logo and the actions sit in a centred column, as in the vanilla menu. On wide screens
  * cards fill the rails beside it: the account and "What's new" on the left, "Continue playing" (recent servers with
  * favicons and live status) on the right; narrower screens drop the cards. Everything arrives in a short staggered entrance the first time
@@ -407,18 +407,28 @@ public class EvadeTitleScreen extends Screen {
         var cs = net.evadeclient.module.client.ClientSettings.class;
         if (EvadeClient.modules != null && EvadeClient.modules.get(cs) != null) EvadeClient.modules.get(cs).applyTheme();
         int W = width, H = height;
-        boolean panorama = mod == null || mod.panorama.get();
+        String bg = mod == null ? "Panorama" : mod.backgroundMode();
+        boolean panorama = bg.equals("Panorama");
         if (panorama) {
             renderPanoramaBackground(ctx, delta);
-            if (mod != null && mod.blur.get()) {
-                try {
-                    ctx.applyBlur();
-                } catch (IllegalStateException ignored) {
-                    // Something already blurred this frame.
-                }
-            }
         } else {
-            backdrop(ctx, W, H);
+            switch (bg) {
+                case "Evade Animated" -> net.evadeclient.gui.title.TitleBackground.animated(ctx, W, H);
+                case "Solid Color" -> ctx.fill(0, 0, W, H, 0xFF000000 | mod.backgroundColor.get());
+                case "Custom Image" -> {
+                    // A picture gets the same treatment as the panorama (blur, the darker veil); none falls back to the grid.
+                    panorama = net.evadeclient.gui.title.TitleBackground.image(ctx, W, H, mod.imageFile.get());
+                    if (!panorama) backdrop(ctx, W, H);
+                }
+                default -> backdrop(ctx, W, H);
+            }
+        }
+        if (panorama && mod != null && mod.blur.get()) {
+            try {
+                ctx.applyBlur();
+            } catch (IllegalStateException ignored) {
+                // Something already blurred this frame.
+            }
         }
         float base = Theme.fade;
         try {
@@ -452,13 +462,9 @@ public class EvadeTitleScreen extends Screen {
         }
     }
 
-    /** With Panorama off: Evade's own dark backdrop with a faint grid, like the launcher's. */
+    /** Background Evade Grid: Evade's own dark backdrop with a faint grid, like the launcher's. */
     private void backdrop(DrawContext ctx, int W, int H) {
-        ctx.fillGradient(0, 0, W, H, 0xFF0D0D11, 0xFF060608);
-        int step = 32;
-        int ox = (W % step) / 2, oy = (H % step) / 2;
-        for (int x = ox; x < W; x += step) ctx.fill(x, 0, x + 1, H, 0x07FFFFFF);
-        for (int y = oy; y < H; y += step) ctx.fill(0, y, W, y + 1, 0x07FFFFFF);
+        net.evadeclient.gui.title.TitleBackground.grid(ctx, W, H, 0);
     }
 
     @Override

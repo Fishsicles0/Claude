@@ -40,6 +40,7 @@ final class LauncherTheme {
         textScale = p.textSize / 100f;
         reduceMotion = p.reduceMotion;
         cache.clear();
+        darkCache.clear();
         generation++;
     }
 
@@ -70,10 +71,20 @@ final class LauncherTheme {
     static Color map(Color c) {
         if (c == null || identity()) return c;
         int argb = c.getRGB();
-        return cache.computeIfAbsent(argb, k -> new Color(mapArgb(k), true));
+        return cache.computeIfAbsent(argb, k -> new Color(mapArgb(k, light), true));
     }
 
-    static int mapArgb(int argb) {
+    /** The accent only (a dark island, such as the photo-backed Home hero, in the light theme). */
+    static Color mapDark(Color c) {
+        if (c == null || accent == 0) return c;
+        return darkCache.computeIfAbsent(c.getRGB(), k -> new Color(mapArgb(k, false), true));
+    }
+
+    private static final ConcurrentHashMap<Integer, Color> darkCache = new ConcurrentHashMap<>();
+
+    static int mapArgb(int argb) { return mapArgb(argb, light); }
+
+    static int mapArgb(int argb, boolean light) {
         int a = argb >>> 24, r = (argb >> 16) & 255, gr = (argb >> 8) & 255, b = argb & 255;
         float[] hsl = hsl(r, gr, b);
         float h = hsl[0], s = hsl[1], l = hsl[2];

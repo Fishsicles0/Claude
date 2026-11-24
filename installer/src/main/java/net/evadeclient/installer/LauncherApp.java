@@ -68,6 +68,8 @@ final class LauncherApp implements LauncherView.Actions {
         view.setupMemory = settings.defaultMemoryGb;
         view.setJavaText(settings.javaPath);
         view.legacyClips = AppHost.legacyAppInstalled();
+        view.extras.persist = true;
+        view.extras.setPrefs(UiPrefs.load());
         game = new GameController(view, settings, work, this::play, this::reloadInstances, () -> tray, () -> frame);
         ModIcons.registerWebp();
         if (clips != null) attach(clips);
@@ -126,6 +128,7 @@ final class LauncherApp implements LauncherView.Actions {
         loadServerIcons();
         game.start();
         refreshServers();
+        startupChecks();
         if (view.legacyClips && !settings.legacyClipsHandled)
             view.notice("Evade Clips is built in now", "The separate Evade Clips app isn't needed any more. Remove it in Settings.", false);
     }
@@ -172,22 +175,7 @@ final class LauncherApp implements LauncherView.Actions {
         view.setOpaque(!perPixel);
         view.roundCorners = perPixel;
         if (clips != null) addClipsPages();
-        // Ctrl+1 … Ctrl+4 open Clips' Library, Record, Editor and Settings (as in the Clips app).
-        var im = frame.getRootPane().getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-        var am = frame.getRootPane().getActionMap();
-        String[] ids = {"library", "record", "editor", "settings"};
-        int mask = net.evadeclient.clips.core.Ffmpeg.MAC ? java.awt.event.InputEvent.META_DOWN_MASK : java.awt.event.InputEvent.CTRL_DOWN_MASK;
-        for (int k = 0; k < ids.length; k++) {
-            String id = ids[k];
-            im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_1 + k, mask), "clips-" + id);
-            am.put("clips-" + id, new javax.swing.AbstractAction() {
-                @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                    if (clipsPages == null || (id.equals("editor") && clipsPages.editor.clip() == null)) return;
-                    view.showPage(LauncherView.Page.CLIPS);
-                    clipsPage(id);
-                }
-            });
-        }
+        // Ctrl+1 … 6 switch pages and Alt+1 … 4 open Clips' pages (ViewExtras.installKeys).
         view.setUiScale(screenScale());
         frame.pack();
         frame.setResizable(false);
@@ -308,7 +296,56 @@ final class LauncherApp implements LauncherView.Actions {
         view.instances = list;
         if (list.stream().noneMatch(i -> i.id.equals(settings.selected))) settings.selected = Launcher.DEFAULT_ID;
         if (list.stream().noneMatch(i -> i.id.equals(view.focusedId))) view.focusedId = settings.selected;
+        view.extras.instancesReloaded();
         view.repaint();
+    }
+
+    @Override public void instancesChanged() { reloadInstances(); }
+
+    /** F5: reload what the page shows. */
+    @Override public void refresh(LauncherView.Page p) {
+        switch (p) {
+            case HOME -> { loadNews(); refreshServers(); retryRelease(); view.toast("Refreshing news, servers and updates"); }
+            case INSTANCES -> { reloadInstances(); view.toast("Instances reloaded"); }
+            case MODS -> {
+                Launcher.Instance sel = view.selected();
+                if (sel != null) showMods(sel);
+                String id = switch (view.content.tab) {
+                    case BROWSE -> "c-retry";
+                    case WORLDS -> "c-wreload";
+                    default -> "c-check";
+                };
+                view.content.click(id);
+            }
+            case GAME -> { reloadInstances(); view.toast("Game info reloaded"); }
+            default -> { }
+        }
+        view.repaint();
+    }
+
+    /**
+     * Quiet checks a few seconds after start, reported in the bell: updates for the mods and packs the player
+     * added, and a newer launcher when it doesn't update itself. Then "What's new" once per launcher version.
+     */
+    private void startupChecks() {
+        javax.swing.Timer t = new javax.swing.Timer(1500, e -> {
+            if (StartupChecks.showWhatsNew(view.extras.prefs, view.version, view.firstRun()) && view.modal == null && view.overlay == null)
+                view.extras.showWhatsNew();
+        });
+        t.setRepeats(false);
+        t.start();
+        work.submit(() -> {
+            try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
+            List<Launcher.Instance> list = new ArrayList<>();
+            try { SwingUtilities.invokeAndWait(() -> list.addAll(view.instances)); } catch (Exception e) { return; }
+            StartupChecks.modUpdates(list, (i, n) -> ui(() -> view.notice(StartupChecks.plural(n, "update") + " for " + i.name,
+                    "Mods or packs you added have newer versions. Open Mods to update them.", false)));
+            if (!settings.checkUpdates) {
+                String v = StartupChecks.newerLauncher();
+                if (v != null) ui(() -> view.notice("A newer Evade Launcher is out" + (v.isEmpty() ? "" : ": v" + v),
+                        "Automatic updates are off. Turn them on in Settings, or download it from evadeclient.com.", false));
+            }
+        });
     }
 
     @Override public void retryRelease() {
