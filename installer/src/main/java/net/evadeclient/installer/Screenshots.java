@@ -110,10 +110,8 @@ final class Screenshots {
         String real = System.getProperty("evade.shots.instance");
         if (real != null && Files.isDirectory(Path.of(real, "mods"))) {
             v.mods = Mods.list(Path.of(real));
-            for (int i = 0; i < 30; i++) {
-                for (Mods.Entry e : v.mods) ModIcons.get(e.file(), null);
-                Thread.sleep(200);
-            }
+            for (Mods.Entry e : v.mods) ModIcons.get(e.file(), null);
+            for (int i = 0; i < 150 && ModIcons.busy(); i++) Thread.sleep(200);
         } else v.mods = sampleMods(main.dir.resolve("mods"));
         save(v, out, "13-mods");
         v.browse = true;
@@ -127,10 +125,8 @@ final class Screenshots {
                 Mods.Page page = Mods.search(new InstallerCore(), "", 0);
                 v.hits = page.hits();
                 v.hitsTotal = page.total();
-                for (int i = 0; i < 30; i++) {
-                    for (Mods.Hit h : v.hits) ModIcons.url(h.iconUrl(), null);
-                    Thread.sleep(200);
-                }
+                for (Mods.Hit h : v.hits) ModIcons.url(h.iconUrl(), null);
+                for (int i = 0; i < 150 && ModIcons.busy(); i++) Thread.sleep(200);
             } catch (Exception e) {
                 System.err.println("Live Modrinth results skipped: " + e.getMessage());
             }

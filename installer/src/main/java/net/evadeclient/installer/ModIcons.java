@@ -65,6 +65,24 @@ final class ModIcons {
     /** Jars waiting for the Modrinth lookup (batched). */
     private static final List<Path> modrinthQueue = new ArrayList<>();
 
+    static { registerWebp(); }
+
+    /** Lets ImageIO read WebP (most Modrinth icons are WebP). Safe to call more than once. */
+    static synchronized void registerWebp() {
+        if (webp) return;
+        webp = true;
+        try {
+            javax.imageio.spi.IIORegistry.getDefaultInstance().registerServiceProvider(
+                    new com.twelvemonkeys.imageio.plugins.webp.WebPImageReaderSpi());
+        } catch (Throwable e) {
+            System.err.println("WebP pictures unavailable: " + e);
+        }
+    }
+    private static boolean webp;
+
+    /** True while pictures are still being read or fetched (screenshots wait for this). */
+    static boolean busy() { return !pending.isEmpty(); }
+
     /** The icon of an installed jar, or null while it's loading / when there is none. Never blocks. */
     static Image get(Path jar, Runnable repaint) {
         String key = "jar:" + jar.toAbsolutePath();

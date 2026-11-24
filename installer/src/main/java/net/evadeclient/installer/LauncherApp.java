@@ -66,6 +66,7 @@ final class LauncherApp implements LauncherView.Actions {
         view.setupMemory = settings.defaultMemoryGb;
         view.setJavaText(settings.javaPath);
         view.legacyClips = AppHost.legacyAppInstalled();
+        ModIcons.registerWebp();
         if (clips != null) attach(clips);
     }
 

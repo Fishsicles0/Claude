@@ -1444,7 +1444,7 @@ public final class LauncherView extends JPanel {
         }
         int n = Math.min(3, news.size());
         int cw = (w - 2 * pad - allW - gap * n) / n;
-        String[] fallback = {"menu", "hud", "styles", "clips", "settings", "theme"};
+        String[] fallback = {"hud", "clips", "theme", "menu"};
         for (int i = 0; i < n; i++) {
             News.Entry e = news.get(i);
             int cx = x + pad + i * (cw + gap);
@@ -2034,12 +2034,20 @@ public final class LauncherView extends JPanel {
         boolean[] avail = {true, release == null || release.voiceChat() != null, release == null || !release.performance().isEmpty(),
                 release == null || release.iris() != null};
         for (int i = 0; i < rows.length; i++) {
-            int ry = y + 186 + i * 31;
+            int ry = y + 200 + i * 42;
             switchRow(g, rows[i][0], x, ry, w, avail[i] ? rows[i][1] : rows[i][2], values[i], avail[i]);
         }
         g.setFont(inter.deriveFont(11.5f));
         g.setColor(FAINT);
-        g.drawString(ellipsizeEnd(g, "Evade Clips is built in: instant replay, clip library & editor.", w), x, y + 186 + rows.length * 31 + 8);
+        g.setColor(new Color(225, 29, 46, 26));
+        g.fill(new RoundRectangle2D.Double(x, y + 200 + rows.length * 42 + 6, w, 52, 24, 24));
+        icon(g, "clip", x + 24, y + 200 + rows.length * 42 + 32, 16, RED_HI);
+        g.setFont(interBold.deriveFont(12.5f));
+        g.setColor(TEXT);
+        g.drawString("Evade Clips is built in", x + 46, y + 200 + rows.length * 42 + 28);
+        g.setFont(inter.deriveFont(11.5f));
+        g.setColor(DIM);
+        g.drawString(ellipsizeEnd(g, "Instant replay, clip library and editor", w - 60), x + 46, y + 200 + rows.length * 42 + 45);
         g.setFont(inter.deriveFont(12f));
         String info;
         Color ic = DIM;
@@ -2134,16 +2142,16 @@ public final class LauncherView extends JPanel {
             g.setFont(interBold.deriveFont(14f));
             g.setColor(TEXT);
             boolean playing = i.id.equals(settings.selected);
-            String nm = ellipsizeEnd(g, i.name, lw - 140 - (playing ? 56 : 0));
+            String nm = ellipsizeEnd(g, i.name, lw - 140 - (playing ? 64 : 0));
             g.drawString(nm, lx + 80, y + 29);
             if (playing) {
                 int px = lx + 80 + g.getFontMetrics().stringWidth(nm) + 8;
                 g.setFont(interBold.deriveFont(9f));
-                int pw = g.getFontMetrics().stringWidth("PLAY") + 14;
+                int pw = g.getFontMetrics().stringWidth("ACTIVE") + 14;
                 g.setColor(new Color(225, 29, 46, 44));
                 g.fill(new RoundRectangle2D.Double(px, y + 17, pw, 16, 16, 16));
                 g.setColor(RED_HI);
-                center(g, "PLAY", px, y + 17, pw, 16);
+                center(g, "ACTIVE", px, y + 17, pw, 16);
             }
             g.setFont(inter.deriveFont(12f));
             g.setColor(DIM);
@@ -2483,7 +2491,7 @@ public final class LauncherView extends JPanel {
             clipsBanner(g, CX, y, CW);
             y += 76 + 16;
         }
-        int lw = 600, rw = CW - lw - 24, h = H - 24 - y;
+        int lw = 600, rw = CW - lw - 24, h = Math.min(H - 24 - y, 56 + 4 * 66 + 84);
         // ---- Game
         int lx = CX;
         card(g, lx, y, lw, h, false);
@@ -2554,7 +2562,7 @@ public final class LauncherView extends JPanel {
         g.drawString("Evade Launcher", jx + 48, ay + 38);
         g.setFont(inter.deriveFont(12f));
         g.setColor(FAINT);
-        g.drawString("Version " + version + "  ·  Sign-in stays with the Minecraft Launcher", jx + 48, ay + 56);
+        g.drawString(ellipsizeEnd(g, "Version " + version + "  ·  Sign-in stays with the Minecraft Launcher", jw - 48), jx + 48, ay + 56);
         paintVersionRows(g, jx, ay + 76, jw);
         int ly = ay + ah - 20 - 36;
         if (legacyClips && !clipsBlocked) {

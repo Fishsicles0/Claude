@@ -276,6 +276,10 @@ public class EvadeTitleScreen extends Screen {
         // Continue playing: the server rows and a link to the full list.
         String all = "All servers";
         int lw = TitleArt.width(all, Role.SMALL) + 10;
+        if (12 + TitleArt.capsWidth("Continue playing", Role.CAPS, 1.2f) + 10 + lw + 12 > w) {
+            all = "All"; // a narrow rail: the header keeps its room
+            lw = TitleArt.width(all, Role.SMALL) + 10;
+        }
         TitleButton allLink = add(new TitleButton(x + w - 12 - lw, serversY + 9, lw, 10, Text.literal(all), Style.LINK, "chevron_r",
                 this::openMultiplayer).intro(intro, d, 12, 0));
         if (mpDisabled != null) allLink.active = false;
