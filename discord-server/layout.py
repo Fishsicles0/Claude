@@ -154,7 +154,7 @@ CATEGORIES = [
         {"key": "general", "emoji": "💬", "name": "general", "slowmode": 3},
         {"key": "media", "emoji": "📸", "name": "media", "topic": "Screenshots, clips and montages."},
         {"key": "hud-setups", "emoji": "🖥️", "name": "hud-setups"},
-        {"key": "cosmetics", "emoji": "👕", "name": "cosmetics", "topic": "Show off your capes and cosmetics."},
+        {"key": "cosmetics", "emoji": "👕", "name": "cosmetics", "topic": "Evade cosmetics are coming soon. Until then: show off your themes, crosshairs and packs."},
         {"key": "fps", "emoji": "⚡", "name": "fps-and-performance"},
         {"key": "lfg", "emoji": "🤝", "name": "looking-for-group"},
         {"key": "off-topic", "emoji": "🎲", "name": "off-topic", "slowmode": 3},
@@ -427,9 +427,11 @@ POSTS = {
         "**Share your setup as a code:** open the menu, go to Profiles and share your profile. Paste the code here with a screenshot so others "
         "can import it in one click.\n\n"
         "Edit your own HUD with **Edit HUD Layout** in the menu: drag to move, scroll to resize."))],
-    "cosmetics": [_p("👕 Cosmetics & Looks", (
-        "Themes, accent colours, crosshairs, block outlines, resource packs: show off how your game looks.\n\n"
-        "Every Evade player gets the Evade icon in the tab list. Turn it off under **Evade Icons** if you'd rather not show it."))],
+    "cosmetics": [_p("👕 Cosmetics: Coming Soon", (
+        "**Evade cosmetics are on the way.** They're not out yet; keep an eye on #announcements for news.\n\n"
+        "**Until then**, show off how your game looks: themes, accent colours, crosshairs, block outlines and resource packs.\n\n"
+        "Every Evade player already gets the Evade icon in the tab list. Turn it off under **Evade Icons** if you'd rather not show it.\n\n"
+        "⚠️ Anyone selling or giving away \"Evade cosmetics\" right now is a scammer. Report them in #create-ticket."))],
     "fps": [_p("⚡ FPS & Performance", (
         "Tips, benchmarks and help getting more frames.\n\n"
         "**Quick wins**\n"
