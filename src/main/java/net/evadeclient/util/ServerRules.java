@@ -23,7 +23,7 @@ import java.util.Set;
 /**
  * Server rules: a server can switch off any Evade mod for its players by sending a plugin message on
  * {@code evade:rules} with a UTF-8 JSON body {@code {"disable": ["Freelook", "Minimap"]}} (names as in the menu, case
- * doesn't matter). Those mods are turned off at once, can't be turned on again while connected, and come back as
+ * doesn't matter; {@code "@addons"} means every addon module, {@code "@addon:<modid>"} one mod's). Those mods are turned off at once, can't be turned on again while connected, and come back as
  * they were when you leave. Sending the message again replaces the list; an empty list allows everything.
  */
 public final class ServerRules {
@@ -57,7 +57,13 @@ public final class ServerRules {
 
     /** Whether the server you're on has switched {@code m} off. */
     public static boolean isDisabled(Module m) {
-        return m != null && !disabled.isEmpty() && disabled.contains(m.getName().toLowerCase(Locale.ROOT));
+        if (m == null || disabled.isEmpty()) return false;
+        if (disabled.contains(m.getName().toLowerCase(Locale.ROOT))) return true;
+        // The World Map is built from the same explored terrain: switching the Minimap off switches it off too.
+        if (m instanceof net.evadeclient.module.visuals.WorldMap && disabled.contains("minimap")) return true;
+        // "@addons" switches off every module other mods added through the Evade Addon API, "@addon:<modid>" one mod's.
+        var owner = net.evadeclient.addon.EvadeAddons.owner(m);
+        return owner != null && (disabled.contains("@addons") || disabled.contains("@addon:" + owner.modId().toLowerCase(Locale.ROOT)));
     }
 
     /** Applies a rules message (render thread). Bad JSON is ignored. */

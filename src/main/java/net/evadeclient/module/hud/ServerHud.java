@@ -7,6 +7,7 @@ import net.evadeclient.module.TextHudModule;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.ModeSetting;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.TpsEstimator;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -17,14 +18,12 @@ import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -66,14 +65,8 @@ public class ServerHud extends TextHudModule {
     private static final int BRAND_MAX = 24;
     private static final Identifier ICON_ID = Identifier.of("evade", "server_icon");
 
-    /** TPS ring: the last {@link #SAMPLES} time updates, as (arrival nanoTime, server game time). */
-    private static final int SAMPLES = 6;
-    /** A server silent for longer than this (it normally sends its time every second) counts as stalled. */
-    private static final double STALL_SECONDS = 2.5;
-    private final long[] sampleNs = new long[SAMPLES], sampleTime = new long[SAMPLES];
-    private int sampleCount, newest = -1;
-    /** The connection and world the samples came from; weak, so a world that was left is never kept alive. */
-    private WeakReference<Object> sampleConnection = new WeakReference<>(null), sampleWorld = new WeakReference<>(null);
+    /** The server's ticks per second, estimated from its time updates (see {@link TpsEstimator}). */
+    private final TpsEstimator tpsEstimate = new TpsEstimator(6);
 
     /** When this connection began (System.currentTimeMillis), or 0 while not connected. */
     private static volatile long joinedAt;
@@ -250,47 +243,12 @@ public class ServerHud extends TextHudModule {
 
     @Override
     public void onServerPacket(Packet<?> packet) {
-        if (!(packet instanceof WorldTimeUpdateS2CPacket p)) return;
-        long now = System.nanoTime();
-        Object connection = mc.getNetworkHandler();
-        boolean reset = sampleConnection.get() != connection || sampleCount > 0 && p.time() < sampleTime[newest];
-        if (!reset && sampleCount > 0 && sampleWorld.get() != mc.world && mc.world != null) {
-            // A new world on the same connection: a dimension change keeps the server's clock running, but a proxy
-            // moving you to another server makes it jump. Keep the samples unless it jumped.
-            double seconds = (now - sampleNs[newest]) / 1e9;
-            reset = p.time() - sampleTime[newest] > seconds * mc.world.getTickManager().getTickRate() * 2 + 100;
-        }
-        if (reset) {
-            sampleCount = 0;
-            newest = -1;
-            sampleConnection = new WeakReference<>(connection);
-        }
-        sampleWorld = new WeakReference<>(mc.world);
-        newest = (newest + 1) % SAMPLES;
-        sampleNs[newest] = now;
-        sampleTime[newest] = p.time();
-        if (sampleCount < SAMPLES) sampleCount++;
+        tpsEstimate.onPacket(packet);
     }
 
     /** The server's ticks per second, or NaN until enough time updates have arrived. */
     private float tps() {
-        var world = mc.world;
-        if (world == null) return Float.NaN;
-        float rate = world.getTickManager().getTickRate();
-        var server = mc.getServer();
-        if (server != null) {
-            float ms = server.getAverageTickTime();
-            return ms <= 0 ? rate : Math.min(rate, 1000f / ms);
-        }
-        if (sampleCount < 2 || sampleConnection.get() != mc.getNetworkHandler()) return Float.NaN;
-        int oldest = (newest - sampleCount + 1 + SAMPLES) % SAMPLES;
-        long now = System.nanoTime();
-        double span = (sampleNs[newest] - sampleNs[oldest]) / 1e9;
-        // A server that has stopped sending its time is stalled: the silence counts as time without ticks.
-        if ((now - sampleNs[newest]) / 1e9 > STALL_SECONDS) span = (now - sampleNs[oldest]) / 1e9;
-        if (span < 0.25) return Float.NaN;
-        double tps = (sampleTime[newest] - sampleTime[oldest]) / span;
-        return (float) Math.max(0, Math.min(rate, tps));
+        return tpsEstimate.tps();
     }
 
     private Part tpsPart() {

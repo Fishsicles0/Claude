@@ -263,8 +263,21 @@ def chevron_r():
     chevron("chevron_r", [(S - x, y) for x, y in [(60, 20), (34, 48), (60, 76)]])
 
 
+def camera():  # screenshots: camera body, lens and a small bump for the shutter
+    im, d = canvas()
+    d.rounded_rectangle((6, 24, 90, 82), radius=12, outline=WHITE, width=W)
+    d.line((32, 24, 38, 14), fill=WHITE, width=W)
+    d.line((38, 14, 58, 14), fill=WHITE, width=W)
+    d.line((58, 14, 64, 24), fill=WHITE, width=W)
+    for x, y in ((38, 14), (58, 14)):
+        round_cap(d, x, y)
+    d.ellipse((30, 35, 66, 71), outline=WHITE, width=W)
+    d.ellipse((72, 34, 80, 42), fill=WHITE)
+    save(im, "camera")
+
+
 ICONS = (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, friends, settings, settings_sm, search, close,
-         reset, chevron_l, chevron_r)
+         reset, chevron_l, chevron_r, camera)
 
 
 # ------------------------------------------------------------------ logo

@@ -48,6 +48,14 @@ public abstract class HudElementModule extends Module {
             .describe("Draw this widget's text in Evade's smooth font instead of the pixel font."));
     /** Locked in the HUD editor: it can't be dragged, nudged or resized there until unlocked (L). Saved, never shown. */
     public final BooleanSetting locked = add(new BooleanSetting("Locked", false).hidden());
+    /**
+     * The HUD editor stack this widget belongs to ("" for none): widgets in one stack move together and sit one under
+     * another (see {@link net.evadeclient.hud.HudStacks}). Saved, never shown.
+     */
+    public final net.evadeclient.setting.StringSetting stack =
+            add(new net.evadeclient.setting.StringSetting("Stack", "", "").maxLength(16).hidden());
+    /** Place in its stack, top first. Saved, never shown. */
+    public final NumberSetting stackOrder = add(new NumberSetting("Stack Order", 0, 0, 999, 1).hidden());
 
     /**
      * The smooth (Inter) HUD font at one fixed raster (4 device pixels per unit). Widgets no longer draw with it:

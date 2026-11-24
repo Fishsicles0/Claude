@@ -844,6 +844,9 @@ public class Waypoints extends Module {
         return List.copyOf(list());
     }
 
+    /** This world's key ("server address" or "singleplayer:&lt;folder&gt;"), shared with the World Map's save folder. */
+    public String worldId() { return worldKey(); }
+
     /** The current dimension's id, or "" outside a world. */
     public String currentDim() { return mc.world == null ? "" : dim(); }
 

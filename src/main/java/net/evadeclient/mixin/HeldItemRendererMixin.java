@@ -1,7 +1,10 @@
 package net.evadeclient.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.evadeclient.module.visuals.ItemView;
 import net.evadeclient.module.visuals.OldAnimations;
 import net.evadeclient.module.visuals.PackTweaks;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.item.HeldItemRenderer;
@@ -17,6 +20,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -47,17 +51,60 @@ public abstract class HeldItemRendererMixin {
         PackTweaks pt = PackTweaks.active();
         if (pt != null && pt.lowShield.get() && item.getItem() instanceof ShieldItem)
             matrices.translate(0, -pt.shieldLower.getFloat(), 0);
+        ItemView iv = ItemView.active();
+        if (iv != null && !item.contains(DataComponentTypes.MAP_ID)) iv.applyOffset(matrices, hand, evade$rightArm(player, hand));
+    }
+
+    private static boolean evade$rightArm(AbstractClientPlayerEntity player, Hand hand) {
+        Arm arm = hand == Hand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
+        return arm == Arm.RIGHT;
     }
 
     /**
-     * Pack Tweaks Off-Hand Totem Size %: a totem in the off hand is drawn smaller, scaled around the hand right before
-     * the item is drawn (after every pose and swing transform; vanilla's pop undoes it).
+     * Skips a hand's item before anything is pushed: Item View's Shield (Hide / Hide When Idle), and the off-hand shield
+     * while 1.7 Sword Block draws the sword blocking instead. Drawing only; the shield still blocks.
+     */
+    @Inject(method = RENDER_FIRST_PERSON, at = @At("HEAD"), cancellable = true)
+    private void evade$hideHand(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress,
+                                ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light,
+                                CallbackInfo ci) {
+        if (item.isEmpty() || !(player instanceof ClientPlayerEntity cp)) return;
+        ItemView iv = ItemView.active();
+        if (iv != null && iv.hides(cp, hand, item)) { ci.cancel(); return; }
+        if (hand == Hand.OFF_HAND && item.getItem() instanceof ShieldItem && OldAnimations.swordBlocking(cp)) ci.cancel();
+    }
+
+    /** Item View Equip Animation off: held items never dip (switching items or after an attack). Drawing only. */
+    @ModifyVariable(method = RENDER_FIRST_PERSON, at = @At("HEAD"), argsOnly = true, ordinal = 3)
+    private float evade$noEquipDip(float equipProgress) {
+        ItemView iv = ItemView.active();
+        return iv != null && !iv.equipAnimation.get() ? 0f : equipProgress;
+    }
+
+    /** Item View Swing Speed: the first-person swing drawn on its own clock; the game's swing is left alone. */
+    @ModifyExpressionValue(method = "renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getHandSwingProgress(F)F"))
+    private float evade$visualSwing(float real, float tickProgress, MatrixStack matrices, OrderedRenderCommandQueue queue,
+                                    ClientPlayerEntity player, int light) {
+        ItemView iv = ItemView.active();
+        if (iv == null) return real;
+        return iv.visualSwing(real, ((LivingEntitySwingInvoker) player).evade$swingDuration());
+    }
+
+    /**
+     * Right before the item is drawn (after every pose and swing transform; vanilla's pop undoes all of it): the 1.7
+     * sword-block, rod and bow poses, Item View's rotation and size, then Pack Tweaks Off-Hand Totem Size % (a totem
+     * in the off hand drawn smaller, scaled around the hand).
      */
     @Inject(method = RENDER_FIRST_PERSON, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V"))
     private void evade$smallOffhandTotem(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress,
                                          ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light,
                                          CallbackInfo ci) {
+        boolean right = evade$rightArm(player, hand);
+        net.evadeclient.module.visuals.OldPoses.apply(matrices, player, hand, item, right, tickDelta);
+        ItemView iv = ItemView.active();
+        if (iv != null) iv.applyItemTransform(matrices, hand, right);
         if (hand != Hand.OFF_HAND || !item.isOf(Items.TOTEM_OF_UNDYING)) return;
         PackTweaks pt = PackTweaks.active();
         if (pt == null) return;

@@ -5,7 +5,8 @@
   "name": "Evade Client Game Tests",
   "environment": "client",
   "entrypoints": {
-    "fabric-client-gametest": ["net.evadeclient.gametest.EvadeClientGameTest"]
+    "fabric-client-gametest": ["net.evadeclient.gametest.EvadeClientGameTest"],
+    "evade": ["net.evadeclient.gametest.addon.ExampleEvadeAddon"]
   },
   "depends": { "evade": "*" }
 }
