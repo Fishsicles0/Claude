@@ -39,6 +39,8 @@ public final class Intro {
 
     public boolean full() { return full && enabled; }
 
+    public boolean started() { return start >= 0; }
+
     /** Milliseconds into the timeline. */
     public double elapsed() {
         return start < 0 ? 1e9 : now() - start;
@@ -50,6 +52,7 @@ public final class Intro {
      */
     public float p(double delayMs, double durMs) {
         if (!enabled) return 1f;
+        if (start < 0) return 0f; // not started yet (the loading screen is still up)
         double t = elapsed();
         if (!full) return Motion.cubicOut((float) (t / 180.0));
         return Motion.cubicOut((float) ((t - delayMs) / durMs));

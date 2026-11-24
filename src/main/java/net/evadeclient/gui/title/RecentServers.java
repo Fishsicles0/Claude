@@ -13,6 +13,7 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.network.NetworkingBackend;
+import net.minecraft.text.TranslatableTextContent;
 import net.minecraft.util.Identifier;
 
 import java.net.UnknownHostException;
@@ -38,6 +39,8 @@ public final class RecentServers {
     private static final ExecutorService PINGS = Executors.newFixedThreadPool(2, new ThreadFactoryBuilder()
             .setNameFormat("Evade Title Pinger #%d").setDaemon(true).build());
     private static RecentServers instance;
+    /** Whether status pings are on (Server Status, multiplayer allowed): otherwise rows show the address. */
+    private static boolean live = true;
 
     /** One server on the menu: its list entry, favicon texture and when it was last pinged. */
     public static final class Entry {
@@ -49,7 +52,7 @@ public final class RecentServers {
         /** Cached "1.2K online" (rebuilt only when the count changes). */
         private int shownOnline = -1, shownMax = -1;
         private long shownPing = -1;
-        private String statusText = "";
+        private String statusText = "", shortText = "";
         private ServerInfo.Status shownStatus;
 
         Entry(ServerInfo info, WorldIcon icon) {
@@ -70,11 +73,14 @@ public final class RecentServers {
         public String status() {
             ServerInfo.Status st = info.getStatus();
             int online = info.players == null ? -1 : info.players.online(), max = info.players == null ? -1 : info.players.max();
+            if (!live && (st == ServerInfo.Status.INITIAL || st == ServerInfo.Status.PINGING)) return info.address;
             if (st == shownStatus && online == shownOnline && max == shownMax && info.ping == shownPing) return statusText;
             shownStatus = st;
             shownOnline = online;
             shownMax = max;
             shownPing = info.ping;
+            shortText = st == ServerInfo.Status.SUCCESSFUL && online >= 0 ? TitleArt.compact(online) + " online"
+                    : st == ServerInfo.Status.UNREACHABLE ? "Offline" : "";
             statusText = switch (st) {
                 case INITIAL, PINGING -> "Pinging…";
                 case UNREACHABLE -> "Offline";
@@ -87,10 +93,8 @@ public final class RecentServers {
 
         /** Short note for the Rejoin button: "1.2K online", or nothing while unknown. */
         public String shortStatus() {
-            ServerInfo.Status st = info.getStatus();
-            if (st == ServerInfo.Status.SUCCESSFUL && info.players != null) return TitleArt.compact(info.players.online()) + " online";
-            if (st == ServerInfo.Status.UNREACHABLE) return "Offline";
-            return "";
+            status();
+            return shortText;
         }
 
         /** Status dot colour: green online, amber incompatible, red offline, grey (pulsing) while pinging. */
@@ -100,6 +104,7 @@ public final class RecentServers {
                 case INCOMPATIBLE -> Theme.WARN;
                 case UNREACHABLE -> Theme.DANGER;
                 default -> {
+                    if (!live) yield Theme.TEXT_FAINT;
                     float p = 0.5f + 0.5f * (float) Math.sin(Intro.now() / 180.0);
                     yield Theme.alpha(0xFF8A8A96, 0.35f + 0.5f * p);
                 }
@@ -204,6 +209,7 @@ public final class RecentServers {
 
     /** Pings every entry not pinged in the last minute (or whose ping was cut off). */
     public void pingStale(boolean allowed) {
+        live = allowed;
         if (!allowed) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         long now = System.currentTimeMillis();
@@ -247,9 +253,10 @@ public final class RecentServers {
     public void tick() {
         pinger.tick();
         for (Entry e : entries) {
-            if (e.info.getStatus() == ServerInfo.Status.PINGING && System.currentTimeMillis() - e.pingedAt > 12_000) {
-                e.info.setStatus(ServerInfo.Status.UNREACHABLE);
-            }
+            if (e.info.getStatus() != ServerInfo.Status.PINGING) continue;
+            boolean failed = e.info.label != null && e.info.label.getContent() instanceof TranslatableTextContent t
+                    && t.getKey().equals("multiplayer.status.cannot_connect");
+            if (failed || System.currentTimeMillis() - e.pingedAt > 12_000) e.info.setStatus(ServerInfo.Status.UNREACHABLE);
         }
     }
 

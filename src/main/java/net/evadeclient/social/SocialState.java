@@ -149,25 +149,25 @@ public record SocialState(boolean loaded, UUID me, String myName, boolean allowR
     /** The server's form of a UUID: 32 lower-case hex digits. */
     public static String hex(UUID u) { return u.toString().replace("-", ""); }
 
-    static JsonObject obj(JsonObject o, String k) {
+    public static JsonObject obj(JsonObject o, String k) {
         return o != null && o.has(k) && o.get(k).isJsonObject() ? o.getAsJsonObject(k) : new JsonObject();
     }
 
-    static JsonArray arr(JsonObject o, String k) {
+    public static JsonArray arr(JsonObject o, String k) {
         return o != null && o.has(k) && o.get(k).isJsonArray() ? o.getAsJsonArray(k) : new JsonArray();
     }
 
-    static String str(JsonObject o, String k) {
+    public static String str(JsonObject o, String k) {
         try { return o != null && o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsString() : ""; } catch (RuntimeException e) { return ""; }
     }
 
-    static boolean bool(JsonObject o, String k) {
+    public static boolean bool(JsonObject o, String k) {
         try { return o != null && o.has(k) && o.get(k).isJsonPrimitive() && o.get(k).getAsBoolean(); } catch (RuntimeException e) { return false; }
     }
 
-    static long lng(JsonObject o, String k) {
+    public static long lng(JsonObject o, String k) {
         try { return o != null && o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsLong() : 0; } catch (RuntimeException e) { return 0; }
     }
 
-    static int num(JsonObject o, String k) { return (int) lng(o, k); }
+    public static int num(JsonObject o, String k) { return (int) lng(o, k); }
 }

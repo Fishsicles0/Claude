@@ -297,9 +297,9 @@ public final class SplashScene {
             if (p < dur) {
                 float s = easeInOutSine(p / dur);
                 float band = markH * 0.55f;
-                float x0 = lockX - band * 2, x1 = lockX + total + band * 2;
+                float x0 = lockX - band, x1 = lockX + total + band;
                 float bx = x0 + (x1 - x0) * s;
-                float sa = a * (f.mono ? 0.40f : 0.55f) * (float) Math.sin(Math.PI * p / dur);
+                float sa = a * (f.mono ? 0.45f : 0.70f) * (float) Math.sin(Math.PI * p / dur);
                 float mx = markCx - markW / 2, my = markCy - markH / 2;
                 sweep(c, MARK_MASK, mx, my, markW, markH, bx, band, cy, sa);
                 sweep(c, WORD, Math.round(wx), Math.round(wy), wordW, wordH, bx, band, cy, sa * 0.8f);
@@ -341,9 +341,10 @@ public final class SplashScene {
      */
     private static void sweep(Canvas c, int texture, float x, float y, float w, float h, float bx, float band, float cy, float alpha) {
         if (alpha <= 0.003f) return;
-        int rows = 14, slices = 9;
-        float lean = 0.42f;
         int ix = Math.round(x), iy = Math.round(y), iw = Math.round(w), ih = Math.round(h);
+        // Rows about 3 device pixels tall (so the lean has no visible steps), up to 40.
+        int rows = Math.max(6, Math.min(40, ih / 3)), slices = 10;
+        float lean = 0.42f;
         for (int r = 0; r < rows; r++) {
             int ry0 = iy + Math.round(ih * r / (float) rows), ry1 = iy + Math.round(ih * (r + 1) / (float) rows);
             if (ry1 <= ry0) continue;

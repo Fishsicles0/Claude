@@ -110,7 +110,7 @@ public class TitleButton extends PressableWidget {
         long nowNs = System.nanoTime();
         float dt = Math.min(0.1f, (nowNs - lastFrame) / 1e9f);
         lastFrame = nowNs;
-        float in = intro == null ? 1f : intro.p(delayMs, 460);
+        float in = intro == null ? 1f : intro.p(delayMs, 420);
         if (in <= 0.001f) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();

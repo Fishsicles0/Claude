@@ -173,7 +173,8 @@ public class EvadeIcons extends Module {
             token = res.get("token").getAsString();
             tokenExpiry = System.currentTimeMillis() + res.get("expiresIn").getAsLong() * 1000;
             statusText = "Signed in as " + name;
-            heartbeat();
+            // A sign-in Friends asked for (requestSignIn) doesn't show the icon unless the icon would show anyway.
+            if (isEnabled() && shareMe.get()) heartbeat();
         });
     }
 
@@ -201,6 +202,41 @@ public class EvadeIcons extends Module {
         CACHE.clear();
         PENDING.clear();
         if (token != null && lastPresence != 0) hide();
+    }
+
+    // ------------------------------------------------------------------ for Friends (net.evadeclient.social)
+    // The same proof of account, shared with the Friends connection: nothing here runs unless Friends asks for it.
+
+    private static EvadeIcons instance() {
+        return EvadeClient.modules == null ? null : EvadeClient.modules.get(EvadeIcons.class);
+    }
+
+    /** The Evade token for the account you're playing on while it has over a minute left, else null. Any thread. */
+    public static String socialToken() {
+        EvadeIcons m = instance();
+        String t = m == null ? null : m.token;
+        return t != null && System.currentTimeMillis() < m.tokenExpiry - 60_000 ? t : null;
+    }
+
+    /**
+     * Starts a sign-in for Friends unless one is running, the token is still good, or the wait after a failed one
+     * isn't over. Works with this module off too (Friends is its own opt-in); it never shows the icon by itself.
+     * Render thread.
+     */
+    public static void requestSignIn() {
+        EvadeIcons m = instance();
+        if (m == null || mc.getSession() == null) return;
+        long now = System.currentTimeMillis();
+        if (!m.authing && (m.token == null || now > m.tokenExpiry - 60_000) && now >= m.nextAuthAttempt) m.signIn();
+    }
+
+    /** Where signing in is: "Signing in...", "Signed in as ...", why it failed. */
+    public static String signInStatus() { return statusText; }
+
+    /** evadeclient.com refused the token (HTTP 401): drop it so the next request signs in again. */
+    public static void forgetSocialToken() {
+        EvadeIcons m = instance();
+        if (m != null) m.token = null;
     }
 
     private CompletableFuture<JsonObject> post(String path, JsonObject body, String bearer) {

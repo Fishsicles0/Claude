@@ -176,6 +176,21 @@ def profiles():  # person
     save(im, "profiles")
 
 
+def friends():  # two people, the one behind cut away where the front one overlaps
+    im, d = canvas()
+    d.ellipse((46, 12, 74, 40), outline=WHITE, width=W)
+    d.arc((36, 50, 92, 106), 180, 360, fill=WHITE, width=W)
+    # Clear a gap around the front person so the two outlines read as separate shapes.
+    gap = Image.new("L", im.size, 0)
+    g = SD(ImageDraw.Draw(gap), K)
+    g.ellipse((14, 10, 54, 50), fill=255)
+    g.rounded_rectangle((-2, 48, 70, 120), radius=36, fill=255)
+    im.putalpha(Image.composite(Image.new("L", im.size, 0), im.getchannel("A"), gap))
+    d.ellipse((20, 16, 48, 44), outline=WHITE, width=W)
+    d.arc((4, 54, 64, 114), 180, 360, fill=WHITE, width=W)
+    save(im, "friends")
+
+
 def gear_teeth(d, n, phase, half_w, r_in, r_out):
     """n rectangular teeth, 2*half_w wide, from radius r_in to r_out around the icon centre."""
     for k in range(n):
@@ -248,7 +263,7 @@ def chevron_r():
     chevron("chevron_r", [(S - x, y) for x, y in [(60, 20), (34, 48), (60, 76)]])
 
 
-ICONS = (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, settings, settings_sm, search, close,
+ICONS = (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, friends, settings, settings_sm, search, close,
          reset, chevron_l, chevron_r)
 
 

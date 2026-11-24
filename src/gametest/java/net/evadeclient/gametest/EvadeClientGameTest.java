@@ -2080,6 +2080,20 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         boolean overlay = ctx.computeOnClient(c -> c.getOverlay() instanceof net.minecraft.client.gui.screen.SplashOverlay);
         ctx.waitFor(c -> c.getOverlay() == null, 20 * 60);
         check(overlay, "The Evade loading screen shows while resources load");
+        // The animated intro at fixed moments: mark in, wordmark reveal, light sweep, settled.
+        float[] times = {0.5f, 1.2f, 2.45f, 5.0f};
+        float[] now = {0f};
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.Screen(net.minecraft.text.Text.literal("splash")) {
+            @Override public void render(net.minecraft.client.gui.DrawContext g, int mx, int my, float d) {
+                net.evadeclient.gui.EvadeSplash.renderAt(g, now[0], 0.6f, false);
+            }
+        });
+        for (float t : times) {
+            now[0] = t;
+            ctx.waitTicks(2);
+            ctx.takeScreenshot("evade-splash-" + String.format(java.util.Locale.ROOT, "%.2f", t).replace('.', '_'));
+        }
+        ctx.setScreen(() -> null);
         // The test framework expects every run to end on the game's own title screen.
         disable(ctx, net.evadeclient.module.misc.TitleScreenModule.class);
     }

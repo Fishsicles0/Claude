@@ -34,7 +34,7 @@ public class ServerRow extends PressableWidget {
 
     public ServerRow(int x, int y, int w, int h, RecentServers.Entry entry, Consumer<RecentServers.Entry> join,
                      Intro intro, double delayMs) {
-        super(x, y, w, h, Text.translatable("selectServer.select").append(" " + entry.name()));
+        super(x, y, w, h, Text.literal("Join " + entry.name()));
         this.entry = entry;
         this.join = join;
         this.intro = intro;
@@ -57,7 +57,7 @@ public class ServerRow extends PressableWidget {
         long nowNs = System.nanoTime();
         float dt = Math.min(0.1f, (nowNs - lastFrame) / 1e9f);
         lastFrame = nowNs;
-        float in = intro.p(delayMs, 520);
+        float in = intro.p(delayMs, 460);
         if (in <= 0.001f) return;
         boolean keyboardFocus = isFocused() && MinecraftClient.getInstance().getNavigationType().isKeyboard();
         boolean hot = active && (isHovered() || keyboardFocus);
