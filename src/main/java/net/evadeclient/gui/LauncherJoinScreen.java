@@ -20,20 +20,17 @@ import net.minecraft.text.Text;
 
 /**
  * Shown on the title screen when the player clicked Join (a server) or Continue (a world) in the Evade Launcher a
- * moment ago: "Joining X (requested from the launcher)" with a three-second countdown, Cancel and Join now. Cancel
- * or Escape goes back to the title screen and nothing happens.
+ * moment ago: "Join X? (requested from the launcher)" with Cancel and Join. Nothing connects until the player clicks
+ * Join here (never automatically); Cancel or Escape goes back to the title screen.
  */
 public final class LauncherJoinScreen extends Screen {
-    static final long COUNTDOWN_MS = 3000;
-
     private final Screen parent;
     private final LauncherBridge.Request request;
-    private final long opened = System.currentTimeMillis();
     private boolean done;
     private int px, py, pw, ph;
 
     public LauncherJoinScreen(Screen parent, LauncherBridge.Request request) {
-        super(Text.literal((request.world() ? "Opening " : "Joining ") + request.name()));
+        super(Text.literal((request.world() ? "Open " : "Join ") + request.name()));
         this.parent = parent;
         this.request = request;
     }
@@ -48,13 +45,8 @@ public final class LauncherJoinScreen extends Screen {
         py = (height - ph) / 2;
         int bw = (pw - 28 - 6) / 2, by = py + ph - 30;
         addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), b -> close()).dimensions(px + 14, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal(request.world() ? "Open now" : "Join now"), b -> go())
+        addDrawableChild(ButtonWidget.builder(Text.literal(request.world() ? "Open world" : "Join server"), b -> go())
                 .dimensions(px + 14 + bw + 6, by, bw, 20).build());
-    }
-
-    @Override
-    public void tick() {
-        if (!done && System.currentTimeMillis() - opened >= COUNTDOWN_MS) go();
     }
 
     private void go() {
@@ -105,16 +97,12 @@ public final class LauncherJoinScreen extends Screen {
         super.render(ctx, mx, my, delta);
         ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
         boolean smooth = s == null || s.smoothFont.get();
-        String head = (request.world() ? "Opening " : "Joining ") + request.name();
+        String head = (request.world() ? "Open " : "Join ") + request.name() + "?";
         UiFont.draw(ctx, textRenderer, head, px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
         UiFont.draw(ctx, textRenderer, "Requested from the Evade Launcher" + (request.world() ? "" : "  ·  " + request.target()),
                 px + 14, py + 30, Theme.TEXT_DIM, Role.SMALL, smooth);
-        long left = Math.max(0, COUNTDOWN_MS - (System.currentTimeMillis() - opened));
-        UiFont.draw(ctx, textRenderer, "Starting in " + (left + 999) / 1000 + "…  Cancel to stay here.",
+        UiFont.draw(ctx, textRenderer, "Nothing happens until you click " + (request.world() ? "Open world." : "Join server."),
                 px + 14, py + 44, Theme.TEXT_FAINT, Role.SMALL, smooth);
-        int bx = px + 14, bw = pw - 28, by = py + 60;
-        ctx.fill(bx, by, bx + bw, by + 3, Theme.TRACK);
-        ctx.fill(bx, by, bx + Math.round(bw * (1f - left / (float) COUNTDOWN_MS)), by + 3, Theme.RED);
     }
 
     @Override public boolean shouldPause() { return false; }

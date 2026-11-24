@@ -329,7 +329,6 @@ public final class Placeholders {
 
     // ------------------------------------------------------------------------------------------------ values
 
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
     private static final Map<String, DateTimeFormatter> TIME_FORMATS = new ConcurrentHashMap<>();
     private static final DateTimeFormatter DEFAULT_TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT);
     private static final String[] FACING = {"South", "West", "North", "East"};
@@ -343,6 +342,7 @@ public final class Placeholders {
      * The live value of {@code key} ("fps", "time:HH:mm", ...), or null when it isn't a placeholder. Render thread.
      */
     public static String resolve(String key) {
+        MinecraftClient mc = MinecraftClient.getInstance();
         String name = key, arg = null;
         int colon = key.indexOf(':');
         if (colon >= 0) {
@@ -436,6 +436,7 @@ public final class Placeholders {
 
     /** Your own latency from the player list; 0 in singleplayer or before the server has sent it. */
     private static int ping() {
+        MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.isInSingleplayer()) return 0;
         var nh = mc.getNetworkHandler();
         var entry = nh == null ? null : nh.getPlayerListEntry(mc.player.getUuid());
@@ -464,6 +465,7 @@ public final class Placeholders {
 
     /** The world's day (as F3 shows it), or ? while Time Changer replaces the time you see. */
     private static String day() {
+        MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null) return "-";
         var tc = EvadeClient.modules == null ? null : EvadeClient.modules.get(net.evadeclient.module.mods.TimeChanger.class);
         if (tc != null && tc.isEnabled()) return "?";
@@ -471,6 +473,7 @@ public final class Placeholders {
     }
 
     private static String server() {
+        MinecraftClient mc = MinecraftClient.getInstance();
         var entry = mc.getCurrentServerEntry();
         if (entry != null) {
             if (entry.isRealm()) return "Realms";
