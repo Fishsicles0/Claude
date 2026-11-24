@@ -33,6 +33,12 @@ def api() -> Discord:
     return Discord(os.environ.get("DISCORD_TOKEN", "proxy-injected"))
 
 
+def mention(text: str, state: dict) -> str:
+    """#channel-key → clickable channel mention."""
+    import re
+    return re.sub(r"#([a-z0-9-]+)", lambda m: f"<#{state['channels'][m[1]]}>" if m[1] in state["channels"] else m[0], text)
+
+
 def config() -> dict:
     state = load_state()
     if not state.get("guild_id"):
@@ -46,6 +52,9 @@ def config() -> dict:
         "roles": s(state["roles"]), "channels": s(state["channels"]), "categories": s(state["categories"]),
         "security": layout.SECURITY, "admins": layout.ADMINS, "ticket_staff": layout.TICKET_STAFF,
         "tickets": layout.TICKET_TYPES, "lockdown_categories": layout.LOCKDOWN_CATEGORIES,
+        "welcome_lines": [mention(x, state) for x in layout.WELCOME_LINES],
+        "help_lines": [mention(x, state) for x in layout.HELP_LINES],
+        "legal_note": getattr(layout, "LEGAL_NOTE", ""),
     }
 
 
@@ -80,7 +89,8 @@ def legal_pages() -> dict:
 def build() -> Path:
     src = (WORKER / "bot.js").read_text()
     out = src.replace("/*CONFIG*/ {}", json.dumps(config(), indent=1, ensure_ascii=False), 1)
-    out = out.replace("/*PAGES*/ {}", json.dumps(legal_pages(), ensure_ascii=False), 1)
+    pages = legal_pages() if getattr(layout, "LEGAL_PAGES", False) else {}
+    out = out.replace("/*PAGES*/ {}", json.dumps(pages, ensure_ascii=False), 1)
     DIST.mkdir(parents=True, exist_ok=True)
     (DIST / "_worker.js").write_text(out)
     (DIST / "index.html").write_text("<!doctype html><title>bot</title><p>Bot is running.</p>")

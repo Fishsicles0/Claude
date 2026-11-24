@@ -81,7 +81,7 @@ def check_layout() -> list[str]:
             errors.append(f"category key {key!r} is used but not defined")
     for t in layout.TICKET_TYPES:
         errors += [f"ticket {t['key']}: unknown role {r!r}" for r in t["staff"] if r not in role_keys]
-    for k in ("member", "beta", "mod", "admin"):
+    for k in ("member", "mod", "admin"):
         if k not in role_keys:
             errors.append(f"bot.py needs a role with key {k!r}")
     if layout.SECURITY["verification_level"] not in VERIFICATION:

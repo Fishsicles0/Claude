@@ -12,7 +12,8 @@ import discord
 import layout
 
 HERE = Path(__file__).resolve().parent
-STATE_FILE = HERE / "state.json"   # IDs of everything setup created (not secret, but server-specific)
+# IDs of everything setup created (not secret, but server-specific). One file per server.
+STATE_FILE = HERE / ("state.json" if os.environ.get("SERVER", "evade") == "evade" else f"state-{os.environ['SERVER']}.json")
 SEP = "︱"
 
 

@@ -29,7 +29,9 @@ import layout
 from common import channel_name, load_state, permissions, save_state
 from setup_server import BOT_OVERWRITE, MARKER, REASON, VERIFICATION, check_layout
 
-API = "https://discord.com/api/v10"
+# Each bot's token is attached by the network proxy per host: Evade uses discord.com, Vendetta the
+# legacy discordapp.com domain (API v9), so the two tokens never mix.
+API = {"evade": "https://discord.com/api/v10"}.get(os.environ.get("SERVER", "evade"), "https://discordapp.com/api/v9")
 TEXT, VOICE, CATEGORY, NEWS, FORUM = 0, 2, 4, 5, 15
 
 
@@ -285,10 +287,14 @@ class Setup:
 
     def posts(self):
         try:
+            if not layout.CLIENT.get("site"):
+                raise LookupError("no website for this server")
             import site_content
             all_posts = site_content.live_posts()[0]
+        except LookupError:
+            all_posts = layout.POSTS
         except Exception as e:  # noqa: BLE001
-            self.warn(f"couldn't read evadeclient.com, using the static posts in layout.py: {e}")
+            self.warn(f"couldn't read the website, using the static posts in the layout: {e}")
             all_posts = layout.POSTS
         for key, specs in all_posts.items():
             ch = self.channels.get(key)

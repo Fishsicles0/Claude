@@ -178,10 +178,7 @@ async function welcome(env, user) {
     embeds: [{
       color: COLOR,
       author: { name: `Welcome to ${CONFIG.name}!`, icon_url: CONFIG.icon || undefined },
-      description: `Hey **${user.global_name || user.username}**, glad you're here!\n\n` +
-        `⬇️ Grab the client in <#${CONFIG.channels.download}>\n` +
-        `💬 Say hi in <#${CONFIG.channels.general}>\n` +
-        `❓ Questions? <#${CONFIG.channels["download-help"]}> or <#${CONFIG.channels["create-ticket"]}>`,
+      description: `Hey **${user.global_name || user.username}**, glad you're here!\n\n` + CONFIG.welcome_lines.join("\n"),
       thumbnail: { url: avatar },
       footer: count ? { text: `Member #${count}` } : undefined,
       timestamp: new Date().toISOString(),
@@ -200,16 +197,24 @@ async function openTicketMenu(env, it) {
   const until = Number(await kvGet(env, `tcool:${uid}`)) || 0;
   if (until > Date.now()) return reply(`You can open another ticket ${relTime(until)}.`);
   const t = ticketType(kind);
-  return json({ type: 9, data: { custom_id: `tmodal:${kind}`, title: t.label.slice(0, 45), components: [
-    { type: 1, components: [{ type: 4, custom_id: "subject", label: "Subject", style: 1, max_length: 100, required: true }] },
-    { type: 1, components: [{ type: 4, custom_id: "details", label: "Details", style: 2, max_length: 1500, required: true,
-      placeholder: "What happened? You can add logs or screenshots in the ticket." }] },
-  ] } });
+  // A ticket type can define its own questions (e.g. an application form); otherwise Subject + Details.
+  const qs = t.questions?.length ? t.questions : [
+    { id: "subject", label: "Subject", max: 100 },
+    { id: "details", label: "Details", long: true, max: 1500, placeholder: "What happened? You can add logs or screenshots in the ticket." },
+  ];
+  return json({ type: 9, data: { custom_id: `tmodal:${kind}`, title: t.label.slice(0, 45), components: qs.slice(0, 5).map((q) => ({
+    type: 1, components: [{ type: 4, custom_id: q.id, label: q.label.slice(0, 45), style: q.long ? 2 : 1,
+      max_length: q.max || (q.long ? 1000 : 100), required: q.required !== false, ...(q.placeholder ? { placeholder: q.placeholder.slice(0, 100) } : {}) }],
+  })) } });
 }
 
 function ticketFromModal(env, it) {
+  const kind = it.data.custom_id.split(":")[1], t = ticketType(kind);
   const field = (id) => it.data.components.flatMap((r) => r.components).find((c) => c.custom_id === id)?.value || "";
-  return createTicket(env, it, it.data.custom_id.split(":")[1], field("subject"), field("details"));
+  if (!t?.questions?.length) return createTicket(env, it, kind, field("subject"), field("details"));
+  // Application-style ticket: the first answer is the title, every answer is listed in the ticket.
+  const answers = t.questions.slice(0, 5).map((q) => `**${q.label}**\n${field(q.id) || "*(no answer)*"}`).join("\n\n");
+  return createTicket(env, it, kind, `${t.label}: ${field(t.questions[0].id)}`, answers);
 }
 
 async function createTicket(env, it, kind, subject, details) {
@@ -496,14 +501,14 @@ async function moreCommands(env, it, ctx) {
       "**For everyone**",
       `\`/ticket\` open a private ticket with staff (or use <#${CONFIG.channels["create-ticket"]}>)`,
       "**Report message / Report user**: long-press (or right-click) a message or person → Apps",
-      `Download: <#${CONFIG.channels.download}> · Install help: <#${CONFIG.channels["install-guide"]}> · Rules: <#${CONFIG.channels.rules}>`,
+      ...CONFIG.help_lines,
     ];
     if (staff) lines.push("", "**Staff**",
       "`/warn` `/warnings` `/timeout` `/kick` `/userinfo` `/slowmode` `/purge` `/lockdown` `/unlock` `/raidmode` `/verify`",
       "`/ticket-add` `/ticket-remove` in tickets · Admins also: `/ban` `/unban` `/announce` `/panels`",
       "Every action is logged in mod-log and the member gets a DM with your reason.");
     return reply("", { embeds: [{ title: `${CONFIG.name} bot`, color: COLOR, description: lines.join("\n"),
-      footer: { text: "Terms & privacy: fish-claude-bot.pages.dev/terms" } }] });
+      footer: CONFIG.legal_note ? { text: CONFIG.legal_note } : undefined }] });
   }
 
   if (name === "ticket") {
