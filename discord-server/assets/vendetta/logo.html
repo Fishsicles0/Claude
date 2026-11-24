@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1024px;height:1024px;overflow:hidden;background:#070405}
+</style></head><body>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <radialGradient id="bg" cx="50%" cy="46%" r="60%">
+   <stop offset="0" stop-color="#3a0609"/><stop offset=".55" stop-color="#140304"/><stop offset="1" stop-color="#060304"/>
+  </radialGradient>
+  <linearGradient id="blade" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#ff4d57"/><stop offset=".55" stop-color="#d0141f"/><stop offset="1" stop-color="#7a070d"/>
+  </linearGradient>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+   <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+  </linearGradient>
+  <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+   <feGaussianBlur stdDeviation="22" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+ </defs>
+ <rect width="1024" height="1024" fill="url(#bg)"/>
+ <!-- ring -->
+ <circle cx="512" cy="500" r="380" fill="none" stroke="#b0141e" stroke-opacity=".35" stroke-width="6"/>
+ <circle cx="512" cy="500" r="352" fill="none" stroke="#b0141e" stroke-opacity=".18" stroke-width="2"/>
+ <g filter="url(#glow)">
+  <!-- left blade: hilt top-left, point bottom-centre -->
+  <g transform="rotate(-21 512 820) translate(0 -25)">
+   <polygon points="512,845 466,330 512,250 558,330" fill="url(#blade)"/>
+   <polygon points="512,845 512,250 558,330" fill="#000" fill-opacity=".22"/>
+   <polygon points="512,845 466,330 512,250" fill="url(#edge)"/>
+   <rect x="430" y="214" width="164" height="30" rx="8" fill="#e8e1e2"/>
+   <rect x="496" y="150" width="32" height="66" rx="8" fill="#2a0a0c" stroke="#e8e1e2" stroke-width="6"/>
+   <circle cx="512" cy="138" r="20" fill="#e8e1e2"/>
+  </g>
+  <!-- right blade -->
+  <g transform="rotate(21 512 820) translate(0 -25)">
+   <polygon points="512,845 466,330 512,250 558,330" fill="url(#blade)"/>
+   <polygon points="512,845 512,250 558,330" fill="#000" fill-opacity=".22"/>
+   <polygon points="512,845 466,330 512,250" fill="url(#edge)"/>
+   <rect x="430" y="214" width="164" height="30" rx="8" fill="#e8e1e2"/>
+   <rect x="496" y="150" width="32" height="66" rx="8" fill="#2a0a0c" stroke="#e8e1e2" stroke-width="6"/>
+   <circle cx="512" cy="138" r="20" fill="#e8e1e2"/>
+  </g>
+ </g>
+ <!-- blood drop at the point -->
+ <path d="M512 846 C 512 846, 490 880, 490 895 a22 22 0 0 0 44 0 C 534 880, 512 846, 512 846 Z" fill="#d0141f"/>
+</svg></body></html>
