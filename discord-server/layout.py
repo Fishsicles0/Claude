@@ -291,14 +291,7 @@ POSTS = {
         "Need help? #download-help or #create-ticket."))],
     "announcements": [
         _p("📢 Announcements", "New releases, big news and events land here. Only staff can post.\n\n"
-           "What changed in each version goes in #changelog."),
-        _p("Evade v{version} is out", (
-            "**The Evade Launcher** is here. The installer is now a full launcher with Evade Clips built in: your servers "
-            "and news on the home screen, separate instances with their own mods and settings, a mod browser, and "
-            "Clips' library, recorder and editor. It updates itself.\n\n"
-            "**Also new:** an in-game Mod Browser, Hypixel tools (Quick Play, BedWars and SkyWars stats, a BedWars "
-            "helper), Snaplook, Text Hotkeys, Totem and Day counters, Menu Blur, an Evade title screen and Discord status.\n\n"
-            f"**Get it:** {SITE}/download · full notes in #changelog"))],
+           "What changed in each version goes in #changelog.")],
     "changelog": [
         _p("📝 Changelog", f"Every release, newest at the bottom. The full history is at {SITE}/changelog."),
         _p("v2.0.0 · 23 Nov 2026", (

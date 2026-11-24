@@ -284,7 +284,13 @@ class Setup:
                       lambda m: f"<#{self.channels[m[1]]['id']}>" if m[1] in self.channels else m[0], text)
 
     def posts(self):
-        for key, specs in layout.POSTS.items():
+        try:
+            import site_content
+            all_posts = site_content.live_posts()[0]
+        except Exception as e:  # noqa: BLE001
+            self.warn(f"couldn't read evadeclient.com, using the static posts in layout.py: {e}")
+            all_posts = layout.POSTS
+        for key, specs in all_posts.items():
             ch = self.channels.get(key)
             if not ch or ch["type"] not in (TEXT, NEWS):
                 continue
@@ -294,7 +300,7 @@ class Setup:
                 if msg["author"]["id"] == self.me["id"] and MARKER in foot:
                     mine[foot.split(MARKER, 1)[1]] = msg
             for i, spec in enumerate(specs):
-                fmt = lambda s: self.mention(s.format(**layout.CLIENT))
+                fmt = (lambda s: self.mention(s)) if spec.get("raw") else (lambda s: self.mention(s.format(**layout.CLIENT)))
                 embed = {"title": fmt(spec["title"]), "description": fmt(spec["description"]),
                          "color": layout.CLIENT["color"],
                          "fields": [{"name": fmt(n), "value": fmt(v), "inline": inl} for n, v, inl in spec.get("fields", [])],
