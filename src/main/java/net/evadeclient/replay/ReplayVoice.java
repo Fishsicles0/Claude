@@ -239,7 +239,8 @@ public final class ReplayVoice {
         s.queued++;
         update(s);
         // a little cushion before starting, so frames that arrived unevenly still play back to back
-        if (!paused && AL10.alGetSourcei(s.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING && s.queued >= 3) {
+        // (a render mixes frame by frame right after this queue, so there it starts at once: no gaps from waiting)
+        if (!paused && AL10.alGetSourcei(s.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING && s.queued >= (ReplayRender.rendering() ? 1 : 3)) {
             AL10.alSourcePlay(s.source);
             s.waitTicks = 0;
         }
@@ -252,7 +253,7 @@ public final class ReplayVoice {
         int state = AL10.alGetSourcei(s.source, AL10.AL_SOURCE_STATE);
         if (paused) {
             if (state == AL10.AL_PLAYING) AL10.alSourcePause(s.source);
-        } else if (state != AL10.AL_PLAYING && s.queued > 0 && (state == AL10.AL_PAUSED || ++s.waitTicks >= 2)) {
+        } else if (state != AL10.AL_PLAYING && s.queued > 0 && (state == AL10.AL_PAUSED || ReplayRender.rendering() || ++s.waitTicks >= 2)) {
             AL10.alSourcePlay(s.source);
             s.waitTicks = 0;
         }
