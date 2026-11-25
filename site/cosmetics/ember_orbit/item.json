@@ -6,15 +6,19 @@
  "colourable": false,
  "defaultColor": null,
  "partner": null,
- "description": "A faint ring of fire turns at your feet while three embers circle your waist.",
+ "description": "A ring of fire runes turns at your feet while three embers circle your waist.",
  "fx": {
   "type": "aura",
-  "particle": "dust",
+  "particle": "soft",
   "colors": [
-   "#FFB347",
-   "#FF5A1F"
+   "#FFE08A",
+   "#FF7A2A",
+   "#8A1A0A"
   ],
-  "rate": 3,
-  "size": 0.7
+  "rate": 4,
+  "size": 0.6,
+  "life": 1.4,
+  "sizeEnd": 0.3,
+  "gravity": -0.35
  }
 }

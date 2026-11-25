@@ -6,5 +6,10 @@
  "colourable": false,
  "defaultColor": null,
  "partner": null,
- "description": "Deep-sea blue with rolling waves of foam and a sand-gold collar."
+ "description": "Deep-sea blue with rolling waves of foam and a sand-gold rope collar.",
+ "physics": {
+  "stiffness": 0.45,
+  "lift": 1.0,
+  "sway": 1.1
+ }
 }

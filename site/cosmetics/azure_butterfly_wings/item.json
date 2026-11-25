@@ -1,0 +1,10 @@
+{
+ "id": "azure_butterfly_wings",
+ "name": "Azure Butterfly Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Iridescent blue butterfly wings with black borders and white spots that flutter quickly."
+}

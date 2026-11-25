@@ -1,0 +1,10 @@
+{
+ "id": "ranger_quiver",
+ "name": "Ranger's Quiver",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A tooled leather quiver with brass bands, slung across the back and stuffed with bright-fletched arrows."
+}

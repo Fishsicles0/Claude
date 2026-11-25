@@ -3,9 +3,9 @@
  "space": "entity",
  "texture": [
   32,
-  32
+  28
  ],
- "textureScale": 2,
+ "textureScale": 8,
  "bones": [
   {
    "name": "beanie",
@@ -46,7 +46,7 @@
      ],
      "size": [
       8,
-      1,
+      2,
       8
      ],
      "uv": [
@@ -85,7 +85,7 @@
      ],
      "uv": [
       0,
-      20
+      21
      ]
     }
    ],

@@ -1,0 +1,23 @@
+{
+ "id": "confetti_cannon",
+ "name": "Confetti Cannon",
+ "slot": "WIN_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Win a game and a cloud of rainbow confetti bursts out around you.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#FF4A8A",
+   "#FFD23A",
+   "#3AC8FF",
+   "#5AE07A",
+   "#B07AFF"
+  ],
+  "count": 90,
+  "size": 1.3
+ }
+}

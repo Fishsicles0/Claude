@@ -1,0 +1,10 @@
+{
+ "id": "bastion_shield",
+ "name": "Bastion Shield",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A round wooden shield on your back, painted in blue and gold quarters with a steel rim and boss."
+}

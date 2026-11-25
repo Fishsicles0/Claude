@@ -1,0 +1,15 @@
+{
+ "id": "oakheart_banner",
+ "name": "Oakheart Banner",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A forest-green banner with a golden shield and a great oak, finished with a swallow-tail hem.",
+ "physics": {
+  "stiffness": 0.58,
+  "lift": 1.0,
+  "sway": 0.9
+ }
+}

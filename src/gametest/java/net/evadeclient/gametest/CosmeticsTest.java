@@ -167,7 +167,7 @@ public final class CosmeticsTest {
                 case ITEM -> check(drawn > 0, "Cosmetics: " + id + " replaces your sword in first person (" + drawn + " draws)");
                 case PARTICLES, EFFECT -> check(spawned > 0, "Cosmetics: " + id + " spawns particles (" + spawned + ")");
             }
-            if (slot == Slot.AURA) check(spawned > 0, "Cosmetics: aura " + id + " spawns a few motes (" + spawned + ")" + (spawned > 0 ? "" : ctx.computeOnClient(c -> " sneaking=" + c.player.isSneaking() + " invisible=" + c.player.isInvisible() + " combat=" + net.evadeclient.util.Combat.active() + " showMine=" + EvadeClient.modules.get(net.evadeclient.module.misc.Cosmetics.class).showMine.get())));
+            if (slot == Slot.AURA) check(spawned > 0, "Cosmetics: aura " + id + " spawns a few motes (" + spawned + ")" + (spawned > 0 ? "" : ctx.computeOnClient(c -> " sneaking=" + c.player.isSneaking() + " invisible=" + c.player.isInvisible() + " combat=" + net.evadeclient.util.Combat.active() + " showMine=" + EvadeClient.modules.get(net.evadeclient.module.misc.Cosmetics.class).showMine.get() + " enabled=" + EvadeClient.modules.get(net.evadeclient.module.misc.Cosmetics.class).isEnabled() + " worn=" + Wardrobe.renderLoadout().get(Slot.AURA) + " equipped=" + Wardrobe.equipped().get(Slot.AURA) + " owns=" + Wardrobe.owns(id) + " item=" + (CosmeticsCatalog.get(id) == null ? "null" : CosmeticsCatalog.get(id).bundled + "/" + (CosmeticsCatalog.get(id).fx() != null)) + " spawnedTotal=" + net.evadeclient.cosmetics.CosmeticFx.takeSpawned())));
             ctx.takeScreenshot("cosmetic-" + id);
             if (slot == Slot.EMOTE) ctx.runOnClient(c -> Emotes.stop());
             if (slot == Slot.ITEM_SKIN) {

@@ -9,14 +9,17 @@
  "description": "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
  "fx": {
   "type": "spiral",
-  "particle": "dust",
+  "particle": "soft",
   "colors": [
-   "#FFD36A",
    "#FFF4C2",
+   "#FFD36A",
    "#FF8A3A"
   ],
   "count": 80,
   "size": 1.0,
-  "height": 3.0
+  "height": 3.0,
+  "life": 1.4,
+  "fade": 0.25,
+  "sizeEnd": 0.35
  }
 }

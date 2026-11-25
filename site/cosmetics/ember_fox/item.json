@@ -1,0 +1,10 @@
+{
+ "id": "ember_fox",
+ "name": "Ember the Fox",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A bright orange fox with a white chest, dark socks and a big bushy white-tipped tail curled up behind it."
+}

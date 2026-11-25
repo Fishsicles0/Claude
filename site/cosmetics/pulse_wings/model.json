@@ -1,0 +1,156 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  30,
+  22
+ ],
+ "textureScale": 4,
+ "bones": [
+  {
+   "name": "wing_r",
+   "attach": "body",
+   "pivot": [
+    -1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -15.5,
+      0.0,
+      2.0
+     ],
+     "size": [
+      14,
+      15,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      -15.5,
+      -0.5,
+      1.5
+     ],
+     "size": [
+      14,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      19
+     ]
+    },
+    {
+     "origin": [
+      -3.5,
+      -1.0,
+      1.0
+     ],
+     "size": [
+      2,
+      2,
+      2
+     ],
+     "uv": [
+      0,
+      15
+     ]
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   }
+  },
+  {
+   "name": "wing_l",
+   "attach": "body",
+   "pivot": [
+    1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      1.5,
+      0.0,
+      2.0
+     ],
+     "size": [
+      14,
+      15,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      1.5,
+      -0.5,
+      1.5
+     ],
+     "size": [
+      14,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      19
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      1.5,
+      -1.0,
+      1.0
+     ],
+     "size": [
+      2,
+      2,
+      2
+     ],
+     "uv": [
+      0,
+      15
+     ],
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   }
+  }
+ ]
+}

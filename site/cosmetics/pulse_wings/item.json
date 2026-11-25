@@ -1,0 +1,15 @@
+{
+ "id": "pulse_wings",
+ "name": "Pulse Wings",
+ "slot": "WINGS",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
+ "animation": {
+  "frames": 16,
+  "frametime": 1,
+  "interpolate": true
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "id": "blossom_drift",
+ "name": "Blossom Drift",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A spring dusk with a branch of pink blossom and petals drifting down to the hem.",
+ "physics": {
+  "stiffness": 0.38,
+  "lift": 1.2,
+  "sway": 1.2
+ }
+}

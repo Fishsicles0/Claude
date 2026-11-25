@@ -6,5 +6,10 @@
  "colourable": false,
  "defaultColor": null,
  "partner": null,
- "description": "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark."
+ "description": "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark.",
+ "physics": {
+  "stiffness": 0.5,
+  "lift": 1.0,
+  "sway": 1.0
+ }
 }

@@ -2,10 +2,10 @@
  "format": "evade-cosmetic-model/1",
  "space": "entity",
  "texture": [
-  32,
-  32
+  22,
+  18
  ],
- "textureScale": 2,
+ "textureScale": 8,
  "bones": [
   {
    "name": "cape",
