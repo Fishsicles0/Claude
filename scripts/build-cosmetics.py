@@ -7442,5 +7442,1576 @@ item("victory_flex", "Victory Flex", "EMOTE", "REGULAR", 250,
 # ============================================================================================== end of mockup collection
 
 
+
+# ============================================================================================== gemini concept collection
+# ==== GEMINI: the owner's second set of concept cards (pets, capes, a helm, wings, an aura, emotes), redrawn as Evade
+# items to the shipped standard. The concepts only gave the idea and the colours: every item is drawn here from scratch.
+# Helpers are named gm_* or after their item. Capes are free; animated items are special (priced later).
+
+GM_SPECIAL_CAPE = dict(CAPE_HD_FX, frametime=2, interpolate=False)
+
+
+def gm_grid(cv):
+    y, x = cv.grid()
+    return x + 0.5, y + 0.5
+
+
+def gm_fold_shade(cv, k=0.12, n=2.5, seed=0.0):
+    """A few soft vertical folds, as a multiplier (crisp: 3 steps), so flat art still reads as hanging cloth."""
+    u = cv.xx()
+    f = 0.5 + 0.5 * np.sin(u * math.tau * n + seed)
+    return 1 - k + levels(f, 3, 0.5) * (k / 2)
+
+
+# ---------------------------------------------------------------------------------------------- capes (regular)
+
+# ---- Torii Sunset Cape: a red gate standing in still water, the sun going down behind it, its reflection rippling
+
+TORII_PAL = ["#2a1240", "#3e1a5a", "#5e2470", "#8a2e7a", "#b83c78", "#e0566e", "#f47c5a", "#ffa648", "#ffcf6a", "#fff0b0",
+             "#ffffff", "#1a0a18", "#3a0c10", "#6a1216", "#a01c1a", "#d8361e", "#24102e", "#40204e", "#6a3a6a", "#c06a80",
+             "#ffb070", "#2c0a0c"]
+
+
+def torii_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    t = Y / h
+    hz = 0.62 * h                                                  # the horizon
+    sky = bands(np.clip((t - 0.06) / 0.56, 0, 1), ["#2a1240", "#3e1a5a", "#5e2470", "#8a2e7a", "#b83c78", "#e0566e",
+                                                    "#f47c5a", "#ffa648"], 0.45)
+    cv.arr[:] = sky
+    cv.arr[..., 3] = 1
+    # a few stars still out at the top
+    for sx, sy in ((0.14, 0.11), (0.8, 0.08), (0.62, 0.17), (0.28, 0.21), (0.9, 0.24)):
+        px_star(cv, sx * w, sy * h, 2, "#ffe8f0", glow=0.5)
+    # the sun: a big disc sitting on the horizon, banded from white-gold to orange
+    cx, cy, R = w * 0.5, hz - s * 0.2, s * 3.1
+    d = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
+    sun = (d < R) & (Y < hz)
+    cv.arr[sun] = bands(1 - d / R, ["#ffa648", "#ffcf6a", "#fff0b0", "#ffffff"], 0.4)[sun]
+    em_from(cv, sun * 0.55, "#ffcf6a")
+    # distant islands on the horizon
+    isle = (Y < hz) & (Y > hz - s * (0.5 + 0.5 * np.clip(1 - np.abs(X - w * 0.12) / (s * 1.8), 0, 1)
+                                         + 0.8 * np.clip(1 - np.abs(X - w * 0.9) / (s * 2.2), 0, 1)))
+    isle &= (np.abs(X - w * 0.12) < s * 1.8) | (np.abs(X - w * 0.9) < s * 2.2)
+    put(cv, isle, "#40204e")
+    # the water: darker bands with ripples, the sun's path a broken golden column
+    wt = np.clip((Y - hz) / (h - hz), 0, 1)
+    water = Y >= hz
+    cv.arr[water] = bands(1 - wt, ["#24102e", "#40204e", "#6a3a6a", "#c06a80"], 0.45)[water]
+    rip = water & (((Y - hz) // max(2, s // 5)) % 3 == 0) & (np.sin(X / s * 2.1 + (Y - hz) / s * 5.0) > 0.35)
+    put(cv, rip, "#c06a80")
+    path = water & (np.abs(X - cx) < R * (0.9 - wt * 0.35)) & (((Y - hz) // max(2, s // 5)) % 2 == 0)
+    path &= np.sin(X / s * 3.3 + (Y - hz) / s * 4.0) > -0.3
+    put(cv, path, "#ffcf6a")
+    em_from(cv, path * 0.35, "#ffa648")
+
+    # the gate (and its reflection, squashed and broken by the ripples)
+    def gate(base_y, k, flip):
+        def yy(v):                       # v: units above the water line
+            return base_y - v * s * k if not flip else base_y + v * s * k
+        m = np.zeros((h, w), bool)
+        top_y, beam_y = 7.4, 5.9
+        for px_ in (w * 0.5 - s * 2.3, w * 0.5 + s * 2.3):
+            lean = 0.18 * s
+            lo, hi = sorted((yy(0), yy(top_y)))
+            m |= (np.abs(X - px_) < s * 0.36 + lean * (1 - np.abs(Y - yy(top_y)) / max(1, abs(yy(0) - yy(top_y))))) & (Y >= lo) & (Y <= hi)
+        # nuki: the lower tie beam, poking out past the pillars
+        lo, hi = sorted((yy(beam_y - 0.35), yy(beam_y + 0.35)))
+        m |= (np.abs(X - w * 0.5) < s * 3.2) & (Y >= lo) & (Y <= hi)
+        # the plaque between the beams
+        lo, hi = sorted((yy(beam_y + 0.3), yy(top_y - 0.2)))
+        m |= (np.abs(X - w * 0.5) < s * 0.45) & (Y >= lo) & (Y <= hi)
+        # kasagi: the top beam, sweeping up at both ends
+        rise = ((X - w * 0.5) / (s * 4.1)) ** 2 * 0.8
+        c0, c1 = top_y - 0.1 + rise, top_y + 0.7 + rise * 1.2
+        lo_v, hi_v = (np.minimum(c0, c1), np.maximum(c0, c1))
+        if not flip:
+            m |= (np.abs(X - w * 0.5) < s * 4.1) & (Y <= yy(lo_v)) & (Y >= yy(hi_v))
+        else:
+            m |= (np.abs(X - w * 0.5) < s * 4.1) & (Y >= yy(lo_v)) & (Y <= yy(hi_v))
+        return m
+    base = hz + s * 0.6
+    g = gate(base, 1.0, False)
+    sprite(cv, g, "#a01c1a", line="#1a0a18", hi="#d8361e", lo="#6a1216", e=2)
+    # the black cap on the top beam and the dark feet of the pillars where they stand in the water
+    cap = g & (Y < base - 7.5 * s - ((X - w * 0.5) / (s * 4.1)) ** 2 * 0.8 * s)
+    put(cv, cap, "#2c0a0c")
+    put(cv, g & (Y > hz), "#2c0a0c")
+    ref = gate(base, 0.62, True) & water & ~g
+    ref &= ((Y // 2) % 3 != 0)
+    put(cv, ref, "#6a1216")
+    mc_crisp(cv, TORII_PAL)
+    mc_cape_trim(cv, "#3a0c10", "#a01c1a", stitch="#ffcf6a")
+
+
+item("torii_sunset_cape", "Torii Sunset Cape", "CAPE", "REGULAR", 0,
+     "A red gate standing in still water with the sun going down behind it, its reflection rippling on the lake.",
+     cape_bones_reg(torii_outer, lining_hd("#5e2470", "#2a1240", "#ffa648")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Graffiti Crown Cape: a crown sprayed in white on black cloth, the paint dripping and spattered round it
+
+GRAFFITI_PAL = ["#0c0c0e", "#141416", "#1c1c20", "#26262b", "#34343a", "#ffffff", "#e8e8ea", "#b8b8bc", "#ff3a8a",
+                "#ffd23a", "#3ad8ff", "#5a5a62"]
+
+
+def graffiti_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    n = pnoise(h, w, 5.0, 61, octaves=3)
+    cv.arr[:] = bands(n * gm_fold_shade(cv, 0.3), ["#0c0c0e", "#141416", "#1c1c20", "#26262b"], 0.5)
+    cv.arr[..., 3] = 1
+    # the crown, sprayed in thick strokes: a zigzag rim with a ball on each point, the band, a wobbly base line
+    cx, cy = 0.5, 0.42
+    pts = [(cx - 0.36, cy + 0.02), (cx - 0.3, cy - 0.16), (cx - 0.16, cy - 0.02), (cx, cy - 0.21), (cx + 0.16, cy - 0.02),
+           (cx + 0.3, cy - 0.16), (cx + 0.36, cy + 0.02)]
+    stroke = mc_lines(cv, [pts], s * 0.62)
+    stroke |= mc_lines(cv, [[(cx - 0.36, cy + 0.02), (cx - 0.33, cy + 0.14), (cx + 0.33, cy + 0.15), (cx + 0.36, cy + 0.02)]], s * 0.62)
+    stroke |= mc_lines(cv, [[(cx - 0.3, cy + 0.085), (cx + 0.3, cy + 0.09)]], s * 0.4)
+    for bx, by in ((cx - 0.3, cy - 0.2), (cx, cy - 0.255), (cx + 0.3, cy - 0.2)):
+        stroke |= disc(cv, bx * w, by * h, s * 0.55)
+    # paint drips running down from the base and the points
+    rng = np.random.default_rng(14)
+    for dx in (-0.3, -0.19, -0.04, 0.09, 0.22, 0.31):
+        x0 = (cx + dx) * w
+        y0 = (cy + 0.14) * h
+        L = s * (0.8 + rng.random() * 2.6)
+        wd = s * (0.12 + rng.random() * 0.1)
+        stroke |= (np.abs(X - x0) < wd) & (Y > y0) & (Y < y0 + L)
+        stroke |= disc(cv, x0, y0 + L, wd * 1.6)
+    sprite(cv, stroke, "#ffffff", hi=None, lo="#b8b8bc", e=1)
+    # overspray: a fine speckle round the strokes, fading out
+    near = grow(stroke, 3) & ~stroke
+    speck = near & (hash_noise(h, w, 9) > 0.8)
+    put(cv, speck, "#e8e8ea")
+    far = grow(stroke, 7) & ~grow(stroke, 3) & (hash_noise(h, w, 10) > 0.94)
+    put(cv, far, "#b8b8bc")
+    # a little colour: a pink underline tag and three dots
+    tag = mc_lines(cv, [[(0.2, 0.74), (0.36, 0.72), (0.5, 0.75), (0.66, 0.71), (0.8, 0.73)]], s * 0.32)
+    put(cv, tag, "#ff3a8a")
+    for i, (tx, col) in enumerate(((0.36, "#ffd23a"), (0.5, "#3ad8ff"), (0.64, "#ff3a8a"))):
+        put(cv, disc(cv, tx * w, 0.81 * h, s * 0.3), col)
+    mc_crisp(cv, GRAFFITI_PAL)
+    mc_cape_trim(cv, "#0c0c0e", "#34343a", stitch="#5a5a62")
+
+
+item("graffiti_crown_cape", "Graffiti Crown Cape", "CAPE", "REGULAR", 0,
+     "Black cloth with a crown sprayed on in white, the paint still dripping, and a splash of colour underneath.",
+     cape_bones_reg(graffiti_outer, lining_hd("#26262b", "#0c0c0e", "#ff3a8a")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Imperial Dragon Cape: a long golden dragon coiling down deep navy silk between curling clouds
+
+IMPERIAL_PAL = ["#060a1e", "#0a1030", "#0e1640", "#142052", "#1c2c66", "#2a3c7c", "#3a0e06", "#6a3a0a", "#a8701a",
+                "#d8a030", "#f0c84a", "#fff0a0", "#e11d2e", "#ffffff"]
+
+
+def imperial_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    t = Y / h
+    cv.arr[:] = bands(np.clip(0.75 - t * 0.6, 0, 1) * gm_fold_shade(cv, 0.15), ["#060a1e", "#0a1030", "#0e1640", "#142052"], 0.45)
+    cv.arr[..., 3] = 1
+    # curling clouds in a lighter navy
+    for ccx, ccy, r in ((0.2, 0.2, 1.0), (0.82, 0.48, 1.1), (0.24, 0.78, 0.9)):
+        for k, (ox, oy, rr) in enumerate(((0, 0, 1.0), (1.1, 0.2, 0.8), (-1.0, 0.25, 0.75))):
+            c = disc(cv, (ccx * w) + ox * s * r, (ccy * h) + oy * s * r, rr * s * r)
+            ring = c & ~disc(cv, (ccx * w) + ox * s * r + s * 0.25, (ccy * h) + oy * s * r - s * 0.1, rr * s * r * 0.62)
+            put(cv, ring, "#1c2c66")
+    # the dragon's body: a thick S coil from the top right down to the tail at the bottom left
+    path = [(0.72, 0.17), (0.6, 0.27), (0.36, 0.3), (0.24, 0.4), (0.32, 0.5), (0.6, 0.52), (0.76, 0.62), (0.7, 0.74),
+            (0.46, 0.78), (0.3, 0.86), (0.22, 0.95)]
+    widths = s * 1.0
+    body = mc_lines(cv, [path], widths)
+    sprite(cv, body, "#d8a030", line="#3a0e06", hi="#fff0a0", lo="#a8701a", e=2)
+    # scales: little arcs in rows along the body
+    sc = body & ~grow(~body, 2) & (((X // (s * 0.45)) + (Y // (s * 0.45))) % 2 == 0) & (((Y + X * 0.5) % (s * 0.45)) < 2)
+    put(cv, sc, "#a8701a")
+    # the spine fin: little triangles along the coil
+    fin = np.zeros((h, w), bool)
+    for (x0, y0), (x1, y1) in zip(path[1:-2], path[2:-1]):
+        for f in (0.25, 0.75):
+            fx_, fy_ = (x0 + (x1 - x0) * f) * w, (y0 + (y1 - y0) * f) * h - s * 0.75
+            fin |= mc_poly(cv, [((fx_ - s * 0.35) / w, (fy_ + s * 0.4) / h), (fx_ / w, (fy_ - s * 0.45) / h), ((fx_ + s * 0.35) / w, (fy_ + s * 0.4) / h)])
+    fin &= ~body
+    sprite(cv, fin, "#e11d2e", line="#3a0e06")
+    # claws: two little gold feet with three toes
+    for fx_, fy_ in ((0.4, 0.36), (0.66, 0.58), (0.56, 0.8)):
+        foot = mc_lines(cv, [[(fx_, fy_), (fx_ - 0.04, fy_ + 0.05)], [(fx_ - 0.04, fy_ + 0.05), (fx_ - 0.09, fy_ + 0.06)],
+                             [(fx_ - 0.04, fy_ + 0.05), (fx_ - 0.05, fy_ + 0.09)], [(fx_ - 0.04, fy_ + 0.05), (fx_ + 0.01, fy_ + 0.09)]], s * 0.3)
+        sprite(cv, foot & ~body, "#f0c84a", line="#3a0e06")
+    # the tail tuft: a flame of gold and red
+    tuft = mc_poly(cv, [(0.22, 0.92), (0.1, 0.9), (0.16, 0.95), (0.06, 0.97), (0.2, 0.98), (0.27, 0.95)])
+    sprite(cv, tuft & ~body, "#e11d2e", line="#3a0e06", hi="#f0c84a")
+    # the head: a long snout looking left, a horn and a whisker, a red eye, a pearl in front of it
+    hx, hy = 0.74 * w, 0.14 * h
+    head = disc(cv, hx, hy, s * 1.15, 1.15) | ((np.abs(Y - hy - s * 0.2) < s * 0.55) & (X > hx - s * 2.4) & (X < hx))
+    jaw = (np.abs(Y - hy - s * 0.85) < s * 0.28) & (X > hx - s * 2.0) & (X < hx - s * 0.2)
+    sprite(cv, head | jaw, "#f0c84a", line="#3a0e06", hi="#fff0a0", lo="#a8701a", e=2)
+    horn = mc_lines(cv, [[(0.76, 0.115), (0.86, 0.06), (0.9, 0.03)]], s * 0.36)
+    sprite(cv, horn & ~head, "#fff0a0", line="#3a0e06")
+    whisk = mc_lines(cv, [[(0.56, 0.155), (0.48, 0.17), (0.43, 0.2), (0.4, 0.24)]], s * 0.22)
+    put(cv, whisk & ~head & ~jaw, "#f0c84a")
+    put(cv, disc(cv, hx - s * 0.1, hy - s * 0.25, s * 0.28), "#e11d2e", 0.8)
+    put(cv, disc(cv, hx - s * 0.1, hy - s * 0.25, s * 0.12), "#ffffff")
+    put(cv, (np.abs(Y - hy - s * 0.55) < 1) & (X > hx - s * 2.2) & (X < hx - s * 0.6), "#3a0e06")   # the mouth
+    pearl = disc(cv, 0.3 * w, 0.14 * h, s * 0.6)
+    sprite(cv, pearl, "#ffffff", line="#3a0e06", lo="#f0c84a")
+    em_from(cv, pearl * 0.5, "#fff0a0")
+    mc_crisp(cv, IMPERIAL_PAL)
+    mc_cape_trim(cv, "#6a3a0a", "#f0c84a", stitch="#fff0a0")
+
+
+item("imperial_dragon_cape", "Imperial Dragon Cape", "CAPE", "REGULAR", 0,
+     "Deep navy silk with a long golden dragon coiling down it between curling clouds, chasing a pearl.",
+     cape_bones_reg(imperial_outer, lining_hd("#142052", "#060a1e", "#d8a030")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Ace of Spades Cape: a black playing card with a crimson double border, a big spade and corner pips
+
+SPADES_PAL = ["#08080a", "#101014", "#18181e", "#22222a", "#3a0408", "#6a0a12", "#a8121e", "#d81e2c", "#ff5a5a",
+              "#ffd0d0", "#2e2e36"]
+
+
+def gm_spade(cv, cx, cy, r):
+    """A spade: a heart turned upside down with a flared stem (centre and size in texels)."""
+    hp = heart_poly(cx, cy, r, rot=math.pi)
+    m = pmask(cv, lambda d: d.polygon(hp, fill=255))
+    X, Y = gm_grid(cv)
+    stem = (np.abs(X - cx) < r * 0.14 + np.clip(Y - cy - r * 0.6, 0, None) * 0.55) & (Y > cy) & (Y < cy + r * 1.25)
+    return m | stem
+
+
+def spades_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    cv.arr[:] = bands(np.clip(0.55 - Y / h * 0.4, 0, 1) * gm_fold_shade(cv, 0.25), ["#08080a", "#101014", "#18181e", "#22222a"], 0.5)
+    cv.arr[..., 3] = 1
+    top = cape_top(cv)
+    # the double border: a thick crimson frame and a thin one inside it, rounded corners
+    def frame(inset, width):
+        x0, x1, y0, y1 = inset, w - inset, top + inset, h - inset
+        rr = s * 0.8
+        inside = (X > x0) & (X < x1) & (Y > y0) & (Y < y1)
+        for ccx, ccy in ((x0 + rr, y0 + rr), (x1 - rr, y0 + rr), (x0 + rr, y1 - rr), (x1 - rr, y1 - rr)):
+            corner = (np.abs(X - ccx) > 0) & ((X - ccx) * np.sign(ccx - w / 2) > 0) & ((Y - ccy) * np.sign(ccy - h / 2) > 0)
+            inside &= ~(corner & ((X - ccx) ** 2 + (Y - ccy) ** 2 > rr * rr))
+        return inside & ~(grow(~inside, width) if width else ~inside)
+    outer = frame(s * 0.55, 0) & ~frame(s * 0.55 + 4, 0)
+    inner = frame(s * 1.0, 0) & ~frame(s * 1.0 + 2, 0)
+    put(cv, outer, "#a8121e")
+    put(cv, lit_rim(outer), "#d81e2c")
+    put(cv, inner, "#6a0a12")
+    # the big spade
+    sp = gm_spade(cv, w * 0.5, h * 0.5, s * 2.6)
+    sprite(cv, sp, "#a8121e", line="#3a0408", hi="#ff5a5a", lo="#6a0a12", e=2)
+    put(cv, disc(cv, w * 0.42, h * 0.43, s * 0.35) & sp, "#ffd0d0")       # a shine
+    em_from(cv, sp * 0.15, "#d81e2c")
+    # corner pips: a small spade over a letter A, top left and (upside down) bottom right
+    A = ["01110", "10001", "10001", "11111", "10001", "10001"]
+    for (ax, ay, flip) in ((s * 1.7, top + s * 1.6, False), (w - s * 1.7, h - s * 1.6, True)):
+        k = max(2, s // 6)
+        m = np.zeros((h, w), bool)
+        for r_, row in enumerate(A):
+            for c_, ch in enumerate(row):
+                if ch == "1":
+                    yy0 = ay + (r_ - 3) * k if not flip else ay - (r_ - 2) * k
+                    xx0 = ax + (c_ - 2.5) * k if not flip else ax - (c_ - 1.5) * k
+                    m |= (X >= xx0) & (X < xx0 + k) & (Y >= yy0) & (Y < yy0 + k)
+        put(cv, m, "#d81e2c")
+        pip = gm_spade(cv, ax, ay + s * 1.7, s * 0.55)
+        if flip:                                        # the bottom corner is the top one turned half round
+            pip = gm_spade(cv, w - ax, h - ay + s * 1.7, s * 0.55)[::-1, ::-1]
+        put(cv, pip, "#d81e2c")
+    mc_crisp(cv, SPADES_PAL)
+    mc_cape_trim(cv, "#08080a", "#2e2e36", stitch="#a8121e")
+
+
+item("ace_of_spades_cape", "Ace of Spades Cape", "CAPE", "REGULAR", 0,
+     "A black playing card with a crimson double border, a big red spade in the middle and an ace in the corners.",
+     cape_bones_reg(spades_outer, lining_hd("#3a0408", "#08080a", "#a8121e")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Snow Peak Cape: a snowy mountain under a pale winter sky, mirrored in a still blue lake
+
+PEAK_PAL = ["#cfe6f6", "#b4d4ee", "#98c0e4", "#7ea8d6", "#ffffff", "#e6eef6", "#c4d2e2", "#8a9cb6", "#5a6c8a", "#3a4a66",
+            "#263450", "#4a78b0", "#2e5a92", "#1c3e6e", "#9ad0f0", "#1a2a44", "#2e4a3e", "#20362e"]
+
+
+def peak_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    t = Y / h
+    hz = 0.6 * h
+    cv.arr[:] = bands(np.clip(1 - t / 0.6, 0, 1), ["#7ea8d6", "#98c0e4", "#b4d4ee", "#cfe6f6"], 0.45)
+    cv.arr[..., 3] = 1
+
+    def ridge(xs, base, peak, jag, seed):
+        u = X / w
+        hgt = np.interp(u, xs, peak)
+        r = np.random.default_rng(seed).normal(0, 1, 64)
+        wob = np.interp(u * 63, np.arange(64), r) * jag
+        return base - (hgt + wob) * h
+    # far range (blue-grey), then the main peak in front
+    far = Y > ridge([0, 0.15, 0.35, 0.6, 0.85, 1], hz, [0.12, 0.2, 0.1, 0.16, 0.24, 0.1], 0.006, 3)
+    far &= Y < hz
+    put(cv, far, "#8a9cb6")
+    put(cv, far & (Y < ridge([0, 0.15, 0.35, 0.6, 0.85, 1], hz, [0.12, 0.2, 0.1, 0.16, 0.24, 0.1], 0.006, 3) + s * 0.6), "#c4d2e2")
+    top_line = ridge([0, 0.2, 0.42, 0.5, 0.62, 0.8, 1], hz, [0.06, 0.16, 0.36, 0.42, 0.33, 0.14, 0.05], 0.004, 5)
+    mtn = (Y > top_line) & (Y < hz)
+    # light from the left: the left faces snow-white, the right faces in blue shadow, split along the ridge spurs
+    lit = X < w * 0.5 + (Y - (hz - 0.42 * h)) * 0.25 + np.sin(Y / s * 1.7) * s * 0.4
+    snow = Y < top_line + (hz - top_line) * (0.55 + 0.2 * np.sin(X / s * 1.3))
+    put(cv, mtn & ~snow, "#3a4a66")
+    put(cv, mtn & ~snow & lit, "#5a6c8a")
+    put(cv, mtn & snow & lit, "#ffffff")
+    put(cv, mtn & snow & ~lit, "#c4d2e2")
+    put(cv, mtn & snow & ~lit & (pnoise(h, w, 9.0, 77, octaves=2) > 0.68), "#8a9cb6")   # rock showing through
+    put(cv, grow(mtn) & ~mtn & (Y < hz) & ~far, "#e6eef6")
+    # a dark pine line along the shore
+    trees = (Y < hz) & (Y > hz - s * 0.5 - (np.abs(((X / (s * 0.45)) % 2) - 1)) * s * 0.7)
+    put(cv, trees, "#20362e")
+    put(cv, trees & lit_rim(trees), "#2e4a3e")
+    # the lake: the whole view mirrored, bluer and darker, with clean ripple lines
+    water = Y >= hz
+    mirror = np.clip(2 * hz - Y, 0, h - 1).astype(int)
+    src = cv.arr.copy()
+    xi = np.clip(X - 0.5, 0, w - 1).astype(int)
+    refl = src[mirror, xi]
+    tone = mix(refl, hexc("#1c3e6e"), 0.45)
+    cv.arr[water] = tone[water]
+    rip = water & (((Y - hz) // max(2, s // 4)) % 4 == 0) & (np.sin(X / s * 1.1 + Y / s * 2.3) > 0.55)
+    put(cv, rip, "#9ad0f0")
+    put(cv, water & (Y < hz + 2), "#e6eef6")
+    mc_crisp(cv, PEAK_PAL)
+    mc_cape_trim(cv, "#263450", "#7ea8d6", stitch="#ffffff")
+
+
+item("snow_peak_cape", "Snow Peak Cape", "CAPE", "REGULAR", 0,
+     "A snowy mountain under a pale winter sky, pines along the shore, all mirrored in a still blue lake.",
+     cape_bones_reg(peak_outer, lining_hd("#4a78b0", "#1a2a44", "#cfe6f6")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Winged Crest Cape: a golden eagle with spread wings, set on black with a gold border
+
+CREST_PAL = ["#0a0a0c", "#121216", "#1a1a20", "#24242c", "#3a2406", "#6a4a0e", "#a8781a", "#d8a830", "#f8d44a", "#fff4b0",
+             "#c81e1e"]
+
+
+def crest_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    cv.arr[:] = bands(np.clip(0.6 - Y / h * 0.45, 0, 1) * gm_fold_shade(cv, 0.25), ["#0a0a0c", "#121216", "#1a1a20", "#24242c"], 0.5)
+    cv.arr[..., 3] = 1
+    cx, cy = 0.5, 0.46
+    eagle = np.zeros((h, w), bool)
+    lines = []
+    for sd in (-1, 1):
+        # a wing: a curved leading edge up to the tip, then five long primaries fanning back down to the body
+        top = [(cx + sd * 0.05, cy - 0.03), (cx + sd * 0.12, cy - 0.15), (cx + sd * 0.24, cy - 0.22), (cx + sd * 0.38, cy - 0.27),
+               (cx + sd * 0.45, cy - 0.27)]
+        fingers = []
+        for k in range(6):
+            f = k / 5
+            tip = (cx + sd * (0.45 - f * 0.3), cy - 0.25 + f * 0.33)
+            notch = (cx + sd * (0.4 - f * 0.3), cy - 0.2 + f * 0.31)
+            fingers += [tip, notch]
+            lines.append([(cx + sd * 0.1, cy - 0.06 + f * 0.04), (tip[0] - sd * 0.03, tip[1] - 0.005)])
+        eagle |= mc_poly(cv, top + fingers + [(cx + sd * 0.05, cy + 0.1)])
+    body = disc(cv, cx * w, (cy + 0.04) * h, s * 1.25, 0.62)
+    tail = mc_poly(cv, [(cx - 0.05, cy + 0.12), (cx + 0.05, cy + 0.12), (cx + 0.13, cy + 0.25), (cx + 0.06, cy + 0.23),
+                        (cx, cy + 0.27), (cx - 0.06, cy + 0.23), (cx - 0.13, cy + 0.25)])
+    neck = mc_poly(cv, [(cx - 0.06, cy - 0.04), (cx + 0.06, cy - 0.04), (cx + 0.05, cy - 0.1), (cx - 0.05, cy - 0.1)])
+    head = disc(cv, (cx - 0.01) * w, (cy - 0.12) * h, s * 0.85, 1.15)
+    beak = mc_poly(cv, [(cx - 0.07, cy - 0.14), (cx - 0.17, cy - 0.125), (cx - 0.17, cy - 0.09), (cx - 0.13, cy - 0.1),
+                        (cx - 0.07, cy - 0.095)])
+    talons = mc_lines(cv, [[(cx - 0.04, cy + 0.12), (cx - 0.08, cy + 0.17)], [(cx + 0.04, cy + 0.12), (cx + 0.08, cy + 0.17)]], s * 0.32)
+    eagle |= body | tail | neck | head | talons
+    sprite(cv, eagle, "#d8a830", line="#3a2406", hi="#fff4b0", lo="#a8781a", e=2)
+    fl = mc_lines(cv, lines, 2) & eagle & ~grow(~eagle, 2)
+    put(cv, fl, "#a8781a")
+    tl = mc_lines(cv, [[(cx, cy + 0.14), (cx, cy + 0.25)], [(cx - 0.03, cy + 0.14), (cx - 0.07, cy + 0.23)],
+                       [(cx + 0.03, cy + 0.14), (cx + 0.07, cy + 0.23)]], 2) & tail
+    put(cv, tl, "#a8781a")
+    put(cv, (np.abs(Y - (cy + 0.04) * h) < 1) & body & (np.abs(X - cx * w) < s * 0.9), "#a8781a")
+    put(cv, grow(head) & ~head & ~body & ~neck & ~beak & (Y > (cy - 0.1) * h), "#3a2406")
+    sprite(cv, beak, "#f8d44a", line="#3a2406", lo="#a8781a")
+    put(cv, disc(cv, (cx - 0.04) * w, (cy - 0.135) * h, s * 0.2), "#c81e1e", 0.6)
+    put(cv, disc(cv, (cx - 0.045) * w, (cy - 0.14) * h, s * 0.07), "#fff4b0")
+    em_from(cv, eagle * 0.12, "#f8d44a")
+    # a thin gold border inset
+    top = cape_top(cv)
+    inset = s * 0.6
+    fr = ((np.abs(X - inset) < 1.5) | (np.abs(X - (w - inset)) < 1.5) | (np.abs(Y - (h - inset)) < 1.5) |
+          (np.abs(Y - (top + inset)) < 1.5)) & (X > inset - 2) & (X < w - inset + 2) & (Y > top + inset - 2) & (Y < h - inset + 2)
+    put(cv, fr, "#a8781a")
+    for ccx, ccy in ((inset, top + inset), (w - inset, top + inset), (inset, h - inset), (w - inset, h - inset)):
+        put(cv, (np.abs(X - ccx) + np.abs(Y - ccy)) < s * 0.4, "#f8d44a")
+    mc_crisp(cv, CREST_PAL)
+    mc_cape_trim(cv, "#3a2406", "#d8a830", stitch="#fff4b0")
+
+
+item("winged_crest_cape", "Winged Crest Cape", "CAPE", "REGULAR", 0,
+     "A golden eagle with its wings spread wide, set on black inside a fine gold border.",
+     cape_bones_reg(crest_outer, lining_hd("#24242c", "#0a0a0c", "#d8a830")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---- Crimson Samurai Cape: crimson with gold edging, a round gold family crest and a band of gold waves at the hem
+
+SAMURAI_PAL = ["#3a0408", "#5a0810", "#7a0c16", "#98121c", "#b41a24", "#cc2a2a", "#4a2a06", "#8a5a10", "#c8901e",
+               "#f0c04a", "#fff0a0", "#1a0204"]
+
+
+def samurai_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    v = np.clip(0.9 - Y / h * 0.5, 0, 1) * gm_fold_shade(cv, 0.2, 3.0, 0.4)
+    cv.arr[:] = bands(v, ["#3a0408", "#5a0810", "#7a0c16", "#98121c", "#b41a24"], 0.45)
+    cv.arr[..., 3] = 1
+    # gold edging down both sides with a key pattern
+    for xc in (s * 0.75, w - s * 0.75):
+        band = np.abs(X - xc) < s * 0.42
+        put(cv, band, "#c8901e")
+        key = band & (((Y // (s * 0.5)) % 2 == 0) & (np.abs(X - xc) < s * 0.18) | (((Y % (s * 0.5)) < 2) & (np.abs(X - xc) < s * 0.3)))
+        put(cv, key, "#4a2a06")
+        put(cv, (np.abs(np.abs(X - xc) - s * 0.42) < 1), "#f0c04a")
+    # the crest: a gold ring round three swirling commas (an old family-crest shape)
+    cx, cy, R = w * 0.5, h * 0.38, s * 2.6
+    d = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
+    ang = np.arctan2(Y - cy, X - cx)
+    ring = (d < R) & (d > R * 0.82)
+    put(cv, d < R * 0.82, "#3a0408")
+    commas = np.zeros((h, w), bool)
+    for k in range(3):
+        a0 = k * math.tau / 3
+        hx, hy = cx + math.cos(a0) * R * 0.3, cy + math.sin(a0) * R * 0.3
+        commas |= disc(cv, hx, hy, R * 0.22)
+        # each tail sweeps on round the centre, thinning to a point
+        da = (ang - a0) % math.tau
+        f = da / 2.0
+        commas |= (f < 1) & (np.abs(d - R * (0.3 + 0.28 * f)) < R * 0.2 * (1 - f) + 0.6) & (d < R * 0.76)
+    sprite(cv, ring | commas, "#f0c04a", line="#1a0204", hi="#fff0a0", lo="#c8901e", e=2)
+    em_from(cv, (ring | commas) * 0.15, "#f0c04a")
+    # the hem: rows of overlapping gold wave arcs
+    hem = h * 0.8
+    k = s * 1.25
+    wave = np.zeros((h, w), bool)
+    for row in range(4):
+        yc = hem + row * k * 0.55 + k
+        off = (row % 2) * k
+        xx = ((X + off) % (2 * k)) - k
+        dd = np.sqrt(xx ** 2 + (Y - yc) ** 2)
+        arc = (dd < k) & (Y < yc) & (Y > hem)
+        rings = arc & ((dd // (k / 3.2)) % 2 == 0)
+        wave = (wave & ~arc) | rings
+    put(cv, (Y > hem), "#5a0810")
+    put(cv, wave, "#c8901e")
+    put(cv, wave & lit_rim(wave), "#f0c04a")
+    put(cv, np.abs(Y - hem) < 1.5, "#f0c04a")
+    mc_crisp(cv, SAMURAI_PAL)
+    mc_cape_trim(cv, "#4a2a06", "#c8901e", stitch="#fff0a0")
+
+
+item("samurai_cloak", "Crimson Samurai Cape", "CAPE", "REGULAR", 0,
+     "Deep crimson with gold edging, a round gold family crest of three swirls and gold waves rolling along the hem.",
+     cape_bones_reg(samurai_outer, lining_hd("#7a0c16", "#1a0204", "#c8901e")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
+
+
+# ---------------------------------------------------------------------------------------------- capes (special, animated)
+
+# ---- Glitch Koi Cape: two neon koi chase each other round dark water; now and then the signal tears and the picture
+# slips sideways in bands, split into pink and cyan
+
+KOI_PAL = ["#04040a", "#080812", "#0c0c1c", "#121428", "#1a1e3a", "#ff3ab8", "#ff8ad8", "#ffd8f4", "#a01a78", "#3af0ff",
+           "#9af8ff", "#e0ffff", "#0a7a9a", "#ffffff", "#5a1a6a", "#1a5a7a", "#ffb03a", "#ffe08a"]
+
+
+def koi_mask(cv, cx, cy, rx, ry, ang, direction=1):
+    """A koi swimming round an ellipse: head at angle `ang`, the body trailing behind along the path, tapering to a
+    forked tail, two side fins. Returns (body, fins, spots)."""
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    body = np.zeros((h, w), bool)
+    pts = []
+    n = 14
+    for j in range(n):
+        a = ang - direction * j * 0.085
+        px_, py_ = cx + math.cos(a) * rx, cy + math.sin(a) * ry
+        pts.append((px_, py_))
+        f = j / (n - 1)
+        r = s * (0.95 * (1 - f) ** 0.7 * (0.75 + 0.25 * math.sin(min(1, f * 3) * math.pi / 2)) + 0.12)
+        body |= (X - px_) ** 2 + (Y - py_) ** 2 < r * r
+    # the forked tail at the end of the path
+    (tx, ty), (bx, by) = pts[-1], pts[-3]
+    dx, dy = tx - bx, ty - by
+    L = math.hypot(dx, dy) + 1e-6
+    dx, dy = dx / L, dy / L
+    nx_, ny_ = -dy, dx
+    tail = mc_poly(cv, [(tx / w, ty / h), ((tx + dx * s * 1.6 + nx_ * s * 1.0) / w, (ty + dy * s * 1.6 + ny_ * s * 1.0) / h),
+                        ((tx + dx * s * 0.9) / w, (ty + dy * s * 0.9) / h),
+                        ((tx + dx * s * 1.6 - nx_ * s * 1.0) / w, (ty + dy * s * 1.6 - ny_ * s * 1.0) / h)])
+    # pectoral fins just behind the head
+    (fx_, fy_), (gx, gy) = pts[3], pts[4]
+    dx, dy = fx_ - gx, fy_ - gy
+    L = math.hypot(dx, dy) + 1e-6
+    dx, dy = dx / L, dy / L
+    nx_, ny_ = -dy, dx
+    fins = np.zeros((h, w), bool)
+    for sd in (-1, 1):
+        fins |= mc_poly(cv, [((fx_ + nx_ * sd * s * 0.6) / w, (fy_ + ny_ * sd * s * 0.6) / h),
+                             ((fx_ + nx_ * sd * s * 1.5 - dx * s * 0.9) / w, (fy_ + ny_ * sd * s * 1.5 - dy * s * 0.9) / h),
+                             ((fx_ + nx_ * sd * s * 0.5 - dx * s * 0.8) / w, (fy_ + ny_ * sd * s * 0.5 - dy * s * 0.8) / h)])
+    spots = np.zeros((h, w), bool)
+    for j, rr in ((2, 0.42), (6, 0.36), (9, 0.26)):
+        spots |= disc(cv, pts[j][0] + nx_ * s * 0.15, pts[j][1] + ny_ * s * 0.15, s * rr)
+    head = pts[0]
+    return body | tail, fins & ~body, spots & body, head, (dx, dy)
+
+
+def koi_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    f = int(round(cv.phase * 24)) % 24
+    ph = f / 24
+    # dark water: banded depth, scanlines, slow ripple rings that grow outwards once a loop
+    v = np.clip(0.5 - Y / h * 0.35, 0, 1)
+    cv.arr[:] = bands(v, ["#04040a", "#080812", "#0c0c1c", "#121428"], 0.5)
+    cv.arr[..., 3] = 1
+    cv.arr[(Y.astype(int) // 2) % 3 == 0, :3] *= 0.7
+    cx, cy = w * 0.5, h * 0.5
+    for k in range(3):
+        rr = ((ph + k / 3) % 1) * s * 5.5
+        ring = np.abs(np.sqrt((X - cx) ** 2 + ((Y - cy) * 0.8) ** 2) - rr) < 1.2
+        put(cv, ring & ((X.astype(int) // 3) % 2 == 0), "#1a1e3a")
+    # two koi, half a lap apart, one full lap per loop
+    fish = []
+    for k, (col, lite, core, deep) in enumerate((("#ff3ab8", "#ff8ad8", "#ffd8f4", "#a01a78"),
+                                                 ("#3af0ff", "#9af8ff", "#e0ffff", "#0a7a9a"))):
+        ang = ph * math.tau + k * math.pi
+        body, fins, spots, head, d = koi_mask(cv, cx, cy, w * 0.27, h * 0.24, ang)
+        fish.append((body | fins, col))
+        # neon: a dark fill, a bright outline, glowing
+        put(cv, body, deep)
+        put(cv, fins, deep)
+        put(cv, spots, "#ffb03a" if k == 0 else "#ffffff")
+        edge = (body | fins) & grow(~(body | fins), 2)
+        put(cv, edge, lite, 0.9)
+        put(cv, grow(body | fins) & ~(body | fins), col, 0.8)
+        # eyes on either side of the head
+        nx_, ny_ = -d[1], d[0]
+        for sd in (-1, 1):
+            put(cv, disc(cv, head[0] + nx_ * sd * s * 0.5 + d[0] * s * 0.3, head[1] + ny_ * sd * s * 0.5 + d[1] * s * 0.3, s * 0.2), core, 1.0)
+    # a soft chromatic ghost of each fish (the signal's colour split), a few texels off
+    for m, col in fish:
+        ghost = nshift(m, 0, 3 if col == "#ff3ab8" else -3) & ~m
+        cv.arr[ghost, :3] = mix(cv.arr[ghost, :3], hexc(col)[:3], 0.35)
+    # the glitch: on a few frames, bands of rows slip sideways with a pink/cyan split, and a bright tear line
+    rng = np.random.default_rng(900 + f)
+    if f in (3, 4, 11, 17, 18, 19):
+        for _ in range(3 + (f % 3)):
+            y0 = int(rng.integers(cape_top(cv) + 4, h - 10))
+            hh = int(rng.integers(3, s))
+            off = int(rng.integers(-s, s))
+            band = cv.arr[y0:y0 + hh].copy()
+            eb = cv.em[y0:y0 + hh].copy()
+            cv.arr[y0:y0 + hh] = np.roll(band, off, axis=1)
+            cv.em[y0:y0 + hh] = np.roll(eb, off, axis=1)
+            cv.arr[y0, :, :3] = mix(cv.arr[y0, :, :3], hexc("#3af0ff")[:3], 0.6)
+            cv.arr[min(h - 1, y0 + hh - 1), :, :3] = mix(cv.arr[min(h - 1, y0 + hh - 1), :, :3], hexc("#ff3ab8")[:3], 0.6)
+        tear = int(rng.integers(cape_top(cv) + 4, h - 2))
+        put(cv, (Y.astype(int) == tear) & (hash_noise(h, w, f) > 0.3), "#ffffff", 0.8)
+    # pixel noise blocks in the corners, flickering every frame
+    blk = (hash_noise(h // 4 + 1, w // 4 + 1, 40 + f)[(Y.astype(int) // 4), (X.astype(int) // 4)] > 0.994)
+    put(cv, blk, "#3af0ff" if f % 2 else "#ff3ab8", 0.6)
+    mc_crisp(cv, KOI_PAL)
+    mc_cape_trim(cv, "#04040a", "#1a1e3a", stitch="#3af0ff")
+
+
+item("glitch_koi_cape", "Glitch Koi Cape", "CAPE", "SPECIAL", 0,
+     "Two neon koi, one pink and one cyan, chase each other round dark water while the signal glitches and tears.",
+     cape_bones_hd(koi_outer, lining_hd("#121428", "#04040a", "#ff3ab8")), layout=CAPE_HD, view=CAPE_VIEW,
+     animation=GM_SPECIAL_CAPE)
+
+
+# ---- Void Eye Cape: a great violet eye in a swirling void; it looks one way, then the other, and blinks
+
+VOID_PAL = ["#030108", "#08031a", "#10062a", "#1c0a40", "#2c0e5a", "#46147a", "#6a1aa0", "#9a2ac8", "#c85af0", "#f0a8ff",
+            "#ffe0ff", "#ffffff", "#ff3ad8", "#14041e", "#3a0a3a"]
+
+
+def void_eye_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    f = int(round(cv.phase * 24)) % 24
+    ph = f / 24
+    cx, cy = w * 0.5, h * 0.46
+    dx, dy = X - cx, (Y - cy) * 0.75
+    r = np.sqrt(dx ** 2 + dy ** 2) / w
+    ang = np.arctan2(dy, dx)
+    # the void: a three-armed spiral turning a third of a turn per loop (so it loops), brighter towards the eye
+    sw = 0.5 + 0.5 * np.sin(3 * (ang - ph * math.tau / 3) + r * 22)
+    v = np.clip(0.75 - r * 1.3, 0, 1) * (0.55 + 0.45 * sw)
+    cv.arr[:] = bands(v, ["#030108", "#08031a", "#10062a", "#1c0a40", "#2c0e5a", "#46147a"], 0.45)
+    cv.arr[..., 3] = 1
+    em_from(cv, np.clip(v - 0.45, 0, 1) * 0.6, "#46147a")
+    # motes drifting into the eye along the arms
+    for k in range(10):
+        a = k * math.tau / 10 + ph * math.tau
+        rr = (1 - ((ph * 2 + k * 0.37) % 1)) * w * 0.55 + w * 0.12
+        mx, my = cx + math.cos(a) * rr, cy + math.sin(a) * rr / 0.75
+        put(cv, disc(cv, mx, my, s * 0.16), "#c85af0", 0.8)
+    # the look: centre, glance left and hold, glance right and hold, back; a blink in the middle of the loop
+    look = [0, 0, -0.9, -1, -1, -1, -0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 1, 1, 1, 0.9, 0, 0, 0, 0, 0][f]
+    lid = {9: 0.55, 10: 0.0, 11: 0.55}.get(f, 1.0)
+    E, H = w * 0.36, s * 2.3 * lid
+    lens = np.abs(dx) < E
+    lens &= np.abs(Y - cy) < H * np.clip(1 - (dx / E) ** 2, 0, 1)
+    # the lids and lashes round it: dark flesh with a bright rim
+    lidm = np.abs(dx) < E * 1.12
+    lidm &= np.abs(Y - cy) < (s * 2.3 + s * 0.8) * np.clip(1 - (dx / (E * 1.12)) ** 2, 0, 1)
+    sprite(cv, lidm & ~lens, "#3a0a3a", line="#030108", hi="#9a2ac8", e=2)
+    for k in range(7):
+        a = math.pi + (k + 0.5) * math.pi / 7
+        x0, y0 = cx + math.cos(a) * E * 0.95, cy + math.sin(a) * (s * 2.3 + s * 0.6) * 0.95
+        put(cv, mc_lines(cv, [[(x0 / w, y0 / h), ((x0 + math.cos(a) * s * 0.9) / w, (y0 + math.sin(a) * s * 1.0) / h)]], 3), "#14041e")
+    if lid > 0:
+        # the sclera: glowing violet, brighter in the middle
+        sc = np.clip(1 - np.sqrt((dx / E) ** 2 + ((Y - cy) / (s * 2.3)) ** 2), 0, 1)
+        cv.arr[lens] = bands(sc, ["#6a1aa0", "#9a2ac8", "#c85af0", "#f0a8ff"], 0.4)[lens]
+        em_from(cv, lens * 0.45, "#c85af0")
+        ix = cx + look * E * 0.42
+        di = np.sqrt((X - ix) ** 2 + (Y - cy) ** 2)
+        iris = (di < s * 1.85) & lens
+        cv.arr[iris] = bands(1 - di / (s * 1.85), ["#ff3ad8", "#ff8af0", "#ffe0ff"], 0.4)[iris]
+        put(cv, iris & (di > s * 1.6), "#6a1aa0")
+        em_from(cv, iris * 0.8, "#ff3ad8")
+        pupil = (np.abs(X - ix) < s * 0.38 * np.clip(1 - ((Y - cy) / (s * 1.7)) ** 2, 0, 1) + 0.5) & (np.abs(Y - cy) < s * 1.7) & lens
+        put(cv, pupil, "#030108")
+        put(cv, disc(cv, ix - s * 0.8, cy - s * 0.7, s * 0.3) & lens, "#ffffff", 1.0)
+    else:
+        put(cv, (np.abs(Y - cy) < 2) & (np.abs(dx) < E), "#14041e")
+    put(cv, grow(lens) & ~lens & (lid > 0), "#14041e")
+    mc_crisp(cv, VOID_PAL)
+    mc_cape_trim(cv, "#14041e", "#46147a", stitch="#c85af0")
+
+
+item("void_eye_cape", "Void Eye Cape", "CAPE", "SPECIAL", 0,
+     "A great glowing eye in a swirling violet void. It looks one way, then the other, and every so often it blinks.",
+     cape_bones_hd(void_eye_outer, lining_hd("#1c0a40", "#030108", "#9a2ac8")), layout=CAPE_HD, view=CAPE_VIEW,
+     animation=GM_SPECIAL_CAPE)
+
+
+# ---------------------------------------------------------------------------------------------- wings
+
+# ---- Origami Sakura Wings: folded paper wings, each panel creased into a light and a shaded facet, printed with blossoms
+
+ORI_LIGHT, ORI_SHADE, ORI_DEEP, ORI_EDGE = "#ffe4ee", "#f6bcd2", "#e88aae", "#b8507a"
+ORI_BLOOM, ORI_BLOOM_D, ORI_HEART = "#ff7aa6", "#d8406e", "#ffd86a"
+
+
+def gm_blossom(cv, x, y, r):
+    """A five-petal blossom (centre and size in texels): petal mask and the centre."""
+    pet = np.zeros((cv.h, cv.w), bool)
+    for k in range(5):
+        a = -math.pi / 2 + k * math.tau / 5
+        pet |= disc(cv, x + math.cos(a) * r * 0.55, y + math.sin(a) * r * 0.55, r * 0.48)
+    return pet, disc(cv, x, y, r * 0.28)
+
+
+def origami_panel(shape, hinge, folds, blooms):
+    """A paper panel: `shape` in wing coordinates (r 0 tip .. 1 shoulder, t 0 top .. 1 bottom), creased by fold lines
+    fanning out from `hinge` to each point in `folds`, so it reads as facets that catch the light one after another;
+    blooms: [(r, t, size in units)]."""
+    tones = [ORI_LIGHT, ORI_SHADE, "#fff4f8", ORI_DEEP]
+
+    def p(face, cv):
+        W = WingDraw(face, cv)
+        W.poly(shape, (255, 255, 255, 255))
+        m = crisp_mask(W) > 0
+        r, t = wing_root(face, cv), cv.yy()
+        asp = cv.h / cv.w
+        ang = np.arctan2((t - hinge[1]) * asp, hinge[0] - r)
+        cuts = sorted(math.atan2((ft - hinge[1]) * asp, hinge[0] - fr) for fr, ft in folds)
+        idx = np.searchsorted(np.array(cuts), ang)
+        cv.arr[:] = 0
+        for k in range(len(cuts) + 1):
+            put(cv, m & (idx == k), tones[[0, 1, 2, 1, 0, 1][k]])
+        lines = WingDraw(face, cv)
+        for f in folds:
+            lines.line([hinge, f], (255, 255, 255, 255), 1.6 / cv.s)
+        ln = (lines.done()[..., 3] > 0.4) & m
+        put(cv, ln, "#ffffff")
+        put(cv, nshift(ln, 1, 0) & m & ~ln, ORI_DEEP)
+        for br, bt, sz in blooms:
+            x = (br if face == "north" else 1 - br) * cv.w
+            pet, heart = gm_blossom(cv, x, bt * cv.h, sz * cv.s)
+            pet &= m
+            sprite(cv, pet, ORI_BLOOM, hi="#ffb0cc", lo=ORI_BLOOM_D)
+            put(cv, heart & m, ORI_HEART)
+        for k, (pr, pt) in enumerate(((0.3, 0.3), (0.62, 0.52), (0.18, 0.62), (0.82, 0.35), (0.48, 0.8))):
+            x = (pr if face == "north" else 1 - pr) * cv.w
+            put(cv, disc(cv, x, pt * cv.h, cv.s * 0.2, 1.6) & m, ORI_BLOOM)
+        put(cv, m & ~(nshift(m, 1, 0) & nshift(m, -1, 0) & nshift(m, 0, 1) & nshift(m, 0, -1)), ORI_EDGE)
+        cv.arr[~m] = 0
+    return p
+
+
+def origami_knot(face, cv):
+    fill(cv, hexc(ORI_SHADE))
+    y, x = cv.grid()
+    put(cv, (x + y) % 6 < 2, ORI_LIGHT)
+    gm_k = disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.6)
+    put(cv, gm_k, ORI_BLOOM)
+    put(cv, disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.22), ORI_HEART)
+
+
+def origami_wings():
+    anim = wing_anim(24, 14, 1.4)
+    upper = origami_panel([(1, 0.66), (0.66, 0.24), (0.0, 0.0), (0.3, 0.46), (0.06, 0.6), (0.4, 0.72), (0.12, 0.92),
+                           (0.62, 0.86), (1, 0.9)],
+                          (1, 0.78), [(0.0, 0.0), (0.3, 0.46), (0.06, 0.6), (0.4, 0.72)],
+                          [(0.6, 0.36, 1.0), (0.26, 0.17, 0.62), (0.74, 0.72, 0.55)])
+    lower = origami_panel([(1, 0.0), (0.5, 0.04), (0.06, 0.96), (0.4, 0.66), (0.3, 0.9), (0.72, 0.56), (1, 0.48)],
+                          (1, 0.1), [(0.06, 0.96), (0.4, 0.66), (0.3, 0.9)], [(0.6, 0.3, 0.7)])
+    right = [Bone("wing_r", "body", (-1, 3, 2.5), (0, 0, -8), [
+        Cube((-16, -10, 2.5), (15, 13, 0), upper), Cube((-12, 2, 2.6), (11, 10, 0), lower)], anim=anim)]
+    knot = Bone("knot", "body", (0, 3, 2.5), cubes=[Cube((-1, 2, 2), (2, 2, 1), origami_knot)])
+    return wing_pair(right) + [knot]
+
+
+item("origami_sakura_wings", "Origami Sakura Wings", "WINGS", "REGULAR", 800,
+     "Wings folded from pale pink paper, every panel creased sharp and printed with cherry blossoms.",
+     origami_wings(), view=WING_VIEW)
+
+
+# ---------------------------------------------------------------------------------------------- hats
+
+# ---- Shadow Samurai Helm: a black-violet lacquered helmet with a flared neck guard, turned-back side flaps and a
+# crescent crest that glows violet along its edge (the helmet only: your face stays your own)
+
+SAM_LAC = ("#3a2e52", "#120c1c")
+SAM_VIOLET, SAM_GLOW, SAM_GOLD = "#7a3ac8", "#c87aff", "#d8b050"
+
+
+def sam_lacquer(face, cv):
+    vgrad(cv, hexc(SAM_LAC[0]), hexc(SAM_LAC[1]))
+    y, x = cv.grid()
+    if face not in ("top", "bottom"):
+        put(cv, (y % (cv.s * 1)) == 0, "#08060c")                     # the lames' lower edges
+        put(cv, ((y % cv.s) == 1), "#4a3e66")
+    rivet = ((x % (cv.s * 2)) == cv.s) & ((y % cv.s) == cv.s // 2)
+    put(cv, grow(rivet) & ~rivet, "#5a4a2a")
+    put(cv, rivet, SAM_GOLD)
+    bevel(cv, 0.18, 0.3)
+
+
+def sam_bowl(face, cv):
+    vgrad(cv, hexc(SAM_LAC[0]), hexc(SAM_LAC[1]))
+    y, x = cv.grid()
+    # raised ridges where the bowl's plates meet, two units apart, with a lit edge
+    put(cv, (x % (cv.s * 2)) == 0, "#0c0814")
+    put(cv, (x % (cv.s * 2)) == 1, "#5a4a7a")
+    if face != "top":
+        put(cv, y < 2, "#4a3e66")
+    bevel(cv, 0.2, 0.3)
+
+
+def sam_band(face, cv):
+    fill(cv, hexc("#22183a"))
+    y, x = cv.grid()
+    put(cv, (y == 0) | (y == cv.h - 1), SAM_GOLD)
+    put(cv, (np.abs(y - cv.h / 2 + 0.5) < 1) & ((x // 3) % 2 == 0), SAM_VIOLET, 0.6)
+
+
+def sam_crest(face, cv):
+    """A crescent standing up from the brow, gold at its root and violet towards the tips, its edge glowing."""
+    clear(cv)
+    if face not in ("north", "south"):
+        return
+    h, w, s = cv.h, cv.w, cv.s
+    X, Y = gm_grid(cv)
+    cx, cy = w / 2, h * 0.62
+    outer = ((X - cx) / (w * 0.5)) ** 2 + ((Y - cy) / (h * 0.62)) ** 2 < 1
+    inner = ((X - cx) / (w * 0.36)) ** 2 + ((Y - cy + h * 0.1) / (h * 0.6)) ** 2 < 1
+    moon = outer & ~inner & (Y < h * 0.86)
+    t = Y / h
+    put(cv, moon, SAM_VIOLET)
+    put(cv, moon & (t > 0.55), "#9a5ae0")
+    put(cv, moon & (t > 0.72), SAM_GOLD)
+    edge = moon & grow(~moon)
+    put(cv, edge & (t < 0.72), SAM_GLOW, 0.9)
+    put(cv, edge & (t >= 0.72), "#fff0a0")
+    # the boss at its root: a gold disc with a glowing violet stone
+    boss = disc(cv, cx, h * 0.86, s * 1.25)
+    sprite(cv, boss, SAM_GOLD, line="#3a2a0a", hi="#fff0a0", lo="#8a6a1a")
+    gem = disc(cv, cx, h * 0.86, s * 0.6)
+    put(cv, gem, SAM_GLOW, 1.0)
+    put(cv, disc(cv, cx - s * 0.2, h * 0.86 - s * 0.2, s * 0.2), "#ffffff", 1.0)
+    cv.arr[~(moon | boss | grow(moon) & False), 3] = 0
+    cv.em[~(moon | boss)] = 0
+
+
+def sam_flap(face, cv):
+    sam_lacquer(face, cv)
+    y, x = cv.grid()
+    if face in ("north", "west", "east"):
+        put(cv, disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.55), SAM_GOLD)
+        put(cv, disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.25), SAM_GLOW, 0.8)
+
+
+def samurai_helm():
+    cubes = [Cube((-4, -9, -4), (8, 3, 8), sam_bowl, inflate=0.6),
+             Cube((-3, -10, -3), (6, 1, 6), sam_bowl, inflate=0.6),
+             Cube((-0.5, -11.4, -0.5), (1, 1, 1), sam_flap),
+             Cube((-4, -6, -4), (8, 1, 8), sam_band, inflate=0.7),
+             Cube((-5, -5.5, -5.4), (10, 1, 1), sam_lacquer)]                 # the brim over your brow
+    # the neck guard: three flared tiers round the back and sides, each wider and lower than the last
+    for k in range(3):
+        y = -5 + k * 1.5
+        o = 0.5 + k * 0.6
+        cubes += [Cube((-4.5 - o, y, 4.0 + k * 0.5), (9 + 2 * o, 1, 1), sam_lacquer),
+                  Cube((-5.5 - k * 0.6, y, -1.5 + k * 0.3), (1, 1, 5.5 + k * 0.2), sam_lacquer),
+                  Cube((4.5 + k * 0.6, y, -1.5 + k * 0.3), (1, 1, 5.5 + k * 0.2), sam_lacquer)]
+    helm = Bone("helm", "head", cubes=cubes)
+    flap = Bone("flap_r", "head", (-5, -6, -3), (0, -30, 0), cubes=[Cube((-7, -7, -3.5), (2, 3, 1), sam_flap)])
+    crest = Bone("crest", "head", cubes=[Cube((-4, -15, -5.8), (8, 8, 0), sam_crest)])
+    return [helm, flap, mirrored_bone(flap, "flap_l"), crest]
+
+
+item("shadow_samurai_helm", "Shadow Samurai Helm", "HAT", "REGULAR", 400,
+     "A black-violet lacquered samurai helmet with a flared neck guard and a crescent crest that glows violet.",
+     samurai_helm(), view=dict(HEAD_VIEW, glow="#a04aff"))
+
+
+# ---------------------------------------------------------------------------------------------- auras
+
+# ---- Storm Ring (special): a ring of crackling cyan lightning circles your waist, re-striking every frame, over a
+# scorched rune circle on the ground
+
+STORM_CORE, STORM_HOT, STORM_MID, STORM_DEEP = "#ffffff", "#bff8ff", "#3ae0ff", "#1a6aff"
+
+
+def storm_ring_fn(ground):
+    def fn(cv, X, Z):
+        r = np.sqrt(X * X + Z * Z)
+        ang = np.arctan2(Z, X)
+        f = int(round(cv.phase * 16)) % 16
+        rng = np.random.default_rng(4000 + f * 7 + ground)
+        px_ = 1.0 / cv.h
+        A = np.zeros_like(r)
+        C = np.zeros(r.shape + (3,), np.float32)
+
+        def paint(mask, col, a):
+            nonlocal A
+            C[mask] = hexc(col)[:3]
+            A = np.where(mask, np.maximum(A, a), A)
+        if ground:
+            # a dark scorched circle with a bright rim and a few cracked rune ticks
+            band = (r > 0.78) & (r < 0.95)
+            paint(band, STORM_DEEP, 0.45)
+            paint((np.abs(r - 0.95) < 2 * px_) | (np.abs(r - 0.78) < 1.5 * px_), STORM_MID, 0.9)
+            tick = (r > 0.8) & (r < 0.93) & (np.abs(((ang / math.tau * 24) % 1) - 0.5) < 0.06)
+            paint(tick, STORM_HOT, 0.8)
+        # the lightning: a jagged line round the ring, re-struck every frame (random phases), and short forks off it
+        jag = np.zeros_like(r)
+        for k, amp in ((3, 0.05), (7, 0.03), (13, 0.02), (23, 0.012)):
+            jag += amp * np.sin(ang * k * 4 + rng.random() * math.tau)
+        rm = (0.86 if ground else 0.82) + jag
+        d = np.abs(r - rm)
+        paint(d < 5 * px_, STORM_DEEP, 0.55)
+        paint(d < 3 * px_, STORM_MID, 0.95)
+        paint(d < 1.3 * px_, STORM_CORE, 1.0)
+        for _ in range(3):
+            a0 = rng.uniform(-math.pi / 2, 0)
+            pts = [(math.cos(a0) * 0.84, math.sin(a0) * 0.84)]
+            out = rng.choice((-1, 1))
+            for step in range(4):
+                lx, lz = pts[-1]
+                rad = math.hypot(lx, lz) + out * rng.uniform(0.03, 0.06)
+                aa = math.atan2(lz, lx) + rng.uniform(-0.12, 0.12)
+                pts.append((math.cos(aa) * rad, math.sin(aa) * rad))
+            for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
+                t = np.clip(((X - x0) * (x1 - x0) + (Z - z0) * (z1 - z0)) / ((x1 - x0) ** 2 + (z1 - z0) ** 2 + 1e-9), 0, 1)
+                dd = np.hypot(X - (x0 + t * (x1 - x0)), Z - (z0 + t * (z1 - z0)))
+                paint(dd < 2.2 * px_, STORM_MID, 0.9)
+                paint(dd < 1 * px_, STORM_HOT, 1.0)
+        A *= r < 1.0
+        A = levels(A, 5, 0.2) / 4.0
+        cv.arr[..., :3] = C
+        cv.arr[..., 3] = A
+        em_rgb(cv, C, A)
+    return fn
+
+
+def storm_ring_bones():
+    waist = sigil_bones(storm_ring_fn(0), R=11, spin=90, y=13.5, name="ring")
+    ground = sigil_bones(storm_ring_fn(1), R=10, spin=-30, y=23.6, name="ground")
+    return waist + ground
+
+
+item("storm_ring_aura", "Storm Ring", "AURA", "SPECIAL", None,
+     "A ring of crackling cyan lightning circles your waist and strikes again and again over a scorched ring at your feet.",
+     storm_ring_bones(),
+     fx={"type": "aura", "particle": "soft", "colors": ["#FFFFFF", "#7AF0FF", "#1A6AFF"], "rate": 5, "size": 0.45,
+         "life": 0.6, "fade": 0.15, "sizeEnd": 0.2, "gravity": 0.0},
+     view=AURA_VIEW, animation={"frames": 16, "frametime": 1.5, "interpolate": False, "scale": 8})
+
+
+# ---------------------------------------------------------------------------------------------- pets
+# Small shoulder and hover pets on the pet engine (see the pets section above), chibi-sized: a big head that glances
+# about, eyelids that blink, little parts on their own animations; check_pet_clearance() and check_pet_parts() prove
+# none of it reaches into you or into itself.
+
+# -------- Baby Capybara: a calm little capybara sitting on your shoulder with a tiny citrus balanced on its head
+
+CAPY_FUR, CAPY_DARK, CAPY_SNOUT, CAPY_NOSE = "#b67c46", "#7e5028", "#94603a", "#2a1810"
+CAPY = PERCH
+
+
+def capy_body(face, A):
+    A.put(((A.x * 5 + A.y * 3) % 11 == 0), shade(CAPY_FUR, 0.9))
+    if face == "north":
+        A.ellipse(A.w / 2, A.h * 0.75, A.w * 0.3, A.h * 0.5, shade(CAPY_FUR, 1.12))
+
+
+def capy_head(face, A):
+    A.put(((A.x * 3 + A.y * 7) % 13 == 0), shade(CAPY_FUR, 0.9))
+    if face == "north":                        # 12 x 12, the snout covers the lower part: eyes sit high
+        eye(A, 1, 2, 2, 2, "#5a3a1a", dark="#1a100a")
+        eye(A, 9, 2, 2, 2, "#5a3a1a", dark="#1a100a")
+    elif face in ("east", "west"):
+        A.rect(4, 3, 6, 5, CAPY_DARK)          # a little ear hole line on the side
+
+
+def capy_snout(face, A):
+    if face == "north":                        # 12 x 8: nostrils on top, a little mouth
+        A.rect(3, 1, 5, 2, CAPY_NOSE)
+        A.rect(7, 1, 9, 2, CAPY_NOSE)
+        A.pix([(5, 5), (6, 5)], CAPY_NOSE)
+        A.pix([(4, 4), (7, 4)], shade(CAPY_SNOUT, 0.8))
+        A.rect(0, 6, 1, 7, "#e89a8a")
+        A.rect(11, 6, 12, 7, "#e89a8a")
+    elif face == "top":
+        A.rect(0, 0, A.w, 1, shade(CAPY_SNOUT, 1.1))
+
+
+def capy_foot(face, A):
+    if face == "north":
+        A.put(A.y == A.h - 1, CAPY_DARK)
+
+
+def capy_yuzu(face, A):
+    A.put(((A.x * 2 + A.y) % 5 == 0), "#ffb43a")
+    if face == "top":
+        A.pix([(1, 1), (2, 1), (1, 2), (2, 2)], "#7ab83a")
+
+
+def capy_leaf(face, A):
+    m = A.poly([(0.1, 1.0), (0.0, 0.4), (0.5, 0.0), (1.0, 0.3), (0.6, 1.0)])
+    if face == "south":
+        m = m[:, ::-1]
+    A.put(m & (A.x == A.w // 2), "#3a7a2a")
+    A.clip(m)
+    A.rim(RIM)
+    A.norim[:] = True
+
+
+def capybara_pet():
+    a = CAPY
+    body = pet_body("capybara", a, [
+        PC(a, (-1.5, -2, -1), (3, 2, 3), px(CAPY_FUR, capy_body)),
+        PC(a, (-1.25, -1, -1.5), (1, 1, 1), px(CAPY_FUR, capy_foot)),
+        PC(a, (0.25, -1, -1.5), (1, 1, 1), px(CAPY_FUR, capy_foot))])
+    head = Bone("head", "root", P(a, 0, -2, -0.75), cubes=[
+        PC(a, (-1.5, -5, -2), (3, 3, 3), px(CAPY_FUR, capy_head)),
+        PC(a, (-1.5, -3.75, -3), (3, 2, 1), px(CAPY_SNOUT, capy_snout)),
+        PC(a, (-0.5, -6, -0.75), (1, 1, 1), px("#f07a10", capy_yuzu)),
+        PC(a, (-0.25, -7, -0.25), (1, 1, 0), px("#5aa83a", capy_leaf, rim=0))],
+        anim={"type": "pet_head", "amp": 9}, parent="capybara")
+    lids = blink_bone("lids", "head", a, (-1.5, -5, -2.02), (3, 1, 0), lid_paint(CAPY_FUR, [(1, 2), (9, 2)], CAPY_NOSE))
+    lids.anim["speed"] = 0.2                        # a slow, sleepy blink
+    ear = Bone("ear_r", "root", P(a, -1.25, -5, 0.25), cubes=[PC(a, (-1.5, -5.75, 0), (1, 1, 0), px(CAPY_DARK, rim=0.8))],
+               anim={"type": "sway", "amp": 14, "speed": 0.6}, parent="head")
+    return [body, head, lids] + pet_pair(ear, a)
+
+
+item("baby_capybara", "Baby Capybara", "PET", "REGULAR", 500,
+     "A calm little capybara with a tiny citrus balanced on its head. It sits on your shoulder, blinks slowly and "
+     "twitches its ears.",
+     capybara_pet(), view=dict(PET_VIEW, glow="#ffb45a"))
+
+
+# -------- Panda Cub: a round panda cub sitting on your shoulder, black ears and arms, big eyes in dark patches
+
+PANDA_W, PANDA_K, PANDA_G = "#f4f2ee", "#22222a", "#d8d4cc"
+PANDA = (PERCH[0], PERCH[1], PERCH[2] - 0.25)
+
+
+def panda_body(face, A):
+    # a black band over the shoulders and down the arms, a white tummy
+    A.put(A.y < 3, PANDA_K)
+    if face == "north":
+        A.ellipse(A.w / 2, A.h * 0.8, A.w * 0.32, A.h * 0.45, PANDA_W)
+
+
+def panda_head(face, A):
+    if face == "north":                        # 16 x 12: tilted eye patches, eyes, a little blush
+        for cx_, tilt in ((4.5, 1), (11.5, -1)):
+            m = (((A.x + 0.5 - cx_) + (A.y + 0.5 - 5) * 0.4 * tilt) / 2.3) ** 2 + ((A.y + 0.5 - 4.9) / 2.6) ** 2 <= 1
+            A.put(m, PANDA_K)
+        eye(A, 3, 3, 3, 3, "#7a5a3a", dark="#06060a", lid=PANDA_K)
+        eye(A, 10, 3, 3, 3, "#7a5a3a", dark="#06060a", lid=PANDA_K)
+        A.rect(1, 8, 3, 9, "#ffb0c0")
+        A.rect(13, 8, 15, 9, "#ffb0c0")
+    elif face == "top":
+        A.put((A.y < 2) & (A.x % 5 == 2), PANDA_G)
+
+
+def panda_muzzle(face, A):
+    if face == "north":                        # 8 x 4: a black nose and a smile
+        A.rect(3, 0, 5, 1, PANDA_K)
+        A.pix([(4, 1), (3, 2), (5, 2)], PANDA_K)
+
+
+def panda_leg(face, A):
+    if face == "north":
+        A.pix([(1, A.h - 2), (2, A.h - 2)], "#4a4a52")
+
+
+def panda_pet():
+    a = PANDA
+    body = pet_body("panda", a, [
+        PC(a, (-1.5, -2, -1), (3, 2, 3), px(PANDA_W, panda_body)),
+        PC(a, (-1.75, -2, -1.5), (1, 2, 1), px(PANDA_K, panda_leg)),
+        PC(a, (0.75, -2, -1.5), (1, 2, 1), px(PANDA_K, panda_leg)),
+        PC(a, (-1.5, -1, 1), (1, 1, 1), px(PANDA_K)),
+        PC(a, (0.5, -1, 1), (1, 1, 1), px(PANDA_K))])
+    head = Bone("head", "root", P(a, 0, -2, -0.5), cubes=[
+        PC(a, (-2, -5, -2), (4, 3, 3), px(PANDA_W, panda_head)),
+        PC(a, (-1, -3.25, -2.5), (2, 1, 1), px(PANDA_W, panda_muzzle)),
+        PC(a, (-2.25, -5.75, -1), (1, 1, 1), px(PANDA_K)),
+        PC(a, (1.25, -5.75, -1), (1, 1, 1), px(PANDA_K))],
+        anim={"type": "pet_head", "amp": 12}, parent="panda")
+    lids = blink_bone("lids", "head", a, (-1.75, -4.25, -2.02), (3, 1, 0), lid_paint(PANDA_K, [(2, 3), (9, 3)], "#8a8a96"))
+    return [body, head, lids]
+
+
+item("panda_cub", "Panda Cub", "PET", "REGULAR", 600,
+     "A round panda cub with big eyes in dark patches that sits on your shoulder, looks about and blinks.",
+     panda_pet(), view=dict(PET_VIEW, glow="#9ae07a"))
+
+
+# -------- Bolt the Robot: a little hover robot with a screen face, blinking pixel eyes, a chest light and an antenna
+
+BOLT_W, BOLT_G, BOLT_D, BOLT_SCREEN, BOLT_CYAN = "#e4e8ee", "#a8b0bc", "#4a5260", "#0a1420", "#4af0ff"
+BOLT = (HOVER[0] + 0.25, HOVER[1] - 0.25, HOVER[2])
+
+
+def bolt_head(face, A):
+    if face == "north":                        # 16 x 12: a dark rounded screen with pixel eyes and a smile
+        A.rect(1, 1, 15, 11, BOLT_SCREEN)
+        for cx_, cy_ in ((1, 1), (14, 1), (1, 10), (14, 10)):
+            A.pix([(cx_, cy_)], rgbf(BOLT_W))
+        A.rect(4, 4, 6, 7, BOLT_CYAN, glow=0.9)
+        A.rect(10, 4, 12, 7, BOLT_CYAN, glow=0.9)
+        A.pix([(6, 8), (7, 9), (8, 9), (9, 8)], BOLT_CYAN, glow=0.7)
+        A.norim |= (A.x >= 1) & (A.x < 15) & (A.y >= 1) & (A.y < 11)
+    elif face in ("east", "west"):
+        A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
+    elif face == "top":
+        A.put((A.x + A.y) % 6 == 0, BOLT_G)
+
+
+def bolt_body(face, A):
+    A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
+    if face == "north":                        # 12 x 12: a round chest light
+        A.ellipse(6, 5.5, 2.6, 2.6, BOLT_D)
+        A.ellipse(6, 5.5, 1.7, 1.7, BOLT_CYAN, glow=1.0)
+        A.pix([(5, 4)], "#ffffff", glow=1.0)
+        A.pix([(2, 9), (4, 9), (8, 9), (10, 9)], BOLT_D)
+
+
+def bolt_jet(face, A):
+    A.fill(BOLT_D)
+    if face == "bottom":
+        A.ellipse(A.w / 2, A.h / 2, A.w * 0.35, A.h * 0.35, BOLT_CYAN, glow=1.0)
+
+
+def bolt_bolt(face, A):
+    A.put((A.x == A.w // 2) | (A.y == A.h // 2), BOLT_D)
+
+
+def bolt_antenna(face, A):
+    m = (np.abs(A.x + 0.5 - A.w / 2) < 0.8) | ((A.y < 3) & (np.abs(A.x + 0.5 - A.w / 2) < 1.6))
+    A.put(A.y < 3, "#ff5a5a", glow=1.0)
+    A.clip(m)
+    A.norim[:] = True
+
+
+def bolt_arm(face, A):
+    A.put(A.y >= A.h - 2, BOLT_G)
+
+
+def bolt_pet():
+    a = BOLT
+    body = pet_body("robot", a, [
+        PC(a, (-1.5, -3, -1), (3, 3, 2), px(BOLT_W, bolt_body)),
+        PC(a, (-1, 0, -0.5), (2, 1, 1), px(BOLT_D, bolt_jet))])
+    body.anim = dict(PET_ANIM, amp=1.0, speed=1.4)
+    head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
+        PC(a, (-2, -6, -1.5), (4, 3, 3), px(BOLT_W, bolt_head)),
+        PC(a, (-2.5, -5, -0.5), (1, 1, 1), px(BOLT_G, bolt_bolt)),
+        PC(a, (1.5, -5, -0.5), (1, 1, 1), px(BOLT_G, bolt_bolt)),
+        PC(a, (-0.5, -8, 0), (1, 2, 0), px("#c8ccd4", bolt_antenna, rim=0))],
+        anim={"type": "pet_head", "amp": 14}, parent="robot")
+    lids = blink_bone("lids", "head", a, (-1.75, -5.25, -1.52), (3, 1, 0), lid_paint(BOLT_SCREEN, [(3, 2), (9, 2)], BOLT_CYAN))
+    lids.anim["speed"] = 0.35
+    arm = Bone("arm_r", "root", P(a, -1.5, -2, 0), (0, 0, 12), cubes=[PC(a, (-2.5, -2, -0.5), (1, 2, 1), px(BOLT_W, bolt_arm))],
+               anim={"type": "wing", "side": 1, "base": 0, "amp": 10, "speed": 1.0, "fold": 0}, parent="robot")
+    return [body, head, lids] + pet_pair(arm, a)
+
+
+item("bolt_robot", "Bolt the Robot", "PET", "REGULAR", 700,
+     "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna "
+     "blinks red while it floats beside your shoulder.",
+     bolt_pet(), view=dict(PET_VIEW, glow="#4af0ff"))
+
+
+# -------- Steampunk Shark: a brass-plated flying shark with goggle eyes, a toothy grin and a cog turning on its back
+
+SHARK_BRASS, SHARK_COPPER, SHARK_DARK, SHARK_BELLY, SHARK_LENS = "#c8923a", "#a8582a", "#4a2a12", "#ead2a0", "#ffb030"
+SHARK = (HOVER[0] + 0.5, HOVER[1], HOVER[2] + 0.5)
+
+
+def shark_hull(face, A):
+    # riveted brass plates: a copper band, rows of rivets, a pale belly
+    A.put(A.y % 6 == 0, shade(SHARK_BRASS, 0.8))
+    A.put((A.y % 6 == 2) & (A.x % 3 == 1), "#ffe08a")
+    A.put((A.y >= 3) & (A.y < 5) & (face in ("east", "west", "top")), SHARK_COPPER)
+    if face in ("east", "west"):
+        A.put(A.y >= A.h - 4, SHARK_BELLY)
+        A.put((A.y == A.h - 5), SHARK_DARK)
+    elif face == "bottom":
+        A.fill(SHARK_BELLY)
+
+
+def shark_head(face, A):
+    shark_hull(face, A)
+    if face == "north":                        # 12 x 12: goggle eyes up top, a toothy grin below
+        for ex in (0, 7):
+            A.rect(ex, 2, ex + 5, 7, SHARK_DARK)
+            A.rect(ex + 1, 3, ex + 4, 6, SHARK_COPPER)
+        eye(A, 1, 3, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
+        eye(A, 8, 3, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
+        A.rect(0, 8, 12, 12, SHARK_BELLY)
+        A.rect(1, 9, 11, 11, "#3a0a0a")
+        A.pix([(x, 9) for x in range(1, 11, 2)] + [(x, 10) for x in range(2, 11, 2)], "#fffbe8")
+    elif face in ("east", "west"):
+        A.pix([(A.w // 2 - 1, 6), (A.w // 2, 6), (A.w // 2 + 1, 6)], SHARK_DARK)      # gill slits
+        A.pix([(A.w // 2 - 1, 7), (A.w // 2 + 1, 7)], SHARK_DARK)
+
+
+def shark_fin(face, A):
+    m = A.poly([(0.0, 1.0), (0.35, 0.0), (0.55, 0.05), (1.0, 1.0)])
+    if face == "west":
+        m = m[:, ::-1]
+    A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
+    A.clip(m)
+    A.rim(RIM)
+    A.norim[:] = True
+
+
+def shark_side_fin(face, A):
+    A.put(A.x % 3 == 0, shade(SHARK_COPPER, 0.8))
+
+
+def shark_tail(face, A):
+    m = A.poly([(0.0, 0.0), (0.5, 0.42), (0.85, 0.0), (1.0, 0.0), (0.7, 0.5), (1.0, 1.0), (0.8, 1.0), (0.45, 0.6), (0.0, 0.9)])
+    if face == "west":
+        m = m[:, ::-1]
+    A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
+    A.clip(m)
+    A.rim(RIM)
+    A.norim[:] = True
+
+
+def shark_gear(face, A):
+    """A flat brass cog seen from above: eight teeth, a ring and spokes."""
+    cx_, cy_ = A.w / 2, A.h / 2
+    rr = np.sqrt((A.x + 0.5 - cx_) ** 2 + (A.y + 0.5 - cy_) ** 2)
+    ang = np.arctan2(A.y + 0.5 - cy_, A.x + 0.5 - cx_)
+    teeth = (rr < A.w * 0.5) & (np.cos(ang * 8) > 0.2)
+    m = teeth | (rr < A.w * 0.4)
+    A.fill("#e0b050")
+    A.put(rr < A.w * 0.3, SHARK_DARK)
+    A.put((rr < A.w * 0.3) & ((np.abs(np.sin(ang * 2)) < 0.3)), "#e0b050")
+    A.put(rr < A.w * 0.1, "#ffe08a")
+    A.clip(m)
+    A.rim(RIM)
+    A.norim[:] = True
+
+
+def shark_pet():
+    a = SHARK
+    body = pet_body("shark", a, [
+        PC(a, (-1.5, -3.5, -1), (3, 3, 3), px(SHARK_BRASS, shark_hull)),
+        PC(a, (-0.5, -4, -0.75), (1, 1, 1), px(SHARK_DARK)),                     # the cog's axle
+        PC(a, (0, -6.5, 1.25), (0, 3, 3), px(SHARK_COPPER, shark_fin, rim=0))])   # the dorsal fin
+    body.anim = dict(PET_ANIM, amp=1.0, speed=1.2)
+    head = Bone("head", "root", P(a, 0, -2, -1), cubes=[
+        PC(a, (-1.5, -3.75, -4), (3, 3, 3), px(SHARK_BRASS, shark_head))],
+        anim={"type": "pet_head", "amp": 10}, parent="shark")
+    lids = blink_bone("lids", "head", a, (-1.5, -3.0, -4.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
+    gear = Bone("cog", "root", P(a, 0, -4.1, -0.25), cubes=[PC(a, (-1.5, -4.1, -1.75), (3, 0, 3), px("#e0b050", shark_gear, rim=0))],
+                anim={"type": "spin", "speed": 120}, parent="shark")
+    tail = Bone("tail", "root", P(a, 0, -2, 2), cubes=[
+        PC(a, (-1, -3, 2), (2, 2, 2), px(SHARK_BRASS, shark_hull)),
+        PC(a, (0, -5, 4), (0, 6, 3), px(SHARK_COPPER, shark_tail, rim=0))],
+        anim=wag(16, 0.9), parent="shark")
+    fin = Bone("fin_r", "root", P(a, -1.5, -1.5, 0.5), (0, 0, -20), cubes=[PC(a, (-4, -1.5, -0.5), (3, 0, 2), px(SHARK_COPPER, shark_side_fin))],
+               anim={"type": "wing", "side": 1, "base": 0, "amp": 8, "speed": 1.2, "fold": 0}, parent="shark")
+    return [body, head, lids, gear, tail] + pet_pair(fin, a)
+
+
+item("steampunk_shark", "Steampunk Shark", "PET", "REGULAR", 700,
+     "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims "
+     "through the air beside your shoulder.",
+     shark_pet(), view=dict(PET_VIEW, glow="#ffb030"))
+
+
+# ---------------------------------------------------------------------------------------------- emotes
+# Besides the part keyframes, these emotes use three newer emote features (client 2.8.1+, see the README): "root"
+# keyframes turn the whole model about the hips and "offset" keyframes ([seconds, x, y, z] px, y down) move it, for
+# flips and floating; "fx" adds particles while the emote plays (EmoteFx); and an emote with a model.json shows that
+# model (a prop) only while it plays. Their thumbnails are drawn by gm_thumb_emote(): the pose with the whole-model turn,
+# the prop, and a picture of the particles.
+
+GM_HIP = np.array([0.0, 12.0, 0.0])
+
+
+def gm_sprite(rows, cols):
+    """A tiny pixel-art sprite from strings ('.' clear, a digit = an index into cols) as an RGBA float array."""
+    h, w = len(rows), len(rows[0])
+    a = np.zeros((h, w, 4), np.float32)
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                a[y, x] = hexc(cols[int(ch)])
+    return a
+
+
+GM_HEART = gm_sprite([".11...11.", "1221.1121", "1222122211"[:9], "122222221", ".1222221.", "..12221..", "...121...", "....1...."],
+                     ["#000000", "#c8102e", "#ff4a6a"])
+GM_HEART[2, 2:4] = hexc("#ffd0d8")
+GM_NOTE = gm_sprite(["...1111", "...1..1", "...1..1", "...1..1", ".111.11", "1111111", ".11..11"[:7]], ["#000000", "#ffffff"])
+GM_FLAME = gm_sprite(["...1...", "..121..", "..121..", ".12321.", ".12321.", "1233321", "1234321", ".12321."],
+                     ["#000000", "#c4300e", "#ff7a1a", "#ffc23a", "#fff4c0"])
+GM_PUFF = gm_sprite(["..111..", ".12221.", "1222221", "1222221", "1222221", ".12221.", "..111.."], ["#000000", "#c8ccd8", "#ffffff"])
+GM_DUST = gm_sprite([".111.", "12221", "12221", ".111."], ["#000000", "#9a8a72", "#d8ccb8"])
+
+
+def gm_rune(k, col):
+    rows = RUNES[k % len(RUNES)]
+    return gm_sprite([r.replace("1", "0") for r in rows], [col])
+
+
+def gm_billboard(scene, view, pos, size, tex, tint=None):
+    """A camera-facing sprite at pos (entity space), `size` px tall; glowing unless its tint is "matte"."""
+    glow = tint != "matte"
+    tint = None if tint == "matte" else tint
+    right, up = view[0], view[1]
+    h, w = tex.shape[:2]
+    sx, sy = size * w / h / 2, size / 2
+    p = np.asarray(pos, float)
+    pts = [p - right * sx + up * sy, p + right * sx + up * sy, p + right * sx - up * sy, p - right * sx - up * sy]
+    col = np.ones(4, np.float32) if tint is None else hexc(tint)
+    scene.quads.append((np.array(pts), np.array([(0, 0), (1, 0), (1, 1), (0, 1)], float), tex, None, col, glow))
+
+
+def gm_root_matrix(root, offset):
+    return translate(GM_HIP + np.asarray(offset, float)) @ rotate(*root) @ translate(-GM_HIP)
+
+
+def gm_thumb_emote(it, size=THUMB, prop=None):
+    v = it["view"]
+    pose = v.get("pose") or emote_key_pose(it["emote"])
+    Mr = gm_root_matrix(v.get("root", (0, 0, 0)), v.get("offset", (0, 0, 0)))
+    scene = Scene()
+    for part, (pivot, origin, sz) in MANNEQUIN.items():
+        rx, ry, rz = pose.get(part, (0, 0, 0))
+        M = Mr @ translate(pivot) @ rotate(rx, ry, rz)
+        local = [o - pv for o, pv in zip(origin, pivot)]
+        scene.cube(M, local, sz, SKIN_UV[part], 0, False, 64, 64, SKIN, np.ones(4, np.float32), False)
+    add_shadow(scene)
+    if prop is not None:
+        tex, em, tw, th = prop
+        placed = {}
+        for b in it["bones"]:
+            base = placed[b.parent] if b.parent else Mr
+            M = base @ translate(b.pivot) @ rotate(*b.rotation) @ translate([-q for q in b.pivot])
+            placed[b.name] = M
+            if (b.anim or {}).get("type") == "blink":
+                lid = v.get("prop_lids")
+                if not lid:
+                    continue
+            for c in b.cubes:
+                scene.cube(M, c.origin, c.size, c.uv, c.inflate, c.mirror, tw, th, tex, np.ones(4, np.float32), b.emissive,
+                           None if b.emissive else em, c.faces)
+    yaw, pitch = v.get("yaw", -24), v.get("pitch", 6)
+    R = rot_matrix(pitch, 0, 0) @ rot_matrix(0, yaw, 0)
+    view = np.diag([1, -1, -1]) @ R
+    for pos, sz, tex, tint in v.get("fx_pic", lambda: [])():
+        gm_billboard(scene, view, pos, sz, tex, tint)
+    im = render_scene(scene, yaw, pitch, size=size, frame=v.get("frame"), margin=v.get("margin", 1.10))
+    return badge(im, v.get("glow", "#ffd36a"), 0.4)
+
+
+gm_thumb_emote_shipped = thumb_emote
+gm_thumb_model_shipped = thumb_model
+
+
+def gm_thumb_emote_any(it, size=THUMB):
+    return gm_thumb_emote(it, size) if it["view"].get("gm") else gm_thumb_emote_shipped(it, size)
+
+
+def gm_thumb_model_any(it, tex_arr, em_arr, tw, th, phase=None, size=THUMB):
+    if it["slot"] == "EMOTE" and it["view"].get("gm"):
+        return gm_thumb_emote(it, size, prop=(tex_arr, em_arr, tw, th))
+    return gm_thumb_model_shipped(it, tex_arr, em_arr, tw, th, phase, size)
+
+
+thumb_emote = gm_thumb_emote_any
+thumb_model = gm_thumb_model_any
+
+
+def gm_ring(n, r, y, jitter=0.0, seed=0):
+    rng = np.random.default_rng(seed)
+    out = []
+    for k in range(n):
+        a = k / n * math.tau + rng.normal(0, jitter)
+        out.append((math.cos(a) * r, y + rng.normal(0, jitter * 4), math.sin(a) * r))
+    return out
+
+
+# ---- Breakdance: drop down, kick up into a handstand and spin round on your hands with your legs scissoring
+
+BREAK_SPIN = [[0.9 + k * 0.2, 0, k * 45, 180] for k in range(9)]
+item("breakdance", "Breakdance", "EMOTE", "REGULAR", 250,
+     "Drop down, kick up into a handstand and spin round on your hands, legs scissoring, then flip back up.",
+     emote={"length": 3.4, "loop": True, "parts": {
+         "root": [[0, 0, 0, 0], [0.4, 10, 0, 0], [0.9, 0, 0, 180]] + BREAK_SPIN + [[2.9, 0, 360, 180], [3.4, 0, 360, 360]],
+         "offset": [[0, 0, 0, 0], [0.4, 0, 5, 0], [0.65, 0, -6, 0], [0.9, 0, -10, 0], [2.7, 0, -10, 0], [3.15, 0, -4, 0], [3.4, 0, 0, 0]],
+         "rightArm": [[0, 0, 0, 0], [0.4, -60, 0, 10], [0.9, -180, 0, -22], [2.7, -180, 0, -22], [3.4, 0, 0, 0]],
+         "leftArm": [[0, 0, 0, 0], [0.4, -60, 0, -10], [0.9, -180, 0, 22], [2.7, -180, 0, 22], [3.4, 0, 0, 0]],
+         "rightLeg": [[0, 0, 0, 0], [0.4, -60, 0, 0], [0.9, 0, 0, 25], [1.4, -30, 0, 40], [1.9, 30, 0, 15], [2.4, -30, 0, 40],
+                      [2.9, 0, 0, 20], [3.4, 0, 0, 0]],
+         "leftLeg": [[0, 0, 0, 0], [0.4, -20, 0, 0], [0.9, 0, 0, -25], [1.4, 30, 0, -15], [1.9, -30, 0, -40], [2.4, 30, 0, -15],
+                     [2.9, 0, 0, -20], [3.4, 0, 0, 0]],
+         "head": [[0, 0, 0, 0], [0.9, -20, 0, 0], [2.7, -20, 0, 0], [3.4, 0, 0, 0]]}},
+     view={"gm": True, "pose": {"rightArm": (-180, 0, -22), "leftArm": (-180, 0, 22), "rightLeg": (-30, 0, 40),
+                                "leftLeg": (30, 0, -15), "head": (-20, 0, 0)},
+           "root": (0, 30, 180), "offset": (0, -10, 0), "yaw": -30, "pitch": 6, "glow": "#7ad8ff",
+           "fx_pic": lambda: [(p, 2.2, GM_DUST, "matte") for p in gm_ring(10, 9, 23.2, 0.15, 3)]},
+     thumb="emote")
+
+
+# ---- Levitate: sit cross-legged in the air, rising and falling gently, with rune glyphs circling you
+
+item("levitate", "Levitate", "EMOTE", "REGULAR", 250,
+     "Sit cross-legged and float up off the ground, bobbing gently while glowing rune glyphs circle you.",
+     emote={"length": 3.0, "loop": True, "parts": {
+         "offset": [[0, 0, 0, 0], [0.6, 0, -9, 0], [1.8, 0, -12, 0], [3.0, 0, -9, 0]],
+         "rightLeg": [[0, 0, 0, 0], [0.5, -88, 32, 0], [3.0, -88, 32, 0]],
+         "leftLeg": [[0, 0, 0, 0], [0.5, -88, -32, 0], [3.0, -88, -32, 0]],
+         "rightArm": [[0, 0, 0, 0], [0.5, -42, 0, 18], [1.8, -46, 0, 20], [3.0, -42, 0, 18]],
+         "leftArm": [[0, 0, 0, 0], [0.5, -42, 0, -18], [1.8, -46, 0, -20], [3.0, -42, 0, -18]],
+         "head": [[0, 0, 0, 0], [0.5, 8, 0, 0], [1.8, 4, 0, 0], [3.0, 8, 0, 0]]}},
+     fx={"type": "spiral", "shape": "orbit", "particle": "enchant", "colors": ["#7AF0FF", "#3AC8FF"], "rate": 10, "radius": 1.0,
+         "height": 1.1, "size": 0.6, "from": 0.5},
+     view={"gm": True, "pose": {"rightLeg": (-88, 32, 0), "leftLeg": (-88, -32, 0), "rightArm": (-44, 0, 19),
+                                "leftArm": (-44, 0, -19), "head": (6, 0, 0)},
+           "offset": (0, -11, 0), "yaw": -24, "pitch": 10, "glow": "#3ad8ff",
+           "fx_pic": lambda: [(p, 3.2, gm_rune(k, "#7af0ff"), None) for k, p in enumerate(gm_ring(9, 12, 8, 0.12, 5))]},
+     thumb="emote")
+
+
+# ---- Heart Toss: a hand to your heart, then toss a heart out to someone
+
+item("heart_toss", "Heart Toss", "EMOTE", "REGULAR", 250,
+     "Bring a hand to your heart, then toss a little heart out to someone.",
+     emote={"length": 2.2, "loop": False, "parts": {
+         "rightArm": [[0, 0, 0, 0], [0.45, -70, -45, 0], [0.75, -70, -45, 0], [1.05, -112, 0, -14], [1.8, -112, 0, -14], [2.2, 0, 0, 0]],
+         "leftArm": [[0, 0, 0, 0], [0.45, -45, 30, 0], [1.8, -45, 30, 0], [2.2, 0, 0, 0]],
+         "head": [[0, 0, 0, 0], [0.45, 10, 0, 10], [1.05, -8, 0, -4], [1.8, -8, 0, -4], [2.2, 0, 0, 0]]}},
+     fx={"type": "burst", "shape": "toss", "particle": "heart", "colors": ["#FF4A6A"], "rate": 10, "height": 1.5, "from": 0.95,
+         "to": 1.4},
+     view={"gm": True, "pose": {"rightArm": (-112, 0, -14), "leftArm": (-45, 30, 0), "head": (-8, 0, -4)},
+           "yaw": 28, "pitch": 6, "glow": "#ff5a8a",
+           "fx_pic": lambda: [((-6, -8, -17), 6.5, GM_HEART, None), ((-3, -15, -20), 3.2, GM_HEART, None),
+                              ((-10, -14, -19), 2.4, GM_HEART, None)]},
+     thumb="emote")
+
+
+# ---- Kitty Pat: kneel down and pat a little white kitten, who closes its eyes and swishes its tail (the kitten is the
+# emote's prop: it is only there while the emote plays)
+
+KIT_W, KIT_G, KIT_PINK, KIT_EYE = "#f6f4f2", "#cfc8c4", "#ffb0c0", "#4a7ad8"
+KIT = (-5.5, 17.0, -9.5)          # where the kitten sits, in the root's space while you kneel (7 px lowered)
+
+
+def kit_head(face, A):
+    if face == "north":                        # 16 x 12: happy closed eyes (it is being patted), a pink nose, whiskers
+        A.pix([(3, 5), (4, 4), (5, 4), (6, 5), (9, 5), (10, 4), (11, 4), (12, 5)], "#3a3040")
+        A.pix([(7, 7), (8, 7)], KIT_PINK)
+        A.pix([(6, 8), (7, 9), (8, 9), (9, 8)], "#3a3040")
+        A.rect(1, 7, 3, 8, KIT_PINK)
+        A.rect(13, 7, 15, 8, KIT_PINK)
+    elif face == "top":
+        A.pix([(7, 1), (8, 1), (7, 2), (8, 2)], KIT_G)
+
+
+def kit_body(face, A):
+    if face in ("east", "west"):
+        A.put(A.y >= A.h - 2, KIT_G)
+    elif face == "north":
+        A.ellipse(A.w / 2, A.h * 0.7, A.w * 0.3, A.h * 0.45, "#ffffff")
+
+
+def kit_paw(face, A):
+    if face == "north":
+        A.pix([(1, A.h - 1), (2, A.h - 1)], KIT_PINK)
+
+
+def kit_tail(face, A):
+    A.put(A.y >= A.h - 1, KIT_G)
+
+
+def kitten_prop():
+    a = KIT
+    body = Bone("kitten", "root", P(a, 0, 0, 0), cubes=[
+        PC(a, (-1.5, -3, -1), (3, 3, 4), px(KIT_W, kit_body)),
+        PC(a, (-1.5, -1, -1.75), (1, 1, 1), px(KIT_W, kit_paw)),
+        PC(a, (0.5, -1, -1.75), (1, 1, 1), px(KIT_W, kit_paw))])
+    head = Bone("kitten_head", "root", P(a, 0, -3, -0.5), cubes=[
+        PC(a, (-2, -6, -2), (4, 3, 3), px(KIT_W, kit_head)),
+        PC(a, (-2, -7, -0.5), (1, 1, 0), ear_plane(KIT_W, KIT_PINK, apex=0.3)),
+        PC(a, (1, -7, -0.5), (1, 1, 0), ear_plane(KIT_W, KIT_PINK, apex=0.7))],
+        anim={"type": "sway", "amp": 8, "speed": 0.8}, parent="kitten")
+    tail = Bone("kitten_tail", "root", P(a, 0, -1, 2.75), (60, 0, 0),
+                [PC(a, (-0.5, -1.5, 2.5), (1, 1, 4), px(KIT_W, kit_tail))], anim=wag(20, 0.7), parent="kitten")
+    return [body, head, tail]
+
+
+item("kitty_pat", "Kitty Pat", "EMOTE", "REGULAR", 250,
+     "Kneel down and give a little white kitten a pat. It closes its eyes and swishes its tail.",
+     kitten_prop(),
+     emote={"length": 2.4, "loop": True, "parts": {
+         "offset": [[0, 0, 0, 0], [0.4, 0, 7, 0], [2.4, 0, 7, 0]],
+         "rightLeg": [[0, 0, 0, 0], [0.4, -78, 8, 0], [2.4, -78, 8, 0]],
+         "leftLeg": [[0, 0, 0, 0], [0.4, 62, 0, 0], [2.4, 62, 0, 0]],
+         "rightArm": [[0, 0, 0, 0], [0.4, -44, 6, 0], [0.7, -36, 6, 0], [1.0, -46, 6, 0], [1.3, -36, 6, 0], [1.6, -46, 6, 0],
+                      [1.9, -36, 6, 0], [2.4, -44, 6, 0]],
+         "leftArm": [[0, 0, 0, 0], [0.4, -30, 0, -6], [2.4, -30, 0, -6]],
+         "head": [[0, 0, 0, 0], [0.4, 26, 10, 0], [1.2, 30, 6, 6], [2.4, 26, 10, 0]]}},
+     view={"gm": True, "pose": {"rightLeg": (-78, 8, 0), "leftLeg": (62, 0, 0), "rightArm": (-42, 6, 0), "leftArm": (-30, 0, -6),
+                                "head": (28, 10, 0)},
+           "offset": (0, 7, 0), "yaw": -62, "pitch": 12, "glow": "#ffb0d0",
+           "fx_pic": lambda: [((-3.5, 12.0, -14.0), 3.0, GM_HEART, None)]},
+     thumb="emote")
+
+
+# ---- Fire Ring: a power stance, one fist raised, as a ring of fire roars up round your feet
+
+item("fire_ring", "Fire Ring", "EMOTE", "REGULAR", 250,
+     "Strike a power pose with one fist raised while a ring of fire roars up around your feet.",
+     emote={"length": 2.0, "loop": True, "parts": {
+         "rightArm": [[0, 0, 0, 0], [0.3, -150, 0, -25], [1.0, -158, 0, -22], [2.0, -150, 0, -25]],
+         "leftArm": [[0, 0, 0, 0], [0.3, 10, 0, -38], [2.0, 10, 0, -38]],
+         "rightLeg": [[0, 0, 0, 0], [0.3, 0, 0, 12], [2.0, 0, 0, 12]],
+         "leftLeg": [[0, 0, 0, 0], [0.3, 0, 0, -12], [2.0, 0, 0, -12]],
+         "head": [[0, 0, 0, 0], [0.3, -12, 0, 0], [1.0, -16, 0, 0], [2.0, -12, 0, 0]]}},
+     fx={"type": "aura", "shape": "ring", "particle": "flame", "colors": ["#FF7A1A"], "rate": 24, "radius": 1.0, "from": 0.2},
+     view={"gm": True, "pose": {"rightArm": (-152, 0, -24), "leftArm": (10, 0, -38), "rightLeg": (0, 0, 12), "leftLeg": (0, 0, -12),
+                                "head": (-14, 0, 0)},
+           "yaw": -26, "pitch": 18, "glow": "#ff7a1a",
+           "fx_pic": lambda: [(p, 3.6 + (k % 3) * 0.9, GM_FLAME, None) for k, p in enumerate(gm_ring(16, 13, 21.5, 0.06, 9))]},
+     thumb="emote")
+
+
+# ---- Disco: point to the sky, point to the floor, hips swinging, notes floating up
+
+item("disco", "Disco", "EMOTE", "REGULAR", 250,
+     "Point up to the sky, then down to the floor, hips swinging to the beat while music notes float up.",
+     emote={"length": 1.6, "loop": True, "parts": {
+         "rightArm": [[0, -150, 0, -35], [0.4, -150, 0, -35], [0.8, -20, 0, -35], [1.2, -20, 0, -35], [1.6, -150, 0, -35]],
+         "leftArm": [[0, 0, 0, -30], [0.8, 0, 0, -30], [1.6, 0, 0, -30]],
+         "body": [[0, 0, -8, 0], [0.4, 0, 8, 0], [0.8, 0, -8, 0], [1.2, 0, 8, 0], [1.6, 0, -8, 0]],
+         "rightLeg": [[0, -6, 0, 6], [0.4, 6, 0, 2], [0.8, -6, 0, 6], [1.2, 6, 0, 2], [1.6, -6, 0, 6]],
+         "leftLeg": [[0, 6, 0, -2], [0.4, -6, 0, -6], [0.8, 6, 0, -2], [1.2, -6, 0, -6], [1.6, 6, 0, -2]],
+         "head": [[0, -10, 0, 8], [0.8, 10, 0, -8], [1.6, -10, 0, 8]]}},
+     fx={"type": "aura", "shape": "rise", "particle": "note", "colors": ["#FFFFFF"], "rate": 4, "radius": 0.9, "height": 2.0},
+     view={"gm": True, "pose": {"rightArm": (-150, 0, -35), "leftArm": (0, 0, -30), "head": (-10, 0, 8), "rightLeg": (-6, 0, 6),
+                                "leftLeg": (6, 0, -2)},
+           "yaw": -24, "pitch": 6, "glow": "#c86aff",
+           "fx_pic": lambda: [((-13, -14, -2), 4.0, GM_NOTE, "#ff6ad8"), ((10, -8, -3), 3.4, GM_NOTE, "#6ae0ff"),
+                              ((11, 4, -1), 3.0, GM_NOTE, "#ffd23a"), ((-11, 2, -2), 2.8, GM_NOTE, "#7aff8a")]},
+     thumb="emote")
+
+
+# ---- Bring It: feet planted wide, both hands beckoning: come on, then
+
+item("challenge", "Bring It", "EMOTE", "REGULAR", 250,
+     "Plant your feet, chin up, and beckon with both hands. Come on, then.",
+     emote={"length": 1.2, "loop": True, "parts": {
+         "rightArm": [[0, -78, -18, 0], [0.3, -98, -18, 0], [0.6, -78, -18, 0], [0.9, -98, -18, 0], [1.2, -78, -18, 0]],
+         "leftArm": [[0, -98, 18, 0], [0.3, -78, 18, 0], [0.6, -98, 18, 0], [0.9, -78, 18, 0], [1.2, -98, 18, 0]],
+         "rightLeg": [[0, 0, 0, 14], [1.2, 0, 0, 14]],
+         "leftLeg": [[0, 0, 0, -14], [1.2, 0, 0, -14]],
+         "head": [[0, -10, 0, 6], [0.6, -14, 0, 6], [1.2, -10, 0, 6]]}},
+     view={"gm": True, "pose": {"rightArm": (-82, -18, 0), "leftArm": (-96, 18, 0), "rightLeg": (0, 0, 14), "leftLeg": (0, 0, -14),
+                                "head": (-12, 0, 6)},
+           "yaw": -22, "pitch": 6, "glow": "#ff6a3a"},
+     thumb="emote")
+
+
+# ---- Laugh: clutch your sides and shake with laughter, little puffs bursting out
+
+item("laugh", "Laugh", "EMOTE", "REGULAR", 250,
+     "Clutch your sides, throw your head back and shake with laughter.",
+     emote={"length": 2.4, "loop": False, "parts": {
+         "root": [[0, 0, 0, 0]] + [[0.3 + k * 0.15, -6, 0, 3 if k % 2 else -3] for k in range(12)] + [[2.4, 0, 0, 0]],
+         "rightArm": [[0, 0, 0, 0], [0.3, -30, -35, 0], [2.0, -30, -35, 0], [2.4, 0, 0, 0]],
+         "leftArm": [[0, 0, 0, 0], [0.3, -30, 35, 0], [2.0, -30, 35, 0], [2.4, 0, 0, 0]],
+         "head": [[0, 0, 0, 0]] + [[0.3 + k * 0.15, -24 if k % 2 else -16, 0, 0] for k in range(12)] + [[2.4, 0, 0, 0]]}},
+     fx={"type": "aura", "shape": "puff", "particle": "poof", "colors": ["#FFFFFF"], "rate": 6, "height": 1.7, "from": 0.3, "to": 2.0},
+     view={"gm": True, "pose": {"rightArm": (-30, -35, 0), "leftArm": (-30, 35, 0), "head": (-22, 0, 0)}, "root": (-6, 0, 3),
+           "yaw": -22, "pitch": 6, "glow": "#ffd23a",
+           "fx_pic": lambda: [((-9, -12, -4), 3.6, GM_PUFF, "matte"), ((-12, -7, -2), 2.4, GM_PUFF, "matte"),
+                              ((9, -13, -4), 3.0, GM_PUFF, "matte"), ((12, -8, -2), 2.0, GM_PUFF, "matte")]},
+     thumb="emote")
+
+
+# ---- Hero Landing: drop out of the air into a crouch, one knee and one fist to the ground, dust bursting out
+
+item("superhero_landing", "Hero Landing", "EMOTE", "REGULAR", 250,
+     "Drop out of the air into a hero's crouch, one knee and one fist to the ground, dust bursting out around you.",
+     emote={"length": 2.6, "loop": False, "parts": {
+         "offset": [[0, 0, -26, 0], [0.45, 0, 8, 0], [2.1, 0, 8, 0], [2.6, 0, 0, 0]],
+         "root": [[0, 0, 0, 0], [0.45, 10, 0, 0], [2.1, 10, 0, 0], [2.6, 0, 0, 0]],
+         "rightArm": [[0, -170, 0, 20], [0.45, -14, 0, 4], [2.1, -14, 0, 4], [2.6, 0, 0, 0]],
+         "leftArm": [[0, -170, 0, -20], [0.45, 35, 0, -45], [2.1, 35, 0, -45], [2.6, 0, 0, 0]],
+         "rightLeg": [[0, 0, 0, 0], [0.45, -82, 10, 0], [2.1, -82, 10, 0], [2.6, 0, 0, 0]],
+         "leftLeg": [[0, 0, 0, 0], [0.45, 55, 0, 0], [2.1, 55, 0, 0], [2.6, 0, 0, 0]],
+         "head": [[0, -20, 0, 0], [0.45, -18, 0, 0], [2.1, -18, 0, 0], [2.6, 0, 0, 0]]}},
+     fx={"type": "burst", "shape": "impact", "particle": "poof", "colors": ["#D8CCB8"], "count": 24, "at": 0.45},
+     view={"gm": True, "pose": {"rightArm": (-14, 0, 4), "leftArm": (35, 0, -45), "rightLeg": (-82, 10, 0), "leftLeg": (55, 0, 0),
+                                "head": (-18, 0, 0)},
+           "root": (10, 0, 0), "offset": (0, 8, 0), "yaw": -34, "pitch": 10, "glow": "#ffb03a",
+           "fx_pic": lambda: [(p, 2.6 + (k % 2), GM_DUST, "matte") for k, p in enumerate(gm_ring(14, 11, 22.6, 0.1, 13))]},
+     thumb="emote")
+# ============================================================================================== end of gemini concept collection
+
+
 if __name__ == "__main__":
     main()
