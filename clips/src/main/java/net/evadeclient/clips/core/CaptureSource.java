@@ -94,6 +94,15 @@ public final class CaptureSource {
     /** Called by the capture engine when a Desktop Duplication capture died: the next start uses GDI. */
     static void ddagrabFailed() { ddagrabFailed = true; }
 
+    /**
+     * Sound straight from Windows (speakers or the game alone) stopped a capture before it got going: from then on
+     * the old way is used (a Stereo Mix-style device, or no desktop sound), so clips keep recording either way.
+     */
+    private static volatile boolean loopbackFailed;
+    /** Whether the last capture built took its sound straight from Windows. */
+    static volatile boolean lastUsedLoopback;
+    static void loopbackFailed() { loopbackFailed = true; }
+
     /** Whether Windows capture uses Desktop Duplication (true unless it isn't available or has failed). */
     static boolean useDdagrab() { return Ffmpeg.WINDOWS && !ddagrabFailed && hasDdagrab(); }
 
@@ -187,19 +196,21 @@ public final class CaptureSource {
             if (s.recordVoice) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""}); }
         } else {
             Map<String, String> devices = null; // scanned at most once per build
+            lastUsedLoopback = false;
             if (s.recordSystemAudio) {
                 String dev = s.systemAudioDevice;
                 // Windows, Default: straight from Windows (no Stereo Mix or virtual cable). With the game running and
                 // "game sound on its own track" on, the Game track is only the game and the rest gets its own track
                 // (mute Discord or music in the editor); otherwise the Game track is everything the speakers play.
                 LoopbackAudio.Stream game = null, rest = null, speakers = null;
-                if (dev.isBlank() && Ffmpeg.WINDOWS) {
+                if (dev.isBlank() && Ffmpeg.WINDOWS && !loopbackFailed) {
                     if (s.gameAudioSeparate) {
                         Long pid = GameDetector.detect().map(GameDetector.Game::pid).orElse(null);
                         if (pid != null && (game = LoopbackAudio.windowsApp(pid, true)) != null) rest = LoopbackAudio.windowsApp(pid, false);
                     }
                     if (game == null) speakers = LoopbackAudio.windows();
                 }
+                lastUsedLoopback = game != null || speakers != null;
                 if (game != null) {
                     a.addAll(game.ffmpegInput());
                     tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});

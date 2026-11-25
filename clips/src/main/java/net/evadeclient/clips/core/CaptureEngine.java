@@ -570,6 +570,18 @@ public final class CaptureEngine {
                             state = State.ERROR;
                             message = e.getMessage();
                         }
+                    } else if (neverLive && CaptureSource.lastUsedLoopback) {
+                        // Sound straight from Windows may be what broke it: record the old way rather than nothing.
+                        CaptureSource.loopbackFailed();
+                        CaptureSource.lastUsedLoopback = false;
+                        System.err.println("[clips] capture with Windows sound failed; retrying with the sound device instead");
+                        try {
+                            start();
+                            notice("Desktop sound switched to the sound device (direct Windows sound didn't work here)", 10_000);
+                        } catch (IOException e) {
+                            state = State.ERROR;
+                            message = e.getMessage();
+                        }
                     } else if (restarts++ < 3 && now - startedWall > 5000) {
                         String reason = message;
                         try {

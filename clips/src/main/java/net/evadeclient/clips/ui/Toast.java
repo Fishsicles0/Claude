@@ -42,6 +42,7 @@ public final class Toast {
 
     public void show(String title, String body, boolean error) {
         if (GraphicsEnvironment.isHeadless()) return;
+        if (OPAQUE && showNative(title, body, error)) return;
         this.error = error;
         if (window == null) {
             window = new JWindow();
@@ -98,6 +99,24 @@ public final class Toast {
             }
         });
         hide.start();
+    }
+
+    /**
+     * Windows: a normal Windows notification from the tray icon. Java's own windows draw as slanted, repeated copies
+     * on some scaled displays (125%, 150%), whatever the window type, so on Windows the toast is left to Windows
+     * itself. False when there's no tray icon yet (the drawn toast is used then).
+     */
+    static boolean showNative(String title, String body, boolean error) {
+        try {
+            if (!java.awt.SystemTray.isSupported()) return false;
+            java.awt.TrayIcon[] icons = java.awt.SystemTray.getSystemTray().getTrayIcons();
+            if (icons.length == 0) return false;
+            icons[0].displayMessage(title == null ? "" : title, body == null ? "" : body,
+                    error ? java.awt.TrayIcon.MessageType.WARNING : java.awt.TrayIcon.MessageType.NONE);
+            return true;
+        } catch (Exception | LinkageError e) {
+            return false;
+        }
     }
 
     private void dismiss() {
