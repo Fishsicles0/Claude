@@ -57,7 +57,11 @@ public final class CosmeticsCatalog {
      * Merges the catalog from {@code GET /api/cosmetics/catalog}. A bundled item stays bundled unless the catalog lists
      * different files for it (an updated version, which then downloads). Items the catalog drops stay if bundled.
      */
+    /** Tests: keep the bundled catalog (the live site may still serve an older one while a release is being tested). */
+    public static volatile boolean ignoreRemoteForTest;
+
     public static void mergeRemote(JsonObject root) {
+        if (ignoreRemoteForTest) return;
         Map<String, CosmeticItem> m = new LinkedHashMap<>(items);
         for (JsonElement e : root.getAsJsonArray("items")) {
             if (!e.isJsonObject()) continue;

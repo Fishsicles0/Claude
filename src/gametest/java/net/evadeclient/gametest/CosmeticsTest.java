@@ -66,6 +66,7 @@ public final class CosmeticsTest {
             Emotes.moveCamera = false;
             CosmeticsApi.transport = CosmeticsTest::mock;
             // start from the bundled set: the live catalog fetched at start-up may still list an older release's files
+            CosmeticsCatalog.ignoreRemoteForTest = true;
             CosmeticsCatalog.loadBundled();
             Cosmetics m = Cosmetics.get();
             m.setEnabled(true);
@@ -104,7 +105,7 @@ public final class CosmeticsTest {
 
         // ---- the backend contract, against the mock
         String me = ctx.computeOnClient(c -> {
-            CosmeticsCatalog.mergeRemote(JsonParser.parseString(CATALOG).getAsJsonObject());
+            CosmeticsCatalog.ignoreRemoteForTest = false; CosmeticsCatalog.mergeRemote(JsonParser.parseString(CATALOG).getAsJsonObject()); CosmeticsCatalog.ignoreRemoteForTest = true;
             Wardrobe.applyMe(JsonParser.parseString("{\"owned\":[\"tidal_weave\"],\"equipped\":{\"CAPE\":{\"id\":\"tidal_weave\"}}}").getAsJsonObject());
             return Wardrobe.owned() + "|" + CosmeticsCatalog.get("tidal_weave").priceCents + "|" + CosmeticsCatalog.get("tidal_weave").bundled;
         });
@@ -371,7 +372,7 @@ public final class CosmeticsTest {
                                 + "\"colors\":[\"#FFE27A\",\"#FF5A3C\",\"#7A2BFF\"],\"rate\":30,\"size\":1.2,\"life\":1.4,\"fade\":0.3,\"sizeEnd\":0.3}}")
                                 .getBytes(StandardCharsets.UTF_8))));
                 cat.add("items", arr);
-                CosmeticsCatalog.mergeRemote(cat);
+                CosmeticsCatalog.ignoreRemoteForTest = false; CosmeticsCatalog.mergeRemote(cat); CosmeticsCatalog.ignoreRemoteForTest = true;
                 for (String id : List.of(V2_CAPE, V2_WINGS, V2_AURA)) CosmeticAssets.request(CosmeticsCatalog.get(id));
                 return "ok";
             } catch (Exception e) {
@@ -572,7 +573,7 @@ public final class CosmeticsTest {
                     }
                 }
                 cat.add("items", arr);
-                CosmeticsCatalog.mergeRemote(cat);
+                CosmeticsCatalog.ignoreRemoteForTest = false; CosmeticsCatalog.mergeRemote(cat); CosmeticsCatalog.ignoreRemoteForTest = true;
                 CosmeticAssets.request(CosmeticsCatalog.get("cached_cape"));
                 CosmeticAssets.request(CosmeticsCatalog.get("tampered_cape"));
                 return "ok";
