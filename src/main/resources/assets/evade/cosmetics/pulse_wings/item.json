@@ -8,8 +8,8 @@
  "partner": null,
  "description": "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
  "animation": {
-  "frames": 20,
-  "frametime": 1.5,
+  "frames": 16,
+  "frametime": 1.8,
   "interpolate": false
  }
 }
