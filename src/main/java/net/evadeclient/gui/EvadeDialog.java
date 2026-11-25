@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * A small centred window in the menu's colours (title, wrapped text, vanilla buttons and fields), shared by the
- * v2.5 social and media dialogs: Open to Friends, player cards, cloud backup, Discover and server prompts.
+ * v2.5 social and media dialogs: Open to Friends, player cards, cloud backup and server prompts.
  */
 public abstract class EvadeDialog extends Screen {
     protected final Screen parent;

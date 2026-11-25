@@ -73,10 +73,8 @@ public final class CosmeticsEngine {
             CosmeticFx.clear();
             DATA.clear();
         }));
-        ClientPlayConnectionEvents.JOIN.register((h, s, c) -> c.execute(() -> {
-            refreshCatalog();
-            Wardrobe.refresh(true);
-        }));
+        // With the Cosmetics mod off nothing is asked of evadeclient.com (turning it on asks then: Cosmetics.onEnable).
+        ClientPlayConnectionEvents.JOIN.register((h, s, c) -> c.execute(CosmeticsEngine::refreshAll));
     }
 
     public static Cosmetics module() { return module; }
@@ -84,8 +82,23 @@ public final class CosmeticsEngine {
     /** Cosmetics may show at all: the module is on (the server rule switches it off). */
     public static boolean allowed() { return module != null && module.isEnabled(); }
 
-    /** Asks evadeclient.com for the full catalog (new items, prices); the bundled set works without it. */
+    private static volatile long lastCatalog;
+
+    /** World join and the module turning on: the catalog and your own items, only while the module is on. */
+    public static void refreshAll() {
+        if (!allowed()) return;
+        refreshCatalog();
+        Wardrobe.refresh(false);
+    }
+
+    /**
+     * Asks evadeclient.com for the full catalog (new items, prices); the bundled set works without it. Only while the
+     * module is on, and at most once a minute (world join and the module's enable land together).
+     */
     public static void refreshCatalog() {
+        long now = System.currentTimeMillis();
+        if (!allowed() || now - lastCatalog < 60_000) return;
+        lastCatalog = now;
         CosmeticsApi.catalog().whenComplete((r, err) -> {
             if (r != null) MinecraftClient.getInstance().execute(() -> {
                 try { CosmeticsCatalog.mergeRemote(r); } catch (RuntimeException e) { EvadeClient.LOG.warn("Cosmetics: bad catalog", e); }

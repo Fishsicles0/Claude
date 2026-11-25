@@ -100,7 +100,9 @@ public final class CosmeticsCatalog {
                 partner = p.has("name") ? p.get("name").getAsString() : p.has("id") ? p.get("id").getAsString() : null;
             }
             if (partner != null && rarity == Rarity.REGULAR) rarity = Rarity.PARTNER;
-            int price = o.has("priceCents") && !o.get("priceCents").isJsonNull() ? o.get("priceCents").getAsInt() : 0;
+            // null (not priced yet, not for sale) reads as -1, never as 0: 0 means free for everyone
+            int price = o.has("priceCents") && !o.get("priceCents").isJsonNull() ? o.get("priceCents").getAsInt() : -1;
+            if (price < 0) price = -1;
             String currency = o.has("currency") && !o.get("currency").isJsonNull() ? o.get("currency").getAsString() : "USD";
             String base = null;
             JsonObject filesObj = o.has("files") && o.get("files").isJsonObject() ? o.getAsJsonObject("files")

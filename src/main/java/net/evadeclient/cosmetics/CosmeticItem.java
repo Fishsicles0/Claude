@@ -18,6 +18,7 @@ public final class CosmeticItem {
     public final int defaultColor;
     /** A partner's name for partner items (shown in the Wardrobe), or null. */
     public final String partner;
+    /** The price in cents: 0 is free for every Evade player (every cape), -1 not priced yet (not for sale). */
     public final int priceCents;
     public final String currency;
     public final String base;
@@ -53,6 +54,9 @@ public final class CosmeticItem {
     public Emotes.Animation emote() { return emote; }
     public AnimatedTexture.Spec animation() { return animation; }
     public boolean hasModel() { return files.containsKey("model.json"); }
+
+    /** Free for every Evade player (capes): always owned, never sold, no account or purchase needed. */
+    public boolean free() { return priceCents == 0; }
 
     /** The colour to draw it in: the wearer's pick for colourable items, else its default (-1: none). */
     public int colorFor(Loadout.Worn worn) {

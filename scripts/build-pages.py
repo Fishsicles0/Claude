@@ -793,6 +793,35 @@ def changelog_rss(feed: dict) -> str:
             "<language>en</language>" + "".join(items) + "</channel></rss>\n")
 
 
+SHOP_CATS = {"CAPE": "Capes", "WINGS": "Wings", "HAT": "Hats", "MASK": "Masks", "BACK": "Back", "AURA": "Auras",
+             "TRAIL": "Trails", "PET": "Pets", "EMOTE": "Emotes", "KILL_EFFECT": "Kill effects", "WIN_EFFECT": "Win effects",
+             "ITEM_SKIN": "Item skins"}
+
+
+def shop_grid(catalog: pathlib.Path) -> str:
+    """The shop's item cards rendered into the page (names, prices and still pictures), so the catalogue works without
+    JavaScript and for search engines. shop.js replaces them with the interactive grid."""
+    try:
+        items = json.loads(catalog.read_text())["items"]
+    except (OSError, ValueError, KeyError):
+        return '<p class="shop-empty">The shop needs JavaScript to show its items.</p>'
+    out = []
+    for it in items:
+        name = html.escape(it.get("name") or it["id"])
+        cat = SHOP_CATS.get(str(it.get("slot", "")).upper(), "Cosmetics")
+        rarity = str(it.get("rarity") or "regular").lower()
+        cents = it.get("priceCents")
+        price = "Free" if cents == 0 else f"${cents / 100:.2f}" if isinstance(cents, int) and cents > 0 else "Price coming soon"
+        cls = " gift" if cents == 0 else "" if isinstance(cents, int) and cents > 0 else " soon"
+        img = (f'<img src="/cosmetics/{html.escape(it["id"])}/thumb.png" alt="{name} {html.escape(cat.rstrip("s").lower())} preview" '
+               f'loading="lazy" decoding="async" width="256" height="256">' if "thumb.png" in (it.get("assets") or {}).get("files", {}) else "")
+        out.append(f'<a class="card item-card static" href="/shop#item={html.escape(it["id"])}" data-r="{html.escape(rarity)}">'
+                   f'<span class="item-thumb">{img}</span><span class="item-body"><span class="rarity" data-r="{html.escape(rarity)}">'
+                   f'{html.escape(rarity.title())}</span><h3>{name}</h3><span class="item-row"><span class="item-cat">{html.escape(cat)}</span>'
+                   f'<span class="item-price-sm{cls}">{price}</span></span></span></a>')
+    return "".join(out)
+
+
 def file_key(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:10]
 
@@ -841,6 +870,7 @@ def main() -> None:
     if cosmetics.is_dir():
         shutil.copytree(cosmetics, OUT / "cosmetics", dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("README*", "*.md", ".*"))
+    tokens |= {"{{SHOP_GRID}}": shop_grid(cosmetics / "catalog.json")}
     # One card per HUD element, for the Showcase page's HUD gallery (links to each element's detail view).
     hud_cards = "".join(
         f'<a class="card hud-card" href="/features#m={html.escape(m["name"].replace(" ", "%20"))}">'

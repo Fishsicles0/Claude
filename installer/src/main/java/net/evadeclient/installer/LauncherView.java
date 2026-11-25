@@ -127,7 +127,7 @@ public final class LauncherView extends JPanel {
     }
 
     // ------------------------------------------------------------------ links (empty = not shown)
-    static final String DISCORD = "https://discord.gg/PZSzSFX7DD", YOUTUBE = "", TIKTOK = "";
+    static final String DISCORD = "https://evadeclient.com/discord", YOUTUBE = "", TIKTOK = ""; // the site page links the official invite
 
     final Font inter, interBold;
     final Image mark, word;

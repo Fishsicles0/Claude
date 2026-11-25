@@ -46,7 +46,7 @@ nav: privacy
             <tbody>
               <tr><th scope="row">Account check</th><td>Your player ID and a one-time signature made with your game's chat-signing key</td><td>Us</td><td>Only when one of the features below needs it (see <a href="#signin">Account check</a>)</td></tr>
               <tr><th scope="row">Evade icons</th><td>"I'm using Evade" every few minutes; the player IDs in your tab list</td><td>Us</td><td class="def">On. Switch off <b>Show That I Use Evade</b> or <b>Show Icons</b></td></tr>
-              <tr><th scope="row">Cosmetics</th><td>Your cosmetics on joining a world and every 5 minutes; the player IDs of players near you</td><td>Us</td><td class="def">On. Switch off <b>Show Others' Cosmetics</b> or the <b>Cosmetics</b> mod (one check per world join stays)</td></tr>
+              <tr><th scope="row">Cosmetics</th><td>Your cosmetics on joining a world, opening the Wardrobe and changing something there; the player IDs of players near you</td><td>Us</td><td class="def">On. Switch off <b>Show Others' Cosmetics</b> or the <b>Cosmetics</b> mod (then nothing is sent)</td></tr>
               <tr><th scope="row">Friends and parties</th><td>Your friends, party, server and activity</td><td>Us</td><td>Off until you turn on Friends</td></tr>
               <tr><th scope="row">Cloud backup</th><td>Your setup, encrypted on your PC</td><td>Us</td><td>Off until you press Back up</td></tr>
               <tr><th scope="row">Server hello</th><td>"Evade, version, features"</td><td>The server you join, only if it asks</td><td>Only servers that register <span class="mono">evade:hello</span></td></tr>
@@ -76,7 +76,7 @@ nav: privacy
           <li>We check Mojang's signature with Mojang's published keys (we don't contact Mojang for this) and give your game a token that works for 24 hours. We don't store the token, the key or the signature, and we don't receive your username or e-mail address.</li>
           <li>Offline ("cracked") accounts have no such key, so these features don't work for them and nothing is sent.</li>
         </ul>
-        <p>The check runs (about once a day, when the last token runs out) whenever one of these needs it: <b>Show That I Use Evade</b> while you're in a world, Friends once you turn it on, Cloud backup when you use it, and cosmetics, which ask about your own cosmetics each time you join a world or server even with the <b>Cosmetics</b> mod off. Cloudflare counts sign-in attempts per IP address for a minute to stop abuse.</p>
+        <p>The check runs (about once a day, when the last token runs out) whenever one of these needs it: <b>Show That I Use Evade</b> while you're in a world, Friends once you turn it on, Cloud backup when you use it, and the <b>Cosmetics</b> mod while it is on. Cloudflare counts sign-in attempts per IP address for a minute to stop abuse.</p>
       </div>
 
       <div class="doc-sec rv" id="icons">
@@ -93,11 +93,11 @@ nav: privacy
         <h2>Cosmetics in the game</h2>
         <p>The <b>Cosmetics</b> mod (on by default) shows Evade cosmetics on you and on other Evade players near you. Cosmetics are visual only and give no advantage.</p>
         <ul>
-          <li><b>Your cosmetics:</b> each time you join a world or server, and every 5 minutes while the mod is on, the client asks us, with the token from your <a href="#signin">account check</a>, which cosmetics you own and wear. When you change something in the Wardrobe, it tells us. Players who own no cosmetics have nothing stored.</li>
-          <li><b>Players near you</b> (<b>Show Others' Cosmetics</b>, on by default): to draw other players' cosmetics, the client sends us the UUIDs of players within your cosmetics <b>Render Distance</b> (32 blocks by default) who are in the tab list, up to 64 at a time and at most once a second, and each player about once a minute while they stay near. We answer with what they wear and don't store the lookup. Players who don't use Evade just get an empty answer.</li>
-          <li><b>The catalog:</b> when you join a world or server, the client downloads the list of cosmetics, and the files of items it needs, from evadeclient.com. That sends nothing about you.</li>
+          <li><b>Your cosmetics:</b> while the mod is on, the client asks us, with the token from your <a href="#signin">account check</a>, which cosmetics you own and wear: when you join a world or server, when you open the Wardrobe, and after you redeem a code or change what you wear. There is no regular check in between. When you change something in the Wardrobe, it tells us. Capes are free for every Evade player, so wearing one needs no purchase; players who wear nothing have nothing stored.</li>
+          <li><b>Players near you</b> (<b>Show Others' Cosmetics</b>, on by default): to draw other players' cosmetics, the client sends us the UUIDs of players within your cosmetics <b>Render Distance</b> (32 blocks by default) who are in the tab list, up to 64 at a time and at most once a second. It asks again about each player about once a minute while they stay near and wear something, and about once every 5 minutes for players who wear nothing. We answer with what they wear and don't store the lookup. Players who don't use Evade just get an empty answer.</li>
+          <li><b>The catalog:</b> when you join a world or server with the mod on, the client downloads the list of cosmetics, and the files of items it needs, from evadeclient.com. That sends nothing about you.</li>
         </ul>
-        <p>What you wear is public: any Evade player near you, or anyone who asks our API about your UUID, can see it. Switch off <b>Show Others' Cosmetics</b> to stop sending other players' UUIDs. Switching the <b>Cosmetics</b> mod off stops that and the 5-minute checks; the one check and catalog download each time you join a world or server still happen. What we store about cosmetics you own is under <a href="#shop">The shop</a>.</p>
+        <p>What you wear is public: any Evade player near you, or anyone who asks our API about your UUID, can see it. Switch off <b>Show Others' Cosmetics</b> to stop sending other players' UUIDs. With the <b>Cosmetics</b> mod off, the client sends nothing about cosmetics at all; turning it back on in a world asks once for the catalog and your cosmetics. What we store about cosmetics you own is under <a href="#shop">The shop</a>.</p>
       </div>
       <div class="doc-sec rv" id="friends">
         <h2>Friends and parties</h2>
@@ -127,11 +127,11 @@ nav: privacy
         <p>The shop isn't open yet. Cosmetics are optional and give no advantage in game. When you get cosmetics, we store, under the player UUID your account check proves:</p>
         <ul>
           <li><b>What you own:</b> the ids of the cosmetics on your account, how you got each one (a purchase, a code, or a partner server) and when.</li>
-          <li><b>What you're wearing:</b> the cosmetic in each slot and its colour, if you picked one. This is public (see <a href="#cosmetics">Cosmetics</a>).</li>
+          <li><b>What you're wearing:</b> the cosmetic in each slot and its colour, if you picked one, free capes included. This is public (see <a href="#cosmetics">Cosmetics</a>).</li>
           <li><b>Purchases</b> (once the shop opens): the payment provider's order id, the player UUID it was for (and the buyer's UUID, for a gift), the items, the amount and currency, its status (paid, refunded or charged back) and when. Payments are handled by the payment provider under its own privacy policy; we never see your card details. If the provider sends us your name or email address, we don't store them.</li>
           <li><b>Link codes:</b> the 6-character code from <b>Wardrobe &rarr; Link the shop</b> that links the shop website to your account, for 10 minutes.</li>
           <li><b>Redeem codes:</b> which account used a code, and when.</li>
-          <li><b>IP addresses on the shop website:</b> to stop people guessing link codes, we count how often each IP address tries a link code or a checkout, and keep that count with the address for up to a day. The shop page keeps your cart in your own browser's storage.</li>
+          <li><b>IP addresses on the shop website:</b> to stop people guessing link codes and to limit lookups, we count how often each caller tries a link code, a checkout or a cosmetics lookup. We never store the IP address itself: the count is kept under a salted one-way hash of it, for up to a day. The shop page keeps your cart in your own browser's storage.</li>
         </ul>
         <p><b>How long:</b> what you own and your purchase records stay as long as your cosmetics do (we need purchase records for refunds and our accounts); <b>Delete my social data</b> doesn't remove them. A refund or chargeback removes the items it paid for. Email us to have your cosmetics and records deleted, except what the law requires us to keep.</p>
         <p><b>Why:</b> to deliver the cosmetics you get and show them to other players.</p>
@@ -204,7 +204,7 @@ nav: privacy
         <h2>Your choices</h2>
         <ul>
           <li><b>Evade icons:</b> switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, and <b>Show Icons</b> to stop sending us the players in your tab list.</li>
-          <li><b>Cosmetics:</b> switch off <b>Show Others' Cosmetics</b> to stop sending us the players near you, or the <b>Cosmetics</b> mod to stop the regular checks of your own cosmetics.</li>
+          <li><b>Cosmetics:</b> switch off <b>Show Others' Cosmetics</b> to stop sending us the players near you, or the <b>Cosmetics</b> mod to stop every cosmetics request, your own included.</li>
           <li><b>Discord Status:</b> switch it off to stop telling the Discord app what you play; <b>Hide Server Address</b> is on by default.</li>
           <li><b>Friends:</b> <b>Delete my social data</b> in the menu's Friends &rarr; Settings deletes your friends, requests, blocks, party and cloud backup from our server at once. Switch off <b>Share my server with friends</b> to keep your server to yourself, <b>Share what I'm doing</b> to keep your activity to yourself, or <b>Allow friend requests</b> to stop new requests.</li>
           <li><b>Evade Clips:</b> stop sharing any clip at any time, or delete it together with its link. Shared clips that are no longer in your library can be deleted from the list of clips on the server in Settings &rarr; Sharing &amp; phone.</li>

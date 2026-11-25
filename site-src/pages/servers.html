@@ -38,6 +38,7 @@ nav: servers
           <li><b>Camera Distance</b> stops at 8 blocks, so the third-person camera can't be used to look over walls.</li>
           <li><b>Minimap</b> shows terrain only: never players, mobs, items, caves or anything underground. The one exception is the server's choice: team mates it shares through the <a href="#api">Evade Server API</a>, and only those already loaded near you.</li>
           <li><b>World Map</b> shows only the surface of chunks the player has loaded, saved on their own PC: no caves, no Nether, no players except the same server-shared team mates. Disabling <span class="mono">Minimap</span> disables it too.</li>
+          <li><b>Cosmetics</b> are visual only and seen only by other Evade players: they never change hitboxes, reach or what anyone can see, a sword skin only changes how your own sword looks on your screen, and a helmet hides hats and masks, an elytra hides capes, wings and back items. Servers can still turn them all off with <span class="mono">{"disable": ["Cosmetics"]}</span>.</li>
           <li>Mods a server turns off show <b>Disabled by this server</b> in the menu and come back when you leave.</li>
         </ul>
       </div>

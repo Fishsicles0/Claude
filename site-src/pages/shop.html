@@ -1,12 +1,12 @@
 title: Shop
-description: The Evade Shop: capes, wings, hats and more cosmetics for Evade Client, with a 3D preview of every item. Purely cosmetic, never a gameplay advantage.
+description: The Evade Shop: wings, hats and more cosmetics for Evade Client, with a 3D preview of every item, and every cape free for everyone. Purely cosmetic, never a gameplay advantage.
 nav: shop
 ---
 <link rel="stylesheet" href="/assets/shop.css?v={{SHOP_KEY}}">
 <header class="page-hero wrap shop-hero">
   <div class="eyebrow rv">Evade Shop</div>
   <h1 class="rv d1">Wear it <span class="red">your way</span>.</h1>
-  <p class="rv d2">Capes, wings, hats and more for Evade Client, each one previewed in 3D before you buy. Cosmetics only: nothing here changes how the game plays, and other players see them only if they use Evade.</p>
+  <p class="rv d2">Wings, hats, pets and more for Evade Client, each one previewed in 3D. Every cape is free for everyone. Cosmetics only: nothing here changes how the game plays, and other players see them only if they use Evade.</p>
 </header>
 
 <section class="wrap page-body shop" id="shop" aria-label="Shop">
@@ -41,9 +41,9 @@ nav: shop
       </div>
       <div class="shop-cats" id="shopCats" role="tablist" aria-label="Categories"></div>
       <p class="shop-count" id="shopCount" aria-live="polite"></p>
-      <div class="shop-grid" id="shopGrid">
-        <noscript><p class="shop-empty">The shop needs JavaScript to show its items and 3D previews.</p></noscript>
-      </div>
+      <p class="shop-note" id="shopNote" hidden><b>Capes are free for everyone.</b> Every Evade player can wear any cape, animated ones too: open the Wardrobe in Evade and pick one. No account link, no purchase, and capes are never sold.</p>
+      <div class="shop-grid" id="shopGrid">{{SHOP_GRID}}</div>
+      <noscript><p class="shop-count">3D previews, search and the cart need JavaScript; every item is listed above.</p></noscript>
       <div class="shop-empty" id="shopEmpty" hidden>
         <h3>Nothing here yet</h3>
         <p id="shopEmptyText">No cosmetics match. Try another category or clear the search.</p>
@@ -117,11 +117,11 @@ nav: shop
       </ul>
       <div class="cta">
         <button class="btn btn-ghost" type="button" data-cat-jump="partner">See partner items</button>
-        <a class="btn btn-ghost" href="/discord">Run a server? Talk to us</a>
+        <a class="btn btn-ghost" href="mailto:privacy@evadeclient.com?subject=Partner%20server">Run a server? Email us</a>
       </div>
     </div>
     <div class="partner-art" aria-hidden="true">
-      <div class="partner-badge"><span>YOUR</span><b>SERVER</b><em>Partner cape</em></div>
+      <div class="partner-badge"><span>YOUR</span><b>SERVER</b><em>Example partner cape</em></div>
     </div>
   </div>
 </section>
@@ -130,7 +130,8 @@ nav: shop
   <div class="sec-head rv"><div class="eyebrow">Good to know</div><h2 id="shopFaqTitle">Questions</h2></div>
   <div class="doc rv">
     <details><summary>Do cosmetics give an advantage?</summary><p>No. Every item is visual only. Nothing changes your hitbox, reach, speed or anything else about how the game plays.</p></details>
-    <details><summary>Who can see my cosmetics?</summary><p>Other players who use Evade Client. Players without Evade see your normal skin, so servers and other clients are unaffected.</p></details>
+    <details><summary>Are capes really free?</summary><p>Yes. Every cape, animated ones included, is free for every Evade player and is never sold. Open the <b>Wardrobe</b> in Evade and wear any of them; you don't need to link the shop or buy anything.</p></details>
+    <details><summary>Who can see my cosmetics?</summary><p>Other players who use Evade Client. Players without Evade see your normal skin, so servers and other clients are unaffected. What you wear is public: anyone who asks evadeclient.com about your Minecraft UUID can see which cosmetics you have on (never your name, e-mail or anything else). See the <a href="/privacy#cosmetics">privacy policy</a>.</p></details>
     <details><summary>Do I need to give you my password?</summary><p>Never. The shop only needs the 6-character code the game shows you in the Wardrobe. Nobody from Evade will ever ask for your password.</p></details>
     <details><summary>I'm under 18. Can I buy?</summary><p>Only with permission from a parent or guardian, who should read the Terms of Sale with you first. They will be published here before checkout opens.</p></details>
   </div>
@@ -166,6 +167,7 @@ nav: shop
       <h2 id="itemName"></h2>
       <p class="item-desc" id="itemDesc"></p>
       <p class="item-partner" id="itemPartner" hidden></p>
+      <p class="item-note" id="itemNote" hidden></p>
       <div class="item-buy">
         <b class="item-price" id="itemPrice"></b>
         <button class="btn btn-red" type="button" id="itemAdd">Add to cart</button>

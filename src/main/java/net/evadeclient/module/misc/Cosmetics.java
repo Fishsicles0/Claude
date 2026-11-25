@@ -56,7 +56,7 @@ public class Cosmetics extends Module {
         ticks++;
         if (ticks % 20 == 0) {
             if (showOthers.get()) PlayerCosmetics.tick(mc, distance.get());
-            Wardrobe.refresh(false);
+            Wardrobe.tick(); // finishes a /me that waited for the sign-in; there is no timed poll
         }
         Emotes.tick(mc);
         CosmeticFx.tick(mc, this);
@@ -74,6 +74,12 @@ public class Cosmetics extends Module {
     @Override
     public void onServerPacket(Packet<?> packet) {
         if (isEnabled()) CosmeticFx.onServerPacket(packet);
+    }
+
+    /** Turned on in a world (or the world loaded with it on): ask for the catalog and your items now. */
+    @Override
+    protected void onEnable() {
+        CosmeticsEngine.refreshAll();
     }
 
     @Override

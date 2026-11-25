@@ -12,12 +12,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * What other Evade players near you wear. Looked up in batches of up to 64 only for players already rendered near you
- * (and in the tab list), each answer kept for a minute; players with nothing are remembered too, so a crowd of
- * players without cosmetics costs one request a minute and nothing per frame. Vanilla players never appear in the
+ * (and in the tab list), each answer kept for a minute; players with nothing are remembered for five minutes, so a
+ * crowd of players without cosmetics costs one request every five minutes and nothing per frame. Vanilla players never appear in the
  * answer, so they never see or show anything.
  */
 public final class PlayerCosmetics {
     public static final long CACHE_MS = 60_000;
+    /** How long "wears nothing" is kept: most players near you aren't Evade players, so ask about them rarely. */
+    public static final long EMPTY_CACHE_MS = 5 * 60_000;
     private static final long RETRY_MS = 30_000;
 
     private record Entry(Loadout loadout, long at) {}
@@ -49,7 +51,7 @@ public final class PlayerCosmetics {
         if (inFlight || mc.world == null || mc.player == null || mc.getNetworkHandler() == null) return;
         long now = System.currentTimeMillis();
         if (now < nextTry) return;
-        CACHE.values().removeIf(e -> now - e.at > CACHE_MS * 5);
+        CACHE.values().removeIf(e -> now - e.at > EMPTY_CACHE_MS * 2);
         List<UUID> want = new ArrayList<>();
         double r2 = range * range;
         for (PlayerEntity p : mc.world.getPlayers()) {
@@ -57,7 +59,7 @@ public final class PlayerCosmetics {
             UUID u = p.getUuid();
             if (p.squaredDistanceTo(mc.player) > r2 || mc.getNetworkHandler().getPlayerListEntry(u) == null) continue;
             Entry e = CACHE.get(u);
-            if (e != null && now - e.at < CACHE_MS) continue;
+            if (e != null && now - e.at < ttl(e.loadout)) continue;
             want.add(u);
             if (want.size() >= CosmeticsApi.MAX_BATCH) break;
         }
@@ -93,4 +95,10 @@ public final class PlayerCosmetics {
     public static void putForTest(UUID id, Loadout l) { CACHE.put(id, new Entry(l, System.currentTimeMillis())); }
 
     public static void clear() { CACHE.clear(); }
+
+    /** Test hook: whether {@code id} would be asked about again {@code ageMs} after an answer of {@code l}. */
+    public static boolean staleForTest(Loadout l, long ageMs) { return ageMs >= ttl(l); }
+
+    /** How long an answer stays fresh: a minute for someone wearing something, five for nothing. */
+    static long ttl(Loadout l) { return l.isEmpty() ? EMPTY_CACHE_MS : CACHE_MS; }
 }

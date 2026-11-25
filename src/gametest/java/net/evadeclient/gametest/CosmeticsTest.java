@@ -113,8 +113,10 @@ public final class CosmeticsTest {
         //      special (animated) items wait for their price
         String tiers = ctx.computeOnClient(c -> {
             StringBuilder b = new StringBuilder();
+            // capes are free for everyone (priceCents 0, special ones too); other regular items are priced
             for (CosmeticItem i : CosmeticsCatalog.all()) if (i.bundled && (i.rarity == Rarity.PARTNER
-                    || (i.rarity == Rarity.REGULAR && i.priceCents <= 0) || (i.rarity == Rarity.SPECIAL && i.priceCents > 0))) b.append(i.id).append(' ');
+                    || (i.slot == Slot.CAPE ? i.priceCents != 0
+                        : (i.rarity == Rarity.REGULAR && i.priceCents <= 0) || (i.rarity == Rarity.SPECIAL && i.priceCents > 0)))) b.append(i.id).append(' ');
             return b.toString();
         });
         check(tiers.isEmpty() && Rarity.values().length == 3 && Rarity.parse("legendary") == Rarity.REGULAR && Rarity.parse("special") == Rarity.SPECIAL
@@ -312,7 +314,8 @@ public final class CosmeticsTest {
         });
         ctx.waitTicks(3);
         ctx.takeScreenshot("cosmetic-wardrobe-try-on");
-        check(locked.startsWith("aurora_wings|false|null"), "Wardrobe: without test mode nothing unowned is worn; locked items are only tried on (" + locked + ")");
+        check(locked.startsWith("aurora_wings|false|") && locked.contains("chevron_standard"),
+                "Wardrobe: without test mode nothing unowned is worn (free capes still are); locked items are only tried on (" + locked + ")");
         ctx.runOnClient(c -> {
             Wardrobe.setTestMode(true);
             c.setScreen(null);

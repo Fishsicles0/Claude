@@ -64,7 +64,8 @@ public final class WardrobeScreen extends EvadePanelScreen {
     protected void init() {
         super.init();
         CosmeticAssets.preloadBundled();
-        Wardrobe.refresh(true);
+        // only while the Cosmetics mod is on (both check): with it off nothing is asked of evadeclient.com
+        Wardrobe.refresh(false);
         if (CosmeticsCatalog.remoteVersion() == null) CosmeticsEngine.refreshCatalog();
     }
 
@@ -207,8 +208,8 @@ public final class WardrobeScreen extends EvadePanelScreen {
             }
         }
         text(ctx, ellipsize(it.name, Role.LABEL, cardW - 10), x + 5, y + cardH - 28, Theme.TEXT, Role.LABEL);
-        String sub = wearing ? "Wearing" : owned ? (it.slot == Slot.EMOTE ? "Owned · preview" : "Owned · click to wear")
-                : "Locked · try on";
+        String sub = wearing ? "Wearing" : it.free() ? "Free · click to wear"
+                : owned ? (it.slot == Slot.EMOTE ? "Owned · preview" : "Owned · click to wear") : "Locked · try on";
         int subColor = wearing ? Theme.RED : owned ? Theme.OK : Theme.TEXT_FAINT;
         // special and partner items say so (regular is the default and needs no tag)
         String tag = it.partner != null ? it.partner : it.rarity != Rarity.REGULAR ? it.rarity.label : null;

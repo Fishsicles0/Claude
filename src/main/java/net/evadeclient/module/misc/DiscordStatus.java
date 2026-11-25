@@ -28,7 +28,7 @@ public class DiscordStatus extends Module {
     /** The Evade logo (the Discord app's icon), used as the big image. A URL works without uploading art assets. */
     private static final String LOGO = "https://cdn.discordapp.com/app-icons/" + DISCORD_APP_ID + "/d969d19052fdba42c6b4310df645f3f4.png?size=512";
     /** Permanent invite to the Evade Discord, for the profile button. */
-    private static final String DISCORD_INVITE = "https://discord.gg/PZSzSFX7DD"; // the official invite, same as the website and launcher
+    private static final String DISCORD_INVITE = "https://evadeclient.com/discord"; // the official server via the site (the invite can change without a release), same as the launcher
     private static final String NO_ID = "Discord app ID not set";
     /** How often (client ticks) the presence is worked out again; it's only sent when it changed. */
     private static final int EVERY = 20;

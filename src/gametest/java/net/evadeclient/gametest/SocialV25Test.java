@@ -10,7 +10,6 @@ import net.evadeclient.gui.EvadeMenu;
 import net.evadeclient.gui.OpenToFriendsScreen;
 import net.evadeclient.gui.PlayerCardScreen;
 import net.evadeclient.gui.ServerPromptScreen;
-import net.evadeclient.gui.title.Discover;
 import net.evadeclient.module.misc.Friends;
 import net.evadeclient.replay.RenderQueue;
 import net.evadeclient.social.OpenToFriends;
@@ -36,7 +35,7 @@ import java.util.UUID;
 /**
  * v2.5 social, servers and media, without the network: richer presence, Open to Friends (e4mc's chat line, world
  * invites), player cards and hiding, Server API v2 (prompts, widgets, player-card entries), cloud backup's packing
- * and encryption, the Discover list parser and the replay render queue. Loopback mode throughout.
+ * and encryption and the replay render queue. Loopback mode throughout.
  */
 public final class SocialV25Test {
     private SocialV25Test() {}
@@ -198,12 +197,6 @@ public final class SocialV25Test {
             }
         });
         check(backup.equals("[config.json, profiles/PvP.json]|true|true|{\"b\":2}"), "Cloud backup: encrypted round trip, wrong passphrase and other account refused, only its own files (" + backup + ")");
-
-        // 8. Discover: the list keeps public addresses only, at most 24.
-        int discover = ctx.computeOnClient(c -> Discover.parse(com.google.gson.JsonParser.parseString(
-                "{\"servers\":[{\"name\":\"Good\",\"address\":\"play.example.net\",\"evade\":true},{\"name\":\"Bad\",\"address\":\"not a host!\"},{\"address\":\"x.example.net\"}]}")
-                .getAsJsonObject()).size());
-        check(discover == 1, "Discover: only named servers with valid addresses are listed (" + discover + ")");
 
         // 9. Render queue: queue, status, remove.
         String queue = ctx.computeOnClient(c -> {

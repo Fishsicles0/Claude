@@ -101,6 +101,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             PerfV25Test.run(ctx, sp);
             ReliabilityV25Test.run(ctx, sp);
             CosmeticsTest.run(ctx, sp);
+            CosmeticsFreeTest.run(ctx, sp);
             CosmeticsQualityTest.run(ctx, sp);
             PetsTest.run(ctx, sp);
             TextHotkeysTest.run(ctx, sp);

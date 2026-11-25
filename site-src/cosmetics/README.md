@@ -44,8 +44,9 @@ Served at `https://evadeclient.com/cosmetics/<id>/<file>`; that folder is the it
 * `assets.files` lists every file with its sha256 (lowercase hex). The client refuses any file, bundled or downloaded,
   whose bytes don't match, and only downloads from `https://evadeclient.com/`. Downloads are cached in
   `config/evade/cosmetics-cache/<id>/` and re-checked on every load.
-* `priceCents`: the price in US cents (nothing is sold yet), or `null` for not priced / not for sale. Only items
-  priced above zero can be bought. `partner` is `null` or `{id, name}`.
+* `priceCents`: the price in US cents (nothing is sold yet), `0` for free for every Evade player (every cape: never
+  sold, worn without owning it, seen by others like an owned item), or `null` for not priced / not for sale. Only
+  items priced above zero can be bought. `partner` is `null` or `{id, name}`.
 
 ## model.json (`evade-cosmetic-model/1`)
 
