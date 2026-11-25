@@ -154,7 +154,7 @@ CATEGORIES = [
         {"key": "general", "emoji": "💬", "name": "general", "slowmode": 3},
         {"key": "media", "emoji": "📸", "name": "media", "topic": "Screenshots, clips and montages."},
         {"key": "hud-setups", "emoji": "🖥️", "name": "hud-setups"},
-        {"key": "cosmetics", "emoji": "👕", "name": "cosmetics", "topic": "Evade cosmetics are coming soon. Until then: show off your themes, crosshairs and packs."},
+        {"key": "cosmetics", "emoji": "👕", "name": "cosmetics", "topic": "The Evade Shop is coming soon: 76 cosmetics to preview in 3D at evadeclient.com/shop. Until then, show off your setup."},
         {"key": "fps", "emoji": "⚡", "name": "fps-and-performance"},
         {"key": "lfg", "emoji": "🤝", "name": "looking-for-group"},
         {"key": "off-topic", "emoji": "🎲", "name": "off-topic", "slowmode": 3},

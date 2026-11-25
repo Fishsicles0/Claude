@@ -131,6 +131,48 @@ def announcement(entry: dict) -> dict:
     }
 
 
+SLOTS = [  # catalogue slot, label, emoji (in display order)
+    ("CAPE", "capes", "🧥"), ("WINGS", "wings", "🪽"), ("HAT", "hats", "🎩"), ("PET", "pets", "🐾"),
+    ("AURA", "auras", "✨"), ("BACK", "back items", "🎒"), ("MASK", "masks", "🎭"), ("EMOTE", "emotes", "💃"),
+    ("TRAIL", "trails", "🌠"), ("KILL_EFFECT", "kill effects", "⚔️"), ("WIN_EFFECT", "win effects", "🏆"),
+    ("ITEM_SKIN", "sword skins", "🗡️"),
+]
+
+
+def cosmetics_catalog() -> list[dict]:
+    return json.loads(fetch("cosmetics/catalog.json"))["items"]
+
+
+def cosmetics_post(items: list[dict]) -> dict:
+    """The pinned #cosmetics post, built from the shop's live catalogue."""
+    counts = {}
+    for it in items:
+        counts[it.get("slot")] = counts.get(it.get("slot"), 0) + 1
+    kinds = " · ".join(f"{emoji} {counts[slot]} {label}" for slot, label, emoji in SLOTS if counts.get(slot))
+    special = [it["name"] for it in items if it.get("rarity") == "special"]
+    examples = ", ".join(special[:3])
+    return {
+        "raw": True,
+        "title": "👕 Cosmetics: Coming Soon",
+        "description": (
+            f"The **Evade Shop** is almost here: **{len(items)} cosmetics** you can already preview in 3D at "
+            f"{SITE}/shop. Checkout opens soon, and it'll be announced in #announcements.\n\n"
+            f"**What's coming**\n{kinds}\n\n"
+            "**Rarities**\n"
+            f"Regular · **Special**: {len(special)} animated items"
+            + (f" like {examples}" if examples else "") + " · **Partner**: branded items for partner servers\n\n"
+            "**How it'll work**\n"
+            "1. In Evade, open **Wardrobe → Link the shop** to get a 6-character code.\n"
+            "2. Enter it on the shop and pick your items, or gift them using a friend's code.\n"
+            "3. Wear them from the Wardrobe and switch them on or off any time.\n\n"
+            "**Cosmetic only:** nothing changes hitboxes, reach or speed. Only Evade players see them, "
+            "and you can hide everyone's cosmetics if you'd rather not see them.\n\n"
+            f"⚠️ Cosmetics are only sold at {SITE}/shop, and staff will never ask for your password. "
+            "Anyone selling Evade cosmetics anywhere else is a scammer. Report them in #create-ticket."),
+        "fields": [],
+    }
+
+
 def live_posts() -> tuple[dict, dict, list[dict]]:
     """(posts with live data, version.json, changelog entries). Raises if the site can't be read."""
     v = version_info()
@@ -142,4 +184,8 @@ def live_posts() -> tuple[dict, dict, list[dict]]:
     posts = dict(layout.POSTS)
     posts["download"] = [download_post(v)]
     posts["changelog"] = changelog_posts(entries)
+    try:
+        posts["cosmetics"] = [cosmetics_post(cosmetics_catalog())]
+    except Exception:  # noqa: BLE001 - the shop catalogue is optional; keep the layout's post
+        pass
     return posts, v, entries
