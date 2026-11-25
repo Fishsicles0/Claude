@@ -584,6 +584,7 @@ final class SelfTest {
     /** Checks for bugs that were found and fixed, so they stay fixed. One failing group doesn't stop the others. */
     private void regressionTests(Path dir) {
         guard("capture recovery", () -> captureRecoveryTests(dir));
+        guard("broken ffmpeg download", this::brokenFfmpegTests);
         guard("global hotkeys", this::hotkeyTests);
         guard("library", () -> libraryTests(dir));
         guard("Discord webhook", this::webhookTest);
@@ -817,6 +818,22 @@ final class SelfTest {
         s.recordMic = false;
         s.storageLimitGb = 0;
         return s;
+    }
+
+    /** A cut-off ffmpeg download (right name, won't start) doesn't count as installed and is removed. */
+    private void brokenFfmpegTests() throws Exception {
+        Path bin = Settings.appDir().resolve("ffmpeg").resolve("bin");
+        Files.createDirectories(bin);
+        Path broken = bin.resolve("ffmpeg-broken-test");
+        Files.write(broken, new byte[]{'M', 'Z', 0, 0, 1, 2, 3}); // the start of a Windows program, then nothing
+        broken.toFile().setExecutable(true);
+        boolean runs = net.evadeclient.clips.core.Ffmpeg.works(broken);
+        boolean real = net.evadeclient.clips.core.Ffmpeg.works(Path.of(net.evadeclient.clips.core.Ffmpeg.ffmpeg()));
+        Path part = bin.resolve("ffprobe-extract-test");
+        net.evadeclient.clips.core.Ffmpeg.extract(new java.io.ByteArrayInputStream(new byte[]{1, 2, 3}), part);
+        check(!runs && !Files.exists(broken) && real && Files.size(part) == 3 && !Files.exists(bin.resolve("ffprobe-extract-test.part")),
+                "a cut-off ffmpeg download isn't counted as installed and is deleted (so the download is offered again); the real one runs; extraction goes through a temporary file");
+        Files.deleteIfExists(part);
     }
 
     private static boolean isLive(CaptureEngine.Status st) { return st != null && st.state() == CaptureEngine.State.LIVE; }
