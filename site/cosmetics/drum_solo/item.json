@@ -2,7 +2,7 @@
  "id": "drum_solo",
  "name": "Drum Solo",
  "slot": "EMOTE",
- "rarity": "RARE",
+ "rarity": "REGULAR",
  "colourable": false,
  "defaultColor": null,
  "partner": null,

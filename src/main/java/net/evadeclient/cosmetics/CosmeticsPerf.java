@@ -11,6 +11,9 @@ public final class CosmeticsPerf {
 
     static void drew() { drawn++; }
 
+    /** Emissive (glow layer) parts drawn since launch (tests). */
+    public static long glowParts;
+
     /** Average microseconds per call window since the last take, and resets. */
     public static double takeMicros(long frameCount) {
         double us = frameCount <= 0 ? 0 : nanos / 1000.0 / frameCount;

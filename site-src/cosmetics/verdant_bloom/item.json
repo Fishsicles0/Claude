@@ -1,0 +1,24 @@
+{
+ "id": "verdant_bloom",
+ "name": "Verdant Bloom",
+ "slot": "AURA",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A wreath of glowing leaves and pink flowers turns slowly round your feet, with green motes in the air.",
+ "fx": {
+  "type": "aura",
+  "particle": "soft",
+  "colors": [
+   "#E8FFC8",
+   "#8CFF6A",
+   "#2A8A3A"
+  ],
+  "rate": 3,
+  "size": 0.6,
+  "life": 1.8,
+  "sizeEnd": 0.4,
+  "gravity": -0.1
+ }
+}

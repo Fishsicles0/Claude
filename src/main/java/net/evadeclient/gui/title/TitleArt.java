@@ -53,10 +53,10 @@ public final class TitleArt {
         return s == null || s.smoothFont.get();
     }
 
-    /** Client Settings' Animations. */
+    /** Client Settings' Animations, and not the Title Screen's Reduce Motion. */
     public static boolean anims() {
         ClientSettings s = settings();
-        return s == null || s.animations.get();
+        return (s == null || s.animations.get()) && !net.evadeclient.module.misc.TitleScreenModule.reduceMotion();
     }
 
     // ------------------------------------------------------------------ text

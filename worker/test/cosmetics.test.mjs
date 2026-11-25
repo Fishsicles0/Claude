@@ -59,6 +59,7 @@ const CATALOG = {
     { id: "free_hat", name: "Free Hat", slot: "HAT", priceCents: 0 },
     { id: "craft_wings", name: "Craft Wings", slot: "WINGS", priceCents: null, partner: { id: "craftnet", name: "CraftNet" } },
     { id: "other_wings", name: "Other Wings", slot: "WINGS", partner: { id: "othernet", name: "OtherNet" } },
+    { id: "glow_cape", name: "Glow Cape", slot: "CAPE", rarity: "special", priceCents: null },
     { id: "Bad Id", name: "broken", slot: "HAT" },
     { id: "noslot", name: "broken" },
   ],
@@ -121,7 +122,10 @@ await test("catalog: normalized items, asset base URLs, bad entries dropped", as
   const r = await call("/api/cosmetics/catalog");
   assert.equal(r.status, 200);
   assert.equal(r.body.version, "test-1");
-  assert.deepEqual(r.body.items.map((i) => i.id), ["red_cape", "halo", "free_hat", "craft_wings", "other_wings"]);
+  assert.deepEqual(r.body.items.map((i) => i.id), ["red_cape", "halo", "free_hat", "craft_wings", "other_wings", "glow_cape"]);
+  // tiers: regular / special / partner; the old names (rare, epic) and a missing one read as regular, partner items as partner
+  assert.deepEqual(r.body.items.map((i) => i.rarity), ["regular", "regular", "regular", "partner", "partner", "special"]);
+  assert.equal(r.body.items[5].priceCents, null); // a special item whose price isn't announced yet
   const cape = r.body.items[0];
   assert.equal(cape.slot, "CAPE");
   assert.equal(cape.currency, "USD");
@@ -183,6 +187,7 @@ await test("test mode: link code -> checkout -> complete -> owned -> equip -> pl
   assert.equal((await call("/api/shop/checkout", post({ linkCode: link.body.code, items: ["nope"] }))).status, 400);
   assert.equal((await call("/api/shop/checkout", post({ linkCode: link.body.code, items: ["craft_wings"] }))).status, 400); // not for sale
   assert.equal((await call("/api/shop/checkout", post({ linkCode: link.body.code, items: ["free_hat"] }))).status, 400);
+  assert.equal((await call("/api/shop/checkout", post({ linkCode: link.body.code, items: ["glow_cape"] }))).status, 400); // price coming soon
   assert.equal((await call("/api/shop/checkout", post({ linkCode: "ZZZZZZ", items: ["red_cape"] }))).status, 404);
   assert.equal((await call("/api/shop/checkout", post({ items: ["red_cape"] }))).status, 400);
   const co = await call("/api/shop/checkout", post({ linkCode: link.body.code, items: ["red_cape", "halo", "red_cape"] }));

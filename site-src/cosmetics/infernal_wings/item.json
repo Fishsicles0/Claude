@@ -1,0 +1,10 @@
+{
+ "id": "infernal_wings",
+ "name": "Infernal Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Spiked black demon wings whose veins glow like magma in the dark."
+}

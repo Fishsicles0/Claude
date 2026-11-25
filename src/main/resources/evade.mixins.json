@@ -106,6 +106,7 @@
     "PlayerListEntryMixin",
     "MenuBlurScreenMixin",
     "MinecraftClientTitleScreenMixin",
+    "RotatingCubeMapAccessor",
     "PackScreenAccessor",
     "PackListWidgetAccessor",
     "PackListWidgetMixin",

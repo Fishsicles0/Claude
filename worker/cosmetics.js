@@ -10,7 +10,8 @@
 //   (c) a partner server granting its own partner items with a signed request (per-partner key, made by an admin),
 //   (d) test mode (local only, see above).
 //
-//   GET  /api/cosmetics/catalog                    -> {version, items:[{id, name, slot, rarity, priceCents, currency,
+//   GET  /api/cosmetics/catalog                    -> {version, items:[{id, name, slot, rarity (regular|special|partner),
+//                                                     priceCents (null: not priced yet, not for sale), currency,
 //                                                     partner: null|{id, name}, assets: {base, files: {name: sha256}}}]}
 //   GET  /api/cosmetics/players?uuids=a,b          -> {players: {uuid: {equipped: {SLOT: {id, color?}}}}} (64 at most)
 //   GET  /api/cosmetics/me            (Bearer)     -> {uuid, owned: [id], equipped: {SLOT: {id, color?}}, shop: {open, mode}}
@@ -130,6 +131,18 @@ let catalogCache = null;
 /** Forgets the cached catalog (tests). */
 export function resetCatalogCache() { catalogCache = null; }
 
+/**
+ * The item's tier: "regular" (not animated), "special" (animated; may have no price yet) or "partner" (a partner
+ * server's item). The old names (common, rare, epic, legendary) and anything unknown read as regular (partner when
+ * the item names a partner), so an older catalog still loads.
+ */
+const RARITY = new Set(["regular", "special", "partner"]);
+function normRarity(raw, partner) {
+  const r = String(raw || "").trim().toLowerCase();
+  if (RARITY.has(r)) return r;
+  return partner ? "partner" : "regular";
+}
+
 /** Validates one catalog item; null when it can't be used. Extra fields the client wants are passed through. */
 function normItem(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -155,7 +168,7 @@ function normItem(raw) {
     id,
     name: String(raw.name || id).slice(0, 64),
     slot,
-    rarity: String(raw.rarity || "common").toLowerCase().slice(0, 16),
+    rarity: normRarity(raw.rarity, partner),
     priceCents,
     currency,
     partner,

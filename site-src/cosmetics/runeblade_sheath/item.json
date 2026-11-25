@@ -1,0 +1,10 @@
+{
+ "id": "runeblade_sheath",
+ "name": "Runeblade",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A broad steel sword slung across your back, its fuller carved with runes that glow cyan."
+}

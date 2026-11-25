@@ -1,0 +1,10 @@
+{
+ "id": "rocket_jetpack",
+ "name": "Rocket Jetpack",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Twin red fuel tanks with hazard stripes and chrome nozzles that burn with a blue flame."
+}

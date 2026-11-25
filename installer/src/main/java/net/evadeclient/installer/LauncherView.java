@@ -2281,7 +2281,7 @@ public final class LauncherView extends JPanel {
         memoryChips(g, cx, ry + 14, ctl, i.memoryGb);
         ry += rh;
         boolean voice = release == null || release.voiceChat() != null, perf = release == null || !release.performance().isEmpty(), sh = release == null || release.iris() != null;
-        String[][] rows = {{"inst-perf", "FPS mods", "Sodium, Lithium and friends"}, {"inst-shaders", "Shaders", "Iris with the Photon pack"},
+        String[][] rows = {{"inst-perf", "FPS mods", "Sodium, Lithium and friends"}, {"inst-shaders", "Shaders", ShaderPacks.rowText(i.shaderPacks)},
                 {"inst-voice", "Voice chat", "Simple Voice Chat"},
                 {"inst-packs", "Resource pack features", "Connected textures, custom items, entities and skies"},
                 {"inst-lights", "Dynamic lights", "Held torches light up the area"}};
@@ -2290,10 +2290,11 @@ public final class LauncherView extends JPanel {
         // Rows tighten on small windows so the note and the buttons below stay clear (the last row is Optional extras).
         int oh = Math.max(40, Math.min(rh - 8, (y + h - 28 - 40 - 34 - ry) / (rows.length + 1)));
         for (int k = 0; k < rows.length; k++) {
-            rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", false, iw);
+            rowLabel(g, ix, ry, oh, rows[k][1], av[k] ? rows[k][2] : "Not available right now", false, iw, k == 1 ? iw - 170 : iw);
             toggle(g, rows[k][0] + "-sw", ix + iw - 44, ry + oh / 2 - 12, val[k], av[k]);
             if (av[k]) hit(rows[k][0], new Rectangle(ix, ry, iw, oh));
             game.name(rows[k][0], rows[k][1] + ", " + (val[k] ? "on" : "off"));
+            if (k == 1 && av[k]) tools.shaderPacks.paintRowButton(g, i, ix, ry, oh, iw); // the Shader packs chooser
             ry += oh;
         }
         tools.paintExtrasRow(g, i, ix, ry, oh, iw);

@@ -1,0 +1,10 @@
+{
+ "id": "frostbite_edge",
+ "name": "Frostbite Edge",
+ "slot": "ITEM_SKIN",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword carved from clear blue ice, frosted along the edges, with crystal shards on the guard. Shows on swords you hold, on your screen."
+}

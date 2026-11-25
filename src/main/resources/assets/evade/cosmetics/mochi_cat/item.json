@@ -1,0 +1,10 @@
+{
+ "id": "mochi_cat",
+ "name": "Mochi the Cat",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A round ginger tabby with green eyes and white paws that sits on your shoulder and flicks its tail."
+}

@@ -2,7 +2,7 @@
  "id": "comet_cap",
  "name": "Comet Cap",
  "slot": "HAT",
- "rarity": "COMMON",
+ "rarity": "REGULAR",
  "colourable": true,
  "defaultColor": "#3D7BFF",
  "partner": null,

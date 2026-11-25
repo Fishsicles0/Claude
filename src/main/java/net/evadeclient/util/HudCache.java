@@ -46,8 +46,8 @@ import java.util.Set;
  *
  * <p>The texture is redrawn when it is older than the refresh period, when a widget moves, is resized, turns on or off,
  * or (text widgets, checked once a tick) its text changes, and when the window or HUD scale changes. Widgets that move
- * every frame (minimap, compass, keystrokes, the frame-time graph, the paper doll, Chroma text and other mods'
- * widgets) are drawn live on top as usual. While a screen other than chat is open everything is drawn live (settings
+ * every frame (minimap, compass, keystrokes while a key animates, the frame-time graph, the paper doll, Chroma text
+ * and other mods' widgets) are drawn live on top as usual. While a screen other than chat is open everything is drawn live (settings
  * may be changing). If anything fails, the cache turns itself off for the session and the HUD is drawn as before.
  * Render thread only.
  */
@@ -90,10 +90,12 @@ public final class HudCache {
     }
 
     /** Widgets that move every frame: always drawn live. */
-    private static final Set<Class<?>> ANIMATED = Set.of(MinimapHud.class, CompassHud.class, KeystrokesHud.class,
+    private static final Set<Class<?>> ANIMATED = Set.of(MinimapHud.class, CompassHud.class,
             FrameTimeHud.class, PaperDollHud.class);
 
     public static boolean animated(HudElementModule el) {
+        // Keystrokes only moves while a key animates: settled, it is cached like the text widgets.
+        if (el instanceof KeystrokesHud k) return k.animatingNow();
         if (ANIMATED.contains(el.getClass()) || el instanceof AddonHudElement) return true;
         return el instanceof TextHudModule t && t.chroma.get();
     }
@@ -112,25 +114,20 @@ public final class HudCache {
     /** {@code MinecraftClient.getFramebuffer()} while the cached HUD is rendered (see {@link RenderScale#redirect}). */
     static Framebuffer redirect() { return redirect; }
 
-    private record Content(long tick, Object text) {}
-
     private static final Map<HudElementModule, Long> elementSigs = new IdentityHashMap<>();
     private static String lastChanged = "";
 
     /** The widget whose change caused the latest redraw (tests and tuning). */
     public static String lastChanged() { return lastChanged; }
 
-    private static final Map<HudElementModule, Content> contents = new IdentityHashMap<>();
-
-    /** Text widgets' text, read once a tick (the rate they rebuild it at); null for other widgets. */
-    private static Object content(HudElementModule el) {
-        if (!(el instanceof TextHudModule t)) return null;
-        Content c = contents.get(el);
-        if (c == null || c.tick() != EvadeClient.ticks) {
-            c = new Content(EvadeClient.ticks, t.textForTest());
-            contents.put(el, c);
-        }
-        return c.text();
+    /**
+     * Text widgets' text, read once a tick (the rate they rebuild it at) and shared with their drawing, so it is
+     * worked out once per tick, not twice; null for other widgets.
+     */
+    private static long content(HudElementModule el) {
+        if (el instanceof TextHudModule t) return java.util.Objects.hashCode(t.contentKey());
+        if (el instanceof KeystrokesHud k) return k.cacheKey();
+        return 0;
     }
 
     /**
@@ -156,7 +153,7 @@ public final class HudCache {
             e = e * 31 + el.resolveX(sw); e = e * 31 + el.resolveY(sh);
             e = e * 31 + Float.floatToIntBits(el.scale.getFloat());
             e = e * 31 + el.getWidth() * 7919L + el.getHeight();
-            e = e * 31 + Objects.hashCode(content(el));
+            e = e * 31 + content(el);
             Long before = elementSigs.put(el, e);
             if (before != null && before != e) lastChanged = el.getName();
             sig = sig * 31 + e;
@@ -221,7 +218,6 @@ public final class HudCache {
     /** Frees the texture and the second GUI renderer (HUD Refresh set to Every Frame, or a failure). */
     public static void release() {
         lastSignature = 0;
-        contents.clear();
         elementSigs.clear();
         if (fb != null) { fb.delete(); fb = null; }
         if (renderer != null) {

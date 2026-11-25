@@ -1,0 +1,10 @@
+{
+ "id": "bubble_slime",
+ "name": "Bubble the Slime",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A wobbly see-through green slime with a glowing core and a goofy grin."
+}

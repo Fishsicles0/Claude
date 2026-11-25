@@ -1,0 +1,10 @@
+{
+ "id": "clockwork_wings",
+ "name": "Clockwork Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Riveted steel blades with brass trim and glowing blue seams, turning on a brass gear at each shoulder."
+}

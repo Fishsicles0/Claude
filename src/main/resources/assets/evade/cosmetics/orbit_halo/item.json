@@ -1,0 +1,15 @@
+{
+ "id": "orbit_halo",
+ "name": "Orbit Halo",
+ "slot": "HAT",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A radiant halo that spins above your head while a band of light races round the ring.",
+ "animation": {
+  "frames": 16,
+  "frametime": 1,
+  "interpolate": true
+ }
+}

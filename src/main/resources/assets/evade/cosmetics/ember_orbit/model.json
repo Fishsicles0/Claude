@@ -2,13 +2,13 @@
  "format": "evade-cosmetic-model/1",
  "space": "entity",
  "texture": [
-  128,
-  32
+  22,
+  14
  ],
- "textureScale": 2,
+ "textureScale": 8,
  "bones": [
   {
-   "name": "ring",
+   "name": "sigil_0",
    "attach": "root",
    "pivot": [
     0,
@@ -16,21 +16,132 @@
     0
    ],
    "rotation": [
-    0,
+    90,
     0,
     0
    ],
    "cubes": [
     {
      "origin": [
-      -11.0,
-      23.6,
-      -11.0
+      0.0,
+      12.600000000000001,
+      0.0
      ],
      "size": [
-      22,
+      11,
+      11,
+      0
+     ],
+     "uv": [
       0,
-      22
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "spin",
+    "speed": 24
+   },
+   "emissive": true
+  },
+  {
+   "name": "sigil_1",
+   "attach": "root",
+   "pivot": [
+    0,
+    23.6,
+    0
+   ],
+   "rotation": [
+    90,
+    90,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      0.0,
+      12.600000000000001,
+      0.0
+     ],
+     "size": [
+      11,
+      11,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "spin",
+    "speed": 24
+   },
+   "emissive": true
+  },
+  {
+   "name": "sigil_2",
+   "attach": "root",
+   "pivot": [
+    0,
+    23.6,
+    0
+   ],
+   "rotation": [
+    90,
+    180,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      0.0,
+      12.600000000000001,
+      0.0
+     ],
+     "size": [
+      11,
+      11,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "spin",
+    "speed": 24
+   },
+   "emissive": true
+  },
+  {
+   "name": "sigil_3",
+   "attach": "root",
+   "pivot": [
+    0,
+    23.6,
+    0
+   ],
+   "rotation": [
+    90,
+    270,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      0.0,
+      12.600000000000001,
+      0.0
+     ],
+     "size": [
+      11,
+      11,
+      0
      ],
      "uv": [
       0,
@@ -70,8 +181,8 @@
       1
      ],
      "uv": [
-      88,
-      0
+      0,
+      11
      ]
     },
     {
@@ -86,8 +197,8 @@
       1
      ],
      "uv": [
-      92,
-      0
+      0,
+      11
      ]
     },
     {
@@ -102,8 +213,8 @@
       1
      ],
      "uv": [
-      96,
-      0
+      0,
+      11
      ]
     }
    ],

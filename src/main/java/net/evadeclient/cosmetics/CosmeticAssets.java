@@ -37,13 +37,15 @@ public final class CosmeticAssets {
     public enum State { LOADING, READY, FAILED }
 
     /** Files an item can have; nothing else is ever requested or written. */
-    public static final Set<String> FILES = Set.of("item.json", "model.json", "texture.png", "thumb.png");
+    public static final Set<String> FILES = Set.of("item.json", "model.json", "texture.png", "emissive.png", "thumb.png");
     private static final long MAX_FILE = 2 * 1024 * 1024;
     private static final String HOST = "https://evadeclient.com/";
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8))
             .followRedirects(HttpClient.Redirect.NEVER).build();
 
-    private record Loaded(State state, CosmeticModel model, Identifier thumb, String error) {}
+    private record Loaded(State state, CosmeticModel model, Identifier thumb, String error, int thumbFrames) {
+        Loaded(State state, CosmeticModel model, Identifier thumb, String error) { this(state, model, thumb, error, 1); }
+    }
 
     private static final Map<String, Loaded> LOADED = new ConcurrentHashMap<>();
 
@@ -63,6 +65,18 @@ public final class CosmeticAssets {
     public static Identifier thumb(CosmeticItem item) {
         Loaded l = load(item);
         return l != null && l.state == State.READY ? l.thumb : null;
+    }
+
+    /**
+     * Where to draw the thumbnail now: {frame a, frame b, blend, frames} for an animated strip (frames > 1), so the
+     * Wardrobe grid can show frame a and fade frame b over it. Null when not loaded.
+     */
+    public static float[] thumbFrame(CosmeticItem item) {
+        Loaded l = LOADED.get(item.id);
+        if (l == null || l.state != State.READY || l.thumb == null) return null;
+        if (l.thumbFrames <= 1) return new float[]{0, 0, 0, 1};
+        float[] f = AnimatedTexture.frameAt(item.animation, AnimatedTexture.clockTicks());
+        return new float[]{f[0], f[1], f[2], l.thumbFrames};
     }
 
     public static State state(CosmeticItem item) {
@@ -114,6 +128,13 @@ public final class CosmeticAssets {
             JsonObject o = JsonParser.parseString(new String(itemJson, StandardCharsets.UTF_8)).getAsJsonObject();
             if (o.has("fx") && o.get("fx").isJsonObject()) item.fx = o.getAsJsonObject("fx");
             if (o.has("emote") && o.get("emote").isJsonObject()) item.emote = Emotes.Animation.parse(o.getAsJsonObject("emote"));
+            item.animation = AnimatedTexture.Spec.parse(o.get("animation"));
+            if (o.has("physics") && o.get("physics").isJsonObject()) {
+                JsonObject ph = o.getAsJsonObject("physics");
+                item.stiffness = CosmeticModel.clamp(CosmeticModel.num(ph, "stiffness", 0.5f), 0f, 1f);
+                item.lift = CosmeticModel.clamp(CosmeticModel.num(ph, "lift", 1f), 0f, 2f);
+                item.sway = CosmeticModel.clamp(CosmeticModel.num(ph, "sway", 1f), 0f, 2f);
+            }
         }
         CosmeticModel model = null;
         if (files.containsKey("model.json") && files.containsKey("texture.png")) {
@@ -121,20 +142,32 @@ public final class CosmeticAssets {
             JsonObject mo = JsonParser.parseString(new String(files.get("model.json"), StandardCharsets.UTF_8)).getAsJsonObject();
             model = new CosmeticModel(item.id, mo, tex);
             model.bake();
-            register(tex, files.get("texture.png"), "Evade cosmetic " + item.id);
+            float aspect = model.texH / (float) model.texW;
+            model.tex = new AnimatedTexture(tex, files.get("texture.png"), item.animation, aspect, "Evade cosmetic " + item.id);
+            if (files.containsKey("emissive.png")) {
+                Identifier glow = Identifier.of("evade", "cosmetics/" + item.id + "/emissive");
+                model.glow = new AnimatedTexture(glow, files.get("emissive.png"), item.animation, aspect, "Evade cosmetic glow " + item.id);
+                if (model.glow.frameW != model.tex.frameW || model.glow.frameH != model.tex.frameH)
+                    throw new IOException("emissive.png must be the same size as texture.png");
+            }
         }
         Identifier thumb = null;
+        int thumbFrames = 1;
         if (files.containsKey("thumb.png")) {
             thumb = Identifier.of("evade", "cosmetics/" + item.id + "/thumb");
-            register(thumb, files.get("thumb.png"), "Evade cosmetic thumbnail " + item.id);
+            int[] wh = register(thumb, files.get("thumb.png"), "Evade cosmetic thumbnail " + item.id);
+            // an animated item's thumbnail may be a strip of the same number of square frames
+            if (item.animation != null && item.animation.frames() > 1 && wh[1] == wh[0] * item.animation.frames()) thumbFrames = item.animation.frames();
         }
-        LOADED.put(item.id, new Loaded(State.READY, model, thumb, null));
+        LOADED.put(item.id, new Loaded(State.READY, model, thumb, null, thumbFrames));
     }
 
-    private static void register(Identifier id, byte[] png, String name) throws IOException {
+    private static int[] register(Identifier id, byte[] png, String name) throws IOException {
         NativeImage img = NativeImage.read(png);
-        if (img.getWidth() > 2048 || img.getHeight() > 2048) { img.close(); throw new IOException("texture too large"); }
+        if (img.getWidth() > 2048 || img.getHeight() > 4096) { img.close(); throw new IOException("texture too large"); }
+        int[] wh = {img.getWidth(), img.getHeight()};
         MinecraftClient.getInstance().getTextureManager().registerTexture(id, new NativeImageBackedTexture(() -> name, img));
+        return wh;
     }
 
     // ------------------------------------------------------------------ files

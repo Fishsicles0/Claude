@@ -170,6 +170,7 @@ public class KeystrokesHud extends HudElementModule {
         lastFrame = now;
         refreshLabels();
         animate(dt);
+        if (!preview) drawnKeys = pressedBits();
         // Every key's soft shadow first, then the keys: a key's shadow never lands on a neighbour drawn before it
         // (with a small Gap it would darken that key's edge, and its press highlight).
         if (background.get() && !"Outline".equals(Theme.hudStyle)) {
@@ -181,6 +182,46 @@ public class KeystrokesHud extends HudElementModule {
             }
         }
         layout(ctx, left, top);
+    }
+
+    /**
+     * HUD cache (Performance > HUD Refresh): whether a key is mid-animation right now. While none is, the widget looks
+     * the same every frame until a key changes state, so it can be cached like a text widget (see {@link #cacheKey}).
+     * Whether a key is down is read live here, so a press is noticed on the frame it happens.
+     */
+    public boolean animatingNow() {
+        for (float f : fade) if (f > 0f && f < 1f) return true;
+        long keys = pressedBits();
+        // A key went down or up since it was last drawn: draw it live so its animation starts this frame.
+        return keys != drawnKeys;
+    }
+
+    /** What the widget shows while no key animates: which keys are down, the CPS figures and the key labels. */
+    public long cacheKey() {
+        refreshLabels();
+        long h = pressedBits();
+        h = h * 31 + ClickTracker.leftCps();
+        h = h * 31 + ClickTracker.rightCps();
+        for (String l : labels) h = h * 31 + l.hashCode();
+        return h;
+    }
+
+    /** Keys down when the widget was last drawn (see {@link #animatingNow}). */
+    private long drawnKeys;
+
+    private long pressedBits() {
+        var o = mc.options;
+        long b = 0;
+        if (o.forwardKey.isPressed()) b |= 1;
+        if (o.leftKey.isPressed()) b |= 2;
+        if (o.backKey.isPressed()) b |= 4;
+        if (o.rightKey.isPressed()) b |= 8;
+        if (ClickTracker.leftDown()) b |= 16;
+        if (ClickTracker.rightDown()) b |= 32;
+        if (o.jumpKey.isPressed()) b |= 64;
+        if (o.sneakKey.isPressed()) b |= 128;
+        if (o.sprintKey.isPressed()) b |= 256;
+        return b;
     }
 
     /** Advances every key's press animation once per frame (both passes then read the same values). */
@@ -321,6 +362,21 @@ public class KeystrokesHud extends HudElementModule {
         else drawLabel(ctx, styled(HudDraw.trim(label, Math.round((w - 3) / 0.7f), smoothFont.get())), x + w / 2f, top + 1, 0.7f, color);
         int subColor = Theme.lerpColor(Theme.alpha(labelColor(), 0.8f), pressedLabelColor(), t);
         drawLabel(ctx, styled(sub), x + w / 2f, top + 10, 0.7f, subColor);
+    }
+
+    /** Key labels as text, kept between frames: this widget is drawn every frame, and a new Text each frame means
+     *  the game lays its characters out again (bidirectional reordering included) for every key. */
+    private final java.util.Map<String, net.minecraft.text.MutableText> labelTexts = new java.util.HashMap<>();
+    private net.minecraft.text.Style labelStyle;
+
+    @Override
+    protected net.minecraft.text.MutableText styled(String s) {
+        net.minecraft.text.Style style = smoothFont.get() ? smoothStyle() : null;
+        if (!java.util.Objects.equals(style, labelStyle) || labelTexts.size() > 64) {
+            labelTexts.clear();
+            labelStyle = style;
+        }
+        return labelTexts.computeIfAbsent(s, super::styled);
     }
 
     /** {@code text} centred on {@code cx} with its top at {@code top}, at {@code scale}. */

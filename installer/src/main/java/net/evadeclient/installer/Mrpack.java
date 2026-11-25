@@ -427,7 +427,15 @@ final class Mrpack {
 
     /** What a share code holds: a name, Modrinth project ids by type, and the instance's Evade options. */
     record Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice,
-                 Set<String> optional) {
+                 Set<String> optional, Set<String> shaderPacks) {
+        /** {@code shaderPacks}: the {@link ShaderPacks} ticked for the Shaders option (null: the defaults). */
+        Share {
+            shaderPacks = ShaderPacks.clean(shaderPacks);
+        }
+        Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice,
+              Set<String> optional) {
+            this(name, mods, resourcePacks, shaders, perf, shaderOption, voice, optional, null);
+        }
         Share(String name, List<String> mods, List<String> resourcePacks, List<String> shaders, boolean perf, boolean shaderOption, boolean voice) {
             this(name, mods, resourcePacks, shaders, perf, shaderOption, voice, Set.of());
         }
@@ -438,9 +446,19 @@ final class Mrpack {
         JsonObject o = new JsonObject();
         o.addProperty("n", inst.name);
         JsonArray m = new JsonArray(), r = new JsonArray(), sh = new JsonArray();
+        // The shader packs the Shaders option added travel as the pack choice ("sp"), not as projects.
+        Set<String> evadePacks = new java.util.HashSet<>();
+        JsonObject marker = InstallerCore.readMarker(inst.dir);
+        if (marker != null && marker.has("shaderPacks") && marker.get("shaderPacks").isJsonObject()) {
+            for (String key : marker.getAsJsonObject("shaderPacks").keySet()) {
+                String f = InstallerCore.packFile(marker.getAsJsonObject("shaderPacks"), key);
+                if (f != null) evadePacks.add(f.toLowerCase(Locale.ROOT));
+            }
+        }
         for (Updates.Known k : known.values()) {
             if (k.current() == null || k.current().projectId() == null) continue;
             if (k.file().getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".disabled")) continue;
+            if (k.type() == Content.Type.SHADER && evadePacks.contains(k.file().getFileName().toString().toLowerCase(Locale.ROOT))) continue;
             String pid = k.current().projectId();
             JsonArray to = k.type() == Content.Type.MOD ? m : k.type() == Content.Type.RESOURCEPACK ? r : k.type() == Content.Type.SHADER ? sh : null;
             if (to != null && !to.contains(new com.google.gson.JsonPrimitive(pid))) to.add(pid);
@@ -451,6 +469,7 @@ final class Mrpack {
         o.addProperty("o", (inst.perf ? "p" : "") + (inst.shaders ? "s" : "") + (inst.voice ? "v" : ""));
         String extras = OptionalMods.letters(inst.optional);
         if (!extras.isEmpty()) o.addProperty("x", extras); // optional extras (older launchers ignore this key)
+        if (!ShaderPacks.isDefault(inst.shaderPacks)) o.addProperty("sp", ShaderPacks.join(inst.shaderPacks)); // ticked shader packs
         byte[] raw = o.toString().getBytes(StandardCharsets.UTF_8);
         Deflater d = new Deflater(Deflater.BEST_COMPRESSION, true);
         d.setInput(raw);
@@ -483,7 +502,8 @@ final class Mrpack {
             JsonObject o = JsonParser.parseString(b.toString(StandardCharsets.UTF_8)).getAsJsonObject();
             String opts = InstallerCore.str(o, "o") == null ? "pv" : InstallerCore.str(o, "o");
             return new Share(InstallerCore.str(o, "n") == null ? "Shared" : InstallerCore.str(o, "n"), ids(o, "m"), ids(o, "r"), ids(o, "s"),
-                    opts.contains("p"), opts.contains("s"), opts.contains("v"), OptionalMods.fromLetters(InstallerCore.str(o, "x")));
+                    opts.contains("p"), opts.contains("s"), opts.contains("v"), OptionalMods.fromLetters(InstallerCore.str(o, "x")),
+                    o.has("sp") ? ShaderPacks.clean(List.of(InstallerCore.str(o, "sp").split(","))) : null);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -504,8 +524,9 @@ final class Mrpack {
     static Result fromCode(InstallerCore core, Launcher.Settings s, List<Launcher.Instance> all, Share share, int memoryGb, InstallerCore.Progress p) throws IOException {
         List<String> notes = new ArrayList<>();
         Launcher.Instance inst = Launcher.create(s, all, share.name(), null, memoryGb, share.perf(), share.shaderOption(), share.voice());
-        if (share.optional() != null && !share.optional().isEmpty()) {
+        if ((share.optional() != null && !share.optional().isEmpty()) || !ShaderPacks.isDefault(share.shaderPacks())) {
             inst.optional = OptionalMods.clean(share.optional());
+            inst.shaderPacks = ShaderPacks.clean(share.shaderPacks());
             Launcher.save(inst);
         }
         Map<String, ContentApi.Project> projects;
@@ -528,6 +549,8 @@ final class Mrpack {
                 ContentApi.Project pr = projects.get(pid);
                 if (pr == null) { notes.add("A project in the code isn't on Modrinth any more"); continue; }
                 if (managedOption(pr.slug()) != null) continue; // the options cover it
+                ShaderPacks.Pack chosen = t == Content.Type.SHADER && share.shaderOption() ? ShaderPacks.bySlug(pr.slug()) : null;
+                if (chosen != null && share.shaderPacks().contains(chosen.key())) continue; // Play adds it with the Shaders option
                 Mods.Hit hit = new Mods.Hit(pr.id(), pr.slug(), pr.title(), "", "", 0, 0);
                 try {
                     InstallerCore.Progress sub = (f, m) -> p.update(a + (b - a) * f, m);

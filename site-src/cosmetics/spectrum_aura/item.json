@@ -1,0 +1,31 @@
+{
+ "id": "spectrum_aura",
+ "name": "Spectrum Aura",
+ "slot": "AURA",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A rune circle whose colours sweep through the whole rainbow as it turns, with rainbow motes rising around you.",
+ "fx": {
+  "type": "aura",
+  "particle": "soft",
+  "colors": [
+   "#FF4A4A",
+   "#FFD23A",
+   "#3AFF7A",
+   "#3AC8FF",
+   "#B04FFF"
+  ],
+  "rate": 5,
+  "size": 0.6,
+  "life": 1.6,
+  "sizeEnd": 0.35,
+  "gravity": -0.3
+ },
+ "animation": {
+  "frames": 16,
+  "frametime": 3,
+  "interpolate": true
+ }
+}

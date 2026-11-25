@@ -6,8 +6,8 @@
    "id": "ember_mantle",
    "name": "Ember Mantle",
    "slot": "CAPE",
-   "rarity": "epic",
-   "priceCents": 799,
+   "rarity": "regular",
+   "priceCents": 600,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -15,10 +15,10 @@
    "description": "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark.",
    "assets": {
     "files": {
-     "item.json": "72156b2af3cc363cd7d806dabb99da7ece91008ae019be77945fcc095b8d476d",
+     "item.json": "00825fb226b1c4ca6333ca8ce1274bb426306a990e1ec2f712e6e3b5428e1e3a",
      "model.json": "f9ec3e1892c43a9ced999200984a408642dee0b3e92514c6c76b7f21a8e3fea5",
      "texture.png": "6bf61e391395e76ac6469c8556c6a3f74bf43ca96b1e2c06259ac51d824caa37",
-     "thumb.png": "15caa3322b8db9216a51423e1b8ece8a3719904638e79839380d4d90631cef35"
+     "thumb.png": "f32717094b62ae4ffb457c4413f2c5c33e9f32f298e722c1d18c2a43b0da2ab0"
     }
    }
   },
@@ -26,8 +26,8 @@
    "id": "tidal_weave",
    "name": "Tidal Weave",
    "slot": "CAPE",
-   "rarity": "rare",
-   "priceCents": 499,
+   "rarity": "regular",
+   "priceCents": 500,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -35,10 +35,10 @@
    "description": "Deep-sea blue with rolling waves of foam and a sand-gold collar.",
    "assets": {
     "files": {
-     "item.json": "120920328e889b46eefb80f800f78a5300fa68d0cfdf139f2e57eb224e421f5b",
+     "item.json": "0bc6ae91454e5993f79c99b6c085ba141372ec10b29541d8c95ff2e3e992526b",
      "model.json": "3f5687b840427ecf61d1f5143c1143de98b7256e03f31b8bd2ca4131ea45dd4d",
      "texture.png": "9b3a589d4a5772fa1dc29e0e976eac2e982b1054ade573d68e08c5f196eb83ed",
-     "thumb.png": "6e46186b7e15d7e24bd5b0de7016f141a4bac44f13734148e411e4de467560d8"
+     "thumb.png": "2f6c4d154d791fc874ac173e631b469fb3b18d9c519fda69db723dab526d384b"
     }
    }
   },
@@ -46,8 +46,8 @@
    "id": "starlit_veil",
    "name": "Starlit Veil",
    "slot": "CAPE",
-   "rarity": "legendary",
-   "priceCents": 1199,
+   "rarity": "regular",
+   "priceCents": 800,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -55,10 +55,10 @@
    "description": "A night sky with a violet nebula, a crescent moon and stars that shine in the dark.",
    "assets": {
     "files": {
-     "item.json": "9518aa767d920b9d028ba6c54e1bb1973da48bf24ec1e1ac27682297b6f1e1d7",
+     "item.json": "54a1e36b5d49c83ac7c424a318293a817a2c28914206539a287ba2abfad3fa99",
      "model.json": "f9ec3e1892c43a9ced999200984a408642dee0b3e92514c6c76b7f21a8e3fea5",
      "texture.png": "819a8c3d6d283fb0783a56ce344302df829b1240dc02f955e465afacb1e5ecbd",
-     "thumb.png": "4a02b512d8d6d153630a2e5c6d3423fba48e3a66d90ad8f5d2149507eeb5259b"
+     "thumb.png": "b6311b7134b5cf731235a766b4a7047361509b3184903ec204831a4ca73a949c"
     }
    }
   },
@@ -66,8 +66,8 @@
    "id": "chevron_standard",
    "name": "Chevron Standard",
    "slot": "CAPE",
-   "rarity": "common",
-   "priceCents": 299,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": true,
@@ -75,10 +75,10 @@
    "description": "A clean banner cape with three chevrons, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "eb3d6108ccc2b19f105d93b54af35fcc932b907673f32ad04ab14bcf0afc1027",
+     "item.json": "e35dcf7f8ea9802ff7b8374a69052a1dd1d96ef134ab3a4267e31cf861888c08",
      "model.json": "94376d917155ec2e3622d450c7da461498c04c92e0bea235dd40af5363a656a0",
      "texture.png": "8a6b631e3ab8aa1f721550f6fd391a782491b3e330ba5f38e814157b6dc6d079",
-     "thumb.png": "e1b540f01ec9ff42982d66c0bd8296a2e8ea560f950c9f042d7648c56a1e0cbf"
+     "thumb.png": "4c882009ac30fffb2cb1a822150cc11ff1094de15f92a49de8d415815a7560b4"
     }
    }
   },
@@ -86,8 +86,8 @@
    "id": "aurora_wings",
    "name": "Aurora Wings",
    "slot": "WINGS",
-   "rarity": "legendary",
-   "priceCents": 1499,
+   "rarity": "regular",
+   "priceCents": 1100,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -95,10 +95,10 @@
    "description": "See-through wings that fade from cyan to violet, with glowing veins and a slow, easy beat.",
    "assets": {
     "files": {
-     "item.json": "df1a9c2060422492c08e99022288c900d793eaf0cd76a964f5ce0ff3db0c7135",
+     "item.json": "c1118e8da0eb93d50d5adfe4d33e3409ac215becea538c5511bb711eca47a448",
      "model.json": "c40ea5940f160f5a6149c80aa2cd5ccc0b33e534561a5f10da237d3ac1a1a5a2",
      "texture.png": "6a07d91d5c2c1de587993b0bc0230dfc65061c38deaad667f56fbdcde8ebefee",
-     "thumb.png": "44240f96f36bf49597649c421b550b2b955d59f8ee3718c85ff4f18ddc421534"
+     "thumb.png": "069bd7fd2c805b3398caecd8e0a6e699a2256ae44013f8020b71ec1a315e98bb"
     }
    }
   },
@@ -106,8 +106,8 @@
    "id": "ashen_feathers",
    "name": "Ashen Feathers",
    "slot": "WINGS",
-   "rarity": "epic",
-   "priceCents": 999,
+   "rarity": "regular",
+   "priceCents": 800,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -115,10 +115,10 @@
    "description": "Layered grey feathers that darken towards ember-lit tips.",
    "assets": {
     "files": {
-     "item.json": "0788f1ceb246eebe60d3943289df883b31faa2503d5bd864bdc63d90b8ecb22c",
+     "item.json": "9784e27eb59bdfaaf6111c9f170bd98d7ce1aae5ed6d9407e420a279ef177541",
      "model.json": "4441f6144b86ac070d7eb9610642228202c9c595698ebb3a91de5ef62ded7e1f",
      "texture.png": "f6efd0c1939d121e546a37d1d1ff86946b53851dbaa4a0fd99cde6e036fb6ab4",
-     "thumb.png": "d8f9f1e37363c2208e855364a0e965d4c73e45d056f717a2a4f3bf8ead2c4697"
+     "thumb.png": "6c9711f5f6a6f2b77303ba53758f54240930917cea243c03f920e10fe87b3d08"
     }
    }
   },
@@ -126,8 +126,8 @@
    "id": "comet_cap",
    "name": "Comet Cap",
    "slot": "HAT",
-   "rarity": "common",
-   "priceCents": 249,
+   "rarity": "regular",
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": true,
@@ -135,10 +135,10 @@
    "description": "A ribbed knit beanie with a glowing pom-pom, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "62269f2ee4eda14dfb985ba3ccce1226114c5f8ff13d5147136fc7837e41d0f3",
+     "item.json": "af8647fb4707df0cb36f1de72e2d8b4481c90883c30c24bbbb0e7ee4167baaca",
      "model.json": "39ebc2cbcfc905194bbbd6c70e5d6a8382b943825035f37cf229b2db4266542f",
      "texture.png": "0c6781d0dc8da5734dc4cf14e837952a18e16d572d2dbfc49baa0e93a575d535",
-     "thumb.png": "079faa2c989a09e08f29e65dea71670edc203018e75481ac442f13aa48571697"
+     "thumb.png": "3d97262dc8e4ea1a420b9c198c6d30c0f9074d7e70c6d89bcb65b9da3b561a61"
     }
    }
   },
@@ -146,8 +146,8 @@
    "id": "circuit_crown",
    "name": "Circuit Crown",
    "slot": "HAT",
-   "rarity": "epic",
-   "priceCents": 899,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -155,10 +155,10 @@
    "description": "A gold crown traced with glowing cyan circuitry and a crystal at the front.",
    "assets": {
     "files": {
-     "item.json": "0b0d98a1f23ef3b14d2b74ed1ef21feb2689c5933b199080145830ba763a4ea2",
+     "item.json": "96b25d63aa38f956686303c6ee0ebefcbe489288fce680fd77265a7d31734510",
      "model.json": "c3c3d936b748e8e80cfaa326b75b53509f163404aaeedb015d3fe866cc980bdf",
      "texture.png": "5021d3806c379fc2524afb89bade93dd11bdd7d347c82d8b020479d6aa08e1ab",
-     "thumb.png": "5f7ac715769fa8f2d71fc97ebb22f35b054384af57ab7706184500e04ac1655a"
+     "thumb.png": "43a71cbd4d9e0ca11b310116f9211df759d16560ea6915a89a935f62a82c683b"
     }
    }
   },
@@ -166,8 +166,8 @@
    "id": "dusk_visor",
    "name": "Dusk Visor",
    "slot": "MASK",
-   "rarity": "rare",
-   "priceCents": 449,
+   "rarity": "regular",
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -175,10 +175,10 @@
    "description": "A sleek gunmetal visor across the eyes with a glowing red slit.",
    "assets": {
     "files": {
-     "item.json": "fd867756f2b11515268221a551a5102a7ed270fec6b5fbeedcf1e4eb521cca63",
+     "item.json": "d3ba2c05bda3e2aac04053bd508100c4506afcfcb696f231e85a985d470ee568",
      "model.json": "b9d8b14318d6e311c3358128d1e2986ed5357cabfb3ddff135962d61a658b589",
      "texture.png": "1afaeb4f6d3d2733e835c6cb91309a44f6def814bf830e03ae4547d58c7509ef",
-     "thumb.png": "11ba6d516a7975cbc1c56d6d8807e8736885c921ae4c9bf51930b5918edc6e93"
+     "thumb.png": "ae2250be5bb757f019deaf59c7f757813d418d8d168f4b7f56c1d233e0cb12ec"
     }
    }
   },
@@ -186,8 +186,8 @@
    "id": "lantern_pack",
    "name": "Lantern Pack",
    "slot": "BACK",
-   "rarity": "rare",
-   "priceCents": 549,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -195,10 +195,10 @@
    "description": "A sturdy canvas backpack with leather straps and a little lantern that glows at night.",
    "assets": {
     "files": {
-     "item.json": "f17b252e024ebceea61e1d54c35613602fddd77d2f48f352b77020650d29d069",
+     "item.json": "c417b5e1530efd9abe2a39c21dc47f8f293f38ed5cdf6a2c129329402a618e31",
      "model.json": "4ab1d819fd4e60839e24c28818c888a65b8f8881b0de94b58125e5c250a445ca",
      "texture.png": "9507cf655fbe249274fd8e3f5769e2e9b3c19eb6f43985cfdee682db13add1cf",
-     "thumb.png": "44c22910f9c7b62fa50195f1795535a7fd3e8a68fe992f16ec307d3169b0b4a9"
+     "thumb.png": "1122ec4852fd35526fd18d0a5c1752dcdb1837e66cfc39e83a8db0693cbb64db"
     }
    }
   },
@@ -206,8 +206,8 @@
    "id": "ember_orbit",
    "name": "Ember Orbit",
    "slot": "AURA",
-   "rarity": "epic",
-   "priceCents": 799,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -215,10 +215,10 @@
    "description": "A faint ring of fire turns at your feet while three embers circle your waist.",
    "assets": {
     "files": {
-     "item.json": "168acc3c136bc8cdcc46a2a11867f9eeb54b2a36af30dad01ca62d88045c0840",
+     "item.json": "badf32a8566a8ba242defab5abd82a7712eb073543445ea00e4c5520940c2490",
      "model.json": "b2589152b853a0c920cc35d9f48f9614c8da9764588718b12d5d8670c70f94ce",
      "texture.png": "83d04fed385430dbf13afff2ffe1b3f2af50d08d36ed22bcb3b80fd2003b39b0",
-     "thumb.png": "9eeb36ae0fb772606759814a900cda2c711b7e2771d1a6bb390302381de9125b"
+     "thumb.png": "1b3d8a1b19732aeace71f0e55fc3fc236766f59a52a73e4cd3d0f8d53e78da11"
     }
    }
   },
@@ -226,8 +226,8 @@
    "id": "frost_sigil",
    "name": "Frost Sigil",
    "slot": "AURA",
-   "rarity": "rare",
-   "priceCents": 549,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -235,10 +235,10 @@
    "description": "A pale snowflake sigil slowly turns beneath you, with a few drifting flakes.",
    "assets": {
     "files": {
-     "item.json": "ea0bac36b2f540d660a53e55a75feeae7b70ef98fbc6696cf66f6c505440d317",
+     "item.json": "d47ec39e8ae82d990faefc29b2feec73821409db3d44edae0ea8d41bed5070be",
      "model.json": "cb0f01cc0e0df7de477aee933adcfad61197d8d73fa29420ee80a5309e0a5e07",
      "texture.png": "871a3c1f61b9c318460c6ca4f89b78502bb877e6cfb4b6808e797ce6c1c534bf",
-     "thumb.png": "3c1fa0afcecdda6129a19085ff2278e3aafd147320bd3cf6debf20c0f9ddc603"
+     "thumb.png": "5b25fb400fe497d7a7f90cdac8324c2c84191df33328f14f81758c9dd74ac544"
     }
    }
   },
@@ -246,8 +246,8 @@
    "id": "stardust_trail",
    "name": "Stardust Trail",
    "slot": "TRAIL",
-   "rarity": "rare",
-   "priceCents": 449,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -255,7 +255,7 @@
    "description": "Glittering violet and gold dust drifts from your feet as you move.",
    "assets": {
     "files": {
-     "item.json": "37203415344491c41d51730f520a4e78dc18b8559d0f86225e51cf450e12796c",
+     "item.json": "c318ebd904c5304358640b75b631f5bbb6de9d3fac3f5e3ce7966fbddb4f85f5",
      "thumb.png": "7aa37b0a42f5ae994223c3d925f7047a62dd50edc28d1d5303319a6359602f04"
     }
    }
@@ -264,8 +264,8 @@
    "id": "shatterburst",
    "name": "Shatterburst",
    "slot": "KILL_EFFECT",
-   "rarity": "epic",
-   "priceCents": 699,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -273,7 +273,7 @@
    "description": "When you get a kill, crystal shards burst outward from where they fell.",
    "assets": {
     "files": {
-     "item.json": "07be88103dbf410e6ac58504e98619681b3737e50cdf8dd826a73dedd2b896be",
+     "item.json": "cd1a38b84ade2ff622e9f04cffb756246ac8b23f06f21a4cb30d2f774bd1283d",
      "thumb.png": "12b7179203007ba4a4fbfd24f635aefcc663f1ce4d735228bc65b532153d880a"
     }
    }
@@ -282,8 +282,8 @@
    "id": "victory_spiral",
    "name": "Victory Spiral",
    "slot": "WIN_EFFECT",
-   "rarity": "epic",
-   "priceCents": 699,
+   "rarity": "regular",
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -291,7 +291,7 @@
    "description": "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
    "assets": {
     "files": {
-     "item.json": "9e4db7a6608550c43cea2c5956801d78fcb4a316ddd5e69c32db4115ba5348c3",
+     "item.json": "5508d19941dbad124e99481c0603d0d3f35a2bf905fe34c6e7020beff44a1534",
      "thumb.png": "5c538d7ecd95677566bab763af1df984f2811e4324cafc786d826214844c3155"
     }
    }
@@ -300,8 +300,8 @@
    "id": "pip_wisp",
    "name": "Pip the Wisp",
    "slot": "PET",
-   "rarity": "epic",
-   "priceCents": 899,
+   "rarity": "regular",
+   "priceCents": 500,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -309,10 +309,10 @@
    "description": "A tiny friendly wisp that bobs along above your shoulder, with a flickering flame on its head.",
    "assets": {
     "files": {
-     "item.json": "92ee0b0b60d3dc913abd7dc805f11802199c556f2327915fe5da5f9067c5dd50",
+     "item.json": "e2ad49fc4a9fb5c31b0bf8f015808c0d36d12f2daf382ef037eba10d08f04d68",
      "model.json": "de793e158a94a32d4f11e86753ff158f9417a35166b73725dc5defda149f2b51",
-     "texture.png": "3b830637bfe2c387852a6ecdab8504852ffad3a498f93dd9b3945ebc42c84f89",
-     "thumb.png": "9e579bb8bc7d6dc2a7b25c9cf7fedcb655d3df1955a1d33628350e0e72daa50d"
+     "texture.png": "a01f6e0c5070d5c559b5d73a4f3f47a7db4669d12dbf205dd075250f495e7bf6",
+     "thumb.png": "ee947ca8f2f16f61ced99e1adf684353059d4ef68492a3060d6ff85a07392bf9"
     }
    }
   },
@@ -320,8 +320,8 @@
    "id": "sunny_wave",
    "name": "Sunny Wave",
    "slot": "EMOTE",
-   "rarity": "common",
-   "priceCents": 199,
+   "rarity": "regular",
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -329,8 +329,8 @@
    "description": "A big, cheerful wave hello.",
    "assets": {
     "files": {
-     "item.json": "e89ebbbae6d7b33222fa5820b9855f46a569db305765a4349d5b61baf6fb114b",
-     "thumb.png": "4386d23a90cd30f26c68687355327fdb702e3095f6b6139d3563bc74ea7b9392"
+     "item.json": "e2f3f2e2766f82378d25025b894a3934b8495844854b82eb029ae2dbc2ce2ef8",
+     "thumb.png": "2675a1525254f8628e7ae9ffeba3c9cac82353118db8f6ae37af411b010c0df8"
     }
    }
   },
@@ -338,8 +338,8 @@
    "id": "drum_solo",
    "name": "Drum Solo",
    "slot": "EMOTE",
-   "rarity": "rare",
-   "priceCents": 399,
+   "rarity": "regular",
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -347,8 +347,8 @@
    "description": "Air drums: alternate hits with a head bob to the beat.",
    "assets": {
     "files": {
-     "item.json": "14411d6435d98df55b38550e684a748d702ebeec019721b29a73149fd6f93d21",
-     "thumb.png": "87c56c9bae81cc7bc59d5ac89b4867824d1b089513f8b35abe42328ccc177798"
+     "item.json": "c2bbb5fa0ed78d249e28057e6d6184a6bde676e1863b9a53ea0c1d64f49c4b0f",
+     "thumb.png": "af53299da0747c8c30959e0e95b380f6048aad573f554c0d3d83bed490b8a7aa"
     }
    }
   },
@@ -356,8 +356,8 @@
    "id": "nightglass_blade",
    "name": "Nightglass Blade",
    "slot": "ITEM_SKIN",
-   "rarity": "legendary",
-   "priceCents": 1299,
+   "rarity": "regular",
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -365,7 +365,7 @@
    "description": "Your sword, re-forged in dark glass with a glowing violet core. Shows on swords you hold, on your screen.",
    "assets": {
     "files": {
-     "item.json": "0ab15cfddf463d5bf8463e37b14fdc6cff606b7f8d0e10f6be1545e050aa4e80",
+     "item.json": "f7699f93652892027257124dc9563e341e410e38f280c2f2da3294ab459b82aa",
      "model.json": "94e7b5d3fef125c781250883b1e713723e82bc0342e0152924770066f9c0fb90",
      "texture.png": "1579298835c58285d01a73b70ffc13a408596a99fbf13ce6c03ac0373d278af9",
      "thumb.png": "9e7733147b193e1e604d4870ef07d1c610c041c1d255fd80d5bf9ba9c98f0b4c"

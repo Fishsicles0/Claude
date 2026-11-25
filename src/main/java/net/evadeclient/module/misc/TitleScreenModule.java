@@ -13,14 +13,16 @@ import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 
 /**
- * An Evade-styled main menu in place of the vanilla title screen: the Evade logo over the panorama, Singleplayer,
- * Multiplayer, a one-click rejoin of the last server, Evade Clips, the Evade menu, Settings and Quit (plus Mods when
- * Mod Menu is installed), and on wide screens side cards with the account, servers to continue on (with live status)
- * and what's new. Off: the vanilla title screen, untouched.
+ * An Evade-styled main menu in place of the vanilla title screen: the Evade logo over a slowly turning panorama with
+ * parallax and drifting embers, Singleplayer, Multiplayer, a one-click rejoin of the last server, Evade Clips, the
+ * Evade menu, Settings and Quit (plus Mods when Mod Menu is installed), and on wide screens side cards with the account
+ * and friends online, what's new, a turning Wardrobe preview and servers to continue on (with live status). Off: the
+ * vanilla title screen, untouched.
  *
  * <p>The swap happens in {@code MinecraftClientTitleScreenMixin}: whenever the game opens a plain vanilla
- * {@link TitleScreen} while this module is on (and not in demo mode), {@link net.evadeclient.gui.EvadeTitleScreen}
- * opens instead. Subclasses of TitleScreen from other mods are left alone.
+ * {@link TitleScreen} (or closes a screen to "nothing" with no world loaded) while this module is on (and not in demo
+ * mode), {@link net.evadeclient.gui.EvadeTitleScreen} opens instead. Subclasses of TitleScreen from other mods are
+ * left alone.
  */
 public class TitleScreenModule extends Module {
     public final BooleanSetting lastServerButton = add(new BooleanSetting("Last Server Button", true)
@@ -47,6 +49,21 @@ public class TitleScreenModule extends Module {
             .describe("Pings the servers in Continue playing for players online and ping, like the server list does."));
     public final BooleanSetting showVersion = add(new BooleanSetting("Show Version", true)
             .describe("Minecraft and Evade versions in the bottom corner."));
+    public final BooleanSetting embers = add(new BooleanSetting("Drifting Embers", true)
+            .describe("Soft red embers drifting slowly up over the background."));
+    public final BooleanSetting parallax = add(new BooleanSetting("Parallax", true)
+            .describe("The panorama and embers shift gently with your mouse, for a sense of depth."));
+    public final BooleanSetting cosmeticsPreview = add(new BooleanSetting("Wardrobe Preview", true)
+            .describe("On wide screens, a small turning preview of you in your equipped cosmetics, with a Wardrobe button."));
+    public final BooleanSetting friendsOnline = add(new BooleanSetting("Friends Online", true)
+            .describe("Shows which of your Evade friends are online on the account card (when Friends is on)."));
+    public final BooleanSetting reduceMotion = add(new BooleanSetting("Reduce Motion", false)
+            .describe("A still menu: no intro, no moving background, embers or parallax, and no turning preview."));
+    /**
+     * False only in configs saved before the Evade main menu became the default start screen (v2.4): those saved the
+     * module as off without anyone choosing it, so it is switched on once (see {@link #onConfigLoaded}).
+     */
+    private final BooleanSetting defaultApplied = add(new BooleanSetting("Default Start Screen", true).hidden());
     /** "name|address" of the last multiplayer server joined (never shown). */
     public final StringSetting lastServer = add(new StringSetting("Last Server", "", "").maxLength(320).hidden());
     /** The last few servers joined, newest first: "name|address" entries joined by {@link #SEP} (never shown). */
@@ -56,6 +73,8 @@ public class TitleScreenModule extends Module {
     private static final int RECENT_MAX = 4;
 
     private static TitleScreenModule INSTANCE;
+    /** An old config turned the module off before it was the default: switch it on at the next screen change. */
+    private static boolean switchOnPending;
 
     public TitleScreenModule() {
         super("Title Screen", "An Evade main menu with quick rejoin and your recent servers. Off: the vanilla title screen.", Category.MISC);
@@ -88,6 +107,10 @@ public class TitleScreenModule extends Module {
     /** Configs from before Background: "Panorama" off meant Evade's plain grid backdrop. */
     @Override
     public void onConfigLoaded(com.google.gson.JsonObject saved) {
+        // Configs from before the Evade menu was the default start screen saved "off" for everyone; every build
+        // since has the Background setting. The saved enabled state is applied after this, so the switch happens
+        // at the next screen change (applyPending). A choice made since (with Background saved) is kept.
+        if (saved != null && saved.size() > 0 && !saved.has(defaultApplied.getName()) && !saved.has("Background")) switchOnPending = true;
         if (saved == null || saved.has("Background") || !saved.has("Panorama")) return;
         var old = saved.get("Panorama");
         if (old.isJsonPrimitive() && old.getAsJsonPrimitive().isBoolean() && !old.getAsBoolean()) background.set("Evade Grid");
@@ -96,6 +119,31 @@ public class TitleScreenModule extends Module {
     /** Works on the title screen, before any world. */
     @Override
     protected boolean alwaysRunHooks() { return true; }
+
+    /**
+     * Runs the one-time switch-on for configs from before the Evade menu was the default (see {@link #defaultApplied}).
+     * Called on the render thread at each screen change, never while a config is being applied.
+     */
+    public static void applyPending() {
+        TitleScreenModule m = INSTANCE;
+        if (!switchOnPending || m == null) return;
+        switchOnPending = false;
+        m.defaultApplied.set(true);
+        if (!m.isEnabled()) {
+            EvadeClient.LOG.info("Title Screen: switched on (the Evade main menu is the default start screen since v2.4)");
+            m.setEnabled(true);
+        }
+        if (EvadeClient.config != null) EvadeClient.config.save();
+    }
+
+    /** Test hook: behave as if an old config had just been loaded. */
+    public static void simulateOldConfigForTest() { switchOnPending = true; }
+
+    /** Whether menus should hold still: this module's Reduce Motion, or Client Settings' Animations off. */
+    public static boolean reduceMotion() {
+        TitleScreenModule m = INSTANCE;
+        return m != null && m.reduceMotion.get();
+    }
 
     /** The module, if it's on. */
     public static TitleScreenModule active() {
@@ -108,6 +156,7 @@ public class TitleScreenModule extends Module {
      * TitleScreen is replaced, and never in demo mode (which keeps vanilla's demo buttons).
      */
     public static Screen replace(Screen screen) {
+        applyPending();
         if (screen == null || screen.getClass() != TitleScreen.class) return screen;
         if (active() == null) return screen;
         MinecraftClient mc = MinecraftClient.getInstance();

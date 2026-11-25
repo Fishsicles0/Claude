@@ -90,10 +90,12 @@ public final class CosmeticsTest {
         });
         check(loadErrors.isEmpty(), "Cosmetics: every starter item loads (models, textures, thumbnails) " + loadErrors);
         testDownloadCache(ctx);
-        // ---- tiers and prices: three tiers, old names read as regular; every starter item is regular and priced
+        // ---- tiers and prices: three tiers, old names read as regular; bundled regular items are priced, bundled
+        //      special (animated) items wait for their price
         String tiers = ctx.computeOnClient(c -> {
             StringBuilder b = new StringBuilder();
-            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.rarity != Rarity.REGULAR || i.priceCents <= 0) b.append(i.id).append(' ');
+            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.bundled && (i.rarity == Rarity.PARTNER
+                    || (i.rarity == Rarity.REGULAR && i.priceCents <= 0) || (i.rarity == Rarity.SPECIAL && i.priceCents > 0))) b.append(i.id).append(' ');
             return b.toString();
         });
         check(tiers.isEmpty() && Rarity.values().length == 3 && Rarity.parse("legendary") == Rarity.REGULAR && Rarity.parse("special") == Rarity.SPECIAL
@@ -229,6 +231,9 @@ public final class CosmeticsTest {
         check(withUs < 1500 && emptyUs < 60, "Cosmetics: cheap per frame (" + String.format("%.1f", withUs) + " us with outfits, "
                 + String.format("%.1f", emptyUs) + " us with nothing worn)");
 
+        // ---- engine v2 (2.7): animated + emissive textures, per-face UVs, bone parents, cape physics, wing beat, soft particles
+        testEngineV2(ctx, sp);
+
         // ---- emotes stop when you move or attack
         server.runCommand("tp @a 0 -60 0 0 0");
         ctx.waitTicks(20);
@@ -247,7 +252,8 @@ public final class CosmeticsTest {
         int wheel = ctx.computeOnClient(c -> { EmoteWheelScreen.open(); int n = c.currentScreen instanceof EmoteWheelScreen w ? w.emotes().size() : -1; return n; });
         ctx.takeScreenshot("cosmetic-emote-wheel");
         ctx.runOnClient(c -> c.setScreen(null));
-        check(wheel == 2, "Cosmetics: the emote wheel lists your emotes (" + wheel + ")");
+        int ownedEmotes = ctx.computeOnClient(c -> (int) CosmeticsCatalog.forSlot(Slot.EMOTE).stream().filter(i -> Wardrobe.owns(i.id)).count());
+        check(wheel == Math.min(8, ownedEmotes) && wheel >= 2, "Cosmetics: the emote wheel lists your emotes (" + wheel + " of " + ownedEmotes + ")");
 
         // ---- Wardrobe: opens, equips, colours, saves and wears an outfit, try-on for locked items
         ctx.runOnClient(c -> { c.options.hudHidden = false; WardrobeScreen.openFromCurrent(); });
@@ -307,6 +313,205 @@ public final class CosmeticsTest {
         });
         ctx.waitTicks(2);
         check(ctx.computeOnClient(c -> !(c.currentScreen instanceof TitleScreen)), "Cosmetics: test cleaned up in game");
+    }
+
+    // ================================================================== engine v2 (animated / special items)
+
+    private static final String V2_CAPE = "v2test_cape", V2_WINGS = "v2test_wings", V2_AURA = "v2test_aura";
+
+    /**
+     * The 2.7 engine on synthetic special items (served from the download cache, so the checks don't depend on the
+     * starter art): an animated cape with an emissive layer, a parented per-face bone and a physics block; flap-eased
+     * wings; a soft-particle aura. Checks: frames advance on the shared clock and upload only on change, the glow
+     * layer is drawn, the cape spring moves when the wearer walks and settles, wings beat faster when sprinting and
+     * fold when sneaking, soft particles spawn. Screenshots: cosmetic-v2-*.png.
+     */
+    private static void testEngineV2(ClientGameTestContext ctx, TestSingleplayerContext sp) {
+        var server = sp.getServer();
+        String prep = ctx.computeOnClient(c -> {
+            try {
+                Cosmetics m = Cosmetics.get();
+                if (!m.isEnabled()) m.setEnabled(true);
+                m.showOthers.set(true);
+                m.hideInCombat.set(false);
+                JsonObject cat = new JsonObject();
+                cat.addProperty("version", "v2test");
+                com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+                arr.add(v2Item(V2_CAPE, "CAPE", java.util.Map.of(
+                        "item.json", ("{\"id\":\"" + V2_CAPE + "\",\"slot\":\"CAPE\",\"rarity\":\"special\","
+                                + "\"animation\":{\"frames\":4,\"frametime\":2,\"interpolate\":true},"
+                                + "\"physics\":{\"stiffness\":0.3,\"lift\":1.2,\"sway\":1.0}}").getBytes(StandardCharsets.UTF_8),
+                        "model.json", ("{\"format\":\"evade-cosmetic-model/1\",\"space\":\"entity\",\"texture\":[64,32],\"bones\":["
+                                + "{\"name\":\"cape\",\"attach\":\"body\",\"pivot\":[0,0,2],\"anim\":{\"type\":\"cape\"},"
+                                + "\"cubes\":[{\"origin\":[-5,0,1],\"size\":[10,16,1],\"uv\":[0,0]}]},"
+                                + "{\"name\":\"clasp\",\"parent\":\"cape\",\"pivot\":[0,1,1],\"glass\":true,"
+                                + "\"cubes\":[{\"origin\":[-1.5,0.5,0.25],\"size\":[3,2.5,0.75],\"faces\":{"
+                                + "\"north\":{\"uv\":[40,0,46,5]},\"south\":{\"uv\":[46,0,52,5],\"rotation\":180},\"up\":{\"uv\":[40,6,46,8]}}}]}]}")
+                                .getBytes(StandardCharsets.UTF_8),
+                        "texture.png", v2Strip(64, 32, 4, false),
+                        "emissive.png", v2Strip(64, 32, 4, true),
+                        "thumb.png", v2Strip(128, 128, 4, false))));
+                arr.add(v2Item(V2_WINGS, "WINGS", java.util.Map.of(
+                        "item.json", ("{\"id\":\"" + V2_WINGS + "\",\"slot\":\"WINGS\",\"rarity\":\"regular\"}").getBytes(StandardCharsets.UTF_8),
+                        "model.json", ("{\"format\":\"evade-cosmetic-model/1\",\"space\":\"entity\",\"texture\":[64,32],\"bones\":["
+                                + "{\"name\":\"wr\",\"attach\":\"body\",\"pivot\":[-2,2,2],\"anim\":{\"type\":\"wing\",\"side\":1,\"base\":20,\"amp\":25,\"speed\":1,\"ease\":\"flap\",\"lift\":8},"
+                                + "\"cubes\":[{\"origin\":[-14,1,2],\"size\":[12,10,1],\"uv\":[0,0]}]},"
+                                + "{\"name\":\"wr_tip\",\"parent\":\"wr\",\"pivot\":[-14,2,2],\"anim\":{\"type\":\"wing\",\"side\":1,\"base\":10,\"amp\":15,\"speed\":1,\"phase\":0.12,\"ease\":\"flap\"},"
+                                + "\"cubes\":[{\"origin\":[-22,1,2],\"size\":[8,8,1],\"uv\":[0,12]}]},"
+                                + "{\"name\":\"wl\",\"attach\":\"body\",\"pivot\":[2,2,2],\"anim\":{\"type\":\"wing\",\"side\":-1,\"base\":20,\"amp\":25,\"speed\":1,\"ease\":\"flap\",\"lift\":8},"
+                                + "\"cubes\":[{\"origin\":[2,1,2],\"size\":[12,10,1],\"uv\":[0,0],\"mirror\":true}]}]}").getBytes(StandardCharsets.UTF_8),
+                        "texture.png", v2Strip(64, 32, 1, false))));
+                arr.add(v2Item(V2_AURA, "AURA", java.util.Map.of(
+                        "item.json", ("{\"id\":\"" + V2_AURA + "\",\"slot\":\"AURA\",\"fx\":{\"type\":\"aura\",\"particle\":\"soft\","
+                                + "\"colors\":[\"#FFE27A\",\"#FF5A3C\",\"#7A2BFF\"],\"rate\":30,\"size\":1.2,\"life\":1.4,\"fade\":0.3,\"sizeEnd\":0.3}}")
+                                .getBytes(StandardCharsets.UTF_8))));
+                cat.add("items", arr);
+                CosmeticsCatalog.mergeRemote(cat);
+                for (String id : List.of(V2_CAPE, V2_WINGS, V2_AURA)) CosmeticAssets.request(CosmeticsCatalog.get(id));
+                return "ok";
+            } catch (Exception e) {
+                return e.toString();
+            }
+        });
+        check(prep.equals("ok"), "Cosmetics v2: synthetic special items prepared (" + prep + ")");
+        ctx.waitFor(c -> List.of(V2_CAPE, V2_WINGS, V2_AURA).stream().allMatch(id -> CosmeticAssets.state(CosmeticsCatalog.get(id)) != CosmeticAssets.State.LOADING), 600);
+        String states = ctx.computeOnClient(c -> List.of(V2_CAPE, V2_WINGS, V2_AURA).stream()
+                .map(id -> id + "=" + CosmeticAssets.state(CosmeticsCatalog.get(id)) + (CosmeticAssets.error(CosmeticsCatalog.get(id)) != null ? "(" + CosmeticAssets.error(CosmeticsCatalog.get(id)) + ")" : ""))
+                .reduce((a, b) -> a + " " + b).orElse(""));
+        check(!states.contains("FAILED") && !states.contains("LOADING"), "Cosmetics v2: animated, per-face and soft-particle items load (" + states + ")");
+
+        // ---- animated texture: frames advance on the shared clock, one upload per change, none when nothing changes
+        String anim = ctx.computeOnClient(c -> {
+            var m = CosmeticAssets.model(CosmeticsCatalog.get(V2_CAPE));
+            var t = m.texture();
+            if (!t.animated() || t.frames != 4 || t.frameW != 64 || t.frameH != 32) return "bad strip " + t.frames + " " + t.frameW + "x" + t.frameH;
+            t.update(0.0);
+            int f0 = t.shownFrame, u0 = t.uploads;
+            t.update(0.1);                       // same blend step: no upload
+            int u1 = t.uploads;
+            t.update(1.2);                       // interpolating toward frame 1: a blend step, uploaded
+            int u2 = t.uploads;
+            t.update(2.1);                       // frame 1
+            int f1 = t.shownFrame;
+            t.update(6.05);                      // frame 3
+            int f3 = t.shownFrame;
+            t.update(8.0);                       // wraps to frame 0
+            int fw = t.shownFrame;
+            return f0 + "," + f1 + "," + f3 + "," + fw + " uploads " + u0 + "->" + u1 + "->" + u2 + (m.glow() != null && m.glow().animated() ? " glow" : " NOGLOW");
+        });
+        check(anim.startsWith("0,1,3,0 ") && anim.endsWith(" glow"), "Cosmetics v2: animated texture plays its frames in order and wraps (" + anim + ")");
+        String[] up = anim.substring(anim.indexOf("uploads ") + 8, anim.lastIndexOf(' ')).split("->");
+        check(up[0].equals(up[1]) && Integer.parseInt(up[2]) == Integer.parseInt(up[1]) + 1,
+                "Cosmetics v2: an animated texture uploads only when the frame or blend step changes (" + anim + ")");
+
+        // ---- worn by the second player: drawn, glow layer drawn, the frame keeps moving in real time
+        ctx.runOnClient(c -> {
+            Wardrobe.resetForTest();
+            if (!Cosmetics.get().isEnabled()) Cosmetics.get().setEnabled(true);
+            PlayerCosmetics.putForTest(BOT, Loadout.EMPTY.with(Slot.CAPE, new Loadout.Worn(V2_CAPE, -1)).with(Slot.AURA, new Loadout.Worn(V2_AURA, -1)));
+            c.player.setYaw(0f);
+            c.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+            CosmeticsPerf.takeDrawn();
+            CosmeticFx.takeSpawned();
+        });
+        long glow0 = ctx.computeOnClient(c -> CosmeticsPerf.glowParts);
+        int soft0 = ctx.computeOnClient(c -> net.evadeclient.cosmetics.SoftParticle.spawnedTotal);
+        int up0 = ctx.computeOnClient(c -> CosmeticAssets.model(CosmeticsCatalog.get(V2_CAPE)).texture().uploads);
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("cosmetic-v2-animated-cape-a");
+        ctx.waitTicks(3);
+        ctx.takeScreenshot("cosmetic-v2-animated-cape-b");
+        long drawn = ctx.computeOnClient(c -> CosmeticsPerf.takeDrawn());
+        long glow = ctx.computeOnClient(c -> CosmeticsPerf.glowParts) - glow0;
+        int soft = ctx.computeOnClient(c -> net.evadeclient.cosmetics.SoftParticle.spawnedTotal) - soft0;
+        int ups = ctx.computeOnClient(c -> CosmeticAssets.model(CosmeticsCatalog.get(V2_CAPE)).texture().uploads) - up0;
+        String why = ctx.computeOnClient(c -> "bot " + (c.world.getEntityById(BOT_ID) != null) + ", data " + (CosmeticsEngine.dataFor(BOT) != null)
+                + ", worn " + PlayerCosmetics.get(BOT) + ", on " + Cosmetics.get().isEnabled());
+        check(drawn > 0 && glow > 0, "Cosmetics v2: the animated cape and its emissive layer are drawn in game (" + drawn + " draws, " + glow + " glow parts; " + why + ")");
+        check(ups > 0 && ups <= 23 * 4, "Cosmetics v2: the frame advances in game, a bounded number of uploads (" + ups + " in ~23 ticks)");
+        check(soft > 0, "Cosmetics v2: a soft-particle aura spawns soft glow particles (" + soft + ")");
+
+        // ---- cape physics: at rest it settles, walking lifts it (the spring follows vanilla's cape values)
+        ctx.waitTicks(20);
+        float rest = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).capeSwing);
+        float maxSwing = 0;
+        for (int i = 0; i < 12; i++) {
+            ctx.runOnClient(c -> {
+                var bot = c.world.getEntityById(BOT_ID);
+                // walk forward along the way it faces
+                double yaw = Math.toRadians(bot.getYaw());
+                bot.setPosition(bot.getX() - Math.sin(yaw) * 0.28, bot.getY(), bot.getZ() + Math.cos(yaw) * 0.28);
+            });
+            ctx.waitTicks(1);
+            float sw = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).capeSwing);
+            maxSwing = Math.max(maxSwing, Math.abs(sw));
+        }
+        ctx.takeScreenshot("cosmetic-v2-cape-moving");
+        check(maxSwing > Math.abs(rest) + 3, "Cosmetics v2: the cape swings out when the wearer moves (rest " + String.format("%.1f", rest) + ", moving " + String.format("%.1f", maxSwing) + " degrees)");
+        ctx.waitTicks(40);
+        float settled = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).capeSwing);
+        check(Math.abs(settled) < maxSwing * 0.5f, "Cosmetics v2: the cape settles when the wearer stops (" + String.format("%.1f", settled) + " degrees)");
+
+        // ---- wings: beat faster when sprinting, fold when sneaking
+        ctx.runOnClient(c -> PlayerCosmetics.putForTest(BOT, Loadout.EMPTY.with(Slot.WINGS, new Loadout.Worn(V2_WINGS, -1))));
+        ctx.waitTicks(20);
+        float idleRate = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).wingRate);
+        ctx.takeScreenshot("cosmetic-v2-wings-idle");
+        ctx.runOnClient(c -> c.world.getEntityById(BOT_ID).setSprinting(true));
+        ctx.waitTicks(25);
+        float sprintRate = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).wingRate);
+        ctx.runOnClient(c -> { var b = c.world.getEntityById(BOT_ID); b.setSprinting(false); b.setSneaking(true); b.setPose(net.minecraft.entity.EntityPose.CROUCHING); });
+        ctx.waitTicks(15);
+        float fold = ctx.computeOnClient(c -> CosmeticsEngine.dataFor(BOT).fold);
+        ctx.takeScreenshot("cosmetic-v2-wings-folded");
+        ctx.runOnClient(c -> { var b = c.world.getEntityById(BOT_ID); b.setSneaking(false); b.setPose(net.minecraft.entity.EntityPose.STANDING); });
+        check(sprintRate > idleRate * 1.4f, "Cosmetics v2: wings beat faster when sprinting (" + String.format("%.2f", idleRate) + " -> " + String.format("%.2f", sprintRate) + ")");
+        check(fold > 0.9f, "Cosmetics v2: wings fold while sneaking (fold " + String.format("%.2f", fold) + ")");
+
+        // ---- Wardrobe grid plays the animated thumbnail strip
+        float[] tf = ctx.computeOnClient(c -> CosmeticAssets.thumbFrame(CosmeticsCatalog.get(V2_CAPE)));
+        check(tf != null && tf[3] == 4, "Cosmetics v2: an animated item's thumbnail strip is read as 4 frames");
+
+        // ---- clean up: nothing worn, the synthetic items stay in the catalog but unused
+        ctx.runOnClient(c -> PlayerCosmetics.putForTest(BOT, Loadout.EMPTY));
+    }
+
+    private static JsonObject v2Item(String id, String slot, java.util.Map<String, byte[]> files) throws java.io.IOException {
+        JsonObject it = new JsonObject();
+        it.addProperty("id", id);
+        it.addProperty("name", id);
+        it.addProperty("slot", slot);
+        it.addProperty("rarity", "special");
+        JsonObject hashes = new JsonObject();
+        Path dir = CosmeticAssets.cacheDir().resolve(id);
+        Files.createDirectories(dir);
+        for (var f : files.entrySet()) {
+            Files.write(dir.resolve(f.getKey()), f.getValue());
+            hashes.addProperty(f.getKey(), CosmeticAssets.sha256(f.getValue()));
+        }
+        JsonObject assets = new JsonObject();
+        assets.addProperty("base", "https://evadeclient.com/cosmetics/" + id + "/");
+        assets.add("files", hashes);
+        it.add("assets", assets);
+        return it;
+    }
+
+    /** A strip of {@code frames} w x h frames, each a different hue (the glow version: thin bright lines on black). */
+    private static byte[] v2Strip(int w, int h, int frames, boolean glow) throws java.io.IOException {
+        int[] hues = {0xFFE0303A, 0xFFF0A020, 0xFF30C0E0, 0xFF9050F0};
+        try (var img = new net.minecraft.client.texture.NativeImage(w, h * frames, false)) {
+            for (int f = 0; f < frames; f++) for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+                int c;
+                if (glow) c = (y + f * 3) % 8 == 0 && x % 4 != 0 ? 0xFFFFFFFF & (hues[f % 4] | 0xFF000000) : 0xFF000000;
+                else c = ((x / 4 + y / 4) % 2 == 0) ? hues[f % 4] : (hues[f % 4] & 0xFF7F7F7F) | 0xFF000000;
+                img.setColorArgb(x, y + f * h, c);
+            }
+            Path tmp = Files.createTempFile("evade-v2", ".png");
+            img.writeTo(tmp);
+            byte[] b = Files.readAllBytes(tmp);
+            Files.deleteIfExists(tmp);
+            return b;
+        }
     }
 
     /** Player draws with cosmetics over a few ticks. */

@@ -1,0 +1,15 @@
+{
+ "id": "dragonhide_cape",
+ "name": "Dragonhide Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Rows of raised emerald scales edged in gold, shading down to deep teal.",
+ "physics": {
+  "stiffness": 0.62,
+  "lift": 0.9,
+  "sway": 0.85
+ }
+}

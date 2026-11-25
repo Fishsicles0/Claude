@@ -5,8 +5,8 @@ import net.evadeclient.gui.Motion;
 /**
  * The main menu's entrance timeline. The first time the menu shows in a session everything arrives in a short
  * stagger (backdrop, logo, buttons, side cards, footer); afterwards (back from Options, a world or a server) it all
- * fades in together, quickly. With Animations off everything is simply there. Time-based, so it plays the same at
- * every frame rate.
+ * fades in together, quickly. With Animations off (or the Title Screen's Reduce Motion) everything is simply there,
+ * and a click or key skips the entrance. Time-based, so it plays the same at every frame rate.
  */
 public final class Intro {
     private static final long CLOCK_ORIGIN = System.nanoTime();
@@ -38,6 +38,13 @@ public final class Intro {
     }
 
     public boolean full() { return full && enabled; }
+
+    /** Jumps to the end of the entrance (a click or key while it plays). Returns whether there was anything to skip. */
+    public boolean skip() {
+        if (done() || start < 0) return false;
+        start = now() - 1e6;
+        return true;
+    }
 
     public boolean started() { return start >= 0; }
 

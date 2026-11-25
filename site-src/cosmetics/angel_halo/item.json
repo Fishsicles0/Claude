@@ -1,0 +1,10 @@
+{
+ "id": "angel_halo",
+ "name": "Angel Halo",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A softly glowing golden halo that floats above your head and bobs gently."
+}

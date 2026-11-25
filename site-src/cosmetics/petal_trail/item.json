@@ -1,0 +1,21 @@
+{
+ "id": "petal_trail",
+ "name": "Petal Trail",
+ "slot": "TRAIL",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Soft pink and white blossom petals tumble along behind you.",
+ "fx": {
+  "type": "trail",
+  "particle": "dust",
+  "colors": [
+   "#FFC0D8",
+   "#FF8AB8",
+   "#FFF4F8"
+  ],
+  "rate": 8,
+  "size": 0.95
+ }
+}

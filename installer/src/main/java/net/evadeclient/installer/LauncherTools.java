@@ -70,7 +70,13 @@ final class LauncherTools {
     boolean dragging;
     String dropBusy;
 
-    LauncherTools(LauncherView v) { this.v = v; }
+    /** The Shader packs chooser (the {@code "shaders"} sheet and the Packs button on the Shaders row). */
+    final ShaderPackSheet shaderPacks;
+
+    LauncherTools(LauncherView v) {
+        this.v = v;
+        this.shaderPacks = new ShaderPackSheet(v, this);
+    }
 
     void attach(Launcher.Settings s, ExecutorService work, Runnable reload, Consumer<String> quickPlay) {
         this.settings = s;
@@ -264,6 +270,7 @@ final class LauncherTools {
         switch (overlay) {
             case "extras" -> paintExtras(g);
             case "import" -> paintImport(g);
+            case ShaderPackSheet.OVERLAY -> shaderPacks.paint(g);
             default -> { return false; }
         }
         return true;
@@ -577,6 +584,7 @@ final class LauncherTools {
 
     /** This class's controls; false for anything else. */
     boolean click(String id) {
+        if (shaderPacks.click(id)) return true;
         Launcher.Instance foc = v.focused();
         switch (id) {
             case "inst-more" -> moreMenu(id);
@@ -628,6 +636,8 @@ final class LauncherTools {
         if (id == null) return null;
         if (id.equals("inst-more")) return "More: safe mode, desktop shortcut, optional extras";
         if (id.equals("inst-extras")) return "Choose optional extras";
+        String sp = shaderPacks.labelFor(id);
+        if (sp != null) return sp;
         return null;
     }
 

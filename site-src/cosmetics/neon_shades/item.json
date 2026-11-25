@@ -1,0 +1,10 @@
+{
+ "id": "neon_shades",
+ "name": "Neon Shades",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Wide sunglasses with a black frame and mirrored lenses that fade from pink to cyan and glow faintly."
+}

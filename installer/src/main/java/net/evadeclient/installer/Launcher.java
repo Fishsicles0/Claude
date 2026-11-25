@@ -146,6 +146,8 @@ final class Launcher {
         boolean packs = true, lights = false;
         /** The {@link OptionalMods} groups switched on (all off by default). */
         Set<String> optional = new java.util.LinkedHashSet<>();
+        /** The {@link ShaderPacks} ticked for the Shaders option (Photon and Complementary Reimagined by default). */
+        Set<String> shaderPacks = ShaderPacks.defaults();
         /** Options changed since the last install: Play brings the folder in line first. */
         boolean dirty;
         String created;
@@ -208,6 +210,7 @@ final class Launcher {
                 if (marker.has("packFeatures")) i.packs = notBlank(InstallerCore.str(marker, "packFeatures"));
                 i.lights = notBlank(InstallerCore.str(marker, "dynamicLights"));
                 if (marker.has("optional") && marker.get("optional").isJsonObject()) i.optional = OptionalMods.clean(marker.getAsJsonObject("optional").keySet());
+                if (marker.has("shaderPacks") && marker.get("shaderPacks").isJsonObject()) i.shaderPacks = ShaderPacks.clean(marker.getAsJsonObject("shaderPacks").keySet());
             }
             i.memoryGb = profileMemory(s.minecraftDir(), i.profileKey(), s.defaultMemoryGb);
         } else {
@@ -218,6 +221,7 @@ final class Launcher {
             i.packs = bool(o, "packs", true);
             i.lights = bool(o, "lights", false);
             i.optional = readOptional(o);
+            i.shaderPacks = readShaderPacks(o);
             i.dirty = bool(o, "dirty", false);
             i.created = InstallerCore.str(o, "created");
             i.javaDirWritten = InstallerCore.str(o, "javaDir");
@@ -238,7 +242,7 @@ final class Launcher {
 
     /** Works out {@link Instance#pending} against the release on evadeclient.com (unknown while it's being checked). */
     static void check(Instance i, InstallerCore.Release r) {
-        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders, i.packs, i.lights, i.optional);
+        i.pending = r == null ? null : InstallerCore.updateReason(i.dir, r, i.perf, i.voice, i.shaders, i.packs, i.lights, i.optional, i.shaderPacks);
     }
 
     static void save(Instance i) throws IOException {
@@ -251,6 +255,7 @@ final class Launcher {
         o.addProperty("packs", i.packs);
         o.addProperty("lights", i.lights);
         o.add("optional", ContentApi.array(OptionalMods.clean(i.optional)));
+        o.add("shaderPacks", ContentApi.array(ShaderPacks.clean(i.shaderPacks)));
         o.addProperty("dirty", i.dirty);
         o.addProperty("created", i.created != null ? i.created : Instant.now().toString());
         if (i.javaDirWritten != null) o.addProperty("javaDir", i.javaDirWritten);
@@ -267,6 +272,18 @@ final class Launcher {
             if (o.has("optional") && o.get("optional").isJsonArray()) for (var e : o.getAsJsonArray("optional")) if (e.isJsonPrimitive()) keys.add(e.getAsString());
         } catch (RuntimeException ignored) { }
         return OptionalMods.clean(keys);
+    }
+
+    /** The ticked shader packs in a settings or manifest object ("shaderPacks"); the defaults when it has none. */
+    static Set<String> readShaderPacks(JsonObject o) {
+        try {
+            if (!o.has("shaderPacks") || !o.get("shaderPacks").isJsonArray()) return ShaderPacks.defaults();
+            java.util.List<String> keys = new java.util.ArrayList<>();
+            for (var e : o.getAsJsonArray("shaderPacks")) if (e.isJsonPrimitive()) keys.add(e.getAsString());
+            return ShaderPacks.clean(keys);
+        } catch (RuntimeException e) {
+            return ShaderPacks.defaults();
+        }
     }
 
     private static int num(JsonObject o, String k, int def) {
@@ -361,6 +378,7 @@ final class Launcher {
         i.packs = src.packs;
         i.lights = src.lights;
         i.optional = new java.util.LinkedHashSet<>(src.optional);
+        i.shaderPacks = ShaderPacks.clean(src.shaderPacks);
         i.dirty = src.dirty;
         i.created = Instant.now().toString();
         copyTree(src.dir, i.dir, Set.of("logs", "crash-reports", ".evade-staging", INSTANCE_FILE, "debug", "screenshots", GameState.DIR));
@@ -404,7 +422,7 @@ final class Launcher {
             else if (i.javaDirWritten != null) java = "";
         }
         return new InstallerCore.Options(s.minecraftDir(), i.dir, i.memoryGb, copySettings, i.voice, i.perf, updateClips, i.shaders,
-                i.profileKey(), i.profileName(), java, i.packs, i.lights, i.optional);
+                i.profileKey(), i.profileName(), java, i.packs, i.lights, i.optional, i.shaderPacks);
     }
 
     /** Copies a folder tree, leaving out top-level entries named in {@code skip}. */

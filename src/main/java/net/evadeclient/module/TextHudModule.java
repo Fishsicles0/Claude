@@ -82,71 +82,126 @@ public abstract class TextHudModule extends HudElementModule {
         };
     }
 
-    // Text, widths and size are rebuilt once per client tick (20/s) instead of every frame, and at once when the
-    // smooth font's raster changes (GUI scale, HUD scale or element scale), since glyph advances differ per raster.
+    // The text is read once per client tick (20/s) and the styled lines and their widths are rebuilt only when it
+    // changed (most widgets show the same text for many ticks), or at once when the smooth font's raster changes (GUI
+    // scale, HUD scale or element scale), since glyph advances differ per raster. Nothing is allocated otherwise.
     private List<Text> cachedLines;
     private int[] cachedWidths;
     private int cachedLead;
     private long cachedTick = -1;
     /** Raster the cached lines were built with: 0 = the vanilla font, 1..6 = the smooth font's raster. */
     private int cachedFont = -1;
+    /** What the cached lines were built from (a copy of this tick's text) and with which text settings. */
+    private List<?> cachedSource;
+    private int cachedSettings;
+    /** This tick's text: styled lines, or plain ones when the widget has none (read at most once a tick). */
+    private List<Text> tickStyled;
+    private List<String> tickRaw;
+    private long tickAt = -1;
     /** Test hook: rebuild text every frame like before (to measure what the per-tick cache saves). */
     public static boolean NO_CACHE = false;
 
+    private void readText() {
+        long tick = net.evadeclient.EvadeClient.ticks;
+        if (tickAt == tick && !NO_CACHE) return;
+        tickAt = tick;
+        tickStyled = styledLines(false);
+        tickRaw = tickStyled == null ? lines(false) : null;
+    }
+
+    /**
+     * This tick's text (styled or plain lines), read at most once a tick and shared with drawing: what the HUD cache
+     * compares to notice a change.
+     */
+    public List<?> contentKey() {
+        readText();
+        return tickStyled != null ? tickStyled : tickRaw;
+    }
+
     @Override
     public void render(DrawContext ctx, int left, int top, boolean preview) {
-        var tr = mc.textRenderer;
         long tick = net.evadeclient.EvadeClient.ticks;
         int fontKey = smoothFont.get() ? smoothRaster(ctx) : 0;
-        if (preview || NO_CACHE || cachedLines == null || cachedTick != tick || cachedFont != fontKey) {
-            boolean smooth = fontKey > 0, br = brackets.get();
-            net.minecraft.text.Style font = smooth ? UiFont.style(UiFont.Role.BODY, fontKey) : null;
-            List<Text> styled = styledLines(preview);
-            List<Text> lines;
-            if (styled != null) {
-                lines = new java.util.ArrayList<>(styled.size());
-                for (Text s : styled) {
-                    // Children that only set a colour inherit the parent's font.
-                    MutableText t = Text.empty();
-                    if (smooth) t.setStyle(font);
-                    if (br) t.append(Text.literal("["));
-                    t.append(s);
-                    if (br) t.append(Text.literal("]"));
-                    lines.add(t);
-                }
-            } else {
-                List<String> raw = lines(preview);
-                lines = new java.util.ArrayList<>(raw.size());
-                boolean split = splitColors.get();
-                int vc = valueColor.get() & 0xFFFFFF;
-                for (String r : raw) {
-                    int at = split ? labelEnd(r) : -1;
-                    MutableText t;
-                    if (at > 0) {
-                        // "Label: " in the line's colour, the value in Value Color.
-                        t = Text.literal(br ? "[" + r.substring(0, at) : r.substring(0, at));
-                        t.append(Text.literal(r.substring(at)).withColor(vc));
-                        if (br) t.append(Text.literal("]"));
-                    } else {
-                        t = Text.literal(br ? "[" + r + "]" : r);
-                    }
-                    if (smooth) t.setStyle(font);
-                    lines.add(t);
-                }
+        if (preview) {
+            List<Text> styled = styledLines(true);
+            List<Text> lines = build(styled, styled == null ? lines(true) : null, fontKey);
+            int[] widths = widths(lines);
+            int lead = measure(lines, widths);
+            draw(ctx, left, top, lines, widths, lead);
+            return;
+        }
+        if (NO_CACHE || cachedLines == null || cachedTick != tick || cachedFont != fontKey) {
+            readText();
+            List<?> source = tickStyled != null ? tickStyled : tickRaw;
+            int settings = (brackets.get() ? 1 : 0) | (splitColors.get() ? 2 : 0) | (valueColor.get() & 0xFFFFFF) << 2;
+            if (NO_CACHE || cachedLines == null || cachedFont != fontKey || settings != cachedSettings
+                    || source == null || !source.equals(cachedSource)) {
+                cachedLines = build(tickStyled, tickRaw, fontKey);
+                cachedWidths = widths(cachedLines);
+                cachedSource = source == null ? null : List.copyOf(source);
+                cachedSettings = settings;
+                cachedFont = fontKey;
             }
-            int[] widths = new int[lines.size()];
-            int w = 0;
-            for (int i = 0; i < lines.size(); i++) {
-                widths[i] = tr.getWidth(lines.get(i));
-                w = Math.max(w, widths[i]);
-            }
-            int lead = lines.isEmpty() ? 0 : Math.max(0, leadingWidth());
-            width = lines.isEmpty() ? 40 : Math.max(Math.max(40, w + 8 + lead), minWidth());
-            height = lines.isEmpty() ? 13 : Math.max(lines.size() * 10 + 4 + Math.max(0, extraHeight()), minHeight());
-            if (preview) { draw(ctx, left, top, lines, widths, lead); return; }
-            cachedLines = lines; cachedWidths = widths; cachedLead = lead; cachedTick = tick; cachedFont = fontKey;
+            cachedLead = measure(cachedLines, cachedWidths);
+            cachedTick = tick;
         }
         draw(ctx, left, top, cachedLines, cachedWidths, cachedLead);
+    }
+
+    /** The lines as drawn: Brackets, Label/Value Colors and the smooth font applied to {@code styled} or {@code raw}. */
+    private List<Text> build(List<Text> styled, List<String> raw, int fontKey) {
+        boolean smooth = fontKey > 0, br = brackets.get();
+        net.minecraft.text.Style font = smooth ? UiFont.style(UiFont.Role.BODY, fontKey) : null;
+        List<Text> lines;
+        if (styled != null) {
+            lines = new java.util.ArrayList<>(styled.size());
+            for (Text s : styled) {
+                // Children that only set a colour inherit the parent's font.
+                MutableText t = Text.empty();
+                if (smooth) t.setStyle(font);
+                if (br) t.append(Text.literal("["));
+                t.append(s);
+                if (br) t.append(Text.literal("]"));
+                lines.add(t);
+            }
+        } else {
+            if (raw == null) raw = List.of();
+            lines = new java.util.ArrayList<>(raw.size());
+            boolean split = splitColors.get();
+            int vc = valueColor.get() & 0xFFFFFF;
+            for (String r : raw) {
+                int at = split ? labelEnd(r) : -1;
+                MutableText t;
+                if (at > 0) {
+                    // "Label: " in the line's colour, the value in Value Color.
+                    t = Text.literal(br ? "[" + r.substring(0, at) : r.substring(0, at));
+                    t.append(Text.literal(r.substring(at)).withColor(vc));
+                    if (br) t.append(Text.literal("]"));
+                } else {
+                    t = Text.literal(br ? "[" + r + "]" : r);
+                }
+                if (smooth) t.setStyle(font);
+                lines.add(t);
+            }
+        }
+        return lines;
+    }
+
+    private int[] widths(List<Text> lines) {
+        var tr = mc.textRenderer;
+        int[] widths = new int[lines.size()];
+        for (int i = 0; i < lines.size(); i++) widths[i] = tr.getWidth(lines.get(i));
+        return widths;
+    }
+
+    /** Sets {@link #width} and {@link #height} for these lines (the hooks may change per tick); returns the leading width. */
+    private int measure(List<Text> lines, int[] widths) {
+        int w = 0;
+        for (int v : widths) w = Math.max(w, v);
+        int lead = lines.isEmpty() ? 0 : Math.max(0, leadingWidth());
+        width = lines.isEmpty() ? 40 : Math.max(Math.max(40, w + 8 + lead), minWidth());
+        height = lines.isEmpty() ? 13 : Math.max(lines.size() * 10 + 4 + Math.max(0, extraHeight()), minHeight());
+        return lead;
     }
 
     /**

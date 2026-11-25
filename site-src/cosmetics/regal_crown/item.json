@@ -1,0 +1,10 @@
+{
+ "id": "regal_crown",
+ "name": "Regal Crown",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A classic gold crown with engraved scrollwork, a red velvet cap and a ruby, sapphire and emerald set in the band."
+}

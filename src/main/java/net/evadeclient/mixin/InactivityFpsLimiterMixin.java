@@ -38,7 +38,10 @@ public abstract class InactivityFpsLimiterMixin {
         int vanilla = cir.getReturnValueI();
         int fps = vanilla;
         if (client.getWindow().isMinimized()) fps = Math.min(fps, p.minimisedCap(client.world != null));
-        if (options.getInactivityFpsLimit().getValue() == InactivityFpsLimit.AFK) {
+        // A benchmark flies the camera with nobody touching the keys: an AFK or tabbed-out cap there would measure
+        // the cap, not the game (a 60 second .bench scene used to drop to the AFK frame rate for its last seconds).
+        boolean measuring = net.evadeclient.util.Benchmark.running() || net.evadeclient.util.BenchmarkScene.running();
+        if (!measuring && options.getInactivityFpsLimit().getValue() == InactivityFpsLimit.AFK) {
             if (p.unfocusedCap.get() && !client.isWindowFocused()) fps = Math.min(fps, p.unfocusedFps.getInt());
             if (p.afkCap.get() && Util.getMeasuringTimeMs() - lastInputTime > p.afkSeconds.get() * 1000) fps = Math.min(fps, p.afkFps.getInt());
         }

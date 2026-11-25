@@ -1,0 +1,10 @@
+{
+ "id": "kitty_ears",
+ "name": "Kitty Ears",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": true,
+ "defaultColor": "#F2A65A",
+ "partner": null,
+ "description": "Soft pointed cat ears with pink insides, in any colour you like."
+}

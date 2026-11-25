@@ -9,13 +9,17 @@
  "description": "Glittering violet and gold dust drifts from your feet as you move.",
  "fx": {
   "type": "trail",
-  "particle": "dust",
+  "particle": "soft",
   "colors": [
-   "#B98CFF",
+   "#FFFFFF",
    "#FFD36A",
-   "#FFFFFF"
+   "#B98CFF"
   ],
-  "rate": 10,
-  "size": 0.8
+  "rate": 12,
+  "size": 0.8,
+  "life": 1.1,
+  "fade": 0.3,
+  "sizeEnd": 0.3,
+  "gravity": 0.05
  }
 }

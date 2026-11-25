@@ -1,0 +1,15 @@
+{
+ "id": "prism_sprite",
+ "name": "Prism Sprite",
+ "slot": "PET",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it hovers by your shoulder.",
+ "animation": {
+  "frames": 16,
+  "frametime": 3,
+  "interpolate": true
+ }
+}

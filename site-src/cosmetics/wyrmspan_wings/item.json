@@ -1,0 +1,10 @@
+{
+ "id": "wyrmspan_wings",
+ "name": "Wyrmspan Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Broad dragon wings: a crimson membrane with veins and bony fingers, scalloped edges and a hooked claw."
+}
