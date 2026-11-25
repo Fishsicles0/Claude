@@ -1186,11 +1186,24 @@ final class SelfTest {
                         && pulled.get(0).tags.contains("phone") && java.util.Arrays.equals(Files.readAllBytes(pulled.get(0).path(lib.root())), phoneBytes) && pulledAgain.isEmpty(),
                 "a phone upload lands in the library once, byte-for-byte; the gallery link can upload but not delete");
 
-        // The subdomain's landing page offers the downloads.
+        // The subdomain's landing page: launcher first, Minecraft only, and every download from evadeclient.com (one copy
+        // of each file, so the two sites can't offer different builds under one version).
         var home = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
-        String dlPath = home.body().replaceAll("(?s).*href=\"(/downloads/[^\"]+\\.exe)\".*", "$1");
-        int dl = dlPath.startsWith("/downloads/") ? code(http, base + dlPath) : -1;
-        check(home.statusCode() == 200 && home.body().contains("Download for Windows") && dl == 200, "landing page has working downloads (" + dlPath + " → " + dl + ")");
+        var noFollow = java.net.http.HttpClient.newBuilder().followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
+        var dlRes = noFollow.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/downloads/Evade-Clips.exe")).build(), java.net.http.HttpResponse.BodyHandlers.discarding());
+        String dlTo = dlRes.headers().firstValue("Location").orElse("");
+        var priv = noFollow.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/privacy")).build(), java.net.http.HttpResponse.BodyHandlers.discarding());
+        var robots = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/robots.txt")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        var built = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/version.json")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        String hb = home.body();
+        check(home.statusCode() == 200 && hb.contains("Get the Evade Launcher") && hb.contains("https://evadeclient.com/downloads/Evade-Installer.exe")
+                        && !hb.contains("href=\"/downloads/") && !hb.contains("CS2") && !hb.contains("League")
+                        && dlRes.statusCode() == 302 && dlTo.equals("https://evadeclient.com/downloads/Evade-Clips.exe"),
+                "landing page: launcher first, Minecraft only, downloads redirect to evadeclient.com (" + dlRes.statusCode() + " → " + dlTo + ")");
+        check(priv.statusCode() == 301 && priv.headers().firstValue("Location").orElse("").startsWith("https://evadeclient.com/privacy")
+                        && robots.statusCode() == 200 && robots.body().contains("User-agent: *") && robots.body().contains("Disallow: /g/")
+                        && built.statusCode() == 200 && built.body().contains("\"clips\""),
+                "subdomain has /privacy, a real robots.txt and /version.json");
 
         cloud.unshare(pulled.get(0), lib);
         String id = c.shareId;

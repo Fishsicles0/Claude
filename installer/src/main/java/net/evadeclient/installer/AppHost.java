@@ -43,9 +43,9 @@ final class AppHost {
         Path legacy = legacyRunningApp();
         if (legacy == null && ClipsApp.alreadyRunning(cs.controlPort, minimized)) { System.exit(0); return; }
 
-        // A newer launcher on evadeclient.com takes over (and replaces this file). Never from the tray-only start,
-        // which Evade Client makes while Minecraft is starting.
-        if (!minimized && Launcher.loadSettings().checkUpdates && SelfUpdate.run(args)) { System.exit(0); return; }
+        // A just-updated copy puts itself in place of the old file; a normal start clears earlier update temp folders.
+        // Updating itself is never silent: LauncherApp asks the player once the window is open (SelfUpdate.check).
+        SelfUpdate.finishUpdate(args);
 
         boolean updated = args.contains(SelfUpdate.UPDATED);
         boolean locked = lock(updated ? 40 : 1);
@@ -93,6 +93,9 @@ final class AppHost {
     }
 
     private static List<String> hostArgs = List.of();
+
+    /** Where this program lives (see {@link #homePath}), for the self-update that replaces it. */
+    static Path homePath() { return homePath(hostArgs); }
 
     /** Starts the built-in Clips (call with the single-instance lock held). */
     private static App startClips(Settings cs) {

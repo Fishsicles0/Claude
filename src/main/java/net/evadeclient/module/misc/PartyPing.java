@@ -72,7 +72,8 @@ public class PartyPing extends Module {
             .describe("Pings as dots on the Minimap (when it's on)."));
     public final BooleanSetting showOwn = add(new BooleanSetting("Show My Pings", true)
             .describe("Your own pings show for you too, the way your party sees them."));
-    public final NumberSetting labelScale = add(new NumberSetting("Label Scale", 1.0, 0.5, 2.0, 0.1));
+    public final NumberSetting labelScale = add(new NumberSetting("Label Scale", 1.0, 0.5, 2.0, 0.1)
+            .describe("Size of the text label above each ping."));
 
     /** Pings on screen (render thread), at most one per sender. */
     private static final List<Ping> active = new ArrayList<>();

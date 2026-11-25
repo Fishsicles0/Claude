@@ -19,7 +19,8 @@ public class CpsHud extends TextHudModule {
     /** Ticks of history for the "Last 10s" peak. */
     private static final int HISTORY = 200;
 
-    private final BooleanSetting right = add(new BooleanSetting("Show Right", true));
+    private final BooleanSetting right = add(new BooleanSetting("Show Right", true)
+            .describe("Also counts right clicks per second next to left clicks."));
     private final ModeSetting label = add(new ModeSetting("Label", "Suffix", "Suffix", "Prefix", "Per Button", "None")
             .describe("Where the label goes: \"12 | 9 CPS\", \"CPS: 12 | 9\", \"L 12  R 9\" or just \"12 | 9\"."));
     private final ModeSetting layout = add(new ModeSetting("Layout", "Inline", "Inline", "Stacked")

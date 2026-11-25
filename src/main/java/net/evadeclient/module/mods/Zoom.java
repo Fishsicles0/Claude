@@ -41,7 +41,8 @@ public class Zoom extends Module {
     /** The zoom never goes further than this either way (ln of 1000x in, 4x out), whatever a setting or bug says. */
     private static final double LOG_MIN = -Math.log(1000), LOG_MAX = Math.log(4);
 
-    private final KeySetting key = add(new KeySetting("Zoom Key", GLFW.GLFW_KEY_C, true));
+    private final KeySetting key = add(new KeySetting("Zoom Key", GLFW.GLFW_KEY_C, true)
+            .describe("The key that zooms the camera in."));
     private final ModeSetting mode = add(new ModeSetting("Mode", "Hold", "Hold", "Toggle")
             .describe("Hold the key to zoom, or tap it to zoom in and tap again to zoom out."));
     private final NumberSetting level = add(new NumberSetting("Zoom Level", 4, 1.5, 50, 0.5)

@@ -11,9 +11,12 @@ import net.minecraft.client.gui.DrawContext;
  * Drawn by its own HUD layer just under the hotbar (see EvadeClient), so hearts and hotbar stay readable.
  */
 public class DamageTint extends Module {
-    public final NumberSetting threshold = add(new NumberSetting("Hearts", 5, 1, 10, 1));
-    public final NumberSetting strength = add(new NumberSetting("Strength %", 55, 10, 100, 5));
-    public final ColorSetting color = add(new ColorSetting("Color", 0xFFE11D2E));
+    public final NumberSetting threshold = add(new NumberSetting("Hearts", 5, 1, 10, 1)
+            .describe("The tint starts once your health drops below this many hearts, and gets stronger as it falls."));
+    public final NumberSetting strength = add(new NumberSetting("Strength %", 55, 10, 100, 5)
+            .describe("How strong the tint is at its strongest, when your health is almost gone."));
+    public final ColorSetting color = add(new ColorSetting("Color", 0xFFE11D2E)
+            .describe("Colour of the tint around the screen edges."));
 
     /** Side bands are drawn in this many steps; each step is a solid band, so the fade has no gaps. */
     private static final int STEPS = 12;

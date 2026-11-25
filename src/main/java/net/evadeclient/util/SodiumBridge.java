@@ -51,6 +51,13 @@ public final class SodiumBridge {
     private record Changed(String mod, String path, String label, Object original, Object applied) {}
 
     private static final List<Changed> changed = new ArrayList<>();
+    /**
+     * Options the current FPS Mode wanted to change but couldn't find in an installed Sodium or Sodium Extra ("mod:path"):
+     * a newer version renamed or moved them. Shown in the status row and logged once, so the feature never just
+     * stops working with no word.
+     */
+    private static final List<String> missing = new ArrayList<>();
+    private static final java.util.Set<String> missingLogged = new java.util.HashSet<>();
     private static String appliedMode = "";
     private static boolean recovered;
 
@@ -131,11 +138,19 @@ public final class SodiumBridge {
     }
 
     private static boolean change(String mod, String path, String label, Object value) {
-        Slot s = slot(root(mod), path);
-        if (s == null) return false;
+        Object root = root(mod);
+        if (root == null && !(mod.equals("sodium") ? sodiumLoaded() : extraLoaded())) return false; // not installed: fine
+        Slot s = slot(root, path);
+        if (s == null) {
+            noteMissing(mod, path);
+            return false;
+        }
         try {
             Object v = coerce(s, value);
-            if (v == null) return false;
+            if (v == null) {
+                noteMissing(mod, path + "=" + value);
+                return false;
+            }
             Object old = s.get();
             if (Objects.equals(old, v)) return false;
             s.set(v);
@@ -146,6 +161,36 @@ public final class SodiumBridge {
             return false;
         }
     }
+
+    /** An option Evade expected in an installed mod isn't there (or doesn't take the value): remember and log it once. */
+    private static void noteMissing(String mod, String path) {
+        String key = mod + ":" + path;
+        if (!missing.contains(key)) missing.add(key);
+        if (missingLogged.add(key)) {
+            EvadeClient.LOG.warn("Sodium bridge: {} has no option {} (a newer version changed it); Tune Sodium Too skips it",
+                    mod.equals("sodium") ? "Sodium" : "Sodium Extra", path);
+        }
+    }
+
+    /**
+     * Every option path the FPS Modes use, checked against the installed Sodium and Sodium Extra without changing
+     * anything: "mod:path" for each one that isn't there. Empty when everything lines up or neither mod is installed.
+     */
+    public static List<String> checkPaths() {
+        List<String> out = new ArrayList<>();
+        for (String[] p : PATHS) {
+            boolean loaded = p[0].equals("sodium") ? sodiumLoaded() : extraLoaded();
+            if (loaded && slot(root(p[0]), p[1]) == null) out.add(p[0] + ":" + p[1]);
+        }
+        return out;
+    }
+
+    /** The options {@link #follow} may change, as {mod, path} (kept in step with it; see {@link #checkPaths}). */
+    private static final String[][] PATHS = {
+            {"extra", "animationSettings.water"}, {"extra", "animationSettings.lava"}, {"extra", "animationSettings.fire"},
+            {"extra", "animationSettings.portal"}, {"extra", "detailSettings.stars"},
+            {"sodium", "performance.chunkBuildDeferMode"}, {"sodium", "performance.chunkBuilderThreads"},
+            {"sodium", "performance.animateOnlyVisibleTextures"}};
 
     // ------------------------------------------------------------------ apply and restore
 
@@ -164,6 +209,7 @@ public final class SodiumBridge {
         if (mode.equals(appliedMode)) return;
         boolean any = putBack();
         appliedMode = mode;
+        missing.clear();
         switch (mode) {
             case "Max FPS" -> {
                 any |= change("extra", "animationSettings.water", "water animation off", false);
@@ -208,6 +254,7 @@ public final class SodiumBridge {
     public static void restore() {
         boolean any = putBack();
         appliedMode = "";
+        missing.clear();
         if (any) saveMods();
         saveRestoreFile();
     }
@@ -215,10 +262,15 @@ public final class SodiumBridge {
     /** "Also changed in Sodium: ..." for Performance, or a line saying why nothing is. */
     public static String status() {
         if (!sodiumLoaded() && !extraLoaded()) return "Sodium isn't installed";
-        if (changed.isEmpty()) return appliedMode.isEmpty() ? "Nothing changed" : "Nothing to change for " + appliedMode;
+        String gap = missing.isEmpty() ? "" : "Not applied: " + missing.size()
+                + (missing.size() == 1 ? " option" : " options") + " missing (Sodium changed; see the log)";
+        if (changed.isEmpty()) {
+            if (!gap.isEmpty()) return gap;
+            return appliedMode.isEmpty() ? "Nothing changed" : "Nothing to change for " + appliedMode;
+        }
         List<String> labels = new ArrayList<>();
         for (Changed c : changed) labels.add(c.label());
-        return String.join(", ", labels);
+        return String.join(", ", labels) + (gap.isEmpty() ? "" : ". " + gap);
     }
 
     /** What is changed right now: "mod:path" to Evade's value (tests). */

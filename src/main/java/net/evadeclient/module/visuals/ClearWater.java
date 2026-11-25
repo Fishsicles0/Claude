@@ -14,7 +14,8 @@ import net.minecraft.client.render.Camera;
  * the fog above water are not touched (NoFog handles open air). The fog itself is changed in FogRendererMixin.
  */
 public class ClearWater extends Module {
-    public final BooleanSetting overlay = add(new BooleanSetting("Hide Water Overlay", true));
+    public final BooleanSetting overlay = add(new BooleanSetting("Hide Water Overlay", true)
+            .describe("Also removes the blue tint drawn over the screen while you're underwater."));
 
     public ClearWater() {
         super("Clear Water", "Removes underwater fog. Blindness and Darkness still apply.", Category.VISUALS);

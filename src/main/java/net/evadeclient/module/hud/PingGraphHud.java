@@ -29,7 +29,8 @@ public class PingGraphHud extends HudElementModule {
             .describe("Live measures the round trip once a second with the game's own ping query. Tab List graphs the ping the server lists."));
     public final NumberSetting samples = add(new NumberSetting("Samples Shown", 60, 20, 240, 10)
             .describe("How many seconds of history the graph shows."));
-    public final NumberSetting graphHeight = add(new NumberSetting("Graph Height", 28, 16, 64, 4));
+    public final NumberSetting graphHeight = add(new NumberSetting("Graph Height", 28, 16, 64, 4)
+            .describe("Height of the graph in pixels."));
     public final NumberSetting barWidth = add(new NumberSetting("Bar Width", 2, 1, 4, 1)
             .describe("Pixels per sample. Wider bars make a wider graph."));
     public final ModeSetting range = add(new ModeSetting("Graph Range", "Auto", "Auto", "100 ms", "200 ms", "500 ms")
@@ -40,10 +41,14 @@ public class PingGraphHud extends HudElementModule {
             .describe("Pings under this many ms are drawn in Good Color."));
     public final NumberSetting badAbove = add(new NumberSetting("Bad Above", 150, 50, 1000, 10)
             .describe("Pings over this many ms are drawn in Bad Color; between the two, Fair Color."));
-    public final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF22C55E));
-    public final ColorSetting fairColor = add(new ColorSetting("Fair Color", 0xFFEAB308));
-    public final ColorSetting badColor = add(new ColorSetting("Bad Color", 0xFFE11D2E));
-    public final ColorSetting headerColor = add(new ColorSetting("Header Color", 0xFFFFFFFF));
+    public final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF22C55E)
+            .describe("Colour of pings under Good Below."));
+    public final ColorSetting fairColor = add(new ColorSetting("Fair Color", 0xFFEAB308)
+            .describe("Colour of pings between Good Below and Bad Above."));
+    public final ColorSetting badColor = add(new ColorSetting("Bad Color", 0xFFE11D2E)
+            .describe("Colour of pings over Bad Above."));
+    public final ColorSetting headerColor = add(new ColorSetting("Header Color", 0xFFFFFFFF)
+            .describe("Colour of the stats line above the graph."));
 
     private final int[] ring = new int[CAPACITY];
     private int count, head;

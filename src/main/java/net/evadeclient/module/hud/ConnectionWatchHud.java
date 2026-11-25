@@ -21,7 +21,8 @@ public class ConnectionWatchHud extends TextHudModule {
             .describe("Also watch singleplayer's built-in server (it stops while the game is paused)."));
     private final BooleanSetting pulse = add(new BooleanSetting("Pulse", true)
             .describe("The warning fades in and out so it catches your eye."));
-    private final ColorSetting warnColor = add(new ColorSetting("Warning Color", 0xFFFF4D5E));
+    private final ColorSetting warnColor = add(new ColorSetting("Warning Color", 0xFFFF4D5E)
+            .describe("Colour of the \"Server not responding\" warning."));
 
     public ConnectionWatchHud() {
         super("Connection Watch", "Warns \"Server not responding\" with a seconds count when the server goes quiet.", CENTER, 60);

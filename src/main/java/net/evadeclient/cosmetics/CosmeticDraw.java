@@ -177,20 +177,20 @@ public final class CosmeticDraw {
                     dy = -(0.5f + 0.5f * (float) Math.sin((t * an.speed() * 0.5f + phase) * TAU)) * an.amp() * 1.4f;
                     float cyc = (t + phase * 7f) % 7f;
                     if (cyc < 0.5f) dy -= (float) Math.sin(cyc / 0.5f * Math.PI) * 2.5f;
-                    else if (cyc > 3.5f && cyc < 4.6f) roll += (float) Math.sin((cyc - 3.5f) / 1.1f * Math.PI) * 5f;
+                    else if (cyc > 3.5f && cyc < 4.6f) roll += (float) Math.sin((cyc - 3.5f) / 1.1f * Math.PI) * 3f;
                     if (motion) {
                         pitch += -d.petLookPitch * 0.15f;
-                        roll += Math.max(-3f, Math.min(3f, d.petYawV * 0.02f));
+                        roll += Math.max(-2f, Math.min(2f, d.petYawV * 0.02f));
                     } else {
-                        yaw += (float) Math.sin(t * 0.37f * TAU) * 8f;
-                        roll += (float) Math.sin(t * 0.61f * TAU) * 2f;
+                        yaw += (float) Math.sin(t * 0.37f * TAU) * 5f;
+                        roll += (float) Math.sin(t * 0.61f * TAU) * 1.5f;
                     }
                 }
                 case "pet_head" -> {
                     // glances about (quick turns, little holds), now and then a curious tilt; nods with your look
                     yaw += glance(t * 0.19f + phase) * (an.amp() > 0 ? an.amp() : 14f);
                     float cyc = (t + 2.3f + phase * 9f) % 9f;
-                    if (cyc < 1.2f) roll += (float) Math.sin(cyc / 1.2f * Math.PI) * 10f;
+                    if (cyc < 1.2f) roll += (float) Math.sin(cyc / 1.2f * Math.PI) * 7f;
                     if (motion) pitch += -d.petLookPitch * 0.35f;
                     else pitch += (float) Math.sin(t * 0.43f * TAU) * 5f;
                 }

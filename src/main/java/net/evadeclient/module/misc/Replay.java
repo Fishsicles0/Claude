@@ -20,14 +20,21 @@ import java.util.List;
  * "Start recording" (pause menu or key) works mid-match too.
  */
 public class Replay extends Module {
-    private final BooleanSetting autoRecord = add(new BooleanSetting("Record Every Session", false));
-    private final BooleanSetting saveOnLeave = add(new BooleanSetting("Save When Leaving", true));
-    private final KeySetting recordKey = add(new KeySetting("Start / Save Key", GLFW.GLFW_KEY_UNKNOWN));
-    private final KeySetting markerKey = add(new KeySetting("Marker Key", GLFW.GLFW_KEY_UNKNOWN));
-    private final BooleanSetting indicator = add(new BooleanSetting("Recording Indicator", true));
+    private final BooleanSetting autoRecord = add(new BooleanSetting("Record Every Session", false)
+            .describe("Starts recording a 3D replay automatically every time you join a world or server."));
+    private final BooleanSetting saveOnLeave = add(new BooleanSetting("Save When Leaving", true)
+            .describe("If a replay is recording when you leave, it is saved instead of thrown away."));
+    private final KeySetting recordKey = add(new KeySetting("Start / Save Key", GLFW.GLFW_KEY_UNKNOWN)
+            .describe("Press to start recording a replay, and again to save it. Unbound by default."));
+    private final KeySetting markerKey = add(new KeySetting("Marker Key", GLFW.GLFW_KEY_UNKNOWN)
+            .describe("Press while recording to drop a marker you can jump to in the replay. Unbound by default."));
+    private final BooleanSetting indicator = add(new BooleanSetting("Recording Indicator", true)
+            .describe("Shows a small REC timer in the top-right corner while a replay is recording."));
     /** With Simple Voice Chat: what others say near you goes into the replay (played back from where they stood). */
-    private final BooleanSetting voiceChat = add(new BooleanSetting("Record Voice Chat", true));
-    private final BooleanSetting ownVoice = add(new BooleanSetting("Record My Voice", true));
+    private final BooleanSetting voiceChat = add(new BooleanSetting("Record Voice Chat", true)
+            .describe("With Simple Voice Chat, records what nearby players say, played back from where they stood."));
+    private final BooleanSetting ownVoice = add(new BooleanSetting("Record My Voice", true)
+            .describe("Also records your own microphone into the replay. Needs Record Voice Chat."));
     private boolean recordWasDown, markerWasDown;
 
     public Replay() {

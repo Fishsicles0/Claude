@@ -55,14 +55,16 @@ public class CoordsHud extends TextHudModule {
             .describe("Red X, green Y and blue Z labels instead of Label Color."));
     private final ColorSetting extraLineColor = add(new ColorSetting("Extra Line Color", 0xFFFFFFFF)
             .describe("Colour of the lines under your position: direction, biome, chunk and so on."));
-    private final BooleanSetting direction = add(new BooleanSetting("Direction", true));
+    private final BooleanSetting direction = add(new BooleanSetting("Direction", true)
+            .describe("Adds the direction you're facing, like North."));
     private final ModeSetting directionFormat = add(new ModeSetting("Direction Format", "North", "North", "N", "North-East", "NE")
             .describe("Four or eight directions, written out or short."));
     private final BooleanSetting showAxis = add(new BooleanSetting("Show Axis", true)
             .describe("Which way your coordinates grow as you walk forward, e.g. North (-Z)."));
     private final BooleanSetting showAngles = add(new BooleanSetting("Show Angles", false)
             .describe("Your yaw and pitch in degrees."));
-    private final BooleanSetting biome = add(new BooleanSetting("Biome", true));
+    private final BooleanSetting biome = add(new BooleanSetting("Biome", true)
+            .describe("Adds the name of the biome you're standing in."));
     private final BooleanSetting nether = add(new BooleanSetting("Nether Coords", false)
             .describe("The matching Nether position in the Overworld, and the Overworld position in the Nether."));
     private final ModeSetting chunkInfo = add(new ModeSetting("Chunk Info", "Off", "Off", "Chunk", "Chunk + Block", "Region")

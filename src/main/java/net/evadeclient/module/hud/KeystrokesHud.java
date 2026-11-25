@@ -54,12 +54,15 @@ public class KeystrokesHud extends HudElementModule {
     private static final String[] WASD = {"W", "A", "S", "D"};
     private static final String[] ARROWS = {"▲", "◀", "▼", "▶"};
 
-    private final BooleanSetting mouse = add(new BooleanSetting("Mouse Buttons", true));
-    private final BooleanSetting cps = add(new BooleanSetting("Show CPS", true));
+    private final BooleanSetting mouse = add(new BooleanSetting("Mouse Buttons", true)
+            .describe("Adds left and right mouse button keys under the movement keys."));
+    private final BooleanSetting cps = add(new BooleanSetting("Show CPS", true)
+            .describe("Shows your clicks per second on the mouse buttons."));
     private final ModeSetting cpsStyle = add(new ModeSetting("CPS Style", "Under Label", "Under Label", "Replace Label", "Combined Row")
             .describe("Where clicks per second show: small under LMB/RMB, instead of the labels, or in one row "
                     + "(\"12 | 9 CPS\") under the buttons. Combined Row also shows with Mouse Buttons off."));
-    private final BooleanSetting space = add(new BooleanSetting("Space Bar", true));
+    private final BooleanSetting space = add(new BooleanSetting("Space Bar", true)
+            .describe("Adds a jump key under the others."));
     private final ModeSetting spaceStyle = add(new ModeSetting("Space Bar Style", "Bar", "Bar", "Label")
             .describe("The space bar as a dash, or labelled with the key jump is bound to."));
     private final BooleanSetting sneak = add(new BooleanSetting("Sneak Key", false)
@@ -80,7 +83,8 @@ public class KeystrokesHud extends HudElementModule {
             "Key labels. Reset for the theme's text colour."));
     private final ColorSetting pressedTextColor = add(themeColor("Pressed Text Color",
             "Key labels while pressed. Reset for the theme's text-on-accent colour."));
-    private final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true));
+    private final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true)
+            .describe("Draws a dark drop shadow under the key labels."));
     private final ModeSetting pressAnimation = add(new ModeSetting("Press Animation", "Fade", "Fade", "Instant", "Fill", "Shrink")
             .describe("Fade lights a key at once and fades it out; Instant has no fade; Fill rises from the bottom "
                     + "of the key; Shrink presses the key in a little."));

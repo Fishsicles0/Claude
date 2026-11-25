@@ -63,6 +63,29 @@ public final class CloudShare {
 
     static boolean sameServer(String a, String b) { return Settings.normBase(a).equals(Settings.normBase(b)); }
 
+    /** The default share server. Any other one is run by someone else, who then holds the clips sent to it. */
+    public static final String DEFAULT_SERVER = "https://clips.evadeclient.com";
+
+    /**
+     * Why {@code url} can't be used as a share server, or null if it can. Only https:// is allowed (the account
+     * key would otherwise travel in clear text), except plain http:// to this computer (a local test server).
+     */
+    public static String serverProblem(String url) {
+        String u = url == null ? "" : url.trim();
+        if (u.isEmpty()) return null;
+        URI uri;
+        try { uri = URI.create(u); } catch (IllegalArgumentException e) { return "That isn't a web address."; }
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(java.util.Locale.ROOT);
+        if (host.isEmpty()) return "That isn't a web address. It should look like https://clips.example.com";
+        if (scheme.equals("https")) return null;
+        if (scheme.equals("http") && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("[::1]") || host.equals("::1"))) return null;
+        return "Share servers must use https:// so your account key and clips aren't sent unencrypted.";
+    }
+
+    /** True for the default server, clips.evadeclient.com. */
+    public static boolean isDefaultServer(String url) { return sameServer(url == null ? "" : url, DEFAULT_SERVER); }
+
     /** The server a shared clip lives on: where it was uploaded, else the start of its link, else the current one. */
     public String serverOf(Clip c) {
         if (c.shareBase != null && !c.shareBase.isBlank()) return c.shareBase;
@@ -554,6 +577,8 @@ public final class CloudShare {
     private static HttpRequest.BodyPublisher json(Object o) { return HttpRequest.BodyPublishers.ofString(GSON.toJson(o)); }
 
     private JsonObject send(HttpRequest r) throws IOException {
+        String bad = serverProblem(r.uri().getScheme() + "://" + r.uri().getRawAuthority());
+        if (bad != null) throw new IOException(bad);
         HttpResponse<String> res;
         try { res = http.send(r, HttpResponse.BodyHandlers.ofString()); }
         catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IOException("Interrupted"); }
@@ -563,6 +588,9 @@ public final class CloudShare {
         if (sc == 401) throw new HttpError(401, "The share server doesn't know this PC any more. Reset sharing in Settings → Sharing & phone.");
         if (sc >= 300 || o == null) {
             String why = o != null && o.has("error") ? o.get("error").getAsString() : "Share server error (HTTP " + sc + ")";
+            if (sc == 413 && "storage full".equals(why))
+                why = "Your share storage is full" + (o.has("quota") ? " (" + (o.get("quota").getAsLong() / 1_000_000_000L) + " GB)" : "")
+                        + ". Stop sharing older clips (Settings → Sharing & phone → Clips on the server…) to make room. Clips on your PC aren't affected.";
             throw new HttpError(sc, why);
         }
         return o;

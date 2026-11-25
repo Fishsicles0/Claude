@@ -23,7 +23,8 @@ public class FpsHud extends TextHudModule {
     /** The Max Framerate slider's "Unlimited". */
     private static final int UNLIMITED = 260;
 
-    private final ModeSetting format = add(new ModeSetting("Format", "144 FPS", "144 FPS", "FPS: 144", "144"));
+    private final ModeSetting format = add(new ModeSetting("Format", "144 FPS", "144 FPS", "FPS: 144", "144")
+            .describe("How the frame rate is written: \"144 FPS\", \"FPS: 144\" or just the number."));
     private final BooleanSetting showLow = add(new BooleanSetting("Show 1% Low", false)
             .describe("Also show the 1% low: the frame rate of the slowest 1% of frames, so dips stand out."));
     private final BooleanSetting showFrameTime = add(new BooleanSetting("Show Frame Time", false)
@@ -36,9 +37,12 @@ public class FpsHud extends TextHudModule {
             .describe("At or above this frame rate the counter uses Good Color."));
     private final NumberSetting lowFps = add(new NumberSetting("Low FPS", 30, 5, 240, 5)
             .describe("Below this frame rate the counter uses Low Color; in between, Okay Color."));
-    private final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF3BE37A));
-    private final ColorSetting okayColor = add(new ColorSetting("Okay Color", 0xFFFFD21F));
-    private final ColorSetting lowColor = add(new ColorSetting("Low Color", 0xFFE11D2E));
+    private final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF3BE37A)
+            .describe("Counter colour at or above Good FPS, with Color By FPS on."));
+    private final ColorSetting okayColor = add(new ColorSetting("Okay Color", 0xFFFFD21F)
+            .describe("Counter colour between Low FPS and Good FPS, with Color By FPS on."));
+    private final ColorSetting lowColor = add(new ColorSetting("Low Color", 0xFFE11D2E)
+            .describe("Counter colour below Low FPS, with Color By FPS on."));
     private final ModeSetting showCap = add(new ModeSetting("Show Cap", "Off", "Off", "Cap", "Cap + Reason")
             .describe("Show the frame rate limit in effect right now, and why the game is holding it lower "
                     + "(minimized, AFK, unfocused or in a menu)."));

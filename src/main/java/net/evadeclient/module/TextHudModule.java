@@ -19,10 +19,14 @@ import java.util.List;
  * Every hook defaults to drawing exactly what a plain text element draws.
  */
 public abstract class TextHudModule extends HudElementModule {
-    public final ColorSetting color = add(new ColorSetting("Text Color", 0xFFFFFFFF));
-    public final BooleanSetting brackets = add(new BooleanSetting("Brackets", false));
-    public final BooleanSetting shadow = add(new BooleanSetting("Text Shadow", true));
-    public final BooleanSetting chroma = add(new BooleanSetting("Chroma", false));
+    public final ColorSetting color = add(new ColorSetting("Text Color", 0xFFFFFFFF)
+            .describe("Colour of the widget's text."));
+    public final BooleanSetting brackets = add(new BooleanSetting("Brackets", false)
+            .describe("Wraps each line in square brackets, like [120 FPS]."));
+    public final BooleanSetting shadow = add(new BooleanSetting("Text Shadow", true)
+            .describe("Draws a dark drop shadow under the text so it reads on any background."));
+    public final BooleanSetting chroma = add(new BooleanSetting("Chroma", false)
+            .describe("Cycles the text through rainbow colours instead of using Text Color."));
     public final ModeSetting textAlign = add(new ModeSetting("Text Align", "Auto", "Auto", "Left", "Center", "Right")
             .describe("Auto lines text up with the screen edge the widget is anchored to, so changing numbers don't jitter."));
     public final BooleanSetting splitColors = add(new BooleanSetting("Label/Value Colors", false)

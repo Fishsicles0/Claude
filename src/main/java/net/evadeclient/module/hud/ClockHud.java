@@ -74,7 +74,8 @@ public class ClockHud extends TextHudModule {
     // ---- time --------------------------------------------------------------------------------------------
     private final ModeSetting format = add(new ModeSetting("Format", "12h", "12h", "24h", CUSTOM)
             .describe("12-hour or 24-hour time, or your own Custom Pattern."));
-    private final BooleanSetting showSeconds = add(new BooleanSetting("Show Seconds", false));
+    private final BooleanSetting showSeconds = add(new BooleanSetting("Show Seconds", false)
+            .describe("Adds seconds to the time, like 7:05:42."));
     private final BooleanSetting leadingZero = add(new BooleanSetting("Leading Zero", false)
             .describe("07:05 instead of 7:05."));
     private final ModeSetting ampmStyle = add(new ModeSetting("AM/PM Style", "AM/PM", "AM/PM", "am/pm", HIDDEN)
@@ -114,12 +115,14 @@ public class ClockHud extends TextHudModule {
             .describe("A reminder at a set time in the Time Zone above, while you're in a world with the Clock on."));
     private final NumberSetting alarmHour = add(new NumberSetting("Alarm Hour", 7, 0, 23, 1)
             .describe("Hour of the alarm, 0 to 23."));
-    private final NumberSetting alarmMinute = add(new NumberSetting("Alarm Minute", 0, 0, 59, 1));
+    private final NumberSetting alarmMinute = add(new NumberSetting("Alarm Minute", 0, 0, 59, 1)
+            .describe("Minute of the alarm, 0 to 59."));
     private final BooleanSetting alarmSound = add(new BooleanSetting("Alarm Sound", true)
             .describe("Rings a bell three times with the alarm."));
     private final BooleanSetting hourlyChime = add(new BooleanSetting("Hourly Chime", false)
             .describe("A soft note at the start of every hour."));
-    private final StatusSetting nextAlarm = add(new StatusSetting("Next Alarm", this::nextAlarmText, ""));
+    private final StatusSetting nextAlarm = add(new StatusSetting("Next Alarm", this::nextAlarmText, "")
+            .describe("When the alarm will go off next."));
 
     /** The last time of day the server sent, whether its day runs on, the client tick it arrived and its world. */
     private long serverTimeOfDay;

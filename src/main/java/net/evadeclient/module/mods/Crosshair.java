@@ -64,10 +64,12 @@ public class Crosshair extends Module {
             .describe("The Custom style's pixels. Click to draw your own, pick a preset or paste a code."));
     private final ModeSetting colorMode = add(new ModeSetting("Color Mode", "Static", "Static", INVERT, "Chroma")
             .describe("Static uses Color. Invert flips what's behind it like the vanilla crosshair (always readable, no outline). Chroma cycles through the rainbow."));
-    private final ColorSetting color = add(new ColorSetting("Color", 0xFFFFFFFF));
+    private final ColorSetting color = add(new ColorSetting("Color", 0xFFFFFFFF)
+            .describe("The crosshair's colour while Color Mode is Static."));
     private final NumberSetting chromaSpeed = add(new NumberSetting("Chroma Speed", 1.0, 0.2, 5.0, 0.1)
             .describe("How fast Chroma cycles: 1 goes round the rainbow every 4 seconds."));
-    private final ColorSetting targetColor = add(new ColorSetting("Target Color", 0xFFE11D2E));
+    private final ColorSetting targetColor = add(new ColorSetting("Target Color", 0xFFE11D2E)
+            .describe("The crosshair's colour while you aim at a mob or player, with Highlight Targets on."));
     private final BooleanSetting highlight = add(new BooleanSetting("Highlight Targets", true)
             .describe("Use Target Color while you aim at a mob or player (not with Invert)."));
     private final NumberSetting opacity = add(new NumberSetting("Opacity", 1.0, 0.1, 1.0, 0.05)
@@ -86,7 +88,8 @@ public class Crosshair extends Module {
             .describe("Turns the crosshair clockwise around its centre (45 makes a Cross an X)."));
     private final BooleanSetting outline = add(new BooleanSetting("Outline", true)
             .describe("A dark edge around the crosshair so it stays visible on bright backgrounds."));
-    private final ColorSetting outlineColor = add(new ColorSetting("Outline Color", 0xC0000000));
+    private final ColorSetting outlineColor = add(new ColorSetting("Outline Color", 0xC0000000)
+            .describe("Colour of the Outline drawn around the crosshair."));
     private final NumberSetting outlineThickness = add(new NumberSetting("Outline Thickness", 1, 1, 3, 1)
             .describe("How many pixels the Outline is wide (only while Outline is on)."));
     private final ModeSetting dynamicGap = add(new ModeSetting("Dynamic Gap", "Off", "Off", "Bow Charge", "Movement", "Both")
@@ -98,15 +101,18 @@ public class Crosshair extends Module {
     private final ModeSetting attackIndicator = add(new ModeSetting("Attack Indicator", "Follow Vanilla",
             "Follow Vanilla", "Off", "Vanilla Texture", "Bar", "Ring")
             .describe("Your attack cooldown under the crosshair. Follow Vanilla shows vanilla's when Video Settings' Attack Indicator is Crosshair."));
-    private final ColorSetting indicatorColor = add(new ColorSetting("Indicator Color", 0xFFFFFFFF));
+    private final ColorSetting indicatorColor = add(new ColorSetting("Indicator Color", 0xFFFFFFFF)
+            .describe("Colour of the Bar or Ring attack cooldown indicator."));
     private final NumberSetting indicatorWidth = add(new NumberSetting("Indicator Width", 16, 8, 40, 1)
             .describe("Length of the Bar indicator."));
     private final NumberSetting indicatorOffset = add(new NumberSetting("Indicator Offset", 9, 4, 24, 1)
             .describe("How far below the centre the indicator sits; the Ring's radius."));
-    private final BooleanSetting thirdPerson = add(new BooleanSetting("Show In 3rd Person", false));
+    private final BooleanSetting thirdPerson = add(new BooleanSetting("Show In 3rd Person", false)
+            .describe("Also draws the crosshair in third-person view, where the game normally hides it."));
     public final BooleanSetting hitMarker = add(new BooleanSetting("Hit Marker", false)
             .describe("A small X flashes around the crosshair when the server confirms a hit you landed (melee or projectile)."));
-    private final ColorSetting hitMarkerColor = add(new ColorSetting("Hit Marker Color", 0xFFFFFFFF));
+    private final ColorSetting hitMarkerColor = add(new ColorSetting("Hit Marker Color", 0xFFFFFFFF)
+            .describe("Colour of the Hit Marker."));
     private final NumberSetting hitMarkerTime = add(new NumberSetting("Hit Marker Time", 0.3, 0.1, 1.0, 0.05)
             .describe("Seconds the hit marker stays before fading out."));
 

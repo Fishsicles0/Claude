@@ -47,7 +47,7 @@ public final class SetupWizardScreen extends EvadePanelScreen {
     protected String subtitle() {
         return switch (step) {
             case 0 -> "Step 1 of 3 · How do you play? Pick one to switch on a set of mods (change anything later)";
-            case 1 -> "Step 2 of 3 · Pick the FPS Mode that suits this PC";
+            case 1 -> "Step 2 of 3 · Pick the FPS Mode that suits this PC, and see what it changes";
             default -> "Step 3 of 3 · A few things worth knowing";
         };
     }
@@ -128,7 +128,42 @@ public final class SetupWizardScreen extends EvadePanelScreen {
         String status = tuneStatus != null ? tuneStatus : pick != null ? "Last tune picked " + pick + "." : MenuState.tunePending()
                 ? "Waiting for your next world." : "Or skip this: Balanced is a good start.";
         text(ctx, status, cx, y, Theme.TEXT_FAINT, Role.SMALL);
-        return y - top + 20;
+        y += 22;
+        return y - top + renderChanges(ctx, y, mx, my, p);
+    }
+
+    /**
+     * What Performance changed in the player's own video settings, so nothing changes silently, with a button that
+     * hands them all back (culling and the idle frame caps stay: they change no settings). Returns the height used.
+     */
+    private int renderChanges(DrawContext ctx, int top, int mx, int my, Performance p) {
+        if (p == null || !p.isEnabled()) return 0;
+        List<String> changes = p.videoChangesSummary();
+        int y = top;
+        text(ctx, changes.isEmpty() ? "Performance hasn't changed any of your video settings."
+                : "Performance changed these video settings of yours:", cx, y, Theme.TEXT, Role.LABEL);
+        y += 14;
+        for (String c : changes) {
+            text(ctx, "•  " + c, cx + 6, y, Theme.TEXT_DIM, Role.SMALL);
+            y += 11;
+        }
+        for (String line : wrap("It also skips drawing far mobs and some particles, and lowers the frame rate while you're "
+                + "tabbed out or AFK. Turn Performance off for none of it.", Role.SMALL, cw)) {
+            text(ctx, line, cx, y, Theme.TEXT_FAINT, Role.SMALL);
+            y += 11;
+        }
+        if (!changes.isEmpty()) {
+            y += 6;
+            button(ctx, "keepvideo", "Keep my own settings", cx + 150, y, mx, my, 0, b -> p.keepMyVideoSettings());
+            y += 20;
+        }
+        return y - top;
+    }
+
+    /** Test hook: what the setup lists as changed by Performance. */
+    public static List<String> changesForTest() {
+        Performance p = EvadeClient.modules.get(Performance.class);
+        return p == null ? List.of() : p.videoChangesSummary();
     }
 
     private int renderTips(DrawContext ctx, int top) {

@@ -17,7 +17,10 @@
 //   rp/<id>/<viewer>.json    reports about a preset
 //   stats.json, sweep.json, fold.json, cron.json   server-wide storage use and housekeeping state
 //
-// Public:  /           landing page + downloads (static files in ./public)
+// Public:  /           landing page; /downloads/* redirect to evadeclient.com/downloads (the one copy of every
+//                      download, so sizes and checksums can't differ between the two sites)
+//          /version.json what this deploy was built from (Evade Clips version and checksums), for release checks
+//          /robots.txt, /sitemap.xml, /privacy (redirects to the privacy policy on evadeclient.com)
 //          /c/<clip>   share page with Discord/Twitter embed tags (private clips need their own ?k= key)
 //          /v/<clip>.mp4, /t/<clip>.jpg   video (byte ranges) and thumbnail
 //          /g/<account>?t=<viewToken>     private phone gallery, with upload from the phone
@@ -48,7 +51,7 @@ const REASONS = {
   other: "breaking the rules",
 };
 
-import { LANDING, TOP, BOTTOM } from "./shell.js";
+import { LANDING, TOP, BOTTOM, BUILD } from "./shell.js";
 
 export default {
   async fetch(req, env, ctx) {
@@ -81,7 +84,11 @@ async function route(req, env, ctx) {
   if (p === "/" && (m === "GET" || m === "HEAD")) return home();
   if (p.startsWith("/assets/")) return siteFile(env, p.slice("/assets/".length));
   if (["/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png"].includes(p)) return siteFile(env, p.slice(1));
-  if (p.startsWith("/downloads/")) return download(req, env, p.slice("/downloads/".length));
+  if (p.startsWith("/downloads/")) return download(p.slice("/downloads/".length));
+  if (p === "/version.json") return json(BUILD);
+  if (p === "/robots.txt") return text(ROBOTS);
+  if (p === "/sitemap.xml") return new Response(SITEMAP, { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
+  if (p === "/privacy" || p === "/privacy/") return Response.redirect(MAIN_SITE + "/privacy#clips", 301);
   if (p === "/api/register" && m === "POST") return register(req, env, ctx);
   if (p === "/api/clips" && m === "GET") return listClips(await auth(req, env, true), env);
   if (p === "/api/uploads" && m === "POST") return startUpload(req, await auth(req, env, true), env, ctx);
@@ -927,7 +934,7 @@ async function gallery(env, account, url) {
   const used = usedBytes > 0 ? Math.max(2, Math.min(100, Math.round((usedBytes / quota(env)) * 100))) : 0;
   const body = `
 <div class="sec-head"><div class="eyebrow">Your gallery</div><h1>Your clips.</h1>
-<p>${index.length} clip${index.length === 1 ? "" : "s"}. Tap one to watch, download or share it. Keep this link to yourself: anyone who has it can see your clips. If it gets out, reset it in Evade Clips (Settings → Sharing &amp; phone → Reset phone link).</p></div>
+<p>${index.length} clip${index.length === 1 ? "" : "s"}. Tap one to watch, download or share it. Keep this link to yourself: anyone who has it can see all your shared clips, private ones too, and upload videos to your library. Don't show it on stream. If it gets out, reset it in Evade Clips (Settings → Sharing &amp; phone → Reset phone link) and the old link stops working.</p></div>
 <div class="card clip-storage"><div class="clip-storage-row"><span>Storage</span><span>${mb(usedBytes)} of ${mb(quota(env))}</span></div><div class="clip-meter"><i style="width:${used}%"></i></div></div>
 <form id=up class="card clip-form clip-upload" onsubmit="return upload(event)">
   <h3>Upload from this phone</h3>
@@ -963,22 +970,33 @@ function notFound(env, why) {
 }
 
 /**
- * Downloads: from the bundled static files when the Worker was deployed with them, otherwise from the R2
- * bucket under dl/ (upload with `npx wrangler r2 object put evade-clips/dl/<file> --file ...`).
+ * Downloads live in one place, evadeclient.com/downloads, built by the same release as its checksums. This
+ * subdomain keeps no copies, so the two sites can never offer different files under the same version.
+ * clips.json (an older summary of the Evade Clips files) points at the main site's version.json.
  */
-async function download(req, env, name) {
+function download(name) {
   if (!/^[\w.-]+$/.test(name)) return new Response("not found", { status: 404 });
-  if (env.ASSETS) {
-    const r = await env.ASSETS.fetch(req);
-    if (r.ok) return r;
-  }
-  const obj = await env.CLIPS.get(`dl/${name}`);
-  if (!obj) return new Response("not found", { status: 404 });
-  const type = name.endsWith(".json") ? "application/json" : "application/octet-stream";
-  const h = { "Content-Type": type, "Content-Length": String(obj.size), "Cache-Control": "public, max-age=300" };
-  if (!name.endsWith(".json")) h["Content-Disposition"] = `attachment; filename="${name}"`;
-  return new Response(obj.body, { headers: h });
+  const target = name === "clips.json" ? `${MAIN_SITE}/version.json` : `${MAIN_SITE}/downloads/${name}`;
+  return new Response(null, { status: 302, headers: { Location: target, "Cache-Control": "public, max-age=300" } });
 }
+
+const MAIN_SITE = "https://evadeclient.com";
+// Videos and thumbnails stay crawlable: link previews (X, iMessage, Discord) fetch them and some honour robots.txt.
+// Private clip pages carry a noindex tag; the phone gallery and the API are off limits.
+const ROBOTS = `User-agent: *
+Allow: /
+Allow: /presets
+Disallow: /api/
+Disallow: /g/
+
+Sitemap: https://clips.evadeclient.com/sitemap.xml
+`;
+const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://clips.evadeclient.com/</loc></url>
+  <url><loc>https://clips.evadeclient.com/presets</loc></url>
+</urlset>
+`;
 
 /** The main site's stylesheet, scripts, logo and screenshots (synced into R2 under site/ by sync-assets.sh). */
 async function siteFile(env, name) {
@@ -1281,7 +1299,12 @@ function json(o, status = 200) {
   return new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json", ...cors() } });
 }
 function html(s, status = 200) {
-  return new Response(s, { status, headers: { "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
+  return new Response(s, { status, headers: { "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff",
+    // Private clip links carry their key in the address: never send it on to another site.
+    "Referrer-Policy": "no-referrer", "Strict-Transport-Security": "max-age=31536000; includeSubDomains" } });
+}
+function text(s) {
+  return new Response(s, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
 }
 function cors() {
   return { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE" };

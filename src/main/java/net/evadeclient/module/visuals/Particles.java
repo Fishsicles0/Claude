@@ -38,14 +38,22 @@ public class Particles extends Module {
     /** Vanilla's hit-particle emitter lifetime (ParticleManager.addEmitter without a duration). */
     private static final int EMITTER_TICKS = 3;
 
-    public final BooleanSetting crits = add(new BooleanSetting("Hide Crits", true));
-    public final BooleanSetting sharpness = add(new BooleanSetting("Hide Sharpness", true));
-    public final BooleanSetting damage = add(new BooleanSetting("Hide Damage Hearts", true));
-    public final BooleanSetting sweep = add(new BooleanSetting("Hide Sweeps", false));
-    public final BooleanSetting explosions = add(new BooleanSetting("Hide Explosions", false));
-    public final BooleanSetting totems = add(new BooleanSetting("Hide Totem Pops", false));
-    public final BooleanSetting fireworks = add(new BooleanSetting("Hide Fireworks", false));
-    public final BooleanSetting mining = add(new BooleanSetting("Hide Mining Particles", false));
+    public final BooleanSetting crits = add(new BooleanSetting("Hide Crits", true)
+            .describe("Hides the star-shaped particles from critical hits."));
+    public final BooleanSetting sharpness = add(new BooleanSetting("Hide Sharpness", true)
+            .describe("Hides the blue sparks from hits with Sharpness and other damage enchantments."));
+    public final BooleanSetting damage = add(new BooleanSetting("Hide Damage Hearts", true)
+            .describe("Hides the dark hearts that fly off a mob or player when it takes damage."));
+    public final BooleanSetting sweep = add(new BooleanSetting("Hide Sweeps", false)
+            .describe("Hides the white arc of a sword sweep attack."));
+    public final BooleanSetting explosions = add(new BooleanSetting("Hide Explosions", false)
+            .describe("Hides explosion clouds and the debris they throw out. The sound and knockback are unchanged."));
+    public final BooleanSetting totems = add(new BooleanSetting("Hide Totem Pops", false)
+            .describe("Hides the green and gold burst when someone uses a Totem of Undying."));
+    public final BooleanSetting fireworks = add(new BooleanSetting("Hide Fireworks", false)
+            .describe("Hides firework rockets' sparks, trails and bursts."));
+    public final BooleanSetting mining = add(new BooleanSetting("Hide Mining Particles", false)
+            .describe("No little cracks fly off the block you are breaking."));
     public final BooleanSetting blockBreak = add(new BooleanSetting("Hide Block Break Particles", false)
             .describe("No burst of block pieces when a block breaks (yours or anyone's). The break sound stays."));
     public final ModeSetting potionSwirls = add(new ModeSetting("Potion Swirls", "Show", "Show", "Hide Own", "Hide All")
@@ -64,10 +72,12 @@ public class Particles extends Module {
             .describe("Show sharpness sparks on every hit you land, even without a damage enchantment. Cosmetic only."));
     public final BooleanSetting customCritColor = add(new BooleanSetting("Custom Crit Color", false)
             .describe("Paint crit particles (melee crits and critical arrow trails) in Crit Color."));
-    public final ColorSetting critColor = add(new ColorSetting("Crit Color", 0xFFFFD21F));
+    public final ColorSetting critColor = add(new ColorSetting("Crit Color", 0xFFFFD21F)
+            .describe("Colour of crit particles while Custom Crit Color is on."));
     public final BooleanSetting customSharpnessColor = add(new BooleanSetting("Custom Sharpness Color", false)
             .describe("Paint sharpness sparks in Sharpness Color."));
-    public final ColorSetting sharpnessColor = add(new ColorSetting("Sharpness Color", 0xFF29D3F0));
+    public final ColorSetting sharpnessColor = add(new ColorSetting("Sharpness Color", 0xFF29D3F0)
+            .describe("Colour of sharpness sparks while Custom Sharpness Color is on."));
     public final NumberSetting hitParticleSize = add(new NumberSetting("Hit Particle Size %", 100, 50, 300, 10)
             .describe("Size of crit and sharpness particles (100 = vanilla)."));
 

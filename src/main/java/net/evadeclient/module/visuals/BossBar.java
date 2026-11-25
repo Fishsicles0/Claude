@@ -16,8 +16,10 @@ public class BossBar extends Module {
     /** Vanilla's layout (GUI pixels): the first bar's top, the step to the next one and a bar's height. */
     private static final int FIRST_Y = 12, STEP = 19, BAR_H = 5;
 
-    public final BooleanSetting hide = add(new BooleanSetting("Hide", false));
-    public final NumberSetting scale = add(new NumberSetting("Scale", 0.8, 0.5, 1.5, 0.05));
+    public final BooleanSetting hide = add(new BooleanSetting("Hide", false)
+            .describe("Hides boss bars completely."));
+    public final NumberSetting scale = add(new NumberSetting("Scale", 0.8, 0.5, 1.5, 0.05)
+            .describe("How big the boss bars are drawn (1 = vanilla size)."));
     public final NumberSetting yOffset = add(new NumberSetting("Y Offset", 0, 0, 100, 1)
             .describe("Move the boss bars down from the top of the screen."));
     public final NumberSetting maxBars = add(new NumberSetting("Max Bars", 6, 1, 6, 1)

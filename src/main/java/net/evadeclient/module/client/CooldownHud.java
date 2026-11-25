@@ -72,26 +72,30 @@ public class CooldownHud extends HudElementModule {
             .describe("Time Left puts what's ready soonest on top, Longest First the opposite, Fixed keeps a set order. READY always goes last."));
     private final ModeSetting barColor = add(new ModeSetting("Bar Color", "Per Type", "Per Type", "Accent", "Fade")
             .describe("Per Type gives each kind of cooldown and effect its own colour, Accent uses the theme colour, Fade goes from red to green as it runs out."));
-    private final BooleanSetting weapon = add(new BooleanSetting("Weapon Charge", true));
+    private final BooleanSetting weapon = add(new BooleanSetting("Weapon Charge", true)
+            .describe("Shows your held weapon's attack charge as a row while it refills after a swing."));
     private final ModeSetting effects = add(new ModeSetting("Effect Timers", "PvP Set", "PvP Set", "All Beneficial", "All", "Off")
             .describe("Timers for effects: the PvP set (gapple, regeneration, strength, speed, fire resistance, resistance), every good effect, every effect, or none. Hidden while Potion Effects is on, which already shows them."));
     private final BooleanSetting showAmplifier = add(new BooleanSetting("Show Amplifier", true)
             .describe("Add the effect's level to its name, e.g. Strength II."));
     private final NumberSetting expiringWarning = add(new NumberSetting("Expiring Warning", 3, 0, 10, 1)
             .describe("Effects with this many seconds or fewer left blink red. 0 turns it off."));
-    private final BooleanSetting readyFlash = add(new BooleanSetting("Ready Flash", true));
+    private final BooleanSetting readyFlash = add(new BooleanSetting("Ready Flash", true)
+            .describe("Shows the item with READY for a moment when its cooldown ends."));
     private final NumberSetting readyFlashTime = add(new NumberSetting("Ready Flash Time", 1.2, 0.3, 5.0, 0.1)
             .describe("Seconds READY stays up after something comes off cooldown."));
     private final ModeSetting readySound = add(new ModeSetting("Ready Sound", "Pling", "Pling", "Bell", "Orb", "Click", "Off")
             .describe("Sound played when something comes off cooldown."));
-    private final NumberSetting soundVolume = add(new NumberSetting("Sound Volume", 50, 0, 100, 5));
+    private final NumberSetting soundVolume = add(new NumberSetting("Sound Volume", 50, 0, 100, 5)
+            .describe("How loud the Ready Sound plays, in percent."));
     private final ModeSetting alertFor = add(new ModeSetting("Alert For", "All", "All", "Held Item", "Pearls & Wind Charges")
             .describe("Which cooldowns play the ready sound: all of them, only what's in your hands, or only ender pearls and wind charges."));
     private final NumberSetting minAlertLength = add(new NumberSetting("Min Alert Length", 1.0, 0, 10, 0.5)
             .describe("Cooldowns shorter than this many seconds never play the sound or flash READY."));
     private final BooleanSetting hotbarTimer = add(new BooleanSetting("Hotbar Timer", false)
             .describe("Write the time left on hotbar items while they're on cooldown."));
-    private final ColorSetting hotbarTimerColor = add(new ColorSetting("Hotbar Timer Color", 0xFFFFFFFF));
+    private final ColorSetting hotbarTimerColor = add(new ColorSetting("Hotbar Timer Color", 0xFFFFFFFF)
+            .describe("Colour of the time written on hotbar items, with Hotbar Timer on."));
 
     /**
      * One line of the widget. {@code sprite} is an effect drawn with its effect icon (else {@code icon} is drawn);

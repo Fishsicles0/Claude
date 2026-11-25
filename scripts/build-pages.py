@@ -44,7 +44,7 @@ LAYOUT = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
-<meta name="theme-color" content="#050506">
+{robots}<meta name="theme-color" content="#050506">
 <link rel="canonical" href="{url}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
@@ -105,10 +105,10 @@ LAYOUT = """<!doctype html>
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
       <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
       <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
@@ -135,7 +135,8 @@ def page(name: str, meta: dict, body: str, ver: dict, keys: dict) -> str:
     return LAYOUT.format(
         title=html.escape(title), description=html.escape(meta["description"]), url=SITE + path, site=SITE,
         nav=nav, logo=LOGO, links=links, mobile_links=mobile, version=ver["version"], mc=ver["minecraft"],
-        og_alt=html.escape(og_alt), body=body.strip(), **keys)
+        og_alt=html.escape(og_alt), body=body.strip(),
+        robots=f'<meta name="robots" content="{html.escape(meta["robots"])}">\n' if meta.get("robots") else "", **keys)
 
 
 # ---------- the mod catalogue, read straight from the client source ----------
@@ -819,9 +820,16 @@ def main() -> None:
 SITE = "https://evadeclient.com"
 
 
+def noindex(src: pathlib.Path) -> bool:
+    """True when a page's header block has "robots: ...noindex..."."""
+    head = src.read_text().split("\n---\n", 1)[0]
+    return any(line.startswith("robots:") and "noindex" in line for line in head.splitlines())
+
+
 def write_seo_files(ver: dict) -> None:
     """sitemap.xml and robots.txt for search engines, and _headers so browsers always use HTTPS."""
-    pages = sorted(p.stem for p in SRC.glob("*.html") if p.stem != "404")
+    # Pages whose header says "robots: noindex" (drafts such as shop-terms) stay out of the sitemap.
+    pages = sorted(p.stem for p in SRC.glob("*.html") if p.stem != "404" and not noindex(p))
     prio = {"index": "1.0", "download": "0.9", "features": "0.9", "clips": "0.8"}
     urls = "".join(
         f"  <url><loc>{SITE}{'/' if p == 'index' else '/' + p}</loc><lastmod>{ver['date']}</lastmod>"
@@ -834,7 +842,8 @@ def write_seo_files(ver: dict) -> None:
         "/*\n"
         "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
         "  X-Content-Type-Options: nosniff\n"
-        "  Referrer-Policy: strict-origin-when-cross-origin\n")
+        "  Referrer-Policy: strict-origin-when-cross-origin\n"
+        + "".join(f"\n/{p.stem}\n  X-Robots-Tag: noindex\n" for p in sorted(SRC.glob("*.html")) if noindex(p)))
     print(f"built sitemap.xml ({len(pages)} pages), robots.txt, _headers")
 
 

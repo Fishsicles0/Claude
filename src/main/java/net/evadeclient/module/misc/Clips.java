@@ -108,8 +108,10 @@ import java.util.regex.Pattern;
  * only copies one small finished frame; JPEG and MP4 encoding run on their own background threads.
  */
 public class Clips extends Module {
-    public final KeySetting saveKey = add(new KeySetting("Save Clip Key", GLFW.GLFW_KEY_F8));
-    public final ModeSetting recorder = add(new ModeSetting("Recorder", "Auto", "Auto", "Evade Clips", "Built-in"));
+    public final KeySetting saveKey = add(new KeySetting("Save Clip Key", GLFW.GLFW_KEY_F8)
+            .describe("Press to save the last moments of gameplay as a clip."));
+    public final ModeSetting recorder = add(new ModeSetting("Recorder", "Auto", "Auto", "Evade Clips", "Built-in")
+            .describe("Auto: uses the Evade Clips app whenever it's running, otherwise Evade's built-in recorder. Or pick one yourself."));
     public final NumberSetting seconds = add(new NumberSetting("Clip Length (s)", 30, 10, 120, 5)
             .describe("Built-in recorder only. Evade Clips uses the replay length set in the app."));
     public final NumberSetting fps = add(new NumberSetting("Clip FPS", 30, 15, 60, 15)
@@ -117,22 +119,30 @@ public class Clips extends Module {
     public final ModeSetting quality = add(new ModeSetting("Quality", "720p", "480p", "720p", "1080p")
             .describe("Built-in recorder only. Evade Clips records at the quality set in the app."));
     /** While the built-in recorder runs: "● REC" in the window title (and the in-game dot when overlays are shown). */
-    public final BooleanSetting indicator = add(new BooleanSetting("Recording Dot", true));
+    public final BooleanSetting indicator = add(new BooleanSetting("Recording Dot", true)
+            .describe("Shows that the built-in recorder is running, as \"● REC\" in the window title."));
     /**
      * The built-in recorder films the finished frame, HUD included. Off (the default): Evade's recording dot, status
      * banner and pop-ups stay off screen while it records, so they aren't burned into every clip.
      */
-    public final BooleanSetting showOverlays = add(new BooleanSetting("Show Overlays In Clips", false));
-    private final BooleanSetting kills = add(new BooleanSetting("Auto Clip Kills", true));
-    private final BooleanSetting pops = add(new BooleanSetting("Auto Clip Pops", true));
-    private final BooleanSetting deaths = add(new BooleanSetting("Auto Clip Deaths", false));
+    public final BooleanSetting showOverlays = add(new BooleanSetting("Show Overlays In Clips", false)
+            .describe("Lets Evade's recording dot, banners and pop-ups appear in built-in recordings. Off keeps them out of your clips."));
+    private final BooleanSetting kills = add(new BooleanSetting("Auto Clip Kills", true)
+            .describe("Saves a clip by itself when you kill a player. Kills close together become one clip."));
+    private final BooleanSetting pops = add(new BooleanSetting("Auto Clip Pops", true)
+            .describe("Saves a clip when a player you're fighting uses a Totem of Undying."));
+    private final BooleanSetting deaths = add(new BooleanSetting("Auto Clip Deaths", false)
+            .describe("Saves a clip of the moments before you die."));
     private final BooleanSetting wins = add(new BooleanSetting("Auto Clip Wins", true)
             .describe("Clip games you win. Other end-of-game lines only drop a marker on Evade Clips' timeline."));
-    private final BooleanSetting advancements = add(new BooleanSetting("Auto Clip Advancements", true));
+    private final BooleanSetting advancements = add(new BooleanSetting("Auto Clip Advancements", true)
+            .describe("Saves a clip when you earn an advancement."));
     private final NumberSetting after = add(new NumberSetting("Seconds After", 4, 0, 15, 1)
             .describe("How long an auto clip keeps recording after the moment that triggered it."));
-    private final KeySetting openKey = add(new KeySetting("Open Clips App", GLFW.GLFW_KEY_UNKNOWN));
-    private final BooleanSetting launchApp = add(new BooleanSetting("Start Evade Clips With Game", true));
+    private final KeySetting openKey = add(new KeySetting("Open Clips App", GLFW.GLFW_KEY_UNKNOWN)
+            .describe("Press to open the Evade Clips desktop app. Unbound by default."));
+    private final BooleanSetting launchApp = add(new BooleanSetting("Start Evade Clips With Game", true)
+            .describe("Starts the Evade Clips app in the tray when the game starts, so instant replay is ready. Ignored when Recorder is Built-in."));
     private final NumberSetting port = add(new NumberSetting("App Port", 47821, 1024, 65535, 1)
             .describe("Evade Clips' control port. Read from the app when it's installed; only used if it can't be."));
 

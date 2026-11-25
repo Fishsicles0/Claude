@@ -1,26 +1,17 @@
 package net.evadeclient.installer;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
  * Quiet checks a few seconds after the launcher opens, reported in the bell (never a pop-up): updates for the mods,
  * resource packs and shader packs the player added to each installed instance (the same Modrinth lookup the Mods page
- * uses), and, when the launcher doesn't update itself, whether a newer launcher is out. Anything that fails (offline,
- * Modrinth busy) is skipped silently. Also holds the "What's new in the launcher" notes, shown once per version.
+ * uses). Anything that fails (offline, Modrinth busy) is skipped silently. (A newer launcher is found by
+ * {@link SelfUpdate#check}.) Also holds the "What's new in the launcher" notes, shown once per version.
  */
 final class StartupChecks {
     private StartupChecks() {}
@@ -50,30 +41,6 @@ final class StartupChecks {
             } catch (Exception e) {
                 return; // offline or Modrinth unavailable: try again next start
             }
-        }
-    }
-
-    /**
-     * Whether evadeclient.com has a newer launcher than this file (only asked when self-update is off, as self-update
-     * otherwise installs it before the window opens). Returns its version, or null.
-     */
-    static String newerLauncher() {
-        Path self = SelfUpdate.selfPath();
-        if (self == null) return null;
-        boolean exe = self.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe");
-        try {
-            HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NORMAL).build();
-            HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(InstallerCore.SITE + "/version.json?t=" + System.currentTimeMillis()))
-                    .timeout(Duration.ofSeconds(6)).header("User-Agent", LauncherInfo.USER_AGENT).GET().build(), HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() != 200) return null;
-            JsonObject inst = JsonParser.parseString(res.body()).getAsJsonObject().getAsJsonObject("installer");
-            JsonObject pick = inst == null ? null : inst.getAsJsonObject(exe ? "windows" : "jar");
-            if (pick == null || !pick.has("sha256")) return null;
-            String want = pick.get("sha256").getAsString().toLowerCase(Locale.ROOT);
-            if (want.length() < 10 || want.equals(SelfUpdate.sha256(self))) return null;
-            return inst.has("version") ? inst.get("version").getAsString() : "";
-        } catch (Exception e) {
-            return null;
         }
     }
 

@@ -19,7 +19,6 @@ import net.evadeclient.util.Benchmark;
 import net.evadeclient.util.Notifications;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
@@ -82,7 +81,7 @@ public final class FirstRun {
 
     /** Whether the automated in-game tests are running (the setup never opens by itself then). */
     public static boolean inGameTest() {
-        return FabricLoader.getInstance().isModLoaded("evade-gametest");
+        return net.evadeclient.util.SafeStart.testing();
     }
 
     public static void init() {

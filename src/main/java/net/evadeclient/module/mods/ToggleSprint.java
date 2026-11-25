@@ -57,15 +57,22 @@ public class ToggleSprint extends TextHudModule {
             .describe("Let go of a toggled sprint and sneak while a menu or chat is open; they come back when it closes."));
 
     // ---- Status line
-    private final BooleanSetting showHud = add(new BooleanSetting("Show Status", true));
-    private final StringSetting sprintToggledText = add(label("Sprint Toggled Text", "Sprinting (Toggled)"));
-    private final StringSetting sprintHeldText = add(label("Sprint Held Text", "Sprinting (Key Held)"));
-    private final StringSetting sprintVanillaText = add(label("Sprint Vanilla Text", "Sprinting (Vanilla)"));
-    private final StringSetting sneakToggledText = add(label("Sneak Toggled Text", "Sneaking (Toggled)"));
-    private final StringSetting sneakHeldText = add(label("Sneak Held Text", "Sneaking (Key Held)"));
+    private final BooleanSetting showHud = add(new BooleanSetting("Show Status", true)
+            .describe("Shows a line of text on screen saying whether you're sprinting or sneaking, and why."));
+    private final StringSetting sprintToggledText = add(label("Sprint Toggled Text", "Sprinting (Toggled)")
+            .describe("What the status line says while sprint is toggled on. Leave blank to hide that line."));
+    private final StringSetting sprintHeldText = add(label("Sprint Held Text", "Sprinting (Key Held)")
+            .describe("What the status line says while you hold the sprint key. Leave blank to hide that line."));
+    private final StringSetting sprintVanillaText = add(label("Sprint Vanilla Text", "Sprinting (Vanilla)")
+            .describe("What the status line says while you sprint the normal way (double-tap forward). Leave blank to hide that line."));
+    private final StringSetting sneakToggledText = add(label("Sneak Toggled Text", "Sneaking (Toggled)")
+            .describe("What the status line says while sneak is toggled on. Leave blank to hide that line."));
+    private final StringSetting sneakHeldText = add(label("Sneak Held Text", "Sneaking (Key Held)")
+            .describe("What the status line says while you hold the sneak key. Leave blank to hide that line."));
     private final BooleanSetting showWhenIdle = add(new BooleanSetting("Show When Idle", false)
             .describe("Show a line even when you're neither sprinting nor sneaking."));
-    private final StringSetting idleText = add(label("Idle Text", "Walking"));
+    private final StringSetting idleText = add(label("Idle Text", "Walking")
+            .describe("What the status line says while you're neither sprinting nor sneaking, with Show When Idle on."));
 
     // ---- Remembered between sessions (never shown)
     private final BooleanSetting lastSprint = add(new BooleanSetting("Last Sprint", true).hidden());

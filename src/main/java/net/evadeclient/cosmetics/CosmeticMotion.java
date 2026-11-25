@@ -13,7 +13,7 @@ import net.minecraft.util.math.MathHelper;
  */
 public final class CosmeticMotion {
     /** The most a pet trails your head's turn, in degrees: small enough that it never swings into your head. */
-    public static final float PET_LAG = 10f;
+    public static final float PET_LAG = 6f;
 
     private CosmeticMotion() {}
 

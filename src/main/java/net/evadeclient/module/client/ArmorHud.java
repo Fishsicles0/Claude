@@ -48,7 +48,8 @@ import java.util.function.Predicate;
 public class ArmorHud extends HudElementModule {
     private static final int GREEN = 0xFF55FF55, YELLOW = 0xFFFFD21F, RED = 0xFFFF5555;
 
-    private final ModeSetting layout = add(new ModeSetting("Layout", "Horizontal", "Horizontal", "Vertical"));
+    private final ModeSetting layout = add(new ModeSetting("Layout", "Horizontal", "Horizontal", "Vertical")
+            .describe("Line the items up side by side or in a column."));
     private final ModeSetting order = add(new ModeSetting("Order", "Helmet First", "Helmet First", "Boots First")
             .describe("Which end of your armour comes first: the helmet or the boots."));
     private final ModeSetting durabilityText = add(new ModeSetting("Durability Text", "Percent",
@@ -60,7 +61,8 @@ public class ArmorHud extends HudElementModule {
             .describe("Colour of the durability text when Durability Color is Static."));
     private final ModeSetting textSide = add(new ModeSetting("Text Side", "Under", "Under", "Auto", "Left", "Right")
             .describe("Vertical layout: durability text under each item or beside it. Auto puts it on the side facing the middle of the screen."));
-    private final BooleanSetting hands = add(new BooleanSetting("Hands", true));
+    private final BooleanSetting hands = add(new BooleanSetting("Hands", true)
+            .describe("Also shows the items in your main hand and off hand."));
     private final BooleanSetting heldTotal = add(new BooleanSetting("Held Total", true)
             .describe("For stackable held items, show how many you carry in total instead of the stack in your hand."));
     private final BooleanSetting ammoCount = add(new BooleanSetting("Ammo Count", true)
@@ -71,7 +73,8 @@ public class ArmorHud extends HudElementModule {
             .describe("Leave out slots with nothing in them instead of showing an empty square."));
     private final NumberSetting spacing = add(new NumberSetting("Slot Spacing", 2, 0, 6, 1)
             .describe("Gap between the items."));
-    private final BooleanSetting supplies = add(new BooleanSetting("Supplies", true));
+    private final BooleanSetting supplies = add(new BooleanSetting("Supplies", true)
+            .describe("Also counts how many of each supply you carry (totems, gapples, pearls and so on, from Supply Preset)."));
     private final ModeSetting supplyPreset = add(new ModeSetting("Supply Preset", "PvP", "PvP", "Crystal", "Builder", "Archery", "Custom")
             .describe("Which supplies to count. Custom counts the items listed in Custom Supplies."));
     private final StringSetting customSupplies = add(new net.evadeclient.setting.ItemListSetting("Custom Supplies",

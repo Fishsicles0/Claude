@@ -45,7 +45,8 @@ final class Launcher {
         int defaultMemoryGb = InstallerCore.clampMemory(InstallerCore.recommendedMemory());
         String javaPath = "";         // blank: the Minecraft Launcher's own Java
         boolean closeOnPlay = false; // the launcher stays open after Play unless the player turns this on
-        boolean checkUpdates = true;
+        boolean checkUpdates = true;  // ask when a newer launcher is out (never updates without a yes)
+        boolean preferGpu = true;     // Windows: "High performance" graphics for Minecraft's Java (GpuPreference)
         boolean clips = true;         // ffmpeg for the built-in Evade Clips (older launchers: install the separate app)
         String clipsVersion;          // the separate Evade Clips version installed last (older launchers)
         boolean sidebarCollapsed;     // the sidebar shows icons only
@@ -85,6 +86,7 @@ final class Launcher {
         if (InstallerCore.str(o, "javaPath") != null) s.javaPath = InstallerCore.str(o, "javaPath");
         s.closeOnPlay = bool(o, "hideOnPlay", false); // new key: older installs saved closeOnPlay=true by default, so they start open again
         s.checkUpdates = bool(o, "checkUpdates", true);
+        s.preferGpu = bool(o, "preferGpu", true);
         s.clips = bool(o, "clips", true);
         s.clipsVersion = InstallerCore.str(o, "clipsVersion");
         s.sidebarCollapsed = bool(o, "sidebarCollapsed", false);
@@ -109,6 +111,7 @@ final class Launcher {
         o.addProperty("javaPath", s.javaPath == null ? "" : s.javaPath);
         o.addProperty("hideOnPlay", s.closeOnPlay);
         o.addProperty("checkUpdates", s.checkUpdates);
+        o.addProperty("preferGpu", s.preferGpu);
         o.addProperty("clips", s.clips);
         if (s.clipsVersion != null) o.addProperty("clipsVersion", s.clipsVersion);
         o.addProperty("sidebarCollapsed", s.sidebarCollapsed);
