@@ -251,7 +251,18 @@ public final class EvadeInstaller {
     private static void screenshots(Path out) throws Exception {
         System.setProperty("java.awt.headless", "true");
         Files.createDirectories(out);
-        Screenshots.render(out);
+        // Dev only: the renderers aren't in the release jar (./gradlew :installer:screenshots runs them from classes).
+        Class<?> shots;
+        try {
+            shots = Class.forName("net.evadeclient.installer.Screenshots");
+        } catch (ClassNotFoundException e) {
+            System.err.println("Screenshots are a dev build feature: run ./gradlew :installer:screenshots");
+            System.exit(2);
+            return;
+        }
+        java.lang.reflect.Method render = shots.getDeclaredMethod("render", Path.class);
+        render.setAccessible(true);
+        render.invoke(null, out);
         System.exit(0);
     }
 

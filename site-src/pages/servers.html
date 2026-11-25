@@ -1,5 +1,5 @@
 title: Servers
-description: Where Evade Client is fine to use, what it switches off on stricter servers, and how server owners can turn off any Evade mod or show their players waypoints, cooldowns and more with the Evade Server API.
+description: Where Evade Client is fine to use, what it turns off on stricter servers, and how server owners can switch off any Evade mod.
 nav: servers
 ---
 <header class="page-hero wrap">
@@ -24,7 +24,7 @@ nav: servers
         <ul class="server-list">
           <li><b>EvadeCraft</b> &mdash; the home of Evade. Every Evade mod is allowed.</li>
         </ul>
-        <p>Run a server where Evade is fine? <a href="mailto:privacy@evadeclient.com?subject=Add%20my%20server">Email us</a> and we'll list it.</p>
+        <p>Run a server where Evade is fine? <a href="mailto:privacy@evadeclient.com?subject=Add%20my%20server">Email us</a> or post in our <a href="/discord">Discord</a> and we'll list it. Problem with an Evade mod on your server? <a href="#report">Report it</a>.</p>
         <p>Always check a server's own rules too. A few very strict servers ban every modified client, however harmless.</p>
       </div>
 
@@ -61,7 +61,7 @@ player.sendPluginMessage(plugin, "evade:rules", body);</pre>
           <div><code>evade:hello</code><span>Client to server. Sent once when the player joins, if your server has registered the channel, so you know Evade is there.</span></div>
         </div>
         <p>The hello looks like this. <span class="mono">api</span> only goes up for changes older servers would misread, and <span class="mono">features</span> lists the message families this version understands:</p>
-        <pre class="code">{"client": "evade", "version": "2.0.1", "api": 1,
+        <pre class="code">{"client": "evade", "version": "{{VERSION}}", "api": 1,
  "features": ["waypoint", "cooldown", "notification", "title", "team", "border",
               "beam", "hologram", "rules", "settings", "discord"]}</pre>
         <p>The best moment to send your messages is when the hello arrives: by then the player is in the world and listening. Everything you sent is forgotten when the player leaves, or when your network moves them to another server, so send it again after each hello. Colours can be <span class="mono">"#RRGGBB"</span>, <span class="mono">"#AARRGGBB"</span>, a number or a name (red, orange, yellow, gold, green, lime, cyan, blue, purple, pink, white, gray, black). A <span class="mono">dimension</span> can be <span class="mono">"overworld"</span>, <span class="mono">"nether"</span>, <span class="mono">"end"</span> or a full id such as <span class="mono">"minecraft:the_nether"</span>; leave it out to show something in every dimension. Sending an <span class="mono">add</span> or <span class="mono">set</span> again with the same <span class="mono">id</span> replaces it.</p>
@@ -135,7 +135,7 @@ getServer().getMessenger().registerIncomingPluginChannel(this, "evade:hello", (c
 
       <div class="doc-sec rv" id="report">
         <h2>Report a problem</h2>
-        <p>If an Evade mod causes trouble on your server, or you think one breaks your rules, email <a href="mailto:privacy@evadeclient.com?subject=Server%20problem">privacy@evadeclient.com</a> with the server address and which mod. We'd rather fix it than have players caught out.</p>
+        <p>If an Evade mod causes trouble on your server, or you think one breaks your rules, email <a href="mailto:privacy@evadeclient.com?subject=Server%20problem">privacy@evadeclient.com</a> with the server address and which mod, or post it in the <a href="/discord">Discord</a>. We'd rather fix it than have players caught out.</p>
       </div>
     </div>
   </div>

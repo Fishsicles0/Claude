@@ -100,7 +100,7 @@ public class PlaytimeHud extends TextHudModule {
     }
 
     /** {@code seconds} as "1h 05m" (or "12m" under an hour) or "1:05:00". */
-    static String text(long seconds, String style) {
+    public static String text(long seconds, String style) {
         long h = seconds / 3600, m = seconds / 60 % 60, s = seconds % 60;
         if (style.equals("1:05:00")) return String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s);
         return h > 0 ? String.format(Locale.ROOT, "%dh %02dm", h, m) : m + "m";

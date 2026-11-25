@@ -111,7 +111,7 @@ public class Clips extends Module {
     public final KeySetting saveKey = add(new KeySetting("Save Clip Key", GLFW.GLFW_KEY_F8)
             .describe("Press to save the last moments of gameplay as a clip."));
     public final ModeSetting recorder = add(new ModeSetting("Recorder", "Auto", "Auto", "Evade Clips", "Built-in")
-            .describe("Auto: uses the Evade Clips app whenever it's running, otherwise Evade's built-in recorder. Or pick one yourself."));
+            .describe("Auto: uses the Evade Clips app whenever it's running (with sound), otherwise Evade's built-in recorder (video only, no sound). Or pick one yourself."));
     public final NumberSetting seconds = add(new NumberSetting("Clip Length (s)", 30, 10, 120, 5)
             .describe("Built-in recorder only. Evade Clips uses the replay length set in the app."));
     public final NumberSetting fps = add(new NumberSetting("Clip FPS", 30, 15, 60, 15)
@@ -1435,8 +1435,8 @@ public class Clips extends Module {
             mc.execute(() -> {
                 CommandManager.print("§aClip saved§7: " + file.getName() + " (" + String.format("%.0f", secs) + "s"
                         + (cut ? ", §ebuffer full: lower Quality/FPS for longer clips§7" : "")
-                        + "). §7Type §d.clips§7 to open the folder, or get Evade Clips to edit and share.");
-                Notifications.push("Clip saved", String.format("%.0fs · %d MB", secs, Math.max(1, file.length() >> 20))
+                        + "). §7Built-in clips have no sound. Type §d.clips§7 to open the folder, or run Evade Clips for sound, editing and share links.");
+                Notifications.push("Clip saved", String.format("%.0fs · %d MB · no sound", secs, Math.max(1, file.length() >> 20))
                         + (cut ? " · buffer full" : ""), true);
             });
             setStatus("Clip saved", 3000);

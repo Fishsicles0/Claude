@@ -21,7 +21,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.15.0'
     // Evade Clips is built in: one jar/exe runs the launcher and the clip recorder (tray, control server, editor).
     implementation project(':clips')
-    // WebP decoding for Modrinth's mod icons (TwelveMonkeys ImageIO 3.12.0, BSD-3-Clause). Kept in installer/libs
+    // WebP decoding for Modrinth's mod icons (TwelveMonkeys ImageIO 3.15.3, BSD-3-Clause). Kept in installer/libs
     // (checked against Maven Central's SHA-1s) so the build works offline.
     implementation files(fileTree(dir: 'libs', include: '*.jar'))
 
@@ -36,6 +36,8 @@ tasks.named('test', Test) {
     useJUnitPlatform()
     // The launcher's code is headless-safe in these tests; keep AWT from looking for a display on CI.
     systemProperty 'java.awt.headless', 'true'
+    // Download tests serve files from 127.0.0.1, outside the launcher's download host list.
+    systemProperty 'evade.test.loopbackDownloads', 'true'
     testLogging { events 'failed'; exceptionFormat 'full' }
 }
 
@@ -59,7 +61,7 @@ tasks.named('jar') {
     // `./gradlew :installer:screenshots`) and Evade Clips' self-tests (`./gradlew :clips:selfTest` etc. use the Clips jar).
     exclude 'net/evadeclient/installer/Screenshots*.class', 'net/evadeclient/installer/*Shots.class', 'net/evadeclient/installer/*Shots$*.class',
             'net/evadeclient/clips/SelfTest*.class', 'net/evadeclient/clips/EditTests*.class', 'net/evadeclient/clips/SizeTest*.class',
-            'net/evadeclient/clips/RegressionSupport*.class'
+            'net/evadeclient/clips/RegressionSupport*.class', 'net/evadeclient/clips/ui/Screenshots.class', 'net/evadeclient/clips/ui/Screenshots$*.class'
 }
 
 // `./gradlew :installer:screenshots -Pout=dir` renders every launcher page with sample data (dev only: these classes

@@ -69,7 +69,7 @@ public class TntTimer extends Module {
             .describe("How far above the TNT (in blocks) the timer floats."));
     public final BooleanSetting background = add(new BooleanSetting("Background", true)
             .describe("Draw a dark panel behind the timer."));
-    public final NumberSetting backgroundOpacity = add(new NumberSetting("Background Opacity", 56, 0, 100, 5)
+    public final NumberSetting backgroundOpacity = add(new NumberSetting("Background Opacity", 55, 0, 100, 5)
             .describe("How solid the panel behind the timer is, in percent."));
     public final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true)
             .describe("Draw the countdown with a drop shadow."));

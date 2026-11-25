@@ -43,6 +43,10 @@ public class NoFog extends Module {
             .describe("Clear the fog in the End."));
     private final NumberSetting strength = add(new NumberSetting("Fog Strength %", 0, 0, 100, 5)
             .describe("How much distance fog is left: 0 removes it, 50 pushes it twice as far away, 100 is vanilla."));
+    private final NumberSetting netherStrength = add(sameOrPercent("Nether Fog Strength %")
+            .describe("Fog Strength for the Nether only, so you can keep some of its mood. Same (the lowest step) follows Fog Strength."));
+    private final NumberSetting endStrength = add(sameOrPercent("End Fog Strength %")
+            .describe("Fog Strength for the End only. Same (the lowest step) follows Fog Strength."));
     private final NumberSetting edgeFade = add(new NumberSetting("Edge Fade %", 25, 0, 100, 5)
             .describe("How softly the world fades out at the edge of your render distance, as a share of vanilla's "
                     + "fade. 0 is a hard edge, 100 is vanilla."));
@@ -125,9 +129,25 @@ public class NoFog extends Module {
     }
 
     private static float scaleEnvUnchecked(NoFog nf, float v, boolean end) {
-        double s = nf.strength.get() / 100.0;
+        double s = nf.strengthHere() / 100.0;
         if (s < 0.001) return end ? GONE_END : GONE_START;
         return (float) Math.min(GONE_START, Math.max(0f, v) / s);
+    }
+
+    /** A per-dimension strength: -5 (the lowest step) reads "Same" and follows Fog Strength. */
+    private static NumberSetting sameOrPercent(String name) {
+        return new NumberSetting(name, -5, -5, 100, 5) {
+            @Override
+            public String display() { return get() < 0 ? "Same" : super.display(); }
+        };
+    }
+
+    /** Fog Strength for the dimension you're in: the Nether's or End's own value when set, otherwise Fog Strength. */
+    private double strengthHere() {
+        NumberSetting own = mc.world == null ? null
+                : mc.world.getRegistryKey() == World.NETHER ? netherStrength
+                : mc.world.getRegistryKey() == World.END ? endStrength : null;
+        return own != null && own.get() >= 0 ? own.get() : strength.get();
     }
 
     /**
@@ -167,7 +187,7 @@ public class NoFog extends Module {
 
     @Override
     public String getSuffix() {
-        int s = strength.getInt();
+        int s = (int) Math.round(strengthHere());
         return s > 0 ? s + "%" : null;
     }
 }

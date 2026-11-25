@@ -1881,6 +1881,8 @@ public final class InstallerCore {
     static boolean allowedDownload(String url) {
         if (url == null) return false;
         if (url.startsWith(SITE + "/")) return true;
+        // The launcher's own tests serve files from a local server (set only by installer/build.gradle's test task).
+        if (Boolean.getBoolean("evade.test.loopbackDownloads") && url.startsWith("http://127.0.0.1:")) return true;
         return ContentApi.allowed(url, DOWNLOAD_HOSTS);
     }
 

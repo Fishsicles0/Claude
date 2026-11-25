@@ -1,6 +1,7 @@
 title: Evade Clips
-description: Evade Clips records, stores and edits your Minecraft gameplay. It works with Evade Client: instant replay with near-zero FPS cost, auto-clips on kills and wins, voice commands, a full editor and share links that play in Discord. Free, built into the Evade Launcher.
+description: Evade Clips records and edits your Minecraft gameplay: GPU instant replay, auto-clips on kills and wins, an editor and share links that play in Discord.
 nav: clips
+image: /assets/og-clips.png
 ---
 <header class="page-hero wrap">
   <div class="eyebrow rv">Evade Clips &middot; v{{CLIPS_VERSION}}</div>
@@ -13,7 +14,7 @@ nav: clips
     <a class="btn btn-ghost btn-lg" href="/download">macOS / Linux</a>
     <a class="btn btn-ghost btn-lg" href="https://clips.evadeclient.com">Open clips.evadeclient.com &rarr;</a>
   </div>
-  <p class="cta-meta rv d3">Evade Clips is the Clips section of the Evade Launcher: one download for the client and Clips. Close the launcher and it keeps instant replay running in the tray. Windows: nothing else to install (ffmpeg is fetched with Evade Client). macOS/Linux: Java 17+ and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager).<br>Already have the separate app? The launcher takes over its clips and settings. The standalone <a href="/downloads/Evade-Clips.exe" class="link-inline" download>Evade-Clips.exe</a> ({{SIZE_CLIPS_EXE}}) and <a href="/downloads/EvadeClips.jar" class="link-inline" download>EvadeClips.jar</a> ({{SIZE_CLIPS_JAR}}) stay available for now.</p>
+  <p class="cta-meta rv d3">Evade Clips is the Clips section of the Evade Launcher: one download for the client and Clips. Close the launcher and it keeps instant replay running in the tray. Windows: nothing else to install (ffmpeg is fetched with Evade Client). macOS/Linux: Java 21 and ffmpeg (<span class="mono">brew install ffmpeg</span> or your package manager).<br>Already have the separate app? The launcher takes over its clips and settings. The older standalone app is legacy and will be removed in a later release; it's only for people who can't use the launcher: <a href="/downloads/Evade-Clips.exe" class="link-inline" download>Evade-Clips.exe</a> ({{SIZE_CLIPS_EXE}}) and <a href="/downloads/EvadeClips.jar" class="link-inline" download>EvadeClips.jar</a> ({{SIZE_CLIPS_JAR}}), checksums on the <a href="/download#verify" class="link-inline">download page</a>. On macOS and Linux, use the launcher's .jar from the <a href="/download" class="link-inline">download page</a>.</p>
 </header>
 
 <section class="wrap">
@@ -33,18 +34,23 @@ nav: clips
   <div class="sec-head rv">
     <div class="eyebrow">What it does</div>
     <h2>Never miss a play.</h2>
-    <p>Everything runs on your PC, while you play Minecraft with Evade Client. Nothing is uploaded unless you share it.</p>
+    <p>Everything runs on your PC, while you play Minecraft with Evade Client. It doesn't record other games. Nothing is uploaded unless you share it.</p>
   </div>
   <div class="steps">
-    <div class="card step rv"><h4>Instant replay</h4><p>The last 15 s to 10 min of Minecraft, ready whenever Evade Client is open. Saving is instant because nothing is re-encoded, and it barely touches your FPS: encoding runs on your GPU where supported (NVENC, AMF and Quick Sync on Windows; VideoToolbox on macOS; VA-API on Linux).</p></div>
-    <div class="card step rv d1"><h4>Auto-clips</h4><p>Kills, multi-kills, totem pops, deaths, wins and advancements, sent by the Clips mod in Evade Client. Events close together become one clip.</p></div>
-    <div class="card step rv d2"><h4>Hands-free</h4><p><span class="kbd">F8</span> saves a clip, <span class="kbd">F9</span> starts or stops a full recording and <span class="kbd">F7</span> drops a marker (change the keys in Settings). Or turn on voice commands in Settings (a one-time 70 MB download) and say &ldquo;clip that&rdquo; (or &ldquo;clip it&rdquo;, &ldquo;save clip&rdquo;, &ldquo;save that&rdquo;), &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;. Speech is recognised offline on your PC, and only commands count, not chat.</p></div>
+    <div class="card step rv"><h4>Instant replay</h4><p>The last 15 s to 10 min of Minecraft, ready whenever Evade Client is open. Saving is instant because nothing is re-encoded. Encoding runs on your graphics card's video chip where supported (NVENC, AMF and Quick Sync on Windows; VideoToolbox on macOS; VA-API on Linux), so it works on NVIDIA, AMD, Intel and Apple without a vendor app.</p></div>
+    <div class="card step rv d1"><h4>Auto-clips</h4><p>Kills, multi-kills, totem pops, wins and advancements (deaths too, if you turn them on), sent by the Clips mod in Evade Client. Events close together become one clip.</p></div>
+    <div class="card step rv d2"><h4>Hands-free</h4><p><span class="kbd">F8</span> saves a clip, <span class="kbd">F9</span> starts or stops a full recording and <span class="kbd">F7</span> drops a marker (change the keys in Settings). The hotkeys work while the game has focus because Clips listens for those keys system-wide; it reacts only to the keys you assign and never records or stores anything else you type. Or turn on voice commands in Settings (a one-time 70 MB download) and say &ldquo;clip that&rdquo; (or &ldquo;clip it&rdquo;, &ldquo;save clip&rdquo;, &ldquo;save that&rdquo;), &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;. Speech is recognised offline on your PC, and only commands count, not chat.</p></div>
     <div class="card step rv d3"><h4>Full sessions</h4><p>Record whole sessions while the replay buffer keeps running. Every kill, pop and death is a named marker on the timeline.</p></div>
     <div class="card step rv"><h4>Separate audio</h4><p>Game, mic and voice chat each record to their own track, so you can turn your voice or your friends' voices down later.</p></div>
     <div class="card step rv d1"><h4>Small files</h4><p>Hard bitrate ceilings and HEVC: on the default Balanced setting, a busy minute of 1080p60 stays under 70 MB (about 40 MB with HEVC). Discord exports always fit in 10 MB.</p></div>
     <div class="card step rv d2"><h4>Share links</h4><p>Links that play inside Discord, with no watermark, ads or expiry. Private clips get a secret link of their own and never show a preview.</p></div>
-    <div class="card step rv d3"><h4>Your phone</h4><p>Scan a QR code to see your shared clips on your phone, and upload videos from it straight into your library.</p></div>
+    <div class="card step rv d3"><h4>Your phone</h4><p>Scan a QR code to see your shared clips on your phone, and upload videos from it straight into your library. Treat that code like a password.</p></div>
+    <div class="card step rv"><h4>Session recap</h4><p>One button in the library turns the day's auto-clips (kills, pops and wins) into one captioned video, landscape or vertical for TikTok and Shorts, with a share link if you want one.</p></div>
+    <div class="card step rv d1"><h4>From 3D Replay</h4><p>Renders from Evade's <a href="/docs#replay" class="link-inline">3D Replay</a> land in your Evade Clips library. Queue several (Replays &rarr; Queue render) to run one after another, each with its own share link if you like.</p></div>
+    <div class="card step rv d2"><h4>25 GB to share, free</h4><p>Shared videos get 25 GB per PC (thumbnails and clips on your PC don't count). When it's full, new shares wait until you stop sharing older ones; nothing is deleted for you. There's no paid tier.</p></div>
+    <div class="card step rv d3"><h4>Server-safe</h4><p>Evade Clips only records what's on your screen, so it shows nothing you didn't already see. Servers can switch off the Clips mod like any Evade mod; then auto-clips stop there and clips you've saved stay on your PC.</p></div>
   </div>
+  <p class="note rv">Without Evade Clips running, the Clips mod's built-in recorder still saves the last 10&ndash;120 seconds to an MP4 (480p&ndash;1080p), but <b>with no sound</b>. How it captures: Windows records the monitor Minecraft is on with Desktop Duplication (or the Minecraft window itself if that isn't available); Linux the window's area of the X11 screen; macOS the main screen. Phone or console clips: save the Xbox or PlayStation capture to your phone, then upload it from your phone gallery; videos already on your PC can be dragged into the library.</p>
 </section>
 
 <section class="wrap" id="editor">
@@ -84,7 +90,7 @@ nav: clips
   <div class="steps">
     <div class="card step rv"><h4>Install once</h4><p>The <a href="/download" class="link-inline">Evade Launcher</a> installs the client; Clips is built in.</p></div>
     <div class="card step rv d1"><h4>Play</h4><p>Evade Client starts the launcher in the tray with Minecraft, so instant replay is running before your first fight.</p></div>
-    <div class="card step rv d2"><h4>Clip</h4><p>Your key, <span class="mono">.clips save</span>, or automatic: kills, pops, wins and advancements. You'll see a pop-up in game.</p></div>
+    <div class="card step rv d2"><h4>Clip</h4><p><span class="kbd">F8</span>, <span class="mono">.clip</span> (or <span class="mono">.clips save</span>), &ldquo;clip that&rdquo;, or automatic: kills, pops, wins and advancements. You'll see a pop-up in game.</p></div>
     <div class="card step rv d3"><h4>Edit &amp; share</h4><p><span class="mono">.clips last</span> opens your newest clip in the editor. One click gives you a link for Discord.</p></div>
   </div>
 </section>

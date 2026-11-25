@@ -136,6 +136,10 @@ public class TitleScreenModule extends Module {
         if (!m.isEnabled()) {
             EvadeClient.LOG.info("Title Screen: switched on (the Evade main menu is the default start screen since v2.4)");
             m.setEnabled(true);
+            // It was off in that config (the old default, or your choice): say so once, with the way back.
+            net.evadeclient.util.Notifications.push("Title Screen",
+                    "Evade's main menu is now your start screen. Prefer the vanilla one? Turn off Title Screen in the Evade menu.",
+                    net.evadeclient.util.Notifications.Level.INFO, 12_000);
         }
         if (EvadeClient.config != null) EvadeClient.config.save();
     }

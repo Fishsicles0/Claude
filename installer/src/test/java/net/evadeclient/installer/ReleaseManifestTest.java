@@ -133,6 +133,7 @@ class ReleaseManifestTest {
         assertFalse(InstallerCore.allowedDownload("https://evil.test/x.jar"));
         assertFalse(InstallerCore.allowedDownload(InstallerCore.SITE + ".evil.test/x.jar"));
         assertFalse(InstallerCore.allowedDownload(null));
+        assertFalse(InstallerCore.allowedDownload("http://127.0.0.2:80/x.jar"));
     }
 
     @Test

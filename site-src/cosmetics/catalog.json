@@ -1075,27 +1075,6 @@
    }
   },
   {
-   "id": "pip_wisp",
-   "name": "Pip the Wisp",
-   "slot": "PET",
-   "rarity": "regular",
-   "priceCents": 500,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A tiny friendly wisp with big shiny eyes that bobs along above your shoulder, a cool flame flickering on its head.",
-   "assets": {
-    "files": {
-     "item.json": "45fac49984269e324460b9612617c97f8d3bd51ed785bcc0ead1075067ac2def",
-     "model.json": "8a931c415344b41f7da418f6598126c7b146453a8d8a587a441db73f0ea2a8f0",
-     "texture.png": "1ed173cef36ad9d60d382eae5bcdc238f68973fa1c49cce681a0d59cbf0b2c93",
-     "emissive.png": "9fe32ed8f83a2dc053eb25071f81f02f2917d8149bc1f10479884c7d9579dfe9",
-     "thumb.png": "2f91ed94fb9f6c7ca7eeb7dd560a901b43684ddb7e15ca7f99bee5f17d930a40"
-    }
-   }
-  },
-  {
    "id": "mochi_cat",
    "name": "Mochi the Cat",
    "slot": "PET",
@@ -1105,14 +1084,13 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A round ginger tabby with green eyes and white paws that sits on your shoulder and flicks its tail.",
+   "description": "A round ginger tabby with big green eyes and white paws that sits on your shoulder, looks about, blinks and swishes its tail.",
    "assets": {
     "files": {
-     "item.json": "655ad9b65b233b1b23ec47aa1ed5727e847b81d8d7ad707b1a861358e362437c",
-     "model.json": "07c0ccdf44da23a0ca7b324117ff344b2a0393ee199ce16ef21497969de99876",
-     "texture.png": "59e2aa8c35f165ba140facbb575be50b5b2c5eba477c93f3c935c559891a9ddd",
-     "emissive.png": "5cdc1284dee3efa68b0fc28992767e0ba3ac9e4b7636e616111a46caf37b877b",
-     "thumb.png": "ab2c277c6ab8927349cc08fc0a78b062769c8702bbcd0f449a3d4b7fb91302b8"
+     "item.json": "f04fe587003b01ecb33a29396f933b2001b8cf19566da513c23714e66bcd5219",
+     "model.json": "2846993c1b359261a30e711b45dfa4ad9b71d1aebd4aae8ab070d73e04c4cc2a",
+     "texture.png": "952300da7d0d1a7ab71d7ee7fd6ea82478dad747be330de1ef33ce2527d08ffb",
+     "thumb.png": "292674bb37b7d2d1e46d4b5308077e21b34b27c893e713314c8051cf708dec57"
     }
    }
   },
@@ -1126,14 +1104,13 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A bright orange fox with a white chest, dark socks and a big bushy white-tipped tail curled up behind it.",
+   "description": "A bright orange fox with a white chest, black socks and a big white-tipped tail that wags while it watches the world from your shoulder.",
    "assets": {
     "files": {
-     "item.json": "ec2c78d850ba1a7df1d0faf3d6855ce9f82781309115bf2b09f3181af065c66e",
-     "model.json": "5a39b4e489fab1eafb103739dc3d2c89ae599cfe60ee21d7e14f90859342f832",
-     "texture.png": "1d296560c9199c6d9b3e1ec3d83f50ead6ee7c017b6beeb85143929451e174ae",
-     "emissive.png": "d4e74402fd526e3336c4b3c1bcd02350ddd704904c056bde128ba7c7011883a2",
-     "thumb.png": "e1548c93c018f196a98f40df34f8b45b7c8aa0caece34159360d1a9e305c7ac0"
+     "item.json": "150dbc1ecf0d444156477a6a70882b56758dee89de615dd0c796eb2fd9e1376f",
+     "model.json": "8d7f89c28865542875d0635e29e10c9c5e73c87f3918e8b15a563d838e28b6ef",
+     "texture.png": "d81adf3f69ad35e6dc8eea5c9bf8d6d37ac64d1559ca6a314e822d10fe05541c",
+     "thumb.png": "7e01402db2f9421735ae5866961d1a92392b5c8caeddf20d4dcc2901151a1ef3"
     }
    }
   },
@@ -1147,14 +1124,13 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A fluffy brown owl with huge amber eyes, ear tufts and a cream speckled chest, perched on your shoulder.",
+   "description": "A round brown owl with huge amber eyes, ear tufts and a speckled cream chest; it perches on your shoulder, blinks slowly and turns its head to look around.",
    "assets": {
     "files": {
-     "item.json": "a04ae3af1dde9c830410cf487564d82682b196bfd90972c907e24c09c934b564",
-     "model.json": "6bae2aee80ad91116940c7ecbea8ebb51fd186a37ccaf04d48bbff2e5c5312c1",
-     "texture.png": "f40ed433894f637de331d5850355f033e1904f320334474fc1205b042a080fa2",
-     "emissive.png": "9d7a1b18df90f27b15a98b32e5794281fb9de44ab9c139d149396d7d3c7d95d3",
-     "thumb.png": "c24cefe579470e0f665b7e7492c3362b7ff3859b229c9a4df95d3b99881e8687"
+     "item.json": "7040f0708b2c3b6366c24fc69e6252b9f1b1e7328fa3c9979f2a697cd8c98299",
+     "model.json": "f1d0c3c83200f56cb4ff9974b58ce9561e0e8af71c8e8e881d4e73084d3fdbb7",
+     "texture.png": "61da8695e5c598d97aa8e0b497a0220135fe33d637ea1ff43d686f6bcd43d2c8",
+     "thumb.png": "c40c977a92f337c09a50b6e97a61701f765d5d5d0e8e5fb0847a15f9464f9f96"
     }
    }
   },
@@ -1168,14 +1144,35 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A wobbly see-through green slime with a glowing core and a goofy grin.",
+   "description": "A wobbly see-through green slime with a glowing core, rosy cheeks and a goofy grin that bounces on your shoulder.",
    "assets": {
     "files": {
-     "item.json": "dee40a3dd59bc1949ffc23d65e2a54f3d6f3e1849538e5034d1fc32ab245cf3a",
-     "model.json": "4a54baf3665f6414ba9b152dbeb98e558564b30cb7f54a6c176168e47d1ddae5",
-     "texture.png": "bed9bb2ad8e4f654c15fa9fdec574c66c8331a94dee1b59611d9faf61f92c54e",
-     "emissive.png": "bf77197519ff3611c3caefb1450fb305c10717b4401ff6292723f86a282c3f74",
-     "thumb.png": "38ac2fe3af8709f9fe51304a39feac056d3dc87886d1654ceb4dc7bfff6e8eae"
+     "item.json": "0989401d45d07405218c6a806b9aa2e7274ce894f2adf12ad9ec6a2efa6fcde6",
+     "model.json": "f6f4edc206dfbce55e73f310e1e83aa461b1632fe20d18772bf04c5e9d031958",
+     "texture.png": "3b007fdb780220ce2f0fd2f8aef31e52fa1f43f37d64b9ccde823a2c03c032b8",
+     "emissive.png": "8591d284d177d74dbf9a7fb22107b093dc75f4320c0aa7ae58913a27625600fd",
+     "thumb.png": "fdf1f2d81a0bf3eec2dc98d3070d45e52e97ff57b1c9db459cabdac85660ac8b"
+    }
+   }
+  },
+  {
+   "id": "pip_wisp",
+   "name": "Pip the Wisp",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tiny friendly wisp of cool blue flame with big shiny eyes that floats beside your shoulder, waving its little hands, its flame flickering.",
+   "assets": {
+    "files": {
+     "item.json": "22f2d3e269567d32f42039bc1aa2674c04e36785437a7b7b27b89e8a3d2cae1a",
+     "model.json": "4730dd0dad3534685a470ec2271d2e9835c92bbfbc9621b8dc7c5565387b6481",
+     "texture.png": "e61470ec1e1b3f7065517449223823e1db4cea353409edcffaaa2ef318583b49",
+     "emissive.png": "1f82550cccd00bc453ef0a53216bfd625308bfed556a3484abd24383fcdf871a",
+     "thumb.png": "5b00babe5052037831d9fdc8b334921a50c5b7a3039c1d536bb9021d7b93244d"
     }
    }
   },
@@ -1189,14 +1186,13 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A little teal dragon with violet wings, golden eyes and cream horns, curled up on your shoulder.",
+   "description": "A little teal dragon with violet wings, golden eyes and cream horns that hovers beside your shoulder, wings beating and tail swishing.",
    "assets": {
     "files": {
-     "item.json": "651c18e5d556671eaf4deec903fc638b2470b6d65ad9a188dd8dc36540730990",
-     "model.json": "5d3cf54bb90c683155d5a5e0067a666134ca3c985db3a4c7b8c06d727e123011",
-     "texture.png": "8a2dcc6d87c6d6e46908e1baa6d7e0e69813af459832ac21fe971748ecb5aae4",
-     "emissive.png": "b0dc1f4ccf59111db1353cfc3dab579aa91b7548d3b6ef12992bbde0bea5f0e8",
-     "thumb.png": "73b3d42e39d3f8a628800e4468bdfcd8cbb5c69be3cba268d10d6e6964fb2790"
+     "item.json": "3988eb92094869e62b6ad433418be9f7d25e2775872b09d0e028a42f1e01121e",
+     "model.json": "85d1478224b9adb683a76cbc8ed76fa73b2b30103ed92ba12700a476407a529f",
+     "texture.png": "aa24bf3c07ffd21aa5d41b09f6d1ca6c710ca342f489aa6c23b72946fbb90ffe",
+     "thumb.png": "3bd2a8a117e858aaf7400f98f93d66983ddd7d044e7da75604abcaa9b2b5d7d4"
     }
    }
   },
@@ -1210,14 +1206,14 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it hovers by your shoulder.",
+   "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
    "assets": {
     "files": {
-     "item.json": "237d3a70811f8ba05a1cbb322ce24c9bf5e8e3e820305797a945e8d60c2f6e28",
-     "model.json": "94180f5286062a517fb5377e8590e9db9f19a5cfd08894290dada7f074f9aa6f",
-     "texture.png": "4e1b67ef85f3e5b78ed82e26cee8b61d3063fce401c5c65294d0ef2a3db34c72",
-     "emissive.png": "1784df43e264f11c01f22a23d886bd404e9495228fcfeaad106ac5e701a18ee2",
-     "thumb.png": "015a8546221334f458e9bdd8b8d01ec4799222ff5e39676986d50844d7d8084a"
+     "item.json": "40fc1a120ca09d3e9d671cf37795caa2794f122e920bf96a3f045feb9e960d41",
+     "model.json": "cb2d44c9e75e952a3a98816f869ab525c7682767106b0d43e0d293ae77c9be32",
+     "texture.png": "4b4f722b023e6bf1eb1defb9be774c5334d6f5a6d6695bd7dd2bad4c70f12295",
+     "emissive.png": "e43df10687ab354acbca07fd6b7590d3b864df3e9d054ea635b1f2f8a209cde2",
+     "thumb.png": "285fb95e4d9faf84100929f7d20fe683c4e0cd9417c1ca514f793ea8ffef7217"
     }
    }
   },
@@ -1226,7 +1222,7 @@
    "name": "Stardust Trail",
    "slot": "TRAIL",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1244,7 +1240,7 @@
    "name": "Ember Trail",
    "slot": "TRAIL",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1262,7 +1258,7 @@
    "name": "Petal Trail",
    "slot": "TRAIL",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1280,7 +1276,7 @@
    "name": "Shatterburst",
    "slot": "KILL_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1298,7 +1294,7 @@
    "name": "Firework Pop",
    "slot": "KILL_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1316,7 +1312,7 @@
    "name": "Soul Release",
    "slot": "KILL_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1334,7 +1330,7 @@
    "name": "Victory Spiral",
    "slot": "WIN_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1352,7 +1348,7 @@
    "name": "Confetti Cannon",
    "slot": "WIN_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1370,7 +1366,7 @@
    "name": "Starlight Fountain",
    "slot": "WIN_EFFECT",
    "rarity": "regular",
-   "priceCents": 400,
+   "priceCents": 200,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1388,7 +1384,7 @@
    "name": "Sunny Wave",
    "slot": "EMOTE",
    "rarity": "regular",
-   "priceCents": 200,
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1406,7 +1402,7 @@
    "name": "Drum Solo",
    "slot": "EMOTE",
    "rarity": "regular",
-   "priceCents": 200,
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1424,7 +1420,7 @@
    "name": "Crisp Salute",
    "slot": "EMOTE",
    "rarity": "regular",
-   "priceCents": 200,
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1442,7 +1438,7 @@
    "name": "Slow Clap",
    "slot": "EMOTE",
    "rarity": "regular",
-   "priceCents": 200,
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,
@@ -1460,7 +1456,7 @@
    "name": "Grand Bow",
    "slot": "EMOTE",
    "rarity": "regular",
-   "priceCents": 200,
+   "priceCents": 250,
    "currency": "USD",
    "partner": null,
    "colourable": false,

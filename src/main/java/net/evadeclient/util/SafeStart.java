@@ -95,7 +95,7 @@ public final class SafeStart {
         return FabricLoader.getInstance().isDevelopmentEnvironment() && System.getProperty("fabric.client.gametest") != null;
     }
 
-    static boolean isTitle(Screen s) {
+    public static boolean isTitle(Screen s) {
         return s instanceof TitleScreen || s instanceof net.evadeclient.gui.EvadeTitleScreen;
     }
 
