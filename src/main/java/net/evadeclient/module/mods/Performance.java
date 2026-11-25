@@ -156,9 +156,9 @@ public class Performance extends Module {
     public final StatusSetting renderScaleNow = add(new StatusSetting("Render Scale Now", this::renderScaleText, "live"));
     /** Why Render Scale is paused right now (null = it isn't). */
     private String renderScalePaused;
-    /** Iris shader packs the installer adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
-    public final ModeSetting shaders = add(new ModeSetting("Shaders", "Leave Alone", "Leave Alone", "Off", "Photon", "Complementary")
-            .describe("Switch shaders without opening Iris. Photon looks the best; Complementary is lighter for laptops. Shaders cost a lot of FPS, so they're best left Off for the highest frame rates."));
+    /** Iris shader packs the launcher adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
+    public final ModeSetting shaders = add(new ModeSetting("Shaders", "Leave Alone", "Leave Alone", "Off", "Evade Shaders", "Photon", "Complementary")
+            .describe("Switch shaders without opening Iris. Evade Shaders is Evade's own pack, free and fast on laptops (pick Potato to Ultra in its settings); Photon looks the best; Complementary is lighter. Shaders cost a lot of FPS, so they're best left Off for the highest frame rates."));
     public final StatusSetting shadersNow = add((StatusSetting) new StatusSetting("Shaders Now", net.evadeclient.util.ShaderSwitch::status, "click: pick a pack")
             .onClick(() -> mc.setScreen(new net.evadeclient.gui.ShaderPackScreen(mc.currentScreen)))
             .describe("Click to pick any shader pack in your shaderpacks folder, turn shaders off, or get more packs from Modrinth."));

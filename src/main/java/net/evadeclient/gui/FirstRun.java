@@ -101,6 +101,8 @@ public final class FirstRun {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             try {
                 autoProfile(false);
+                // Integrated graphics: Evade Shaders (when it's the active pack) starts on its Low level, unless its settings were changed.
+                if (!inGameTest()) net.evadeclient.util.ShaderSwitch.laptopProfile();
             } catch (RuntimeException e) {
                 net.evadeclient.EvadeClient.LOG.warn("First run: graphics check failed", e);
             }

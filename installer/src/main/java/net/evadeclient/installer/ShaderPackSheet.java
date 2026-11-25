@@ -24,8 +24,9 @@ import static net.evadeclient.installer.LauncherView.mix;
 
 /**
  * The "Shader packs" chooser: a sheet (overlay {@code "shaders"}) listing every {@link ShaderPacks} pack with a tick box,
- * a one-line description and a performance hint, and a details panel per pack with its author, licence and Modrinth
- * page. On a PC with built-in graphics ({@link MemoryAdvice}) it recommends the two light packs. Opened from the
+ * a one-line description and a performance hint, and a details panel per pack with its author, licence and page
+ * (evadeclient.com for Evade Shaders, Modrinth for the rest). On a PC with built-in graphics ({@link MemoryAdvice}) it
+ * recommends Evade Shaders and Complementary Reimagined. Opened from the
  * Shaders row on the instance page ({@code inst-shpacks}). Click ids: {@code ov-sp:<key>} (tick), {@code ov-spinfo:<key>}
  * (details), {@code ov-sp-*} for the rest; Tab, Enter and Escape work as on the other sheets.
  */
@@ -74,8 +75,11 @@ final class ShaderPackSheet {
     private void paintList(Graphics2D g, Launcher.Instance i) {
         veil(g);
         boolean hintShared = sharedGraphics(), hintOff = !i.shaders;
-        int rh = 74, w = 660;
-        int h = 118 + (hintShared ? 50 : 0) + (hintOff ? 50 : 0) + ShaderPacks.ALL.length * rh + 84;
+        int w = 660, top = 118 + (hintShared ? 50 : 0) + (hintOff ? 50 : 0);
+        // Rows shrink a little when every pack and both notes wouldn't fit the window.
+        boolean compact = top + ShaderPacks.ALL.length * 74 + 84 > H - 24;
+        int rh = compact ? 64 : 74, d = compact ? 4 : 0;
+        int h = top + ShaderPacks.ALL.length * rh + 84;
         int x = (W - w) / 2, y = Math.max(12, (H - h) / 2), ix = x + 32, iw = w - 64;
         v.raised(g, x, y, w, h);
         v.hitMap.put("ov-panel", new Rectangle(x, y, w, h));
@@ -85,14 +89,14 @@ final class ShaderPackSheet {
         g.setFont(v.inter.deriveFont(12.5f));
         g.setColor(DIM);
         int ly = y + 72;
-        for (String l : LauncherView.wrapLines(g, "Tick the packs Play adds with Iris. Each comes from Modrinth when you press Play (Evade never hosts them) "
-                + "and goes again when unticked. Your own packs stay.", iw, 2)) {
+        for (String l : LauncherView.wrapLines(g, "Tick the packs Play adds with Iris; the first one ticked is switched on. Evade Shaders comes from evadeclient.com, "
+                + "the others from Modrinth (never hosted by Evade). Your own packs stay.", iw, 2)) {
             g.drawString(l, ix, ly);
             ly += 17;
         }
         int ry = y + 114;
         if (hintShared) {
-            strip(g, ix, ry, iw, new Color(245, 165, 36, 26), AMBER, "Built-in graphics: Complementary Reimagined or Sildur's run best here.",
+            strip(g, ix, ry, iw, new Color(245, 165, 36, 26), AMBER, "Built-in graphics: Evade Shaders and Reimagined run best here.",
                     "ov-sp-light", "Use those two");
             ry += 50;
         }
@@ -110,30 +114,30 @@ final class ShaderPackSheet {
                 g.setColor(new Color(255, 255, 255, Math.round(8 * t)));
                 g.fill(new RoundRectangle2D.Double(ix - 10, ry + 2, iw + 20, rh - 6, 14, 14));
             }
-            checkbox(g, ix, ry + 15, on, avail, t);
+            checkbox(g, ix, ry + 15 - d, on, avail, t);
             int tx = ix + 32;
             g.setFont(v.interBold.deriveFont(14f));
             g.setColor(avail ? TEXT : FAINT);
-            g.drawString(p.name(), tx, ry + 28);
+            g.drawString(p.name(), tx, ry + 28 - d);
             int cx = tx + g.getFontMetrics().stringWidth(p.name()) + 10;
-            int cw = chip(g, p.tier(), cx, ry + 16, p.light());
+            int cw = chip(g, p.tier(), cx, ry + 16 - d, p.light());
             if (p.defaultOn()) {
                 g.setFont(v.inter.deriveFont(11f));
                 g.setColor(FAINT);
-                g.drawString("Default", cx + cw + 8, ry + 28);
+                g.drawString(k == 0 ? "Default, switched on first" : "Default", cx + cw + 8, ry + 28 - d);
             }
             g.setFont(v.inter.deriveFont(12f));
             g.setColor(avail ? DIM : FAINT);
-            g.drawString(ellipsizeEnd(g, avail ? p.sub() : "Not available for " + InstallerCore.MC_VERSION + " on Modrinth right now", iw - 150), tx, ry + 47);
+            g.drawString(ellipsizeEnd(g, avail ? p.sub() : "Not available for " + InstallerCore.MC_VERSION + (p.ours() ? "" : " on Modrinth") + " right now", iw - 150), tx, ry + 47 - d - d / 2);
             g.setFont(v.inter.deriveFont(11f));
             g.setColor(FAINT);
             String perf = p.perf();
             InstallerCore.ModFile f = v.release != null ? v.release.shaderPacks().get(p.key()) : null;
-            g.drawString(ellipsizeEnd(g, perf + (f != null ? "  ·  " + f.version() : ""), iw - 150), tx, ry + 64);
+            g.drawString(ellipsizeEnd(g, perf + (f != null ? "  ·  " + f.version() : "") + (p.ours() ? "  ·  Free with Evade Client" : ""), iw - 150), tx, ry + 64 - 2 * d - d / 2);
             if (avail) v.hit(id, new Rectangle(ix - 10, ry + 2, iw - 100, rh - 6));
             v.game.name(id, p.name() + " shader pack, " + (on ? "ticked" : "not ticked") + ". " + p.sub() + ". " + p.perf());
             v.ghostButton(g, "ov-spinfo:" + p.key(), ix + iw - 88, ry + rh / 2 - 16, 88, 32, "Details", false);
-            v.game.name("ov-spinfo:" + p.key(), p.name() + ": licence and Modrinth page");
+            v.game.name("ov-spinfo:" + p.key(), p.name() + ": licence and " + (p.ours() ? "page on evadeclient.com" : "Modrinth page"));
             if (k < ShaderPacks.ALL.length - 1) {
                 g.setColor(HAIRLINE);
                 g.fillRect(ix, ry + rh - 2, iw, 1);
@@ -159,7 +163,7 @@ final class ShaderPackSheet {
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
         v.hitMap.put("ov-sp-veil", new Rectangle(0, 0, W, H));
-        int w = 540, h = 372, x = (W - w) / 2, y = (H - h) / 2, ix = x + 32, iw = w - 64;
+        int w = 600, h = 372, x = (W - w) / 2, y = (H - h) / 2, ix = x + 32, iw = w - 64;
         v.raised(g, x, y, w, h);
         v.hitMap.put("ov-panel", new Rectangle(x, y, w, h));
         g.setFont(v.interBold.deriveFont(21f));
@@ -168,14 +172,14 @@ final class ShaderPackSheet {
         chip(g, p.tier(), ix + g.getFontMetrics().stringWidth(p.name()) + 12, y + 33, p.light());
         g.setFont(v.inter.deriveFont(12.5f));
         g.setColor(DIM);
-        g.drawString(ellipsizeEnd(g, "By " + p.author() + "  ·  modrinth.com/shader/" + p.slug(), iw), ix, y + 72);
+        g.drawString(ellipsizeEnd(g, "By " + p.author() + "  ·  " + p.home(), iw), ix, y + 72);
         int ry = y + 108;
         InstallerCore.ModFile f = v.release != null ? v.release.shaderPacks().get(p.key()) : null;
         String[][] rows = {
                 {"Looks", p.sub()},
                 {"Runs on", p.perf()},
                 {"Licence", p.licence()},
-                {"Version", f != null ? f.version() + " for Minecraft " + InstallerCore.MC_VERSION + " (Iris)"
+                {"Version", f != null ? (p.ours() && !f.version().startsWith("v") ? "v" : "") + f.version() + " for Minecraft " + InstallerCore.MC_VERSION + " (Iris)"
                         : v.release == null ? "The newest for Minecraft " + InstallerCore.MC_VERSION + " (Iris)" : "Not available right now"},
         };
         for (String[] r : rows) {
@@ -189,14 +193,19 @@ final class ShaderPackSheet {
         }
         g.setFont(v.inter.deriveFont(12f));
         g.setColor(DIM);
-        for (String l : LauncherView.wrapLines(g, "Evade downloads it from Modrinth when you press Play and checks the file; it never hosts a copy. "
-                + "All credit goes to " + p.author() + ".", iw, 2)) {
+        String about = p.ours()
+                ? "Free with Evade Client: Play downloads it from evadeclient.com and checks the file. "
+                        + "Choose Potato, Low, Medium, High or Ultra in its settings in Iris."
+                : "Evade downloads it from Modrinth when you press Play and checks the file; it never hosts a copy. "
+                        + "All credit goes to " + p.author() + ".";
+        for (String l : LauncherView.wrapLines(g, about, iw, 2)) {
             g.drawString(l, ix, ry + 4);
             ry += 17;
         }
         int by = y + h - 60;
-        v.ghostButton(g, "ov-spurl:" + p.key(), ix, by, 170, 40, "Open on Modrinth", false, "external");
-        v.game.name("ov-spurl:" + p.key(), "Open " + p.name() + " on Modrinth");
+        String where = p.ours() ? "evadeclient.com" : "Modrinth";
+        v.ghostButton(g, "ov-spurl:" + p.key(), ix, by, p.ours() ? 196 : 170, 40, "Open on " + where, false, "external");
+        v.game.name("ov-spurl:" + p.key(), "Open " + p.name() + " on " + where);
         if (p.licenceUrl() != null) {
             v.ghostButton(g, "ov-splic:" + p.key(), ix + 180, by, 120, 40, "Licence", false, "book");
             v.game.name("ov-splic:" + p.key(), "Read the " + p.name() + " licence");
@@ -265,7 +274,7 @@ final class ShaderPackSheet {
             case "ov-sp-done" -> { v.overlay = null; details = null; v.game.focusId = null; }
             case "ov-sp-back", "ov-sp-veil" -> { details = null; v.game.focusId = null; }
             case "ov-sp-reset" -> change(foc, ShaderPacks.defaults());
-            case "ov-sp-light" -> change(foc, ShaderPacks.clean(List.of(ShaderPacks.REIMAGINED.key(), ShaderPacks.SILDURS.key())));
+            case "ov-sp-light" -> change(foc, ShaderPacks.clean(List.of(ShaderPacks.EVADE.key(), ShaderPacks.REIMAGINED.key())));
             case "ov-sp-on" -> {
                 if (foc == null) return true;
                 foc.shaders = true;

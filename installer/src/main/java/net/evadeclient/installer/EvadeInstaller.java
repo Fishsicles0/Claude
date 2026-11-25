@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  *   java -jar EvadeInstaller.jar --minimized          start in the tray only (how Evade Client starts it with Minecraft)
  *   java -jar EvadeInstaller.jar --clips              open the window on the Clips section
  *   java -jar EvadeInstaller.jar --cli [--dir PATH] [--memory GB] [--no-copy-settings] [--no-voice-chat] [--no-performance-mods] [--no-clips] [--shaders]
- *                     [--shader-packs photon,complementary-reimagined,complementary-unbound,bsl,sildurs-vibrant|all|none]
+ *                     [--shader-packs evade-shaders,photon,complementary-reimagined,complementary-unbound,bsl,sildurs-vibrant|all|none]
  *                     [--no-pack-features] [--dynamic-lights]
  *                     [--fast-start] [--more-fps] [--chunk-speed] [--open-to-friends] [--extras KEY,KEY|all]
  *                     [--template pvp|survival|building|laptop]
@@ -157,7 +157,7 @@ public final class EvadeInstaller {
         boolean perf = !a.contains("--no-performance-mods");
         boolean clips = !a.contains("--no-clips"); // ffmpeg for the built-in Evade Clips (Windows)
         boolean shaders = a.contains("--shaders");
-        // --shader-packs picks the packs (and switches Shaders on); --shaders alone keeps Photon + Complementary Reimagined.
+        // --shader-packs picks the packs (and switches Shaders on); --shaders alone ticks the defaults (Evade Shaders, Photon, Complementary Reimagined).
         java.util.Set<String> shaderPacks = null;
         String packsArg = arg(a, "--shader-packs", null);
         if (a.contains("--shader-packs")) {
@@ -215,7 +215,7 @@ public final class EvadeInstaller {
                 InstallerCore.ModFile f = r.shaderPacks().get(key);
                 got.add(f != null ? f.name() + " " + f.version() : ShaderPacks.byKey(key).name() + " (not available right now)");
             }
-            System.out.println("Shaders (from Modrinth): " + (r.iris() == null ? "not available right now"
+            System.out.println("Shaders (Iris from Modrinth, Evade Shaders from evadeclient.com): " + (r.iris() == null ? "not available right now"
                     : "Iris " + r.iris().version() + (got.isEmpty() ? ", no packs" : ", " + String.join(", ", got))));
         }
         System.out.println("Memory: " + mem + " GB");

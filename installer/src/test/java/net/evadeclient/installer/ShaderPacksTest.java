@@ -46,15 +46,23 @@ class ShaderPacksTest {
 
     @Test
     void keysAndDefaults() {
-        assertEquals(Set.of("photon", "complementary-reimagined"), ShaderPacks.defaults());
-        assertEquals(List.of("photon", "complementary-reimagined", "complementary-unbound", "bsl", "sildurs-vibrant"),
-                new ArrayList<>(ShaderPacks.parse("sildurs-vibrant,bsl,complementary-unbound,complementary-reimagined,photon")));
+        assertEquals(List.of("evade-shaders", "photon", "complementary-reimagined"), new ArrayList<>(ShaderPacks.defaults()));
+        assertEquals(ShaderPacks.EVADE, ShaderPacks.ALL[0]); // first: the pack Iris is pointed at by default
+        assertEquals(List.of("evade-shaders", "photon", "complementary-reimagined", "complementary-unbound", "bsl", "sildurs-vibrant"),
+                new ArrayList<>(ShaderPacks.parse("sildurs-vibrant,bsl,complementary-unbound,complementary-reimagined,photon,evade-shaders")));
+        assertEquals(Set.of("evade-shaders", "bsl"), ShaderPacks.parse("evade-shaders,bsl"));
         assertEquals(Set.of("bsl", "sildurs-vibrant"), ShaderPacks.parse("bsl-shaders, sildurs"));
         assertTrue(ShaderPacks.parse("none").isEmpty());
-        assertEquals(5, ShaderPacks.parse("all").size());
+        assertEquals(6, ShaderPacks.parse("all").size());
         assertThrows(IllegalArgumentException.class, () -> ShaderPacks.parse("photon,seus-renewed"));
         assertEquals(ShaderPacks.defaults(), ShaderPacks.clean(null));
-        assertEquals("Photon and Complementary Reimagined", ShaderPacks.names(ShaderPacks.defaults()));
+        assertEquals("Evade Shaders, Photon and Complementary Reimagined", ShaderPacks.names(ShaderPacks.defaults()));
+        assertEquals(ShaderPacks.EVADE, ShaderPacks.byFile("Evade Shaders v1.0.zip"));
+        assertEquals(ShaderPacks.EVADE, ShaderPacks.byFile("EvadeShaders.zip"));
+        assertNull(ShaderPacks.bySlug("evade-shaders")); // not a Modrinth project
+        assertTrue(ShaderPacks.EVADE.ours() && ShaderPacks.EVADE.defaultOn() && ShaderPacks.EVADE.light());
+        assertTrue(ShaderPacks.EVADE.url().endsWith("/download#evade-shaders"));
+        assertEquals(Set.of("evade-shaders", "complementary-reimagined"), InstanceTemplates.LAPTOP.shaderPacks());
         assertEquals(ShaderPacks.SILDURS, ShaderPacks.byFile("Sildur's Vibrant Shaders v2.02 Medium.zip"));
         assertEquals(ShaderPacks.BSL, ShaderPacks.byFile("BSL_v10.1.8.zip"));
         assertEquals(ShaderPacks.UNBOUND, ShaderPacks.byFile("ComplementaryUnbound_r5.10.zip"));
@@ -89,6 +97,119 @@ class ShaderPacksTest {
         assertEquals(Set.of("complementary-unbound"), Launcher.readShaderPacks(o));
         assertEquals(Set.of("complementary-unbound"), Launcher.readShaderPacks(InstanceZip.manifest(inst, false)));
         assertEquals(ShaderPacks.defaults(), Launcher.readShaderPacks(new JsonObject())); // older settings: the defaults
+    }
+
+    @Test
+    void evadeShadersIsTickedForSettingsFromBeforeIt(@TempDir Path dir) throws IOException {
+        // Saved by a launcher before Evade Shaders: it's added to whatever was ticked.
+        JsonObject old = JsonParser.parseString("{\"shaderPacks\":[\"bsl\"]}").getAsJsonObject();
+        assertEquals(List.of("evade-shaders", "bsl"), new ArrayList<>(Launcher.readShaderPacks(old)));
+        JsonObject oldDefaults = JsonParser.parseString("{\"shaderPacks\":[\"photon\",\"complementary-reimagined\"]}").getAsJsonObject();
+        assertEquals(ShaderPacks.defaults(), Launcher.readShaderPacks(oldDefaults));
+        // Unticked by the player since: stays unticked.
+        Launcher.Instance inst = new Launcher.Instance("x", dir, "Shaders");
+        inst.shaderPacks = ShaderPacks.parse("photon");
+        Launcher.save(inst);
+        assertEquals(Set.of("photon"), Launcher.readShaderPacks(InstallerCore.readJsonObject(dir.resolve(Launcher.INSTANCE_FILE))));
+        assertEquals(Set.of("photon"), Launcher.readShaderPacks(InstanceZip.manifest(inst, false)));
+        // None ticked stays none.
+        inst.shaderPacks = ShaderPacks.parse("none");
+        Launcher.save(inst);
+        assertTrue(Launcher.readShaderPacks(InstallerCore.readJsonObject(dir.resolve(Launcher.INSTANCE_FILE))).isEmpty());
+    }
+
+    @Test
+    void versionJsonEntry() {
+        String sha = "7b74a205975fdb2a66ef225971821de3c963e52caa6a19720313b01ba22b6d90";
+        JsonObject site = JsonParser.parseString("{\"shaders\":{\"evade\":{\"file\":\"downloads/EvadeShaders.zip\",\"version\":\"1.0\",\"sha256\":\"" + sha + "\"}}}").getAsJsonObject();
+        InstallerCore.ModFile f = InstallerCore.evadeShaders(site);
+        assertNotNull(f);
+        assertEquals("Evade Shaders", f.name());
+        assertEquals("1.0", f.version());
+        assertEquals("Evade Shaders v1.0.zip", f.filename());
+        assertEquals(InstallerCore.SITE + "/downloads/EvadeShaders.zip?v=" + sha.substring(0, 10), f.url());
+        assertEquals("SHA-256", InstallerCore.hashAlgo(f.sha512()));
+        assertEquals("SHA-512", InstallerCore.hashAlgo("ab".repeat(64)));
+        // Missing, incomplete or odd entries: no pack (an older site).
+        assertNull(InstallerCore.evadeShaders(new JsonObject()));
+        assertNull(InstallerCore.evadeShaders(JsonParser.parseString("{\"shaders\":{\"evade\":{\"file\":\"downloads/EvadeShaders.zip\",\"version\":\"1.0\"}}}").getAsJsonObject()));
+        assertNull(InstallerCore.evadeShaders(JsonParser.parseString("{\"shaders\":{\"evade\":{\"file\":\"downloads/EvadeShaders.zip\",\"version\":\"1.0\",\"sha256\":\"abc\"}}}").getAsJsonObject()));
+        assertNull(InstallerCore.evadeShaders(JsonParser.parseString("{\"shaders\":{\"evade\":{\"file\":\"https://elsewhere.example/x.zip\",\"version\":\"1.0\",\"sha256\":\"" + sha + "\"}}}").getAsJsonObject()));
+        assertNull(InstallerCore.evadeShaders(JsonParser.parseString("{\"shaders\":{\"evade\":{\"file\":\"downloads/EvadeShaders.zip\",\"version\":\"1/../x\",\"sha256\":\"" + sha + "\"}}}").getAsJsonObject()));
+    }
+
+    @Test
+    void evadeShadersInstallUpdateAndRemove(@TempDir Path game) throws Exception {
+        InstallerCore core = new InstallerCore();
+        Path packs = game.resolve("shaderpacks"), iris = game.resolve("config/iris.properties");
+        Set<String> want = ShaderPacks.defaults();
+
+        // New install with the defaults: Evade Shaders is added (SHA-256 checked) and is the pack Iris starts on.
+        Map<String, InstallerCore.ModFile> v1 = release("1");
+        v1.put("evade-shaders", evade("1.0", "build one"));
+        JsonObject m1 = run(core, game, want, v1, null, true);
+        assertEquals(List.of("evade-shaders", "photon", "complementary-reimagined"), new ArrayList<>(m1.keySet()));
+        assertEquals("build one", Files.readString(packs.resolve("Evade Shaders v1.0.zip")));
+        assertEquals(v1.get("evade-shaders").sha512(), m1.getAsJsonObject("evade-shaders").get("sha").getAsString());
+        assertTrue(Files.readString(iris, StandardCharsets.ISO_8859_1).contains("shaderPack=Evade Shaders v1.0.zip"));
+        assertNull(updateReason(game, m1, v1));
+
+        // A new build under the same version: told apart by its checksum, downloaded again over Evade's own copy.
+        Files.writeString(packs.resolve("Evade Shaders v1.0.zip.txt"), "SHADOWS=false\n"); // the player's pack settings
+        Map<String, InstallerCore.ModFile> v1b = new LinkedHashMap<>(v1);
+        v1b.put("evade-shaders", evade("1.0", "build two"));
+        assertEquals("A new build of Evade Shaders 1.0 is out", updateReason(game, m1, v1b));
+        JsonObject m2 = run(core, game, want, v1b, marker(m1), true);
+        assertEquals("build two", Files.readString(packs.resolve("Evade Shaders v1.0.zip")));
+        assertNull(updateReason(game, m2, v1b));
+
+        // Version 1.1: the old file goes, its settings come along, and Iris follows to the new file.
+        Map<String, InstallerCore.ModFile> v2 = new LinkedHashMap<>(v1b);
+        v2.put("evade-shaders", evade("1.1", "version two"));
+        assertEquals("Evade Shaders 1.1 is out", updateReason(game, m2, v2));
+        JsonObject m3 = run(core, game, want, v2, marker(m2), true);
+        assertFalse(Files.exists(packs.resolve("Evade Shaders v1.0.zip")));
+        assertEquals("version two", Files.readString(packs.resolve("Evade Shaders v1.1.zip")));
+        assertEquals("SHADOWS=false\n", Files.readString(packs.resolve("Evade Shaders v1.1.zip.txt")));
+        assertTrue(Files.readString(iris, StandardCharsets.ISO_8859_1).contains("shaderPack=Evade Shaders v1.1.zip"));
+
+        // A download that fails its check is not installed (and the old copy is kept).
+        Map<String, InstallerCore.ModFile> bad = new LinkedHashMap<>(v2);
+        InstallerCore.ModFile e2 = evade("1.2", "version three");
+        bad.put("evade-shaders", new InstallerCore.ModFile(e2.name(), e2.version(), e2.url(), "0".repeat(64), e2.filename(), null, List.of(), Map.of()));
+        List<String> skipped = new ArrayList<>();
+        JsonObject m4 = runSkipping(core, game, want, bad, marker(m3), skipped);
+        assertEquals(List.of("Evade Shaders wasn't updated (kept the old one)"), skipped);
+        assertFalse(Files.exists(packs.resolve("Evade Shaders v1.2.zip")));
+        assertEquals("Evade Shaders v1.1.zip", m4.getAsJsonObject("evade-shaders").get("file").getAsString());
+
+        // Unticked: removed (its settings file stays, it's the player's); Iris moves on to the next ticked pack.
+        JsonObject m5 = run(core, game, Set.of("photon"), v2, marker(m4), true);
+        assertFalse(m5.has("evade-shaders"));
+        assertFalse(Files.exists(packs.resolve("Evade Shaders v1.1.zip")));
+        assertTrue(Files.exists(packs.resolve("Evade Shaders v1.1.zip.txt")));
+        assertTrue(Files.readString(iris, StandardCharsets.ISO_8859_1).contains("shaderPack=photon_v1.zip"));
+    }
+
+    @Test
+    void existingPlayersKeepTheirIrisChoice(@TempDir Path game) throws Exception {
+        InstallerCore core = new InstallerCore();
+        Path iris = game.resolve("config/iris.properties");
+        Files.createDirectories(iris.getParent());
+        Map<String, InstallerCore.ModFile> v1 = release("1");
+        v1.put("evade-shaders", evade("1.0", "build one"));
+        // A pack chosen in Iris already (an update from before Evade Shaders): left as it was.
+        Files.writeString(iris, "enableShaders=true\nshaderPack=ComplementaryReimagined_r0.zip\n", StandardCharsets.ISO_8859_1);
+        JsonObject m1 = run(core, game, ShaderPacks.defaults(), v1, null, true);
+        assertTrue(m1.has("evade-shaders"));
+        assertTrue(Files.readString(iris, StandardCharsets.ISO_8859_1).contains("shaderPack=ComplementaryReimagined_r0.zip"));
+        // Iris installed but no pack ever chosen: Evade Shaders becomes it, and shaders stay as the player set them.
+        Files.writeString(iris, "enableShaders=false\nshaderPack=\n", StandardCharsets.ISO_8859_1);
+        run(core, game, ShaderPacks.defaults(), v1, marker(m1), true);
+        String now = Files.readString(iris, StandardCharsets.ISO_8859_1);
+        assertTrue(now.contains("shaderPack=Evade Shaders v1.0.zip"), now);
+        assertTrue(now.contains("enableShaders=false"), now);
+        assertEquals(1, now.split("shaderPack").length - 1, now);
     }
 
     @Test
@@ -173,17 +294,49 @@ class ShaderPacksTest {
     // ------------------------------------------------------------------ helpers
 
     private JsonObject run(InstallerCore core, Path game, Set<String> packs, Map<String, InstallerCore.ModFile> files, JsonObject prev, boolean shaders) throws Exception {
+        List<String> skipped = new ArrayList<>();
+        JsonObject out = runSkipping(core, game, packs, files, prev, skipped, shaders);
+        assertTrue(skipped.isEmpty(), skipped.toString());
+        return out;
+    }
+
+    private JsonObject runSkipping(InstallerCore core, Path game, Set<String> packs, Map<String, InstallerCore.ModFile> files, JsonObject prev, List<String> skipped) throws Exception {
+        return runSkipping(core, game, packs, files, prev, skipped, true);
+    }
+
+    private JsonObject runSkipping(InstallerCore core, Path game, Set<String> packs, Map<String, InstallerCore.ModFile> files, JsonObject prev,
+                                   List<String> skipped, boolean shaders) throws Exception {
         InstallerCore.Options o = new InstallerCore.Options(game, game, 2, false, false, false, false, shaders, "k", "n", null, false, false, Set.of(), packs);
         InstallerCore.ModFile iris = new InstallerCore.ModFile("Iris", "1", "", "", "iris.jar", "YL57xq9U", List.of(), Map.of());
         InstallerCore.Release r = new InstallerCore.Release("1", "", "", "1", "1", "", "", "", null, List.of(), null, null, null, null, null,
                 iris, iris, files.get("photon"), List.of(), null, Map.of(), files);
         Path staging = game.resolve(".evade-staging");
         Files.createDirectories(staging);
-        List<String> skipped = new ArrayList<>();
         JsonObject out = core.installShaderPacks(o, r, game, staging, prev, shaders, shaders, skipped, 0, 5, (f, m) -> { });
         InstallerCore.deleteTree(staging);
-        assertTrue(skipped.isEmpty(), skipped.toString());
         return out;
+    }
+
+    /** Writes the marker an install with {@code packs} leaves and asks why Play would update. */
+    private static String updateReason(Path game, JsonObject packs, Map<String, InstallerCore.ModFile> files) throws IOException {
+        JsonObject m = marker(packs);
+        m.addProperty("evade", "1");
+        m.addProperty("loader", "1");
+        m.addProperty("fabricApi", "1");
+        Files.writeString(game.resolve("evade-install.json"), m.toString());
+        InstallerCore.ModFile iris = new InstallerCore.ModFile("Iris", "1", "", "", "iris.jar", "YL57xq9U", List.of(), Map.of());
+        InstallerCore.Release r = new InstallerCore.Release("1", "", "", "1", "1", "", "", "", null, List.of(), null, null, null, null, null,
+                iris, iris, null, List.of(), null, Map.of(), files);
+        return InstallerCore.updateReason(game, r, false, false, true, false, false, Set.of(), packs.keySet());
+    }
+
+    /** Evade Shaders {@code version} with these contents, served by the local server under its stable name (SHA-256). */
+    private InstallerCore.ModFile evade(String version, String contents) throws Exception {
+        byte[] body = contents.getBytes(StandardCharsets.UTF_8);
+        served.put("downloads/EvadeShaders.zip", body);
+        String sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/downloads/EvadeShaders.zip";
+        return new InstallerCore.ModFile("Evade Shaders", version, url, sha, "Evade Shaders v" + version + ".zip", null, List.of(), Map.of());
     }
 
     private static JsonObject marker(JsonObject packs) {

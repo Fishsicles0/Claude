@@ -8,25 +8,35 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * The shader packs the Shaders option can add next to Iris, each one ticked or not per instance. Every pack is
- * downloaded from Modrinth when Play installs it (newest version for {@value InstallerCore#MC_VERSION} with the Iris
- * loader, SHA-512 checked) and never bundled or hosted by Evade: BSL and Sildur's are All Rights Reserved and
- * Complementary and Photon have their own licences. Unticking a pack removes only the file Evade put there; the
- * player's own packs in shaderpacks/ are never touched.
+ * The shader packs the Shaders option can add next to Iris, each one ticked or not per instance. Evade Shaders is
+ * Evade's own pack, free with Evade Client: it comes from evadeclient.com (the file, version and SHA-256 that
+ * version.json names). Every other pack is downloaded from Modrinth when Play installs it (newest version for
+ * {@value InstallerCore#MC_VERSION} with the Iris loader, SHA-512 checked) and never bundled or hosted by Evade: BSL and
+ * Sildur's are All Rights Reserved and Complementary and Photon have their own licences. Unticking a pack removes only
+ * the file Evade put there; the player's own packs in shaderpacks/ are never touched.
  */
 final class ShaderPacks {
     private ShaderPacks() {}
 
     /**
      * One pack. {@code key}: the short name in settings, share codes and {@code --shader-packs}; {@code slug}: its
-     * Modrinth project; {@code variant}: for a project that publishes one version per edition (Sildur's: Lite, Medium,
+     * Modrinth project (null for Evade Shaders, which isn't on Modrinth); {@code variant}: for a project that publishes one version per edition (Sildur's: Lite, Medium,
      * High...), the edition to install, else null; {@code prefix}: how its file names start (lower case), to recognise
      * a pack an older install added.
      */
     record Pack(String key, String slug, String name, String sub, String perf, String tier, String author, String licence,
                 String licenceUrl, String variant, String prefix, boolean defaultOn, boolean light) {
-        String url() { return "https://modrinth.com/shader/" + slug; }
+        /** Evade's own pack (from evadeclient.com), not a Modrinth one. */
+        boolean ours() { return slug == null; }
+        /** Its page: on evadeclient.com for Evade Shaders, else on Modrinth. */
+        String url() { return ours() ? InstallerCore.SITE + "/download#evade-shaders" : "https://modrinth.com/shader/" + slug; }
+        /** Where it's downloaded from, as shown to players ("evadeclient.com", "modrinth.com/shader/bsl-shaders"). */
+        String home() { return ours() ? "evadeclient.com" : "modrinth.com/shader/" + slug; }
     }
+
+    static final Pack EVADE = new Pack("evade-shaders", null, "Evade Shaders",
+            "Evade's own pack: fast on laptops, with Potato to Ultra levels", "Any PC: pick a level in its options", "Evade",
+            "Evade Client", "Free with Evade Client", null, null, "evade shaders", true, true);
 
     static final Pack PHOTON = new Pack("photon", "photon-shader", "Photon",
             "Semi-realistic light, clouds and water, made for playing", "High-end: wants a strong graphics card", "High-end",
@@ -48,13 +58,31 @@ final class ShaderPacks {
             "Sildur", "All Rights Reserved", null, "Medium", "sildur's vibrant shaders", false, true);
 
     /** Every pack, in the order shown (and the order Iris is pointed at: the first ticked pack becomes the active one). */
-    static final Pack[] ALL = {PHOTON, REIMAGINED, UNBOUND, BSL, SILDURS};
+    static final Pack[] ALL = {EVADE, PHOTON, REIMAGINED, UNBOUND, BSL, SILDURS};
+
+    /**
+     * The packs launchers before Evade Shaders offered. Settings saved by them (no {@code shaderPacksKnown}) only chose
+     * among these, so a default-on pack added since is ticked for them too (see {@link #withNewDefaults}).
+     */
+    static final java.util.List<String> LEGACY_KEYS = java.util.List.of("photon", "complementary-reimagined", "complementary-unbound", "bsl", "sildurs-vibrant");
+
+    /**
+     * {@code stored} plus every default-on pack the settings never offered ({@code known}: the keys the launcher that
+     * saved them knew; null: {@link #LEGACY_KEYS}). A pack the player unticked stays unticked, since it was known.
+     */
+    static Set<String> withNewDefaults(Collection<String> stored, Collection<String> known) {
+        Set<String> knew = new java.util.HashSet<>(known != null ? known : LEGACY_KEYS);
+        java.util.List<String> out = new ArrayList<>(stored);
+        for (Pack p : ALL) if (p.defaultOn() && !knew.contains(p.key())) out.add(p.key());
+        return clean(out);
+    }
 
     static Pack byKey(String key) {
         if (key == null) return null;
         String k = key.strip().toLowerCase(Locale.ROOT);
-        for (Pack p : ALL) if (p.key().equals(k) || p.slug().equals(k)) return p;
+        for (Pack p : ALL) if (p.key().equals(k) || k.equals(p.slug())) return p;
         return switch (k) {
+            case "evade", "evadeshaders", "evade-shader" -> EVADE;
             case "complementary", "reimagined" -> REIMAGINED;
             case "unbound" -> UNBOUND;
             case "sildurs", "sildur", "sildurs-vibrant-shaders" -> SILDURS;
@@ -65,7 +93,7 @@ final class ShaderPacks {
     /** The pack a Modrinth project slug belongs to, or null. */
     static Pack bySlug(String slug) {
         if (slug == null) return null;
-        for (Pack p : ALL) if (p.slug().equals(slug)) return p;
+        for (Pack p : ALL) if (slug.equals(p.slug())) return p;
         return null;
     }
 
@@ -73,11 +101,12 @@ final class ShaderPacks {
     static Pack byFile(String file) {
         if (file == null) return null;
         String l = file.toLowerCase(Locale.ROOT);
+        if (l.startsWith("evadeshaders")) return EVADE;
         for (Pack p : ALL) if (l.startsWith(p.prefix())) return p;
         return null;
     }
 
-    /** Complementary Reimagined and Photon: what the Shaders option has always added. */
+    /** Evade Shaders (the active one), Photon and Complementary Reimagined. */
     static Set<String> defaults() {
         Set<String> out = new LinkedHashSet<>();
         for (Pack p : ALL) if (p.defaultOn()) out.add(p.key());
@@ -99,7 +128,7 @@ final class ShaderPacks {
 
     static boolean isDefault(Set<String> keys) { return clean(keys).equals(defaults()); }
 
-    /** The ticked packs as one line ("Photon and Complementary Reimagined"); "no packs" when none. */
+    /** The ticked packs as one line ("Evade Shaders, Photon and Complementary Reimagined"); "no packs" when none. */
     static String names(Set<String> keys) {
         List<String> n = new ArrayList<>();
         for (String k : clean(keys)) n.add(byKey(k).name());
@@ -122,7 +151,7 @@ final class ShaderPacks {
     }
 
     /**
-     * {@code --shader-packs photon,bsl}: the packs named ({@code all}, {@code none} and {@code default} work too).
+     * {@code --shader-packs evade-shaders,photon,bsl}: the packs named ({@code all}, {@code none} and {@code default} work too).
      * Throws IllegalArgumentException naming an unknown pack.
      */
     static Set<String> parse(String arg) {
