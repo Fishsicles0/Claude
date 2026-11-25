@@ -1,0 +1,15 @@
+{
+ "id": "glitch_koi_cape",
+ "name": "Glitch Koi Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Two neon koi, one pink and one cyan, chase each other round dark water while the signal glitches and tears.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": false
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "ace_of_spades_cape",
+ "name": "Ace of Spades Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A black playing card with a crimson double border, a big red spade in the middle and an ace in the corners."
+}

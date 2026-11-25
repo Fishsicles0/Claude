@@ -50,6 +50,9 @@ REFERENCE = ("hearthfire_cape", "riptide_cape", "ember_mantle", "mochi_cat", "em
 EYE = {
 }
 
+# wings shaped like an insect's (lobes on a thorax, no arm bone): the arch and strip checks don't apply
+INSECT_WINGS = ("azure_butterfly_wings", "dusk_moth_wings")
+
 # per-slot thresholds: (min fill, max busy, max colours)
 SLOT_LIMITS = {
     "CAPE": (0.30, 0.30, 360), "WINGS": (0.62, 0.22, 360), "HAT": (0.42, 0.20, 400), "MASK": (0.42, 0.20, 400),
@@ -315,7 +318,7 @@ BODY_BOX = ((-4.0, 0.0, -2.0), (4.0, 12.0, 2.0))
 HEAD_BOX = ((-4.0, -8.0, -4.0), (4.0, 0.0, 4.0))
 
 
-def wing_clearance(bc, model):
+def wing_clearance(bc, model, alpha=None):
     """The deepest any wing cube's surface sample goes into the body or head box (model units; > 0.25 = clipping), over
     the beat (both ends), the fold (sneak) and rest. Only parts more than 3 units from the bone's pivot count (the root
     joint and its ornaments sit on the shoulder blade by design)."""
@@ -349,6 +352,15 @@ def wing_clearance(bc, model):
                 g = [np.linspace(o[k], o[k] + s[k], max(2, int(s[k] * 2) + 1)) for k in range(3)]
                 P = np.stack(np.meshgrid(*g, indexing="ij"), -1).reshape(-1, 3)
                 far = np.linalg.norm(P - piv, axis=1) > 3.0
+                if alpha is not None and s.min() == 0 and "uv" in c and c["uv"] is not None:
+                    # a flat plane: only its opaque texels count (north face of the box UV; mirrored cubes run backwards)
+                    sc = model["textureScale"]
+                    u0, v0 = c["uv"]
+                    d = s[2]
+                    cx = (o[0] + s[0] - P[:, 0]) if c.get("mirror") else (P[:, 0] - o[0])
+                    col = np.clip(((u0 + d + cx) * sc).astype(int), 0, alpha.shape[1] - 1)
+                    row = np.clip(((v0 + d + P[:, 1] - o[1]) * sc).astype(int), 0, alpha.shape[0] - 1)
+                    far &= alpha[row, col] > 0.5
                 W = (M[:3, :3] @ P.T).T + M[:3, 3]
                 for lo, hi in (BODY_BOX, HEAD_BOX):
                     lo, hi = np.array(lo), np.array(hi)
@@ -399,7 +411,7 @@ def score(it, files_dir, m, wing, clear, texinfo):
             weak.append(f"{sc} texels per unit (blocky)")
         if texinfo.get("tpp", 0) > 3.5:
             weak.append(f"{texinfo['tpp']:.1f} texels per thumbnail pixel (detail lost, shimmers)")
-    if slot == "WINGS" and wing:
+    if slot == "WINGS" and wing and it["id"] not in INSECT_WINGS:
         arch = sum(a for a, _ in wing) / len(wing)
         strips = max(s for _, s in wing)
         if m.get("aniso", 1) > 2.2:
@@ -509,7 +521,8 @@ def main():
                 texinfo["tpp"] = model["textureScale"] * span / thumb.width
                 if it["slot"] == "WINGS":
                     wing = wing_shape(alone)
-                    clear = wing_clearance(bc, model)
+                    tex = load_tex(d / "texture.png", *model["texture"], model["textureScale"])
+                    clear = wing_clearance(bc, model, None if tex is None else tex[..., 3])
                     for extra in (-40, 20):          # folded further back, and opened out
                         im = render_alone(bc, it, d, size=192, wing_extra=extra)
                         if im is not None:

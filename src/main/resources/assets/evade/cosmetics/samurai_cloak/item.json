@@ -1,0 +1,10 @@
+{
+ "id": "samurai_cloak",
+ "name": "Crimson Samurai Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Deep crimson with gold edging, a round gold family crest of three swirls and gold waves rolling along the hem."
+}

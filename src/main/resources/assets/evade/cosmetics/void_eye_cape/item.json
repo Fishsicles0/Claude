@@ -1,0 +1,15 @@
+{
+ "id": "void_eye_cape",
+ "name": "Void Eye Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A great glowing eye in a swirling violet void. It looks one way, then the other, and every so often it blinks.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": false
+ }
+}
