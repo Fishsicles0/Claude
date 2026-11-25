@@ -111,6 +111,7 @@ public class EvadeClient implements ClientModInitializer {
         net.evadeclient.replay.Replays.init();
         net.evadeclient.gui.FirstRun.init(); // first-run setup (once) and Tune for my PC
         net.evadeclient.util.KeyClashNotice.init(); // one-time notice when an Evade key clashes with another mod's
+        net.evadeclient.util.ModCompat.init(); // launcher's "Turn Evade's off" requests and add-on overlap notices
         // Evade Launcher: heartbeat, play time and launcher-requested joins (files in the game folder's .evade/).
         net.evadeclient.util.LauncherBridge.register();
         // Fabric gives a screen fresh per-screen events on every init and resize, so these are added each time.

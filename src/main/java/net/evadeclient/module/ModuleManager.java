@@ -156,6 +156,8 @@ public class ModuleManager {
         register(new net.evadeclient.module.hud.LookInfoHud());
         register(new net.evadeclient.module.hud.TechInfoHud());
         register(new net.evadeclient.module.misc.Cosmetics());
+        register(new net.evadeclient.module.misc.Schematics());
+        register(new net.evadeclient.module.hud.SchematicMaterialsHud());
         // Client
         register(new ClientSettings());
     }
