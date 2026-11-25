@@ -10,6 +10,7 @@ import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.Atlases;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
@@ -65,11 +66,22 @@ public final class SoftParticle extends BillboardParticle {
                          float life, float fade, float gravity) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null) return false;
-        Sprite sprite = mc.getAtlasManager().getAtlasTexture(SpriteAtlasTexture.PARTICLE_ATLAS_TEXTURE).getSprite(SPRITE);
+        Sprite sprite = sprite();
         if (sprite == null) return false;
         spawnedTotal++;
         mc.particleManager.addParticle(new SoftParticle(mc.world, x, y, z, vx, vy, vz, sprite, colors, size, sizeEnd, life, fade, gravity));
         return true;
+    }
+
+    /** The soft glow sprite from the particle atlas (keyed by its definition id, minecraft:particles), or null. */
+    static Sprite sprite() {
+        try {
+            SpriteAtlasTexture atlas = MinecraftClient.getInstance().getAtlasManager().getAtlasTexture(Atlases.PARTICLES);
+            Sprite s = atlas.getSprite(SPRITE);
+            return s != null && SPRITE.equals(s.getContents().getId()) ? s : null;   // missing: the caller falls back to dust
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     @Override
