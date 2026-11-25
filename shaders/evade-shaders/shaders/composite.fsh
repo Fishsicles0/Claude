@@ -106,7 +106,7 @@ void main() {
             vec3 reflView = reflect(viewDir, n);
             vec3 reflWorld = mat3(gbufferModelViewInverse) * reflView;
             vec3 refl = vec3(0.0);
-            if (hasSkylight) refl = skyAtmosphere(reflWorld) * skyLevel * skyLevel;
+            if (isOverworld()) refl = skyAtmosphere(reflWorld) * skyLevel * skyLevel;
             else if (hasCeiling) refl = toLinear(fogColor) * 0.5;
             else refl = vec3(0.02, 0.012, 0.03);
   #if WATER_REFLECTIONS == 2
@@ -115,7 +115,7 @@ void main() {
   #endif
             color = mix(color, refl, fresnel);
             // Sun/moon glint (normalised Blinn-Phong), only where the surface itself is in light.
-            if (hasSkylight && isWater) {
+            if (isOverworld() && isWater) {
                 vec3 l = lightDirWorld();
                 vec3 h = normalize(l - mat3(gbufferModelViewInverse) * viewDir);
                 float spec = pow(saturate(dot(nWorld, h)), 900.0) * 140.0;

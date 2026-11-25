@@ -34,7 +34,7 @@ void main() {
 
     vec3 dir = normalize(mat3(gbufferModelViewInverse) * screenToView(uv, 1.0));
     vec3 sky;
-    if (hasSkylight) {
+    if (isOverworld()) {
         sky = skyAtmosphere(dir) + sunDisk(dir) + scene.rgb; // scene.rgb = moon
 #ifdef STARS
         sky += starField(dir);

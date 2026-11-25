@@ -21,7 +21,7 @@ vec3 applyFog(vec3 color, vec3 viewPos, bool isSky) {
         // Lava / powder snow: the game's own short fog.
         float f = saturate((dist - fogStart) / max(fogEnd - fogStart, 0.01));
         color = mix(color, toLinear(fogColor), f);
-    } else if (hasSkylight) {
+    } else if (isOverworld()) {
         if (!isSky) {
             vec3 worldPos = viewToPlayer(viewPos) + cameraPosition;
             float heightFalloff = exp(-max(worldPos.y - 62.0, 0.0) / 48.0);

@@ -64,7 +64,7 @@ void main() {
     outColor = vec4(0.0); // sky is drawn in deferred.fsh
 #elif defined PROG_SKYTEXTURED
     if (renderStage == MC_RENDER_STAGE_SUN) discard;  // procedural sun instead
-    if (!hasSkylight) discard;                          // End sky texture: deferred.fsh draws its own
+    if (!isOverworld()) discard;                          // End sky texture: deferred.fsh draws its own
     vec4 c = texture(gtexture, texUV) * vertColor;
     vec3 col = toLinear(c.rgb);
     if (renderStage == MC_RENDER_STAGE_MOON) col *= vec3(0.9, 0.95, 1.1) * 2.2 * (1.0 - rainStrength);
