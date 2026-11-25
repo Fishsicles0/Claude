@@ -18,7 +18,7 @@ layout(location = 0) out vec4 outVL;
 
 void main() {
 #if defined SHADOWS && defined VOLUMETRIC_LIGHT
-    if (!hasSkylight || isEyeInWater >= 2) { outVL = vec4(0.0); return; }
+    if (!isOverworld() || isEyeInWater >= 2) { outVL = vec4(0.0); return; }
     float depth = texture(depthtex0, uv).r;
     vec3 viewPos = screenToView(uv, depth);
     vec3 end = viewToPlayer(viewPos) - gbufferModelViewInverse[3].xyz;

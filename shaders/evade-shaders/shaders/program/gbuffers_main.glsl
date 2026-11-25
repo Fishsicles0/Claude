@@ -87,11 +87,11 @@ void main() {
 #endif
 
     directCol = vec3(0.0); ambientCol = vec3(0.0);
-    if (hasSkylight) { directCol = directLightColor(); ambientCol = ambientLightColor(); }
+    if (isOverworld()) { directCol = directLightColor(); ambientCol = ambientLightColor(); }
 
     shadowClip = vec3(0.0);
 #if defined SHADOWS && !defined NO_SHADOW_LOOKUP
-    if (hasSkylight) {
+    if (isOverworld()) {
         vec3 lightDir = lightDirWorld();
         bool plant = matId == PLANT_ID || matId == TALL_PLANT_ID || matId == LEAVES_ID;
         vec3 sc = (shadowProjection * (shadowModelView * vec4(playerPos, 1.0))).xyz;
@@ -128,8 +128,8 @@ flat in vec3 ambientCol;
 #if defined PROG_WATER
 /* RENDERTARGETS: 0,1,2 */
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outSurface; // xy: packed normal, z: sky light, w: 1 water / 0.5 reflective glass / 0
-layout(location = 2) out vec4 outWater;   // rgb: water tint, a: sun visibility on the surface
+layout(location = 1) out vec4 outSurface; // xy: packed normal, z: distance from the eye (to verify the data), w: kind
+layout(location = 2) out vec4 outWater;   // rgb: water tint, a: sky light level
 #elif defined PROG_HAND
 /* RENDERTARGETS: 0,1 */
 layout(location = 0) out vec4 outColor;
@@ -142,7 +142,7 @@ layout(location = 0) out vec4 outColor;
 // Light visibility at this fragment; fades into a sky-light based guess past the shadow distance.
 vec3 shadowVisibility(float NdotL, bool foliage) {
 #if defined SHADOWS && !defined NO_SHADOW_LOOKUP
-    if (!hasSkylight || (NdotL <= 0.0 && !foliage)) return vec3(0.0);
+    if (!isOverworld() || (NdotL <= 0.0 && !foliage)) return vec3(0.0);
     float dist = length(playerPos);
     float fade = smoothstep(shadowDistance * 0.8, shadowDistance * 0.98, dist);
     float skyGuess = pow(saturate((lmUV.y - 0.0625) * 1.07), 6.0);
@@ -168,7 +168,7 @@ void main() {
 
     bool foliage = matId == PLANT_ID || matId == TALL_PLANT_ID || matId == LEAVES_ID;
     vec3 n = normalize(worldNormal);
-    float NdotL = hasSkylight ? dot(n, lightDirWorld()) : 0.0;
+    float NdotL = isOverworld() ? dot(n, lightDirWorld()) : 0.0;
     vec2 lm = clamp(lmUV, 1.0 / 32.0, 31.0 / 32.0);
 
 #ifdef PROG_WEATHER
@@ -187,8 +187,9 @@ void main() {
     #endif
         float sunVis = luma(shadowVisibility(1.0, false)) * step(0.0, NdotL);
         outColor = vec4(0.0);
-        outSurface = vec4(octEncode(wn), lm.y, 1.0);
-        outWater = vec4(vertColor.rgb, sunVis);
+        // w: 0.6..1.0 = water (with the sun visibility on its surface), 0.3 = reflective glass, 0 = nothing
+        outSurface = vec4(octEncode(wn), packDistance(length(playerPos - gbufferModelViewInverse[3].xyz)), 0.6 + 0.4 * sunVis);
+        outWater = vec4(vertColor.rgb, lm.y);
         return;
     }
 #endif
@@ -202,7 +203,7 @@ void main() {
     li.foliage = foliage ? 1.0 : 0.0;
     li.shadow = shadowVisibility(NdotL, foliage);
 #ifdef WATER_CAUSTICS
-    if (isEyeInWater == 1 && hasSkylight) {
+    if (isEyeInWater == 1 && isOverworld()) {
         // Rippling bright lines on lit surfaces while the camera is underwater (three crossing sine bands).
         vec3 wp = playerPos + cameraPosition;
         float t = frameTimeCounter * 1.3;
@@ -215,7 +216,7 @@ void main() {
     vec3 color = lin * surfaceLight(li);
 
 #ifdef FOLIAGE_TRANSLUCENCY
-    if (foliage && hasSkylight) {
+    if (foliage && isOverworld()) {
         // Light shining through thin leaves towards the viewer.
         vec3 viewDir = normalize(playerPos);
         float back = pow(saturate(dot(viewDir, lightDirWorld())), 3.0);
@@ -236,11 +237,11 @@ void main() {
     // Glass, ice, slime, honey...: lit here and blended; glass/ice also flag themselves for reflections.
     float reflective = 0.0;
   #ifdef GLASS_REFLECTIONS
-    if (matId == GLASS_ID || matId == ICE_ID) reflective = 0.5;
+    if (matId == GLASS_ID || matId == ICE_ID) reflective = 0.3;
   #endif
     outColor = vec4(color, albedo.a);
-    outSurface = vec4(octEncode(n), lm.y, reflective);
-    outWater = vec4(0.0);
+    outSurface = vec4(octEncode(n), packDistance(length(playerPos - gbufferModelViewInverse[3].xyz)), reflective);
+    outWater = vec4(0.0, 0.0, 0.0, lm.y);
 #elif defined PROG_HAND
     outColor = vec4(color, albedo.a);
     outSurface = vec4(0.0);

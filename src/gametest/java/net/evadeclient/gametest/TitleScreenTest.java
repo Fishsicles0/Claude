@@ -227,6 +227,7 @@ public final class TitleScreenTest {
                 {854, 480, 1, 1}, {854, 480, 2, 1}, {640, 480, 2, 1},
                 {480, 854, 1, 1}, {720, 1280, 2, 0},
         };
+        ctx.getInput().setCursorPos(2, 2); // no hover tooltips in the shots
         for (int[] sz : sizes) {
             ctx.getInput().resizeWindow(sz[0], sz[1]);
             ctx.runOnClient(c -> { c.options.getGuiScale().setValue(sz[2]); c.onResolutionChanged(); c.setScreen(new TitleScreen()); });

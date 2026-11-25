@@ -41,7 +41,7 @@ vec3 surfaceLight(LightInputs li) {
 #endif
     vec3 light = floorL + blockOnly;
 
-    if (hasSkylight) {
+    if (isOverworld()) {
         float skyEnergy = max(luma(skyL) - luma(floorL), 0.0);
         float ndl = li.foliage > 0.5 ? 0.35 + 0.65 * abs(li.NdotL) : max(li.NdotL, 0.0);
         vec3 direct = li.directCol * ndl * li.shadow * 1.35;

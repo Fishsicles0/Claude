@@ -46,6 +46,10 @@ vec3 viewToScreen(vec3 v) { return projectAndDivide(gbufferProjection, v) * 0.5 
 
 vec3 viewToPlayer(vec3 v) { return mat3(gbufferModelViewInverse) * v + gbufferModelViewInverse[3].xyz; }
 
+// Eye distance squeezed into [0,1) so it survives a normalised (unorm) buffer.
+float packDistance(float d) { return d / (d + 16.0); }
+float unpackDistance(float p) { return 16.0 * p / max(1.0 - p, 1e-5); }
+
 float linearDepth(float d) { return (2.0 * near * far) / (far + near - (d * 2.0 - 1.0) * (far - near)); }
 
 // Light-direction helpers (world space, unit length).

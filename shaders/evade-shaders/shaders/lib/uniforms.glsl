@@ -28,7 +28,13 @@ uniform int moonPhase;
 uniform int renderStage;
 uniform ivec2 eyeBrightnessSmooth;
 
-uniform bool hasSkylight; // false in the Nether and the End
+uniform bool hasSkylight; // false in the Nether
 uniform bool hasCeiling;  // true in the Nether
+uniform int bedrockLevel, logicalHeightLimit;
+
+// Since 1.21.9 the End has sky light too, so it is told apart by its shape: no ceiling, floor at y >= 0, 256 high.
+bool isEnd()       { return !hasCeiling && bedrockLevel >= 0 && logicalHeightLimit <= 256; }
+// Sun, moon, sky and weather: the Overworld (and dimensions built like it).
+bool isOverworld() { return hasSkylight && !hasCeiling && !isEnd(); }
 
 #endif

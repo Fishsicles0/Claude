@@ -6,6 +6,7 @@
 #include "/lib/uniforms.glsl"
 #include "/lib/common.glsl"
 #include "/lib/sky.glsl"
+#define HAZE_FROM_VERTEX
 #include "/lib/fog.glsl"
 
 uniform sampler2D colortex0;
@@ -60,14 +61,18 @@ void main() {
     vec3 viewPos = screenToView(uv, depth0);
     vec3 viewDir = normalize(viewPos);
 
-    bool isWater = surface.a > 0.9 && depth0 < 1.0;
-    bool isGlass = abs(surface.a - 0.5) < 0.1;
+    // The surface data must belong to the surface actually visible here (same distance), never to an old frame
+    // or to something now in front of it (the hand, particles).
+    bool sameSurface = depth0 < 1.0 && abs(unpackDistance(surface.z) - length(viewPos)) < 0.05 + 0.01 * length(viewPos);
+    bool isWater = sameSurface && surface.a > 0.55;
+    bool isGlass = sameSurface && surface.a > 0.2 && surface.a < 0.4;
+    float sunVis = saturate((surface.a - 0.6) / 0.4);
 
     if (isWater || isGlass) {
         vec3 nWorld = octDecode(surface.xy);
         vec3 n = normalize(mat3(gbufferModelView) * nWorld);
-        float skyLevel = saturate((surface.z - 1.0 / 32.0) * 16.0 / 15.0);
         vec4 water = texture(colortex2, uv);
+        float skyLevel = saturate((water.a - 1.0 / 32.0) * 16.0 / 15.0);
 
         if (isWater && isEyeInWater != 1) {
             // ---- what is seen through the water
@@ -84,10 +89,10 @@ void main() {
             vec3 floorPos = screenToView(refrUV, depth1);
             float thickness = depth1 >= 1.0 ? 64.0 : distance(floorPos, viewPos);
             vec3 tint = toLinear(water.rgb);
-            vec3 extinction = mix(WATER_EXTINCTION * 1.6, (1.0 - tint) * 0.55 + 0.03, 0.5);
+            vec3 extinction = mix(WATER_EXTINCTION * 1.2, (1.0 - tint) * 0.4 + 0.02, 0.5);
             vec3 T = exp(-extinction * thickness);
             float skyEnergy = skyLevel * skyLevel * (1.0 - rainStrength * 0.5);
-            vec3 scatterCol = tint * ambientLightColor() * 0.06 * mix(0.04, 1.0, dayFactor()) * skyEnergy
+            vec3 scatterCol = tint * ambientLightColor() * 0.14 * mix(0.04, 1.0, dayFactor()) * skyEnergy
                             + tint * 0.002;
             color = color * T + scatterCol * (1.0 - T);
         }
@@ -106,7 +111,7 @@ void main() {
             vec3 reflView = reflect(viewDir, n);
             vec3 reflWorld = mat3(gbufferModelViewInverse) * reflView;
             vec3 refl = vec3(0.0);
-            if (hasSkylight) refl = skyAtmosphere(reflWorld) * skyLevel * skyLevel;
+            if (isOverworld()) refl = skyAtmosphere(reflWorld) * skyLevel * skyLevel;
             else if (hasCeiling) refl = toLinear(fogColor) * 0.5;
             else refl = vec3(0.02, 0.012, 0.03);
   #if WATER_REFLECTIONS == 2
@@ -115,11 +120,11 @@ void main() {
   #endif
             color = mix(color, refl, fresnel);
             // Sun/moon glint (normalised Blinn-Phong), only where the surface itself is in light.
-            if (hasSkylight && isWater) {
+            if (isOverworld() && isWater) {
                 vec3 l = lightDirWorld();
                 vec3 h = normalize(l - mat3(gbufferModelViewInverse) * viewDir);
                 float spec = pow(saturate(dot(nWorld, h)), 900.0) * 140.0;
-                color += directLightColor() * spec * water.a * fresnel * 6.0;
+                color += directLightColor() * spec * sunVis * fresnel * 6.0;
             }
 #endif
         }
@@ -127,4 +132,9 @@ void main() {
 
     color = applyFog(color, viewPos, depth0 >= 1.0);
     outColor = vec4(color, 1.0);
+#if DEBUG_VIEW == 3
+    outColor = vec4(fogDebug, 1.0);
+#elif DEBUG_VIEW == 4
+    outColor = vec4(texture(colortex0, uv).rgb, 1.0); // before water and fog
+#endif
 }

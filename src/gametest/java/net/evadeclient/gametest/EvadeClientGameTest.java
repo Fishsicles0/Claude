@@ -66,7 +66,6 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
             // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
             if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
-            if (Boolean.getBoolean("evade.hotkeysonly")) { TextHotkeysTest.run(ctx, sp); return; } // TEMP-HOTKEYS
             if (Boolean.getBoolean("evade.fpsonly")) { FpsPassTest.profile(ctx, sp); return; } // FPS pass profiling
             if (Boolean.getBoolean("evade.cosmeticsonly")) { CosmeticsTest.run(ctx, sp); return; } // TEMP-COSMETICS: JAVA_TOOL_OPTIONS=-Devade.cosmeticsonly=true
             testCore(ctx, sp);

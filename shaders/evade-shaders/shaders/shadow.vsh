@@ -33,7 +33,7 @@ void main() {
     vertColor = gl_Color;
     matId = int(mc_Entity.x + 0.5);
     // Nothing to cast in the Nether/End, and water casts no shadow: send these off-screen (clipped).
-    if (!hasSkylight || matId == WATER_ID) { gl_Position = vec4(10.0, 10.0, 10.0, 1.0); return; }
+    if (!isOverworld() || matId == WATER_ID) { gl_Position = vec4(10.0, 10.0, 10.0, 1.0); return; }
 
     vec4 shadowView = gl_ModelViewMatrix * gl_Vertex;
 #if defined WAVING_PLANTS || defined WAVING_LEAVES

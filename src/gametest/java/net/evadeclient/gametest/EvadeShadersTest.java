@@ -182,6 +182,9 @@ final class EvadeShadersTest {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        // The test framework expects the game's own title screen at the end (as the main suite does).
+        ctx.runOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.TitleScreenModule.class).setEnabled(false));
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.TitleScreen());
     }
 
     private static final class Filming {
@@ -280,6 +283,8 @@ final class EvadeShadersTest {
             lastDimension = s.dimension();
             freshPipeline = false;
             ctx.waitTicks(rebuild ? 60 : 20);
+            try { sp.getClientWorld().waitForChunksRender(false, rebuild ? 1500 : 600); }
+            catch (AssertionError e) { System.out.println("[shadershots] " + s.name() + ": chunk builds still pending"); }
             waitStable(s.name());
             // Rain/thunder strength ramps up over a few seconds.
             if (!s.weather().equals("clear")) ctx.waitTicks(120);
@@ -294,10 +299,10 @@ final class EvadeShadersTest {
                 int[] cur = thumb(p);
                 try { Files.deleteIfExists(p); } catch (IOException ignored) {}
                 if (prev != null && cur != null) {
-                    double d = 0;
-                    for (int k = 0; k < cur.length; k++) d += Math.abs(cur[k] - prev[k]);
-                    d /= cur.length;
-                    if (d < 2.5) { System.out.println("[shadershots] " + scene + " stable after " + (i + 1) * 30 + " frames"); return; }
+                    // A chunk appearing changes a few cells a lot; waves, rain and clouds change many cells a little.
+                    int changed = 0;
+                    for (int k = 0; k < cur.length; k++) if (Math.abs(cur[k] - prev[k]) > 14) changed++;
+                    if (changed <= 3) { System.out.println("[shadershots] " + scene + " stable after " + (i + 1) * 30 + " frames"); return; }
                 }
                 prev = cur;
             }

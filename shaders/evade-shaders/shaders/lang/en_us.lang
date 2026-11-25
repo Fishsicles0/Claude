@@ -1,7 +1,7 @@
-# Evade Shaders - option names and descriptions shown on the shader options screen.
+# Evade Shaders - free with Evade Client (evadeclient.com). Option names and descriptions for the shader options screen.
 
 profile=Quality Profile
-profile.comment=Sets every option at once. POTATO costs about the same as vanilla; LOW suits integrated graphics; MEDIUM, HIGH and ULTRA add softer shadows, god rays, reflections and volumetric clouds.
+profile.comment=Evade Shaders - free with Evade Client. Sets every option at once. POTATO costs about the same as vanilla; LOW suits integrated graphics; MEDIUM, HIGH and ULTRA add softer shadows, god rays, reflections and volumetric clouds.
 profile.POTATO=Potato
 profile.POTATO.comment=Vanilla-like cost: better lighting, colours and tonemapping only.
 profile.LOW=Low
