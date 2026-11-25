@@ -90,6 +90,24 @@ public final class CosmeticsTest {
             return b.toString();
         });
         check(loadErrors.isEmpty(), "Cosmetics: every starter item loads (models, textures, thumbnails) " + loadErrors);
+        // ---- special (animated) items: at least the regular items' 8 texels per unit (capes 16), 16+ frames, glow layer
+        String hd = ctx.computeOnClient(c -> {
+            StringBuilder b = new StringBuilder();
+            int n = 0;
+            for (CosmeticItem i : CosmeticsCatalog.all()) {
+                if (!i.bundled || i.rarity != Rarity.SPECIAL) continue;
+                var m = CosmeticAssets.model(i);
+                if (m == null || m.texture() == null) { b.append(i.id).append("=nomodel "); continue; }
+                var t = m.texture();
+                int perUnit = t.frameW / m.texW;
+                if (!t.animated() || t.frames < 16 || perUnit < (i.slot == net.evadeclient.cosmetics.Slot.CAPE ? 16 : 8))
+                    b.append(i.id).append('=').append(t.frames).append("f@").append(perUnit).append(' ');
+                n++;
+            }
+            return n + " " + b;
+        });
+        check(hd.matches("\\d+ ") && Integer.parseInt(hd.trim()) >= 10,
+                "Cosmetics: special items are animated at high resolution (16+ frames, 8+ texels per unit, capes 16) " + hd);
         testDownloadCache(ctx);
         // ---- tiers and prices: three tiers, old names read as regular; bundled regular items are priced, bundled
         //      special (animated) items wait for their price

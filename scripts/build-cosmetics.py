@@ -11,7 +11,8 @@ places with identical bytes:
 Per item, in <id>/ (format: site-src/cosmetics/README.md):
   item.json     id, name, slot, rarity, colourable, defaultColor, partner, description, fx / emote / animation data
   model.json    the cuboid model (format "evade-cosmetic-model/1"); not for particle-only items or emotes
-  texture.png   box-UV texture for model.json, `textureScale` (1, 2, 4 or 8) texels per model unit; animated
+  texture.png   box-UV (or per-face UV) texture for model.json, `textureScale` (1, 2, 4 or 8; special items up to 16)
+                texels per model unit; animated
                 (special) items stack their frames top to bottom (a vertical strip)
   emissive.png  optional: the parts that glow (full bright), same layout and frames as texture.png
   thumb.png     128 x 128 preview used by the Wardrobe grid and the shop cards (animated items: a strip of frames)
@@ -41,6 +42,7 @@ NAV = ROOT / "src/main/resources/assets/evade/textures/gui/nav"
 FORMAT = "evade-cosmetic-model/1"
 MAX_UV = 256           # largest UV space (model.json "texture"), each side
 MAX_FRAME_PX = 512     # largest texture frame we draw, each side (the client takes up to 1024)
+ANIM_FRAME_PX = 1024   # animated (special) items: the client's own limit
 MAX_STRIP_PX = 4096    # tallest texture strip the client takes (all frames)
 MAX_SCALE = 8          # most texels per model unit (the client takes 1, 2, 4 or 8)
 THUMB = 128
@@ -135,13 +137,18 @@ def to_image(arr, dither=True):
 # ============================================================================================== geometry
 
 class Cube:
-    def __init__(self, origin, size, paint, inflate=0.0, mirror=False):
+    def __init__(self, origin, size, paint, inflate=0.0, mirror=False, faces=None):
         self.origin = [float(v) for v in origin]
         self.size = [int(v) for v in size]
         self.paint = paint          # paint(face_name, canvas) for each of the six faces
         self.inflate = inflate
         self.mirror = mirror
         self.uv = None
+        # per-face UVs (format v2), for items laid out by hand (item(..., layout=(tw, th))):
+        # {face: (uv rect [u1, v1, u2, v2] in UV units, rotation 0..3 quarter turns, painted?)}. A painted face is drawn
+        # as seen from outside and placed in its rect turned by `rotation` (rect = np.rot90(face, rotation)); an
+        # unpainted face only samples its rect (part of another face's art, e.g. a cape's edges sampling its trim).
+        self.faces = faces
 
     def uv_size(self):
         w, h, d = self.size
@@ -280,6 +287,9 @@ def paint_model(bones, tw, th, item_space, scale):
                 continue
             done.add(id(c))
             w, h, d = c.size
+            if c.faces is not None:
+                paint_faces(c, img, em, scale)
+                continue
             for face, rect in FACE_RECTS.items():
                 ox, oy, fw, fh = rect(w, h, d)
                 if fw == 0 or fh == 0:
@@ -296,6 +306,30 @@ def paint_model(bones, tw, th, item_space, scale):
                 img[sl] = np.clip(a, 0, 1)
                 em[sl] = np.clip(e, 0, 1)
     return img, em
+
+
+FACE_DIMS = {"top": lambda w, h, d: (w, d), "bottom": lambda w, h, d: (w, d), "west": lambda w, h, d: (d, h),
+             "east": lambda w, h, d: (d, h), "north": lambda w, h, d: (w, h), "south": lambda w, h, d: (w, h)}
+FACE_JSON = {"top": "up", "bottom": "down", "west": "west", "north": "north", "east": "east", "south": "south"}
+
+
+def paint_faces(c, img, em, scale):
+    """A per-face cube: each painted face drawn at its own size, turned by its rotation into its UV rect."""
+    for face, (rect, rot, painted) in c.faces.items():
+        if not painted:
+            continue
+        fw, fh = FACE_DIMS[face](*c.size)
+        tmp = np.zeros((fh * scale, fw * scale, 4), np.float32)
+        tem = np.zeros_like(tmp)
+        cv = Canvas(tmp, tem, face, c, False, scale)
+        c.paint(face, cv)
+        a, e = np.rot90(cv.arr, rot), np.rot90(cv.em, rot)
+        x0, y0 = int(round(rect[0] * scale)), int(round(rect[1] * scale))
+        x1, y1 = int(round(rect[2] * scale)), int(round(rect[3] * scale))
+        if (y1 - y0, x1 - x0) != a.shape[:2]:
+            raise SystemExit(f"face {face}: rect {rect} doesn't fit a {fw}x{fh} face turned {rot}")
+        img[y0:y1, x0:x1] = np.clip(a, 0, 1)
+        em[y0:y1, x0:x1] = np.clip(e, 0, 1)
 
 
 # ---------------------------------------------------------------------------------------------- materials
@@ -473,7 +507,7 @@ RARITIES = ("REGULAR", "SPECIAL", "PARTNER")
 
 def item(id, name, slot, rarity, price, desc, bones=None, colourable=False, default_color=None, fx=None,
          emote=None, view=None, item_space=False, display=None, thumb=None, partner=None, animation=None,
-         scale_cap=MAX_SCALE, physics=None):
+         scale_cap=MAX_SCALE, physics=None, layout=None):
     if rarity not in RARITIES:
         raise SystemExit(f"{id}: rarity must be one of {RARITIES}")
     if price is None and rarity == "REGULAR":
@@ -485,7 +519,7 @@ def item(id, name, slot, rarity, price, desc, bones=None, colourable=False, defa
     ITEMS.append(dict(id=id, name=name, slot=slot, rarity=rarity, price=price, desc=desc, bones=bones or [],
                       colourable=colourable, default_color=default_color, fx=fx, emote=emote, view=view or {},
                       item_space=item_space, display=display, thumb=thumb, partner=partner, animation=animation,
-                      scale_cap=scale_cap, physics=physics))
+                      scale_cap=scale_cap, physics=physics, layout=layout))
 
 
 # ---------------------------------------------------------------------------------------------- shared art helpers
@@ -632,6 +666,159 @@ def trim(cv, top_px, bottom_px, color, stitch=None):
 CAPE_VIEW = {"yaw": 200, "pitch": 8, "frame": [(-13, -19), (13, 10)], "margin": 1.0}
 
 
+# ---------------------------------------------------------------------------------------------- special (animated) art
+# Special items are drawn at 16 texels per unit (capes) or at least the regular items' 8, with 16-24 frames that loop
+# seamlessly: everything that moves does so by whole cycles per loop (periodic noise slid by whole periods, sines with
+# whole-number frequencies), so the last frame runs into the first without a jump. Colours are posterised into crisp
+# pixel-art bands (ordered dithering only where two bands meet), hot or bright parts also go to emissive.png.
+
+# A cape laid out by hand (per-face UVs) so 24 frames at 16 texels per unit fit the client's 4096 px strip: the outer
+# face and the lining, each turned a quarter (16 x 10 units), side by side; the thin edges sample the collar trim.
+CAPE_HD = (32, 10)
+CAPE_HD_FX = {"frames": 24, "scale": 16}
+
+
+def cape_bones_hd(outer, lining_fn):
+    def p(face, cv):
+        (outer if face == "north" else lining_fn)(cv)
+    edge = ([0.125, 4.0, 0.375, 4.25], 0, False)
+    faces = {"north": ([0, 0, 16, 10], 1, True), "south": ([16, 0, 32, 10], 1, True),
+             "west": edge, "east": edge, "top": edge, "bottom": edge}
+    return [Bone("cape", "body", (0, 0, 2), cubes=[Cube((-5, 0, 1), (10, 16, 1), p, faces=faces)], anim={"type": "cape"})]
+
+
+def bayer(h, w):
+    return np.tile(BAYER, (h // 4 + 1, w // 4 + 1))[:h, :w]
+
+
+def levels(v, n, edge=0.35):
+    """0..1 -> n crisp levels (0..n-1). Flat bands; ordered dithering only across the `edge` part of each step."""
+    x = np.clip(v, 0, 1) * (n - 1)
+    lo = np.floor(x)
+    f = x - lo
+    f = np.clip((f - 0.5) / max(edge, 1e-3) + 0.5, 0, 1)        # mostly 0 or 1, a dithered ramp in between
+    up = f > (bayer(*v.shape) + 0.5)
+    return np.clip(lo + up, 0, n - 1).astype(np.int32)
+
+
+def palette(idx, cols):
+    pal = np.stack([hexc(c) if isinstance(c, str) else np.asarray(c, np.float32) for c in cols])
+    return pal[np.clip(idx, 0, len(cols) - 1)]
+
+
+def spark_dot(cv, x, y, r, color, a=1.0, glow=True, halo=None):
+    """A crisp round dot (centre x, y in texels, radius r texels), optionally with a 1-texel softer halo colour."""
+    yy, xx = cv.grid()
+    d = np.sqrt((xx + 0.5 - x) ** 2 + (yy + 0.5 - y) ** 2)
+    if halo is not None:
+        m = (d < r + 1.2) & (d >= r)
+        c = hexc(halo)
+        cv.arr[m, :3] = mix(cv.arr[m, :3], c[:3], 0.7 * a)
+        if glow:
+            em_from(cv, m * 0.6 * a, halo)
+    m = d < r
+    c = hexc(color)
+    cv.arr[m, :3] = mix(cv.arr[m, :3], c[:3], a)
+    if glow:
+        em_from(cv, m * a, color)
+
+
+def hd_trim(cv, top, bottom, color, light, stitch=None):
+    """Collar and hem binding for the HD capes: a bevelled band with a highlight line and optional gold stitches."""
+    c, l = hexc(color), hexc(light)
+    s = cv.s
+    for rows, flip in ((top, False), (bottom, True)):
+        if not rows:
+            continue
+        k = np.linspace(0, 1, rows)[:, None, None]
+        band = mix(l, c, smooth(k)) if not flip else mix(c, c * 0.55, k)
+        sl = slice(0, rows) if not flip else slice(cv.h - rows, cv.h)
+        cv.arr[sl, :, :3] = band[..., :3]
+        cv.arr[sl, :, 3] = 1
+        cv.em[sl] = 0
+        edge = rows if not flip else cv.h - rows - 1
+        cv.arr[edge, :, :3] *= 0.45                                       # a dark seam line
+    if stitch and top:
+        x = np.arange(cv.w)
+        m = (x % (s // 2)) < s // 4
+        cv.arr[top // 2, m, :3] = hexc(stitch)[:3]
+
+
+def lining_hd(color_top, color_bottom, quilt):
+    """The HD capes' lining: a banded satin gradient with crisp quilting (no noise: it repeats in every frame)."""
+    def p(cv):
+        t = cv.yy()
+        n = 7
+        cv.arr[:] = palette(levels(t, n, 0.5), [mix(hexc(color_top), hexc(color_bottom), k / (n - 1)) for k in range(n)])
+        y, x = cv.units()
+        q = hexc(quilt)
+        d = (np.abs(((x + y) % 2.5) - 1.25) < 0.07) | (np.abs(((x - y) % 2.5) - 1.25) < 0.07)
+        cv.arr[d, :3] = mix(hexc(color_bottom), q, 0.55)[:3]
+        knot = (np.abs(((x + y) % 2.5) - 1.25) < 0.16) & (np.abs(((x - y) % 2.5) - 1.25) < 0.16)
+        cv.arr[knot, :3] = q[:3]
+        cv.arr[..., 3] = 1
+        e = max(1, cv.s // 8)
+        for sl in (np.s_[:e, :], np.s_[-e:, :], np.s_[:, :e], np.s_[:, -e:]):
+            cv.arr[sl + (np.s_[:3],)] = hexc(color_bottom)[:3] * 0.6
+    return p
+
+
+# ---- Hearthfire Cape: layered tongues of fire licking up from the hem, sparks drifting up out of them
+
+FIRE_HD = ["#1b1214", "#2f1515", "#561310", "#8e1d0c", "#c9380c", "#f0601a", "#ff9128", "#ffc547", "#ffec96", "#fffbe9"]
+
+
+def hearth_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    ph = cv.phase
+    t, u = cv.yy(), cv.xx()
+    yb = 1 - t                                                   # 0 at the hem, 1 at the collar
+    big = fshift(pnoise(h, w, 2.0, 501, octaves=3, aspect=2.4), -ph * h)          # rises one cape height per loop
+    fine = fshift(pnoise(h, w, 4.0, 502, octaves=2, aspect=2.4), -ph * h * 2)     # twice as fast: the flicker
+    # tongues: each one's height breathes by whole cycles per loop and its tip sways
+    tongues = [(0.08, 0.50, 0.08, 1, 0.1), (0.24, 0.70, 0.10, 2, 0.6), (0.40, 0.56, 0.08, 1, 0.3),
+               (0.53, 0.84, 0.11, 1, 0.8), (0.67, 0.62, 0.09, 2, 0.15), (0.82, 0.74, 0.10, 1, 0.45),
+               (0.95, 0.48, 0.07, 2, 0.7)]
+    lean = (big - 0.5) * 0.16 * np.sqrt(yb) + (fine - 0.5) * 0.05 * yb
+    xw = u + lean
+    prof = np.full_like(u, 0.2)
+    for cx, hgt, wid, m, p0 in tongues:
+        sway = 0.025 * math.sin(math.tau * (ph * m + p0))
+        H = hgt * 1.15 * (0.82 + 0.18 * math.sin(math.tau * (ph * m + p0 * 1.7)))
+        narrow = wid * (1 - 0.55 * np.clip(yb / H, 0, 1))         # tongues taper to a point
+        prof = np.maximum(prof, H * np.exp(-((xw - cx - sway * yb * 3) / narrow) ** 2))
+    heat = 1 - yb / np.maximum(prof, 1e-3)
+    heat += (big - 0.5) * 0.35 + (fine - 0.5) * 0.3
+    # loose licks that break off above the tips and rise away
+    lick = smooth((fine - 0.66) / 0.08) * smooth((heat + 0.35) / 0.2) * (heat < 0.05) * (yb < 0.92)
+    heat = np.maximum(heat, lick * 0.28)
+    lvl = levels(np.clip(heat, 0, 1) ** 1.15, 9, 0.3) + (heat > 0.0)
+    lvl = np.where(heat > 0.0, np.maximum(lvl, 2), 0)
+    # cloth: charcoal wool warmed by the fire below; smoke (dark, a little brown) hangs just above the flames
+    warm = smooth(1 - yb / 0.95) * (0.85 + 0.3 * (big - 0.5))   # the fire's warm light on the wool, fading upward
+    cloth_c = palette(levels(warm, 5, 0.6), ["#161014", "#1d1216", "#271418", "#351716", "#461a14"])
+    fire = palette(lvl, FIRE_HD)
+    cv.arr[:] = np.where((lvl > 0)[..., None], fire, cloth_c)
+    cv.arr[..., 3] = 1
+    y, x = cv.grid()
+    twill = ((x + y) % 6 == 0) & (lvl == 0)                     # a crisp wool twill on the cloth
+    cv.arr[twill, :3] *= 0.86
+    em_rgb(cv, fire, np.clip((lvl - 2) / 4.0, 0, 1))
+    # sparks: each rises the whole cape a whole number of times per loop, wobbling, cooling from yellow to red
+    r = np.random.default_rng(77)
+    for i in range(22):
+        x0, y0, m = r.random(), r.random(), int(r.choice([1, 1, 2]))
+        f = (y0 + ph * m) % 1.0                                   # 0 (just out of the flames) .. 1 (gone)
+        yy = 0.35 + f * 0.62
+        xx = x0 + 0.035 * math.sin(math.tau * (f * 2 + x0))
+        if f > 0.9:
+            continue
+        col = "#fff3b0" if f < 0.3 else "#ffc24a" if f < 0.6 else "#ff7a2a"
+        spark_dot(cv, xx * w, (1 - yy) * h, 1.2 if f < 0.5 else 0.9, col, 1.0, halo="#a8300e" if f < 0.6 else None)
+    hd_trim(cv, s // 2 + 2, s // 3, "#2e1c14", "#6a4a2a", stitch="#e0a640")
+    ao_edges(cv, 0.25, width=s // 4)
+
+
 # ---------------------------------------------------------------------------------------------- capes: flame
 
 def flame_field(cv, seed, speed=0.0):
@@ -677,8 +864,8 @@ item("ember_mantle", "Ember Mantle", "CAPE", "REGULAR", 600,
 
 item("hearthfire_cape", "Hearthfire Cape", "CAPE", "SPECIAL", None,
      "Living flames climb and flicker up from the hem, throwing off embers that rise and glow in the dark.",
-     cape_bones(lambda cv: ember_outer(cv, speed=1.0, seed=31), lining("#2a1412", "#120707", "#5a2a1a")),
-     view=CAPE_VIEW, animation={"frames": 16, "frametime": 2, "interpolate": True})
+     cape_bones_hd(hearth_outer, lining_hd("#2e1512", "#100606", "#6a3420")), layout=CAPE_HD,
+     view=CAPE_VIEW, animation=dict(CAPE_HD_FX, frametime=1.5, interpolate=False))
 
 
 # ---------------------------------------------------------------------------------------------- capes: water
@@ -725,10 +912,81 @@ item("tidal_weave", "Tidal Weave", "CAPE", "REGULAR", 500,
      "Deep-sea blue with rolling waves of foam and a sand-gold rope collar.",
      cape_bones(tidal_outer, lining("#0d2a40", "#061624", "#1a4a66")), view=CAPE_VIEW)
 
+# ---- Riptide Cape: rows of rolling waves (sharp trochoid crests), foam caps that curl forward, lace and sparkles
+
+WATER_HD = ["#9af0fb", "#4fd0ec", "#25a8d8", "#1680bb", "#0f5f98", "#0b4477", "#082f59", "#061f40"]
+
+
+def trochoid(u, lam, A, q, shift):
+    """Height (t units, negative = up) of a sharp-crested wave of wavelength lam at u, slid right by `shift`; also the
+    position within the wave (-lam/2..lam/2, 0 at the crest)."""
+    b = np.linspace(-math.pi, math.pi, 4096)
+    xs = lam / math.tau * (b - q * np.sin(b))
+    ys = -A * np.cos(b)
+    uu = ((u - shift + lam / 2) % lam) - lam / 2
+    return np.interp(uu, xs, ys), uu
+
+
+def riptide_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    ph = cv.phase
+    t, u = cv.yy(), cv.xx()
+    y, x = cv.grid()
+    cv.arr[:] = palette(levels(smooth(t * 1.1), 8, 0.5), WATER_HD[2:] + WATER_HD[-1:] * 2)
+    foam_all = np.zeros_like(t)
+    rows = [  # y0, wavelength (cape widths; x 160 px a whole number), amplitude, steepness, speed (wavelengths per loop)
+        (0.075, 0.2, 0.012, 0.5, 1), (0.17, 0.25, 0.018, 0.55, 1), (0.29, 0.3125, 0.026, 0.6, 1),
+        (0.43, 0.375, 0.034, 0.65, 1), (0.59, 0.5, 0.043, 0.7, 1), (0.77, 0.625, 0.05, 0.75, 1), (0.95, 0.5, 0.05, 0.75, 2)]
+    for k, (y0, lam, A, q, m) in enumerate(rows):
+        shift = ph * lam * m + k * 0.13
+        bob = 0.006 * math.sin(math.tau * (ph + k * 0.27))
+        crest, uu = trochoid(u, lam, A, q, shift)
+        env = 0.7 + 0.3 * np.sin(math.tau * (u + k * 0.37))           # a still envelope: waves swell and ebb as they pass
+        crest = crest * env + y0 + bob
+        d = t - crest                                             # depth below this row's surface (t units)
+        band = 0.08 + 0.05 * k / len(rows)
+        below = d >= 0
+        shade = np.clip(d / band, 0, 1) * 0.7 + 0.3 * (0.5 + 0.5 * np.sin(math.tau * uu / lam))
+        body = palette(levels(shade, 6, 0.5) + (1 if k < 3 else 2), WATER_HD)
+        cv.arr[below] = body[below]
+        # foam cap: thick at the crest, curling forward (to the right) and down; a thin line along the rest
+        lip = np.exp(-((uu - lam * 0.06) / (lam * 0.09)) ** 2)
+        fw = (2.0 + 7.0 * lip * (0.5 + 0.5 * k / len(rows))) / h
+        foam = below & (d < fw)
+        shadow = below & (d >= fw) & (d < fw + 1.6 / h)
+        lacep = hash_noise(h // 2 + 1, int(round(lam * w)) // 2, 600 + k)      # 2 x 2 texel flecks
+        col = ((uu / lam + 0.5) * lacep.shape[1]).astype(int) % lacep.shape[1]
+        lace = below & (d >= fw + 1.6 / h) & (d < band * 0.45) & (uu < lam * 0.25) & \
+            (lacep[(y // 2).astype(int) - int(round(crest.min() * h / 2)), col] > 0.7 + 0.3 * smooth(d / (band * 0.45)))
+        cv.arr[shadow, :3] = hexc("#7fd6ee")[:3]
+        cv.arr[lace, :3] = hexc("#c8f4ff")[:3]
+        cv.arr[foam, :3] = hexc("#f4feff")[:3]
+        foam_all = np.where(below, foam * 1.0 + lace * 0.5, foam_all)
+        # this row hides the rows behind it below its surface
+    em_from(cv, foam_all * 0.38, "#bff6ff")
+    # sparkles riding the crests, twinkling by whole cycles per loop
+    r = np.random.default_rng(91)
+    for i in range(26):
+        k = int(r.integers(0, len(rows)))
+        y0, lam, A, q, m = rows[k]
+        sx = (r.random() + ph * lam * m) % 1.0
+        b = 0.5 + 0.5 * math.cos(math.tau * (ph * int(r.choice([2, 3])) + r.random()))
+        if b < 0.45:
+            continue
+        crest, _ = trochoid(np.array([[sx]]), lam, A, q, ph * lam * m + k * 0.13)
+        sy = float(crest[0, 0]) + y0 + 2.0 / h
+        glint(cv, sx * w, sy * h, 2.2 + 2.5 * b, "#ffffff", b)
+    hd_trim(cv, s // 2 + 2, s // 4, "#b89a5a", "#f2dca0")
+    y_ = np.arange(cv.w)
+    rope = ((y_[None, :] + np.arange(s // 2 + 2)[:, None]) % 6) < 3
+    cv.arr[:s // 2 + 2][rope, :3] *= 0.78                                # a twisted rope collar
+    ao_edges(cv, 0.25, width=s // 4)
+
+
 item("riptide_cape", "Riptide Cape", "CAPE", "SPECIAL", None,
      "Waves roll across the cape for real: crests rise and fall, foam glitters and the water never stops moving.",
-     cape_bones(lambda cv: tidal_outer(cv, flow=1.0), lining("#0d2a40", "#061624", "#1a4a66")),
-     view=CAPE_VIEW, animation={"frames": 16, "frametime": 2, "interpolate": True})
+     cape_bones_hd(riptide_outer, lining_hd("#0f3350", "#05142a", "#2a6a8a")), layout=CAPE_HD,
+     view=CAPE_VIEW, animation=dict(CAPE_HD_FX, frametime=2, interpolate=True))
 
 
 # ---------------------------------------------------------------------------------------------- capes: night sky
@@ -783,75 +1041,140 @@ item("starlit_veil", "Starlit Veil", "CAPE", "REGULAR", 800,
      cape_bones(starlit_outer, lining("#1a1440", "#0b0a1e", "#3a2a7a")), view=CAPE_VIEW)
 
 
-def galaxy_outer(cv):
-    """A spiral galaxy whose arms turn and whose dust drifts; stars twinkle."""
-    h, w = cv.h, cv.w
+# ---- Galaxy Flow Cape: a two-armed spiral turning half round per loop (so it loops), nebulae that slowly swell and
+# ebb, twinkling stars and a shooting star
+
+GALAXY_HD = ["#090725", "#1a0f4a", "#2c1670", "#47209a", "#6d2fc4", "#9a48dc", "#cc6ee6", "#f2a8ee", "#ffe2f4", "#fffaf0"]
+
+
+def twinkle_stars(cv, seed, n, ph, big=4, cols=("#ffffff", "#cfe0ff", "#ffe7c4", "#ffd0f0"), avoid=None):
+    """Crisp 1-2 texel stars that twinkle by whole cycles per loop, plus a few four-point sparkles."""
+    r = np.random.default_rng(seed)
+    s = cv.s
+    for i in range(n):
+        x, y = r.random() * cv.w, r.random() * cv.h
+        if avoid is not None and avoid(x / cv.w, y / cv.h):
+            continue
+        tw = 0.5 + 0.5 * math.cos(math.tau * (ph * int(r.choice([1, 2, 3])) + r.random()))
+        c = hexc(cols[i % len(cols)])
+        xi, yi = int(x), int(y)
+        if i < big:
+            glint(cv, x, y, s * (0.5 + 0.6 * tw), cols[i % len(cols)], 0.55 + 0.45 * tw)
+            continue
+        sz = 2 if r.random() < 0.3 else 1
+        a = 0.35 + 0.65 * tw
+        cv.arr[yi:yi + sz, xi:xi + sz, :3] = mix(cv.arr[yi:yi + sz, xi:xi + sz, :3], c[:3], a)
+        em_from(cv, np.pad(np.ones((min(sz, cv.h - yi), min(sz, cv.w - xi))) * a,
+                           ((yi, max(0, cv.h - yi - sz)), (xi, max(0, cv.w - xi - sz))))[:cv.h, :cv.w], c)
+
+
+def galaxy_hd_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    ph = cv.phase
     y, x = cv.grid()
-    cx, cy = w * 0.5, h * 0.52
-    dx, dy = (x - cx) / w, (y - cy) / w
-    r = np.sqrt(dx * dx + dy * dy)
+    t = cv.yy()
+    cx, cy = w * 0.5, h * 0.42
+    dx, dy = (x + 0.5 - cx) / w, (y + 0.5 - cy) / w
+    r = np.sqrt(dx * dx + dy * dy) + 1e-4
     ang = np.arctan2(dy, dx)
-    n = pnoise(h, w, 3.0, 61, octaves=5)
-    n = fshift(n, cv.phase * h, cv.phase * w)
-    swirl = ang - r * 9.0 + cv.phase * math.tau / 2           # two arms: a half turn per loop looks the same
-    arms = (0.5 + 0.5 * np.cos(swirl * 2)) ** 2.2 * np.exp(-r * 2.8)
-    dust = arms * (0.55 + 0.9 * (n - 0.5))
-    base = ramp(y / h, [(0, "#05041a"), (0.5, "#0d0a2e"), (1, "#1a0c3a")])
-    col = base.copy()
-    col[..., :3] = mix(col[..., :3], hexc("#6a3cff")[:3], np.clip(dust * 1.6, 0, 1)[..., None] * 0.8)
-    col[..., :3] = mix(col[..., :3], hexc("#ff5fd2")[:3], np.clip((dust - 0.25) * 2.2, 0, 1)[..., None] * 0.6)
-    core = np.exp(-(r / 0.09) ** 2)
-    col[..., :3] = mix(col[..., :3], hexc("#fff0d8")[:3], core[..., None])
+    tilt = np.sqrt(dx * dx + (dy * 1.25) ** 2) + 1e-4                 # a slightly tipped disc
+    swirl = ang - np.log(tilt) * 2.2 - ph * math.pi                    # two arms: half a turn per loop looks the same
+    arms = (0.5 + 0.5 * np.cos(2 * swirl)) ** 2.2 * np.exp(-tilt / 0.32)
+    dust = pnoise(h, w, 5.0, 711, octaves=3)
+    lanes = (0.5 + 0.5 * np.cos(2 * swirl + 0.9)) ** 6 * np.exp(-tilt / 0.25)          # dark dust lanes trail the arms
+    core = np.exp(-(tilt / 0.09) ** 2)
+    # nebulae: soft clouds that breathe a little (a second field swells in and out by a whole cycle per loop)
+    n1, n2 = pnoise(h, w, 1.6, 712, octaves=5), pnoise(h, w, 2.4, 713, octaves=4)
+    neb = n1 + (n2 - 0.5) * 0.3 * math.cos(math.tau * ph)
+    neb = smooth((neb - 0.45) / 0.4) * (0.3 + 0.7 * smooth(tilt / 0.4))
+    I = arms * (0.75 + 0.9 * (dust - 0.5)) * 1.3 - lanes * 0.3 + core * 1.1 + neb * 0.3
+    bg = levels(smooth(t * 1.05), 3, 0.6)                              # deep indigo at the collar, violet at the hem
+    lvl = levels(np.clip(I, 0, 1) ** 0.8, len(GALAXY_HD) - 1, 0.35)
+    lvl = np.maximum(lvl, bg) + (lvl > bg) * 0
+    col = palette(lvl, GALAXY_HD)
+    # a second, teal-blue nebula off to the side for colour contrast
+    n3 = smooth((pnoise(h, w, 1.8, 714, octaves=5) - 0.5) / 0.35) * smooth((tilt - 0.25) / 0.2)
+    tl = levels(n3 * 0.8, 4, 0.5)
+    teal = (tl > 0) & (lvl <= 2)
+    col[teal] = palette(tl, ["#000000", "#0f2a52", "#164a72", "#1f7090"])[teal]
     cv.arr[:] = col
-    em_rgb(cv, col, np.clip(dust * 1.4 + core, 0, 1) * 0.85)
-    cloth(cv, 0.04, seed=6)
-    star_field(cv, 77, 0.016, twinkle=1.0)
-    trim(cv, cv.s // 2, cv.s // 2 + 1, "#8f7ad8", stitch="#e9e2ff")
-    bevel(cv, 0.04, 0.1)
+    cv.arr[..., 3] = 1
+    em_rgb(cv, col, np.clip((lvl - 2) / 4.0, 0, 1) * 0.9)
+    twinkle_stars(cv, 77, 120, ph, big=6, avoid=lambda u, v: abs(u - 0.5) < 0.12 and abs(v - 0.46) < 0.06)
+    # a shooting star crosses once per loop (only in part of the loop)
+    f = (ph * 1.0 + 0.3) % 1.0
+    if f < 0.3:
+        g = f / 0.3
+        hx, hy = (0.95 - g * 0.8) * w, (0.08 + g * 0.3) * h
+        for j in range(int(s * 1.8)):
+            a = 1 - j / (s * 1.8)
+            px, py = int(hx + j * 0.9), int(hy - j * 0.38)
+            if 0 <= px < w and 0 <= py < h:
+                cv.arr[py, px, :3] = mix(cv.arr[py, px, :3], hexc("#fff6e0")[:3], a)
+                cv.em[py, px] = np.concatenate([hexc("#fff6e0")[:3] * 1.0, [a]])
+    hd_trim(cv, s // 2 + 2, s // 3, "#5a4aa8", "#c8bcff", stitch="#f0e8ff")
+    ao_edges(cv, 0.25, width=s // 4)
 
 
 item("galaxy_flow_cape", "Galaxy Flow Cape", "CAPE", "SPECIAL", None,
      "A whole spiral galaxy on your back: its glowing arms slowly turn, star dust drifts and the stars twinkle.",
-     cape_bones(galaxy_outer, lining("#120c30", "#06051a", "#2a1f66")), view=CAPE_VIEW,
-     animation={"frames": 16, "frametime": 3, "interpolate": True})
+     cape_bones_hd(galaxy_hd_outer, lining_hd("#160f3a", "#06051a", "#4a3aa0")), layout=CAPE_HD, view=CAPE_VIEW,
+     animation=dict(CAPE_HD_FX, frametime=4, interpolate=True))
 
 
-def aurora_outer(cv):
-    """Night over snowy peaks, with curtains of green and violet light rippling across the sky."""
-    h, w = cv.h, cv.w
+# ---- Polar Lights Cape: curtains of light with a bright lower hem and rays rising from it, rippling sideways over
+# snowy peaks
+
+AURORA_G = ["#0a2a3a", "#0d4a4a", "#118060", "#1fb878", "#4af09a", "#a8ffcc", "#eafff4"]
+AURORA_V = ["#160f38", "#1c1450", "#3a2280", "#6a36b8", "#9a5ae0", "#d0a0ff", "#f4e8ff"]
+
+
+def polar_hd_outer(cv):
+    h, w, s = cv.h, cv.w, cv.s
+    ph = cv.phase
     t, u = cv.yy(), cv.xx()
-    cv.arr[:] = ramp(t, [(0, "#020a18"), (0.55, "#06203a"), (1, "#0b2c44")])
-    ph = cv.phase * math.tau
-    n = pnoise(h, w, 2.0, 91, octaves=3)
-    total = np.zeros((h, w), np.float32)
-    col = np.zeros((h, w, 3), np.float32)
-    for k, (y0, c, sp) in enumerate([(0.28, "#38ff9c", 1), (0.42, "#2fd6ff", -1), (0.2, "#b56bff", 2)]):
-        wave = y0 + 0.07 * np.sin(u * math.tau * (1.2 + k * 0.4) + ph * sp + k) + (n - 0.5) * 0.08
-        d = t - wave
-        curtain = np.exp(-(np.clip(d, 0, None) / 0.22)) * (d > -0.015) * smooth((d + 0.015) / 0.02)
-        rays = 0.55 + 0.45 * np.sin(u * math.tau * 9 + np.sin(u * 7 + ph * sp) * 2 + k * 2)
-        a = curtain * rays * (0.85 - k * 0.15)
-        total = np.maximum(total, a)
-        col += hexc(c)[:3] * a[..., None]
-    col = np.clip(col, 0, 1)
-    cv.arr[..., :3] = np.clip(cv.arr[..., :3] + col * 0.9, 0, 1)
-    em_rgb(cv, np.concatenate([col / np.maximum(total[..., None], 1e-3), np.ones((h, w, 1), np.float32)], -1), total * 0.8)
-    star_field(cv, 131, 0.006, twinkle=1.0)
-    # mountains with snowy caps
-    ridge = 0.78 + 0.08 * np.sin(u * 9.0) * np.cos(u * 3.3) + 0.04 * np.sin(u * 23)
-    m = t > ridge
-    snow = m & (t < ridge + 0.035 + 0.02 * np.sin(u * 31))
-    cv.arr[m, :3] = mix(hexc("#0c1a2a"), hexc("#16324a"), 0.5)[:3]
-    cv.arr[snow, :3] = hexc("#cfe9ff")[:3]
-    cloth(cv, 0.05, seed=8)
-    trim(cv, cv.s // 2, cv.s // 2 + 1, "#a9c7d8", stitch="#e8fbff")
-    bevel(cv, 0.04, 0.1)
+    y, x = cv.grid()
+    sky = palette(levels(smooth(t / 0.85), 5, 0.6), ["#030915", "#06132a", "#0a1d3a", "#0e2848", "#123252"])
+    cv.arr[:] = sky
+    cv.arr[..., 3] = 1
+    twinkle_stars(cv, 131, 70, ph, big=3)
+    glow = np.zeros_like(t)
+    hue = np.zeros_like(t)                                           # 0 green .. 1 violet
+    curtains = [(0.42, 0.06, 1.0, 1, 0.0, 0.6), (0.56, 0.05, 1.5, -1, 0.4, 0.7), (0.3, 0.045, 2.0, 1, 0.7, 0.45)]
+    for k, (y0, A, f, m, p0, hgt) in enumerate(curtains):
+        base = y0 + A * np.sin(math.tau * (u * f + ph * m + p0)) + A * 0.35 * np.sin(math.tau * (u * f * 2.3 + p0 * 3 - ph * m * 2))
+        up = base - t                                                # > 0 above the curtain's hem
+        fall = np.exp(-np.clip(up, 0, None) / (hgt * 0.45)) * (up > -1.5 / h)
+        rays = (0.5 + 0.5 * np.sin(math.tau * (u * 9 + 0.6 * np.sin(math.tau * (u * f + ph * m + p0)) + ph * 2 * m + k * 0.3))) ** 1.5
+        rays = 0.4 + 0.6 * rays * (0.6 + 0.4 * np.sin(math.tau * (u * 4 - ph * m + k)))
+        hem = np.exp(-(up * h / 2.5) ** 2) * (0.7 + 0.3 * np.sin(math.tau * (u * 3 + ph * m)))   # the bright lower edge
+        a = np.clip(fall * rays * (0.95 - 0.15 * k) + hem * 0.4, 0, 1)
+        hue = np.where(a > glow, smooth((up - 0.03) / (hgt * 0.5)), hue)
+        glow = np.maximum(glow, a)
+    lv = levels(glow, 7, 0.4)
+    g, v = palette(lv, AURORA_G), palette(lv, AURORA_V)
+    col = np.where((hue > 0.45)[..., None], v, g)
+    lit = lv >= 2
+    cv.arr[lit] = col[lit]
+    em_rgb(cv, col, np.clip((lv - 1) / 4.0, 0, 1) * 0.9)
+    # mountains: two ranges, snow caps, the near range lit green on its slopes by the aurora
+    for k, (top, amp, c_rock, c_snow) in enumerate([(0.74, 0.07, "#0f2236", "#a9c6e0"), (0.83, 0.06, "#081422", "#dceeff")]):
+        ridge = top + amp * (np.abs(np.sin(u * math.pi * (3 + k * 2) + k)) * 0.7 + 0.3 * np.sin(u * 17 + k * 2))
+        m = t > ridge
+        cv.arr[m, :3] = hexc(c_rock)[:3]
+        cv.em[m] = 0
+        snow = m & (t < ridge + 0.025 + 0.015 * np.sin(u * 41 + k))
+        cv.arr[snow, :3] = hexc(c_snow)[:3]
+        rim = m & ~snow & (t < ridge + 0.05) & (((x + y) % 3) == 0)
+        cv.arr[rim, :3] = hexc("#1f5a5a")[:3]
+    hd_trim(cv, s // 2 + 2, s // 3, "#7a9ab0", "#e8f6ff", stitch="#ffffff")
+    ao_edges(cv, 0.25, width=s // 4)
 
 
 item("polar_lights_cape", "Polar Lights Cape", "CAPE", "SPECIAL", None,
      "Curtains of green, cyan and violet light ripple over snowy peaks, glowing softly in the dark.",
-     cape_bones(aurora_outer, lining("#0b1e30", "#040c18", "#1a3a5a")), view=CAPE_VIEW,
-     animation={"frames": 16, "frametime": 3, "interpolate": True})
+     cape_bones_hd(polar_hd_outer, lining_hd("#0d2236", "#040c18", "#2a5a7a")), layout=CAPE_HD, view=CAPE_VIEW,
+     animation=dict(CAPE_HD_FX, frametime=3, interpolate=True))
 
 
 # ---------------------------------------------------------------------------------------------- capes: patterns
@@ -1408,10 +1731,81 @@ item("aurora_wings", "Aurora Wings", "WINGS", "REGULAR", 1100,
      "See-through wings that fade from cyan to violet, with glowing veins, a crystal spar and a slow, easy beat.",
      aurora_wing_bones(), view=WING_VIEW)
 
+# -------- Pulse Wings (special): an energy membrane with crisp feather veins; packets of light race out along every
+# vein from the shoulder to the tips while a soft wave of glow follows them across the membrane
+
+PULSE_BODY = ["#3a1690", "#3424a8", "#2c3cbc", "#2458c8", "#1e74d0", "#1a92d8"]
+
+
+def crisp_mask(W):
+    return (W.done()[..., 3] > 0.5).astype(np.float32)
+
+
+PULSE_FEATHER = ["#2a1066", "#341a8c", "#2c34b0", "#2058c8", "#1c84d8", "#28b4e8", "#5ae0f4"]
+
+
+def pulse_membrane(face, cv):
+    """Energy feathers fanned from the shoulder joint: each a long blade banded from deep violet at the root to cyan at
+    the tip, with a bright shaft and outline. Three pulses per loop race up every shaft; the feather's edge lights as
+    a pulse passes."""
+    r, t = wing_root(face, cv), cv.yy()
+    ph = cv.phase
+    X, Y = r * cv.w, t * cv.h                                      # wing coordinates in texels (tip .. shoulder)
+    J = np.array([0.97 * cv.w, 0.02 * cv.h])
+    tips = [(0.0, 0.26), (0.08, 0.55), (0.2, 0.78), (0.37, 0.92), (0.56, 0.98), (0.75, 0.9), (0.9, 0.74)]
+    widths = [0.12, 0.14, 0.14, 0.14, 0.13, 0.12, 0.1]
+    cv.arr[:] = 0
+    lit = np.zeros((cv.h, cv.w), np.float32)
+    for (tr, tt), wd in reversed(list(zip(tips, widths))):         # outer feathers first, inner ones overlap them
+        T = np.array([tr * cv.w, tt * cv.h])
+        L = float(np.hypot(*(T - J)))
+        ux, uy = (T - J) / L
+        sx = ((X - J[0]) * ux + (Y - J[1]) * uy) / L               # 0 at the joint .. 1 at the tip
+        pp = np.abs(-(X - J[0]) * uy + (Y - J[1]) * ux)            # texels from the shaft
+        half = wd * cv.w * np.sin(math.pi * np.clip(sx, 0, 1) ** 0.75) * (0.25 + 0.75 * np.clip(sx * 3, 0, 1))
+        inside = (sx > 0) & (sx < 1) & (pp < half)
+        if not inside.any():
+            continue
+        k = np.zeros_like(sx)
+        for j in range(3):
+            pk = ((ph + j / 3) % 1.0) * 1.3 - 0.15
+            k = np.maximum(k, np.exp(-((sx - pk) / 0.06) ** 2))
+        body = palette(levels(np.clip(sx, 0, 1), 7, 0.5), PULSE_FEATHER)
+        cv.arr[inside] = body[inside]
+        cv.arr[inside, 3] = 0.68
+        edge = inside & (pp >= half - 1.0)
+        shaft = inside & (pp < 0.75)
+        kl = levels(np.clip(k, 0, 1), 4, 0.3)
+        lc = palette(kl, ["#5ac8f0", "#9aeaff", "#dcfcff", "#ffffff"])
+        for m in (edge, shaft):
+            cv.arr[m] = lc[m]
+            cv.arr[m, 3] = 0.95
+        lit[inside] = 0
+        lit = np.where(edge | shaft, 0.4 + 0.6 * kl / 3.0, lit)
+        lit = np.where(inside & ~edge & ~shaft & (kl >= 2), 0.3, lit)     # a soft flash inside, right at the pulse
+        cv.arr[inside & ~edge & ~shaft & (kl >= 2), :3] = hexc("#3a9ae8")[:3]
+    em_rgb(cv, cv.arr, lit)
+
+
+def pulse_gem(face, cv):
+    gem_paint("#dffcff", "#2a8fd6")(face, cv)
+    b = 0.5 + 0.5 * math.cos(math.tau * cv.phase * 3)              # throbs with each pulse
+    em_from(cv, np.ones((cv.h, cv.w)) * (0.4 + 0.6 * b), "#9af6ff")
+
+
+def pulse_wing_bones():
+    right = [Bone("wing_r", "body", (-1.5, 2, 2.5), (0, 0, 0), [
+        Cube((-15.5, 0, 2), (14, 15, 0), pulse_membrane),
+        Cube((-15.5, -0.5, 1.5), (14, 1, 1), crystal_spar),
+        Cube((-3.5, -1, 1), (2, 2, 2), pulse_gem),
+    ], anim=wing_anim(32, 12, 1.6))]
+    return wing_pair(right)
+
+
 item("pulse_wings", "Pulse Wings", "WINGS", "SPECIAL", None,
      "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
-     aurora_wing_bones(lambda f, cv: aurora_membrane(f, cv, pulse="#7af7ff")), view=WING_VIEW,
-     animation={"frames": 16, "frametime": 1, "interpolate": True})
+     pulse_wing_bones(), view=WING_VIEW,
+     animation={"frames": 20, "frametime": 1.5, "interpolate": False, "scale": 8})
 
 
 # -------- feathered wings: separate layered feathers on an arm
@@ -1479,11 +1873,14 @@ def dragon_membrane(c_top, c_bottom, bone_c, vein_c, glow=None, alpha=0.96, stor
         pts.append(DRAGON_FINGERS[-1])
         W.poly(pts, (255, 255, 255, 255))
         mask = W.done()[..., 3]
+        if storm:
+            mask = (mask > 0.5).astype(np.float32)                    # special: crisp pixel edges
         col = ramp(t * 0.7 + (1 - r) * 0.3, [(0, c_top), (1, c_bottom)])
         n = pnoise(cv.h, cv.w, 4.0, 400, octaves=4)
         col[..., :3] *= (0.85 + 0.3 * n)[..., None]
-        if storm:
-            col[..., :3] = mix(col[..., :3], hexc("#3a4a66")[:3], smooth((n - 0.5) / 0.3)[..., None] * 0.6)
+        if storm:   # banded storm clouds, darker towards the trailing edge
+            cl = levels(np.clip(n * 1.3 - 0.15 - t * 0.35 + (1 - r) * 0.1, 0, 1), 6, 0.4)
+            col[..., :3] = palette(cl, ["#0e1220", "#161c2e", "#1f283e", "#2b3652", "#3a4868", "#4e5f84"])[..., :3]
         col[..., 3] = mask * alpha
         cv.arr[:] = col
         # veins and finger bones
@@ -1505,28 +1902,75 @@ def dragon_membrane(c_top, c_bottom, bone_c, vein_c, glow=None, alpha=0.96, stor
         if glow:
             em_from(cv, veins_m * 0.9, glow)
         if storm:
-            # lightning crawls across the membrane; a few frames carry a bright bolt, the rest only flicker
-            f = int(round(cv.phase * 16)) % 16
-            bolts = {0: (0.75, 1), 1: (0.75, 0.6), 5: (0.3, 1), 6: (0.3, 0.5), 10: (0.55, 1), 12: (0.15, 0.8)}
-            if f in bolts:
-                r0, power = bolts[f]
-                S = WingDraw(face, cv)
-                rng = np.random.default_rng(f * 13 + 5)
-                pts = [(r0, 0.05)]
-                for i in range(7):
-                    pr, pt = pts[-1]
-                    pts.append((pr + (rng.random() - 0.5) * 0.18, pt + 0.12))
-                S.line(pts, (255, 255, 255, 255), 0.9)
-                br = pts[3]
-                S.line([br, (br[0] + 0.15, br[1] + 0.12), (br[0] + 0.2, br[1] + 0.25)], (255, 255, 255, 255), 0.6)
-                bolt = S.done()[..., 3] * mask
-                halo = blur(bolt[..., None], 2.0)[..., 0] * 2.5
-                cv.arr[..., :3] = mix(cv.arr[..., :3], hexc("#e8f4ff")[:3], np.clip(bolt + halo * 0.4, 0, 1)[..., None])
-                em_from(cv, np.clip(halo * 0.5, 0, 1) * mask * power, "#7ab8ff")
-                em_from(cv, bolt * power, "#f4faff")
-            flick = 0.12 + 0.1 * math.sin(cv.phase * math.tau * 3)
-            em_from(cv, veins_m * flick * 3, "#9ad0ff")
+            storm_fx(face, cv, mask, veins_m)
     return p
+
+
+def bolt_points(rng, a, b, depth, rough=0.22):
+    """A jagged lightning path from a to b (wing coordinates) by midpoint displacement."""
+    pts = [a, b]
+    for _ in range(depth):
+        out = [pts[0]]
+        for p0, p1 in zip(pts, pts[1:]):
+            dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+            L = math.hypot(dx, dy)
+            off = (rng.random() - 0.5) * rough * L
+            out += [((p0[0] + p1[0]) / 2 - dy / max(L, 1e-6) * off, (p0[1] + p1[1]) / 2 + dx / max(L, 1e-6) * off), p1]
+        pts = out
+    return pts
+
+
+# Stormcaller's weather, frame by frame over 24 frames: (first frame, seed, brightness on each following frame)
+STORM_STRIKES = [(0, 3, (1.0, 0.35, 0.95, 0.5, 0.18)), (7, 11, (0.85, 0.3, 0.12)), (13, 5, (1.0, 0.4, 0.9, 0.3)),
+                 (19, 17, (0.7, 0.9, 0.25))]
+
+
+def storm_fx(face, cv, mask, veins_m):
+    f = int(round(cv.phase * 24)) % 24
+    power, seed = 0.0, None
+    for f0, sd, seq in STORM_STRIKES:
+        if f0 <= f < f0 + len(seq):
+            power, seed = seq[f - f0], sd
+    flick = 0.12 + 0.1 * math.sin(cv.phase * math.tau * 3)
+    em_from(cv, veins_m * (flick * 2.5 + power * 0.6), "#8ac4ff")
+    if seed is None:
+        return
+    rng = np.random.default_rng(seed)
+    r0 = 0.2 + rng.random() * 0.6
+    main = bolt_points(rng, (r0, 0.03), (r0 + (rng.random() - 0.5) * 0.7, 0.8 + rng.random() * 0.15), 5)
+    S = WingDraw(face, cv, ss=1)
+    S.line(main, (255, 255, 255, 255), 2.0)
+    for _ in range(4):                                            # forks
+        i = int(rng.integers(len(main) // 6, len(main) * 3 // 4))
+        a = main[i]
+        b = (a[0] + (rng.random() - 0.5) * 0.6, a[1] + 0.15 + rng.random() * 0.25)
+        fork = bolt_points(rng, a, b, 3, 0.35)
+        S.line(fork, (255, 255, 255, 255), 1.0)
+        j = len(fork) // 2
+        S.line(bolt_points(rng, fork[j], (fork[j][0] + (rng.random() - 0.5) * 0.3, fork[j][1] + 0.1), 2, 0.4),
+               (255, 255, 255, 255), 1.0)
+    core = (np.asarray(S.L.image, np.float32)[..., 3] > 127) & (mask > 0.5)
+    m = core.copy()
+    halo1 = (np.roll(m, 1, 0) | np.roll(m, -1, 0) | np.roll(m, 1, 1) | np.roll(m, -1, 1)) & ~m & (mask > 0.5)
+    m2 = m | halo1
+    halo2 = (np.roll(m2, 1, 0) | np.roll(m2, -1, 0) | np.roll(m2, 1, 1) | np.roll(m2, -1, 1)) & ~m2 & (mask > 0.5)
+    # the clouds round the strike light up, in two bands
+    if power > 0.8:                                              # the whole wing flashes on the brightest frames
+        cv.arr[mask > 0.5, :3] = np.clip(cv.arr[mask > 0.5, :3] * 1.3 + 0.03, 0, 1)
+    near = blur(core[..., None].astype(np.float32), 7.0)[..., 0] * 7 * power
+    lit = levels(np.clip(near, 0, 1), 3, 0.4)
+    for k, c in ((1, "#4a5c88"), (2, "#6a80b4")):
+        mm = (lit == k) & (mask > 0.5)
+        cv.arr[mm, :3] = hexc(c)[:3]
+        em_from(cv, mm * 0.25 * k * power, "#5a7ac8")
+    if power > 0.45:
+        cv.arr[halo2, :3] = hexc("#3a62c8")[:3]
+        em_from(cv, halo2 * 0.5 * power, "#3a62c8")
+    cv.arr[halo1, :3] = hexc("#8ec8ff")[:3]
+    em_from(cv, halo1 * power, "#8ec8ff")
+    cv.arr[core, :3] = hexc("#ffffff")[:3]
+    cv.arr[core, 3] = 1
+    em_from(cv, core * min(1.0, power + 0.2), "#f4faff")
 
 
 def dragon_wing(name, colors, glow=None, spikes=False, storm=False, anim=None):
@@ -1551,7 +1995,7 @@ item("infernal_wings", "Infernal Wings", "WINGS", "REGULAR", 900,
 item("stormcaller_wings", "Stormcaller Wings", "WINGS", "SPECIAL", None,
      "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
      dragon_wing("storm_r", ("#4a5878", "#141a2a", "#c8d4e8", "#7ab8ff", "#2a3040"), storm=True), view=dict(WING_VIEW, thumb_frame=0),
-     animation={"frames": 16, "frametime": 1, "interpolate": False})
+     animation={"frames": 24, "frametime": 1.5, "interpolate": False, "scale": 8})
 
 
 # -------- butterfly
@@ -1778,7 +2222,7 @@ def gold(face, cv, c=("#fff0a8", "#e0b040", "#8a5a14")):
 
 
 def platinum(face, cv):
-    gold(face, cv, ("#ffffff", "#c8d0dc", "#6a7280"))
+    gold(face, cv, ("#eef2f8", "#a6b0c2", "#525a6c"))      # cool and a little dark, so the sweep of light shows
 
 
 def engraved_band(base, pattern="circuit", glow="#3ef0ff"):
@@ -1823,20 +2267,24 @@ def jewel(c_hi, c_mid, c_lo, glint_at=None, n_glint=8):
     return p
 
 
-def crown_bones(metal_paint, band_paint, gems, name="crown"):
+def crown_bones(metal_paint, band_paint, gems, name="crown", unique=False):
     """A crown: a band around the head, points on every side, and a gem on each face of the band and on top of the
-    front points. gems: painters for the front, right, back and left gems, plus the point tips."""
-    band = [Cube((-5, -9.5, -5), (10, 2, 1), band_paint), Cube((-5, -9.5, 4), (10, 2, 1), band_paint),
-            Cube((-5, -9.5, -4), (1, 2, 8), band_paint), Cube((4, -9.5, -4), (1, 2, 8), band_paint)]
-    points = [Cube((x, -11.5, -5), (1, 2, 1), metal_paint) for x in (-5, -2, 1, 4)] + \
-             [Cube((x, -11.5, 4), (1, 2, 1), metal_paint) for x in (-5, -2, 1, 4)] + \
-             [Cube((-5, -11.5, z), (1, 2, 1), metal_paint) for z in (-2, 1)] + \
-             [Cube((4, -11.5, z), (1, 2, 1), metal_paint) for z in (-2, 1)]
+    front points. gems: painters for the front, right, back and left gems, plus the point tips. unique: the painters
+    are factories called once per cube, so every cube gets its own texture (animations that depend on where it is)."""
+    mp = metal_paint if unique else (lambda: metal_paint)
+    bp = band_paint if unique else (lambda: band_paint)
+    band = [Cube((-5, -9.5, -5), (10, 2, 1), bp()), Cube((-5, -9.5, 4), (10, 2, 1), bp()),
+            Cube((-5, -9.5, -4), (1, 2, 8), bp()), Cube((4, -9.5, -4), (1, 2, 8), bp())]
+    points = [Cube((x, -11.5, -5), (1, 2, 1), mp()) for x in (-5, -2, 1, 4)] + \
+             [Cube((x, -11.5, 4), (1, 2, 1), mp()) for x in (-5, -2, 1, 4)] + \
+             [Cube((-5, -11.5, z), (1, 2, 1), mp()) for z in (-2, 1)] + \
+             [Cube((4, -11.5, z), (1, 2, 1), mp()) for z in (-2, 1)]
     g_front, g_right, g_back, g_left, g_tip = gems
+    tip = g_tip if unique else (lambda: g_tip)
     jewels = [Cube((-1, -12.5, -5.3), (2, 3, 1), g_front),
               Cube((-5.4, -9.0, -0.5), (1, 1, 1), g_right), Cube((4.4, -9.0, -0.5), (1, 1, 1), g_left),
               Cube((-0.5, -9.0, 4.4), (1, 1, 1), g_back)] + \
-             [Cube((x, -12.3, -5.2), (1, 1, 1), g_tip) for x in (-5, 4)]
+             [Cube((x, -12.3, -5.2), (1, 1, 1), tip()) for x in (-5, 4)]
     velvet = Cube((-4, -10.5, -4), (8, 2, 8), velvet_paint)
     return [Bone(name, "head", cubes=band + points + jewels + [velvet])]
 
@@ -1867,13 +2315,67 @@ item("regal_crown", "Regal Crown", "HAT", "REGULAR", 400,
                   jewel("#ffd0d8", "#e8203a", "#6a0414"), jewel("#d8ffe0", "#22c46a", "#0a4a24"),
                   jewel("#ffffff", "#e8ecf4", "#9aa4b8")]),
      view=HEAD_VIEW)
+# Sovereign Crown (special): a band of light sweeps round the crown once per loop, and each gem flares as it passes
+
+SWEEP_SPAN = 0.7          # the part of the loop the sweep takes (then a rest, so it reads as a glint, not a spin)
+
+
+def face_world(cv):
+    """World (x, z) of each texel column of a side face (box-UV orientation, as ModelPart lays it), and y per row."""
+    ox, oy, oz = cv.cube.origin
+    w, h, d = cv.cube.size
+    c = (np.arange(cv.w, dtype=np.float32) + 0.5) / cv.w
+    x, z = {"north": (ox + c * w, oz + c * 0), "south": (ox + w - c * w, oz + d + c * 0),
+            "east": (ox + w + c * 0, oz + c * d), "west": (ox + c * 0, oz + d - c * d)}.get(
+        cv.face, (ox + w / 2 + c * 0, oz + d / 2 + c * 0))
+    y = oy + (np.arange(cv.h, dtype=np.float32) + 0.5) / cv.h * h
+    return x[None, :] * np.ones((cv.h, 1)), z[None, :] * np.ones((cv.h, 1)), y[:, None] * np.ones((1, cv.w))
+
+
+def sweep_at(ang, y, phase):
+    """0..1 brightness of the sweep at angle `ang` round the head (radians), tipped a little with height."""
+    head = (phase / SWEEP_SPAN) * (math.tau + 1.6) - 0.8              # runs a little past both ends, then rests
+    a = (ang + math.pi + (y + 10) * 0.12) % math.tau
+    return np.exp(-((a - head) / 0.42) ** 2) if phase < SWEEP_SPAN + 0.1 else np.zeros_like(a)
+
+
+def swept(base):
+    """A metal painter with the sweep of light added (crisp: two bands, a white core and a pale rim)."""
+    def p(face, cv):
+        base(face, cv)
+        x, z, y = face_world(cv)
+        k = sweep_at(np.arctan2(z, x), y, cv.phase)
+        if face in ("top", "bottom"):
+            k = k * 0.6
+        lv = levels(np.clip(k, 0, 1), 3, 0.3)
+        cv.arr[lv == 1, :3] = np.clip(cv.arr[lv == 1, :3] * 1.18 + 0.08, 0, 1)
+        cv.arr[lv == 2, :3] = hexc("#ffffff")[:3]
+        em_from(cv, (lv == 2) * 0.8 + (lv == 1) * 0.25, "#f4f8ff")
+    return p
+
+
+def royal_gem(c_hi, c_mid, c_lo):
+    """A cut gem that flares (glow and a four-point glint) when the sweep passes its place on the crown."""
+    plain = jewel(c_hi, c_mid, c_lo)
+
+    def p(face, cv):
+        plain(face, cv)
+        ox, oy, oz = cv.cube.origin
+        w, h, d = cv.cube.size
+        k = float(sweep_at(np.array(math.atan2(oz + d / 2, ox + w / 2)), np.array(oy + h / 2), cv.phase))
+        if k > 0.05:
+            em_from(cv, np.ones((cv.h, cv.w)) * k * 0.8, c_hi)
+            glint(cv, cv.w * 0.4, cv.h * 0.4, cv.w * 0.8, "#ffffff", min(1.0, k * 1.3))
+    return p
+
+
 item("sovereign_crown", "Sovereign Crown", "HAT", "SPECIAL", None,
      "A platinum crown whose ruby, sapphire, emerald and amethyst catch the light one after another, round and round.",
-     crown_bones(platinum, engraved_band(platinum, "filigree"),
-                 [jewel("#ffd0d8", "#ff2a4a", "#6a0414", 0), jewel("#d0e0ff", "#3a6aff", "#0a1a6a", 2),
-                  jewel("#f0d8ff", "#a04aff", "#3a0a6a", 4), jewel("#d8ffe0", "#22d46a", "#0a4a24", 6),
-                  jewel("#ffffff", "#e8ecf4", "#9aa4b8", 1)]),
-     view=HEAD_VIEW, animation={"frames": 16, "frametime": 2, "interpolate": True})
+     crown_bones(lambda: swept(platinum), lambda: swept(engraved_band(platinum, "filigree")),
+                 [royal_gem("#ffd0d8", "#ff2a4a", "#6a0414"), royal_gem("#d0e0ff", "#3a6aff", "#0a1a6a"),
+                  royal_gem("#f0d8ff", "#a04aff", "#3a0a6a"), royal_gem("#d8ffe0", "#22d46a", "#0a4a24"),
+                  lambda: royal_gem("#ffffff", "#e8ecf4", "#9aa4b8")], unique=True),
+     view=HEAD_VIEW, animation={"frames": 16, "frametime": 2.5, "interpolate": True, "scale": 8})
 
 
 # -------- witch hat
@@ -1963,13 +2465,18 @@ def halo_paint(shimmer=False):
         cv.arr[:] = ramp(t, [(0, "#fffbe0"), (0.5, "#ffe27a"), (1, "#e0a83a")])
         cv.arr[..., 3] = 0.95
         if shimmer:
-            # a band of light runs round the ring (the bars tile one after another)
+            # special: crisp bands of gold, and a comet of light with a fading tail runs round the ring once per loop
+            # (the bars tile one after another round the octagon)
+            cv.arr[..., :3] = palette(levels(t, 4, 0.02), ["#ffe596", "#f5bd44", "#de9426", "#b06a18"])[..., :3]
             y, xx = cv.grid()
             idx = getattr(cv.cube, "ring_index", 0)
             pos = (idx + (xx + 0.5) / cv.w) / 8
-            d = ((pos - cv.phase) + 0.5) % 1 - 0.5
-            k = np.exp(-(d / 0.07) ** 2)
-            cv.arr[..., :3] = np.clip(cv.arr[..., :3] + k[..., None] * 0.6, 0, 1)
+            d = ((pos - cv.phase) + 0.5) % 1 - 0.5                      # < 0 behind the head of the comet
+            k = np.where(d > 0, np.exp(-(d / 0.015) ** 2), np.exp(d / 0.12))
+            lv = levels(np.clip(k, 0, 1), 4, 0.02)
+            for n, c in ((1, "#fff0b0"), (2, "#fffbe8"), (3, "#ffffff")):
+                cv.arr[lv == n, :3] = hexc(c)[:3]
+            cv.arr[..., 3] = np.where(lv > 0, 1.0, 0.92)
     return p
 
 
@@ -2003,7 +2510,8 @@ item("angel_halo", "Angel Halo", "HAT", "REGULAR", 300,
      halo(), view=dict(HEAD_VIEW, pitch=24))
 item("orbit_halo", "Orbit Halo", "HAT", "SPECIAL", None,
      "A radiant halo that spins above your head while a band of light races round the ring.",
-     halo(True), view=dict(HEAD_VIEW, pitch=24, thumb_frame=4), animation={"frames": 16, "frametime": 1, "interpolate": True})
+     halo(True), view=dict(HEAD_VIEW, pitch=24, thumb_frame=4),
+     animation={"frames": 24, "frametime": 1.5, "interpolate": True, "scale": 8})
 
 
 # -------- horns
@@ -2564,8 +3072,10 @@ def ring_sigil(c_in, c_out, spokes=8, alpha=0.6, extra=None, hue=None):
             A = np.clip(A + extra(X, Z, r, ang), 0, 1)
         col = ramp(smooth((r - 0.3) / 0.65), [(0, c_in), (1, c_out)])
         if hue is not None:
+            # special: crisp pixel art (hue in 36 flat steps, three alpha levels); the cycle itself runs smoothly
             h = (ang * 4 / math.tau + r * 0.5 + cv.phase) % 1      # a whole hue cycle per quarter: no seams
-            col[..., :3] = hsv_rgb(h, 0.75, 1.0)
+            col[..., :3] = hsv_rgb(np.floor(h * 36) / 36, 0.72, 1.0)
+            A = levels(A, 4, 0.25) / 3.0
         A *= (r < 1.0)
         cv.arr[..., :3] = col[..., :3]
         cv.arr[..., 3] = A * alpha
@@ -2702,7 +3212,7 @@ item("spectrum_aura", "Spectrum Aura", "AURA", "SPECIAL", None,
      sigil_bones(ring_sigil("#ffffff", "#ffffff", 8, 0.7, hue=True), spin=20),
      fx={"type": "aura", "particle": "soft", "colors": ["#FF4A4A", "#FFD23A", "#3AFF7A", "#3AC8FF", "#B04FFF"], "rate": 5,
          "size": 0.6, "life": 1.6, "sizeEnd": 0.35, "gravity": -0.3},
-     view=AURA_VIEW, animation={"frames": 16, "frametime": 3, "interpolate": True})
+     view=AURA_VIEW, animation={"frames": 20, "frametime": 3, "interpolate": True, "scale": 16})
 
 # ---------------------------------------------------------------------------------------------- pets
 # They sit or hover on your left shoulder (like a shoulder parrot, so they never poke out round a corner), attached to
@@ -3056,17 +3566,31 @@ item("mini_wyvern", "Mini Wyvern", "PET", "REGULAR", 800,
 # -------- Prism Sprite (special): a crystal fairy whose facets shimmer through the colours
 
 def prism_facets(face, cv):
+    """Cut crystal: four facets per face in their own hues (posterised), dark facet edges, and a band of white light
+    that slides across each face once per loop; the hues roll round the colour wheel."""
     t, x = cv.yy(), cv.xx()
     y, xx = cv.grid()
+    ph = cv.phase
     seedf = {"north": 0.0, "east": 0.25, "south": 0.5, "west": 0.75, "top": 0.1, "bottom": 0.6}[face]
     facet = ((x > t) * 1 + (x > 1 - t) * 2).astype(np.float32)
-    h = (seedf + facet * 0.12 + t * 0.2 + cv.phase) % 1
-    col = hsv_rgb(h, 0.45, 1.0)
-    cv.arr[..., :3] = col * (0.75 + 0.25 * (facet % 2))[..., None]
-    cv.arr[..., 3] = 0.92
-    em_rgb(cv, np.concatenate([col, np.ones_like(t)[..., None]], -1), np.ones_like(t) * 0.55)
-    sp = (cv.phase * 6 + seedf * 6) % 1
-    glint(cv, cv.w * (0.2 + 0.6 * sp), cv.h * (0.3 + 0.4 * sp), max(2, cv.w * 0.5), "#ffffff", 0.9 * math.sin(sp * math.pi))
+    h = (seedf + facet * 0.11 + ph) % 1
+    val = np.array([0.92, 0.78, 1.0, 0.86], np.float32)[facet.astype(int)]
+    col = hsv_rgb(np.floor(h * 24) / 24, 0.62, 1.0) * val[..., None]
+    edge = (np.abs(x - t) < 0.6 / cv.w) | (np.abs(x - (1 - t)) < 0.6 / cv.w)
+    col[edge] = col[edge] * 0.7
+    rim = (y < 1) | (xx < 1) | (y >= cv.h - 1) | (xx >= cv.w - 1)
+    col[rim] = hexc("#f4eaff")[:3]
+    # the sliding band of light (diagonal, crisp: a white core and a pale rim)
+    band = ((x + t) * 0.5 - ((ph * 1.0 + seedf) % 1.0) * 1.6 + 0.3)
+    core, halo = np.abs(band) < 0.05, np.abs(band) < 0.11
+    col[halo & ~core] = np.clip(col[halo & ~core] * 0.5 + 0.55, 0, 1)
+    col[core] = 1.0
+    cv.arr[..., :3] = col
+    cv.arr[..., 3] = 1
+    em_rgb(cv, np.concatenate([col, np.ones_like(t)[..., None]], -1), np.ones_like(t) * 0.5 + core * 0.5)
+    sp = (ph * 2 + seedf) % 1
+    if sp < 0.35:
+        glint(cv, cv.w * (0.3 + sp), cv.h * (0.3 + sp * 0.6), max(2, cv.w * 0.45), "#ffffff", math.sin(sp / 0.35 * math.pi))
     if face == "north" and cv.w >= 3 * cv.s:
         eyes(cv, [(0.95, 1.1), (2.05, 1.1)], (0.6, 0.8), "#3a2a8a", shine=True)
 
@@ -3075,12 +3599,15 @@ def prism_wing(face, cv):
     r, t = wing_root(face, cv), cv.yy()
     W = WingDraw(face, cv)
     W.poly([(1.0, 0.1), (0.4, 0.0), (0.0, 0.25), (0.25, 0.6), (0.7, 0.55), (0.35, 0.95), (0.9, 0.85)], (255, 255, 255, 255))
-    m = W.done()[..., 3]
+    m = crisp_mask(W)
     h = (r * 0.4 + t * 0.3 + cv.phase) % 1
-    col = hsv_rgb(h, 0.35, 1.0)
+    col = hsv_rgb(np.floor(h * 24) / 24, 0.5, 1.0)
+    on = m > 0
+    edge = on & ~(np.roll(on, 1, 0) & np.roll(on, -1, 0) & np.roll(on, 1, 1) & np.roll(on, -1, 1))
+    col[edge] = hexc("#ffffff")[:3]
     cv.arr[..., :3] = col
-    cv.arr[..., 3] = m * 0.6
-    em_rgb(cv, np.concatenate([col, np.ones_like(t)[..., None]], -1), m * 0.45)
+    cv.arr[..., 3] = m * 0.62 + edge * 0.3
+    em_rgb(cv, np.concatenate([col, np.ones_like(t)[..., None]], -1), m * 0.45 + edge * 0.4)
 
 
 item("prism_sprite", "Prism Sprite", "PET", "SPECIAL", None,
@@ -3089,7 +3616,7 @@ item("prism_sprite", "Prism Sprite", "PET", "SPECIAL", None,
                      Cube((6, -3, 0), (1, 1, 1), prism_facets), Cube((6, -9, 0), (1, 1, 1), prism_facets)]),
       Bone("sprite_wing_r", "root", PET, (0, 25, 0), [Cube((8, -9, 1), (4, 5, 0), prism_wing)], anim=dict(PET_ANIM)),
       Bone("sprite_wing_l", "root", PET, (0, -25, 0), [Cube((1, -9, 1), (4, 5, 0), prism_wing, mirror=True)], anim=dict(PET_ANIM))],
-     view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 16, "frametime": 3, "interpolate": True})
+     view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 16, "frametime": 2, "interpolate": True, "scale": 16})
 
 # ---------------------------------------------------------------------------------------------- trails, kill and win effects
 # Particles only (spawned by the viewer's own client); the thumbnail is a picture of the effect.
@@ -3284,6 +3811,10 @@ def model_json(it, tw, th, scale):
         cubes = []
         for c in b.cubes:
             cd = {"origin": c.origin, "size": c.size, "uv": c.uv}
+            if c.faces is not None:
+                cd = {"origin": c.origin, "size": c.size, "faces": {
+                    FACE_JSON[f]: dict({"uv": [float(v) for v in rect]}, **({"rotation": rot * 90} if rot else {}))
+                    for f, (rect, rot, _) in c.faces.items()}}
             if c.inflate:
                 cd["inflate"] = c.inflate
             if c.mirror:
@@ -3349,8 +3880,9 @@ def rot_matrix(pitch, yaw, roll):
     return rz @ ry @ rx
 
 
-def cuboid_quads(origin, size, uv, inflate, mirror, tw, th):
-    """The six quads of ModelPart.Cuboid: 4 corner positions and their UVs (normalised)."""
+def cuboid_quads(origin, size, uv, inflate, mirror, tw, th, faces=None):
+    """The six quads of ModelPart.Cuboid: 4 corner positions and their UVs (normalised). With per-face UVs (`faces`),
+    only the listed faces, each corner turned like CosmeticModel.faceCuboid."""
     x, y, z = origin
     sx, sy, sz = size
     f, g, h = x + sx, y + sy, z + sz
@@ -3362,11 +3894,19 @@ def cuboid_quads(origin, size, uv, inflate, mirror, tw, th):
     u, v = uv
     j, k, l, m, n, o = u, u + sz, u + sz + sx, u + sz + sx + sx, u + sz + sx + sz, u + sz + sx + sz + sx
     p, q, r = v, v + sz, v + sz + sy
-    faces = [((v6, v5, v1, v2), (k, p, l, q)), ((v3, v4, v8, v7), (l, q, m, p)), ((v1, v5, v8, v4), (j, q, k, r)),
+    quads = [((v6, v5, v1, v2), (k, p, l, q)), ((v3, v4, v8, v7), (l, q, m, p)), ((v1, v5, v8, v4), (j, q, k, r)),
              ((v2, v1, v4, v3), (k, q, l, r)), ((v6, v2, v3, v7), (l, q, n, r)), ((v5, v6, v7, v8), (n, q, o, r))]
     out = []
-    for verts, (u1, va, u2, vb) in faces:
+    per = faces
+    for fi, (verts, (u1, va, u2, vb)) in enumerate(quads):
+        rot = 0
+        if per is not None:
+            f = per.get(("top", "bottom", "west", "north", "east", "south")[fi])
+            if f is None:
+                continue
+            (u1, va, u2, vb), rot = f[0], f[1]
         uvs = [(u2, va), (u1, va), (u1, vb), (u2, vb)]
+        uvs = [uvs[(i + rot) % 4] for i in range(4)]
         out.append((np.array(verts, float), np.array([(a / tw, b / th) for a, b in uvs], float)))
     return out
 
@@ -3375,8 +3915,8 @@ class Scene:
     def __init__(self):
         self.quads = []   # (points[4,3], uv[4,2] or None, texture or None, emissive texture or None, color, emissive)
 
-    def cube(self, M, origin, size, uv, inflate, mirror, tw, th, tex, color, emissive, em=None):
-        for pts, uvs in cuboid_quads(origin, size, uv or (0, 0), inflate, mirror, tw, th):
+    def cube(self, M, origin, size, uv, inflate, mirror, tw, th, tex, color, emissive, em=None, faces=None):
+        for pts, uvs in cuboid_quads(origin, size, uv or (0, 0), inflate, mirror, tw, th, faces):
             w = (M[:3, :3] @ pts.T).T + M[:3, 3]
             self.quads.append((w, uvs if tex is not None else None, tex, em, color, emissive))
 
@@ -3530,8 +4070,8 @@ def render_scene(scene, yaw, pitch, size=THUMB, ss=4, yup=False, bloom=0.9, fram
     # premultiplied composite with bloom
     pre = col * alp[..., None]
     if bloom and glow.any():
-        g1 = blur(glow, 2.2 * ss)
-        g2 = blur(glow, 7 * ss)
+        g1 = blur(glow, 2.2 * ss * size / THUMB)        # the same glow at any thumbnail size
+        g2 = blur(glow, 7 * ss * size / THUMB)
         add = (g1 * 0.55 + g2 * 0.55) * bloom
         pre = pre + add
         alp = np.clip(alp + np.clip(lum(add), 0, 1) * (1 - alp), 0, 1)
@@ -3623,7 +4163,7 @@ def tint_of(it):
     return hexc(it["default_color"])
 
 
-def thumb_model(it, tex_arr, em_arr, tw, th, phase=None):
+def thumb_model(it, tex_arr, em_arr, tw, th, phase=None, size=THUMB):
     scene = Scene()
     view = it["view"]
     focus = view.get("focus")
@@ -3646,11 +4186,11 @@ def thumb_model(it, tex_arr, em_arr, tw, th, phase=None):
         color[3] = b.alpha
         for c in b.cubes:
             scene.cube(M, c.origin, c.size, c.uv, c.inflate, c.mirror, tw, th, tex_arr, color, b.emissive,
-                       None if b.emissive else em_arr)
+                       None if b.emissive else em_arr, c.faces)
     frame = view.get("frame")
     if focus == "head" and frame is None:
         frame = None
-    im = render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), yup=focus == "item", frame=frame,
+    im = render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), size=size, yup=focus == "item", frame=frame,
                       margin=view.get("margin", 1.10))
     if focus == "pet":
         return badge(im, view.get("glow", "#6cf2ff"), 0.5)
@@ -3685,9 +4225,10 @@ def thumb_emote(it):
 
 def badge(im, color, strength=0.35):
     """A soft radial glow behind a thumbnail."""
-    bg = np.zeros((THUMB, THUMB, 4), np.float32)
-    yy, xx = np.mgrid[0:THUMB, 0:THUMB].astype(np.float32)
-    r = np.sqrt((xx - THUMB / 2) ** 2 + (yy - THUMB / 2) ** 2) / (THUMB / 2)
+    S = im.width
+    bg = np.zeros((S, S, 4), np.float32)
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    r = np.sqrt((xx - S / 2) ** 2 + (yy - S / 2) ** 2) / (S / 2)
     c = hexc(color)
     bg[..., :3] = c[:3]
     bg[..., 3] = np.clip(1 - r, 0, 1) ** 2 * strength
@@ -3850,8 +4391,76 @@ def sha256(b):
     return hashlib.sha256(b).hexdigest()
 
 
-def png_bytes(im):
+def quantize256(a, cols, inv):
+    """The 256 colours that best cover an RGBA picture (weighted k-means, k-means++ start, over its distinct colours;
+    alpha weighted heavily so see-through levels stay apart), as a palette image. No dithering: flat areas stay flat."""
+    if len(cols) > 40000:                       # renders with soft glow: merge near-identical shades first
+        q4 = (a.astype(np.int32) // 4 * 4 + 2).clip(0, 255).astype(np.uint8)
+        cols, inv = np.unique(q4.reshape(-1, 4).view(np.uint32).ravel(), return_inverse=True)
+    w = np.array([1.0, 1.0, 1.0, 3.0], np.float32)
+    X = cols.view(np.uint8).reshape(-1, 4).astype(np.float32) * w
+    count = np.bincount(inv.ravel(), minlength=len(cols)).astype(np.float32)
+    rng = np.random.default_rng(256)
+    sub = rng.choice(len(X), size=min(len(X), 12000), replace=False, p=count / count.sum())
+    S = X[sub]
+    centres = [S[0]]
+    d = ((S - S[0]) ** 2).sum(1)
+    for _ in range(min(255, len(S) - 1)):
+        j = rng.choice(len(S), p=d / d.sum()) if d.sum() > 0 else 0
+        centres.append(S[j])
+        d = np.minimum(d, ((S - S[j]) ** 2).sum(1))
+    centres = np.array(centres, np.float32)
+
+    def nearest(c):
+        out = np.empty(len(X), np.int64)
+        for i in range(0, len(X), 4096):
+            out[i:i + 4096] = ((X[i:i + 4096, None, :] - c[None, :, :]) ** 2).sum(-1).argmin(1)
+        return out
+    for _ in range(8):
+        lab = nearest(centres)
+        tot = np.zeros_like(centres)
+        np.add.at(tot, lab, X * count[:, None])
+        n = np.bincount(lab, weights=count, minlength=len(centres))[:, None]
+        centres = np.where(n > 0, tot / np.maximum(n, 1e-6), centres).astype(np.float32)
+    lab = nearest(centres)
+    pal = np.clip(centres / w + 0.5, 0, 255).astype(np.uint8)
+    q = Image.fromarray(lab[inv.reshape(a.shape[:2])].astype(np.uint8), "P")
+    q.putpalette(pal[:, :3].ravel().tolist())
+    q.info["transparency"] = bytes(pal[:, 3].tolist())
+    return q
+
+
+def png_bytes(im, indexed=False, soft_alpha=False):
+    """PNG bytes. indexed: when the picture has at most 256 distinct colours, store it as a palette PNG (lossless,
+    much smaller for the special items' banded pixel art; the client and browsers read it as RGBA all the same)."""
     buf = io.BytesIO()
+    if indexed:
+        a = np.asarray(im.convert("RGBA"))
+        flat = a.reshape(-1, 4).view(np.uint32).ravel()
+        cols, inv = np.unique(flat, return_inverse=True)
+        if len(cols) <= 256:
+            pal = cols.view(np.uint8).reshape(-1, 4)
+            p = Image.fromarray(inv.reshape(a.shape[:2]).astype(np.uint8), "P")
+            p.putpalette(pal[:, :3].ravel().tolist())
+            p.info["transparency"] = bytes(pal[:, 3].tolist())
+            p.save(buf, "PNG", optimize=True, transparency=bytes(pal[:, 3].tolist()))
+            raw = buf.getvalue()
+            check = np.asarray(Image.open(io.BytesIO(raw)).convert("RGBA"))
+            if np.array_equal(check, a):
+                return raw
+            buf = io.BytesIO()
+        else:
+            # more colours (glints, soft glow, renders): the nearest 256-colour palette, kept only when it's visually
+            # the same (tiny mean error, alpha all but exact so cut-out edges don't move)
+            q = quantize256(a, cols, inv)
+            q.save(buf, "PNG", optimize=True, transparency=q.info["transparency"])
+            raw = buf.getvalue()
+            back = np.asarray(Image.open(io.BytesIO(raw)).convert("RGBA"), np.float32)
+            err = np.abs(back - a.astype(np.float32))
+            alpha_ok = err[..., 3].mean() < 3.0 if soft_alpha else err[..., 3].max() <= 12   # thumbs: soft glow edges
+            if err[..., :3].mean() < (4.5 if soft_alpha else 3.0) and alpha_ok:
+                return raw
+            buf = io.BytesIO()
     im.save(buf, "PNG", optimize=True)
     return buf.getvalue()
 
@@ -3860,11 +4469,16 @@ def build(it):
     """All files of one item: {name: bytes}."""
     files = {"item.json": (json.dumps(item_json(it), indent=1) + "\n").encode()}
     if it["bones"]:
-        tw, th = pack(it["bones"])
+        tw, th = it["layout"] or pack(it["bones"])
         anim = it["animation"]
         frames = anim["frames"] if anim else 1
-        # animated textures stay at 4 texels per unit: a strip of frames at 8 would weigh megabytes per item
-        scale = scale_for(tw, th, frames, min(it["scale_cap"], 4) if anim else it["scale_cap"])
+        if anim:
+            # special items: at least the regular items' 8 texels per unit (capes 16, laid out by hand to fit)
+            scale = anim.get("scale", 8)
+            if scale < 8 or max(tw, th) * scale > ANIM_FRAME_PX or th * scale * frames > MAX_STRIP_PX or frames > 64:
+                raise SystemExit(f"{it['id']}: {frames} frames of {tw}x{th} at {scale} px per unit exceed the client's limits")
+        else:
+            scale = scale_for(tw, th, frames, it["scale_cap"])
         texs, ems = [], []
         for f in range(frames):
             PHASE[0] = f / frames
@@ -3873,16 +4487,19 @@ def build(it):
             ems.append(em)
         PHASE[0] = 0.0
         files["model.json"] = (json.dumps(model_json(it, tw, th, scale), indent=1) + "\n").encode()
-        files["texture.png"] = png_bytes(to_image(np.concatenate(texs, 0)))
+        # special items dither their own gradients (crisp bands, see levels()): no extra noise, so the strips stay small
+        files["texture.png"] = png_bytes(to_image(np.concatenate(texs, 0), dither=not anim), indexed=bool(anim))
         has_em = any(e[..., 3].max() > 0 for e in ems)
         if has_em:
-            files["emissive.png"] = png_bytes(to_image(np.concatenate(ems, 0)))
+            files["emissive.png"] = png_bytes(to_image(np.concatenate(ems, 0), dither=not anim), indexed=bool(anim), soft_alpha=True)
         if anim and frames <= 32:
-            # an animated item's thumbnail is a strip too, so it plays in the Wardrobe grid and on the shop cards
-            strip = [thumb_model(it, texs[k], ems[k] if has_em else None, tw, th, k / frames) for k in range(frames)]
-            thumb = Image.new("RGBA", (THUMB, THUMB * frames), (0, 0, 0, 0))
+            # an animated item's thumbnail is a strip too (one square per texture frame), so it plays in the Wardrobe
+            # grid and on the shop cards; as large as the 4096 px strip allows (up to 256), so the cards stay sharp
+            ts = min(256, MAX_STRIP_PX // frames // 8 * 8)
+            strip = [thumb_model(it, texs[k], ems[k] if has_em else None, tw, th, k / frames, size=ts) for k in range(frames)]
+            thumb = Image.new("RGBA", (ts, ts * frames), (0, 0, 0, 0))
             for k, im in enumerate(strip):
-                thumb.paste(im, (0, k * THUMB))
+                thumb.paste(im, (0, k * ts))
         else:
             k = it["view"].get("thumb_frame", 0)
             thumb = thumb_model(it, texs[k], ems[k] if has_em else None, tw, th)
@@ -3890,7 +4507,7 @@ def build(it):
         thumb = thumb_emote(it)
     else:
         thumb = thumb_particles(it["thumb"], it["fx"]["colors"])
-    files["thumb.png"] = png_bytes(thumb)
+    files["thumb.png"] = png_bytes(thumb, indexed=bool(it["animation"]), soft_alpha=True)
     check_limits(it, files)
     return files
 
@@ -3920,7 +4537,8 @@ def contact_sheet(path, built):
     sheet = Image.new("RGB", (cols * cell, rows * (cell + 26)), (18, 18, 24))
     d = ImageDraw.Draw(sheet)
     for i, (it, files) in enumerate(built):
-        im = Image.open(io.BytesIO(files["thumb.png"])).convert("RGBA").crop((0, 0, THUMB, THUMB))
+        im = Image.open(io.BytesIO(files["thumb.png"])).convert("RGBA")
+        im = im.crop((0, 0, im.width, im.width)).resize((THUMB, THUMB), Image.LANCZOS)
         bg = Image.new("RGBA", (THUMB, THUMB), (32, 33, 42, 255))
         bg.alpha_composite(im)
         x, y = (i % cols) * cell + 11, (i // cols) * (cell + 26) + 6

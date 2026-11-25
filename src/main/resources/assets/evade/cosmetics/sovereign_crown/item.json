@@ -9,7 +9,7 @@
  "description": "A platinum crown whose ruby, sapphire, emerald and amethyst catch the light one after another, round and round.",
  "animation": {
   "frames": 16,
-  "frametime": 2,
+  "frametime": 2.5,
   "interpolate": true
  }
 }

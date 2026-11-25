@@ -8,8 +8,8 @@
  "partner": null,
  "description": "A radiant halo that spins above your head while a band of light races round the ring.",
  "animation": {
-  "frames": 16,
-  "frametime": 1,
+  "frames": 24,
+  "frametime": 1.5,
   "interpolate": true
  }
 }

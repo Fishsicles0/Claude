@@ -99,7 +99,7 @@ LAYOUT = """<!doctype html>
   <div class="wrap foot">
     <div>
       <a href="/" class="logo" aria-label="Evade Client home">{logo}</a>
-      <p>A free Fabric client for Minecraft {mc}. Not affiliated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
+      <p>A free Fabric client for Minecraft {mc}. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
       <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
