@@ -153,7 +153,12 @@ public final class ShaderSwitch {
     private static String pretty(String file) {
         String n = file.toLowerCase(Locale.ROOT);
         if (n.startsWith("photon")) return "Photon";
+        if (n.startsWith("complementaryreimagined")) return "Complementary Reimagined";
+        if (n.startsWith("complementaryunbound")) return "Complementary Unbound";
         if (n.startsWith("complementary")) return "Complementary";
+        if (n.startsWith("bsl")) return "BSL";
+        if (n.startsWith("sildur's vibrant") || n.startsWith("sildurs vibrant") || n.startsWith("sildurs-vibrant")) return "Sildur's Vibrant";
+        if (n.startsWith("evade shaders") || n.startsWith("evadeshaders") || n.startsWith("evade-shaders")) return "Evade Shaders";
         return file.replaceAll("\\.zip$", "");
     }
 
@@ -169,7 +174,7 @@ public final class ShaderSwitch {
             if (choice.equals("Off")) {
                 c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, false);
             } else {
-                Optional<String> pack = findPack(choice.equals("Photon") ? "photon" : "complementary");
+                Optional<String> pack = findPack(choice.equals("Photon") ? "photon" : "complementaryreimagined").or(() -> findPack(choice.equals("Photon") ? "photon" : "complementary"));
                 if (pack.isEmpty()) return choice + " isn't in your shaderpacks folder. Run the Evade installer again with Shaders on.";
                 c.getMethod("setShaderPackName", String.class).invoke(cfg, pack.get());
                 c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, true);

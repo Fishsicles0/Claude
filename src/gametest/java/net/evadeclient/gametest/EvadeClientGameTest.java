@@ -38,7 +38,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         if (Boolean.getBoolean("evade.shadershots")) { EvadeShadersTest.film(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.shadershots=true
 
-        testStartScreens(ctx);
+        if (!Boolean.getBoolean("evade.fpsonly")) testStartScreens(ctx); // the FPS pass profile skips the timing-sensitive start screens
 
         // Switched on before any world exists: the enable hooks must wait for the world (checked once in it).
         boolean[] beforeWorld = ctx.computeOnClient(c -> {

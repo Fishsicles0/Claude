@@ -77,7 +77,7 @@ public final class TitleScene {
     public void embers(DrawContext ctx, int w, int h, float alpha, boolean motion) {
         if (alpha <= 0.01f || w <= 0 || h <= 0) return;
         double t = motion ? Intro.now() / 1000.0 : 40.0;
-        float scale = Math.max(0.6f, Math.min(1.6f, h / 300f));
+        float scale = Math.max(0.7f, Math.min(1.3f, h / 360f));
         for (int i = 0; i < EMBERS; i++) {
             int layer = i % 3; // 0 far, 1 mid, 2 near
             float depth = 0.45f + 0.35f * layer;
@@ -93,11 +93,11 @@ public final class TitleScene {
             float twinkle = motion ? 0.75f + 0.25f * (float) Math.sin(t * (1.3 + r2) + i * 1.7) : 1f;
             float a = alpha * fade * twinkle * (0.20f + 0.22f * layer);
             if (a <= 0.01f) continue;
-            int size = Math.max(3, Math.round((3f + 4f * layer + 3f * r1) * scale));
+            int size = Math.max(2, Math.round((2f + 1.5f * layer + 2f * r1) * scale));
             int color = layer == 2 ? Theme.RED_BRIGHT : Theme.RED;
             int cx = Math.round(x), cy = Math.round(y);
             // A soft halo and a small hot core.
-            TitleArt.glow(ctx, cx, cy, size * 4, size * 4, Theme.alpha(color, a * 0.55f));
+            TitleArt.glow(ctx, cx, cy, size * 5, size * 5, Theme.alpha(color, a * 0.45f));
             TitleArt.glow(ctx, cx, cy, size, size, Theme.alpha(Theme.lerpColor(color, 0xFFFFFFFF, 0.35f), Math.min(1f, a * 1.6f)));
         }
     }

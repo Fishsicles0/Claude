@@ -194,10 +194,12 @@ public final class TitleScreenTest {
         ctx.getInput().pressKey(GLFW.GLFW_KEY_ENTER);
         ctx.waitTicks(3);
         String opened = current(ctx);
-        check(opened.endsWith("SelectWorldScreen"), "Title Screen: Enter on Singleplayer opens the world list (" + opened + ")");
+        // With no worlds yet the world list goes straight on to Create New World.
+        check(opened.endsWith("SelectWorldScreen") || opened.endsWith("CreateWorldScreen"),
+                "Title Screen: Enter on Singleplayer opens the world list (" + opened + ")");
         ctx.runOnClient(c -> c.currentScreen.close());
         ctx.waitTicks(3);
-        check(evade(ctx), "Title Screen: back from the world list shows the Evade menu (" + current(ctx) + ")");
+        check(evade(ctx), "Title Screen: back from Singleplayer shows the Evade menu (" + current(ctx) + ")");
 
         // A replayed entrance can be skipped.
         boolean skipped = ctx.computeOnClient(c -> {
