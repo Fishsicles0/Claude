@@ -69,10 +69,13 @@ const fmt = (cents, cur) => {
   try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || state.currency }).format(cents / 100); }
   catch (e) { return (cents / 100).toFixed(2) + " " + (cur || state.currency); }
 };
-// Same rule as the backend: priced above zero. Unpriced special items are "Price coming soon".
+// Same rules as the backend: priced above zero is for sale; priced 0 is free for every Evade player and never sold
+// (every cape: never in the cart or a checkout); unpriced special items are "Price coming soon".
 const forSale = it => it && Number.isInteger(it.priceCents) && it.priceCents > 0;
-const soon = it => it && it.rarity === "special" && !forSale(it) && !it.partner;
-const priceText = it => forSale(it) ? fmt(it.priceCents, it.currency) : it.partner ? "Partner reward" : soon(it) ? "Price coming soon" : "Not for sale";
+const isFree = it => !!it && it.priceCents === 0;
+const soon = it => it && it.rarity === "special" && !forSale(it) && !isFree(it) && !it.partner;
+const priceText = it => isFree(it) ? "Free" : forSale(it) ? fmt(it.priceCents, it.currency) : it.partner ? "Partner reward" : soon(it) ? "Price coming soon" : "Not for sale";
+const priceClass = it => isFree(it) ? " gift" : forSale(it) ? "" : soon(it) ? " soon" : " free";
 
 // ---------------------------------------------------------------- catalogue
 function normItem(raw, i) {
@@ -95,7 +98,7 @@ function normItem(raw, i) {
     desc: String(raw.description || ""), partnerHow: String(raw.partnerHow || ""),
     model: has("model.json"), texture: has("texture.png"), image: has("thumb.png"), details: has("item.json"), glow: has("emissive.png"),
     fx: raw.fx || null, emote: raw.emote || null, order: Number.isFinite(raw.order) ? raw.order : i,
-    search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), RARITIES.includes(rarity) ? rarity : "", partner && partner.name].join(" ").toLowerCase(),
+    search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), RARITIES.includes(rarity) ? rarity : "", partner && partner.name, priceCents === 0 ? "free" : ""].join(" ").toLowerCase(),
   };
 }
 
@@ -422,7 +425,12 @@ async function buildModel(viewer, it, model) {
       emissiveIntensity: b.emissive ? .85 : glow ? 1 : 0, depthWrite: !see });
     for (const c of b.cubes || []) inner.add(cuboid(T, c, tw, th, mat));
     const parent = b.parent && byName[b.parent];
-    (parent ? parent : adapter(b.attach)).add(outer);
+    if (!parent && b.anim && b.anim.type === "pet") {
+      // like the client: the pet turns about the player's vertical axis with the head, so it stays beside it
+      const orbit = new T.Group(), head = viewer.playerObject.skin.head;
+      adapter(b.attach).add(orbit); orbit.add(outer);
+      anims.push(() => { orbit.rotation.y = -head.rotation.y; });
+    } else (parent ? parent : adapter(b.attach)).add(outer);
     if (b.name) byName[b.name] = inner;
     const a = b.anim || {}, base = rot.slice();
     const R = d => d * Math.PI / 180, TAU = Math.PI * 2, ph = +a.phase || 0;
@@ -451,15 +459,27 @@ async function buildModel(viewer, it, model) {
         outer.rotation.y = base[1] + R((a.side || 1) * ((a.base || 0) + (a.amp || 0) * (motion.moving > 1 ? 1.3 : 1) * w));
         outer.rotation.x = base[0] + R((a.lift || 0) * Math.max(0, w));
       });
-    } else if (a.type === "pet") anims.push(t => {
-      let dy = Math.sin((t * (a.speed || 1) * .5 + ph) * TAU) * (a.amp || .5) * 1.4;
+    } else if (a.type === "pet") anims.push(t => { // bobs up from its seat, hops now and then, sways a little
+      let dy = -(.5 + .5 * Math.sin((t * (a.speed || 1) * .5 + ph) * TAU)) * (a.amp || .5) * 1.4;
       const cyc = (t + ph * 7) % 7;
       if (cyc < .5) dy -= Math.sin(cyc / .5 * Math.PI) * 2.5;
       outer.position.y = piv[1] + dy;
-      outer.rotation.y = base[1] + R(Math.sin(t * .37 * TAU) * 18);
-      outer.rotation.z = base[2] + R(Math.sin(t * .61 * TAU) * 4 + (cyc > 3.5 && cyc < 4.6 ? Math.sin((cyc - 3.5) / 1.1 * Math.PI) * 14 : 0));
+      outer.rotation.y = base[1] + R(Math.sin(t * .37 * TAU) * 5);
+      outer.rotation.z = base[2] + R(Math.sin(t * .61 * TAU) * 1.5 + (cyc > 3.5 && cyc < 4.6 ? Math.sin((cyc - 3.5) / 1.1 * Math.PI) * 3 : 0));
     });
-    else if (a.type === "pet_head") anims.push(t => { outer.rotation.x = base[0] + R(Math.sin(t * .5 * TAU) * 6); });
+    else if (a.type === "pet_head") anims.push(t => { // glances about, tilts its head now and then
+      const s = Math.sin((t * .19 + ph) * TAU), cyc = (t + 2.3 + ph * 9) % 9;
+      outer.rotation.y = base[1] + R(Math.sign(s) * Math.pow(Math.abs(s), .35) * (a.amp || 14));
+      outer.rotation.x = base[0] + R(Math.sin(t * .43 * TAU) * 5);
+      outer.rotation.z = base[2] + R(cyc < 1.2 ? Math.sin(cyc / 1.2 * Math.PI) * 7 : 0);
+    });
+    else if (a.type === "blink") anims.push(t => { // eyelids, flat (open) but for a quick close, sometimes twice
+      const blink = f => f < 0 || f > .07 ? 0 : Math.sin(f / .07 * Math.PI);
+      const f = t * (a.speed || 1) + ph, k = Math.floor(f);
+      let c = blink(f - k);
+      if (k % 3 === 1) c = Math.max(c, blink(f - k - .1));
+      outer.scale.y = Math.max(.02, c);
+    });
     else if (a.type === "bob") anims.push(t => { outer.position.y = piv[1] + Math.sin((t * a.speed + ph) * TAU) * (a.amp || .5); });
     else if (a.type === "sway") anims.push(t => { outer.rotation.z = base[2] + R(a.amp * Math.sin((t * a.speed + ph) * TAU)); });
     else if (a.type === "spin") anims.push(t => { outer.rotation.y = base[1] + R(a.speed * t + ph * 360); });
@@ -563,14 +583,19 @@ async function dress(viewer, it) {
 }
 
 function pose(viewer, cat, back) {
-  const wrap = viewer.playerWrapper;
+  const wrap = viewer.playerWrapper, fit = viewer._fit || 1; // fit: the share of the stage above the pose buttons
   wrap.rotation.y = back ? Math.PI - .55 : .5;
+  // auras: tipped towards the camera, so the rune circle at the feet is seen from above and reads clearly
+  wrap.rotation.x = cat === "auras" ? .42 : 0;
+  wrap.position.x = 0;
   wrap.position.y = HEAD_VIEW.has(cat) ? -13 : 0;
-  viewer.zoom = HEAD_VIEW.has(cat) ? 1.05 : cat === "killfx" || cat === "winfx" ? .62 : .74;
-  if (cat === "pets") { // close on the head and the left shoulder, where the pet floats, turned so it isn't behind the head
-    wrap.rotation.y = back ? Math.PI + .5 : -.45;
-    wrap.position.y = -10;
-    viewer.zoom = .95;
+  // full-body views keep the feet and the ground (aura circles, trails) clear of the buttons
+  viewer.zoom = (HEAD_VIEW.has(cat) ? 1.05 : cat === "killfx" || cat === "winfx" ? .6 : cat === "auras" ? .8 : .72) * fit;
+  if (cat === "pets") { // the head, the left shoulder and the pet beside it, turned a little towards the pet
+    wrap.rotation.y = back ? Math.PI + .5 : -.5;
+    wrap.position.y = -13;
+    wrap.position.x = back ? 4 : -4;
+    viewer.zoom = 1.45 * fit;
   }
 }
 
@@ -612,9 +637,12 @@ function renderCats() {
 const owned = () => new Set(state.link && state.link.owned || []);
 function card(it) {
   const own = owned().has(it.id), inCart = state.cart.includes(it.id);
-  const price = `<span class="item-price-sm${forSale(it) ? "" : soon(it) ? " soon" : " free"}">${esc(priceText(it))}</span>`;
-  return `<button class="card item-card" type="button" data-id="${esc(it.id)}" data-r="${it.rarity}" aria-label="${esc(it.name)}, ${esc(RARITY_LABEL[it.rarity])} ${esc(CAT_LABEL[it.cat])}, ${esc(priceText(it))}">
-    <span class="item-thumb">${glyph(it.cat)}${own ? '<span class="owned-tag">Owned</span>' : inCart ? '<span class="incart-tag">In cart</span>' : ""}</span>
+  // "Price coming soon" shortens to "Soon" on phones (shop.css), so it never wraps
+  const label = soon(it) ? '<span class="pl">Price coming soon</span><span class="ps" aria-hidden="true">Soon</span>' : esc(priceText(it));
+  const price = `<span class="item-price-sm${priceClass(it)}"${soon(it) ? ' title="Animated item: its price is set when the shop opens"' : ""}>${label}</span>`;
+  const tag = isFree(it) ? '<span class="free-tag">Free for everyone</span>' : own ? '<span class="owned-tag">Owned</span>' : inCart ? '<span class="incart-tag">In cart</span>' : "";
+  return `<button class="card item-card" type="button" data-id="${esc(it.id)}" data-r="${it.rarity}" aria-label="${esc(it.name)}, ${esc(RARITY_LABEL[it.rarity])} ${esc(CAT_LABEL[it.cat])}, ${esc(isFree(it) ? "free for everyone" : priceText(it))}">
+    <span class="item-thumb">${glyph(it.cat)}${tag}</span>
     <span class="item-body"><span class="rarity" data-r="${it.rarity}">${esc(RARITY_LABEL[it.rarity])}</span><h3>${esc(it.name)}</h3>
     <span class="item-row"><span class="item-cat">${esc(it.partner ? it.partner.name : CAT_LABEL[it.cat])}</span>${price}</span></span></button>`;
 }
@@ -622,13 +650,15 @@ let io = null;
 function renderGrid() {
   const q = state.q.trim().toLowerCase();
   let list = state.items.filter(i => inCat(i, state.cat) && (!state.rarity || i.rarity === state.rarity) && (!q || q.split(/\s+/).every(w => i.search.includes(w))));
-  const price = i => forSale(i) ? i.priceCents : Infinity;
+  const price = i => forSale(i) || isFree(i) ? i.priceCents : Infinity;
   if (state.sort === "price-asc") list.sort((a, b) => price(a) - price(b));
-  else if (state.sort === "price-desc") list.sort((a, b) => (forSale(b) ? b.priceCents : -1) - (forSale(a) ? a.priceCents : -1));
+  else if (state.sort === "price-desc") list.sort((a, b) => (forSale(b) || isFree(b) ? b.priceCents : -1) - (forSale(a) || isFree(a) ? a.priceCents : -1));
   else if (state.sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
   else list.sort((a, b) => a.order - b.order);
   grid.innerHTML = list.map(card).join("");
   count.textContent = state.items.length ? `${list.length} item${list.length === 1 ? "" : "s"}${state.cat ? " in " + CAT_LABEL[state.cat] : ""}` : "";
+  // the Capes category says up front that every cape is free
+  one("#shopNote").hidden = state.cat !== "capes" || !state.items.some(isFree);
   empty.hidden = list.length > 0;
   if (!list.length) {
     one("#shopEmptyText").textContent = !state.items.length ? "The catalogue couldn't be loaded. Please try again later."
@@ -641,7 +671,8 @@ function renderGrid() {
     const it = state.byId.get(el.dataset.id);
     const show = src => {
       if (!src) return;
-      const t = el.querySelector(".item-thumb"), g = t.querySelector(".glyph"); const img = new Image(); img.alt = ""; img.decoding = "async";
+      const t = el.querySelector(".item-thumb"), g = t.querySelector(".glyph"); const img = new Image(); img.decoding = "async";
+      img.alt = it.name + " " + (CAT_LABEL[it.cat] || "cosmetic").replace(/s$/, "").toLowerCase() + " preview";
       // an animated item's thumb.png may be a strip of square frames: play it (stepped, frametime from item.json)
       img.onload = () => {
         const n = Math.round(img.naturalHeight / img.naturalWidth);
@@ -679,6 +710,23 @@ const loading = one("#itemLoading"), controls = one("#itemControls"), hint = one
 let viewer = null, current = null, lastFocus = null, fxRaf = 0, backView = false;
 function sizeViewer() {
   if (viewer && stage.clientWidth) viewer.setSize(stage.clientWidth, stage.clientHeight);
+  frameStage();
+}
+// The pose buttons and the hint sit over the bottom of the stage: the picture is moved up so the model is framed in the
+// space above them (and scaled to fit it, see pose()), and the canvas fades out just above them (shop.css), so nothing
+// is ever drawn over the buttons or the hint, on a phone or a desktop.
+function stageBand() {
+  if (controls.hidden) return 0;
+  const s = stage.getBoundingClientRect(), c = controls.getBoundingClientRect();
+  return Math.max(0, Math.round(s.bottom - c.top + 10));
+}
+function frameStage() {
+  if (!viewer || !stage.clientWidth) return;
+  const band = stageBand(), W = stage.clientWidth, H = stage.clientHeight;
+  stage.style.setProperty("--band", band + "px");
+  if (band) viewer.camera.setViewOffset(W, H, 0, band / 2, W, H); else viewer.camera.clearViewOffset();
+  viewer.camera.updateProjectionMatrix();
+  viewer._fit = H > 0 ? Math.max(.5, (H - band) / H) : 1;
 }
 function fxLoop() {
   cancelAnimationFrame(fxRaf);
@@ -691,7 +739,7 @@ function setAnim(sv, name) {
   viewer.animation = name === "emote" && current && current.emote ? emoteAnimation(sv, current.emote) : new sv[ANIMS[name] || ANIMS.idle]();
   if (name === "walk" || name === "run") viewer.animation.speed = .8;
   (viewer._motion || (viewer._motion = { moving: 0 })).moving = name === "run" || name === "fly" ? 2 : name === "walk" ? 1 : 0;
-  all("[data-anim]", controls).forEach(b => b.classList.toggle("on", b.dataset.anim === name));
+  all("[data-anim]", controls).forEach(b => { b.classList.toggle("on", b.dataset.anim === name); b.setAttribute("aria-pressed", String(b.dataset.anim === name)); });
 }
 async function openItem(id, push = true) {
   const it = state.byId.get(id);
@@ -711,8 +759,13 @@ async function openItem(id, push = true) {
   pp.hidden = !it.partner;
   if (it.partner) pp.innerHTML = `<b>Partner item from ${esc(it.partner.name)}.</b> ${esc(it.partnerHow || (forSale(it) ? "Also sold here." : "Earned on the partner server."))}`;
   const pr = one("#itemPrice");
-  pr.className = "item-price" + (forSale(it) ? "" : soon(it) ? " soon" : " free");
+  pr.className = "item-price" + priceClass(it);
   pr.textContent = priceText(it);
+  const note = one("#itemNote");
+  note.hidden = !isFree(it) && !soon(it);
+  note.className = "item-note" + (isFree(it) ? " gift" : " soon");
+  note.innerHTML = isFree(it) ? "<b>Free for everyone.</b> Every Evade player can wear it: open the <b>Wardrobe</b> in Evade and pick it. No account link or purchase needed, and it's never sold."
+    : soon(it) ? "<b>Animated item.</b> Its price is set when the shop opens. Preview it here any time." : "";
   updateAdd();
   if (push) history.replaceState(null, "", "#item=" + encodeURIComponent(it.id));
   one(".item-close", modal).focus({ preventScroll: true });
@@ -737,8 +790,9 @@ async function openItem(id, push = true) {
   viewer.resetCameraPose();
   pose(viewer, it.cat, backView);
   viewer.autoRotate = false;
-  all("[data-rotate]", controls).forEach(b => b.classList.remove("on"));
-  all("[data-view]", controls).forEach(b => { b.classList.toggle("on", backView); b.textContent = backView ? "Front" : "Back"; });
+  // one filled state (the pose); Back/Front is a plain switch and Spin an outlined toggle, so only one looks selected
+  all("[data-rotate]", controls).forEach(b => { b.classList.remove("pressed"); b.setAttribute("aria-pressed", "false"); });
+  all("[data-view]", controls).forEach(b => { b.textContent = backView ? "Front" : "Back"; });
   one("[data-anim=emote]", controls).hidden = !it.emote;
   setAnim(sv, it.emote ? "emote" : it.cat === "capes" || it.cat === "trails" ? "walk" : "idle");
   fxLoop();
@@ -778,19 +832,21 @@ controls.addEventListener("click", async e => {
   if (b.dataset.anim) setAnim(sv, b.dataset.anim);
   else if (b.hasAttribute("data-view")) {
     backView = !backView; viewer.autoRotate = false;
-    all("[data-rotate]", controls).forEach(x => x.classList.remove("on"));
+    all("[data-rotate]", controls).forEach(x => { x.classList.remove("pressed"); x.setAttribute("aria-pressed", "false"); });
     viewer.resetCameraPose(); pose(viewer, current.cat, backView);
-    b.textContent = backView ? "Front" : "Back"; b.classList.toggle("on", backView);
-  } else if (b.hasAttribute("data-rotate")) { viewer.autoRotate = !viewer.autoRotate; b.classList.toggle("on", viewer.autoRotate); }
+    b.textContent = backView ? "Front" : "Back";
+  } else if (b.hasAttribute("data-rotate")) { viewer.autoRotate = !viewer.autoRotate; b.classList.toggle("pressed", viewer.autoRotate); b.setAttribute("aria-pressed", String(viewer.autoRotate)); }
 });
 function updateAdd() {
   const it = current;
   if (!it) return;
   const own = owned().has(it.id), inCart = state.cart.includes(it.id);
   addBtn.classList.toggle("in", inCart || own);
+  addBtn.classList.toggle("gift", isFree(it));
   addBtn.disabled = !forSale(it) || own;
-  // the price line already says "Price coming soon" in gold: the (disabled) button just says "Coming soon"
-  addBtn.textContent = own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : soon(it) ? "Coming soon" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
+  // free items (capes) are never sold: no cart, just where to get them; the price line already says "Price coming soon"
+  // in gold for unpriced specials, so their (disabled) button just says "Coming soon"
+  addBtn.textContent = isFree(it) ? "Equip in game" : own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : soon(it) ? "Coming soon" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
 }
 addBtn.addEventListener("click", () => {
   if (!current || !forSale(current)) return;
@@ -802,6 +858,7 @@ addBtn.addEventListener("click", () => {
 const cartList = one("#cartList"), checkoutBtn = one("#checkoutBtn"), checkoutMsg = one("#checkoutMsg");
 const side = one("#shopSide"), fab = one("#cartFab");
 function toggleCart(id) {
+  if (!forSale(state.byId.get(id))) return; // free items (capes) and unpriced ones never enter the cart
   const i = state.cart.indexOf(id);
   if (i >= 0) state.cart.splice(i, 1); else if (state.cart.length < 20) state.cart.push(id);
   store.set("cart", state.cart);
@@ -902,7 +959,8 @@ checkoutBtn.addEventListener("click", async () => {
   if (!state.link) { msg(checkoutMsg, "First link your Minecraft account with the code from Wardrobe → Link the shop.", "err"); linkInput.focus(); return; }
   busy = true; updateCheckout(); msg(checkoutMsg, "");
   try {
-    const body = { linkCode: state.link.code, items: state.cart.slice() };
+    const body = { linkCode: state.link.code, items: state.cart.filter(id => forSale(state.byId.get(id))) };
+    if (!body.items.length) throw new Error("Your cart is empty.");
     if (giftToggle.checked) body.giftTo = await giftUuid();
     const r = await call("/api/shop/checkout", body);
     if (state.status.mode === "test" || r.mode === "test") showSession(r.sessionId);

@@ -1534,27 +1534,6 @@
    }
   },
   {
-   "id": "thunderhead_cape",
-   "name": "Thunderhead Cape",
-   "slot": "CAPE",
-   "rarity": "regular",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Rolling storm clouds over a deep night blue, split by a glowing bolt of lightning.",
-   "assets": {
-    "files": {
-     "item.json": "fd027047ad7ec3ffa5778d1fd3e40aba18f3c390f5771978694397ab058ae663",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "b1f068bc0cc2aecb66f0e1e46018f0e61415f1034c736eb374b2b563a5a75237",
-     "emissive.png": "ae206011bed524a41e1430ff84a38e90a120eda0e5a5d8f8702099258327eea8",
-     "thumb.png": "521ef639f75b1320b59e807936e038473e10d5dae4a6f6b54bd8619705fa7c38"
-    }
-   }
-  },
-  {
    "id": "honeycomb_cape",
    "name": "Honeycomb Cape",
    "slot": "CAPE",
@@ -1576,27 +1555,6 @@
    }
   },
   {
-   "id": "circuit_cape",
-   "name": "Circuit Cape",
-   "slot": "CAPE",
-   "rarity": "regular",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A circuit board: copper traces, a chip at the centre and a few lines that glow cyan.",
-   "assets": {
-    "files": {
-     "item.json": "46bbd5df4003f74b683d1cd7b18f01652859cb4be6320ba061c55038babfb9d0",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "2218e89a9d5511c38cf37e6f55fbc9f9a5ed0c049c0e83e8ccc827c753b74110",
-     "emissive.png": "3fb3fa668c01b79846a0773034227896a28c88b0007589f275a37288e010d5fb",
-     "thumb.png": "7cd46c685680e5973b3cff23d4da3cce78a1aca11e3ee0936c35bf2f4217cb27"
-    }
-   }
-  },
-  {
    "id": "royal_ermine_cape",
    "name": "Royal Ermine Cape",
    "slot": "CAPE",
@@ -1614,27 +1572,6 @@
      "texture.png": "7176db7437f07e61ebc5d5142d73ae703d82e28db00a9322c6e1db2bffec3c33",
      "emissive.png": "6dd6e55f752a0877f13fe052f547c0283d4965900c0d014068c0a028a01f2bb4",
      "thumb.png": "1dcb58e5a270b62b9db451ffd2318238f687ec80adf4e90a2ac9aad2db0f5e5e"
-    }
-   }
-  },
-  {
-   "id": "sunset_drive_cape",
-   "name": "Sunset Drive Cape",
-   "slot": "CAPE",
-   "rarity": "regular",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A striped retro sun sinking behind purple mountains under the first stars.",
-   "assets": {
-    "files": {
-     "item.json": "736de6bccbf22d2ba0681525e82d5337ccf6ed04eedcd74a6334227486aedf68",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "1187e7d1305df2f32b3d245cb88f597ec458b2fce307a9695b77ca31cab6f737",
-     "emissive.png": "6915da926bb7426005310b7766c4762bd175c61d079af5e80302cc7b0d7b0da1",
-     "thumb.png": "5c14f0679d7ef5d56c8ad7d29e4646a9524e59eb7c072fbe713495d97d9386bc"
     }
    }
   },
@@ -1673,30 +1610,9 @@
     "files": {
      "item.json": "f49fda042cefdb11b49cabf1f5697498ab623499edfcc1ea0becb90d463ca4ad",
      "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "4abd23c591cfe06376d8398c5f91ded119f2df8a245f471efc129ecec9b5274d",
-     "emissive.png": "f80c376f3e7a0eaea20af0483c10bda325e3654f19d5c12ad23609c6c9a3942d",
-     "thumb.png": "dd1d694a2f73651c67f7dcb05a15d676f9774bcb3768e993e00b8f3fc5e4f02e"
-    }
-   }
-  },
-  {
-   "id": "lava_flow_cape",
-   "name": "Lava Flow Cape",
-   "slot": "CAPE",
-   "rarity": "special",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Cracked black rock with molten lava creeping down through the cracks.",
-   "assets": {
-    "files": {
-     "item.json": "3fde1ffca967b28d5dc95d1e23b34eb0275da25e868a417405feff6fb9e9f54b",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "53f1e7d92f861d72c2799e4d3e42d1c682b796624e00ee07b08283c2d4bb58cf",
-     "emissive.png": "6272482d8e5037081cd68fae1ef044191010e0e3638f257665200fd1f7ca48e7",
-     "thumb.png": "6d0dbef09b4c7985050952a410b27d9e0f2261ca770156f9680d8dc77456ceb4"
+     "texture.png": "08b470d8de79f5becb2fbf3e0e0bfe89ce4a9677874d9fe884bfecaa5cb024b7",
+     "emissive.png": "88a47b4b21b8bb84f99d2c7da49bfd9522a8781e78d79e639b85668d62e08bad",
+     "thumb.png": "824aa87fa4d6d9825609762baaf2e1b783362a40fdf882f63f185d70e4d8c7ba"
     }
    }
   },
@@ -1722,48 +1638,6 @@
    }
   },
   {
-   "id": "spectrum_shift_cape",
-   "name": "Spectrum Shift Cape",
-   "slot": "CAPE",
-   "rarity": "special",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Bands of colour slide across the cape forever, with sparkles that twinkle as they pass.",
-   "assets": {
-    "files": {
-     "item.json": "dab8a76151fe826bf9c2bb664a62f4af025357b87869731cb54a7071cfc8d3c6",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "b445fc573faf48c905b65e14de856b7826dac87830f87eb5a526de3e85a4bfd3",
-     "emissive.png": "e716dc2e9f82f614c8308cc7d085e1514eede6947655cee262eb48afb03a4db3",
-     "thumb.png": "3b6a12ef2782d0e4b158726706a6ca99d9763fd2408d34505b6d0fd81066efec"
-    }
-   }
-  },
-  {
-   "id": "storm_surge_cape",
-   "name": "Storm Surge Cape",
-   "slot": "CAPE",
-   "rarity": "special",
-   "priceCents": 0,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Storm clouds drift across the cape and lightning flashes, lighting up the whole sky.",
-   "assets": {
-    "files": {
-     "item.json": "73ce731335609877547d4e272e832ba715f64177693156daa6ebeca918cf116f",
-     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "dec0b3a0a4bea54e860f6e6b224323319a9d1b5a2ee14f627cc74335ed6672be",
-     "emissive.png": "a82633b5e4e443eb1d2794ddceec389c5bc4143116d815f7fcdf0cce4aa407c9",
-     "thumb.png": "d7ab55d0c4a77f066541787517264548f4f022125261079aa8827caf525e91d5"
-    }
-   }
-  },
-  {
    "id": "bass_drop_cape",
    "name": "Bass Drop Cape",
    "slot": "CAPE",
@@ -1785,26 +1659,6 @@
    }
   },
   {
-   "id": "nightwing_wings",
-   "name": "Nightwing Wings",
-   "slot": "WINGS",
-   "rarity": "regular",
-   "priceCents": 900,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Leathery bat wings in deep violet with dark finger bones and a scalloped edge.",
-   "assets": {
-    "files": {
-     "item.json": "63ff545e81ec1b03fe50f7b80c440314a489e7209b98bf23a17671da2284f516",
-     "model.json": "c8cbc5e2c14d865b270e74ff051a4808d473c62501ffe383ea1c092a4ccf4b17",
-     "texture.png": "04a1d7fa3b788cc6aaed74d7914cfbd2760371cedc702560b1861b9cba1e7bec",
-     "thumb.png": "821ad8e28f2c0e9102c0846b8f3416b90945b74b2a9068e3feef5d0630323466"
-    }
-   }
-  },
-  {
    "id": "dusk_moth_wings",
    "name": "Dusk Moth Wings",
    "slot": "WINGS",
@@ -1821,110 +1675,6 @@
      "model.json": "196f6d4e49bb2167047348b8ded31550caf54e180f4e1469254bb8a7fb7fb828",
      "texture.png": "3e5008c41b9ddfeb822a8e31ac3194291107b541512177fd0904f78b74f461df",
      "thumb.png": "a72b9e870bf0de6492edacac84b08753a01a1094da49f024e675a78d5fc0581a"
-    }
-   }
-  },
-  {
-   "id": "phoenix_plume_wings",
-   "name": "Phoenix Plume Wings",
-   "slot": "WINGS",
-   "rarity": "regular",
-   "priceCents": 1100,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Gold-armed wings of long feathers that burn from yellow to deep red, glowing at the tips.",
-   "assets": {
-    "files": {
-     "item.json": "83cf30467cba4fa07173a5ee9d90baee44e3db62444426c8fb13c2f0941c21a7",
-     "model.json": "37439056f314b61720f6ff72f16b0d1efcc75a40c7957753e5884010b229c889",
-     "texture.png": "125bf84974f2a9a5032efe543d5ed518d7f6e7961ac40eb8d2c0768d55acec03",
-     "emissive.png": "eca3cee2f3f5e5f7f402d895d624fb53e4cad77d4a91fa0017c145e6f7cf8204",
-     "thumb.png": "53781c70f755ef517475dd43ce106a46d16702d4387789d99522502089ea3a22"
-    }
-   }
-  },
-  {
-   "id": "amethyst_shard_wings",
-   "name": "Amethyst Shard Wings",
-   "slot": "WINGS",
-   "rarity": "regular",
-   "priceCents": 1000,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Spars of violet and ice-blue crystal fanned out from a silver arm.",
-   "assets": {
-    "files": {
-     "item.json": "0e03c93352d5185334c633c0135df7077459b68c9d35024a25051a7411bcaf85",
-     "model.json": "a7b9c55fd481f97df452c0c5e76763a0cd1c3a176bb1e08c361619da572d4ce0",
-     "texture.png": "5f9a407e19b6fc39b3c7581d73d2f84ebe2b86e0249df2e0f82880366e2f5e73",
-     "emissive.png": "20406fd5626a1425271d51f748365d88e48eaca13168724998d0a9bc5c530d8c",
-     "thumb.png": "312c836cc53a610bb7f30180a7c4469994123440683a3c913f313a1b560db5fb"
-    }
-   }
-  },
-  {
-   "id": "phoenix_rebirth_wings",
-   "name": "Phoenix Rebirth Wings",
-   "slot": "WINGS",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Phoenix feathers alive with real flame: fire runs up every feather while you fly.",
-   "assets": {
-    "files": {
-     "item.json": "f9fd9029a5f2e8d04ce62bc669fc267b9b11448c41b35fb61822f54a8bef265a",
-     "model.json": "37439056f314b61720f6ff72f16b0d1efcc75a40c7957753e5884010b229c889",
-     "texture.png": "22ecc00c2c0562f01a53474ea872c27f6fe280a230e849bce8e9fd946c607cc0",
-     "emissive.png": "47419e3019ae68c34061b764fa06228f696e98b0871f4249a268dbe7a946fcb2",
-     "thumb.png": "fa96d36d18e44764d5f22793f2f8860b7e47b502fd63107c30a59276055d6b79"
-    }
-   }
-  },
-  {
-   "id": "neon_pulse_wings",
-   "name": "Neon Pulse Wings",
-   "slot": "WINGS",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Black bat wings whose veins light up in waves of neon pink, shoulder to tip.",
-   "assets": {
-    "files": {
-     "item.json": "c8930a864e4e1cba65c24db351930195108669da423faef7da0f588ed17eaf6f",
-     "model.json": "c8cbc5e2c14d865b270e74ff051a4808d473c62501ffe383ea1c092a4ccf4b17",
-     "texture.png": "b5345f70e39fd616aa56c1a8236f3aad161e8968e35825f49dcf43b77c99f49f",
-     "emissive.png": "e59eb984ac66ac165ba152b07fecec75e81dead469d4d89de3c645a02a428371",
-     "thumb.png": "80149c6cf6bdada87f751639ccc0924c0141bb187a5d6f23564a03ef5deecabe"
-    }
-   }
-  },
-  {
-   "id": "snowday_beanie",
-   "name": "Snowday Beanie",
-   "slot": "HAT",
-   "rarity": "regular",
-   "priceCents": 200,
-   "currency": "USD",
-   "partner": null,
-   "colourable": true,
-   "defaultColor": "#E11D2E",
-   "description": "A chunky ribbed beanie with a fluffy white pompom, in any colour you like.",
-   "assets": {
-    "files": {
-     "item.json": "deec0fbc4e56da2f165b60c3693ae87b0f7f03b78a3dba0963dcee9f5f924eb2",
-     "model.json": "c83545a2f3ec1134b2f04a35eb7baeb5dc84bf6c44b3de707dec8ea91cca57cd",
-     "texture.png": "e8a2804def3c116fd1a83ea9c0d227a16fa2aff9a147d53c9306d15838e89623",
-     "thumb.png": "7e9a5bbf0e0eaebcd2fa1ed0af72db9f4dc5160bb959eb1bd21e0f8cbe572902"
     }
    }
   },
@@ -1970,47 +1720,6 @@
    }
   },
   {
-   "id": "starweaver_hat",
-   "name": "Starweaver Hat",
-   "slot": "HAT",
-   "rarity": "regular",
-   "priceCents": 300,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A tall, bent wizard's hat in deep violet, covered in glowing gold stars.",
-   "assets": {
-    "files": {
-     "item.json": "2ca3add27d19144f2f8b3165fde1822741c3f22dd9fed75b806599f948fff59a",
-     "model.json": "eab761695c0e2b7041f0e348403d42c311050cef1a983132d33a9ee2af058a33",
-     "texture.png": "daec196c8ba4eb0d55d4a71605c1b3ee8e62156835e00fa6732ef21b1e16fffa",
-     "emissive.png": "93d15e3da70c12c376a9f07f3576b790a21c732b8481bbca5ed4d1ec2a804ca8",
-     "thumb.png": "87da065d6a8d2f5fe1d167fa2d3a66fd02b425f5b71396357af809d110051490"
-    }
-   }
-  },
-  {
-   "id": "bunny_ears",
-   "name": "Bunny Ears",
-   "slot": "HAT",
-   "rarity": "regular",
-   "priceCents": 100,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Tall fluffy white ears with pink insides that lean back a little.",
-   "assets": {
-    "files": {
-     "item.json": "ed76ddb0816b55f14f94633a365d910b56e5286b65de5b1d144f699ba3900fef",
-     "model.json": "3ac70cfdb41ec15be1bbce3d08a22bb4a52bb0a07fb2ee74d3b4e94d0d354067",
-     "texture.png": "66dd387dc29b5811075241c7d51d2e142cdc00ff43b0915db28f3189cba2097f",
-     "thumb.png": "9bc1d3305fc6f1983712ed8e00ee5f52b5600c60e5b730e7907941a6364af18c"
-    }
-   }
-  },
-  {
    "id": "raider_helm",
    "name": "Raider Helm",
    "slot": "HAT",
@@ -2027,48 +1736,6 @@
      "model.json": "880907ea4e83dc7d2e140a2ba927a76a0622acc11854fc04d27fc3c4e8bbed25",
      "texture.png": "3b3010fccaf447f16a3ba79b9d1513f30e54b4c7f8225f947d231a25025abaef",
      "thumb.png": "f80eb584fc463b23383c9eb0dc561174e7ca4646e27810ae78fbd0ddc5978b60"
-    }
-   }
-  },
-  {
-   "id": "inferno_crown",
-   "name": "Inferno Crown",
-   "slot": "HAT",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A spiked gold crown with real flames dancing up from the band.",
-   "assets": {
-    "files": {
-     "item.json": "181ba423901ec9800ae82819350171668f2d7f84052e28e0424d8de11a2036c8",
-     "model.json": "23a1311fd4d8d6ed391d64354c083fe077e0a68671481b5adc5323592111bc46",
-     "texture.png": "d0a8d6e8810aa77224ca3cfd146015ad248799f863d36c748acbed298c104a5b",
-     "emissive.png": "7c327c039cd9ea0699362b7ce0c60e1d2ce1c719529c2a86290578e337d4f234",
-     "thumb.png": "cc3da2e6429d007bf63723d917777dda9cbdcb88f6e434c73c222f2b41568953"
-    }
-   }
-  },
-  {
-   "id": "prism_halo",
-   "name": "Prism Halo",
-   "slot": "HAT",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A halo of pure colour that spins above you while the rainbow runs round the ring.",
-   "assets": {
-    "files": {
-     "item.json": "dc7f0833344849a495c926d6c7994461c09a6ce8f62af2fa38cc24e7269874c5",
-     "model.json": "97a2fb0ada98fec7d37a702f14dab9b6bfe28d1f11b5e6919512067186b91054",
-     "texture.png": "f5dfb6ce9c3fde4ab4734ff86c5476f1909c98c861be5e25c96ac7654099ee3f",
-     "emissive.png": "f5dfb6ce9c3fde4ab4734ff86c5476f1909c98c861be5e25c96ac7654099ee3f",
-     "thumb.png": "63badb56ddb81c7e87e4a1a5cb99c2d3867338ad56b2e023f2ddc6f30c467732"
     }
    }
   },
@@ -2090,26 +1757,6 @@
      "texture.png": "a4c3c59c790cbc75dba63d259d662c39f2f05872985e2320ee8fdae898f7facd",
      "emissive.png": "56da55dc0d212025c9cffae818ee7f06938aa9bdcaa0526b2565d301bf517bce",
      "thumb.png": "0f9c23bbd71d92b6f70121e6a07d346e94663138fc4380e389e9574054190aff"
-    }
-   }
-  },
-  {
-   "id": "shadow_wrap",
-   "name": "Shadow Wrap",
-   "slot": "MASK",
-   "rarity": "regular",
-   "priceCents": 250,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A dark cloth face wrap tied at the back with two loose tails.",
-   "assets": {
-    "files": {
-     "item.json": "162bd0c691d424ed89954d742dcf6efe3cdc0f59d4549cfb9907e38e1f0df5d9",
-     "model.json": "d02365d1978d55f92c1388685a6a70a93a05d666d40c28dcfa3f9b5871fe1d86",
-     "texture.png": "926bc6f4f9b1ea284872c2e7a2aa7804211f1ab266e940d81bcacbdb8afa9c91",
-     "thumb.png": "94f4291a42184be44254475fb74464e7e19bc58ca384c515013d724e6b583292"
     }
    }
   },
@@ -2155,27 +1802,6 @@
    }
   },
   {
-   "id": "led_visor",
-   "name": "LED Visor",
-   "slot": "MASK",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A black visor with a red LED message that scrolls across it: GG WP!",
-   "assets": {
-    "files": {
-     "item.json": "d0394b7362d661fe4821da39c8b2deecd3417527d92d41e6ed911fc4c0e1565e",
-     "model.json": "bb7f8be06e54712e9dfbd642283007bfef614325f25a28107fee5893dc6b9ccd",
-     "texture.png": "30ddce4e9cc092e85e1d4c94f2b0970d7fe1df7871e38031bd0b45e9e7d0996a",
-     "emissive.png": "608eddea445696991bc8caf05a54125bf38417d71f4379d4c439ae4ffa5106ef",
-     "thumb.png": "74174a5f8c7079c2ff1879597d94e7603d794bff30b4cd7a5226614638d5dd1b"
-    }
-   }
-  },
-  {
    "id": "acoustic_guitar",
    "name": "Acoustic Guitar",
    "slot": "BACK",
@@ -2192,46 +1818,6 @@
      "model.json": "227968b224385d3bff4178fbd1fd8266d35e8247cd7c520a5e751dcae5423994",
      "texture.png": "3373986517eb579d90d412484c8de9cb5d15b8c9135dfe37c14ed70147bdd397",
      "thumb.png": "608115d4484cc5a11d716653c1985596fe94835c0562d7cc32cc89053882a238"
-    }
-   }
-  },
-  {
-   "id": "trailblazer_pack",
-   "name": "Trailblazer Pack",
-   "slot": "BACK",
-   "rarity": "regular",
-   "priceCents": 400,
-   "currency": "USD",
-   "partner": null,
-   "colourable": true,
-   "defaultColor": "#3A8AFF",
-   "description": "A sturdy hiking backpack with a bedroll on top, in any colour you like.",
-   "assets": {
-    "files": {
-     "item.json": "42914c37921771238f673e6a79b77fa5e77c28b8e296bbee7601487fc4606fb9",
-     "model.json": "379bc0d9e0dbf4c5bbf31f9f4ceeb84b707c929106acfeaaf122a39cee65eebf",
-     "texture.png": "e8d6211c96e60880381d7e98998d62a7b02c222e1d1f200c8aa5e989a411dee6",
-     "thumb.png": "1a7622e1ef0d2b08991d9bf105ec4a507f8f84775af6f9f2046f5ceb070c1f77"
-    }
-   }
-  },
-  {
-   "id": "twin_katanas",
-   "name": "Twin Katanas",
-   "slot": "BACK",
-   "rarity": "regular",
-   "priceCents": 400,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Two black-lacquered blades crossed on your back, with gold guards and red-wrapped grips.",
-   "assets": {
-    "files": {
-     "item.json": "e1c0df7ff9f510c22bc49133cf09f3533eb51493acb896a5e51848776db78b8f",
-     "model.json": "98eced4814b2aeaa63a66a0f7532b1c66340413b79e45e0938d02d9944641f46",
-     "texture.png": "73f12a4bf30a3808a1ec42f4025ce127c403b70dd0b4e09360fa887d06ffad1f",
-     "thumb.png": "63ffa0818bc7b39af13a9cef5bfad15dea659ef8a1312ded115fa0fc72169f44"
     }
    }
   },
@@ -2374,8 +1960,8 @@
     "files": {
      "item.json": "9ed607cf7a3f90ace03f8b84fb7f6a13f6cebc5d739afd9df8e6b621e2d665cc",
      "model.json": "fb9615538597d6a252f795aeafba236384abfd96cc39b189d84671e2f314d5d4",
-     "texture.png": "b26be4048be01f6fb7a1bf05a746fbc48e24c797ace040025cc2bae539142d8f",
-     "thumb.png": "bfdde4d2197eb3364c7b282b93f692b006054be5e3caa2eb7d82ceaa3fffe155"
+     "texture.png": "094e160e76e2ad8468243ac2a0351fa8f3f19a9ffbe177f0412103702f72559d",
+     "thumb.png": "f585811cb4db147d786ef35ec29c05d651c61072f8a363c619fd4ac75c506f1f"
     }
    }
   },
@@ -2421,69 +2007,6 @@
    }
   },
   {
-   "id": "cinder_spirit",
-   "name": "Cinder the Spirit",
-   "slot": "PET",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A living flame with a happy face that flickers and burns by your shoulder.",
-   "assets": {
-    "files": {
-     "item.json": "3cb56f723ffc4aaff41af6199dac091741437c57300932f774b9f4b2ebb84653",
-     "model.json": "49534e4a5afd4a4638d71eb7ad361f9f8a30a940f8c8056952ec9ea21f059ef9",
-     "texture.png": "4909ce0af6e80f54c1b9cb624c22609a6d4e1d5b4f35077a4415c1ec0c59b533",
-     "emissive.png": "40954538c768f275cf0f07154a437471342ae8b009eec588b83f6f39806c1bd1",
-     "thumb.png": "6744a0aa973b30f60d2627119dd265a07ce4dc8cde9ee635456e5b4a6129ff69"
-    }
-   }
-  },
-  {
-   "id": "clover_ring",
-   "name": "Clover Ring",
-   "slot": "AURA",
-   "rarity": "regular",
-   "priceCents": 400,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A ring of green leaf runes turns at your feet, with a few petals drifting up.",
-   "assets": {
-    "files": {
-     "item.json": "1ad89a538d2e9a0c8064cb8459d96848cb28343e2d896d4e2a7861780a5627cf",
-     "model.json": "b503a3d19247768b9ba8d8c84f41510b58045610ce0b3ce3a95b2fa3242ce34f",
-     "texture.png": "35140ab69f0a3c87d6c343e8579bab9ca6b0533548c3f5df2a6db2e4288425bc",
-     "emissive.png": "9c6c6e2e9e85ac0f95168db71724be5d63461f859e9f629f340ab0a48f074885",
-     "thumb.png": "a01735e30af51441237aff43c7c5a915d21749f5f4d36152813e159b96549d6a"
-    }
-   }
-  },
-  {
-   "id": "galaxy_vortex",
-   "name": "Galaxy Vortex",
-   "slot": "AURA",
-   "rarity": "special",
-   "priceCents": null,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A ring of every colour spins at your feet while the colours race round it.",
-   "assets": {
-    "files": {
-     "item.json": "2a5eb9939b301de1010e961ea08f0bf5c34f5288cbe53295f6824e7b98ec2ad4",
-     "model.json": "bf5076b1cff988ed850e0b36d302cf3e4717643ef9f4d76c058a7730d7049196",
-     "texture.png": "4305714a6ed37b200e04f74e3485359d61cfa2c3188badc790ae05263cc0219d",
-     "emissive.png": "2a710ca6f9772c8ea160afbee80a888fc5c863b186d5997b93b4f06998b3a6ac",
-     "thumb.png": "56caf84c9dc16768f8e02e413e5a4030ae7b1ca4eb5dcb21261e55727952d52f"
-    }
-   }
-  },
-  {
    "id": "bubble_trail",
    "name": "Bubble Trail",
    "slot": "TRAIL",
@@ -2520,24 +2043,6 @@
    }
   },
   {
-   "id": "thunderclap",
-   "name": "Thunderclap",
-   "slot": "KILL_EFFECT",
-   "rarity": "regular",
-   "priceCents": 200,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "A kill cracks like thunder: yellow and white sparks burst out where they fell.",
-   "assets": {
-    "files": {
-     "item.json": "574825ad42952bd3895e0370cb43f3d90df1b7e83421e646c0ac6c56fd9322f7",
-     "thumb.png": "8c2f3adfb9484e0fe323744714de93919759eff12ce6e80595f55bc0d9bc1ff8"
-    }
-   }
-  },
-  {
    "id": "gold_rush",
    "name": "Gold Rush",
    "slot": "WIN_EFFECT",
@@ -2552,24 +2057,6 @@
     "files": {
      "item.json": "49ebfafc4430607d533169d9940c430285205d87f4fc279816900d36fc90425e",
      "thumb.png": "741deb5bc73e3985cb605e7c867f5fa185ab195c494e494aab4e389c9844a6f5"
-    }
-   }
-  },
-  {
-   "id": "snowfall_finale",
-   "name": "Snowfall Finale",
-   "slot": "WIN_EFFECT",
-   "rarity": "regular",
-   "priceCents": 200,
-   "currency": "USD",
-   "partner": null,
-   "colourable": false,
-   "defaultColor": null,
-   "description": "Win a game and a column of snowflakes swirls up around you.",
-   "assets": {
-    "files": {
-     "item.json": "5f50c66ffaed96d5a296b131d26d248e2a5543629a236f218ccf9e00102509ea",
-     "thumb.png": "03943f3b58d4e50e26bd6a264e809f49cb313f9686de3e8774e6dc1b9c307586"
     }
    }
   },
@@ -2628,8 +2115,338 @@
    }
   },
   {
-   "id": "air_guitar",
-   "name": "Air Guitar",
+   "id": "torii_sunset_cape",
+   "name": "Torii Sunset Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A red gate standing in still water with the sun going down behind it, its reflection rippling on the lake.",
+   "assets": {
+    "files": {
+     "item.json": "a23524af1f3b776deb89650b4d65535a3b896142e37220a1d1cd67484b9b2adf",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "32d74a6c63cd47878d17ea692d42838f199fa8bdbcba100156d02bed183c21fe",
+     "emissive.png": "b0fdac3c9798c2585830e00c794dc693741c19df7ef5010d4c3568b18e13e291",
+     "thumb.png": "f881091d74a1ef19bd2884d4d8d2b1b907aca630b379bf6d349c999f668282c2"
+    }
+   }
+  },
+  {
+   "id": "graffiti_crown_cape",
+   "name": "Graffiti Crown Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Black cloth with a crown sprayed on in white, the paint still dripping, and a splash of colour underneath.",
+   "assets": {
+    "files": {
+     "item.json": "6c8bdde1ccbbdabb317758d282641dbd0722c4022aa2c29a0df7f0caad3e09f4",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "ce328c595e7fe050536b63c3cd0f911bf527a2e74ad03cad904d13a674cc43d4",
+     "thumb.png": "3e562a1bbda13b11ca9b32426a41e33cdaa6f772b6878d41a32fd0a2c69106ef"
+    }
+   }
+  },
+  {
+   "id": "imperial_dragon_cape",
+   "name": "Imperial Dragon Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Deep navy silk with a long golden dragon coiling down it between curling clouds, chasing a pearl.",
+   "assets": {
+    "files": {
+     "item.json": "0e2d3c965ea55896d7e1b176e7fe73789ceeb4bba3e8aa6b3c19a83112ca884f",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "6ac4dee7d16bf21d2a13d96013128a3bbc8f674fd1140c46211d8e19d5e8559a",
+     "emissive.png": "a3fa64ae865fa6013e8170d47a0d3ce7cd71a41cd593dab5a91393acd614cdee",
+     "thumb.png": "c40d5f5e91385e3edbecbaaaa608bfa6bbf5980d6eb9d8b984dd8f6c5bdb2925"
+    }
+   }
+  },
+  {
+   "id": "ace_of_spades_cape",
+   "name": "Ace of Spades Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A black playing card with a crimson double border, a big red spade in the middle and an ace in the corners.",
+   "assets": {
+    "files": {
+     "item.json": "abba31d9368c882682ecf584e48adc1091d64cb4bf6f9e23eadc6a49830d78f5",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "e158c8ba2f844c4c7cda874648d978f40ade0f841a1d58da83767392fef25f56",
+     "emissive.png": "9640096495d4df7a89519bf9425674fc12e223dc00317d8e4abb08cdb31f9e36",
+     "thumb.png": "a23abed0b220b580f33f88956b53cafabda9c68dfaae306320588fbb6ca8f4a1"
+    }
+   }
+  },
+  {
+   "id": "snow_peak_cape",
+   "name": "Snow Peak Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A snowy mountain under a pale winter sky, pines along the shore, all mirrored in a still blue lake.",
+   "assets": {
+    "files": {
+     "item.json": "84001aa5e312bbc0693db4b3917d1668057da3b55150e655e3fa140989fc5291",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "b4f4f82d0181af90ff6482f9de20cf7e1ca4b106abc3ef220bc9f9a9d2983a24",
+     "thumb.png": "da82c2df4b68445ec50d0f10d79d7c42f898119e40264711929a93fd69e97166"
+    }
+   }
+  },
+  {
+   "id": "winged_crest_cape",
+   "name": "Winged Crest Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A golden eagle with its wings spread wide, set on black inside a fine gold border.",
+   "assets": {
+    "files": {
+     "item.json": "c78967482298c8eabf4282b9764784d60a776c9749c9fb6904e0ee8f96fc0405",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "8118ff68cb16dc690a84c4e29374530533ce956de3dbf6d889ada00fa976aeb9",
+     "emissive.png": "639ce0646ad233e5953784708ff8b1c7a61a540204527bae1678876cfb887ff3",
+     "thumb.png": "5847991f221ea659f9b04b8bceffdbfdfd9ead9b658323850e57376808df797d"
+    }
+   }
+  },
+  {
+   "id": "samurai_cloak",
+   "name": "Crimson Samurai Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Deep crimson with gold edging, a round gold family crest of three swirls and gold waves rolling along the hem.",
+   "assets": {
+    "files": {
+     "item.json": "564c7d2260ab2498959b24d208d82260cbf68f63f403a640c7e78dd63379157e",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "61ed23c14d0a3bcc57230daf77d92bcf618230dbb419a56a26d603c8146ee38f",
+     "emissive.png": "c7b1eacf1c2814677c1a9626df548352aefa9b2331c870c4325592e529046a0a",
+     "thumb.png": "b706899f28322a074cae52d48d37943f7bc79c73d22a54920f77a82464788af0"
+    }
+   }
+  },
+  {
+   "id": "glitch_koi_cape",
+   "name": "Glitch Koi Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Two neon koi, one pink and one cyan, chase each other round dark water while the signal glitches and tears.",
+   "assets": {
+    "files": {
+     "item.json": "0a98e1497c1826b66d7421ecc4d7aa087f8564209da453076b928ac150447439",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "ab84a35d404133c774539132ffec0ca23a87e2c3bc06ef77e0c0e915a8c0cdf7",
+     "emissive.png": "6aba6a9f95476c3860e9443e32e4209575ff32fe654c91380760279f4e065fb4",
+     "thumb.png": "0d8e471890de7c90568f587e01f0ff2742fabfd924fa02dcb5df83744ca7c7aa"
+    }
+   }
+  },
+  {
+   "id": "void_eye_cape",
+   "name": "Void Eye Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A great glowing eye in a swirling violet void. It looks one way, then the other, and every so often it blinks.",
+   "assets": {
+    "files": {
+     "item.json": "69355c806627f82ef0c24c2bd3cc86b0efb704f452dfd50981cb7ac34b60113a",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "6dbec98dc223fd1e1f0e1b5cbd4c35b7ac9b56b8230789ea30448cf07619efbb",
+     "emissive.png": "ca21d23bfd0c955a19fa59191ff0c879c3f7447ae7b4ed2cbf0cb0e4f968abe6",
+     "thumb.png": "a444d8624a8d4ae021cafb18335df887dc50dedc95a6d1456990d9c7b1803c98"
+    }
+   }
+  },
+  {
+   "id": "origami_sakura_wings",
+   "name": "Origami Sakura Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 800,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Wings folded from pale pink paper, every panel creased sharp and printed with cherry blossoms.",
+   "assets": {
+    "files": {
+     "item.json": "fe923268a31b337f3652d80c403233d379a40b69a9dd66a37a24dda0570be3a3",
+     "model.json": "f3c2036cb0827c0019b0d219df57a5411a0c592abe6c8deb95949e7471853a67",
+     "texture.png": "2851463be234af826e50007a48a84001568325957e80d9fd0c3f1ed196d98a8b",
+     "thumb.png": "6d075ef5e919654a9e19f8b5be0ba73f8fbe15ee5cc0a3131df0d0659b843271"
+    }
+   }
+  },
+  {
+   "id": "shadow_samurai_helm",
+   "name": "Shadow Samurai Helm",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A black-violet lacquered samurai helmet with a flared neck guard and a crescent crest that glows violet.",
+   "assets": {
+    "files": {
+     "item.json": "1f76d0e50fa4730f6215367152593d37ec3260932034a9ce3f5f73a665ab6c17",
+     "model.json": "ae3fc25ee2bb61ed1545ce180a16647523c825e820cd9d42d993531fcfa60704",
+     "texture.png": "7fc70d427bc764ff27272417f6c09ae00bacd7ca6d16effc8bff6029234c61b3",
+     "emissive.png": "a9514ba1ee88e7a83283812522d58a64d28fe944a9f435c1264fd4bd07f9eb33",
+     "thumb.png": "e1e8e8fcf633c7706e2a3ef3f0e39ec00cac41d17a9ea931e4dcaf29e438e883"
+    }
+   }
+  },
+  {
+   "id": "storm_ring_aura",
+   "name": "Storm Ring",
+   "slot": "AURA",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A ring of crackling cyan lightning circles your waist and strikes again and again over a scorched ring at your feet.",
+   "assets": {
+    "files": {
+     "item.json": "02e63247aa8b726319033ad6e5060a9d916809e2cc11ac30f0df06c3cf7e5db0",
+     "model.json": "0d8481ff1d76db04a2c8d187ab81e0d541fae42b4c576c946ff677737b8e81b5",
+     "texture.png": "fa5bf1af3f25983fd9a18a492fd76224c3d1726c672516aa76850fd9fe480700",
+     "emissive.png": "e2ae5a7522668dac8736073861062119c1f0f03b096a4a621ebfcb6df1caba25",
+     "thumb.png": "d02105a792ac2d6dec09db3b79055c13b3896ed6cc8699119125a01a604e0f71"
+    }
+   }
+  },
+  {
+   "id": "baby_capybara",
+   "name": "Baby Capybara",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A calm little capybara with a tiny citrus balanced on its head. It sits on your shoulder, blinks slowly and twitches its ears.",
+   "assets": {
+    "files": {
+     "item.json": "5ba54a4bbfbcd8e3c9a27e347502abc88c427cf9d3a6b5e62395cd0f2b349572",
+     "model.json": "d8adebb23922591ee2c5216a9eb662c7074920990dbcd9416fd8b3b22584039c",
+     "texture.png": "23f3def8d15fa905be91460c27800997a4851cc39abb857599d22c75627c75d4",
+     "thumb.png": "b8501fb5a0babf90bdacafdb95b7b530bf04dcc251cc5780660332391b26b606"
+    }
+   }
+  },
+  {
+   "id": "panda_cub",
+   "name": "Panda Cub",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round panda cub with big eyes in dark patches that sits on your shoulder, looks about and blinks.",
+   "assets": {
+    "files": {
+     "item.json": "8d185edae1ba1a933d0f0e3c16e7dcf4d53c59f092bc4940913a42bb2013fc29",
+     "model.json": "c4ccf43bcc724c2e8d446c966d0f166c90307c256b11415393acdfa321eb6e25",
+     "texture.png": "7e5d905478dbf88a5b65cb5f39c84c79b944adebd064029312391a39e8dc8dbe",
+     "thumb.png": "e53b50c51c8ac37b60c6c648e0fa5de68b2fcb6afe60b2b05602da2d7978e303"
+    }
+   }
+  },
+  {
+   "id": "bolt_robot",
+   "name": "Bolt the Robot",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna blinks red while it floats beside your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "b7da5ca9c10b3aaa4d9f5d7258935a3fbff872e089477d315c483527906364cd",
+     "model.json": "954549b463e4a534ce2807cc0a759ca5abdec894768bace2663c2ac08d5c43a7",
+     "texture.png": "fa54a6c2a5324b7977fd1c5d9a8e9911037dab6c37c53328b54cac45f54832f8",
+     "emissive.png": "37029523f69b649a6439e8efab1111a7b7f899c00529f55abaecee785f0be6cd",
+     "thumb.png": "2708ee161efc89ab93040b3664691eb4bddb8b01be1d94f6f509b15bfcd6510f"
+    }
+   }
+  },
+  {
+   "id": "steampunk_shark",
+   "name": "Steampunk Shark",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims through the air beside your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "c8cee6f1cb260ab9406057d8e21c06c33806069be4fd0f463d1e402b89edb87b",
+     "model.json": "2fe7e7215d96e0a8339b1951639dbb6682f4629ed82f1d43e056e316f111c8df",
+     "texture.png": "1ca1141f18f7f6df46bbf554023ce9335ec80104d8f15316ebc88b4ddab59c8f",
+     "thumb.png": "9ba021ffefc5c2deb64f0081de0311615d4dd0c1720b82ca0f69610fabcf77bf"
+    }
+   }
+  },
+  {
+   "id": "breakdance",
+   "name": "Breakdance",
    "slot": "EMOTE",
    "rarity": "regular",
    "priceCents": 250,
@@ -2637,11 +2454,157 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "Shred an invisible guitar with your head banging to the riff.",
+   "description": "Drop down, kick up into a handstand and spin round on your hands, legs scissoring, then flip back up.",
    "assets": {
     "files": {
-     "item.json": "0fb3600cd6411725462fab9fef696a46dc72d9add978eb83816b68f11cad6f21",
-     "thumb.png": "d83b021604409ce1a6415fd16999ab0473c89c35dfe31f9cfd43d7e34c41c794"
+     "item.json": "efb37dcc1f096bcb7907560ca5b63d696560d460660053842da9363a13803b5d",
+     "thumb.png": "c3905f528821b405cc040dad2801332946e0b2c49aa9e49b262ca73dcffb6e60"
+    }
+   }
+  },
+  {
+   "id": "levitate",
+   "name": "Levitate",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Sit cross-legged and float up off the ground, bobbing gently while glowing rune glyphs circle you.",
+   "assets": {
+    "files": {
+     "item.json": "7b983f5cdd92c986c567cb86dfeba04355b78bf3251a6a14814694478efa34e5",
+     "thumb.png": "2d8ff78240fb0925f4e15c5fb51f5034f4b1dca968aa4ed250a1885eb677bffa"
+    }
+   }
+  },
+  {
+   "id": "heart_toss",
+   "name": "Heart Toss",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Bring a hand to your heart, then toss a little heart out to someone.",
+   "assets": {
+    "files": {
+     "item.json": "d8e24e359a296a7a3c1934f3c77e870b0d4efe58dbf2043e5a1604c6afa6f667",
+     "thumb.png": "59afeb64c9f2ec51b9fc94bd258ec510634a06e83871afcb3b48153f3f30460c"
+    }
+   }
+  },
+  {
+   "id": "kitty_pat",
+   "name": "Kitty Pat",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Kneel down and give a little white kitten a pat. It closes its eyes and swishes its tail.",
+   "assets": {
+    "files": {
+     "item.json": "de46b31fadcf266ce9d7368e8c36798863ac5cad1c6691e747fa0b34a6e79f4f",
+     "model.json": "265b6b8b16d086375d33e88fdceee0a6da4c400bf3626b1c5d6a087da3c0d1fd",
+     "texture.png": "bde5fdd250cf1a84f7f61447784bd45b0653f7c12743d6512add656b5f4c6d92",
+     "thumb.png": "604f01336d34fa534d6e3ca93956f86c2746652668e810d5179098f4a38ce715"
+    }
+   }
+  },
+  {
+   "id": "fire_ring",
+   "name": "Fire Ring",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Strike a power pose with one fist raised while a ring of fire roars up around your feet.",
+   "assets": {
+    "files": {
+     "item.json": "b6e903a932bad590b7a665b547ef3107706b713b66234dbcfd6f81bb99b05792",
+     "thumb.png": "c7fe56ea02e94bb1943f06b7be7068857ece49117685bd904e147c1e49d34ccd"
+    }
+   }
+  },
+  {
+   "id": "disco",
+   "name": "Disco",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Point up to the sky, then down to the floor, hips swinging to the beat while music notes float up.",
+   "assets": {
+    "files": {
+     "item.json": "a9b45cc6bf40ec29d3a34fb05a10f3675d8455254dc6b0ad80e3d2afa2ec1083",
+     "thumb.png": "ae3acdd04c8b3d67fca4169ea29c59e2331fe24c4ac0bb8ebfd8617f4da841a8"
+    }
+   }
+  },
+  {
+   "id": "challenge",
+   "name": "Bring It",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Plant your feet, chin up, and beckon with both hands. Come on, then.",
+   "assets": {
+    "files": {
+     "item.json": "2347d95b0101048733175d34e5bf2575d7c14038ac193934db6b093c9e89e304",
+     "thumb.png": "27822f8cd18fbbb12ed504e459ea091bc1cc19b3520f21fc0091af03cee63896"
+    }
+   }
+  },
+  {
+   "id": "laugh",
+   "name": "Laugh",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Clutch your sides, throw your head back and shake with laughter.",
+   "assets": {
+    "files": {
+     "item.json": "1e446f5e0c7c41ed2a48d22c975f1fccdc4078d2bd6d5e3354ea2c77975e92d3",
+     "thumb.png": "fe2df99b6c548260fefbd79a82dd4c1e3d8b09fd3e30d3357c57719b8bf850f5"
+    }
+   }
+  },
+  {
+   "id": "superhero_landing",
+   "name": "Hero Landing",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Drop out of the air into a hero's crouch, one knee and one fist to the ground, dust bursting out around you.",
+   "assets": {
+    "files": {
+     "item.json": "136cb333c806651b54f78081da0c9bf0d14f63f5f0959b2c5225a6ec73463687",
+     "thumb.png": "df3524618960aff8939b6d5ea1e75e16c01ed7337f5c19ad5198d71767d10a91"
     }
    }
   }

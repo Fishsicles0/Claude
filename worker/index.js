@@ -1,19 +1,20 @@
 // evadeclient.com: serves the static site from ./site, plus a small API for Evade icons in the tab list.
 //
-// Icons can't be faked: a player proves which Minecraft account they own with Mojang's own "join server"
-// handshake (the client asks Mojang to join a one-time id from us, then we ask Mojang who joined it). The
-// player's login token only ever goes to Mojang. We then sign a short-lived token for that UUID.
-// The id must be one we issued in the last minute and works once, so a game server that sees a player's join
-// (or anyone replaying an old one) can't turn it into a token for that player.
+// Icons can't be faked: a player proves which Minecraft account they own by signing a one-time id from us with the
+// chat-signing key Mojang issues every Microsoft account (/api/auth/key, what the client uses; the private key and the
+// login token never leave the game, and no username is sent). We check Mojang's signature on that key against
+// Mojang's built-in public keys, then sign a short-lived token for that UUID. Nothing about the sign-in is stored
+// beyond the one-time id. The id must be one we issued in the last minute and works once, so nobody can replay it.
+// /privacy describes this; keep the two in step.
 //
 //   POST /api/auth/challenge            -> { serverId }   (one-time, valid for 60 seconds)
-//   POST /api/auth/verify {username, serverId} -> { token, uuid, name, expiresIn }   (checks Mojang hasJoined)
+//   POST /api/auth/key {uuid, expiresAt, publicKey, keySignature, serverId, signature} -> { token, uuid, expiresIn }
+//   POST /api/auth/verify {username, serverId} -> { token, uuid, name, expiresIn }   (older Mojang hasJoined check;
+//                                          Mojang refuses it from Cloudflare, so current clients don't use it)
 //   (both /api/auth/* calls are rate limited per IP address when the AUTH_RL binding exists; see wrangler.jsonc)
 //   POST /api/presence  (Bearer token)  -> marks the player as an active Evade user
 //   POST /api/presence/hide (Bearer)   -> stops showing the player's icon right away
 //   POST /api/icons {uuids: [...]}      -> { icons: { uuid: "evade" }, ttl }   (only active Evade users)
-//   GET  /api/discover                  -> { servers: [{name, address, description, tags, evade}], ttl }  (curated list;
-//                                          the client pings them itself and never joins on its own)
 //   POST /api/backup/info|get|put|delete (Bearer) -> opt-in cloud backup of Evade profiles, HUD layout and waypoints,
 //                                          encrypted on the player's PC before upload (see the EvadeSocial comment)
 //
@@ -90,6 +91,8 @@ async function limited(limiter, req) {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // /404 itself is a real file; answer it with the not-found status (and the same page) instead of a soft 200.
+    if (url.pathname === "/404" || url.pathname === "/404.html") return env.ASSETS.fetch(new Request(new URL("/__evade_not_found__", url), req));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: { ...HEADERS, "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -103,10 +106,6 @@ export default {
       if (url.pathname.startsWith("/api/social/")) return await socialRoute(req, env, url, store);
       if (/^\/api\/(cosmetics|shop|partner|admin)\//.test(url.pathname)) return await cosmeticsRoute(req, env, url, store);
       if (url.pathname.startsWith("/api/backup/")) return await backupRoute(req, env, url, store);
-      if (url.pathname === "/api/discover") {
-        if (req.method !== "GET") throw new HttpError(405, "use GET");
-        return json({ servers: DISCOVER, ttl: 3600 }, 200, { "cache-control": "public, max-age=600" });
-      }
       switch (url.pathname) {
         case "/api/health": {
           if (url.searchParams.get("mojang") !== "1") return json({ ok: true });
@@ -500,15 +499,6 @@ async function backupRoute(req, env, url, store) {
   const r = await social.backup(uuid, op, args);
   return json(r.body, r.status, r.status === 429 && r.body.retryAfter ? { "retry-after": String(Math.ceil(r.body.retryAfter / 1000)) } : undefined);
 }
-
-/**
- * Discover: servers shown on the title screen's Discover strip. Curated by hand (edit this list and push); "evade"
- * marks servers that run the Evade Server API plugin. The client pings each one itself and only ever joins when the
- * player clicks Join and confirms.
- */
-const DISCOVER = []; // no featured servers
-/** The Discover list (a function, not the array: the Workers runtime only expects classes and functions as exports). */
-export function discoverList() { return DISCOVER; }
 
 export class EvadeSocial extends DurableObject {
   constructor(ctx, env) {

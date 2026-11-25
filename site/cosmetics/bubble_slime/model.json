@@ -2,17 +2,17 @@
  "format": "evade-cosmetic-model/1",
  "space": "entity",
  "texture": [
-  20,
-  16
+  16,
+  12
  ],
  "textureScale": 8,
  "bones": [
   {
-   "name": "slime_core",
+   "name": "slime",
    "attach": "root",
    "pivot": [
-    6.5,
-    -4,
+    8.25,
+    -4.5,
     0.5
    ],
    "rotation": [
@@ -23,34 +23,34 @@
    "cubes": [
     {
      "origin": [
-      5.5,
-      -6.0,
+      7.25,
+      -5.0,
       -0.5
      ],
      "size": [
-      3,
-      3,
-      3
+      2,
+      2,
+      2
      ],
      "uv": [
       0,
-      10
+      8
      ]
     }
    ],
    "anim": {
     "type": "pet",
-    "amp": 0.6,
-    "speed": 1.6
+    "amp": 0.8,
+    "speed": 2.0
    }
   },
   {
-   "name": "slime",
+   "name": "jelly",
    "attach": "root",
    "pivot": [
-    6.5,
-    -4,
-    0.5
+    8.25,
+    -4.5,
+    0.0
    ],
    "rotation": [
     0,
@@ -60,14 +60,14 @@
    "cubes": [
     {
      "origin": [
-      4.5,
-      -7.5,
-      -1.5
+      6.25,
+      -6.5,
+      -2.0
      ],
      "size": [
-      5,
-      5,
-      5
+      4,
+      4,
+      4
      ],
      "uv": [
       0,
@@ -75,12 +75,50 @@
      ]
     }
    ],
+   "parent": "slime",
    "anim": {
-    "type": "pet",
-    "amp": 0.6,
-    "speed": 1.6
+    "type": "pet_head",
+    "amp": 8
    },
-   "alpha": 0.95
+   "alpha": 0.97
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    8.5,
+    -5.25,
+    -2.03
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      7.0,
+      -5.25,
+      -2.03
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      8,
+      8
+     ]
+    }
+   ],
+   "parent": "jelly",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
   }
  ]
 }

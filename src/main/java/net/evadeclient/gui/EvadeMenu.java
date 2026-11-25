@@ -72,6 +72,7 @@ public class EvadeMenu extends Screen {
                     new Nav("Settings", Page.SETTINGS, "settings", false),
                     new Nav("Keybinds", null, "keyboard", false, KeybindsScreen::openFromCurrent),
                     new Nav("World Map", null, "map", false, net.evadeclient.gui.WorldMapScreen::openFromMenu),
+                    new Nav("Schematics", null, "schematic", false, net.evadeclient.gui.SchematicBrowserScreen::openFromMenu),
                     new Nav("Pinned", Page.PINNED, "star", false),
                     new Nav("Mod Browser", null, "mods", false, net.evadeclient.gui.ModBrowserScreen::open),
                     new Nav("Quick Play", null, "server", false, net.evadeclient.module.misc.QuickPlay::open),

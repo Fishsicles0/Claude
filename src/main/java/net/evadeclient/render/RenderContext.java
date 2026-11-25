@@ -34,6 +34,10 @@ public final class RenderContext {
 
     public Vec3d cameraPos() { return cam; }
 
+    /** The pass's matrices and buffers, for modules that stream a prebuilt mesh (e.g. Schematics' ghost blocks). */
+    public MatrixStack matrices() { return matrices; }
+    public VertexConsumerProvider consumers() { return consumers; }
+
     // ------------------------------------------------------------------ lines
 
     public void line(Vec3d a, Vec3d b, int color, float width) {

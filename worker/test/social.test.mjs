@@ -19,7 +19,7 @@ writeFileSync(join(tmp, "index.mjs"), src.replace('from "./cosmetics.js"', 'from
 writeFileSync(join(tmp, "cosmetics.mjs"), readFileSync(join(here, "..", "cosmetics.js"), "utf8"));
 globalThis.WebSocketRequestResponsePair = class { constructor(a, b) { this.a = a; this.b = b; } };
 const worker = await import(pathToFileURL(join(tmp, "index.mjs")).href);
-const { EvadeSocial, normServer, chatText, worldAddress, discoverList } = worker;
+const { EvadeSocial, normServer, chatText, worldAddress } = worker;
 
 // ---------------------------------------------------------------- fakes
 let now = 1_800_000_000_000;
@@ -652,7 +652,7 @@ await test("backup: rate limited, deleted with social data and after 90 days unu
   assert.equal((await bk(B, "info", {})).body.backup.exists, false);
 });
 
-await test("worker routing: /api/backup needs a token and caps the body; /api/discover is a GET list", async () => {
+await test("worker routing: /api/backup needs a token and caps the body; /api/discover is gone", async () => {
   const social = makeSocial();
   const icons = { verify: async (t) => (t.startsWith("tok-") ? t.slice(4) : null) };
   const env = {
@@ -674,17 +674,9 @@ await test("worker routing: /api/backup needs a token and caps the body; /api/di
   assert.equal(r.status, 413);
   r = await call("/api/backup/put", { method: "POST", headers: auth, body: "[1]" });
   assert.equal(r.status, 400);
+  // Discover (featured servers) was removed: no such endpoint
   r = await call("/api/discover", { method: "GET" });
-  assert.equal(r.status, 200);
-  const d = await r.json();
-  assert.ok(Array.isArray(d.servers) && d.servers.length === discoverList().length);
-  for (const sv of d.servers) {
-    assert.ok(typeof sv.name === "string" && sv.name.length <= 32);
-    assert.equal(normServer(sv.address), sv.address, "public address " + sv.address);
-    assert.equal(typeof sv.evade, "boolean");
-  }
-  r = await call("/api/discover", { method: "POST", body: "{}" });
-  assert.equal(r.status, 405);
+  assert.equal(r.status, 404);
   // the old endpoints still answer as before
   r = await call("/api/social/state", { method: "POST", body: "{}", headers: auth });
   assert.equal(r.status, 200);

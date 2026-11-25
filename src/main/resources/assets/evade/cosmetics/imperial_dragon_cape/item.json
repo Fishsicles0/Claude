@@ -1,0 +1,10 @@
+{
+ "id": "imperial_dragon_cape",
+ "name": "Imperial Dragon Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Deep navy silk with a long golden dragon coiling down it between curling clouds, chasing a pearl."
+}

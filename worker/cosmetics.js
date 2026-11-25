@@ -11,11 +11,13 @@
 //   (d) test mode (local only, see above).
 //
 //   GET  /api/cosmetics/catalog                    -> {version, items:[{id, name, slot, rarity (regular|special|partner),
-//                                                     priceCents (null: not priced yet, not for sale), currency,
+//                                                     priceCents (null: not priced yet, not for sale; 0: free for
+//                                                     every Evade player, never sold: every cape), currency,
 //                                                     partner: null|{id, name}, assets: {base, files: {name: sha256}}}]}
 //   GET  /api/cosmetics/players?uuids=a,b          -> {players: {uuid: {equipped: {SLOT: {id, color?}}}}} (64 at most)
 //   GET  /api/cosmetics/me            (Bearer)     -> {uuid, owned: [id], equipped: {SLOT: {id, color?}}, shop: {open, mode}}
-//   POST /api/cosmetics/equip {slot, id|null, color?: "#rrggbb"} (Bearer) -> {ok, equipped}
+//   POST /api/cosmetics/equip {slot, id|null, color?: "#rrggbb"} (Bearer) -> {ok, equipped}  (free items: no
+//                                                     ownership needed; others see them like owned ones)
 //   POST /api/cosmetics/redeem {code}  (Bearer)   -> {ok, granted: [id], owned: [id]}
 //   GET  /api/cosmetics/link-code      (Bearer)   -> {code, expiresIn}  (6 characters, 10 minutes: links the website)
 //   GET  /api/shop/status                          -> {open, mode}
@@ -32,7 +34,8 @@
 // The catalog is site-src/cosmetics/catalog.json, copied to /cosmetics/catalog.json by scripts/build-pages.py and read
 // here from the site's own assets (so it always matches the deployed asset files). Storage: cos_* tables in the
 // EvadeSocial Durable Object (CosmeticsStore below). Only UUIDs, owned item ids, equipped state and purchase records
-// (provider, order id, amount, currency, status, times) are stored; never names or e-mail addresses.
+// (provider, order id, amount, currency, status, times) are stored; never names or e-mail addresses. Rate limits key
+// on a salted hash of the caller's IP address (ipKey), never the address itself.
 
 const HEADERS = { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*" };
 const json = (body, status = 200, extra) =>
@@ -108,7 +111,14 @@ async function readJson(req, max = 16384) {
   if (!v || typeof v !== "object" || Array.isArray(v)) throw new CosError(400, "bad json");
   return v;
 }
-const ip = (req) => req.headers.get("cf-connecting-ip") || "unknown";
+/**
+ * A short, salted hash of the caller's IP address, for rate limits only: enough to count one caller's tries, not to
+ * find them. The address itself is never passed to storage.
+ */
+async function ipKey(req, env) {
+  const addr = req.headers.get("cf-connecting-ip") || "unknown";
+  return (await sha256Hex(`${(env && (env.IP_SALT || env.ADMIN_TOKEN)) || "evade-shop"}|${addr}`)).slice(0, 16);
+}
 
 // ====================================================================== shop mode
 
@@ -213,6 +223,9 @@ const publicItem = (it) => it; // everything in catalog.json is public already
 
 /** Items a player can buy: priced above zero. Partner items are only sold when the catalog gives them a price. */
 const forSale = (it) => it && Number.isSafeInteger(it.priceCents) && it.priceCents > 0;
+/** Free for every Evade player (every cape): never sold, worn without owning, seen by others like owned items. */
+export const isFree = (it) => !!it && it.priceCents === 0;
+const freeIds = (cat) => cat.items.filter(isFree).map((i) => i.id);
 
 /** Only equipped items that are still in the catalog, in the slot the catalog says. */
 function filterEquipped(equipped, cat) {
@@ -357,7 +370,8 @@ async function cosmeticsApi(req, env, url, store, op) {
     if (cache) {
       try { const hit = await cache.match(key); if (hit) return hit; } catch { /* no cache here */ }
     }
-    const [cat, got] = await Promise.all([loadCatalog(env), call(env, "players", { uuids, ip: ip(req) })]);
+    const cat = await loadCatalog(env);
+    const got = await call(env, "players", { uuids, ip: await ipKey(req, env), free: freeIds(cat) });
     const players = {};
     for (const [u, eq] of Object.entries(got.players)) {
       const equipped = filterEquipped(eq, cat);
@@ -394,7 +408,7 @@ async function cosmeticsApi(req, env, url, store, op) {
           if (!COLOR.test(color)) throw new CosError(400, "color must be \"#rrggbb\"");
         }
       }
-      const r = await call(env, "equip", { uuid, slot, id, color });
+      const r = await call(env, "equip", { uuid, slot, id, color, free: id !== null && isFree(cat.byId.get(id)) });
       return json({ ok: true, equipped: filterEquipped(r.equipped, cat) });
     }
     case "redeem": {
@@ -433,12 +447,12 @@ async function shopApi(req, env, url, op) {
   if (op === "resolve") {
     const a = await readJson(req);
     if (a.linkCode !== undefined) {
-      const r = await call(env, "link.resolve", { code: normCode(a.linkCode), ip: ip(req) });
+      const r = await call(env, "link.resolve", { code: normCode(a.linkCode), ip: await ipKey(req, env) });
       return json({ uuid: r.uuid, verified: true });
     }
     const name = String(a.username || "");
     if (!NAME.test(name)) throw new CosError(400, "Enter a Minecraft username or the code from Link the shop");
-    await call(env, "rate.ip", { ip: ip(req), what: "resolve", limit: 30, windowMs: 10 * 60 * 1000 });
+    await call(env, "rate.ip", { ip: await ipKey(req, env), what: "resolve", limit: 30, windowMs: 10 * 60 * 1000 });
     const uuid = await mojangUuid(env, name);
     return json({ uuid, verified: false });
   }
@@ -448,11 +462,15 @@ async function shopApi(req, env, url, op) {
     const a = await readJson(req);
     const cat = await loadCatalog(env);
     const items = itemList(a.items, cat);
-    for (const id of items) if (!forSale(cat.byId.get(id))) throw new CosError(400, cat.byId.get(id).name + " isn't for sale");
+    for (const id of items) {
+      const it = cat.byId.get(id);
+      if (isFree(it)) throw new CosError(400, it.name + " is free for everyone: equip it in game, no purchase needed", { free: true });
+      if (!forSale(it)) throw new CosError(400, it.name + " isn't for sale");
+    }
     const currencies = new Set(items.map((id) => cat.byId.get(id).currency));
     if (currencies.size !== 1) throw new CosError(400, "Items in one checkout must share a currency");
     let buyer = null;
-    if (a.linkCode !== undefined) buyer = (await call(env, "link.resolve", { code: normCode(a.linkCode), ip: ip(req) })).uuid;
+    if (a.linkCode !== undefined) buyer = (await call(env, "link.resolve", { code: normCode(a.linkCode), ip: await ipKey(req, env) })).uuid;
     else if (UUID.test(normUuid(a.uuid))) buyer = normUuid(a.uuid);
     else throw new CosError(400, "Link your account with the code from Link the shop");
     let recipient = buyer;
@@ -461,17 +479,18 @@ async function shopApi(req, env, url, op) {
       if (!UUID.test(recipient)) throw new CosError(400, "giftTo must be a player UUID");
     }
     const totalCents = items.reduce((s, id) => s + cat.byId.get(id).priceCents, 0);
-    const r = await call(env, "session.create", { buyer, recipient, items, totalCents, currency: [...currencies][0], ip: ip(req), mode });
+    const r = await call(env, "session.create", { buyer, recipient, items, totalCents, currency: [...currencies][0], ip: await ipKey(req, env), mode });
     return json({ ...r, mode, url: "/shop?testSession=" + r.sessionId });
   }
   if (op === "test/complete" || op === "test/refund") {
-    if (mode !== "test") return json({ error: COS.CLOSED }, 503);
+    // Outside test mode (production) these routes don't exist at all.
+    if (mode !== "test") return json({ error: "not found" }, 404);
     const a = await readJson(req);
     const id = String(a.sessionId || "");
     if (!/^[0-9a-f]{32}$/.test(id)) throw new CosError(400, "bad session id");
     const cat = await loadCatalog(env);
     const r = await call(env, op === "test/complete" ? "session.complete" : "session.refund",
-      { id, chargeback: a.chargeback === true, known: cat.items.map((i) => i.id) });
+      { id, chargeback: a.chargeback === true, known: cat.items.map((i) => i.id), free: freeIds(cat) });
     return json({ ok: true, session: r.session });
   }
   return json({ error: "not found" }, 404);
@@ -517,10 +536,23 @@ async function webhook(req, env, provider) {
   if (ev.type === "paid" && !UUID.test(uuid)) throw new CosError(400, "bad uuid");
   const items = Array.isArray(ev.items) ? [...new Set(ev.items.map(String))].slice(0, 50) : [];
   const known = items.filter((i) => cat.byId.has(i));
+  if (ev.type === "paid") {
+    // A signed payment must still match the catalog: only items that are for sale, paid in full in their currency.
+    const notSold = known.filter((i) => !forSale(cat.byId.get(i)) && !isFree(cat.byId.get(i)));
+    if (notSold.length) throw new CosError(400, "not for sale: " + notSold.join(", "));
+    const sold = known.filter((i) => forSale(cat.byId.get(i)));
+    const total = sold.reduce((n, i) => n + cat.byId.get(i).priceCents, 0);
+    const currencies = new Set(sold.map((i) => cat.byId.get(i).currency));
+    const cur = typeof ev.currency === "string" ? ev.currency.toUpperCase() : null;
+    if (total > 0 && (!Number.isSafeInteger(ev.amountCents) || ev.amountCents < total || currencies.size !== 1 || !currencies.has(cur))) {
+      throw new CosError(400, "amount or currency doesn't match the items");
+    }
+  }
   const r = await call(env, "order.event", {
     provider, type: ev.type, orderId, uuid: UUID.test(uuid) ? uuid : null, buyer, items: known,
     amountCents: Number.isSafeInteger(ev.amountCents) ? ev.amountCents : null,
     currency: typeof ev.currency === "string" && /^[A-Za-z]{3}$/.test(ev.currency) ? ev.currency.toUpperCase() : null,
+    free: freeIds(cat),
   });
   return json({ ok: true, ...r, unknown: items.filter((i) => !cat.byId.has(i)) });
 }
@@ -568,7 +600,7 @@ async function adminApi(req, env, op) {
       if (!UUID.test(uuid)) throw new CosError(400, "bad uuid");
       const items = op === "grant" ? itemList(a.items, cat, 100) : (Array.isArray(a.items) ? a.items.map(String).slice(0, 100) : []);
       if (!items.length) throw new CosError(400, "items must be a list");
-      return json(await call(env, "admin." + op, { uuid, items }));
+      return json(await call(env, "admin." + op, { uuid, items, free: freeIds(cat) }));
     }
     case "partner": {
       const id = String(a.id || "");
@@ -641,7 +673,8 @@ export class CosmeticsStore {
         this.limit(a.uuid + ":equip", 60, 60 * 1000, "Slow down");
         if (a.id === null) this.sql.exec("DELETE FROM cos_equipped WHERE uuid = ? AND slot = ?", a.uuid, a.slot);
         else {
-          if (!this.owns(a.uuid, a.id)) throw new CosError(403, "You don't own that item");
+          // free items (every cape): any signed-in player may wear them; the worker checked the catalog
+          if (!a.free && !this.owns(a.uuid, a.id)) throw new CosError(403, "You don't own that item");
           this.sql.exec("INSERT OR REPLACE INTO cos_equipped (uuid, slot, item, color, updated) VALUES (?, ?, ?, ?, ?)",
             a.uuid, a.slot, a.id, a.color, now);
         }
@@ -652,9 +685,12 @@ export class CosmeticsStore {
         this.memLimit("ip:" + a.ip, 120, 60 * 1000);
         const uuids = (a.uuids || []).filter((u) => UUID.test(u)).slice(0, COS.MAX_PLAYERS);
         const players = {};
+        const free = (Array.isArray(a.free) ? a.free : []).filter((i) => ITEM_ID.test(i)).slice(0, 500);
         if (uuids.length) {
+          // owned items, and free ones (every cape) for anyone
+          const freeSql = free.length ? `e.item IN (${free.map(() => "?").join(",")}) OR ` : "";
           const rows = this.sql.exec(`SELECT e.uuid, e.slot, e.item, e.color FROM cos_equipped e WHERE e.uuid IN (${uuids.map(() => "?").join(",")})
-              AND EXISTS (SELECT 1 FROM cos_owned o WHERE o.uuid = e.uuid AND o.item = e.item)`, ...uuids).toArray();
+              AND (${freeSql}EXISTS (SELECT 1 FROM cos_owned o WHERE o.uuid = e.uuid AND o.item = e.item))`, ...uuids, ...free).toArray();
           for (const r of rows) (players[r.uuid] ||= {})[r.slot] = r.color ? { id: r.item, color: r.color } : { id: r.item };
         }
         return { players };
@@ -722,12 +758,12 @@ export class CosmeticsStore {
           if (s.created <= now - COS.SESSION_MS) throw new CosError(410, "That checkout has expired");
           this.sql.exec("UPDATE cos_sessions SET status = 'paid' WHERE id = ?", a.id);
           this.orderEvent({ provider: "test", type: "paid", orderId: a.id, uuid: s.recipient, buyer: s.buyer, items,
-            amountCents: s.total_cents, currency: s.currency }, now);
+            amountCents: s.total_cents, currency: s.currency, free: a.free }, now);
         } else {
           if (s.status !== "paid") throw new CosError(409, "That checkout is " + s.status);
           const type = a.chargeback ? "chargeback" : "refunded";
           this.sql.exec("UPDATE cos_sessions SET status = ? WHERE id = ?", type, a.id);
-          this.orderEvent({ provider: "test", type, orderId: a.id, uuid: s.recipient, items }, now);
+          this.orderEvent({ provider: "test", type, orderId: a.id, uuid: s.recipient, items, free: a.free }, now);
         }
         return { session: this.session(a.id) };
       }
@@ -760,7 +796,7 @@ export class CosmeticsStore {
       case "admin.grant": return { granted: this.grant(a.uuid, a.items, "admin", now), owned: this.owned(a.uuid) };
       case "admin.revoke": {
         for (const item of a.items) this.sql.exec("DELETE FROM cos_owned WHERE uuid = ? AND item = ?", a.uuid, item);
-        this.unequipUnowned(a.uuid);
+        this.unequipUnowned(a.uuid, a.free);
         return { owned: this.owned(a.uuid) };
       }
       case "admin.partner": {
@@ -798,7 +834,7 @@ export class CosmeticsStore {
     else this.sql.exec("INSERT INTO cos_orders (provider, order_id, uuid, buyer, items, amount_cents, currency, status, created, updated) VALUES (?, ?, ?, NULL, ?, NULL, NULL, ?, ?, ?)",
       e.provider, e.orderId, e.uuid || null, JSON.stringify(e.items || []), e.type, now, now);
     const gone = this.sql.exec("DELETE FROM cos_owned WHERE ref = ? RETURNING uuid, item", ref).toArray();
-    for (const u of new Set(gone.map((g) => g.uuid))) this.unequipUnowned(u);
+    for (const u of new Set(gone.map((g) => g.uuid))) this.unequipUnowned(u, e.free);
     return { status: e.type, revoked: gone.map((g) => g.item) };
   }
 
@@ -828,8 +864,11 @@ export class CosmeticsStore {
     return out;
   }
 
-  unequipUnowned(uuid) {
-    this.sql.exec("DELETE FROM cos_equipped WHERE uuid = ? AND item NOT IN (SELECT item FROM cos_owned WHERE uuid = ?)", uuid, uuid);
+  /** Takes off what {@code uuid} no longer owns; free items ({@code free}: their ids) stay on. */
+  unequipUnowned(uuid, free) {
+    const keep = (Array.isArray(free) ? free : []).filter((i) => ITEM_ID.test(i)).slice(0, 500);
+    const keepSql = keep.length ? ` AND item NOT IN (${keep.map(() => "?").join(",")})` : "";
+    this.sql.exec("DELETE FROM cos_equipped WHERE uuid = ? AND item NOT IN (SELECT item FROM cos_owned WHERE uuid = ?)" + keepSql, uuid, uuid, ...keep);
   }
 
   session(id) {

@@ -1,0 +1,30 @@
+{
+ "id": "storm_ring_aura",
+ "name": "Storm Ring",
+ "slot": "AURA",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A ring of crackling cyan lightning circles your waist and strikes again and again over a scorched ring at your feet.",
+ "fx": {
+  "type": "aura",
+  "particle": "soft",
+  "colors": [
+   "#FFFFFF",
+   "#7AF0FF",
+   "#1A6AFF"
+  ],
+  "rate": 5,
+  "size": 0.45,
+  "life": 0.6,
+  "fade": 0.15,
+  "sizeEnd": 0.2,
+  "gravity": 0.0
+ },
+ "animation": {
+  "frames": 16,
+  "frametime": 1.5,
+  "interpolate": false
+ }
+}

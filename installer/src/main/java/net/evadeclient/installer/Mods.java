@@ -191,6 +191,14 @@ final class Mods {
      * @return the names of what was installed (the project first, then its libraries)
      */
     static List<String> install(InstallerCore core, Path gameDir, Hit hit, InstallerCore.Progress p) throws Exception {
+        return install(core, gameDir, hit, false, p);
+    }
+
+    /**
+     * As above; with {@code newest}, the project itself (not its libraries) comes as its newest build even when that's
+     * a beta, for projects that only publish betas for this Minecraft version (see {@link Addons}).
+     */
+    static List<String> install(InstallerCore core, Path gameDir, Hit hit, boolean newest, InstallerCore.Progress p) throws Exception {
         String option = InstallerCore.optionForSlug(hit.slug());
         if (option != null) throw new IOException(hit.title() + " comes with " + option + ": switch on " + option + " for this instance in Instances.");
         Path mods = gameDir.resolve("mods");
@@ -226,7 +234,8 @@ final class Mods {
             p.update(0.05 + 0.15 * plan.size() / (plan.size() + todo.size() + 1.0), "Finding " + title);
             InstallerCore.ModFile f;
             try {
-                f = core.latestOnModrinth(title, PROJECT + pid + "/version" + query);
+                f = newest && pid.equals(hit.projectId()) ? core.newestOnModrinth(title, PROJECT + pid + "/version" + query)
+                        : core.latestOnModrinth(title, PROJECT + pid + "/version" + query);
             } catch (IOException | RuntimeException e) {
                 throw new IOException("Couldn't reach Modrinth", e);
             }

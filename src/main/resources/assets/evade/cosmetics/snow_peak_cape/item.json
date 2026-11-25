@@ -1,0 +1,10 @@
+{
+ "id": "snow_peak_cape",
+ "name": "Snow Peak Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A snowy mountain under a pale winter sky, pines along the shore, all mirrored in a still blue lake."
+}

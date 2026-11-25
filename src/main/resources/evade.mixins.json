@@ -10,6 +10,7 @@
     "PlayerHideMixin",
     "ClientPlayNetworkHandlerMixin",
     "ClientPlayerInteractionManagerMixin",
+    "PlacementGuardMixin",
     "FogRendererMixin",
     "GameRendererMixin",
     "InGameHudMixin",

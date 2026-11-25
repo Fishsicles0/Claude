@@ -8,6 +8,8 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -132,7 +134,8 @@ public final class Emotes {
         boolean moved = startPos != null && p.getEntityPos().squaredDistanceTo(startPos) > 0.15 * 0.15;
         String why = input ? "input" : moved ? "moved" : p.hurtTime > 0 ? "damage" : p.isUsingItem() ? "using an item"
                 : p.handSwinging ? "swing" : p.isDead() ? "dead" : null;
-        if (why != null) { lastStop = why; stop(); }
+        if (why != null) { lastStop = why; stop(); return; }
+        EmoteFx.tick(mc, current);
     }
 
     /** Called right before you attack: an attack always ends the emote. */
@@ -154,6 +157,28 @@ public final class Emotes {
         pose(model.rightLeg, playing.anim(), "rightLeg", t, w);
         pose(model.leftLeg, playing.anim(), "leftLeg", t, w);
         // the second skin layer (hat, jacket, sleeves, pants) are child parts, so they follow
+        root(model.getRootPart(), playing.anim(), t, w);
+    }
+
+    private static final float HIP = 12f;
+    private static final float[] ROT = new float[3], OFF = new float[3];
+
+    /**
+     * {@code root} keyframes turn the whole model about your hips and {@code offset} keyframes ([seconds, x, y, z] in
+     * pixels, y down) move it: for emotes that leave the ground or go upside down. Cosmetics and held items hang off
+     * the model's root, so they follow; vanilla resets the root every frame.
+     */
+    private static void root(ModelPart root, Animation anim, float t, float w) {
+        float[] r = anim.sample("root", t, ROT), o = anim.sample("offset", t, OFF);
+        if (r == null && o == null) return;
+        float pitch = r == null ? 0 : r[0] * DEG * w, yaw = r == null ? 0 : r[1] * DEG * w, roll = r == null ? 0 : r[2] * DEG * w;
+        Vector3f c = new Quaternionf().rotationZYX(roll, yaw, pitch).transform(new Vector3f(0, HIP, 0));
+        root.originX = (o == null ? 0 : o[0] * w) - c.x;
+        root.originY = HIP + (o == null ? 0 : o[1] * w) - c.y;
+        root.originZ = (o == null ? 0 : o[2] * w) - c.z;
+        root.pitch = pitch;
+        root.yaw = yaw;
+        root.roll = roll;
     }
 
     private static void pose(ModelPart part, Animation anim, String name, float t, float w) {

@@ -170,6 +170,15 @@ Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added whe
   `gravity` (blocks/s², negative floats up, default -0.15). Other particle names keep working as before.
 * `emote`: `parts` maps head, body, rightArm, leftArm, rightLeg, leftLeg to keyframes `[seconds, pitch, yaw, roll]`
   (degrees, replacing that part's angles; smoothstep between keys). `loop` repeats until the player moves.
+  Two more (client 2.8.1+, optional): `root` keyframes `[seconds, pitch, yaw, roll]` turn the whole model about the
+  hips (12 px above the feet: flips, handstands, leaning) and `offset` keyframes `[seconds, x, y, z]` move it (pixels,
+  entity space, y down: negative y floats up). Cosmetics and held items follow; the shop's preview ignores both.
+* An emote may have an `fx` (particles while it plays, on your own screen only, scaled by Particle Amount): `shape`
+  ring (round your feet) | orbit (circling you at `height`) | rise | toss (out of your right hand) | puff (beside your
+  head) | impact (one burst at `at` seconds, `count` particles); `from` / `to` (seconds) limit when it makes particles;
+  `rate`, `radius`, `height` (blocks); `particle` soft | heart | note | enchant | poof | flame | end_rod | glow | spark |
+  dust with the usual colour and soft-glow fields. `type` (aura | spiral | burst) picks the shop's preview of it.
+* An emote may also have a `model.json`: a prop (a kitten to pat, attach `root`) drawn only while the emote plays.
 
 ## Previewing on the shop
 

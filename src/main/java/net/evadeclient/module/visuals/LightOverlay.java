@@ -32,6 +32,8 @@ public class LightOverlay extends Module {
             .describe("Spots where monsters can spawn at any time (dark sky as well as no block light)."));
     private final ColorSetting nightColor = add(new ColorSetting("Night Only Color", 0xFFFFD21F)
             .describe("Spots under open sky: monsters spawn there only at night or in a storm."));
+    private final ModeSetting headroom = add(new ModeSetting("Headroom", "Any Mob", "Any Mob", "Tall Mobs")
+            .describe("Any Mob marks spots with one free block above (spiders, slimes). Tall Mobs needs two, like zombies and skeletons."));
     private final BooleanSetting showSafe = add(new BooleanSetting("Show Safe", false)
             .describe("Also mark lit spots, where light already stops monsters, in Safe Color."));
     private final ColorSetting safeColor = add(new ColorSetting("Safe Color", 0xFF3BE37A)
@@ -82,6 +84,8 @@ public class LightOverlay extends Module {
         BlockPos.Mutable floor = new BlockPos.Mutable(), above = new BlockPos.Mutable();
         int danger = dangerColor.get(), night = nightColor.get(), ok = safeColor.get();
         int rr = r * r;
+        boolean tall = headroom.is("Tall Mobs");
+        BlockPos.Mutable head = new BlockPos.Mutable();
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 if (dx * dx + dz * dz > rr) continue;
@@ -95,6 +99,11 @@ public class LightOverlay extends Module {
                     if (ground.isAir() || !ground.allowsSpawning(world, floor, EntityType.ZOMBIE)) continue;
                     BlockState space = world.getBlockState(above);
                     if (!SpawnHelper.isClearForSpawn(world, above, space, space.getFluidState(), EntityType.ZOMBIE)) continue;
+                    if (tall) {
+                        head.set(floor.getX(), y + 2, floor.getZ());
+                        BlockState headSpace = world.getBlockState(head);
+                        if (y + 2 > top || !SpawnHelper.isClearForSpawn(world, head, headSpace, headSpace.getFluidState(), EntityType.ZOMBIE)) continue;
+                    }
                     int block = world.getLightLevel(LightType.BLOCK, above);
                     int color;
                     if (block > maxLight) {

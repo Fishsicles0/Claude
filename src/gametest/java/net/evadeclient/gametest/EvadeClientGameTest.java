@@ -83,6 +83,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
             SocialTest.run(ctx, sp);
+            SchematicsTest.run(ctx, sp);
+            ModCompatTest.run(ctx, sp);
+            TechQolTest.run(ctx, sp);
             ReviewFixesV27Test.run(ctx, sp);
             ModFileSafetyTest.run(ctx, sp);
             EvadeShadersTest.run(ctx, sp);
@@ -104,6 +107,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             CosmeticsFreeTest.run(ctx, sp);
             CosmeticsQualityTest.run(ctx, sp);
             PetsTest.run(ctx, sp);
+            EmoteExtrasTest.run(ctx, sp);
             TextHotkeysTest.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
@@ -1031,6 +1035,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
                         || el instanceof net.evadeclient.module.hud.BedWarsHud // only shows during a BedWars game
                         || el instanceof net.evadeclient.module.hud.ConnectionWatchHud // only shows when the server goes quiet
                         || el instanceof net.evadeclient.module.hud.LookInfoHud // only shows with a block or mob in reach
+                        || el instanceof net.evadeclient.module.hud.SchematicMaterialsHud // only shows with a schematic loaded
                         || el.getName().equals(profiler)) continue;
                 if (t.textForTest().isEmpty()) p.append(el.getName()).append(" is empty; ");
             }
