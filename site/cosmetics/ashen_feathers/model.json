@@ -1,0 +1,272 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  32,
+  32
+ ],
+ "textureScale": 2,
+ "bones": [
+  {
+   "name": "feathers_r",
+   "attach": "body",
+   "pivot": [
+    -1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -12.0,
+      0.0,
+      2.0
+     ],
+     "size": [
+      10,
+      6,
+      0
+     ],
+     "uv": [
+      0,
+      7
+     ]
+    },
+    {
+     "origin": [
+      -13.0,
+      4.0,
+      2.2
+     ],
+     "size": [
+      11,
+      7,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      -12.0,
+      9.0,
+      2.4
+     ],
+     "size": [
+      9,
+      6,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ]
+    },
+    {
+     "origin": [
+      -12.5,
+      -0.5,
+      1.6
+     ],
+     "size": [
+      11,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      19
+     ]
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 38,
+    "amp": 8,
+    "speed": 1.1
+   }
+  },
+  {
+   "name": "feathers_r_glow",
+   "attach": "body",
+   "pivot": [
+    -1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -12.0,
+      13.0,
+      2.45
+     ],
+     "size": [
+      9,
+      2,
+      0
+     ],
+     "uv": [
+      0,
+      21
+     ],
+     "inflate": 0.01
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 38,
+    "amp": 8,
+    "speed": 1.1
+   },
+   "emissive": true
+  },
+  {
+   "name": "feathers_l",
+   "attach": "body",
+   "pivot": [
+    1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      2.0,
+      0.0,
+      2.0
+     ],
+     "size": [
+      10,
+      6,
+      0
+     ],
+     "uv": [
+      0,
+      7
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      2.0,
+      4.0,
+      2.2
+     ],
+     "size": [
+      11,
+      7,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      3.0,
+      9.0,
+      2.4
+     ],
+     "size": [
+      9,
+      6,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      1.5,
+      -0.5,
+      1.6
+     ],
+     "size": [
+      11,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      19
+     ],
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 38,
+    "amp": 8,
+    "speed": 1.1
+   }
+  },
+  {
+   "name": "feathers_l_glow",
+   "attach": "body",
+   "pivot": [
+    1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      3.0,
+      13.0,
+      2.45
+     ],
+     "size": [
+      9,
+      2,
+      0
+     ],
+     "uv": [
+      0,
+      21
+     ],
+     "inflate": 0.01,
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 38,
+    "amp": 8,
+    "speed": 1.1
+   },
+   "emissive": true
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "id": "tidal_weave",
+ "name": "Tidal Weave",
+ "slot": "CAPE",
+ "rarity": "RARE",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Deep-sea blue with rolling waves of foam and a sand-gold collar."
+}

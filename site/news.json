@@ -1,6 +1,20 @@
 {
- "version": "2.5.1",
+ "version": "2.6.0",
  "entries": [
+  {
+   "id": "v2.6.0",
+   "title": "v2.6.0",
+   "date": "2026-11-25",
+   "dateText": "25 Nov 2026",
+   "summary": "Cosmetics and the Wardrobe.",
+   "items": [
+    "Cosmetics: capes, wings, hats, masks, back items, auras, trails, a pet, emotes, kill and win effects and item skins, 19 original items to start. Only Evade players see them, and they never change hitboxes or make anyone harder to see. Armour still shows over them.",
+    "Wardrobe (in the Evade menu, or .wardrobe): a 3D preview of you, colours, up to 6 saved outfits, try-on for items you don't own yet, and an emote wheel on Y.",
+    "Your choice: hide your own or everyone else's cosmetics, hide them in combat, turn particles down, and servers can switch cosmetics off.",
+    "Shop at evadeclient.com/shop: browse every item in 3D now; checkout opens soon. Redeem codes work with .redeem."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.6.0"
+  },
   {
    "id": "v2.5.1",
    "title": "v2.5.1",
@@ -86,21 +100,6 @@
     "Evade Clips: recording on Windows works again (newer ffmpeg refused one setting, so nothing was saved), and the \"Recording saved\" pop-up no longer leaves garbage on screen."
    ],
    "url": "https://evadeclient.com/changelog#v2.2.0"
-  },
-  {
-   "id": "v2.1.0",
-   "title": "v2.1.0",
-   "date": "2026-11-24",
-   "dateText": "24 Nov 2026",
-   "summary": "The Evade Launcher, a mod browser, Hypixel tools and a server API.",
-   "items": [
-    "Evade Launcher: the installer is now a full launcher with Evade Clips built in. One app: a home screen with your servers and news, instances (separate setups with their own mods and settings), a mod browser, and Clips' library, recorder and editor. Play opens the Minecraft Launcher with your instance selected, so sign-in stays with Microsoft. It updates itself.",
-    "Mod Browser in game and in the launcher: search Modrinth and install Fabric mods with one click, with their required libraries, each checked before it's installed.",
-    "Hypixel: a Quick Play menu, BedWars and SkyWars stats in the tab list (with your own Hypixel API key) and a BedWars helper that tracks generator timers and team upgrades.",
-    "New mods: Snaplook, Text Hotkeys, Totem Counter, Day Counter, Menu Blur, an Evade title screen, pack favourites and Discord status.",
-    "Evade Server API: servers can show waypoints, cooldowns, notifications, titles, team markers, borders, beams and holograms to Evade players, and switch mods off. A free server plugin sets it up."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.1.0"
   }
  ]
 }

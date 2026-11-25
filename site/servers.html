@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=f23c3beb2b">
+<link rel="stylesheet" href="/assets/site.css?v=178007a4f3">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="servers">
@@ -45,9 +45,10 @@
       <a href="/changelog">Changelog</a>
       <a href="/showcase">Showcase</a>
       <a href="/faq">FAQ</a>
+      <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.5.1</span>
+      <span class="nav-ver">v2.6.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -62,6 +63,7 @@
     <a href="/changelog">Changelog</a>
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
+    <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
   </div>
 </nav>
 
@@ -108,7 +110,7 @@
 
       <div class="doc-sec rv" id="owners">
         <h2>For server owners</h2>
-        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=4e54d4b2a3">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
+        <p><b>The easy way:</b> install the free <a href="/downloads/EvadeServerAPI.jar?v=7d5dd74441">Evade Server API plugin</a> for Paper 1.21. Drop it in <span class="mono">plugins/</span>, restart, and choose which Evade mods to switch off in <span class="mono">plugins/EvadeServerAPI/config.yml</span>. Other plugins can use it to send waypoints, cooldowns, notifications and more. Everything below is what it does for you, if you'd rather send the messages yourself.</p>
         <p>You can switch off any Evade mod for players on your server. Send a plugin message on the channel <span class="mono">evade:rules</span> after a player joins, with a UTF-8 JSON body:</p>
         <pre class="code">{"disable": ["Freelook", "Minimap", "Fullbright"]}</pre>
         <p>Use the mod names exactly as they appear in Evade's menu (case doesn't matter). Evade turns those mods off straight away, stops players turning them back on while they're connected, and shows <b>Disabled by this server</b> on them. Send the message again to change the list, or <span class="mono">{"disable": []}</span> to allow everything. Nothing carries over to other servers.</p>
@@ -220,7 +222,7 @@ getServer().getMessenger().registerIncomingPluginChannel(this, "evade:hello", (c
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.5.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>

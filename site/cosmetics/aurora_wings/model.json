@@ -1,0 +1,208 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  32,
+  32
+ ],
+ "textureScale": 2,
+ "bones": [
+  {
+   "name": "wing_r",
+   "attach": "body",
+   "pivot": [
+    -1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -13.5,
+      1.0,
+      2.0
+     ],
+     "size": [
+      12,
+      13,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   },
+   "alpha": 0.9
+  },
+  {
+   "name": "wing_r_glow",
+   "attach": "body",
+   "pivot": [
+    -1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -13.5,
+      1.0,
+      2.0
+     ],
+     "size": [
+      12,
+      13,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ],
+     "inflate": 0.02
+    },
+    {
+     "origin": [
+      -13.5,
+      0.0,
+      1.5
+     ],
+     "size": [
+      12,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      26
+     ]
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   },
+   "emissive": true
+  },
+  {
+   "name": "wing_l",
+   "attach": "body",
+   "pivot": [
+    1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      1.5,
+      1.0,
+      2.0
+     ],
+     "size": [
+      12,
+      13,
+      0
+     ],
+     "uv": [
+      0,
+      0
+     ],
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   },
+   "alpha": 0.9
+  },
+  {
+   "name": "wing_l_glow",
+   "attach": "body",
+   "pivot": [
+    1.5,
+    2,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      1.5,
+      1.0,
+      2.0
+     ],
+     "size": [
+      12,
+      13,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ],
+     "inflate": 0.02,
+     "mirror": true
+    },
+    {
+     "origin": [
+      1.5,
+      0.0,
+      1.5
+     ],
+     "size": [
+      12,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      26
+     ],
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 32,
+    "amp": 12,
+    "speed": 1.6
+   },
+   "emissive": true
+  }
+ ]
+}

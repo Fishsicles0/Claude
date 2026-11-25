@@ -1,0 +1,10 @@
+{
+ "id": "pip_wisp",
+ "name": "Pip the Wisp",
+ "slot": "PET",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A tiny friendly wisp that bobs along above your shoulder, with a flickering flame on its head."
+}

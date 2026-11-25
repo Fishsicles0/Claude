@@ -1,0 +1,10 @@
+{
+ "id": "nightglass_blade",
+ "name": "Nightglass Blade",
+ "slot": "ITEM_SKIN",
+ "rarity": "LEGENDARY",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword, re-forged in dark glass with a glowing violet core. Shows on swords you hold, on your screen."
+}

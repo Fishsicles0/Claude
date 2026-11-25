@@ -599,3 +599,8 @@ html:not(.js) .mod { cursor: default; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 56px; }
 @media (max-width: 560px) { .cta-row .btn { flex: 1 1 100%; } }
 .faq-layout > .doc { min-width: 0; }
+
+/* "Soon" pill on the Shop link in the nav while the shop is closed */
+.nav-soon { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font: 700 9.5px/1.5 var(--body); letter-spacing: .06em; text-transform: uppercase; vertical-align: 1px; color: var(--red-2); background: rgba(225, 29, 46, .12); border: 1px solid rgba(225, 29, 46, .35); }
+.mobile-menu .nav-soon { margin-right: auto; margin-left: 10px; font-size: 10.5px; }
+.nav-links a { white-space: nowrap; }

@@ -1,0 +1,20 @@
+{
+ "id": "ember_orbit",
+ "name": "Ember Orbit",
+ "slot": "AURA",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A faint ring of fire turns at your feet while three embers circle your waist.",
+ "fx": {
+  "type": "aura",
+  "particle": "dust",
+  "colors": [
+   "#FFB347",
+   "#FF5A1F"
+  ],
+  "rate": 3,
+  "size": 0.7
+ }
+}

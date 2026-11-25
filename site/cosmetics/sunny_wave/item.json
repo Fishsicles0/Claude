@@ -1,0 +1,68 @@
+{
+ "id": "sunny_wave",
+ "name": "Sunny Wave",
+ "slot": "EMOTE",
+ "rarity": "COMMON",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A big, cheerful wave hello.",
+ "emote": {
+  "length": 1.6,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -170,
+     0,
+     15
+    ],
+    [
+     0.4,
+     -170,
+     0,
+     -15
+    ],
+    [
+     0.8,
+     -170,
+     0,
+     15
+    ],
+    [
+     1.2,
+     -170,
+     0,
+     -15
+    ],
+    [
+     1.6,
+     -170,
+     0,
+     15
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.8,
+     0,
+     0,
+     6
+    ],
+    [
+     1.6,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

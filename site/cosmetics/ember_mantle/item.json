@@ -1,0 +1,10 @@
+{
+ "id": "ember_mantle",
+ "name": "Ember Mantle",
+ "slot": "CAPE",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark."
+}

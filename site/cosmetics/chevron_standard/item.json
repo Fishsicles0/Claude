@@ -1,0 +1,10 @@
+{
+ "id": "chevron_standard",
+ "name": "Chevron Standard",
+ "slot": "CAPE",
+ "rarity": "COMMON",
+ "colourable": true,
+ "defaultColor": "#E11D2E",
+ "partner": null,
+ "description": "A clean banner cape with three chevrons, in any colour you like."
+}

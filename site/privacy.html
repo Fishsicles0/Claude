@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=f23c3beb2b">
+<link rel="stylesheet" href="/assets/site.css?v=178007a4f3">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="privacy">
@@ -45,9 +45,10 @@
       <a href="/changelog">Changelog</a>
       <a href="/showcase">Showcase</a>
       <a href="/faq">FAQ</a>
+      <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.5.1</span>
+      <span class="nav-ver">v2.6.0</span>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -62,6 +63,7 @@
     <a href="/changelog">Changelog</a>
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
+    <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
   </div>
 </nav>
 
@@ -80,6 +82,7 @@
       <a href="#icons">Evade icons</a>
       <a href="#friends">Friends and parties</a>
       <a href="#discover">Cloud backup</a>
+      <a href="#shop">Shop and cosmetics</a>
       <a href="#installer">The installer</a>
       <a href="#clips">Evade Clips</a>
       <a href="#site">This website</a>
@@ -136,6 +139,20 @@
       <div class="doc-sec rv" id="discover">
         <h2>Cloud backup</h2>
         <p><b>Cloud backup</b> is off until you press <b>Back up</b>. Your setup (settings, HUD layout, profiles and waypoints) is zipped and encrypted on your computer with a key made from a passphrase only you know, then stored with us under the player UUID your account proves the same way as for Evade icons. We can't read it, and without your passphrase nobody can restore it. There is one backup per account, of at most 256 KB. It is deleted after 90 days without a backup or restore, straight away when you delete it, and with <b>Delete my social data</b>.</p>
+      </div>
+
+      <div class="doc-sec rv" id="shop">
+        <h2>Shop and cosmetics</h2>
+        <p>The shop isn't open yet. Cosmetics are optional and give no advantage in game. When you use them, we store, under the player UUID your account proves the same way as for Evade icons:</p>
+        <ul>
+          <li><b>What you own:</b> the ids of the cosmetics on your account, how you got each one (a purchase, a code, or a partner server) and when.</li>
+          <li><b>What you're wearing:</b> the cosmetic in each slot and its colour, if you picked one. This is public: any Evade player near you, or anyone who asks our API about your UUID, can see which cosmetics you're wearing.</li>
+          <li><b>Purchases:</b> the payment provider's order id, the player UUID it was for (and the buyer's UUID, for a gift), the items, the amount and currency, its status (paid, refunded or charged back) and when. Payments are handled by the payment provider under its own privacy policy; we never see your card details. If the provider sends us your name or email address, we don't store them.</li>
+          <li><b>Link codes:</b> the 6-character code that links the shop website to your account, for 10 minutes.</li>
+          <li><b>Redeem codes:</b> which account used a code, and when.</li>
+        </ul>
+        <p><b>How long:</b> what you own and your purchase records stay as long as your cosmetics do (we need purchase records for refunds and our accounts); <b>Delete my social data</b> doesn't remove them. A refund or chargeback removes the items it paid for. Email us to have your cosmetics and records deleted, except what the law requires us to keep.</p>
+        <p><b>Why:</b> to deliver the cosmetics you get and show them to other players. We never sell or share this data, and we don't use it for anything else.</p>
       </div>
 
       <div class="doc-sec rv" id="installer">
@@ -203,7 +220,7 @@
       <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.5.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.6.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>

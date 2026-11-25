@@ -1,0 +1,22 @@
+{
+ "id": "shatterburst",
+ "name": "Shatterburst",
+ "slot": "KILL_EFFECT",
+ "rarity": "EPIC",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "When you get a kill, crystal shards burst outward from where they fell.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#9FFCFF",
+   "#3EF0D0",
+   "#FFFFFF"
+  ],
+  "count": 42,
+  "size": 1.1,
+  "spark": true
+ }
+}
