@@ -15,6 +15,7 @@ import net.evadeclient.cosmetics.EmoteWheelScreen;
 import net.evadeclient.cosmetics.Emotes;
 import net.evadeclient.cosmetics.Loadout;
 import net.evadeclient.cosmetics.PlayerCosmetics;
+import net.evadeclient.cosmetics.Rarity;
 import net.evadeclient.cosmetics.Slot;
 import net.evadeclient.cosmetics.Wardrobe;
 import net.evadeclient.cosmetics.WardrobeScreen;
@@ -87,6 +88,15 @@ public final class CosmeticsTest {
         });
         check(loadErrors.isEmpty(), "Cosmetics: every starter item loads (models, textures, thumbnails) " + loadErrors);
         testDownloadCache(ctx);
+        // ---- tiers and prices: three tiers, old names read as regular; every starter item is regular and priced
+        String tiers = ctx.computeOnClient(c -> {
+            StringBuilder b = new StringBuilder();
+            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.rarity != Rarity.REGULAR || i.priceCents <= 0) b.append(i.id).append(' ');
+            return b.toString();
+        });
+        check(tiers.isEmpty() && Rarity.values().length == 3 && Rarity.parse("legendary") == Rarity.REGULAR && Rarity.parse("special") == Rarity.SPECIAL
+                && Rarity.parse("Partner") == Rarity.PARTNER && Rarity.parse(null) == Rarity.REGULAR,
+                "Cosmetics: regular / special / partner tiers, old names read as regular, starter items regular and priced " + tiers);
 
         // ---- the backend contract, against the mock
         String me = ctx.computeOnClient(c -> {
@@ -95,6 +105,7 @@ public final class CosmeticsTest {
             return Wardrobe.owned() + "|" + CosmeticsCatalog.get("tidal_weave").priceCents + "|" + CosmeticsCatalog.get("tidal_weave").bundled;
         });
         check(me.equals("[tidal_weave]|555|true"), "Cosmetics: /me ownership and the catalog's prices apply, starter art stays bundled (" + me + ")");
+        check(ctx.computeOnClient(c -> CosmeticsCatalog.get("tidal_weave").rarity) == Rarity.REGULAR, "Cosmetics: an old rarity name from the backend (rare) reads as regular");
         ctx.runOnClient(c -> PlayerCosmetics.putForTest(BOT, Loadout.EMPTY));
         CompletableFuture<JsonObject> players = ctx.computeOnClient(c -> CosmeticsApi.players(List.of(BOT)));
         check(players.join().getAsJsonObject("players").has(BOT.toString().replace("-", "")), "Cosmetics: players lookup sends undashed UUIDs");
