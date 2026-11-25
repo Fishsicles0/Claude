@@ -92,7 +92,13 @@ public final class CaptureSource {
     private static volatile boolean ddagrabFailed;
 
     /** Called by the capture engine when a Desktop Duplication capture died: the next start uses GDI. */
-    static void ddagrabFailed() { ddagrabFailed = true; }
+    static void ddagrabFailed() { ddagrabFailed = true; ddagrabFailedAt = System.currentTimeMillis(); }
+
+    /**
+     * GDI is a stopgap (it manages far fewer frames a second): Desktop Duplication is tried again 10 minutes after it
+     * failed, so one bad start (a fullscreen switch, a driver hiccup) doesn't leave every later clip choppy.
+     */
+    private static volatile long ddagrabFailedAt;
 
     /**
      * Sound that stopped a capture before it got going is dropped for the rest of the session, so clips keep
@@ -113,7 +119,13 @@ public final class CaptureSource {
     }
 
     /** Whether Windows capture uses Desktop Duplication (true unless it isn't available or has failed). */
-    static boolean useDdagrab() { return Ffmpeg.WINDOWS && !ddagrabFailed && hasDdagrab(); }
+    static boolean useDdagrab() {
+        if (ddagrabFailed && System.currentTimeMillis() - ddagrabFailedAt > 10 * 60_000L) ddagrabFailed = false;
+        return Ffmpeg.WINDOWS && !ddagrabFailed && hasDdagrab();
+    }
+
+    /** True while capture uses the slower GDI fallback instead of Desktop Duplication (Windows). */
+    public static boolean usingGdiFallback() { return Ffmpeg.WINDOWS && ddagrabFailed; }
 
     /**
      * Inputs for a capture that encodes with {@code encoder}. {@code window} is the Minecraft window on Windows
