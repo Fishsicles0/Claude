@@ -134,6 +134,11 @@ public final class FpsPassTest {
                 for (Module m : EvadeClient.modules.all()) m.setEnabled(defaultOn(m, enabledBefore));
                 EvadeClient.modules.get(Performance.class).setEnabled(true);
             });
+            log("Evade defaults: %s", ctx.computeOnClient(c -> {
+                StringBuilder b = new StringBuilder();
+                for (Module m : EvadeClient.modules.all()) if (m.isEnabled()) b.append(b.length() == 0 ? "" : ", ").append(m.getName());
+                return b.toString();
+            }));
             Object rec = jfr ? startJfr() : null;
             out.add(measure(ctx, "evade-defaults", seconds));
             if (rec != null) stopJfr(rec, "evade-fps-defaults.jfr");
@@ -143,6 +148,7 @@ public final class FpsPassTest {
             out.add(measure(ctx, "defaults-hud-60hz", seconds));
 
             hudDrawCost(ctx);
+            moduleLookupCost(ctx);
             hudCacheBreakEven(ctx);
 
             // 5: every HUD widget on as well (the heaviest HUD anyone could set up), drawn live and then cached.
@@ -231,6 +237,37 @@ public final class FpsPassTest {
         // A scratch DrawContext and GuiRenderState are part of each draw here (a few hundred bytes).
         log("HUD draw (defaults, live): within a tick %.0f us and %.1f KB per frame; on a new tick %.0f us and %.1f KB",
                 r[0], r[1] / 1024, r[2], r[3] / 1024);
+    }
+
+    /**
+     * {@code modules.get(SomeModule.class)}: hooks call it per entity, particle and frame (Performance.active() and
+     * friends). Its cost next to a scan over every module, which is what it was before the lookup was cached.
+     */
+    private static void moduleLookupCost(ClientGameTestContext ctx) {
+        double[] ns = ctx.computeOnClient(c -> {
+            var mods = EvadeClient.modules;
+            Class<?>[] types = {Performance.class, net.evadeclient.module.visuals.Particles.class,
+                    net.evadeclient.module.mods.Zoom.class, net.evadeclient.module.client.ClientSettings.class};
+            long sink = 0;
+            double[] out = new double[2];
+            for (int pass = 0; pass < 3; pass++) {
+                long t0 = System.nanoTime();
+                for (int i = 0; i < 400_000; i++) {
+                    Class<?> t = types[i & 3];
+                    if (pass == 2) {
+                        for (Module m : mods.all()) if (t.isInstance(m)) { sink += m.hashCode(); break; }
+                    } else {
+                        @SuppressWarnings("unchecked") Module m = mods.get((Class<? extends Module>) t);
+                        sink += m.hashCode();
+                    }
+                }
+                if (pass > 0) out[pass - 1] = (System.nanoTime() - t0) / 400_000.0;
+            }
+            if (sink == 42) EvadeClient.LOG.info("");
+            return out;
+        });
+        log("Module lookup by class: %.1f ns cached, %.1f ns scanning every module (%.0fx)", ns[0], ns[1], ns[1] / Math.max(0.01, ns[0]));
+        check(ns[0] < ns[1], String.format(Locale.ROOT, "FPS pass: looking a module up by class is cached (%.1f ns vs a %.1f ns scan)", ns[0], ns[1]));
     }
 
     /**

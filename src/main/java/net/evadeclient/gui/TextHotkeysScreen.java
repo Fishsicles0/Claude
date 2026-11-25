@@ -152,6 +152,7 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
         if (t == null) return 0;
         int y = top;
         List<Hotkey> list = t.hotkeys();
+        clashes.clear();
         if (presetsOpen || list.isEmpty()) {
             if (inView(y, PRESET_H)) renderPresets(ctx, y, mx, my);
             y += PRESET_H + 4;
@@ -192,6 +193,13 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
         }
     }
 
+    /** Who shares each hotkey's key, worked out once per frame. */
+    private final java.util.Map<Hotkey, List<String>> clashes = new java.util.IdentityHashMap<>();
+
+    private List<String> clashOf(TextHotkeys t, Hotkey h) {
+        return h.enabled ? clashes.computeIfAbsent(h, t::conflicts) : List.of();
+    }
+
     private static String id(Hotkey h) { return Integer.toHexString(System.identityHashCode(h)); }
 
     private void renderRow(DrawContext ctx, TextHotkeys t, Hotkey h, int index, int count, int y, int mx, int my) {
@@ -199,7 +207,7 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
         boolean hv = mouseIn(mx, my, cx, y, cx + cw, y + ROW_H - 3);
         float hf = hover("row:" + id(h), hv);
         Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, open ? Theme.tint(0.08f) : Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, hf));
-        List<String> clash = h.enabled ? t.conflicts(h) : List.of();
+        List<String> clash = clashOf(t, h);
         if (!clash.isEmpty()) Theme.round(ctx, cx, y + 5, cx + 2, y + ROW_H - 8, Theme.DANGER, 1);
         contentHit(cx, y, cx + cw, y + ROW_H - 3, b -> { if (open) closeEditor(); else openEditor(h); });
 
@@ -296,7 +304,7 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
 
         // Key and actions
         text(ctx, "Key", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
-        List<String> clash = h.enabled ? t.conflicts(h) : List.of();
+        List<String> clash = clashOf(t, h);
         int kx2 = vx + Math.max(84, width(h.keyText(), Role.LABEL) + 16);
         renderKeyBox(ctx, h, !clash.isEmpty(), kx2, row, mx, my);
         String keyNote = h == listening ? "Hold Ctrl / Shift / Alt with it for a combo  ·  side mouse buttons work  ·  Esc cancels  ·  Delete clears"
