@@ -5,7 +5,6 @@
  *   PROG_DAMAGE      block-breaking cracks (multiplicative blend, so the colour stays raw)
  *   PROG_SKYBASIC    the sky dome: we draw the sky ourselves in deferred.fsh, so only black is written here
  *   PROG_SKYTEXTURED the moon (and custom sky textures); the sun is drawn procedurally in deferred.fsh
- *   PROG_CLOUDS      vanilla clouds (only used with Cloud Style = Vanilla)
  */
 #include "/lib/settings.glsl"
 #include "/lib/uniforms.glsl"
@@ -44,14 +43,8 @@ in vec4 vertColor;
 in vec2 lmUV;
 in vec3 playerPos;
 
-#if defined PROG_CLOUDS
-/* RENDERTARGETS: 0,1 */
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outSurface;
-#else
 /* RENDERTARGETS: 0 */
 layout(location = 0) out vec4 outColor;
-#endif
 
 void main() {
 #if defined PROG_BASIC
@@ -76,17 +69,6 @@ void main() {
     vec3 col = toLinear(c.rgb);
     if (renderStage == MC_RENDER_STAGE_MOON) col *= vec3(0.9, 0.95, 1.1) * 2.2 * (1.0 - rainStrength);
     outColor = vec4(col * c.a, c.a);
-#elif defined PROG_CLOUDS
-    #if CLOUD_MODE != 1
-    discard; // our own clouds are drawn in deferred.fsh
-    #endif
-    vec4 c = texture(gtexture, texUV) * vertColor;
-    if (c.a < 0.01) discard;
-    vec3 sunDir = sunDirWorld();
-    float day = smoothstep(-0.1, 0.2, sunDir.y);
-    vec3 lit = toLinear(c.rgb) * mix(vec3(0.02, 0.025, 0.04), vec3(1.1, 1.05, 1.0), day) * (1.0 - rainStrength * 0.6);
-    outColor = vec4(lit, c.a * 0.85);
-    outSurface = vec4(0.0, 0.0, 0.0, 0.25); // tells composite.fsh not to fog the clouds away
 #endif
 }
 #endif

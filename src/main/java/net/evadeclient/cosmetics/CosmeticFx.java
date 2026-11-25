@@ -51,6 +51,9 @@ public final class CosmeticFx {
 
     private CosmeticFx() {}
 
+    /** Test hook: lets the next win line play at once (one win effect per 20 s otherwise). */
+    public static void resetWinCooldownForTest() { lastWin = 0; }
+
     public static int takeSpawned() { int s = spawned; spawned = 0; return s; }
 
     public static void clear() {

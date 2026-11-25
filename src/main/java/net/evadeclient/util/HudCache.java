@@ -47,8 +47,8 @@ import java.util.Set;
  * <p>The texture is redrawn when it is older than the refresh period, when a widget moves, is resized, turns on or off,
  * or (text widgets, checked once a tick) its text changes, and when the window or HUD scale changes. Widgets that move
  * every frame (minimap, compass, keystrokes while a key animates, the frame-time graph, the paper doll, Chroma text
- * and other mods' widgets) are drawn live on top as usual. While a screen other than chat is open everything is drawn live (settings
- * may be changing). If anything fails, the cache turns itself off for the session and the HUD is drawn as before.
+ * and other mods' widgets) are drawn live on top as usual. While a screen other than chat is open everything is drawn
+ * live (settings may be changing). If anything fails, the cache turns itself off for the session and the HUD is drawn as before.
  * Render thread only.
  */
 public final class HudCache {
@@ -121,8 +121,8 @@ public final class HudCache {
     public static String lastChanged() { return lastChanged; }
 
     /**
-     * Text widgets' text, read once a tick (the rate they rebuild it at) and shared with their drawing, so it is
-     * worked out once per tick, not twice; null for other widgets.
+     * What a widget shows, as a hash: text widgets' text (read once a tick and shared with their drawing, so it is
+     * worked out once per tick, not twice), Keystrokes' keys and CPS; 0 for other widgets.
      */
     private static long content(HudElementModule el) {
         if (el instanceof TextHudModule t) return java.util.Objects.hashCode(t.contentKey());

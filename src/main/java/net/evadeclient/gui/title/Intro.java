@@ -16,6 +16,8 @@ public final class Intro {
     private double start = -1;
     private boolean full;
     private boolean enabled = true;
+    /** Skipped: everything shows as arrived until the next begin/restart. */
+    private boolean skipped;
 
     /** Milliseconds since the client started (monotonic). */
     public static double now() {
@@ -27,6 +29,7 @@ public final class Intro {
         enabled = animations;
         full = !played;
         played = true;
+        skipped = false;
         start = now();
     }
 
@@ -34,6 +37,7 @@ public final class Intro {
     public void restart(boolean animations) {
         enabled = animations;
         full = false;
+        skipped = false;
         start = now();
     }
 
@@ -42,7 +46,7 @@ public final class Intro {
     /** Jumps to the end of the entrance (a click or key while it plays). Returns whether there was anything to skip. */
     public boolean skip() {
         if (done() || start < 0) return false;
-        start = now() - 1e6;
+        skipped = true;
         return true;
     }
 
@@ -50,7 +54,7 @@ public final class Intro {
 
     /** Milliseconds into the timeline. */
     public double elapsed() {
-        return start < 0 ? 1e9 : now() - start;
+        return start < 0 || skipped ? 1e9 : now() - start;
     }
 
     /**
@@ -58,7 +62,7 @@ public final class Intro {
      * {@code durMs}. In the short replay every element uses 0 delay and 180 ms.
      */
     public float p(double delayMs, double durMs) {
-        if (!enabled) return 1f;
+        if (!enabled || skipped) return 1f;
         if (start < 0) return 0f; // not started yet (the loading screen is still up)
         double t = elapsed();
         if (!full) return Motion.cubicOut((float) (t / 180.0));

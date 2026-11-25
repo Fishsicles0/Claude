@@ -257,7 +257,7 @@ final class EvadeShadersTest {
             BlockPos eye = new BlockPos(x, y, z);
             return List.of(
                     new Scene("day", ow, eye, 90, 8, "6000", "clear"),
-                    new Scene("sunset", ow, eye, 90, -2, "12400", "clear"),
+                    new Scene("sunset", ow, eye, 90, -2, "11900", "clear"),
                     new Scene("night", ow, eye, 90, 8, "18000", "clear"),
                     new Scene("water", ow, new BlockPos(x - 4, y + 2, z - 4), 60, 28, "4000", "clear"),
                     new Scene("rain", ow, eye, 90, 8, "6000", "thunder"),
@@ -266,16 +266,62 @@ final class EvadeShadersTest {
                     new Scene("end", "minecraft:the_end", new BlockPos(100, 49, 0), 90, -5, "6000", "clear"));
         }
 
+        String lastDimension = "";
+        boolean freshPipeline = true;
+
         void go(Scene s) {
             cmd("weather " + s.weather());
             cmd("time set " + s.time());
             cmd(String.format(Locale.ROOT, "execute in %s run tp @p %d.5 %d %d.5 %.1f %.1f", s.dimension(),
                     s.pos().getX(), s.pos().getY(), s.pos().getZ(), s.yaw(), s.pitch()));
-            ctx.waitTicks(5);
-            try { sp.getClientWorld().waitForChunksRender(); }
-            catch (AssertionError e) { System.out.println("[shadershots] chunks still building for " + s.name()); }
-            // Rain/thunder strength ramps up over a few seconds; TAA/eye adaptation need a few frames too.
-            ctx.waitTicks(s.weather().equals("clear") ? 30 : 140);
+            // waitForChunksRender doesn't settle with a shader pack on the software renderer here, and Sodium only
+            // uploads a few chunk meshes per (slow) frame, so wait until the picture stops changing instead.
+            boolean rebuild = freshPipeline || !s.dimension().equals(lastDimension);
+            lastDimension = s.dimension();
+            freshPipeline = false;
+            ctx.waitTicks(rebuild ? 60 : 20);
+            waitStable(s.name());
+            // Rain/thunder strength ramps up over a few seconds.
+            if (!s.weather().equals("clear")) ctx.waitTicks(120);
+        }
+
+        /** Waits (up to ~25 s of frames) until two screenshots 30 frames apart barely differ: chunks are built. */
+        void waitStable(String scene) {
+            int[] prev = null;
+            for (int i = 0; i < 25; i++) {
+                ctx.waitTicks(30);
+                Path p = ctx.takeScreenshot("shadershot-probe");
+                int[] cur = thumb(p);
+                try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                if (prev != null && cur != null) {
+                    double d = 0;
+                    for (int k = 0; k < cur.length; k++) d += Math.abs(cur[k] - prev[k]);
+                    d /= cur.length;
+                    if (d < 2.5) { System.out.println("[shadershots] " + scene + " stable after " + (i + 1) * 30 + " frames"); return; }
+                }
+                prev = cur;
+            }
+            System.out.println("[shadershots] " + scene + " still changing; shooting anyway");
+        }
+
+        /** 32x18 grey thumbnail of a screenshot (block averages), for change detection. */
+        static int[] thumb(Path png) {
+            try {
+                BufferedImage img = ImageIO.read(png.toFile());
+                int[] out = new int[32 * 18];
+                for (int ty = 0; ty < 18; ty++) for (int tx = 0; tx < 32; tx++) {
+                    long sum = 0; int n = 0;
+                    for (int y = ty * img.getHeight() / 18; y < (ty + 1) * img.getHeight() / 18; y += 2)
+                        for (int x = tx * img.getWidth() / 32; x < (tx + 1) * img.getWidth() / 32; x += 2) {
+                            int rgb = img.getRGB(x, y);
+                            sum += ((rgb >> 16) & 255) + ((rgb >> 8) & 255) + (rgb & 255); n += 3;
+                        }
+                    out[ty * 32 + tx] = (int) (sum / Math.max(n, 1));
+                }
+                return out;
+            } catch (IOException e) {
+                return null;
+            }
         }
 
         /** Milliseconds per client frame (one tick renders one frame in the gametest loop), averaged. */
@@ -303,7 +349,7 @@ final class EvadeShadersTest {
         void run() throws IOException {
             ctx.runOnClient(c -> {
                 c.options.hudHidden = true;
-                c.options.getViewDistance().setValue(10);
+                c.options.getViewDistance().setValue(6);
             });
             List<Scene> scenes = build();
             String only = System.getProperty("evade.shadershots.only", "");
@@ -313,7 +359,19 @@ final class EvadeShadersTest {
             for (String prof : profilesWanted.split(",")) {
                 String err;
                 if (prof.equals("OFF")) err = apply(ctx, null, null);
-                else err = apply(ctx, PACK_FILE, profiles.get(prof));
+                else {
+                    // "LOW+CLOUD_MODE=2+!TAA": a profile with a few options changed (for tracking down a problem).
+                    String[] parts = prof.split("\\+");
+                    Properties opts = new Properties();
+                    opts.putAll(profiles.get(parts[0]));
+                    for (int i = 1; i < parts.length; i++) {
+                        if (parts[i].startsWith("!")) opts.setProperty(parts[i].substring(1), "false");
+                        else if (parts[i].contains("=")) opts.setProperty(parts[i].split("=")[0], parts[i].split("=")[1]);
+                        else opts.setProperty(parts[i], "true");
+                    }
+                    err = apply(ctx, PACK_FILE, opts);
+                }
+                freshPipeline = true;
                 System.out.println("[shadershots] profile " + prof + (err.isEmpty() || err.equals("Shaders off") ? "" : " ERROR " + err));
                 if (!err.isEmpty() && !prof.equals("OFF")) timings.add(prof + " failed to load: " + err);
                 shoot(prof, chosen, true);
@@ -324,6 +382,7 @@ final class EvadeShadersTest {
                 Path from = Path.of(other);
                 Files.copy(from, dir.resolve(from.getFileName()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 String err = apply(ctx, from.getFileName().toString(), null);
+                freshPipeline = true;
                 String label = from.getFileName().toString().replaceAll("[^A-Za-z0-9]+", "_");
                 System.out.println("[shadershots] compare " + label + " " + err);
                 shoot(label, chosen.stream().filter(s -> s.name().equals("day") || s.name().equals("sunset")

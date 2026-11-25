@@ -48,7 +48,7 @@ public abstract class AddonHudElement extends HudElementModule {
     }
 
     /** Text in the widget's font (the smooth font while Smooth Font is on). */
-    protected final net.minecraft.text.MutableText label(String s) { return styled(s); }
+    protected final net.minecraft.text.MutableText label(String s) { return styled(s).copy(); } // a copy: addons may restyle it
 
     protected final BooleanSetting toggle(String name, boolean value, String description) { return add(AddonSettings.toggle(name, value, description)); }
     protected final NumberSetting slider(String name, double value, double min, double max, double step, String description) { return add(AddonSettings.slider(name, value, min, max, step, description)); }

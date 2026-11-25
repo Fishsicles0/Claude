@@ -14,15 +14,15 @@
 #define EVADE_SKY
 
 const vec3  BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6); // Rayleigh scattering coefficients at sea level (1/m)
-const float BETA_M = 2.1e-5;                          // Mie scattering coefficient (1/m)
+const float BETA_M = 1.2e-5;                          // Mie scattering coefficient (1/m)
 const float H_R = 8000.0, H_M = 1200.0;               // scale heights (m)
-const float SUN_E = 40.0;                             // sun irradiance in scene units
+const float SUN_E = 30.0;                             // sun irradiance in scene units
 
 // Relative optical air mass for a ray with zenith cosine mu (Kasten & Young 1989). 1 at zenith, ~38 at horizon.
 float airMass(float mu) {
-    float zenithDeg = degrees(acos(clamp(mu, -1.0, 1.0)));
-    zenithDeg = min(zenithDeg, 95.0);
-    return 1.0 / (max(mu, 0.0) + 0.50572 * pow(max(96.07995 - zenithDeg, 1.0), -1.6364));
+    mu = clamp(mu, 0.0, 1.0); // below the horizon: treat as grazing (the caller fades the body out)
+    float zenithDeg = degrees(acos(mu));
+    return 1.0 / (mu + 0.50572 * pow(96.07995 - zenithDeg, -1.6364));
 }
 
 // Optical depth (Rayleigh + Mie extinction) along a path of the given air mass.
@@ -49,7 +49,7 @@ vec3 scatterFrom(vec3 dir, vec3 bodyDir, float e) {
     vec3 inscatter = (sR * phaseRayleigh(c) + sM * phaseMie(c, 0.76)) * (1.0 - exp(-ext)) / max(ext, vec3(1e-4));
     vec3 sunT = bodyTransmittance(bodyDir.y);
     // Fade the body's contribution as it sinks below the horizon (twilight lasts a little while).
-    float above = smoothstep(-0.12, 0.02, bodyDir.y);
+    float above = smoothstep(-0.16, 0.02, bodyDir.y);
     // Multiple-scattering fill: a soft blue term that follows the body's elevation.
     vec3 fill = vec3(0.10, 0.20, 0.42) * 0.012 * smoothstep(-0.2, 0.3, bodyDir.y);
     return e * (sunT * inscatter * above + fill);

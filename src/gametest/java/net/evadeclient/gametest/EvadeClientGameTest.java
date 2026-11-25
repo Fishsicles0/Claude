@@ -38,7 +38,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         if (Boolean.getBoolean("evade.shadershots")) { EvadeShadersTest.film(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.shadershots=true
 
-        testStartScreens(ctx);
+        if (!Boolean.getBoolean("evade.fpsonly") && !Boolean.getBoolean("evade.cosmeticsonly")) testStartScreens(ctx); // the FPS pass profile skips the timing-sensitive start screens
 
         // Switched on before any world exists: the enable hooks must wait for the world (checked once in it).
         boolean[] beforeWorld = ctx.computeOnClient(c -> {
@@ -66,7 +66,9 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
             // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
             if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
+            if (Boolean.getBoolean("evade.hotkeysonly")) { TextHotkeysTest.run(ctx, sp); return; } // TEMP-HOTKEYS
             if (Boolean.getBoolean("evade.fpsonly")) { FpsPassTest.profile(ctx, sp); return; } // FPS pass profiling
+            if (Boolean.getBoolean("evade.cosmeticsonly")) { CosmeticsTest.run(ctx, sp); return; } // TEMP-COSMETICS: JAVA_TOOL_OPTIONS=-Devade.cosmeticsonly=true
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -98,6 +100,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             PerfV25Test.run(ctx, sp);
             ReliabilityV25Test.run(ctx, sp);
             CosmeticsTest.run(ctx, sp);
+            TextHotkeysTest.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);

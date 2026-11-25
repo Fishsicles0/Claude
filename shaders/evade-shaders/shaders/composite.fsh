@@ -62,7 +62,6 @@ void main() {
 
     bool isWater = surface.a > 0.9 && depth0 < 1.0;
     bool isGlass = abs(surface.a - 0.5) < 0.1;
-    bool isCloud = abs(surface.a - 0.25) < 0.1;
 
     if (isWater || isGlass) {
         vec3 nWorld = octDecode(surface.xy);
@@ -126,6 +125,6 @@ void main() {
         }
     }
 
-    if (!isCloud) color = applyFog(color, viewPos, depth0 >= 1.0);
+    color = applyFog(color, viewPos, depth0 >= 1.0);
     outColor = vec4(color, 1.0);
 }

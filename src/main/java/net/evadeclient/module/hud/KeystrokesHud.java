@@ -364,21 +364,6 @@ public class KeystrokesHud extends HudElementModule {
         drawLabel(ctx, styled(sub), x + w / 2f, top + 10, 0.7f, subColor);
     }
 
-    /** Key labels as text, kept between frames: this widget is drawn every frame, and a new Text each frame means
-     *  the game lays its characters out again (bidirectional reordering included) for every key. */
-    private final java.util.Map<String, net.minecraft.text.MutableText> labelTexts = new java.util.HashMap<>();
-    private net.minecraft.text.Style labelStyle;
-
-    @Override
-    protected net.minecraft.text.MutableText styled(String s) {
-        net.minecraft.text.Style style = smoothFont.get() ? smoothStyle() : null;
-        if (!java.util.Objects.equals(style, labelStyle) || labelTexts.size() > 64) {
-            labelTexts.clear();
-            labelStyle = style;
-        }
-        return labelTexts.computeIfAbsent(s, super::styled);
-    }
-
     /** {@code text} centred on {@code cx} with its top at {@code top}, at {@code scale}. */
     private void drawLabel(DrawContext ctx, Text text, float cx, float top, float scale, int color) {
         var tr = mc.textRenderer;

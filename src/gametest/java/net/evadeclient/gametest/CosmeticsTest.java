@@ -152,7 +152,7 @@ public final class CosmeticsTest {
             if (slot == Slot.EMOTE) ctx.runOnClient(c -> check(Emotes.play(CosmeticsCatalog.get(id)), "Cosmetics: emote " + id + " plays"));
             if (slot == Slot.TRAIL) for (int i = 0; i < 8; i++) { server.runCommand("execute as @a at @s run tp @s ~0.3 ~ ~"); ctx.waitTicks(1); }
             if (slot == Slot.KILL_EFFECT) ctx.runOnClient(c -> check(CosmeticFx.kill(c.player.getEntityPos().add(1.5, 0, 2)), "Cosmetics: kill effect plays"));
-            if (slot == Slot.WIN_EFFECT) ctx.runOnClient(c -> { CosmeticFx.onMessage("You won the game!"); });
+            if (slot == Slot.WIN_EFFECT) ctx.runOnClient(c -> { CosmeticFx.resetWinCooldownForTest(); CosmeticFx.onMessage("You won the game!"); });
             ctx.waitTicks(slot == Slot.WIN_EFFECT ? 25 : slot == Slot.ITEM_SKIN ? 40 : 8);
             long drawn = ctx.computeOnClient(c -> CosmeticsPerf.takeDrawn());
             int spawned = ctx.computeOnClient(c -> CosmeticFx.takeSpawned());
@@ -429,7 +429,8 @@ public final class CosmeticsTest {
                 + ", worn " + PlayerCosmetics.get(BOT) + ", on " + Cosmetics.get().isEnabled());
         check(drawn > 0 && glow > 0, "Cosmetics v2: the animated cape and its emissive layer are drawn in game (" + drawn + " draws, " + glow + " glow parts; " + why + ")");
         check(ups > 0 && ups <= 23 * 4, "Cosmetics v2: the frame advances in game, a bounded number of uploads (" + ups + " in ~23 ticks)");
-        check(soft > 0, "Cosmetics v2: a soft-particle aura spawns soft glow particles (" + soft + ")");
+        boolean stillOn = ctx.computeOnClient(c -> Cosmetics.get().isEnabled());
+        check(soft > 0 && stillOn, "Cosmetics v2: a soft-particle aura spawns soft glow motes without crashing (" + soft + " spawned, module still on: " + stillOn + ")");
 
         // ---- cape physics: at rest it settles, walking lifts it (the spring follows vanilla's cape values)
         ctx.waitTicks(20);

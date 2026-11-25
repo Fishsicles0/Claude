@@ -29,9 +29,11 @@ import java.util.Map;
  * time per frame; "[gametest] FPSPASS" lines in the log. Allocation and GC figures don't depend on the graphics, so
  * they're the regression budget here (the software renderer's frame times are only compared with each other).
  *
- * <p>{@code -Devade.fpsonly=true}: only this, with a Java Flight Recording of the busy window saved to
- * {@code evade-fps.jfr} in the run folder (for profiling, see the FPS pass report). {@code -Devade.fpsjfr=false}
- * skips the recording.
+ * <p>{@code JAVA_TOOL_OPTIONS=-Devade.fpsonly=true}: only this (no start-screen checks), with longer windows, every
+ * HUD widget, and Java Flight Recordings of the defaults and every-widget windows saved to
+ * {@code evade-fps-defaults.jfr} and {@code evade-fps-allhud.jfr} in the run folder, for profiling.
+ * {@code -Devade.fpsjfr=false} skips the recordings. (Like {@code evade.perfonly}, that mode doesn't end on the title
+ * screen, so Gradle reports the run as failed afterwards; read the "[gametest]" lines.)
  */
 public final class FpsPassTest {
     private FpsPassTest() {}
@@ -61,6 +63,28 @@ public final class FpsPassTest {
     static void run(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         benchmarksIgnoreIdleCaps(ctx);
         measureAll(ctx, sp, 6, false, false);
+        keystrokesCached(ctx);
+    }
+
+    /** HUD Refresh: Keystrokes is cached while no key moves, and drawn live the moment one is pressed. */
+    private static void keystrokesCached(ClientGameTestContext ctx) {
+        var ks = net.evadeclient.module.hud.KeystrokesHud.class;
+        boolean was = ctx.computeOnClient(c -> EvadeClient.modules.get(ks).isEnabled());
+        ctx.runOnClient(c -> EvadeClient.modules.get(ks).setEnabled(true));
+        ctx.waitTicks(20); // drawn at least once with no key down, fades finished
+        boolean[] r = ctx.computeOnClient(c -> {
+            var k = EvadeClient.modules.get(ks);
+            boolean settled = !net.evadeclient.util.HudCache.animated(k);
+            long key = k.cacheKey();
+            c.options.forwardKey.setPressed(true);
+            boolean pressed = net.evadeclient.util.HudCache.animated(k);
+            boolean keyChanged = k.cacheKey() != key;
+            c.options.forwardKey.setPressed(false);
+            return new boolean[]{settled, pressed, keyChanged};
+        });
+        ctx.runOnClient(c -> EvadeClient.modules.get(ks).setEnabled(was));
+        check(r[0] && r[1] && r[2], "HUD cache: Keystrokes is cached while no key moves and drawn live when one is pressed ("
+                + java.util.Arrays.toString(r) + ")");
     }
 
     /**
@@ -104,6 +128,7 @@ public final class FpsPassTest {
         boolean jfr = !"false".equals(System.getProperty("evade.fpsjfr"));
         benchmarksIgnoreIdleCaps(ctx);
         measureAll(ctx, sp, 12, true, jfr);
+        keystrokesCached(ctx);
     }
 
     private static void measureAll(ClientGameTestContext ctx, TestSingleplayerContext sp, int seconds, boolean allHud, boolean jfr) {
@@ -134,6 +159,12 @@ public final class FpsPassTest {
                 for (Module m : EvadeClient.modules.all()) m.setEnabled(defaultOn(m, enabledBefore));
                 EvadeClient.modules.get(Performance.class).setEnabled(true);
             });
+            String onByDefault = ctx.computeOnClient(c -> {
+                StringBuilder b = new StringBuilder();
+                for (Module m : EvadeClient.modules.all()) if (m.isEnabled()) b.append(b.length() == 0 ? "" : ", ").append(m.getName());
+                return b.toString();
+            });
+            log("Evade defaults: %s", onByDefault);
             Object rec = jfr ? startJfr() : null;
             out.add(measure(ctx, "evade-defaults", seconds));
             if (rec != null) stopJfr(rec, "evade-fps-defaults.jfr");
@@ -142,6 +173,8 @@ public final class FpsPassTest {
             ctx.runOnClient(c -> EvadeClient.modules.get(Performance.class).hudRefresh.set("60 Hz"));
             out.add(measure(ctx, "defaults-hud-60hz", seconds));
 
+            hudDrawCost(ctx);
+            moduleLookupCost(ctx);
             hudCacheBreakEven(ctx);
 
             // 5: every HUD widget on as well (the heaviest HUD anyone could set up), drawn live and then cached.
@@ -190,6 +223,77 @@ public final class FpsPassTest {
                 "FPS pass: Evade's defaults allocate under %.0f KB more per frame than Performance alone in a busy scene (%.1f KB)", ALLOC_BUDGET_KB, extraKb));
         check(def.hudUs() < HUD_BUDGET_US, String.format(Locale.ROOT,
                 "FPS pass: Evade's default HUD draws in under %.0f us per frame here (%.0f us)", HUD_BUDGET_US, def.hudUs()));
+    }
+
+    /**
+     * Evade's default HUD drawn live 400 times back to back into a scratch GUI state: microseconds and bytes allocated
+     * per draw, on frames within one tick (most frames, at any frame rate over 20) and on frames that start a new tick
+     * (the text widgets read their text again). Allocation counts don't depend on how busy the computer is.
+     */
+    private static void hudDrawCost(ClientGameTestContext ctx) {
+        double[] r = ctx.computeOnClient(c -> {
+            double[] out = new double[4];
+            var bean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+            long tid = Thread.currentThread().threadId();
+            net.evadeclient.util.HudCache.forceOff = true;
+            try {
+                for (int pass = 0; pass < 3; pass++) { // pass 0 warms up; 1 = same tick, 2 = a new tick every draw
+                    long best = Long.MAX_VALUE, bytes = 0;
+                    for (int round = 0; round < 4; round++) {
+                        long b0 = bean.getThreadAllocatedBytes(tid), t0 = System.nanoTime();
+                        for (int i = 0; i < 100; i++) {
+                            if (pass == 2) EvadeClient.ticks++;
+                            var dc = new net.minecraft.client.gui.DrawContext(c, new net.minecraft.client.gui.render.state.GuiRenderState(), 0, 0);
+                            net.evadeclient.hud.Hud.render(dc);
+                        }
+                        best = Math.min(best, System.nanoTime() - t0);
+                        bytes += bean.getThreadAllocatedBytes(tid) - b0;
+                    }
+                    if (pass > 0) {
+                        out[(pass - 1) * 2] = best / 100 / 1000.0;
+                        out[(pass - 1) * 2 + 1] = bytes / 400.0;
+                    }
+                }
+            } finally {
+                net.evadeclient.util.HudCache.forceOff = false;
+                FrameStats.takeHudMicros();
+            }
+            return out;
+        });
+        // A scratch DrawContext and GuiRenderState are part of each draw here (a few hundred bytes).
+        log("HUD draw (defaults, live): within a tick %.0f us and %.1f KB per frame; on a new tick %.0f us and %.1f KB",
+                r[0], r[1] / 1024, r[2], r[3] / 1024);
+    }
+
+    /**
+     * {@code modules.get(SomeModule.class)}: hooks call it per entity, particle and frame (Performance.active() and
+     * friends). Its cost next to a scan over every module, which is what it was before the lookup was cached.
+     */
+    private static void moduleLookupCost(ClientGameTestContext ctx) {
+        double[] ns = ctx.computeOnClient(c -> {
+            var mods = EvadeClient.modules;
+            Class<?>[] types = {Performance.class, net.evadeclient.module.visuals.Particles.class,
+                    net.evadeclient.module.mods.Zoom.class, net.evadeclient.module.client.ClientSettings.class};
+            long sink = 0;
+            double[] out = new double[2];
+            for (int pass = 0; pass < 3; pass++) {
+                long t0 = System.nanoTime();
+                for (int i = 0; i < 400_000; i++) {
+                    Class<?> t = types[i & 3];
+                    if (pass == 2) {
+                        for (Module m : mods.all()) if (t.isInstance(m)) { sink += m.hashCode(); break; }
+                    } else {
+                        @SuppressWarnings("unchecked") Module m = mods.get((Class<? extends Module>) t);
+                        sink += m.hashCode();
+                    }
+                }
+                if (pass > 0) out[pass - 1] = (System.nanoTime() - t0) / 400_000.0;
+            }
+            if (sink == 42) EvadeClient.LOG.info("");
+            return out;
+        });
+        log("Module lookup by class: %.1f ns cached, %.1f ns scanning every module (%.0fx)", ns[0], ns[1], ns[1] / Math.max(0.01, ns[0]));
+        check(ns[0] < ns[1], String.format(Locale.ROOT, "FPS pass: looking a module up by class is cached (%.1f ns vs a %.1f ns scan)", ns[0], ns[1]));
     }
 
     /**
