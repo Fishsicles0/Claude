@@ -116,6 +116,7 @@ final class InstanceZip {
         o.addProperty("lights", i.lights);
         o.add("optional", ContentApi.array(OptionalMods.clean(i.optional)));
         o.add("shaderPacks", ContentApi.array(ShaderPacks.clean(i.shaderPacks)));
+        o.add("shaderPacksKnown", ContentApi.array(java.util.List.of(ShaderPacks.keys().split(","))));
         o.addProperty("worlds", worlds);
         o.addProperty("exported", Instant.now().toString());
         return o;

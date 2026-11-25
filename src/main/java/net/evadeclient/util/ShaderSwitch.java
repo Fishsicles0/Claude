@@ -13,8 +13,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Turns Iris shaders on or off and switches between shader packs, without opening Iris' own screens: the two the
- * installer adds (Photon, and the lighter Complementary Reimagined) by name, or any pack in shaderpacks/ through
+ * Turns Iris shaders on or off and switches between shader packs, without opening Iris' own screens: the ones the
+ * installer adds (Evade Shaders, Photon, and the lighter Complementary Reimagined) by name, or any pack in shaderpacks/ through
  * {@link #listPacks()} and {@link #applyPack(String)} (the Shader Pack picker). Iris is optional: everything here is reflection and
  * does nothing when Iris isn't installed. Render thread only (Iris reloads its pipeline).
  */
@@ -162,9 +162,29 @@ public final class ShaderSwitch {
         return file.replaceAll("\\.zip$", "");
     }
 
+    /** File-name starts that mark Evade Shaders: "Evade Shaders v1.0.zip" (from the launcher) or "EvadeShaders.zip". */
+    private static final String[] EVADE_PREFIXES = {"evade shaders", "evadeshaders", "evade-shaders"};
+
+    /** Whether a shaderpacks/ file is Evade Shaders. */
+    public static boolean isEvadePack(String file) {
+        if (file == null) return false;
+        String n = file.toLowerCase(Locale.ROOT);
+        for (String p : EVADE_PREFIXES) if (n.startsWith(p)) return true;
+        return false;
+    }
+
+    /** The pack file a Shaders choice means ("Evade Shaders", "Photon", "Complementary"), if it's in shaderpacks/. */
+    static Optional<String> packFor(String choice) {
+        return switch (choice) {
+            case "Evade Shaders" -> findPack(EVADE_PREFIXES[0]).or(() -> findPack(EVADE_PREFIXES[1])).or(() -> findPack(EVADE_PREFIXES[2]));
+            case "Photon" -> findPack("photon");
+            default -> findPack("complementaryreimagined").or(() -> findPack("complementary"));
+        };
+    }
+
     /**
-     * Applies a choice: "Off", "Photon" or "Complementary". Returns a message for the player (what happened, or why
-     * nothing could).
+     * Applies a choice: "Off", "Evade Shaders", "Photon" or "Complementary". Returns a message for the player (what
+     * happened, or why nothing could).
      */
     public static String apply(String choice) {
         if (!irisLoaded()) return "Shaders need Iris. Run the Evade installer again with Shaders switched on.";
@@ -174,7 +194,7 @@ public final class ShaderSwitch {
             if (choice.equals("Off")) {
                 c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, false);
             } else {
-                Optional<String> pack = findPack(choice.equals("Photon") ? "photon" : "complementaryreimagined").or(() -> findPack(choice.equals("Photon") ? "photon" : "complementary"));
+                Optional<String> pack = packFor(choice);
                 if (pack.isEmpty()) return choice + " isn't in your shaderpacks folder. Run the Evade installer again with Shaders on.";
                 c.getMethod("setShaderPackName", String.class).invoke(cfg, pack.get());
                 c.getMethod("setShadersEnabled", boolean.class).invoke(cfg, true);
@@ -187,6 +207,104 @@ public final class ShaderSwitch {
             EvadeClient.LOG.warn("Shaders: couldn't switch to {}", choice, t);
             return "Couldn't switch shaders: " + t.getClass().getSimpleName();
         }
+    }
+
+    // ------------------------------------------------------------------ Evade Shaders on integrated graphics
+
+    /** The quality level Evade Shaders starts on with integrated graphics. */
+    public static final String LAPTOP_PROFILE = "LOW";
+
+    /**
+     * With integrated graphics: when Evade Shaders is the active pack and the player has never changed its settings
+     * (no shaderpacks/&lt;pack&gt;.txt yet), starts it on its {@value #LAPTOP_PROFILE} level, then reloads Iris if shaders
+     * are on. Does nothing without Iris, on other graphics, or for any other pack. Render thread.
+     *
+     * @return whether the level was set
+     */
+    public static boolean laptopProfile() {
+        if (!irisLoaded() || GpuInfo.kind() != GpuInfo.Kind.INTEGRATED) return false;
+        Optional<String> pack = selectedPack();
+        if (pack.isEmpty() || !isEvadePack(pack.get())) return false;
+        if (!setProfileIfUntouched(packsDir(), pack.get(), LAPTOP_PROFILE)) return false;
+        EvadeClient.LOG.info("Shaders: {} starts on its {} level for integrated graphics", pack.get(), LAPTOP_PROFILE);
+        if (enabled()) {
+            try {
+                Class.forName("net.irisshaders.iris.Iris").getMethod("reload").invoke(null);
+            } catch (Throwable t) {
+                EvadeClient.LOG.warn("Shaders: couldn't reload Iris", t);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Writes a pack's Iris settings file (shaderpacks/&lt;pack&gt;.txt) for the quality {@code profile} its
+     * shaders.properties defines, when the file doesn't exist yet (the player never changed a setting). The file holds
+     * {@code profile=NAME} and the profile's option values, which is what Iris reads. Works on a zip or an unzipped
+     * pack folder; false when the pack, its shaders.properties or the profile can't be found, or the file exists.
+     */
+    public static boolean setProfileIfUntouched(Path dir, String pack, String profile) {
+        if (dir == null || pack == null || pack.contains("/") || pack.contains("\\")) return false;
+        Path packPath = dir.resolve(pack), txt = dir.resolve(pack + ".txt");
+        if (Files.exists(txt)) return false;
+        try {
+            java.util.Properties props = readPackProperties(packPath);
+            if (props == null) return false;
+            java.util.Map<String, String> values = new java.util.LinkedHashMap<>();
+            if (!profileValues(props, profile, values, 0)) return false;
+            StringBuilder out = new StringBuilder("#Evade Shaders: the " + profile + " level, set by Evade Client for integrated graphics\n");
+            out.append("profile=").append(profile).append('\n');
+            for (var e : values.entrySet()) out.append(e.getKey()).append('=').append(e.getValue()).append('\n');
+            Path tmp = dir.resolve(pack + ".txt.evade-tmp");
+            Files.writeString(tmp, out.toString(), java.nio.charset.StandardCharsets.ISO_8859_1);
+            try {
+                Files.move(tmp, txt, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.io.IOException e) {
+                Files.deleteIfExists(tmp);
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            EvadeClient.LOG.warn("Shaders: couldn't set {} on {}", profile, pack, e);
+            return false;
+        }
+    }
+
+    /** shaders/shaders.properties from a pack zip or folder, or null. */
+    private static java.util.Properties readPackProperties(Path pack) throws java.io.IOException {
+        java.util.Properties p = new java.util.Properties();
+        if (Files.isDirectory(pack)) {
+            Path f = pack.resolve("shaders").resolve("shaders.properties");
+            if (!Files.isRegularFile(f)) return null;
+            try (var in = Files.newInputStream(f)) { p.load(in); }
+            return p;
+        }
+        if (!Files.isRegularFile(pack)) return null;
+        try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(pack.toFile())) {
+            java.util.zip.ZipEntry e = z.getEntry("shaders/shaders.properties");
+            if (e == null) return null;
+            try (var in = z.getInputStream(e)) { p.load(in); }
+        }
+        return p;
+    }
+
+    /**
+     * A profile's option values from shaders.properties ({@code profile.LOW=SHADOWS !BLOOM shadowDistance=64.0
+     * profile.OTHER ...}): {@code NAME} is true, {@code !NAME} false, {@code NAME=value} that value, and another
+     * profile's values are included. False when the profile isn't defined.
+     */
+    static boolean profileValues(java.util.Properties props, String profile, java.util.Map<String, String> out, int depth) {
+        String line = props.getProperty("profile." + profile);
+        if (line == null || depth > 8) return false;
+        for (String t : line.trim().split("\\s+")) {
+            if (t.isEmpty()) continue;
+            if (t.startsWith("profile.")) profileValues(props, t.substring(8), out, depth + 1);
+            else if (t.startsWith("!")) out.put(t.substring(1), "false");
+            else if (t.contains("=")) out.put(t.substring(0, t.indexOf('=')), t.substring(t.indexOf('=') + 1));
+            else if (t.contains(":")) out.put(t.substring(0, t.indexOf(':')), t.substring(t.indexOf(':') + 1));
+            else out.put(t, "true");
+        }
+        return true;
     }
 
     private static Object config() throws Exception {

@@ -27,6 +27,8 @@ cp "$CEXE" clips-share/public/downloads/Evade-Clips.exe
 # Evade Shaders: "Evade Shaders v<version>.zip" + a stable EvadeShaders.zip (fails the build if a program won't compile
 # when glslangValidator is installed).
 if command -v glslangValidator >/dev/null; then python3 scripts/build-evade-shaders.py --validate; else python3 scripts/build-evade-shaders.py; fi
+SHADERS_VERSION=$(tr -d '[:space:]' < shaders/evade-shaders/VERSION)
+SZIP="site/downloads/EvadeShaders.zip"
 kb() { echo "$(( $(stat -c%s "$1") / 1024 )) KB"; }
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 cat > site/version.json <<JSON
@@ -49,6 +51,9 @@ cat > site/version.json <<JSON
       "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
       "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
     }
+  },
+  "shaders": {
+    "evade": { "file": "downloads/EvadeShaders.zip", "version": "${SHADERS_VERSION}", "size": "$(kb "$SZIP")", "sha256": "$(sha "$SZIP")" }
   },
   "date": "$(date +%F)"
 }

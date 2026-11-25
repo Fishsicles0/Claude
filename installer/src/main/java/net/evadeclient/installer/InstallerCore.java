@@ -50,8 +50,8 @@ import java.util.stream.Stream;
  */
 public final class InstallerCore {
     public static final String MC_VERSION = "1.21.11";
-    /** Overridable with -Devade.site=... (tests point it at a local server). */
-    public static final String SITE = System.getProperty("evade.site", "https://evadeclient.com");
+    /** evadeclient.com; {@code -Devade.siteBase=...} (or the older {@code -Devade.site}) points it at a local test server. */
+    public static final String SITE = System.getProperty("evade.siteBase", System.getProperty("evade.site", "https://evadeclient.com"));
     public static final String PROFILE_KEY = "evade-client", PROFILE_NAME = "Evade Client";
     public static final String VERSION_ID = "evade-client-" + MC_VERSION;
     private static final String FABRIC_META = "https://meta.fabricmc.net/v2/versions/loader/" + MC_VERSION;
@@ -184,7 +184,7 @@ public final class InstallerCore {
                           java.util.Set<String> shaderPacks) {
         /**
          * {@code optional}: the {@link OptionalMods} groups switched on (none: the default); {@code shaderPacks}: the
-         * {@link ShaderPacks} keys ticked for the Shaders option (null: Photon and Complementary Reimagined).
+         * {@link ShaderPacks} keys ticked for the Shaders option (null: the defaults).
          */
         public Options {
             optional = optional == null ? java.util.Set.of() : java.util.Set.copyOf(optional);
@@ -408,7 +408,10 @@ public final class InstallerCore {
         }
         java.util.Map<String, ModFile> shaderPacks = new java.util.LinkedHashMap<>();
         if (iris != null) {
+            ModFile ours = evadeShaders(site);
+            if (ours != null) shaderPacks.put(ShaderPacks.EVADE.key(), ours);
             for (ShaderPacks.Pack sp : ShaderPacks.ALL) {
+                if (sp.ours()) continue;
                 try {
                     ModFile f = shaderPackOnModrinth(sp);
                     if (f != null) shaderPacks.put(sp.key(), f);
@@ -442,6 +445,35 @@ public final class InstallerCore {
         }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, apiVersion, apiUrl, apiSha, apiFile, voice, perf,
                 clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights, optional, shaderPacks);
+    }
+
+    /**
+     * Evade Shaders as version.json lists it ({@code "shaders":{"evade":{"file","version","sha256"}}}), or null when it
+     * isn't listed (an older site) or the entry is incomplete. Downloaded from evadeclient.com with a query naming its
+     * checksum, so no cache serves an older build; installed as "Evade Shaders v&lt;version&gt;.zip". The checksum is
+     * SHA-256 (see {@link #hashAlgo}).
+     */
+    static ModFile evadeShaders(JsonObject site) {
+        try {
+            if (site == null || !site.has("shaders") || !site.get("shaders").isJsonObject()) return null;
+            JsonObject sh = site.getAsJsonObject("shaders");
+            if (!sh.has("evade") || !sh.get("evade").isJsonObject()) return null;
+            JsonObject e = sh.getAsJsonObject("evade");
+            String file = str(e, "file"), version = str(e, "version"), sha = str(e, "sha256");
+            if (file == null || version == null || sha == null || !sha.matches("[0-9a-fA-F]{64}")) return null;
+            if (file.startsWith("/") || file.contains("..") || file.contains("://")) return null;
+            String name = ShaderPacks.EVADE.name() + " v" + version.strip() + ".zip";
+            if (!plainName(name)) return null;
+            return new ModFile(ShaderPacks.EVADE.name(), version.strip(), SITE + "/" + file + bust(sha), sha.toLowerCase(Locale.ROOT), name,
+                    null, java.util.List.of(), java.util.Map.of());
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    /** The hash a checksum is: SHA-256 for 64 hex digits (Evade's own files), SHA-512 otherwise (Modrinth's). */
+    static String hashAlgo(String hex) {
+        return hex != null && hex.length() == 64 ? "SHA-256" : "SHA-512";
     }
 
     /**
@@ -1117,6 +1149,9 @@ public final class InstallerCore {
                         : key.equals(ShaderPacks.REIMAGINED.key()) ? str(m, "lightPackFile") : null;
                 if (have == null) return f.name() + " " + f.version() + " isn't added yet";
                 if (!have.equalsIgnoreCase(f.filename())) return f.name() + " " + f.version() + " is out";
+                String sha = rec != null && rec.get(key).isJsonObject() ? str(rec.getAsJsonObject(key), "sha") : null;
+                boolean adopted = rec != null && rec.getAsJsonObject(key).has("adopted");
+                if (!adopted && sha != null && f.sha512() != null && !sha.equalsIgnoreCase(f.sha512())) return "A new build of " + f.name() + " " + f.version() + " is out";
             }
         }
         if (packs && r.packFeatures() != null && !r.packFeatures().isEmpty()) {
@@ -1229,19 +1264,25 @@ public final class InstallerCore {
                 if (oldThere) now.put(sp.key(), old);
                 continue;
             }
+            boolean rebuilt = false;
             if (oldThere && old[0].equalsIgnoreCase(name)) {
-                now.put(sp.key(), new String[]{old[0], f.version(), old[2]});
-                continue;
+                // Same name: kept, unless Evade added it and the file changed under the same version (Evade Shaders
+                // keeps its name until its version changes, so a new build is told apart by its checksum).
+                rebuilt = !"1".equals(old[2]) && sameFile(packs.resolve(old[0]), f) == Boolean.FALSE;
+                if (!rebuilt) {
+                    now.put(sp.key(), new String[]{old[0], f.version(), old[2]});
+                    continue;
+                }
             }
             Path target = packs.resolve(name);
-            if (Files.exists(target)) {
+            if (Files.exists(target) && !rebuilt) {
                 // The player's own copy under the same name: used when it's the same file, never replaced or removed.
-                boolean same = false;
-                try { same = Files.isRegularFile(target) && f.sha512().equalsIgnoreCase(hashOf(target, "SHA-512")); } catch (Exception ignored) { }
+                boolean same = Files.isRegularFile(target) && sameFile(target, f) == Boolean.TRUE;
                 if (same) {
                     now.put(sp.key(), new String[]{name, f.version(), "1"});
                     if (oldThere) {
                         renames.put(old[0], name);
+                        carryOptions(packs, old[0], name);
                         if (!"1".equals(old[2])) deleteQuietly(packs.resolve(old[0]));
                     }
                 } else {
@@ -1256,12 +1297,13 @@ public final class InstallerCore {
             try {
                 Path dir = staging.resolve("pack-" + sp.key());
                 Files.createDirectories(dir);
-                download(f.url(), dir.resolve(name), f.sha512(), "SHA-512", a, b, p);
+                download(f.url(), dir.resolve(name), f.sha512(), hashAlgo(f.sha512()), a, b, p);
                 Files.createDirectories(packs);
                 move(dir.resolve(name), target);
                 now.put(sp.key(), new String[]{name, f.version(), ""});
-                if (oldThere) {
+                if (oldThere && !rebuilt) {
                     renames.put(old[0], name);
+                    carryOptions(packs, old[0], name);
                     if (!"1".equals(old[2])) deleteQuietly(packs.resolve(old[0]));
                 }
             } catch (InterruptedException e) {
@@ -1292,10 +1334,35 @@ public final class InstallerCore {
             one.addProperty("name", sp != null ? sp.name() : e.getKey());
             one.addProperty("file", e.getValue()[0]);
             one.addProperty("version", e.getValue()[1]);
+            ModFile f = r.shaderPacks().get(e.getKey());
+            // The checksum of what's there now, so an update check can see a new build under the same name.
+            if (f != null && f.sha512() != null && e.getValue()[0].equalsIgnoreCase(f.filename())) one.addProperty("sha", f.sha512());
             if ("1".equals(e.getValue()[2])) one.addProperty("adopted", true);
             out.add(e.getKey(), one);
         }
         return out;
+    }
+
+    /** Whether a file is {@code f} by its checksum; null when that can't be told (no checksum, unreadable). */
+    private static Boolean sameFile(Path file, ModFile f) {
+        if (f.sha512() == null || f.sha512().isBlank()) return null;
+        try {
+            return f.sha512().equalsIgnoreCase(hashOf(file, hashAlgo(f.sha512())));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Iris keeps a pack's settings in shaderpacks/&lt;file&gt;.txt: when a newer file replaces a pack, its settings come
+     * along (unless the new file already has some).
+     */
+    static void carryOptions(Path packs, String from, String to) {
+        if (from == null || to == null || from.equalsIgnoreCase(to)) return;
+        Path a = packs.resolve(from + ".txt"), b = packs.resolve(to + ".txt");
+        try {
+            if (Files.isRegularFile(a) && !Files.exists(b)) Files.copy(a, b);
+        } catch (IOException ignored) { /* the pack starts on its defaults */ }
     }
 
     private static void deleteQuietly(Path f) {
@@ -1361,9 +1428,10 @@ public final class InstallerCore {
     }
 
     /**
-     * Points Iris at the shader packs Evade just installed: on a first install (no iris.properties yet) at {@code first};
-     * afterwards only when Iris was set to a pack file Evade replaced (to its new file) or removed (to {@code first}).
-     * Only that one line changes; a pack the player picked themselves is left alone.
+     * Points Iris at the shader packs Evade just installed: on a first install (no iris.properties yet, or no pack
+     * chosen in it) at {@code first}, which is Evade Shaders by default; afterwards only when Iris was set to a pack file
+     * Evade replaced (to its new file) or removed (to {@code first}). Only that one line changes; a pack the player
+     * picked themselves is left alone.
      */
     static void pointIris(Path cfg, Map<String, String> renames, String first) throws IOException {
         if (!Files.exists(cfg)) {
@@ -1371,6 +1439,20 @@ public final class InstallerCore {
             Files.createDirectories(cfg.getParent());
             Files.writeString(cfg, "enableShaders=true\nshaderPack=" + propertyValue(first) + "\n", StandardCharsets.ISO_8859_1);
             return;
+        }
+        if (first != null) {
+            // Iris has never had a pack chosen (no shaderPack line, or an empty one): Evade's first pack becomes it.
+            Properties all = new Properties();
+            try (var in = Files.newBufferedReader(cfg, StandardCharsets.ISO_8859_1)) { all.load(in); } catch (IllegalArgumentException e) { return; }
+            String now = all.getProperty("shaderPack");
+            if (now == null || now.isBlank()) {
+                List<String> lines = new ArrayList<>(Files.readAllLines(cfg, StandardCharsets.ISO_8859_1));
+                lines.removeIf(l -> l.stripLeading().matches("shaderPack\\s*[=:]?\\s*"));
+                if (all.getProperty("enableShaders") == null) lines.add("enableShaders=true");
+                lines.add("shaderPack=" + propertyValue(first));
+                writeAtomic(cfg, String.join(System.lineSeparator(), lines) + System.lineSeparator(), StandardCharsets.ISO_8859_1);
+                return;
+            }
         }
         if (renames.isEmpty()) return;
         // Iris writes it with java.util.Properties: ISO-8859-1 with \\u escapes, so the bytes round-trip unchanged.

@@ -9,8 +9,8 @@ import java.util.Map;
 
 /**
  * --screenshots with -Devade.shots.only=shaders: the Shader packs chooser in the dark and light themes (the instance
- * page's Shaders row, the sheet on a PC with a graphics card, the sheet on built-in graphics with Shaders off, and a
- * pack's details). Sample data only, in a throwaway folder.
+ * page's Shaders row, the sheet on a PC with a graphics card, the sheet on built-in graphics with Shaders off, and the
+ * details of BSL and of Evade Shaders). Sample data only, in a throwaway folder.
  */
 final class ShaderShots {
     private ShaderShots() {}
@@ -27,7 +27,7 @@ final class ShaderShots {
         InstallerCore.ModFile iris = new InstallerCore.ModFile("Iris", "1.9.6+1.21.11-fabric", "", "", "iris-fabric-1.9.6+mc1.21.11.jar", "YL57xq9U", List.of(), Map.of());
         // The versions Modrinth listed for 1.21.11 with Iris when this was written.
         Map<String, InstallerCore.ModFile> packs = new LinkedHashMap<>();
-        String[][] v1 = {{"photon", "v1.4", "photon_v1.4.zip"}, {"complementary-reimagined", "r5.10", "ComplementaryReimagined_r5.10.zip"},
+        String[][] v1 = {{"evade-shaders", "1.0", "Evade Shaders v1.0.zip"}, {"photon", "v1.4", "photon_v1.4.zip"}, {"complementary-reimagined", "r5.10", "ComplementaryReimagined_r5.10.zip"},
                 {"complementary-unbound", "r5.10", "ComplementaryUnbound_r5.10.zip"}, {"bsl", "10.1.8", "BSL_v10.1.8.zip"},
                 {"sildurs-vibrant", "2.02", "Sildur's Vibrant Shaders v2.02 Medium.zip"}};
         for (String[] p : v1) packs.put(p[0], new InstallerCore.ModFile(ShaderPacks.byKey(p[0]).name(), p[1], "", "", p[2], p[0], List.of(), Map.of()));
@@ -43,7 +43,7 @@ final class ShaderShots {
         Launcher.Instance smp = Screenshots.instance("smp", mc.resolve("evade-instances/smp"), "Friends SMP", now, 6, 24);
         Launcher.Instance laptop = Screenshots.instance("laptop", mc.resolve("evade-instances/laptop"), "Laptop", now, 3, 12);
         smp.shaders = true;
-        smp.shaderPacks = ShaderPacks.parse("photon,complementary-reimagined,bsl");
+        smp.shaderPacks = ShaderPacks.parse("evade-shaders,photon,complementary-reimagined,bsl");
         laptop.shaders = false;
         v.instances = new ArrayList<>(List.of(main, smp, laptop));
         for (Launcher.Instance i : v.instances) Files.createDirectories(i.dir.resolve("mods"));
@@ -67,6 +67,9 @@ final class ShaderShots {
             v.click("ov-sp:complementary-unbound");
             v.click("ov-spinfo:bsl");
             Screenshots.save(v, out, n + "3-" + look + "-shader-pack-details");
+            v.click("ov-sp-back");
+            v.click("ov-spinfo:evade-shaders");
+            Screenshots.save(v, out, n + "3b-" + look + "-evade-shaders-details");
             v.click("ov-sp-back");
             v.closeOverlays();
             // A laptop with built-in graphics, Shaders still off.

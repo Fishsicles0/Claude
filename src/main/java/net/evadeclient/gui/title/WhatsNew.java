@@ -7,7 +7,7 @@ package net.evadeclient.gui.title;
 public final class WhatsNew {
     private WhatsNew() {}
 
-    public static final String VERSION = "v2.6.0";
-    public static final String HEADLINE = "Cosmetics are here: capes, wings, hats, pets, emotes and the new Wardrobe.";
+    public static final String VERSION = "v2.7.0";
+    public static final String HEADLINE = "Evade Shaders, 76 cosmetics with animation, a new start screen and one-click hotkeys.";
     public static final String URL = "https://evadeclient.com/changelog";
 }
