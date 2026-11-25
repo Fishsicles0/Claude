@@ -61,6 +61,8 @@ public final class KeyClashNotice {
                 if (!seen.contains(id) && !fresh.contains(id)) fresh.add(id);
             }
         }
+        // Mods with their own hotkey systems (Litematica, MiniHUD...), which aren't game controls.
+        for (String id : ModCompat.hotkeyClashes(all)) if (!seen.contains(id) && !fresh.contains(id)) fresh.add(id);
         if (notify && !fresh.isEmpty()) {
             List<String> named = new ArrayList<>();
             for (int i = 0; i < Math.min(NAMED, fresh.size()); i++) {

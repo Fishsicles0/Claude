@@ -1,0 +1,15 @@
+{
+ "id": "code_rain_cape",
+ "name": "Code Rain Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Columns of glowing green code stream down the cape and never stop.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": false
+ }
+}

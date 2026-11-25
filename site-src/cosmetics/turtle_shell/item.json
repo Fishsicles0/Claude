@@ -1,0 +1,10 @@
+{
+ "id": "turtle_shell",
+ "name": "Turtle Shell",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A big green turtle shell with pale plate lines. Slow and steady."
+}

@@ -1,0 +1,25 @@
+{
+ "id": "bubble_trail",
+ "name": "Bubble Trail",
+ "slot": "TRAIL",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Shiny soap bubbles float up from your footsteps and pop.",
+ "fx": {
+  "type": "trail",
+  "particle": "soft",
+  "colors": [
+   "#FFFFFF",
+   "#9AE8FF",
+   "#C8A8FF"
+  ],
+  "rate": 8,
+  "size": 0.9,
+  "life": 1.4,
+  "fade": 0.3,
+  "sizeEnd": 0.6,
+  "gravity": -0.15
+ }
+}

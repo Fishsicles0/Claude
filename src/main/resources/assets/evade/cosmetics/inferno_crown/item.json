@@ -1,0 +1,15 @@
+{
+ "id": "inferno_crown",
+ "name": "Inferno Crown",
+ "slot": "HAT",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A spiked gold crown with real flames dancing up from the band.",
+ "animation": {
+  "frames": 16,
+  "frametime": 1.5,
+  "interpolate": false
+ }
+}

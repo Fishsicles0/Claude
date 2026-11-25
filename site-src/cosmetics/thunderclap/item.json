@@ -1,0 +1,22 @@
+{
+ "id": "thunderclap",
+ "name": "Thunderclap",
+ "slot": "KILL_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A kill cracks like thunder: yellow and white sparks burst out where they fell.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#FFF46A",
+   "#FFFFFF",
+   "#9AC8FF"
+  ],
+  "count": 50,
+  "size": 1.0,
+  "spark": true
+ }
+}

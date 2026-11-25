@@ -1,0 +1,270 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  14,
+  18
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "penguin",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -3.75,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.75,
+      -4.75,
+      -1.25
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      7.0,
+      -1.75,
+      -1.5
+     ],
+     "size": [
+      1,
+      0,
+      1
+     ],
+     "uv": [
+      0,
+      16
+     ]
+    },
+    {
+     "origin": [
+      8.5,
+      -1.75,
+      -1.5
+     ],
+     "size": [
+      1,
+      0,
+      1
+     ],
+     "uv": [
+      4,
+      16
+     ]
+    },
+    {
+     "origin": [
+      7.75,
+      -2.75,
+      1.75
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      6,
+      12
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 0.6,
+    "speed": 1.6
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -4.75,
+    -0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.75,
+      -7.75,
+      -1.5
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      6
+     ]
+    },
+    {
+     "origin": [
+      7.75,
+      -5.75,
+      -2.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      10,
+      12
+     ]
+    }
+   ],
+   "parent": "penguin",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -6.75,
+    -1.52
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      7.25,
+      -6.75,
+      -1.52
+     ],
+     "size": [
+      2,
+      1,
+      0
+     ],
+     "uv": [
+      8,
+      16
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "flipper_r",
+   "attach": "root",
+   "pivot": [
+    6.5,
+    -4.0,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    -18
+   ],
+   "cubes": [
+    {
+     "origin": [
+      5.5,
+      -4.0,
+      -0.75
+     ],
+     "size": [
+      1,
+      2,
+      2
+     ],
+     "uv": [
+      0,
+      12
+     ]
+    }
+   ],
+   "parent": "penguin",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 0,
+    "amp": 8,
+    "speed": 1.2,
+    "fold": 0
+   }
+  },
+  {
+   "name": "flipper_l",
+   "attach": "root",
+   "pivot": [
+    10.0,
+    -4.0,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    18
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.0,
+      -4.0,
+      -0.75
+     ],
+     "size": [
+      1,
+      2,
+      2
+     ],
+     "uv": [
+      0,
+      12
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "penguin",
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 0,
+    "amp": 8,
+    "speed": 1.2,
+    "fold": 0
+   }
+  }
+ ]
+}

@@ -32,9 +32,13 @@ final class ModChecks {
 
     /** What a jar's fabric.mod.json says: its id, the ids it also provides (nested jars included), what it needs and breaks. */
     record Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license,
-                String version, Map<String, List<String>> breakRanges) {
+                String version, Map<String, List<String>> breakRanges, Map<String, List<String>> dependRanges) {
         Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license) {
-            this(file, id, name, provides, depends, breaks, license, null, Map.of());
+            this(file, id, name, provides, depends, breaks, license, null, Map.of(), Map.of());
+        }
+        Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license,
+             String version, Map<String, List<String>> breakRanges) {
+            this(file, id, name, provides, depends, breaks, license, version, breakRanges, Map.of());
         }
     }
 
@@ -42,11 +46,15 @@ final class ModChecks {
 
     /**
      * A problem with the mods. {@code mods}: the jars involved; {@code needId}: the mod id that's missing (MISSING,
-     * SWITCHED_OFF); {@code projectId}: the Modrinth project to install for it, when known.
+     * SWITCHED_OFF); {@code projectId}: the Modrinth project to install for it, when known; {@code evadeModule}: the Evade
+     * module that does the same job, which the launcher can switch off for this instance ({@link Addons#requestOff}).
      */
-    record Problem(Kind kind, String title, String detail, List<Path> mods, String needId, String projectId, String option) {
+    record Problem(Kind kind, String title, String detail, List<Path> mods, String needId, String projectId, String option, String evadeModule) {
         Problem(Kind kind, String title, String detail, List<Path> mods, String needId, String projectId) {
-            this(kind, title, detail, mods, needId, projectId, null);
+            this(kind, title, detail, mods, needId, projectId, null, null);
+        }
+        Problem(Kind kind, String title, String detail, List<Path> mods, String needId, String projectId, String option) {
+            this(kind, title, detail, mods, needId, projectId, option, null);
         }
         boolean warning() { return kind == Kind.OVERLAP; }
     }
@@ -65,6 +73,7 @@ final class ModChecks {
             {"toggle sprint", "Toggle Sprint", "togglesprint", "toggle-sprint", "sprinttoggle"},
             {"fullbright", "Fullbright", "fullbright", "gammautils", "lumen"},
             {"keystrokes HUD", "Keystrokes", "keystrokes", "keystrokesmod", "cleanerkeystrokes"},
+            {"replay recorder", "Replay", "flashback", "replaymod"},
             {"rendering engine", null, "sodium", "canvas", "vulkanmod", "optifabric", "optifine"},
             {"shader loader", null, "iris", "optifabric", "canvas", "oculus"},
     };
@@ -75,6 +84,17 @@ final class ModChecks {
             {"optifabric", "iris", "Iris and OptiFine both load shaders: use Iris (Evade's Shaders option)."},
             {"vulkanmod", "sodium", "VulkanMod and Sodium both replace the renderer: use one."},
             {"vulkanmod", "iris", "VulkanMod can't load Iris shaders."},
+    };
+
+    /**
+     * Add-on pairs that load fine but don't do what the player expects together (tested with the {@link Addons}):
+     * {id, other id, title, why}. Shown as amber notices, never as errors.
+     */
+    static final String[][] NOTICES = {
+            {"nvidium", "iris", "Nvidium is idle while shaders are on",
+                    "Nvidium switches itself off while an Iris shader pack is on; Sodium draws the world as usual. Turn shaders off to use Nvidium."},
+            {"distanthorizons", "iris", "Distant Horizons needs a shader pack that supports it",
+                    "With shaders on, far terrain only shows with packs made for Distant Horizons (Complementary, Photon). Evade Shaders doesn't support it yet."},
     };
 
     // ------------------------------------------------------------------ version ranges
@@ -95,6 +115,50 @@ final class ModChecks {
             if (any && all) return true;
         }
         return false;
+    }
+
+    /**
+     * Whether a "depends" entry accepts {@code version}: any of its ranges matches. A predicate that can't be read
+     * counts as accepted, so an odd range never invents a problem.
+     */
+    static boolean accepts(List<String> ranges, String version) {
+        if (version == null || version.isEmpty() || !Character.isDigit(version.charAt(0))) return true; // not a version we can compare
+        for (String r : ranges) {
+            String s = r == null ? "*" : r.trim();
+            if (s.isEmpty() || s.equals("*")) return true;
+            boolean all = true;
+            for (String part : s.split("\\s+")) {
+                if (part.isEmpty()) continue;
+                Boolean ok = matches(part, version);
+                if (ok != null && !ok) { all = false; break; }
+            }
+            if (all) return true;
+        }
+        return false;
+    }
+
+    /** "0.8.11 or 0.8.12", "0.27.19 or newer", "0.27.19 up to 0.28.0": a depends range in words. */
+    static String rangeText(List<String> ranges) {
+        List<String> out = new ArrayList<>();
+        for (String r : ranges) {
+            List<String> parts = new ArrayList<>();
+            for (String p : r.trim().split("\\s+")) {
+                if (p.isEmpty()) continue;
+                String v = shortVersion(p.replaceFirst("^(>=|<=|>|<|=|~|\\^)", "").replaceAll("-$", ""));
+                if (p.startsWith(">=") || p.startsWith("^") || p.startsWith("~")) parts.add(v + " or newer");
+                else if (p.startsWith(">")) parts.add("newer than " + v);
+                else if (p.startsWith("<=")) parts.add("up to " + v);
+                else if (p.startsWith("<")) parts.add("older than " + v);
+                else parts.add(v);
+            }
+            out.add(String.join(", ", parts));
+        }
+        return String.join(" or ", out);
+    }
+
+    /** "0.8.14+mc1.21.11" -> "0.8.14". */
+    static String shortVersion(String v) {
+        return v == null ? "?" : v.split("\\+", 2)[0];
     }
 
     /** One Fabric version predicate (>=1.2, <0.140.0, =1.0, ~1.2, ^1.2, 1.2, 1.2.x). Null when it can't be read. */
@@ -191,7 +255,17 @@ final class ModChecks {
             String name = InstallerCore.str(o, "name");
             Set<String> provides = new LinkedHashSet<>(), depends = new LinkedHashSet<>(), breaks = new LinkedHashSet<>();
             if (o.has("provides") && o.get("provides").isJsonArray()) for (JsonElement x : o.getAsJsonArray("provides")) if (x.isJsonPrimitive()) provides.add(x.getAsString());
-            if (o.has("depends") && o.get("depends").isJsonObject()) depends.addAll(o.getAsJsonObject("depends").keySet());
+            Map<String, List<String>> dependRanges = new LinkedHashMap<>();
+            if (o.has("depends") && o.get("depends").isJsonObject()) {
+                for (var de : o.getAsJsonObject("depends").entrySet()) {
+                    depends.add(de.getKey());
+                    List<String> ranges = new ArrayList<>();
+                    JsonElement v = de.getValue();
+                    if (v.isJsonPrimitive()) ranges.add(v.getAsString());
+                    else if (v.isJsonArray()) for (JsonElement x : v.getAsJsonArray()) if (x.isJsonPrimitive()) ranges.add(x.getAsString());
+                    if (!ranges.isEmpty() && !ranges.contains("*")) dependRanges.put(de.getKey(), ranges);
+                }
+            }
             Map<String, List<String>> breakRanges = new LinkedHashMap<>();
             if (o.has("breaks") && o.get("breaks").isJsonObject()) {
                 for (var be : o.getAsJsonObject("breaks").entrySet()) {
@@ -209,7 +283,7 @@ final class ModChecks {
             JsonElement l = o.get("license");
             if (l != null && l.isJsonPrimitive()) license = l.getAsString();
             else if (l != null && l.isJsonArray() && !l.getAsJsonArray().isEmpty() && l.getAsJsonArray().get(0).isJsonPrimitive()) license = l.getAsJsonArray().get(0).getAsString();
-            return new Meta(file, id, name != null ? name : id, provides, depends, breaks, license, version, breakRanges);
+            return new Meta(file, id, name != null ? name : id, provides, depends, breaks, license, version, breakRanges, dependRanges);
         } catch (RuntimeException e) {
             return null;
         }
@@ -283,11 +357,31 @@ final class ModChecks {
                         m.name() + " says it breaks with " + (o != null ? o.name() : pretty(b)) + ". Switch one of them off.", List.of(m.file(), other), null, null));
             }
         }
+        // A dependency that's there but in a version the mod doesn't accept (e.g. Nvidium wants Sodium 0.8.11 or 0.8.12).
+        for (Meta m : metas.values()) {
+            if (!onPaths.contains(m.file())) continue;
+            for (var d : m.dependRanges().entrySet()) {
+                if (BUILT_IN.contains(d.getKey())) continue;
+                Path other = providerOn.get(d.getKey());
+                Meta o = other == null ? null : metas.get(other);
+                if (o == null || other.equals(m.file()) || !d.getKey().equals(o.id()) || o.version() == null) continue;
+                if (accepts(d.getValue(), o.version())) continue;
+                out.add(new Problem(Kind.BREAKS, m.name() + " needs " + o.name() + " " + rangeText(d.getValue()),
+                        "This instance has " + o.name() + " " + shortVersion(o.version()) + ", so the game won't start. Switch " + m.name()
+                                + " off until it has a build for this " + o.name() + ".", List.of(m.file(), other), null, null));
+            }
+        }
         // Known pairs that crash.
         for (String[] c : CONFLICTS) {
             Path a = providerOn.get(c[0]), b = providerOn.get(c[1]);
             if (a == null || b == null || a.equals(b)) continue;
             out.add(new Problem(Kind.BREAKS, name(metas, a) + " and " + name(metas, b) + " don't work together", c[2], List.of(a, b), null, null));
+        }
+        // Add-ons that idle next to another mod.
+        for (String[] c : NOTICES) {
+            Path a = providerOn.get(c[0]), b = providerOn.get(c[1]);
+            if (a == null || b == null || a.equals(b)) continue;
+            out.add(new Problem(Kind.OVERLAP, c[2], c[3], List.of(a), null, null));
         }
         // Two copies of one mod.
         for (var e : byId.entrySet()) {
@@ -309,7 +403,7 @@ final class ModChecks {
                 out.add(new Problem(Kind.OVERLAP, "Two " + g[0] + " mods", names(metas, hits) + " do the same job and may fight over keys or screens. Keep one.", hits, null, null));
             } else if (withEvade) {
                 out.add(new Problem(Kind.OVERLAP, name(metas, hits.get(0)) + " doubles up with Evade",
-                        "Evade Client has " + g[1] + " built in. Switch one off (Evade's in its menu) so they don't share a key.", hits, null, null));
+                        "Evade Client has " + g[1] + " built in. Switch one off (Evade's in its menu) so they don't share a key.", hits, null, null, null, g[1]));
             }
         }
         return out;

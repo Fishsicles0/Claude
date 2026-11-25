@@ -1,0 +1,10 @@
+{
+ "id": "trailblazer_pack",
+ "name": "Trailblazer Pack",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": true,
+ "defaultColor": "#3A8AFF",
+ "partner": null,
+ "description": "A sturdy hiking backpack with a bedroll on top, in any colour you like."
+}

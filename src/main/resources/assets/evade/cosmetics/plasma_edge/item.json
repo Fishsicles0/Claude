@@ -1,0 +1,15 @@
+{
+ "id": "plasma_edge",
+ "name": "Plasma Edge",
+ "slot": "ITEM_SKIN",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword as a humming violet energy blade with light pulsing up the edge. Shows on swords you hold, on your screen.",
+ "animation": {
+  "frames": 24,
+  "frametime": 1.5,
+  "interpolate": false
+ }
+}

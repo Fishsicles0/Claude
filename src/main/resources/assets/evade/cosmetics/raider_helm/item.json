@@ -1,0 +1,10 @@
+{
+ "id": "raider_helm",
+ "name": "Raider Helm",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A steel helmet with a bronze band, a nose guard and two curved horns."
+}

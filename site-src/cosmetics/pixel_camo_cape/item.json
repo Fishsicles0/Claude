@@ -1,0 +1,10 @@
+{
+ "id": "pixel_camo_cape",
+ "name": "Pixel Camo Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": true,
+ "defaultColor": "#6E8A4A",
+ "partner": null,
+ "description": "Blocky camouflage in any colour you like."
+}

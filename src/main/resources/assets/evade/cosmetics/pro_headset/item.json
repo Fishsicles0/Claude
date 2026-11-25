@@ -1,0 +1,10 @@
+{
+ "id": "pro_headset",
+ "name": "Pro Headset",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A gaming headset with glowing red rings on the cups and a mic by your mouth."
+}

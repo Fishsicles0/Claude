@@ -1,0 +1,15 @@
+{
+ "id": "bass_drop_cape",
+ "name": "Bass Drop Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A neon equalizer that bounces to a beat on your back.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": false
+ }
+}

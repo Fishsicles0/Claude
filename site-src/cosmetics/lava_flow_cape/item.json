@@ -1,0 +1,15 @@
+{
+ "id": "lava_flow_cape",
+ "name": "Lava Flow Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Cracked black rock with molten lava creeping down through the cracks.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": true
+ }
+}

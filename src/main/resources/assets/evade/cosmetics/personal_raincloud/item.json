@@ -1,0 +1,15 @@
+{
+ "id": "personal_raincloud",
+ "name": "Personal Raincloud",
+ "slot": "HAT",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your own little storm cloud: it rains on you nonstop, with the odd flash of lightning.",
+ "animation": {
+  "frames": 16,
+  "frametime": 2,
+  "interpolate": false
+ }
+}

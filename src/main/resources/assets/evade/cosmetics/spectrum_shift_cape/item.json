@@ -1,0 +1,15 @@
+{
+ "id": "spectrum_shift_cape",
+ "name": "Spectrum Shift Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Bands of colour slide across the cape forever, with sparkles that twinkle as they pass.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": true
+ }
+}

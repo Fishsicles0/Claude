@@ -1,0 +1,10 @@
+{
+ "id": "aviator_goggles",
+ "name": "Aviator Goggles",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Brass flying goggles with amber lenses on a worn leather strap."
+}
