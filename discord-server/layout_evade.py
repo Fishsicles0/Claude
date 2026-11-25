@@ -339,6 +339,7 @@ POSTS = {
         f"**Changelog:** {SITE}/changelog\n"
         f"**Evade Clips:** {SITE}/clips\n"
         f"**For server owners:** {SITE}/servers\n"
+        f"**Discord invite:** {SITE}/discord (the only official invite)\n"
         "**Email:** privacy@evadeclient.com\n\n"
         "These are the only official links. More socials will be added here as they launch."))],
     "faq": [_p("Frequently Asked Questions", (
