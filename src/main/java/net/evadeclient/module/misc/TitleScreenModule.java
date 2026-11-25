@@ -57,6 +57,9 @@ public class TitleScreenModule extends Module {
             .describe("On wide screens, a small turning preview of you in your equipped cosmetics, with a Wardrobe button."));
     public final BooleanSetting friendsOnline = add(new BooleanSetting("Friends Online", true)
             .describe("Shows which of your Evade friends are online on the account card (when Friends is on)."));
+    public final net.evadeclient.setting.ModeSetting effects = add(new net.evadeclient.setting.ModeSetting("Menu Effects", "Auto",
+            "Auto", "Full", "Light")
+            .describe("Light draws fewer layers, embers and a still preview for weaker graphics. Auto picks Light on built-in graphics."));
     public final BooleanSetting reduceMotion = add(new BooleanSetting("Reduce Motion", false)
             .describe("A still menu: no intro, no moving background, embers or parallax, and no turning preview."));
     /**
@@ -143,6 +146,25 @@ public class TitleScreenModule extends Module {
     public static boolean reduceMotion() {
         TitleScreenModule m = INSTANCE;
         return m != null && m.reduceMotion.get();
+    }
+
+    /** Whether the menu should draw its light variant: Menu Effects Light, or Auto on built-in or software graphics. */
+    public static boolean lightEffects() {
+        TitleScreenModule m = INSTANCE;
+        String e = m == null ? "Auto" : m.effects.get();
+        if (e.equals("Light")) return true;
+        if (e.equals("Full")) return false;
+        var kind = gpuKind();
+        return kind == net.evadeclient.util.GpuInfo.Kind.INTEGRATED || kind == net.evadeclient.util.GpuInfo.Kind.SOFTWARE;
+    }
+
+    private static net.evadeclient.util.GpuInfo.Kind kindCache;
+
+    /** GpuInfo's kind, read once (it doesn't change while the game runs), except while a test forces a renderer. */
+    private static net.evadeclient.util.GpuInfo.Kind gpuKind() {
+        if (net.evadeclient.util.GpuInfo.forcedRenderer != null) return net.evadeclient.util.GpuInfo.kind();
+        if (kindCache == null) kindCache = net.evadeclient.util.GpuInfo.kind();
+        return kindCache;
     }
 
     /** The module, if it's on. */

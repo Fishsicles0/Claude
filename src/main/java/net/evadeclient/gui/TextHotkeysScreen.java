@@ -501,6 +501,9 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
             if ((m & GLFW.GLFW_MOD_CONTROL) != 0) mods |= Keybinds.CTRL;
             if ((m & GLFW.GLFW_MOD_SHIFT) != 0) mods |= Keybinds.SHIFT;
             if ((m & GLFW.GLFW_MOD_ALT) != 0) mods |= Keybinds.ALT;
+            // Also whatever modifier is held right now (some input paths don't report the flags with the key).
+            mods |= Keybinds.heldMods();
+            if (pendingModifier >= 0) mods |= Keybinds.modifierOf(pendingModifier);
             bind(listening, key, mods);
             return true;
         }

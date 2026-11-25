@@ -16,7 +16,9 @@ import net.minecraft.client.gui.RotatingCubeMapRenderer;
  */
 public final class TitleScene {
     /** Embers on screen at once (spread over three depth layers). */
-    static final int EMBERS = 34;
+    static final int EMBERS = 28;
+    /** Embers in the light variant (each a single small quad). */
+    static final int EMBERS_LIGHT = 12;
     /** Most the panorama turns and tilts with the mouse, in degrees. */
     private static final float YAW_RANGE = 3.2f, PITCH_RANGE = 1.8f;
 
@@ -74,11 +76,12 @@ public final class TitleScene {
      * modulo its period. Near ones are bigger, faster, brighter and shift more with the parallax. They fade in at
      * the bottom and out near the top. {@code alpha} scales them all (the intro).
      */
-    public void embers(DrawContext ctx, int w, int h, float alpha, boolean motion) {
+    public void embers(DrawContext ctx, int w, int h, float alpha, boolean motion, boolean light) {
         if (alpha <= 0.01f || w <= 0 || h <= 0) return;
+        int count = light ? EMBERS_LIGHT : EMBERS;
         double t = motion ? Intro.now() / 1000.0 : 40.0;
         float scale = Math.max(0.7f, Math.min(1.3f, h / 360f));
-        for (int i = 0; i < EMBERS; i++) {
+        for (int i = 0; i < count; i++) {
             int layer = i % 3; // 0 far, 1 mid, 2 near
             float depth = 0.45f + 0.35f * layer;
             float r1 = hash(i * 3 + 1), r2 = hash(i * 7 + 2), r3 = hash(i * 11 + 3);
@@ -96,9 +99,10 @@ public final class TitleScene {
             int size = Math.max(2, Math.round((2f + 1.5f * layer + 2f * r1) * scale));
             int color = layer == 2 ? Theme.RED_BRIGHT : Theme.RED;
             int cx = Math.round(x), cy = Math.round(y);
-            // A soft halo and a small hot core.
-            TitleArt.glow(ctx, cx, cy, size * 5, size * 5, Theme.alpha(color, a * 0.45f));
-            TitleArt.glow(ctx, cx, cy, size, size, Theme.alpha(Theme.lerpColor(color, 0xFFFFFFFF, 0.35f), Math.min(1f, a * 1.6f)));
+            // A soft halo and a small hot core (light: one quad).
+            if (!light) TitleArt.glow(ctx, cx, cy, size * 5, size * 5, Theme.alpha(color, a * 0.45f));
+            else TitleArt.glow(ctx, cx, cy, size * 3, size * 3, Theme.alpha(color, a * 0.6f));
+            if (!light) TitleArt.glow(ctx, cx, cy, size, size, Theme.alpha(Theme.lerpColor(color, 0xFFFFFFFF, 0.35f), Math.min(1f, a * 1.6f)));
         }
     }
 

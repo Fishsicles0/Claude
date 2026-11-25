@@ -134,11 +134,12 @@ public final class FpsPassTest {
                 for (Module m : EvadeClient.modules.all()) m.setEnabled(defaultOn(m, enabledBefore));
                 EvadeClient.modules.get(Performance.class).setEnabled(true);
             });
-            log("Evade defaults: %s", ctx.computeOnClient(c -> {
+            String onByDefault = ctx.computeOnClient(c -> {
                 StringBuilder b = new StringBuilder();
                 for (Module m : EvadeClient.modules.all()) if (m.isEnabled()) b.append(b.length() == 0 ? "" : ", ").append(m.getName());
                 return b.toString();
-            }));
+            });
+            log("Evade defaults: %s", onByDefault);
             Object rec = jfr ? startJfr() : null;
             out.add(measure(ctx, "evade-defaults", seconds));
             if (rec != null) stopJfr(rec, "evade-fps-defaults.jfr");

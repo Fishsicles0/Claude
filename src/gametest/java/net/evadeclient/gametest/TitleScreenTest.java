@@ -65,7 +65,8 @@ public final class TitleScreenTest {
     }
 
     public static void run(ClientGameTestContext ctx) {
-        ctx.runOnClient(c -> EvadeClient.modules.get(TitleScreenModule.class).setEnabled(true));
+        // Screenshots show the Full effects (Auto would pick Light on the test's software renderer); cost() measures both.
+        ctx.runOnClient(c -> { var t = EvadeClient.modules.get(TitleScreenModule.class); t.setEnabled(true); t.effects.set("Full"); });
         replacement(ctx);
         oldConfig(ctx);
         keyboard(ctx);
@@ -337,35 +338,45 @@ public final class TitleScreenTest {
 
     // ------------------------------------------------------------------ frame cost
 
+    private static double fps(ClientGameTestContext ctx) {
+        ctx.waitTicks(60);
+        return ctx.computeOnClient(c -> {
+            float[] w = net.evadeclient.util.FrameStats.framesWithin(2500);
+            return 1000.0 * w[0] / Math.max(1, w[1]);
+        });
+    }
+
+    /**
+     * Frame cost against the vanilla title screen under the same conditions (window, GUI scale, panorama): the
+     * default (Menu Effects Auto, which is Light on this software renderer) must stay within 1.5x vanilla's frame
+     * time. The Full effects and each layer left out are measured and logged, to show where the time goes.
+     */
     private static void cost(ClientGameTestContext ctx) {
         ctx.getInput().resizeWindow(1920, 1080);
-        ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); c.setScreen(new TitleScreen()); });
-        ctx.waitTicks(80);
-        double[] evade = ctx.computeOnClient(c -> {
-            float[] w = net.evadeclient.util.FrameStats.framesWithin(2000);
-            return new double[]{1000.0 * w[0] / Math.max(1, w[1]), EvadeTitleScreen.frameCostMicros()};
-        });
-        // The same without the 3D Wardrobe preview and embers (what they cost on this machine).
-        ctx.runOnClient(c -> { var t = EvadeClient.modules.get(TitleScreenModule.class); t.cosmeticsPreview.set(false); t.embers.set(false);
-                c.setScreen(new TitleScreen()); });
-        ctx.waitTicks(80);
-        double plain = ctx.computeOnClient(c -> {
-            float[] w = net.evadeclient.util.FrameStats.framesWithin(2000);
-            return 1000.0 * w[0] / Math.max(1, w[1]);
-        });
-        ctx.runOnClient(c -> { var t = EvadeClient.modules.get(TitleScreenModule.class); t.cosmeticsPreview.reset(); t.embers.reset(); });
-        ctx.runOnClient(c -> { EvadeClient.modules.get(TitleScreenModule.class).setEnabled(false); c.setScreen(new TitleScreen()); });
-        ctx.waitTicks(80);
-        double vanilla = ctx.computeOnClient(c -> {
-            float[] w = net.evadeclient.util.FrameStats.framesWithin(2000);
-            return 1000.0 * w[0] / Math.max(1, w[1]);
-        });
-        ctx.runOnClient(c -> { EvadeClient.modules.get(TitleScreenModule.class).setEnabled(true); c.setScreen(new TitleScreen()); });
+        ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged();
+            EvadeClient.modules.get(TitleScreenModule.class).setEnabled(false); c.setScreen(new TitleScreen()); });
+        double vanilla = fps(ctx);
+        ctx.runOnClient(c -> { var t = EvadeClient.modules.get(TitleScreenModule.class); t.setEnabled(true); t.effects.reset();
+            c.setScreen(new TitleScreen()); });
+        double auto = fps(ctx);
+        double cpu = ctx.computeOnClient(c -> EvadeTitleScreen.frameCostMicros());
+        boolean light = ctx.computeOnClient(c -> TitleScreenModule.lightEffects());
+        ctx.runOnClient(c -> EvadeClient.modules.get(TitleScreenModule.class).effects.set("Full"));
+        double full = fps(ctx);
+        StringBuilder profile = new StringBuilder();
+        String[] names = {"panorama", "veils", "embers", "vignette", "glows", "cards", "preview"};
+        for (int i = 0; i < names.length; i++) {
+            int bit = 1 << i;
+            ctx.runOnClient(c -> EvadeTitleScreen.skipLayersForTest = bit);
+            profile.append(String.format(Locale.ROOT, " -%s %.0f", names[i], fps(ctx)));
+        }
+        ctx.runOnClient(c -> { EvadeTitleScreen.skipLayersForTest = 0; EvadeClient.modules.get(TitleScreenModule.class).effects.reset();
+            c.setScreen(new TitleScreen()); });
         ctx.waitTicks(4);
-        String msg = String.format(Locale.ROOT, "Evade menu %.0f fps, without preview and embers %.0f fps, vanilla title %.0f fps;"
-                + " the menu's own CPU time %.0f us/frame", evade[0], plain, vanilla, evade[1]);
-        // The game caps menus at 60 fps. Under the test's software renderer (shared with other runs) fps is the GPU
-        // emulation's, so the hard check is the menu's own CPU time per frame; the fps are logged for comparison.
-        check(evade[1] < 4000, "Title Screen: frame cost (" + msg + ")");
+        String msg = String.format(Locale.ROOT, "vanilla %.1f fps, Evade default (%s) %.1f fps, Full %.1f fps; Full without:%s;"
+                + " menu CPU %.0f us/frame", vanilla, light ? "Light" : "Full", auto, full, profile, cpu);
+        EvadeClient.LOG.info("[gametest] Title Screen cost: {}", msg);
+        // Frame time = 1/fps: the default must be within 1.5x of vanilla's (the game caps menus at 60 fps).
+        check(auto >= Math.min(58, vanilla / 1.5) && cpu < 4000, "Title Screen: frame cost within 1.5x of vanilla (" + msg + ")");
     }
 }
