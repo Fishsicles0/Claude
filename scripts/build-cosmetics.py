@@ -3751,7 +3751,7 @@ item("hoot_owl", "Hoot the Owl", "PET", "REGULAR", 500,
 
 # -------- Bubble the slime: a wobbly see-through jelly cube with a glowing core, a big grin and rosy cheeks
 
-SLIME = PERCH
+SLIME = (PERCH[0], PERCH[1] - 0.75, PERCH[2])     # a little higher: the whole jelly turns as it looks about
 SLIME_HI, SLIME_LO, SLIME_INK = "#b6ffcc", "#36c878", "#0e3a22"
 
 
@@ -3784,7 +3784,7 @@ def slime_pet():
     core = pet_body("slime", a, [PC(a, (-1, -2.5, -0.5), (2, 2, 2), px("#4ad884", slime_core))])
     core.anim = dict(PET_ANIM, amp=0.8, speed=2.0)
     # the jelly is the slime's whole face: it glances about on its own, wobbling over the core
-    jelly = Bone("jelly", "root", P(a, 0, 0, 0), cubes=[PC(a, (-2, -4, -2), (4, 4, 4), slime_paint)], parent="slime",
+    jelly = Bone("jelly", "root", P(a, 0, -2, 0), cubes=[PC(a, (-2, -4, -2), (4, 4, 4), slime_paint)], parent="slime",
                  alpha=0.97, anim={"type": "pet_head", "amp": 8})
     lids = blink_bone("lids", "jelly", a, (-1.25, -2.75, -2.03), (3, 1, 0),
                       lid_paint("#86eaa8", [(0, 3), (7, 3)], SLIME_INK))
