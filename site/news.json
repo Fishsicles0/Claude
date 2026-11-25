@@ -1,6 +1,18 @@
 {
- "version": "2.6.0",
+ "version": "2.6.1",
  "entries": [
+  {
+   "id": "v2.6.1",
+   "title": "v2.6.1",
+   "date": "2026-11-25",
+   "dateText": "25 Nov 2026",
+   "summary": "",
+   "items": [
+    "Cosmetics: three rarities (Regular, Special for animated items, Partner), new lower prices, a Win effects category, better pictures for emotes and the pet, the item skin held in your hand in the shop preview, and capes that hang properly.",
+    "Shop on phones: the search bar no longer covers the items."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.6.1"
+  },
   {
    "id": "v2.6.0",
    "title": "v2.6.0",
@@ -84,22 +96,6 @@
     "Fixes: Play now always opens the Evade profile (an already-open Minecraft Launcher used to start an older one), the \"old Evade Clips app is still running\" warning no longer appears by mistake, and Evade Clips can record your game's sound on Windows."
    ],
    "url": "https://evadeclient.com/changelog#v2.3.0"
-  },
-  {
-   "id": "v2.2.0",
-   "title": "v2.2.0",
-   "date": "2026-11-24",
-   "dateText": "24 Nov 2026",
-   "summary": "Friends, parties and pings, more FPS on laptops, and a brand-new look from start-up to launcher.",
-   "items": [
-    "Friends and parties: add friends by Minecraft name, see who's online and where, and invite them to a party. Open Friends in the Evade menu, or type .friend and .party.",
-    "Party Ping: in a party, click the middle mouse button to mark the spot you're looking at. Party members on the same server see a marker with your name, distance and coordinates, a pop-up and a sound. Hold Shift for a danger ping.",
-    "Render Scale (Performance): the world draws at a lower resolution and is sharpened, while the HUD, menus and text stay crisp. A big FPS boost in fullscreen on laptops. Balanced uses 80%, Max FPS 60%.",
-    "Start-up: an animated Evade loading screen, a new Evade main menu with your recent servers and live player counts, an Evade window icon and window title.",
-    "Evade Launcher: a clean new design, real icons for every mod, your skin on the home screen, a Discord button, and a one-click fix when the old separate Evade Clips is still running.",
-    "Evade Clips: recording on Windows works again (newer ffmpeg refused one setting, so nothing was saved), and the \"Recording saved\" pop-up no longer leaves garbage on screen."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.2.0"
   }
  ]
 }

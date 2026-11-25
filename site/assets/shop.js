@@ -20,7 +20,8 @@ const params = new URLSearchParams(location.search);
 
 const CATS = [
   ["capes", "Capes"], ["wings", "Wings"], ["hats", "Hats"], ["masks", "Masks"], ["back", "Back"], ["auras", "Auras"],
-  ["trails", "Trails"], ["pets", "Pets"], ["emotes", "Emotes"], ["killfx", "Kill effects"], ["skins", "Item skins"],
+  ["trails", "Trails"], ["pets", "Pets"], ["emotes", "Emotes"], ["killfx", "Kill effects"], ["winfx", "Win effects"],
+  ["skins", "Item skins"],
   ["partner", "Partner servers"],
 ];
 const CAT_LABEL = Object.fromEntries(CATS);
@@ -29,10 +30,13 @@ const SLOT_CAT = {
   CAPE: "capes", CAPES: "capes", WINGS: "wings", WING: "wings", HAT: "hats", HATS: "hats", HEAD: "hats", MASK: "masks",
   MASKS: "masks", FACE: "masks", BACK: "back", BACKPACK: "back", AURA: "auras", AURAS: "auras", TRAIL: "trails",
   TRAILS: "trails", PET: "pets", PETS: "pets", EMOTE: "emotes", EMOTES: "emotes", KILL_EFFECT: "killfx", KILLFX: "killfx",
-  KILL_EFFECTS: "killfx", WIN_EFFECT: "killfx", ITEM_SKIN: "skins", ITEM_SKINS: "skins", SKIN: "skins", PARTNER: "partner",
+  KILL_EFFECTS: "killfx", WIN_EFFECT: "winfx", WIN_EFFECTS: "winfx", WINFX: "winfx", ITEM_SKIN: "skins", ITEM_SKINS: "skins", SKIN: "skins", PARTNER: "partner",
 };
-const RARITIES = ["common", "uncommon", "rare", "epic", "legendary", "partner"];
-const RARITY_COLOR = { common: "#b8b8c2", uncommon: "#4ddf8c", rare: "#4aa8ff", epic: "#b46bff", legendary: "#ffb020", partner: "#5fd4ff" };
+// Three tiers: regular (not animated), special (animated; may not be priced yet), partner (partner-server items).
+// Older names (common, rare, epic, legendary) read as regular. Colours match --r-* in shop.css and Rarity.java.
+const RARITIES = ["regular", "special", "partner"];
+const RARITY_LABEL = { regular: "Regular", special: "Special", partner: "Partner" };
+const RARITY_COLOR = { regular: "#c3c7d1", special: "#ffc23d", partner: "#2edbc0" };
 const BACK_VIEW = new Set(["capes", "wings", "back", "trails"]);
 const HEAD_VIEW = new Set(["hats", "masks"]);
 
@@ -43,7 +47,7 @@ const GLYPH = {
   back: "M8 7V5a4 4 0 0 1 8 0v2M6 7h12v13H6zM9 12h6", auras: "M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3",
   trails: "M3 20c4-1 6-4 8-8s5-7 10-8M6 14h.01M10 18h.01M14 9h.01", pets: "M7 14c-2 0-3 2-3 4s2 3 4 2l4-1 4 1c2 1 4 0 4-2s-1-4-3-4M8 9a1.5 2 0 1 0 0 .1M16 9a1.5 2 0 1 0 0 .1M12 7a1.5 2 0 1 0 0 .1",
   emotes: "M8 13V5a1.5 1.5 0 0 1 3 0v6m0-1V3.5a1.5 1.5 0 0 1 3 0V11m0-1V5a1.5 1.5 0 0 1 3 0v9a7 7 0 0 1-7 7c-3 0-5-2-7-5l-2-3a1.5 1.5 0 0 1 2.5-1.5L8 14",
-  killfx: "M12 2l2 6 6-2-4 5 5 3-6 1 1 6-4-4-4 4 1-6-6-1 5-3-4-5 6 2z", skins: "M14 3h7v7L9 22l-3-3-3 3-1-1 3-3-3-3z",
+  killfx: "M12 2l2 6 6-2-4 5 5 3-6 1 1 6-4-4-4 4 1-6-6-1 5-3-4-5 6 2z", winfx: "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4", skins: "M14 3h7v7L9 22l-3-3-3 3-1-1 3-3-3-3z",
   partner: "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
 };
 const glyph = cat => `<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${GLYPH[cat] || GLYPH.partner}"/></svg>`;
@@ -65,7 +69,10 @@ const fmt = (cents, cur) => {
   try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || state.currency }).format(cents / 100); }
   catch (e) { return (cents / 100).toFixed(2) + " " + (cur || state.currency); }
 };
-const forSale = it => it && Number.isInteger(it.priceCents) && it.priceCents >= 0;
+// Same rule as the backend: priced above zero. Unpriced special items are "Price coming soon".
+const forSale = it => it && Number.isInteger(it.priceCents) && it.priceCents > 0;
+const soon = it => it && it.rarity === "special" && !forSale(it) && !it.partner;
+const priceText = it => forSale(it) ? fmt(it.priceCents, it.currency) : it.partner ? "Partner reward" : soon(it) ? "Price coming soon" : "Not for sale";
 
 // ---------------------------------------------------------------- catalogue
 function normItem(raw, i) {
@@ -79,16 +86,16 @@ function normItem(raw, i) {
   // Asset files live next to the page at /cosmetics/<id>/ (the API names the production origin; use this one).
   const base = new URL("/cosmetics/" + encodeURIComponent(id) + "/", location.href).href;
   const has = f => files.includes(f) ? base + f : null;
-  const rarity = String(raw.rarity || "common").toLowerCase();
+  const rarity = String(raw.rarity || "").toLowerCase();
   const partner = raw.partner && typeof raw.partner === "object" ? { id: raw.partner.id, name: String(raw.partner.name || raw.partner.id || "Partner") } : null;
   return {
-    id, name: String(raw.name || id), cat, slot, rarity: RARITIES.includes(rarity) ? rarity : partner ? "partner" : "common", priceCents,
+    id, name: String(raw.name || id), cat, slot, rarity: RARITIES.includes(rarity) ? rarity : partner ? "partner" : "regular", priceCents,
     currency: typeof raw.currency === "string" ? raw.currency.toUpperCase() : null, partner,
     defaultColor: typeof raw.defaultColor === "string" ? raw.defaultColor : null,
     desc: String(raw.description || ""), partnerHow: String(raw.partnerHow || ""),
     model: has("model.json"), texture: has("texture.png"), image: has("thumb.png"), details: has("item.json"),
     fx: raw.fx || null, emote: raw.emote || null, order: Number.isFinite(raw.order) ? raw.order : i,
-    search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), rarity, partner && partner.name].join(" ").toLowerCase(),
+    search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), RARITIES.includes(rarity) ? rarity : "", partner && partner.name].join(" ").toLowerCase(),
   };
 }
 
@@ -317,8 +324,22 @@ async function buildModel(viewer, it, model) {
   const adapter = attach => {
     if (adapters[attach]) return adapters[attach];
     const g = new T.Group();
-    if (attach === "item") { // item space (y up, a 16-unit block): shown floating beside the right hand
-      g.position.set(-26, -8, -2); viewer.playerObject.add(g);
+    if (attach === "item") {
+      // Item space (y up, a 16-unit block), held in the right hand the way Minecraft draws a held item: the arm's own
+      // space, vanilla's hand offset (turn -90 about x and 180 about y, then 1, 2, -10 pixels), then the model's
+      // thirdperson_righthand display transform and the -8 centring. Follows the arm in every animation.
+      const R = d => d * Math.PI / 180;
+      const arm = new T.Group(); arm.rotation.x = Math.PI;
+      viewer.playerObject.skin.rightArm.add(arm);
+      const hand = new T.Group(); hand.rotation.set(-Math.PI / 2, Math.PI, 0, "XYZ"); arm.add(hand);
+      const d = (model.display && model.display.thirdperson_righthand) || {};
+      const [rx, ry, rz] = d.rotation || [0, -90, 55], [tx, ty, tz] = d.translation || [0, 4, .5], sc = d.scale || [.85, .85, .85];
+      const disp = new T.Group();
+      disp.position.set(1 + tx, 2 + ty, -10 + tz); disp.rotation.set(R(rx), R(ry), R(rz), "XYZ"); disp.scale.set(...sc);
+      hand.add(disp);
+      g.position.set(-8, -8, -8); disp.add(g);
+      made.push(arm);
+      return (adapters[attach] = g);
     } else {
       const [part, at] = ATTACH[attach] || ATTACH.body;
       g.position.set(...at); g.rotation.x = Math.PI;
@@ -341,15 +362,17 @@ async function buildModel(viewer, it, model) {
     adapter(b.attach).add(outer);
     const a = b.anim || {}, base = rot.slice();
     const R = d => d * Math.PI / 180;
-    if (a.type === "cape") { // hangs from the shoulders like the vanilla cape, swaying a little
-      outer.rotation.set(R(10), Math.PI, 0);
-      anims.push(t => { outer.rotation.x = R(10 + 4 * Math.sin(t * 1.6)); });
+    if (a.type === "cape") {
+      // Hangs from the shoulders like the vanilla cape: turned half round about y, then tipped back about x (x first in
+      // the order, as Minecraft does it) so the hem swings out behind the body, never into it.
+      outer.rotation.order = "XYZ";
+      outer.rotation.set(R(9), Math.PI, 0);
+      anims.push(t => { outer.rotation.x = R(9 + 3 * Math.sin(t * 1.6)); });
     } else if (a.type === "wing") anims.push(t => { outer.rotation.y = base[1] + R(a.side * (a.base + a.amp * Math.sin(t * a.speed * 2))); });
     else if (a.type === "bob" || a.type === "pet") anims.push(t => { outer.position.y = piv[1] + Math.sin(t * a.speed * 2) * (a.amp || .5) * (a.type === "pet" ? 2 : 1); });
     else if (a.type === "sway") anims.push(t => { outer.rotation.z = base[2] + R(a.amp * Math.sin(t * a.speed)); });
     else if (a.type === "spin") anims.push(t => { outer.rotation.y = base[1] + R(a.speed * t); });
   }
-  if (adapters.item) anims.push(t => { adapters.item.rotation.y = Math.sin(t * .8) * .5 + .4; });
   return { made, anims };
 }
 
@@ -422,7 +445,12 @@ function pose(viewer, cat, back) {
   const wrap = viewer.playerWrapper;
   wrap.rotation.y = back ? Math.PI - .55 : .5;
   wrap.position.y = HEAD_VIEW.has(cat) ? -13 : 0;
-  viewer.zoom = HEAD_VIEW.has(cat) ? 1.05 : cat === "skins" ? .6 : cat === "pets" || cat === "killfx" ? .62 : .74;
+  viewer.zoom = HEAD_VIEW.has(cat) ? 1.05 : cat === "killfx" || cat === "winfx" ? .62 : .74;
+  if (cat === "pets") { // close on the head and the left shoulder, where the pet floats, turned so it isn't behind the head
+    wrap.rotation.y = back ? Math.PI + .5 : -.45;
+    wrap.position.y = -10;
+    viewer.zoom = .95;
+  }
 }
 
 // ---- thumbnails: the catalogue's thumb.png; without one, a hidden viewer renders a picture, one item at a time
@@ -463,11 +491,10 @@ function renderCats() {
 const owned = () => new Set(state.link && state.link.owned || []);
 function card(it) {
   const own = owned().has(it.id), inCart = state.cart.includes(it.id);
-  const price = it.partner && !forSale(it) ? `<span class="item-price-sm free">Partner reward</span>`
-    : forSale(it) ? `<span class="item-price-sm">${esc(fmt(it.priceCents, it.currency))}</span>` : `<span class="item-price-sm free">Not for sale</span>`;
-  return `<button class="card item-card" type="button" data-id="${esc(it.id)}" data-r="${it.rarity}" aria-label="${esc(it.name)}, ${esc(it.rarity)} ${esc(CAT_LABEL[it.cat])}">
+  const price = `<span class="item-price-sm${forSale(it) ? "" : soon(it) ? " soon" : " free"}">${esc(priceText(it))}</span>`;
+  return `<button class="card item-card" type="button" data-id="${esc(it.id)}" data-r="${it.rarity}" aria-label="${esc(it.name)}, ${esc(RARITY_LABEL[it.rarity])} ${esc(CAT_LABEL[it.cat])}, ${esc(priceText(it))}">
     <span class="item-thumb">${glyph(it.cat)}${own ? '<span class="owned-tag">Owned</span>' : inCart ? '<span class="incart-tag">In cart</span>' : ""}</span>
-    <span class="item-body"><span class="rarity" data-r="${it.rarity}">${esc(it.rarity)}</span><h3>${esc(it.name)}</h3>
+    <span class="item-body"><span class="rarity" data-r="${it.rarity}">${esc(RARITY_LABEL[it.rarity])}</span><h3>${esc(it.name)}</h3>
     <span class="item-row"><span class="item-cat">${esc(it.partner ? it.partner.name : CAT_LABEL[it.cat])}</span>${price}</span></span></button>`;
 }
 let io = null;
@@ -540,7 +567,7 @@ async function openItem(id, push = true) {
   document.documentElement.classList.add("modal-open");
   modal.style.setProperty("--rc", RARITY_COLOR[it.rarity]);
   stage.style.setProperty("--rc", RARITY_COLOR[it.rarity]);
-  const r = one("#itemRarity"); r.textContent = it.rarity; r.dataset.r = it.rarity;
+  const r = one("#itemRarity"); r.textContent = RARITY_LABEL[it.rarity]; r.dataset.r = it.rarity;
   one("#itemCat").textContent = CAT_LABEL[it.cat];
   one("#itemName").textContent = it.name;
   one("#itemDesc").textContent = it.desc;
@@ -549,8 +576,8 @@ async function openItem(id, push = true) {
   pp.hidden = !it.partner;
   if (it.partner) pp.innerHTML = `<b>Partner item from ${esc(it.partner.name)}.</b> ${esc(it.partnerHow || (forSale(it) ? "Also sold here." : "Earned on the partner server."))}`;
   const pr = one("#itemPrice");
-  pr.className = "item-price" + (forSale(it) ? "" : " free");
-  pr.textContent = forSale(it) ? fmt(it.priceCents, it.currency) : it.partner ? "Partner reward" : "Not for sale";
+  pr.className = "item-price" + (forSale(it) ? "" : soon(it) ? " soon" : " free");
+  pr.textContent = priceText(it);
   updateAdd();
   if (push) history.replaceState(null, "", "#item=" + encodeURIComponent(it.id));
   one(".item-close", modal).focus({ preventScroll: true });
@@ -627,7 +654,7 @@ function updateAdd() {
   const own = owned().has(it.id), inCart = state.cart.includes(it.id);
   addBtn.classList.toggle("in", inCart || own);
   addBtn.disabled = !forSale(it) || own;
-  addBtn.textContent = own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
+  addBtn.textContent = own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : soon(it) ? "Price coming soon" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
 }
 addBtn.addEventListener("click", () => {
   if (!current || !forSale(current)) return;

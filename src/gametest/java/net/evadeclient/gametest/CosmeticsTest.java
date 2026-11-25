@@ -93,7 +93,7 @@ public final class CosmeticsTest {
         // ---- tiers and prices: three tiers, old names read as regular; every starter item is regular and priced
         String tiers = ctx.computeOnClient(c -> {
             StringBuilder b = new StringBuilder();
-            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.rarity != Rarity.REGULAR || i.priceCents <= 0) b.append(i.id).append(' ');
+            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.bundled && (i.rarity != Rarity.REGULAR || i.priceCents <= 0)) b.append(i.id).append(' ');
             return b.toString();
         });
         check(tiers.isEmpty() && Rarity.values().length == 3 && Rarity.parse("legendary") == Rarity.REGULAR && Rarity.parse("special") == Rarity.SPECIAL

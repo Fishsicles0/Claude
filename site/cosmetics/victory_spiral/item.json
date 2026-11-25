@@ -2,7 +2,7 @@
  "id": "victory_spiral",
  "name": "Victory Spiral",
  "slot": "WIN_EFFECT",
- "rarity": "EPIC",
+ "rarity": "REGULAR",
  "colourable": false,
  "defaultColor": null,
  "partner": null,
