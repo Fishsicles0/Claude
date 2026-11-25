@@ -536,7 +536,7 @@ public class Schematics extends Module {
         int minZ = Math.min(corner1.getZ(), corner2.getZ()), maxZ = Math.max(corner1.getZ(), corner2.getZ());
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++)
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++)
-                if (!w.isChunkLoaded(cx, cz)) throw new CommandError("Part of the area isn't loaded. Move closer so you can see all of it.");
+                if (!SchematicVerifier.chunkLoaded(w, cx, cz)) throw new CommandError("Part of the area isn't loaded. Move closer so you can see all of it.");
         String clean = cleanName(name);
         if (clean == null) throw new CommandError("Use a plain name: letters, numbers, spaces, - and _.");
         String ext = nbt ? ".nbt" : ".litematic";

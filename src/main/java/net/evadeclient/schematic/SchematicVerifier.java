@@ -143,7 +143,7 @@ public final class SchematicVerifier {
                 if (ccx != lastCx || ccz != lastCz) {
                     lastCx = ccx;
                     lastCz = ccz;
-                    loaded = world.isChunkLoaded(ccx, ccz);
+                    loaded = chunkLoaded(world, ccx, ccz);
                 }
                 if (!loaded) status = UNLOADED;
                 else status = compare(want, world.getBlockState(pos.set(wx, wy, wz)));
@@ -168,6 +168,15 @@ public final class SchematicVerifier {
         passes++;
         last = new Result(counts, placedByPalette, buildMesh(), passRevision);
         return true;
+    }
+
+    /**
+     * Whether the client really has chunk {@code (cx, cz)}: the client hands out an empty placeholder chunk for
+     * anything it doesn't have, which the world's own check counts as loaded.
+     */
+    public static boolean chunkLoaded(ClientWorld world, int cx, int cz) {
+        var c = world.getChunkManager().getChunk(cx, cz, net.minecraft.world.chunk.ChunkStatus.FULL, false);
+        return c != null && !(c instanceof net.minecraft.world.chunk.EmptyChunk);
     }
 
     /** Runs a whole pass at once (for small schematics and tests). */
