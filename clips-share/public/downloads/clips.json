@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
-  "windows": { "file": "Evade-Clips.exe", "size": "4077 KB", "sha256": "54089c713d6bd5c57f9d6b238f4f854d1daeb87205995a4c9cf85bf9bdd4167d" },
-  "jar": { "file": "EvadeClips.jar", "size": "3965 KB", "sha256": "710fc2cbe2cce56472d4b344a64e3ce708e4d9640102675bfeecd303bf0e8262" }
+  "version": "1.2.0",
+  "windows": { "file": "Evade-Clips.exe", "size": "4241 KB", "sha256": "345610e7c697c6d9b0e613e627e715912d60a23840a263661cfdd807d729df9f" },
+  "jar": { "file": "EvadeClips.jar", "size": "4129 KB", "sha256": "945e8a654478cbb55ceaa9776876a2c6f6271ebd37a4e28033ce5aa61765a9b3" }
 }

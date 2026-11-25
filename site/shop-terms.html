@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Terms of Sale · Evade Client</title>
 <meta name="description" content="The Terms of Sale for the Evade Shop: digital, cosmetic-only items for Evade Client, refunds, chargebacks and purchases by under-18s.">
+<meta name="robots" content="noindex">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/shop-terms">
 <meta property="og:type" content="website">
@@ -23,10 +24,11 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="alternate" type="application/rss+xml" title="Evade Client changelog" href="/changelog.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7b5cf3bdaa">
+<link rel="stylesheet" href="/assets/site.css?v=06fa4fd134">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="shop">
@@ -48,7 +50,7 @@
       <a href="/shop" class="on" aria-current="page">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.7.1</span>
+      <a href="/changelog" class="nav-ver" title="What's new in v2.8.0">v2.8.0</a>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -64,11 +66,16 @@
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
     <a href="/shop" class="on" aria-current="page">Shop <span class="nav-soon">Soon</span></a>
+    <div class="mm-more">
+      <a href="https://clips.evadeclient.com">Evade Clips <span aria-hidden="true">&#8599;</span></a>
+      <a href="/discord">Discord</a>
+    </div>
+    <a href="/download" class="btn btn-red btn-lg mm-dl">Download Evade</a>
   </div>
 </nav>
 
 <main id="main">
-<link rel="stylesheet" href="/assets/shop.css?v=c0d526fce4">
+<link rel="stylesheet" href="/assets/shop.css?v=b1f1e7561e">
 <header class="page-hero wrap">
   <div class="eyebrow rv">Evade Shop</div>
   <h1 class="rv d1">Terms of Sale</h1>
@@ -77,16 +84,16 @@
 
 <section class="wrap page-body terms">
   <div class="terms-draft rv" role="note">
-    <b>Draft.</b> The shop is not open yet and these terms are not final. Parts marked <span class="ph">[like this]</span> are for the Evade owner to fill in, ideally with legal advice, before the shop opens.
+    <b>The shop isn't open yet.</b> These terms take effect when checkout opens. Nothing can be bought until then.
   </div>
 
   <article class="doc terms-doc">
-    <p class="terms-date">Last updated: <span class="ph">[DATE]</span></p>
+    <p class="terms-date">Last updated: 25 November 2026</p>
 
     <div class="doc-sec">
       <h2 id="who">1. Who sells to you</h2>
-      <p>The Evade Shop is run by <span class="ph">[LEGAL NAME OF THE SELLER, e.g. company or sole trader name]</span>, <span class="ph">[REGISTERED ADDRESS]</span>, <span class="ph">[COMPANY / REGISTRATION NUMBER, if any]</span> ("Evade", "we", "us"). These terms apply to every purchase you make in the Evade Shop at evadeclient.com.</p>
-      <p>Evade Client is not affiliated with, endorsed by or associated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios.</p>
+      <p>The Evade Shop is run by Evade Client ("Evade", "we", "us"), contact <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a>. Payments are taken by our payment provider (see section 4), which may act as the reseller of the items and show its own terms at checkout. These terms apply to every purchase you make in the Evade Shop at evadeclient.com.</p>
+      <p>NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios.</p>
     </div>
 
     <div class="doc-sec">
@@ -96,24 +103,31 @@
         <li><b>Cosmetic only.</b> Items change how your player looks to other Evade Client users. They give no gameplay advantage of any kind and do not change how the game plays.</li>
         <li><b>A licence, not ownership.</b> A purchase gives you a personal, non-transferable right to use the item in Evade Client on the Minecraft account it was delivered to. Items have no cash value and can't be sold, traded or moved to another account, except where a gift is sent at checkout.</li>
         <li><b>Who sees them.</b> Cosmetics are shown to players who use Evade Client. Players on other clients see your normal skin.</li>
+        <li><b>Capes are free.</b> Capes are never sold. Every cape is free for every Evade Client player.</li>
+        <li><b>No random items.</b> There are no loot boxes or mystery items. You always get exactly the item you choose.</li>
         <li><b>Servers' rules.</b> Servers may choose not to show cosmetics. Evade can't control what other servers allow.</li>
       </ul>
     </div>
 
     <div class="doc-sec">
       <h2 id="account">3. Linking your account</h2>
-      <p>You choose which Minecraft account receives an item by entering the link code shown in Evade (<b>Wardrobe &rarr; Link the shop</b>), or a friend's username when you send a gift. Please check the account before you pay. We never ask for your Microsoft or Minecraft password.</p>
+      <p>You choose which Minecraft account receives an item by entering the link code shown in Evade (<b>Wardrobe &rarr; Link the shop</b>), or, when you send a gift, the link code your friend gets the same way in their game. Please check the account before you pay. We never ask for your Microsoft or Minecraft password.</p>
     </div>
 
     <div class="doc-sec">
       <h2 id="prices">4. Prices and payment</h2>
-      <p>Prices are shown in the shop before you pay, in <span class="ph">[CURRENCY]</span>, and <span class="ph">[INCLUDE / DO NOT INCLUDE]</span> applicable taxes. Payments are handled by <span class="ph">[PAYMENT PROVIDER]</span>; we do not see or store your full card details. Items are delivered to the linked account once payment is confirmed, normally within a few minutes.</p>
+      <p>Prices are shown in the shop before you pay, in US dollars. Any sales tax or VAT that applies where you live is worked out and shown at checkout before you pay. Payments are handled by our payment provider (Tebex), which is named on the checkout page; we never see or store your card details. Items are delivered to the linked account once payment is confirmed, normally within a few minutes.</p>
     </div>
 
     <div class="doc-sec">
       <h2 id="refunds">5. Refunds</h2>
-      <p class="ph-block"><span class="ph">[REFUND POLICY: to be written by the Evade owner.]</span> For example: whether refunds are offered, within how many days (<span class="ph">[REFUND WINDOW]</span>), and whether an item that has already been worn can be refunded.</p>
-      <p>Nothing in these terms takes away rights you have under the consumer law of the country you live in. If you are in the UK or the EU, the owner should check the rules on the right to cancel digital content before finalising this section.</p>
+      <ul>
+        <li><b>Within 14 days, not equipped:</b> if you haven't equipped an item yet, you can ask for a full refund within 14 days of buying it.</li>
+        <li><b>Always refunded:</b> charges made by mistake, duplicate purchases, and items that never reached your account.</li>
+        <li><b>Not working:</b> if an item doesn't work and we can't fix it within 14 days of you telling us, you get a refund.</li>
+        <li><b>How:</b> email us with your order number. Refunds go back to the original payment method, and the item is removed from your account.</li>
+      </ul>
+      <p>Items are delivered straight away. In the UK and the EU, by completing checkout you ask for the item to be delivered at once and accept that this ends the legal 14-day right to cancel digital content once delivery starts; our own 14-day refund for unequipped items above still applies. Nothing in these terms takes away rights you have under the consumer law of the country you live in.</p>
     </div>
 
     <div class="doc-sec">
@@ -128,23 +142,18 @@
 
     <div class="doc-sec">
       <h2 id="changes">8. Changes to items and the shop</h2>
-      <p>We may update how an item looks (for example to fix a visual bug) and may stop selling an item. Items you already own stay on your account. If Evade Client or the shop is ever shut down for good, <span class="ph">[WHAT HAPPENS TO PURCHASED ITEMS: owner to decide]</span>.</p>
+      <p>We may update how an item looks (for example to fix a visual bug) and may stop selling an item. Items you already own stay on your account. If Evade Client or the shop is ever shut down for good, we will give at least 30 days' notice on evadeclient.com, stop taking payments first, and refund anything bought in the 30 days before the announcement.</p>
       <p>We may suspend items from an account that breaks these terms or uses them to impersonate or harass other players.</p>
     </div>
 
     <div class="doc-sec">
-      <h2 id="partner">9. Partner server items</h2>
-      <p>Some items are made with partner servers. A partner may give items to players as rewards. These terms also apply to items you earn that way. Partner servers are separate from Evade and are responsible for their own rules and rewards.</p>
+      <h2 id="law">9. Governing law</h2>
+      <p>These terms are governed by the laws of the country Evade Client is run from. If you live elsewhere, you also keep the protections of your local consumer law, and you can bring a claim in your own country's courts.</p>
     </div>
 
     <div class="doc-sec">
-      <h2 id="law">10. Governing law</h2>
-      <p><span class="ph">[GOVERNING LAW AND COURTS: owner to fill in, e.g. the country the seller is based in.]</span></p>
-    </div>
-
-    <div class="doc-sec">
-      <h2 id="contact">11. Contact</h2>
-      <p>Questions about an order, a refund or these terms: <span class="ph">[SUPPORT EMAIL ADDRESS]</span>. Please include the Minecraft username the item was for and your order number, if you have one. How we handle your data is explained in our <a href="/privacy">privacy policy</a>.</p>
+      <h2 id="contact">10. Contact</h2>
+      <p>Questions about an order, a refund or these terms: <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a>. Please include the Minecraft username the item was for and your order number, if you have one. How we handle your data is explained in our <a href="/privacy">privacy policy</a>.</p>
     </div>
   </article>
 </section>
@@ -158,16 +167,16 @@
       <p>A free Fabric client for Minecraft 1.21.11. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=54089c713d">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/changelog.xml">Changelog RSS</a></div>
+      <div><h5>Get Evade</h5><a href="/download">Download</a><a href="/download#install">Install guide</a><a href="/download#verify">Check a download</a><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a></div>
+      <div><h5>Shop</h5><a href="/shop">Cosmetics</a><a href="/shop-terms">Terms of sale</a><a href="/press">Press kit</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.7.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v2.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=d25eb91767" defer onerror="document.documentElement.classList.remove('js')"></script>
+<script src="/assets/site.js?v=cc14e05e6d" defer onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>

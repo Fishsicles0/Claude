@@ -60,6 +60,7 @@ const CATALOG = {
     { id: "craft_wings", name: "Craft Wings", slot: "WINGS", priceCents: null, partner: { id: "craftnet", name: "CraftNet" } },
     { id: "other_wings", name: "Other Wings", slot: "WINGS", partner: { id: "othernet", name: "OtherNet" } },
     { id: "glow_cape", name: "Glow Cape", slot: "CAPE", rarity: "special", priceCents: null },
+    { id: "free_cape", name: "Free Cape", slot: "CAPE", rarity: "special", priceCents: 0 },
     { id: "Bad Id", name: "broken", slot: "HAT" },
     { id: "noslot", name: "broken" },
   ],
@@ -122,9 +123,9 @@ await test("catalog: normalized items, asset base URLs, bad entries dropped", as
   const r = await call("/api/cosmetics/catalog");
   assert.equal(r.status, 200);
   assert.equal(r.body.version, "test-1");
-  assert.deepEqual(r.body.items.map((i) => i.id), ["red_cape", "halo", "free_hat", "craft_wings", "other_wings", "glow_cape"]);
+  assert.deepEqual(r.body.items.map((i) => i.id), ["red_cape", "halo", "free_hat", "craft_wings", "other_wings", "glow_cape", "free_cape"]);
   // tiers: regular / special / partner; the old names (rare, epic) and a missing one read as regular, partner items as partner
-  assert.deepEqual(r.body.items.map((i) => i.rarity), ["regular", "regular", "regular", "partner", "partner", "special"]);
+  assert.deepEqual(r.body.items.map((i) => i.rarity), ["regular", "regular", "regular", "partner", "partner", "special", "special"]);
   assert.equal(r.body.items[5].priceCents, null); // a special item whose price isn't announced yet
   const cape = r.body.items[0];
   assert.equal(cape.slot, "CAPE");
@@ -157,8 +158,8 @@ await test("production: the shop is closed and test checkout is impossible", asy
     assert.equal(co2.status, 503);
     for (const p of ["/api/shop/test/complete", "/api/shop/test/refund"]) {
       const r = await call(p, post({ sessionId: "0".repeat(32) }));
-      assert.equal(r.status, 503);
-      assert.deepEqual(r.body, { error: "The shop isn't open yet" });
+      assert.equal(r.status, 404); // the test routes don't exist in production
+      assert.deepEqual(r.body, { error: "not found" });
     }
     // nothing granted, and the store refuses a test session even if asked directly
     assert.deepEqual((await call("/api/cosmetics/me", { uuid: A })).body.owned, []);
@@ -285,8 +286,13 @@ await test("webhooks: unconfigured and bad signatures are rejected; verified one
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.granted, ["red_cape"]);
   assert.deepEqual(r.body.unknown, ["ghost_item"]);
-  r = await sendWebhook(call, paid("o1", A, ["red_cape", "halo"]));
+  r = await sendWebhook(call, paid("o1", A, ["red_cape", "halo"], { amountCents: 798 }));
   assert.deepEqual(r.body.granted, []);
+  // a signed payment that doesn't match the catalog grants nothing: too little, wrong currency, unpriced items
+  assert.equal((await sendWebhook(call, paid("o9", B, ["red_cape", "halo"]))).status, 400);
+  assert.equal((await sendWebhook(call, paid("o9", B, ["red_cape"], { currency: "EUR" }))).status, 400);
+  assert.equal((await sendWebhook(call, paid("o9", B, ["glow_cape"]))).status, 400);
+  assert.deepEqual((await call("/api/cosmetics/me", { uuid: B })).body.owned, []);
   assert.deepEqual((await call("/api/cosmetics/me", { uuid: A })).body.owned, ["red_cape"]);
   await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "red_cape" }, { uuid: A }));
   // refund revokes and unequips
@@ -476,6 +482,73 @@ await test("items dropped from the catalog disappear from me and players", async
     CATALOG.items = saved;
     cos.resetCatalogCache();
   }
+});
+
+await test("free items (every cape): never sold, worn by any signed-in player, seen by others, kept on revokes", async () => {
+  const env = makeEnv({ SHOP_MODE: "test", ADMIN_TOKEN: ADMIN });
+  const call = caller(env, "https://shop.test");
+  const admin = { headers: { authorization: "Bearer " + ADMIN } };
+  // the catalog says free with priceCents 0
+  const cat = (await call("/api/cosmetics/catalog")).body.items;
+  assert.equal(cat.find((i) => i.id === "free_cape").priceCents, 0);
+  assert.equal(cat.find((i) => i.id === "glow_cape").priceCents, null);
+  // never in a checkout, alone or with paid items, and nothing is created
+  const link = await call("/api/cosmetics/link-code", { uuid: A });
+  for (const items of [["free_cape"], ["red_cape", "free_cape"], ["free_hat"]]) {
+    const r = await call("/api/shop/checkout", post({ linkCode: link.body.code, items }));
+    assert.equal(r.status, 400, JSON.stringify(items));
+    assert.equal(r.body.free, true);
+    assert.match(r.body.error, /free for everyone/);
+  }
+  // production stays closed for free items too
+  assert.equal((await caller(env)("/api/shop/checkout", post({ uuid: A, items: ["free_cape"] }))).status, 503);
+  // equip without owning: any signed-in player, never anonymously
+  assert.equal((await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "free_cape" }))).status, 401);
+  assert.equal((await call("/api/cosmetics/equip", post({ slot: "HAT", id: "free_cape" }, { uuid: C }))).status, 400); // wrong slot
+  let eq = await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "free_cape" }, { uuid: C }));
+  assert.equal(eq.status, 200, JSON.stringify(eq.body));
+  assert.deepEqual(eq.body.equipped, { CAPE: { id: "free_cape" } });
+  assert.deepEqual((await call("/api/cosmetics/me", { uuid: C })).body.owned, []); // worn, not "owned"
+  // a paid item still needs owning; a not-priced special too
+  assert.equal((await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "red_cape" }, { uuid: C }))).status, 403);
+  assert.equal((await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "glow_cape" }, { uuid: C }))).status, 403);
+  // others see it
+  const pl = await call("/api/cosmetics/players?uuids=" + C + "," + B);
+  assert.deepEqual(pl.body, { players: { [C]: { equipped: { CAPE: { id: "free_cape" } } } } });
+  // a revoke of something else (admin or refund) leaves the free cape on
+  await call("/api/admin/grant", post({ uuid: C, items: ["halo"] }, admin));
+  await call("/api/cosmetics/equip", post({ slot: "HAT", id: "halo" }, { uuid: C }));
+  await call("/api/admin/revoke", post({ uuid: C, items: ["halo"] }, admin));
+  assert.deepEqual((await call("/api/cosmetics/me", { uuid: C })).body.equipped, { CAPE: { id: "free_cape" } });
+  const co = await call("/api/shop/checkout", post({ uuid: C, items: ["red_cape"] }));
+  await call("/api/shop/test/complete", post({ sessionId: co.body.sessionId }));
+  await call("/api/shop/test/refund", post({ sessionId: co.body.sessionId }));
+  assert.deepEqual((await call("/api/cosmetics/players?uuids=" + C)).body.players[C].equipped, { CAPE: { id: "free_cape" } });
+  // if a free item stopped being free, it would need owning again and disappear for others
+  const saved = CATALOG.items;
+  CATALOG.items = saved.map((i) => (i.id === "free_cape" ? { ...i, priceCents: 100 } : i));
+  cos.resetCatalogCache();
+  try {
+    assert.deepEqual((await call("/api/cosmetics/players?uuids=" + C)).body, { players: {} });
+    assert.equal((await call("/api/cosmetics/equip", post({ slot: "CAPE", id: "free_cape" }, { uuid: B }))).status, 403);
+  } finally {
+    CATALOG.items = saved;
+    cos.resetCatalogCache();
+  }
+});
+
+await test("rate limits key on a salted hash of the IP address, never the address", async () => {
+  const env = makeEnv({ SHOP_MODE: "test" });
+  const call = caller(env, "https://shop.test");
+  await call("/api/shop/resolve", post({ linkCode: "QQQQQQ" }, { ip: "203.0.113.77" }));
+  const co = await call("/api/shop/checkout", post({ uuid: A, items: ["red_cape"] }, { ip: "203.0.113.77" }));
+  assert.equal(co.status, 200);
+  const keys = env._social.ctx.storage.sql.exec("SELECT k FROM cos_rate").toArray().map((r) => r.k);
+  assert.ok(keys.some((k) => /^ip:[0-9a-f]{16}:link$/.test(k)), keys.join(" "));
+  assert.ok(keys.some((k) => /^ip:[0-9a-f]{16}:checkout$/.test(k)), keys.join(" "));
+  assert.ok(!keys.some((k) => k.includes("203.0.113")), keys.join(" "));
+  const sessions = env._social.ctx.storage.sql.exec("SELECT * FROM cos_sessions").toArray();
+  assert.ok(!JSON.stringify(sessions).includes("203.0.113"));
 });
 
 console.log(`\n${passed} passed` + (process.exitCode ? ", some FAILED" : ""));

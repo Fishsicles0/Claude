@@ -1,23 +1,22 @@
 {
-  "version": "2.7.1",
+  "version": "2.8.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "9818 KB",
-  "sha256": "9b2d0a68187c823d20ecb6daa2eb6e60da112880920eb0586ccf0548f7825eca",
+  "size": "8609 KB",
+  "sha256": "3eeda491c1974da22dca5642d7c53ba0b1b8f9b204ba80639192a4378b4ba428",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7850 KB", "sha256": "0f9121b8f3535f1a85b656a43030d1d209f06a6a1e894dfdef019d74c01a47dc" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7738 KB", "sha256": "aa327a9cf8e5769c151af9dcc9fdaaaeac53d109cb1a277c123a986221665cbd" }
+    "version": "2.6.0",
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7828 KB", "sha256": "1008ab637cde6f16cf77d208e9194d6a13e558e763d73747c34419d9bea32515" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7716 KB", "sha256": "f5831fbb1be8dc550375d1b8f84d2b15f1a1927ab03b7730d839c84c6a0a00d6" }
   },
   "clips": {
-    "version": "1.1.0",
-    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4077 KB", "sha256": "54089c713d6bd5c57f9d6b238f4f854d1daeb87205995a4c9cf85bf9bdd4167d" },
-    "jar": { "file": "downloads/EvadeClips.jar", "size": "3965 KB", "sha256": "710fc2cbe2cce56472d4b344a64e3ce708e4d9640102675bfeecd303bf0e8262" },
-    "ffmpeg": {
-      "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
-      "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
-    }
+    "version": "1.2.0",
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4241 KB", "sha256": "345610e7c697c6d9b0e613e627e715912d60a23840a263661cfdd807d729df9f" },
+    "jar": { "file": "downloads/EvadeClips.jar", "size": "4129 KB", "sha256": "945e8a654478cbb55ceaa9776876a2c6f6271ebd37a4e28033ce5aa61765a9b3" },
+    "ffmpeg": { "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip", "sha256": "04861d3339c5ebe38b56c19a15cf2c0cc97f5de4fa8910e4d47e5e6404e4a2d4" }
   },
+  "serverApi": { "file": "downloads/EvadeServerAPI.jar", "size": "38 KB", "sha256": "7d5dd7444188205ae2a7e0679d2c5a3f198ca04300ef5135195639a47c28532a" },
   "shaders": {
     "evade": { "file": "downloads/EvadeShaders.zip", "version": "1.0", "size": "45 KB", "sha256": "7b74a205975fdb2a66ef225971821de3c963e52caa6a19720313b01ba22b6d90" }
   },

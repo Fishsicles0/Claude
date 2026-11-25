@@ -1,6 +1,25 @@
 {
- "version": "2.7.1",
+ "version": "2.8.0",
  "entries": [
+  {
+   "id": "v2.8.0",
+   "title": "v2.8.0",
+   "date": "2026-11-25",
+   "dateText": "25 Nov 2026",
+   "summary": "Rebuilt pets, sharper cosmetics, free capes, faster hotkeys, Evade Clips 1.2.0 and a safer launcher.",
+   "items": [
+    "Pets rebuilt: all 7 pets redrawn as proper little creatures that look around and blink. They sit on your shoulder or float beside your head and never clip into you.",
+    "Sharper cosmetics: every regular item redrawn as crisp pixel art (capes have 4× the detail), bigger shop pictures, and bolder aura circles.",
+    "Every cape is free for every Evade player, including the animated ones.",
+    "Text Hotkeys: 0.1 s cooldown by default (as low as 0.05 s) and a new Kick Guard that only holds back a press that would get you kicked for spam.",
+    "Evade Clips 1.2.0: one download source for the app, the clips site is launcher-first and Minecraft-only, sharing only to secure servers with a warning before you change server, clear \"no sound\" and \"storage full\" messages, and ffmpeg is only installed when its checksum checks out.",
+    "Launcher 2.6.0: asks before updating itself and never downgrades, refuses downloads without a checksum, no more hidden PowerShell, a \"Faster graphics card\" switch, and no false \"problems will stop the game\" warning on fresh installs.",
+    "Mods: every setting now has a description, a new Playtime HUD, World Map moved to J (M is voice chat's mute key) with a one-time notice when two mods share a key, Mouse Movement for Keystrokes, Nether/End fog strength and \"only while moving\" Motion Blur.",
+    "Privacy policy updated: cosmetics send nothing while the Cosmetics mod is off and no longer check every 5 minutes; shop rate limits store only a salted hash of your IP address. Discover removed.",
+    "Website: clearer download page with launcher screenshots, better contrast, fixed laptop-width menu, a /discord page, a press kit and a changelog feed."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.8.0"
+  },
   {
    "id": "v2.7.1",
    "title": "v2.7.1",
@@ -66,25 +85,6 @@
     "The Discover servers button is gone from the title screen. Evade doesn't feature or recommend servers."
    ],
    "url": "https://evadeclient.com/changelog#v2.5.1"
-  },
-  {
-   "id": "v2.5.0",
-   "title": "v2.5.0",
-   "date": "2026-11-24",
-   "dateText": "24 Nov 2026",
-   "summary": "More FPS on laptops, a better chat, Open to Friends, and a client that recovers on its own.",
-   "items": [
-    "Tuned for laptops: on integrated graphics Evade now starts on a laptop setup (Max FPS, Render Scale 65% with Evade's new upscaler, unlocked FPS). FPS Modes also tune Sodium, the HUD is cached at high frame rates, on battery the FPS is held at 60 (you choose), Smooth Pacing evens out frame times, and .bench scene runs a repeatable 60-second benchmark with a shareable result.",
-    "Chat: chat heads, chat tabs (Party, Guild, DMs, Friends and your own), smooth chat and emoji shortcodes with a picker.",
-    "New mods: Look Info (the block or mob you're looking at, your tool and the light level, never anyone's health), Light Overlay (spawnable spots, never through walls), Item Highlight with a new item picker, HUD Toggle, and Clear Glass, No Map Bobbing, fishing line colour and spyglass options in Pack Tweaks.",
-    "Open to Friends: share your singleplayer world with Evade friends from the pause menu (turn on the \"Open to Friends\" extra in the launcher). They always click Join themselves.",
-    "Friends: see what friends are doing (menus, singleplayer, a server or AFK), player cards with add, invite, voice volume and hide.",
-    "Media: a session recap in Evade Clips (one video from the day's best moments, also vertical), and a replay render queue with share links.",
-    "Cloud backup (opt-in): your settings, HUD, profiles and waypoints, encrypted on your PC with a passphrase only you know.",
-    "Safe Start: if Evade fails to start twice, it starts with its mods off and shows what probably caused it, with a button per mod to turn it back on. Many features now switch themselves off instead of crashing the game.",
-    "Server API v2: server prompts, transfers you confirm, balance and timer widgets and player-card actions, with server plugin 1.1.0."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.5.0"
   }
  ]
 }

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Changelog · Evade Client</title>
-<meta name="description" content="What changed in each Evade Client release, newest first.">
+<meta name="description" content="What changed in each Evade Client release, newest first: new mods, launcher and Evade Clips updates, fixes, and what each version needs.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/changelog">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Changelog · Evade Client">
-<meta property="og:description" content="What changed in each Evade Client release, newest first.">
+<meta property="og:description" content="What changed in each Evade Client release, newest first: new mods, launcher and Evade Clips updates, fixes, and what each version needs.">
 <meta property="og:url" content="https://evadeclient.com/changelog">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -23,10 +23,11 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="alternate" type="application/rss+xml" title="Evade Client changelog" href="/changelog.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7b5cf3bdaa">
+<link rel="stylesheet" href="/assets/site.css?v=06fa4fd134">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="changelog">
@@ -48,7 +49,7 @@
       <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.7.1</span>
+      <a href="/changelog" class="nav-ver" title="What's new in v2.8.0">v2.8.0</a>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -64,6 +65,11 @@
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
     <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
+    <div class="mm-more">
+      <a href="https://clips.evadeclient.com">Evade Clips <span aria-hidden="true">&#8599;</span></a>
+      <a href="/discord">Discord</a>
+    </div>
+    <a href="/download" class="btn btn-red btn-lg mm-dl">Download Evade</a>
   </div>
 </nav>
 
@@ -76,8 +82,24 @@
 
 <section class="wrap page-body">
   <div class="log">
-    <article class="card rel rv" id="v2.7.1">
-      <div class="rel-head"><h2>v2.7.1</h2><span class="pill-sm">Latest</span><time datetime="2026-11-25">25 Nov 2026</time></div>
+    <article class="card rel rv" id="v2.8.0">
+      <div class="rel-head"><h2>v2.8.0</h2><span class="pill-sm">Latest</span><time datetime="2026-11-25">25 Nov 2026</time></div>
+      <p class="rel-sum">Rebuilt pets, sharper cosmetics, free capes, faster hotkeys, Evade Clips 1.2.0 and a safer launcher.</p>
+      <ul>
+        <li><b>Pets rebuilt:</b> all 7 pets redrawn as proper little creatures that look around and blink. They sit on your shoulder or float beside your head and never clip into you.</li>
+        <li><b>Sharper cosmetics:</b> every regular item redrawn as crisp pixel art (capes have 4&times; the detail), bigger shop pictures, and bolder aura circles.</li>
+        <li><b>Every cape is free</b> for every Evade player, including the animated ones.</li>
+        <li><b>Text Hotkeys:</b> 0.1 s cooldown by default (as low as 0.05 s) and a new Kick Guard that only holds back a press that would get you kicked for spam.</li>
+        <li><b>Evade Clips 1.2.0:</b> one download source for the app, the clips site is launcher-first and Minecraft-only, sharing only to secure servers with a warning before you change server, clear "no sound" and "storage full" messages, and ffmpeg is only installed when its checksum checks out.</li>
+        <li><b>Launcher 2.6.0:</b> asks before updating itself and never downgrades, refuses downloads without a checksum, no more hidden PowerShell, a "Faster graphics card" switch, and no false "problems will stop the game" warning on fresh installs.</li>
+        <li><b>Mods:</b> every setting now has a description, a new Playtime HUD, World Map moved to J (M is voice chat's mute key) with a one-time notice when two mods share a key, Mouse Movement for Keystrokes, Nether/End fog strength and "only while moving" Motion Blur.</li>
+        <li><b>Privacy policy updated:</b> cosmetics send nothing while the Cosmetics mod is off and no longer check every 5 minutes; shop rate limits store only a salted hash of your IP address. Discover removed.</li>
+        <li><b>Website:</b> clearer download page with launcher screenshots, better contrast, fixed laptop-width menu, a /discord page, a press kit and a changelog feed.</li>
+      </ul>
+    </article>
+
+    <article class="card rel rv" id="v2.7.1" data-pill="Sharper animated cosmetics">
+      <div class="rel-head"><h2>v2.7.1</h2><time datetime="2026-11-25">25 Nov 2026</time></div>
       <p class="rel-sum">Much sharper animated Special cosmetics.</p>
       <ul>
         <li><b>Special cosmetics redrawn:</b> all 10 animated items now have 2–4 times the detail and smoother, seamless loops (16–24 frames). Hearthfire has real layered flames and rising sparks, Riptide rolling waves with foam, Galaxy Flow a turning spiral galaxy, Polar Lights rippling aurora curtains, and the wings, crown, halo, aura and sprite all got new artwork.</li>
@@ -269,16 +291,16 @@
       <p>A free Fabric client for Minecraft 1.21.11. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=54089c713d">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/changelog.xml">Changelog RSS</a></div>
+      <div><h5>Get Evade</h5><a href="/download">Download</a><a href="/download#install">Install guide</a><a href="/download#verify">Check a download</a><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a></div>
+      <div><h5>Shop</h5><a href="/shop">Cosmetics</a><a href="/shop-terms">Terms of sale</a><a href="/press">Press kit</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.7.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v2.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=d25eb91767" defer onerror="document.documentElement.classList.remove('js')"></script>
+<script src="/assets/site.js?v=cc14e05e6d" defer onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>

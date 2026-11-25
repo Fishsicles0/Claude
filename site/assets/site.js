@@ -52,13 +52,15 @@ if (burger) {
 const openHash = () => {
   let id = "";
   try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
-  const d = id && document.getElementById(id);
-  if (!d || d.tagName !== "DETAILS") return;
+  const t = id && document.getElementById(id);
+  // A link to a collapsed section, or to something inside one (/download#evade-shaders), opens it first.
+  const d = t && (t.tagName === "DETAILS" ? t : t.closest("details"));
+  if (!d) return;
   all("details.hl").forEach(x => x.classList.remove("hl"));
   d.open = true;
   d.classList.add("hl");
-  revealUp(d);
-  requestAnimationFrame(() => d.scrollIntoView({ block: "start" }));
+  revealUp(t);
+  requestAnimationFrame(() => t.scrollIntoView({ block: "start" }));
 };
 openHash();
 addEventListener("hashchange", openHash);
@@ -232,6 +234,7 @@ if (lb) {
     el.tabIndex = 0;
     const open = () => {
       one("img", lb).src = el.dataset.full;
+      one("img", lb).hidden = false;
       one("img", lb).alt = el.dataset.caption || "";
       one("figcaption", lb).textContent = el.dataset.caption || "";
       lb.classList.add("open");
@@ -269,7 +272,7 @@ if (os === "mac" || os === "linux") {
   const jar = document.querySelector('a[href^="/downloads/EvadeInstaller.jar"]');
   all(".js-primary").forEach(a => a.setAttribute("href", jar ? jar.getAttribute("href") : "/downloads/EvadeInstaller.jar?v=" + Date.now()));
   setText(".js-primary-label", os === "mac" ? "Download for macOS" : "Download for Linux");
-  setText(".js-primary-meta", "One-click installer · needs Java 17+");
+  setText(".js-primary-meta", "Evade Launcher · needs Java 21");
 } else if (os === "phone") {
   setText(".js-primary-meta", "Evade runs on a computer: Windows, macOS or Linux");
   all(".js-meta-more").forEach(e => e.remove());
@@ -298,7 +301,12 @@ if (os === "mac" || os === "linux") {
     a.addEventListener("click", send);
   });
 }
-all(".os[data-os]").forEach(c => c.classList.toggle("yours", c.dataset.os === os));
+all(".os[data-os]").forEach(c => {
+  const yours = c.dataset.os === os;
+  c.classList.toggle("yours", yours);
+  // One primary button on the page: the download for this computer. The other systems stay secondary.
+  all(".os-btn", c).forEach(b => { b.classList.toggle("btn-red", yours); b.classList.toggle("btn-ghost", !yours); });
+});
 
 // ---------- hero player: the three window dots switch between recordings; each plays through, then the next
 const stageVid = one("#stageVid");
@@ -331,6 +339,18 @@ if (stageVid) {
     if (e.isIntersecting) stageVid.play().catch(() => {}); else stageVid.pause();
   }).observe(stageVid);
 }
+
+// ---------- changelog: the newest three releases in full; older ones show their summary, the list one click away
+all("article.rel").slice(3).forEach(a => {
+  const ul = one(":scope > ul", a);
+  if (!ul || location.hash === "#" + a.id) return;
+  const d = document.createElement("details");
+  d.className = "rel-more";
+  const n = ul.children.length;
+  d.innerHTML = `<summary>${n === 1 ? "Show the change" : "Show all " + n + " changes"}</summary>`;
+  ul.replaceWith(d);
+  d.appendChild(ul);
+});
 
 // ---------- download toast
 all("a[download]").forEach(a => a.addEventListener("click", () => {

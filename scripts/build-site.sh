@@ -38,7 +38,7 @@ sha() { sha256sum "$1" | cut -d' ' -f1; }
 # the zip you checked. Left empty, it is computed from the pinned (immutable, versioned) URL once per build; if that
 # download fails, version.json falls back to the builder's published checksum and the launcher fails closed without it.
 FFMPEG_URL="https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip"
-FFMPEG_SHA256=""
+FFMPEG_SHA256="04861d3339c5ebe38b56c19a15cf2c0cc97f5de4fa8910e4d47e5e6404e4a2d4"
 if [ -z "$FFMPEG_SHA256" ]; then
   FFMPEG_SHA256=$(curl -fsSL --max-time 300 "$FFMPEG_URL" | sha256sum | cut -d' ' -f1) || FFMPEG_SHA256=""
   [ "$FFMPEG_SHA256" = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ] && FFMPEG_SHA256=""  # empty download

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs · Evade Client</title>
-<meta name="description" content="How to use Evade Client 2.7.1: the launcher, the menu, keybinds, chat commands, the HUD editor, waypoints and the World Map, Replay, Streamer Mode and Safe Start.">
+<meta name="description" content="How to use Evade Client 2.8.0: the launcher, the menu, keybinds, chat commands, the HUD editor, the World Map, Replay and Safe Start.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/docs">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Docs · Evade Client">
-<meta property="og:description" content="How to use Evade Client 2.7.1: the launcher, the menu, keybinds, chat commands, the HUD editor, waypoints and the World Map, Replay, Streamer Mode and Safe Start.">
+<meta property="og:description" content="How to use Evade Client 2.8.0: the launcher, the menu, keybinds, chat commands, the HUD editor, the World Map, Replay and Safe Start.">
 <meta property="og:url" content="https://evadeclient.com/docs">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -23,10 +23,11 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="alternate" type="application/rss+xml" title="Evade Client changelog" href="/changelog.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7b5cf3bdaa">
+<link rel="stylesheet" href="/assets/site.css?v=06fa4fd134">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="docs">
@@ -48,7 +49,7 @@
       <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.7.1</span>
+      <a href="/changelog" class="nav-ver" title="What's new in v2.8.0">v2.8.0</a>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -64,6 +65,11 @@
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
     <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
+    <div class="mm-more">
+      <a href="https://clips.evadeclient.com">Evade Clips <span aria-hidden="true">&#8599;</span></a>
+      <a href="/discord">Discord</a>
+    </div>
+    <a href="/download" class="btn btn-red btn-lg mm-dl">Download Evade</a>
   </div>
 </nav>
 
@@ -146,7 +152,7 @@
         <ul>
           <li><b>Left-click</b> a card to turn the mod on or off.</li>
           <li><b>Right-click</b> a card, or click its gear, to open its settings.</li>
-          <li><b>Start typing</b> anywhere to search all 106 mods.</li>
+          <li><b>Start typing</b> anywhere to search all 107 mods.</li>
           <li>On a mod's settings page, click <b>Toggle Key</b> and press a key to bind it. <span class="kbd">Esc</span> cancels; right-click, <span class="kbd">Delete</span> or <span class="kbd">Backspace</span> clears a key. Keys a mod uses while it's on, like <b>Zoom Key</b> or <b>Freelook Key</b>, are separate settings on the same page and bind the same way.</li>
           <li><b>Middle-click</b> a setting to put it back to its default, or click <b>Reset</b> to put the whole mod back.</li>
         </ul>
@@ -229,7 +235,7 @@
           <li><b>Show Icons</b> &mdash; show icons next to other players.</li>
           <li><b>Show That I Use Evade</b> &mdash; let others see your icon. Switch it off and your icon is taken down straight away, and Evade stops reporting that you're online.</li>
         </ul>
-        <p>Your icon is verified through Mojang's sign-in check, the one servers already use, so it can't be faked. Evade only learns your username and player ID; your password and login token stay between you and Mojang. Icons need a Microsoft account; offline or cracked accounts don't get one.</p>
+        <p>Your icon is verified with the chat-signing key Mojang gives every Microsoft account (the one servers use to check signed chat), so it can't be faked. Evade only learns your player ID; your password, login token and username never reach us. Icons need a Microsoft account; offline or cracked accounts don't get one. What is sent and kept is in the <a href="/privacy#icons">privacy policy</a>.</p>
       </div>
 
       <div class="doc-sec rv" id="friends">
@@ -250,10 +256,12 @@
         <ul>
           <li><b>Auto</b> (the default): Evade Clips whenever the app is running, the built-in recorder otherwise.</li>
           <li><b>Evade Clips</b>: clips go to the app, with sound, where you can edit them and share links that play in Discord. See <a href="/clips">Evade Clips</a>.</li>
-          <li><b>Built-in</b>: Evade keeps the last 10&ndash;120 seconds of your screen in memory and saves them as an MP4 in <span class="mono">.minecraft/evade/clips</span>, at 480p, 720p or 1080p and 15&ndash;60 FPS. These clips are video only, with no sound.</li>
+          <li><b>Built-in</b>: Evade keeps the last 10&ndash;120 seconds of your screen in memory and saves them as an MP4 in <span class="mono">.minecraft/evade/clips</span>, at 480p, 720p or 1080p and 15&ndash;60 FPS. These clips are video only, with no sound: for sound, keep Evade Clips running.</li>
         </ul>
-        <p>Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> to save a clip. Evade also clips by itself with either recorder: your kills, totem pops of players you're fighting, wins and advancements are on by default, and deaths are off. <b>Seconds After</b> sets how long it keeps recording after the moment, and in Evade Clips each one gets a named marker on the timeline. Bind <b>Open Clips App</b> to open the app from in game.</p>
-        <p>Evade Clips works only with Evade Client: it records the Minecraft window while Minecraft with Evade Client is open, and only accepts clips from Evade Client.</p>
+        <p>Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> (or <span class="mono">.clips save</span>) to save a clip; <span class="mono">.clips</span> opens Evade Clips and <span class="mono">.clips last</span> opens your newest clip in its editor. Evade also clips by itself with either recorder: your kills (close ones become one &ldquo;Double kill&rdquo; or &ldquo;Triple kill&rdquo; clip), totem pops of players you're fighting, wins and advancements are on by default, and deaths are off. <b>Seconds After</b> sets how long it keeps recording after the moment, and in Evade Clips each one gets a named marker on the timeline. Bind <b>Open Clips App</b> to open the app from in game.</p>
+        <p>Evade Clips works only with Evade Client: it records the Minecraft window while Minecraft with Evade Client is open, and only accepts clips from Evade Client. Windows records the monitor Minecraft is on with Desktop Duplication (or the Minecraft window itself if that isn't available), Linux the window's area of the X11 screen, and macOS the main screen. In Evade Clips, <span class="kbd">F8</span> saves, <span class="kbd">F9</span> starts or stops a recording and <span class="kbd">F7</span> drops a marker; with voice commands on, say &ldquo;clip that&rdquo; (or &ldquo;clip it&rdquo;, &ldquo;save clip&rdquo;, &ldquo;save that&rdquo;), &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;.</p>
+        <p><b>Session recap</b> (the library's toolbar) makes one captioned video from the day's auto-clips, landscape or vertical. Replays you render from <a href="#replay">3D Replay</a> go to the Evade Clips library; <b>Queue render</b> on the Replays screen renders several one after another, each with a share link if you choose. Shared clips get 25 GB of free storage per PC; when it's full, new shares wait until you stop sharing older ones.</p>
+        <p><b>Server-safe recording:</b> Clips only records what's already on your screen. Servers can switch off the Clips mod like any Evade mod: auto-clips and the built-in recorder stop there (its buffer is dropped), and clips you've already saved stay on your PC.</p>
       </div>
 
       <div class="doc-sec rv" id="replay">
@@ -288,7 +296,7 @@
           <div><span class="kbd">Left Alt</span><span>Freelook (switched off on servers that forbid it)</span></div>
           <div><span class="kbd">V</span><span>Voice chat menu</span></div>
           <div><span class="kbd">F8</span><span>Save a clip (with Clips on)</span></div>
-          <div><span class="kbd">M</span><span>World Map</span></div>
+          <div><span class="kbd">J</span><span>World Map</span></div>
           <div><span class="kbd">.help</span><span>List every chat command</span></div>
         </div>
         <p>Every other mod starts unbound. Bind the ones you use most from their settings page or with <span class="mono">.bind</span>.</p>
@@ -359,7 +367,7 @@
         <h2>Waypoints &amp; World Map</h2>
         <p>Waypoints are on by default. <span class="mono">.waypoint add Base</span> saves where you stand; it shows as a beam with its name and distance. They're saved per server (or singleplayer world) and per dimension. When you die, a <b>Death</b> waypoint is added automatically; turn that off in the Waypoints settings.</p>
         <p>The <b>Waypoint Manager</b> (Waypoints settings, the World Map's <b>Waypoints</b> button, or <span class="mono">.wp gui</span>) lists this world's points nearest first, or by name or age, with search. Change a point's name, colour, icon, beam and how far away it still shows; hide it, make it your target, delete it (with Undo), or put its coordinates in the chat box to send yourself. Nothing teleports and nothing is sent for you.</p>
-        <p>The <b>World Map</b> (Visuals, on by default) opens with <span class="kbd">M</span> or <span class="mono">.map</span>: a full-screen map of the ground you've explored, saved per server and world and shared with the Minimap. Drag to move, scroll to zoom, click to add a waypoint, and right-click a waypoint to edit it, target it or delete it. It only shows surface terrain your game has actually loaded: nothing underground, no other players, and no coordinates where a server hides them from F3. <b>Memory Limit</b> caps how much map stays in memory; older areas are saved and reloaded when you look at them.</p>
+        <p>The <b>World Map</b> (Visuals, on by default) opens with <span class="kbd">J</span> or <span class="mono">.map</span>: a full-screen map of the ground you've explored, saved per server and world and shared with the Minimap. Drag to move, scroll to zoom, click to add a waypoint, and right-click a waypoint to edit it, target it or delete it. It only shows surface terrain your game has actually loaded: nothing underground, no other players, and no coordinates where a server hides them from F3. <b>Memory Limit</b> caps how much map stays in memory; older areas are saved and reloaded when you look at them.</p>
       </div>
 
       <div class="doc-sec rv" id="visuals">
@@ -442,16 +450,16 @@ public final class SessionTimer extends AddonTextHud {
       <p>A free Fabric client for Minecraft 1.21.11. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=54089c713d">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/changelog.xml">Changelog RSS</a></div>
+      <div><h5>Get Evade</h5><a href="/download">Download</a><a href="/download#install">Install guide</a><a href="/download#verify">Check a download</a><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a></div>
+      <div><h5>Shop</h5><a href="/shop">Cosmetics</a><a href="/shop-terms">Terms of sale</a><a href="/press">Press kit</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.7.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v2.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=d25eb91767" defer onerror="document.documentElement.classList.remove('js')"></script>
+<script src="/assets/site.js?v=cc14e05e6d" defer onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy · Evade Client</title>
-<meta name="description" content="What Evade Client, its installer, Evade Clips, clips.evadeclient.com and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
+<meta name="description" content="Exactly what Evade Client, the Evade Launcher, Evade Clips, clips.evadeclient.com and evadeclient.com send, to whom, when, how long it&#x27;s kept and how to turn each part off.">
 <meta name="theme-color" content="#050506">
 <link rel="canonical" href="https://evadeclient.com/privacy">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="Privacy policy · Evade Client">
-<meta property="og:description" content="What Evade Client, its installer, Evade Clips, clips.evadeclient.com and evadeclient.com collect, why, how long it&#x27;s kept and how to have it deleted.">
+<meta property="og:description" content="Exactly what Evade Client, the Evade Launcher, Evade Clips, clips.evadeclient.com and evadeclient.com send, to whom, when, how long it&#x27;s kept and how to turn each part off.">
 <meta property="og:url" content="https://evadeclient.com/privacy">
 <meta property="og:image" content="https://evadeclient.com/assets/og.png?v=e2de1638fe">
 <meta property="og:image:type" content="image/png">
@@ -23,10 +23,11 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="alternate" type="application/rss+xml" title="Evade Client changelog" href="/changelog.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7b5cf3bdaa">
+<link rel="stylesheet" href="/assets/site.css?v=06fa4fd134">
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body data-page="privacy">
@@ -48,7 +49,7 @@
       <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v2.7.1</span>
+      <a href="/changelog" class="nav-ver" title="What's new in v2.8.0">v2.8.0</a>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -64,6 +65,11 @@
     <a href="/showcase">Showcase</a>
     <a href="/faq">FAQ</a>
     <a href="/shop">Shop <span class="nav-soon">Soon</span></a>
+    <div class="mm-more">
+      <a href="https://clips.evadeclient.com">Evade Clips <span aria-hidden="true">&#8599;</span></a>
+      <a href="/discord">Discord</a>
+    </div>
+    <a href="/download" class="btn btn-red btn-lg mm-dl">Download Evade</a>
   </div>
 </nav>
 
@@ -71,19 +77,26 @@
 <header class="page-hero wrap">
   <div class="eyebrow rv">Privacy</div>
   <h1 class="rv d1">Privacy <span class="red">policy</span>.</h1>
-  <p class="rv d2">Short version: Evade collects as little as it can. No ads, no tracking, no selling data. Last updated 24 November 2026.</p>
+  <p class="rv d2">Short version: no ads, no analytics, no tracking, no selling data. Some features need to talk to evadeclient.com or to other services, and this page lists every one of them. Last updated 25 November 2026.</p>
 </header>
 
 <section class="wrap page-body">
   <div class="faq-layout">
     <aside class="faq-nav" aria-label="Privacy sections">
       <a href="#who">Who we are</a>
+      <a href="#overview">Everything at a glance</a>
       <a href="#client">The client</a>
+      <a href="#signin">Account check</a>
       <a href="#icons">Evade icons</a>
+      <a href="#cosmetics">Cosmetics</a>
       <a href="#friends">Friends and parties</a>
       <a href="#discover">Cloud backup</a>
-      <a href="#shop">Shop and cosmetics</a>
-      <a href="#installer">The installer</a>
+      <a href="#shop">The shop</a>
+      <a href="#servers">Servers you play on</a>
+      <a href="#discord">Discord Status</a>
+      <a href="#replay">Replays and voice</a>
+      <a href="#others">Other services</a>
+      <a href="#installer">The launcher</a>
       <a href="#clips">Evade Clips</a>
       <a href="#site">This website</a>
       <a href="#rights">Your choices</a>
@@ -92,33 +105,75 @@
     <div class="doc">
       <div class="doc-sec rv" id="who">
         <h2>Who we are</h2>
-        <p>Evade Client is made and run by the <b>Evade Team</b>. "We" on this page means the Evade Team. Evade is free, needs no sign-up and has no ads or analytics. It is not affiliated with Mojang Studios or Microsoft.</p>
+        <p>Evade Client is an independent project made and run by the <b>Evade Team</b>. "We" on this page means the Evade Team. Evade is free and needs no Evade account or sign-up. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.</p>
+        <p>For anything about your data, email <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a>. That address is read by the Evade Team; you don't need Discord to reach us.</p>
+      </div>
+
+      <div class="doc-sec rv" id="overview">
+        <h2>Everything at a glance</h2>
+        <p>Every connection Evade's software makes, besides downloading Minecraft and mods. "Us" is evadeclient.com, which runs on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>. Every connection also shows your IP address to whoever receives it.</p>
+        <div class="settable-wrap">
+          <table class="settable">
+            <thead><tr><th scope="col">What</th><th scope="col">Sends</th><th scope="col">To</th><th scope="col">Default and how to stop it</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Account check</th><td>Your player ID and a one-time signature made with your game's chat-signing key</td><td>Us</td><td>Only when one of the features below needs it (see <a href="#signin">Account check</a>)</td></tr>
+              <tr><th scope="row">Evade icons</th><td>"I'm using Evade" every few minutes; the player IDs in your tab list</td><td>Us</td><td class="def">On. Switch off <b>Show That I Use Evade</b> or <b>Show Icons</b></td></tr>
+              <tr><th scope="row">Cosmetics</th><td>Your cosmetics on joining a world, opening the Wardrobe and changing something there; the player IDs of players near you</td><td>Us</td><td class="def">On. Switch off <b>Show Others' Cosmetics</b> or the <b>Cosmetics</b> mod (then nothing is sent)</td></tr>
+              <tr><th scope="row">Friends and parties</th><td>Your friends, party, server and activity</td><td>Us</td><td>Off until you turn on Friends</td></tr>
+              <tr><th scope="row">Cloud backup</th><td>Your setup, encrypted on your PC</td><td>Us</td><td>Off until you press Back up</td></tr>
+              <tr><th scope="row">Server hello</th><td>"Evade, version, features"</td><td>The server you join, only if it asks</td><td>Only servers that register <span class="mono">evade:hello</span></td></tr>
+              <tr><th scope="row">Discord Status</th><td>What you're playing (server address hidden)</td><td>The Discord app on your PC, which shows it on your profile</td><td class="def">On. Switch off <b>Discord Status</b></td></tr>
+              <tr><th scope="row">Mod Browser</th><td>Searches, and fingerprints (SHA-1) of the mod files you have</td><td>Modrinth</td><td>Only when you open it</td></tr>
+              <tr><th scope="row">Friends' names</th><td>Player names and IDs</td><td>Mojang</td><td>Only with Friends on</td></tr>
+              <tr><th scope="row">Hypixel stats</th><td>Your API key and the player IDs to show stats for</td><td>Hypixel</td><td>Off until you enter your own key</td></tr>
+              <tr><th scope="row">Launcher avatar</th><td>Your player ID</td><td>mc-heads.net, or crafatar.com if that fails</td><td>When the launcher shows your skin (at most once a day)</td></tr>
+              <tr><th scope="row">Shared clips</th><td>The clips you share</td><td>clips.evadeclient.com</td><td>Off until you share one</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="doc-sec rv" id="client">
         <h2>The client</h2>
-        <p>Evade runs on your computer. Your settings, profiles, waypoints and keybinds are saved in your <span class="mono">.minecraft</span> folder and never uploaded. Clips the <b>Clips</b> mod records are saved on your computer too.</p>
-        <p>The client only sends us what Evade icons and, once you use them, Friends and parties and cloud backup need (besides the IP address every connection carries), all below. Switch off <b>Evade Icons</b> and don't use the others, and the client sends nothing to us at all.</p>
-        <p>Some features talk to other services directly from your computer, under those services' own privacy policies: the Mod Browser asks <a href="https://modrinth.com" target="_blank" rel="noopener">Modrinth</a> for mods and updates, friends' names are looked up with Mojang, and Hypixel stats are fetched from Hypixel only if you enter your own Hypixel API key (it is kept in your config and sent only to Hypixel).</p>
+        <p>Evade runs on your computer. Your settings, profiles, waypoints, maps, keybinds, replays and clips are saved in your <span class="mono">.minecraft</span> folder and are not uploaded unless you use Cloud backup or share a clip.</p>
+        <p>Evade sends us something only for the features in the table above. Each of them is explained below, with how to turn it off. We don't use any of it for ads, analytics or anything else, and we never sell or share it.</p>
+      </div>
+
+      <div class="doc-sec rv" id="signin">
+        <h2>How Evade checks your account</h2>
+        <p>Evade icons, cosmetics, Friends and Cloud backup need to know which Minecraft account you're playing on, so nobody can pretend to be you. Evade checks it without your password or login token:</p>
+        <ul>
+          <li>Every Microsoft account gets a <b>chat-signing key</b> from Mojang; the game uses it to sign chat on servers. Its private half stays on your computer.</li>
+          <li>Evade asks us for a one-time code, signs it with that key on your computer, and sends us your <b>player UUID</b>, the key's public half, Mojang's signature of it, the key's expiry date and the signed code.</li>
+          <li>We check Mojang's signature with Mojang's published keys (we don't contact Mojang for this) and give your game a token that works for 24 hours. We don't store the token, the key or the signature, and we don't receive your username or e-mail address.</li>
+          <li>Offline ("cracked") accounts have no such key, so these features don't work for them and nothing is sent.</li>
+        </ul>
+        <p>The check runs (about once a day, when the last token runs out) whenever one of these needs it: <b>Show That I Use Evade</b> while you're in a world, Friends once you turn it on, Cloud backup when you use it, and the <b>Cosmetics</b> mod while it is on. Cloudflare counts sign-in attempts per IP address for a minute to stop abuse.</p>
       </div>
 
       <div class="doc-sec rv" id="icons">
         <h2>Evade icons in the tab list</h2>
-        <p>To show the Evade logo next to people using Evade, without anyone being able to fake it, the client proves which Minecraft account you're playing on:</p>
+        <p>Evade players see an Evade logo next to other Evade players in the tab list. Settings are under <b>Evade Icons</b>.</p>
         <ul>
-          <li>Your game asks <b>Mojang's session server</b> to "join" a one-time code from us, the same check every online-mode server uses. Your password and Minecraft login token go only to Mojang and never reach us.</li>
-          <li>We ask Mojang which account joined that code. Mojang tells us your <b>username and player UUID</b>.</li>
-          <li>While you play, the client tells us every few minutes that your UUID is using Evade. We store your <b>UUID and the time we last heard from it</b>. We don't store your username.</li>
-          <li>To draw icons, the client sends us the UUIDs of players in your tab list and we say which of them use Evade. We don't store those lookups.</li>
-          <li>Like any connection, these requests reveal your IP address. They go through <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>, which processes it to deliver them and block attacks, as it does for this website. Our API doesn't log or store IP addresses.</li>
+          <li><b>Your icon</b> (<b>Show That I Use Evade</b>, on by default): while you're in a world, the client tells us every few minutes that your UUID is using Evade. We store your <b>UUID and the time we last heard from it</b>, nothing else.</li>
+          <li><b>Other players' icons</b> (<b>Show Icons</b>, on by default): every 30 seconds the client sends us the UUIDs in your tab list that it hasn't asked about in the last 5 minutes (up to 200 at a time), and we answer which of them use Evade. We don't store those lookups. Anyone can ask us whether a UUID is showing an icon, the same way.</li>
         </ul>
-        <p><b>How long:</b> your UUID shows an icon for 15 minutes after the last check-in, and its record is deleted automatically after 7 days without use. Switch off <b>Show That I Use Evade</b> while you're playing and your record is deleted straight away.</p>
-        <p><b>Why:</b> to provide the icon feature you can turn off at any time. We never sell or share this data, and we don't use it for anything else.</p>
+        <p><b>How long:</b> your icon shows for 15 minutes after the last check-in, and your record is deleted after 7 days without one. Switch off <b>Show That I Use Evade</b> while you're playing and it is deleted straight away.</p>
       </div>
 
+      <div class="doc-sec rv" id="cosmetics">
+        <h2>Cosmetics in the game</h2>
+        <p>The <b>Cosmetics</b> mod (on by default) shows Evade cosmetics on you and on other Evade players near you. Cosmetics are visual only and give no advantage.</p>
+        <ul>
+          <li><b>Your cosmetics:</b> while the mod is on, the client asks us, with the token from your <a href="#signin">account check</a>, which cosmetics you own and wear: when you join a world or server, when you open the Wardrobe, and after you redeem a code or change what you wear. There is no regular check in between. When you change something in the Wardrobe, it tells us. Capes are free for every Evade player, so wearing one needs no purchase; players who wear nothing have nothing stored.</li>
+          <li><b>Players near you</b> (<b>Show Others' Cosmetics</b>, on by default): to draw other players' cosmetics, the client sends us the UUIDs of players within your cosmetics <b>Render Distance</b> (32 blocks by default) who are in the tab list, up to 64 at a time and at most once a second. It asks again about each player about once a minute while they stay near and wear something, and about once every 5 minutes for players who wear nothing. We answer with what they wear and don't store the lookup. Players who don't use Evade just get an empty answer.</li>
+          <li><b>The catalog:</b> when you join a world or server with the mod on, the client downloads the list of cosmetics, and the files of items it needs, from evadeclient.com. That sends nothing about you.</li>
+        </ul>
+        <p>What you wear is public: any Evade player near you, or anyone who asks our API about your UUID, can see it. Switch off <b>Show Others' Cosmetics</b> to stop sending other players' UUIDs. With the <b>Cosmetics</b> mod off, the client sends nothing about cosmetics at all; turning it back on in a world asks once for the catalog and your cosmetics. What we store about cosmetics you own is under <a href="#shop">The shop</a>.</p>
+      </div>
       <div class="doc-sec rv" id="friends">
         <h2>Friends and parties</h2>
-        <p>Friends, parties and party pings are off until you click <b>Turn on Friends</b> in the menu (or use a <span class="mono">.friend</span>, <span class="mono">.party</span> or <span class="mono">.ping</span> command). The client proves your account the same way as for Evade icons, then stays connected to us while you play. What we store, on our server at Cloudflare:</p>
+        <p>Friends, parties and party pings are off until you click <b>Turn on Friends</b> in the menu (or use a <span class="mono">.friend</span>, <span class="mono">.party</span> or <span class="mono">.ping</span> command). The client proves your account (see <a href="#signin">How Evade checks your account</a>), then stays connected to us while you play. What we store, on our server at Cloudflare:</p>
         <ul>
           <li><b>Your profile:</b> your player UUID, the username your game reports (shown to other players, never used to identify you), your two privacy settings (whether anyone can send you friend requests, and whether friends see your server) and when we last heard from you.</li>
           <li><b>Your friends list, friend requests, blocked players and party:</b> as player UUIDs, with the time each was made. Party invites lapse after 10 minutes, and a party with nobody online for 12 hours ends.</li>
@@ -133,38 +188,73 @@
         <p><b>Join and "Bring party here":</b> a <b>Join</b> button appears for a friend only when they share their server, and a party leader can send the party the address of the server they're on. Nothing joins for you: you click Join, check the address, and confirm. The address a leader sends is passed on like a message and not stored.</p>
         <p><b>Friend colours</b> (your friends' names in their own colour in chat and the tab list) and <b>Highlighted Players</b> work only on your computer; that list is never sent to us.</p>
         <p><b>How long:</b> everything above is deleted automatically once your account hasn't used Friends for <b>90 days</b>. <b>Delete my social data</b> (Friends &rarr; Settings) deletes it all straight away; your friends simply see you removed. Switching Friends off disconnects you.</p>
-        <p><b>Why:</b> to provide friends, parties, pings and messages, which you choose to use. We never sell or share this data, and we don't use it for anything else.</p>
+        <p><b>Why:</b> to provide friends, parties, pings and messages, which you choose to use.</p>
       </div>
-
       <div class="doc-sec rv" id="discover">
         <h2>Cloud backup</h2>
-        <p><b>Cloud backup</b> is off until you press <b>Back up</b>. Your setup (settings, HUD layout, profiles and waypoints) is zipped and encrypted on your computer with a key made from a passphrase only you know, then stored with us under the player UUID your account proves the same way as for Evade icons. We can't read it, and without your passphrase nobody can restore it. There is one backup per account, of at most 256 KB. It is deleted after 90 days without a backup or restore, straight away when you delete it, and with <b>Delete my social data</b>.</p>
+        <p><b>Cloud backup</b> is off until you press <b>Back up</b>. Your setup (every mod's settings, including a Hypixel API key if you entered one, the HUD layout, your profiles, the profile you picked for each server, and waypoints) is zipped and encrypted on your computer with a key made from a passphrase only you know, then stored with us under the player UUID your <a href="#signin">account check</a> proves. We can't read it, and without your passphrase nobody can restore it. There is one backup per account, of at most 256 KB. It is deleted after 90 days without a backup or restore, straight away when you delete it, and with <b>Delete my social data</b>.</p>
       </div>
-
       <div class="doc-sec rv" id="shop">
-        <h2>Shop and cosmetics</h2>
-        <p>The shop isn't open yet. Cosmetics are optional and give no advantage in game. When you use them, we store, under the player UUID your account proves the same way as for Evade icons:</p>
+        <h2>The shop and cosmetics you own</h2>
+        <p>The shop isn't open yet. Cosmetics are optional and give no advantage in game. When you get cosmetics, we store, under the player UUID your account check proves:</p>
         <ul>
           <li><b>What you own:</b> the ids of the cosmetics on your account, how you got each one (a purchase, a code, or a partner server) and when.</li>
-          <li><b>What you're wearing:</b> the cosmetic in each slot and its colour, if you picked one. This is public: any Evade player near you, or anyone who asks our API about your UUID, can see which cosmetics you're wearing.</li>
-          <li><b>Purchases:</b> the payment provider's order id, the player UUID it was for (and the buyer's UUID, for a gift), the items, the amount and currency, its status (paid, refunded or charged back) and when. Payments are handled by the payment provider under its own privacy policy; we never see your card details. If the provider sends us your name or email address, we don't store them.</li>
-          <li><b>Link codes:</b> the 6-character code that links the shop website to your account, for 10 minutes.</li>
+          <li><b>What you're wearing:</b> the cosmetic in each slot and its colour, if you picked one, free capes included. This is public (see <a href="#cosmetics">Cosmetics</a>).</li>
+          <li><b>Purchases</b> (once the shop opens): the payment provider's order id, the player UUID it was for (and the buyer's UUID, for a gift), the items, the amount and currency, its status (paid, refunded or charged back) and when. Payments are handled by the payment provider under its own privacy policy; we never see your card details. If the provider sends us your name or email address, we don't store them.</li>
+          <li><b>Link codes:</b> the 6-character code from <b>Wardrobe &rarr; Link the shop</b> that links the shop website to your account, for 10 minutes.</li>
           <li><b>Redeem codes:</b> which account used a code, and when.</li>
+          <li><b>IP addresses on the shop website:</b> to stop people guessing link codes and to limit lookups, we count how often each caller tries a link code, a checkout or a cosmetics lookup. We never store the IP address itself: the count is kept under a salted one-way hash of it, for up to a day. The shop page keeps your cart in your own browser's storage.</li>
         </ul>
         <p><b>How long:</b> what you own and your purchase records stay as long as your cosmetics do (we need purchase records for refunds and our accounts); <b>Delete my social data</b> doesn't remove them. A refund or chargeback removes the items it paid for. Email us to have your cosmetics and records deleted, except what the law requires us to keep.</p>
-        <p><b>Why:</b> to deliver the cosmetics you get and show them to other players. We never sell or share this data, and we don't use it for anything else.</p>
+        <p><b>Why:</b> to deliver the cosmetics you get and show them to other players.</p>
+      </div>
+
+      <div class="doc-sec rv" id="servers">
+        <h2>Servers you play on</h2>
+        <p>Like any Minecraft client, Evade talks to the servers you join. On top of that:</p>
+        <ul>
+          <li><b>Evade hello:</b> if a server registers the <span class="mono">evade:hello</span> channel (servers that support the <a href="/servers">Evade Server API</a>), Evade sends it one short message when you join: that you use Evade, its version and which Server API features it understands. Servers that don't register the channel get nothing. Your Fabric mods also tell servers which plugin channels they understand, as all Fabric clients do.</li>
+          <li><b>Server prompts:</b> if such a server asks you to type something or to move to another server, your answer (what you typed, or yes or no) goes back to that server on <span class="mono">evade:reply</span>. You can always cancel.</li>
+          <li><b>Server rules:</b> a server can switch Evade mods off for its players. Evade only receives these rules; it doesn't report your settings back.</li>
+        </ul>
+      </div>
+
+      <div class="doc-sec rv" id="discord">
+        <h2>Discord Status</h2>
+        <p><b>Discord Status</b> (on by default) shows what you're playing on your Discord profile. It talks only to the Discord app on your own computer, never to us, and only if Discord is running. It sends: "Playing multiplayer", "Singleplayer" or "In menus" (or the server's address or list name, only if you switch off <b>Hide Server Address</b>), the Minecraft version, the elapsed time, the Evade logo and, unless you switch off <b>Show Discord Button</b>, a "Join the Discord" button. Discord then shows this to people who can see your Discord profile and loads the logo from its own servers, under <a href="https://discord.com/privacy" target="_blank" rel="noopener">Discord's privacy policy</a>. Switch off <b>Discord Status</b> to stop it.</p>
+      </div>
+
+      <div class="doc-sec rv" id="replay">
+        <h2>Replays and voice</h2>
+        <ul>
+          <li><b>3D Replay</b> (on by default): to let you start a replay mid-match, Evade keeps what the server sends you (the world, other players' names, skins and movement, chat and sounds) in a temporary file on your computer while you play, and deletes it when you leave unless you saved a replay. Saved replays stay in <span class="mono">.minecraft/evade/replays</span> and are never uploaded. They can contain other players' names and chat, so think before you share a replay file or a video of it.</li>
+          <li><b>Voice chat</b> comes from <a href="https://modrinth.com/plugin/simple-voice-chat" target="_blank" rel="noopener">Simple Voice Chat</a>, a separate mod the launcher installs. When you talk, your voice goes to the voice chat of the server you're on, never to us. With <b>Record Voice Chat</b> on (the default), voices you hear, and yours unless you switch off <b>Record My Voice</b>, go into saved replays on your computer.</li>
+        </ul>
+      </div>
+
+      <div class="doc-sec rv" id="others">
+        <h2>Other services</h2>
+        <p>Some features talk to other services straight from your computer, under those services' own privacy policies. They see your IP address, as any connection does.</p>
+        <ul>
+          <li><b><a href="https://modrinth.com/legal/privacy" target="_blank" rel="noopener">Modrinth</a></b>, when you use the Mod Browser (and the launcher's Mods and content pages): your searches, the mods you install or update, and, to recognise the mods you already have and find updates for them, a fingerprint (SHA-1 hash) of each mod file in your mods folder. The fingerprint identifies the file, not you.</li>
+          <li><b>Mojang</b>, only with Friends on: to look up the account behind a name you add, and the current names of your friends and of players who send you requests or invites, so names can't be faked.</li>
+          <li><b>Hypixel</b>, only if you enter your own Hypixel API key: the key and the player UUIDs whose stats are shown. The key is kept in your Evade config and sent only to Hypixel (and, if you use Cloud backup, it is inside your encrypted backup).</li>
+          <li><b>Mojang and Microsoft's own services</b> are used by Minecraft itself as usual (signing in, skins, chat signing); Evade doesn't change that.</li>
+        </ul>
       </div>
 
       <div class="doc-sec rv" id="installer">
-        <h2>The installer</h2>
-        <p>The installer downloads Evade and Evade Clips from this website, Fabric from <a href="https://fabricmc.net" target="_blank" rel="noopener">fabricmc.net</a>, Fabric API, Simple Voice Chat, the performance mods and the optional shaders from <a href="https://modrinth.com" target="_blank" rel="noopener">Modrinth</a>, and on Windows ffmpeg (which Evade Clips records with) from <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener">gyan.dev</a>. Those services see your IP address when you download, as any download does, under their own privacy policies. The installer sends no personal data and has no tracking.</p>
+        <h2>The Evade Launcher and installer</h2>
+        <p>The launcher downloads Evade, Evade Clips, the news on its Home page and update checks from this website; Fabric from <a href="https://fabricmc.net" target="_blank" rel="noopener">fabricmc.net</a>; Fabric API, Simple Voice Chat, the performance mods, the optional shaders and the content you pick from <a href="https://modrinth.com" target="_blank" rel="noopener">Modrinth</a>; and on Windows ffmpeg (which Evade Clips records with) from <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener">gyan.dev</a>. To show icons for the mods in a profile, it sends Modrinth the fingerprints (SHA-1 hashes) of those mod files. A modpack you import from a link is downloaded from that address.</p>
+        <p><b>Your skin in the launcher:</b> the launcher reads your Minecraft name and player UUID from the official Minecraft Launcher's files on your computer (never your login tokens or e-mail address). To draw your face and skin, it fetches them by your <b>player UUID</b> from <a href="https://mc-heads.net" target="_blank" rel="noopener">mc-heads.net</a>, or from <a href="https://crafatar.com" target="_blank" rel="noopener">crafatar.com</a> if that fails, at most once a day; those services see your UUID and IP address.</p>
+        <p>All these services see your IP address, as any download does, under their own privacy policies. The launcher sends nothing else about you and has no tracking.</p>
       </div>
 
       <div class="doc-sec rv" id="clips">
         <h2>Evade Clips</h2>
-        <p>Evade Clips records Minecraft with Evade Client and edits on your computer. Nothing is uploaded unless you share a clip or turn on <b>Send to phone</b> (Settings &rarr; Sharing &amp; phone), which shares new clips for you. Shared clips are stored at <span class="mono">clips.evadeclient.com</span>, which runs on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>. (If you set Evade Clips to use another share server, whoever runs that server looks after what you share there.)</p>
+        <p>Evade Clips records Minecraft with Evade Client and edits on your computer. Nothing is uploaded unless you share a clip or turn on <b>Send to phone</b> (Settings &rarr; Sharing &amp; phone), which shares new clips for you. Shared clips are stored at <span class="mono">clips.evadeclient.com</span>, which runs on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>. (If you set Evade Clips to use another share server, whoever runs that server looks after what you share there. Evade Clips asks you to confirm before switching, and only connects to servers that use https://.)</p>
         <ul>
-          <li><b>What sharing stores:</b> the video and its thumbnail, plus its title, the game, its length, size and resolution, when you shared it, and whether it's a link clip or private. All of it stays until you stop sharing the clip, and is then deleted. An upload that never finishes is deleted after a day. Deleting a clip in Evade Clips removes its link too, unless you untick that option when you delete it.</li>
+          <li><b>What sharing stores:</b> the video and its thumbnail, plus its title, the game, its length, size and resolution, when you shared it, and whether it's a link clip or private. All of it stays until you stop sharing the clip, and is then deleted. An upload that never finishes is deleted after a day. Deleting a clip in Evade Clips removes its link too, unless you untick that option when you delete it. Each PC's account can store 25 GB of shared video for free (thumbnails don't count); when it's full, new shares are refused until you stop sharing older clips. Nothing is deleted to make room.</li>
           <li><b>Your anonymous account:</b> the first time you share, Evade Clips creates an account made of random codes, with no name or email. The server keeps those codes (the key only as a one-way hash), when the account was made and how much storage it uses.</li>
           <li><b>Link or private:</b> a link clip can be watched by anyone who has its link, and plays as a preview when you post it in Discord or other chats. A private clip only opens with its own private link: anyone you give that link to can watch it, but it shows no preview and search engines are asked not to list it. Switching a clip from link to private gives it a new private link.</li>
           <li><b>Your phone gallery:</b> every clip you share also shows up in a gallery on your phone, opened with the QR code in the app. Anyone with your gallery link can see all your shared clips, private ones included, and upload to it, so keep it to yourself. <b>Reset phone link</b> in Settings &rarr; Sharing &amp; phone replaces it with a new one. Clips you upload from your phone are stored like clips you share.</li>
@@ -178,18 +268,18 @@
           <li><b>Post to Discord</b> sends the clip's title, game and link from your PC to the Discord channel you set up. The webhook address stays on your PC.</li>
         </ul>
       </div>
-
       <div class="doc-sec rv" id="site">
         <h2>This website</h2>
-        <p>evadeclient.com and clips.evadeclient.com have no cookies, analytics or ad trackers. They're hosted on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>, which processes visitors' IP addresses to deliver pages and block attacks. Fonts load from Google Fonts, which sees your IP address when your browser fetches them. A shared clip's page remembers whether you turned autoplay off in your own browser's storage; that never leaves your device.</p>
+        <p>evadeclient.com and clips.evadeclient.com have no cookies, analytics or ad trackers. They're hosted on <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>, which processes visitors' IP addresses to deliver pages and block attacks. Fonts load from Google Fonts, which sees your IP address when your browser fetches them. The shop's 3D preview loads its viewer from cdn.jsdelivr.net, which also sees your IP address. A shared clip's page remembers whether you turned autoplay off, and the shop page remembers your cart, in your own browser's storage; that never leaves your device.</p>
       </div>
-
       <div class="doc-sec rv" id="rights">
         <h2>Your choices</h2>
         <ul>
-          <li>Switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, or <b>Evade Icons</b> to stop all contact with us for icons.</li>
-          <li><b>Delete my social data</b> in the menu's Friends &rarr; Settings deletes your friends, requests, blocks and party from our server at once. Switch off <b>Share my server with friends</b> to keep your server to yourself, or <b>Allow friend requests</b> to stop new requests.</li>
-          <li>Stop sharing any clip in Evade Clips at any time, or delete it together with its link. Shared clips that are no longer in your library can be deleted from the list of clips on the server in Settings &rarr; Sharing &amp; phone.</li>
+          <li><b>Evade icons:</b> switch off <b>Show That I Use Evade</b> while playing to delete your icon record now, and <b>Show Icons</b> to stop sending us the players in your tab list.</li>
+          <li><b>Cosmetics:</b> switch off <b>Show Others' Cosmetics</b> to stop sending us the players near you, or the <b>Cosmetics</b> mod to stop every cosmetics request, your own included.</li>
+          <li><b>Discord Status:</b> switch it off to stop telling the Discord app what you play; <b>Hide Server Address</b> is on by default.</li>
+          <li><b>Friends:</b> <b>Delete my social data</b> in the menu's Friends &rarr; Settings deletes your friends, requests, blocks, party and cloud backup from our server at once. Switch off <b>Share my server with friends</b> to keep your server to yourself, <b>Share what I'm doing</b> to keep your activity to yourself, or <b>Allow friend requests</b> to stop new requests.</li>
+          <li><b>Evade Clips:</b> stop sharing any clip at any time, or delete it together with its link. Shared clips that are no longer in your library can be deleted from the list of clips on the server in Settings &rarr; Sharing &amp; phone.</li>
           <li><b>Delete my shared data</b> in Evade Clips (Settings &rarr; Sharing &amp; phone) deletes everything sharing has stored for you, all at once: every clip, preset and notice, the reports about your clips, and the anonymous account itself. If you can't use the app any more, email us your phone gallery link (it shows the clips are yours) and we'll delete it all for you.</li>
           <li>You can ask us what we hold about your UUID or your shared clips, or ask us to delete it, at the address below. Depending on where you live (for example under the GDPR or CCPA), you may have further rights, including complaining to your data protection authority.</li>
           <li>Evade is not directed at children under 13, and we don't knowingly collect data that identifies a child beyond the game's own player ID.</li>
@@ -199,7 +289,7 @@
 
       <div class="doc-sec rv" id="contact">
         <h2>Contact</h2>
-        <p>Email the Evade Team at <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a>.</p>
+        <p>Email the Evade Team at <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a>. For general help there is also the <a href="/discord">Evade Client Discord</a>, but you never need Discord for a privacy request.</p>
       </div>
     </div>
   </div>
@@ -214,16 +304,16 @@
       <p>A free Fabric client for Minecraft 1.21.11. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe?v=54089c713d">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/changelog.xml">Changelog RSS</a></div>
+      <div><h5>Get Evade</h5><a href="/download">Download</a><a href="/download#install">Install guide</a><a href="/download#verify">Check a download</a><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a></div>
+      <div><h5>Shop</h5><a href="/shop">Cosmetics</a><a href="/shop-terms">Terms of sale</a><a href="/press">Press kit</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v2.7.1 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v2.8.0 &middot; Minecraft 1.21.11 &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
-<script src="/assets/site.js?v=d25eb91767" defer onerror="document.documentElement.classList.remove('js')"></script>
+<script src="/assets/site.js?v=cc14e05e6d" defer onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>
