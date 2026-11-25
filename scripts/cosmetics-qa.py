@@ -13,7 +13,7 @@ the rebuilt pets):
   fill      how much of the frame the item fills (bounding box of the item alone, per slot)
   dim       mean brightness of the item on the card (emotes: the figure) and its contrast with the card
   busy      colour-band noise: the share of neighbouring pixels inside the item that jump in colour
-  colours   distinct colours in the item (4 bits a channel): a noisy palette
+  palette   distinct colours in a regular item's texture: a noisy palette (crisp pixel art keeps a few bands)
   outline   whether the silhouette edge stands out from its inside or from the card
   solidity  item area / convex-hull area, and fragments: stringy or scattered silhouettes
   texels    texture density (texels per model unit) and texels per thumbnail pixel (shimmer when too many)
@@ -53,12 +53,13 @@ EYE = {
 # wings shaped like an insect's (lobes on a thorax, no arm bone): the arch and strip checks don't apply
 INSECT_WINGS = ("azure_butterfly_wings", "dusk_moth_wings")
 
-# per-slot thresholds: (min fill, max busy, max colours)
+# per-slot thresholds: (min fill, max busy, max distinct colours in a regular item's texture). The texture palette, not
+# the lit render: the crisp pixel art keeps a few flat bands per face (the references use 60-160), a noisy painter many.
 SLOT_LIMITS = {
-    "CAPE": (0.30, 0.30, 360), "WINGS": (0.62, 0.22, 360), "HAT": (0.42, 0.20, 400), "MASK": (0.42, 0.20, 400),
-    "BACK": (0.30, 0.24, 360), "AURA": (0.62, 0.30, 260), "PET": (0.55, 0.24, 360), "ITEM_SKIN": (0.55, 0.20, 360),
-    "EMOTE": (0.45, 1.0, 999), "TRAIL": (0.45, 1.0, 999), "KILL_EFFECT": (0.45, 1.0, 999),
-    "WIN_EFFECT": (0.45, 1.0, 999),
+    "CAPE": (0.30, 0.30, 240), "WINGS": (0.62, 0.30, 120), "HAT": (0.42, 0.20, 170), "MASK": (0.42, 0.20, 170),
+    "BACK": (0.30, 0.24, 170), "AURA": (0.62, 0.30, 400), "PET": (0.55, 0.24, 9999), "ITEM_SKIN": (0.55, 0.20, 140),
+    "EMOTE": (0.45, 1.0, 9999), "TRAIL": (0.45, 1.0, 9999), "KILL_EFFECT": (0.45, 1.0, 9999),
+    "WIN_EFFECT": (0.45, 1.0, 9999),
 }
 
 
@@ -399,8 +400,8 @@ def score(it, files_dir, m, wing, clear, texinfo):
         fails.append(f"noisy: {m['busy']:.0%} of neighbouring pixels jump in colour (max {busy_max:.0%})")
     elif m["busy"] > busy_max:
         weak.append(f"busy: {m['busy']:.0%} of neighbouring pixels jump in colour (max {busy_max:.0%})")
-    if m["colours"] > col_max and it["rarity"] == "REGULAR":
-        weak.append(f"{m['colours']} distinct colours (max {col_max})")
+    if texinfo.get("tex_colours", 0) > col_max and it["rarity"] == "REGULAR":
+        weak.append(f"noisy palette: {texinfo['tex_colours']} distinct colours in the texture (max {col_max})")
     if m["outline"] < 0.035 and slot not in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT"):
         weak.append(f"silhouette edge barely stands out ({m['outline']:.3f})")
     if slot in ("HAT", "MASK", "BACK", "ITEM_SKIN", "PET") and m["frags"] > 6:
@@ -432,7 +433,8 @@ def score(it, files_dir, m, wing, clear, texinfo):
 
 
 def similarity_pairs(feats, limit=0.88):
-    """Pairs in one slot alike in both colour layout (32 x 32) and edge structure (64 x 64 gradient correlation)."""
+    """Pairs in one slot alike in colour (histogram of the item's own pixels), colour layout (32 x 32) and edge structure
+    (64 x 64 gradient correlation): the lowest of the three."""
     out = []
     keys = list(feats)
     for i, a in enumerate(keys):
@@ -443,7 +445,8 @@ def similarity_pairs(feats, limit=0.88):
             col = 1 - np.abs(fa[1] - fb[1]).mean() * 2.5
             ea, eb = fa[2] - fa[2].mean(), fb[2] - fb[2].mean()
             edge = float((ea * eb).sum() / (np.sqrt((ea * ea).sum() * (eb * eb).sum()) + 1e-9))
-            sim = min(col, edge)
+            hist = float(np.minimum(fa[3], fb[3]).sum())
+            sim = min(col, edge, hist)
             if sim > limit:
                 out.append((a, b, sim))
     return out
@@ -454,7 +457,11 @@ def feature(im):
     b = np.asarray(im.convert("RGBA").resize((64, 64), Image.BOX), np.float32) / 255
     L = lum(b[..., :3] * b[..., 3:4])
     g = np.hypot(np.diff(L, axis=1)[:-1], np.diff(L, axis=0)[:, :-1])
-    return np.concatenate([a[..., :3] * a[..., 3:4], a[..., 3:4]], -1), g
+    full = np.asarray(im.convert("RGBA"), np.float32) / 255
+    px = full[full[..., 3] > 0.5][:, :3]
+    q = np.clip((px * 6).astype(int), 0, 5)
+    h = np.bincount(q[:, 0] * 36 + q[:, 1] * 6 + q[:, 2], minlength=216).astype(np.float32)
+    return np.concatenate([a[..., :3] * a[..., 3:4], a[..., 3:4]], -1), g, h / max(1.0, h.sum())
 
 
 # ---------------------------------------------------------------------------------------------- sheets
@@ -505,7 +512,7 @@ def main():
         alone = None
         poses = []
         if thumb is not None:
-            if it["slot"] in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT"):
+            if it["slot"] in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT", "EMOTE"):     # the picture is the item
                 alone = thumb
             else:
                 alone = render_alone(bc, it, d) or thumb
@@ -513,6 +520,10 @@ def main():
             if (d / "model.json").exists():
                 model = json.loads((d / "model.json").read_text())
                 texinfo["scale"] = model["textureScale"]
+                t0 = load_tex(d / "texture.png", *model["texture"], model["textureScale"])
+                if t0 is not None:
+                    px = np.round(t0[t0[..., 3] > 0][:, :3] * 255).astype(int)
+                    texinfo["tex_colours"] = int(len(np.unique(px[:, 0] * 65536 + px[:, 1] * 256 + px[:, 2])))
                 # texels per thumbnail pixel: model units across the frame / pixels, times the density
                 fr = it["view"].get("frame")
                 span = (max(fr[1][0] - fr[0][0], fr[1][1] - fr[0][1]) * it["view"].get("margin", 1.1)) if fr else None
@@ -598,7 +609,7 @@ def main():
             continue
         counts = {v: sum(1 for r in rs if r["verdict"] == v) for v in ("PASS", "WEAK", "FAIL")}
         lines += [f"## {sec} ({len(rs)} items: {counts['PASS']} pass, {counts['WEAK']} weak, {counts['FAIL']} fail)", "",
-                  "| item | slot | verdict | reasons | fill | busy | lum | colours | solidity | extra |",
+                  "| item | slot | verdict | reasons | fill | busy | lum | tex colours | solidity | extra |",
                   "|---|---|---|---|---|---|---|---|---|---|"]
         for r in sorted(rs, key=lambda r: (["FAIL", "WEAK", "PASS"].index(r["verdict"]), r["slot"], r["id"])):
             m = r["m"]
@@ -612,7 +623,7 @@ def main():
                 extra += f" {r['tex']['scale']} tx/u"
             f = lambda k, fmt: format(m[k], fmt) if k in m else "-"
             lines.append(f"| {r['id']} | {r['slot']} | **{r['verdict']}** | {'; '.join(reasons) or 'ok'} | {f('fill', '.0%')} | "
-                         f"{f('busy', '.0%')} | {f('lum', '.2f')} | {f('colours', 'd')} | {f('solidity', '.2f')} | {extra} |")
+                         f"{f('busy', '.0%')} | {f('lum', '.2f')} | {r['tex'].get('tex_colours', '-')} | {f('solidity', '.2f')} | {extra} |")
         lines.append("")
     if sims:
         lines += ["## Look-alikes (same slot)", ""] + [f"- {a} ~ {b}: {s:.0%}" for a, b, s in sims] + [""]

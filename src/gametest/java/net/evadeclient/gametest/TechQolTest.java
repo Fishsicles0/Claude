@@ -375,10 +375,11 @@ public final class TechQolTest {
         check((boolean) clicks[2] && (int) clicks[4] >= 1, "Placement Lock: a placement above the layer is held back");
         check((boolean) clicks[3], "Placement Lock: a placement on the same layer goes through");
         ctx.waitTicks(10);
-        boolean[] world = ctx.computeOnClient(c -> new boolean[]{
-                c.getServer().getOverworld().getBlockState(new BlockPos(1202, -60, 1201)).isOf(Blocks.STONE),
-                c.getServer().getOverworld().getBlockState(new BlockPos(1202, -59, 1201)).isAir(),
-                c.getServer().getOverworld().getBlockState(new BlockPos(1203, -60, 1201)).isOf(Blocks.STONE)});
+        // Read on the server's own thread: the test pauses it between ticks, so the client thread must not wait on it.
+        boolean[] world = server.computeOnServer(s -> new boolean[]{
+                s.getOverworld().getBlockState(new BlockPos(1202, -60, 1201)).isOf(Blocks.STONE),
+                s.getOverworld().getBlockState(new BlockPos(1202, -59, 1201)).isAir(),
+                s.getOverworld().getBlockState(new BlockPos(1203, -60, 1201)).isOf(Blocks.STONE)});
         check(world[0] && world[1] && world[2], "Placement Lock: the server has exactly the allowed blocks, never the held-back one");
         ctx.runOnClient(c -> reset(EvadeClient.modules.get(PlacementLock.class)));
         server.runCommand("fill 1202 -60 1201 1203 -59 1201 air");
@@ -411,7 +412,7 @@ public final class TechQolTest {
         check(!(boolean) r[4] && !(boolean) r[5] && (int) r[7] >= 2, "Break Guard: your clicks on protected blocks are held back");
         check((boolean) r[6], "Break Guard: other blocks break as normal");
         ctx.waitTicks(10);
-        boolean kept = ctx.computeOnClient(c -> c.getServer().getOverworld().getBlockState(new BlockPos(1201, -60, 1202)).isOf(Blocks.BUDDING_AMETHYST));
+        boolean kept = server.computeOnServer(s -> s.getOverworld().getBlockState(new BlockPos(1201, -60, 1202)).isOf(Blocks.BUDDING_AMETHYST));
         check(kept, "Break Guard: the protected block is still there on the server");
         ctx.runOnClient(c -> reset(EvadeClient.modules.get(BreakGuard.class)));
         server.runCommand("setblock 1201 -60 1202 air");

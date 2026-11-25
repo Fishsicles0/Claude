@@ -107,6 +107,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             CosmeticsFreeTest.run(ctx, sp);
             CosmeticsQualityTest.run(ctx, sp);
             PetsTest.run(ctx, sp);
+            EmoteExtrasTest.run(ctx, sp);
             TextHotkeysTest.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);

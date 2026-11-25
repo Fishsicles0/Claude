@@ -2335,83 +2335,267 @@ def wing_anim(base=32, amp=12, speed=1.6):
     return {"type": "wing", "side": 1, "base": base, "amp": amp, "speed": speed}
 
 
-def feather(c_root, c_tip, glow_tip=None, alpha=1.0, edge="#000000", seed=0):
-    """One feather on a flat cube: a quill down the middle, barbs angled towards the tip, a rounded tip, darker edges."""
+# -------- arched wings: one skeleton for the feathered, crystal and mechanical wings, and one for the dragons
+# An arm rises from the shoulder blade (kept low until it is clear of the head) to a wrist well above the shoulder; the
+# primaries fan out and down from the hand, the secondaries hang from the forearm, and rows of coverts overlap their roots
+# like roof tiles, so the wing reads as one arched shape with layers, not a row of strips. The flight feathers and the
+# coverts are two planes a little apart (depth), the arm is a real bone on child bones in front of them. Everything is
+# hand-drawn pixel art in wing coordinates (u: units out from the wing root at x = -1.5; y: the model's own), the same
+# picture on both faces: flat colour bands, a dark outline round every feather so each layer reads over the one below, a
+# lit leading vane and a shaft.
+
+AW_PIVOT = (-1.5, 2.0, 2.5)                       # the wing bone's pivot on the shoulder blade (as every wing has)
+AW_ARM = [(0.4, 1.4), (4.4, -0.6), (10.4, -8.2), (15.2, -6.6)]     # shoulder, elbow, wrist, hand tip (u, y)
+AW_TRAIL = [(0.6, 6.0), (2.6, 11.2), (6.0, 14.6), (10.0, 15.6), (14.0, 14.2), (17.6, 10.6), (20.0, 5.4), (21.0, -0.4),
+            (20.6, -4.0)]                         # flight feather tips, root to wing tip (u, y)
+AW_SPAN, AW_TOP, AW_H = 21, -10, 26               # the flight plane: u 0..21, y -10..16
+AW_COV_H = 16                                     # the coverts plane: y -10..6
+AW_Z = 2.9                                        # the flight plane (behind the back); coverts 0.45 further out
+AW_VIEW = {"yaw": 200, "pitch": 10, "wing_open": -14, "margin": 1.03}
+
+
+def aw_curve(pts, a):
+    """The point a (0..1) of the way along a polyline, by length."""
+    seg = [math.hypot(b[0] - p[0], b[1] - p[1]) for p, b in zip(pts, pts[1:])]
+    d = a * sum(seg)
+    for p, b, L in zip(pts, pts[1:], seg):
+        if d <= L:
+            f = 0 if L == 0 else d / L
+            return (p[0] + (b[0] - p[0]) * f, p[1] + (b[1] - p[1]) * f)
+        d -= L
+    return pts[-1]
+
+
+def aw_layout(n_flight=17, rows=((0.52, 14), (0.34, 13), (0.2, 11)), arm=AW_ARM, trail=AW_TRAIL):
+    """Feathers as (base, tip, width) in wing units. Flight feathers spread evenly from the root to the hand tip, their
+    tips evenly along the trailing edge; each covert row (fraction of the flight feather's length, count) sits over them."""
+    flight = []
+    for i in range(n_flight):
+        a = (i + 0.5) / n_flight
+        b, t = aw_curve(arm, a), aw_curve(trail, a)
+        flight.append((b, t, 2.3 + 0.5 * math.sin(math.pi * a)))
+    covs = []
+    for frac, n in rows:
+        row = []
+        for i in range(n):
+            a = (i + 0.5) / n
+            b, t = aw_curve(arm, a), aw_curve(trail, a)
+            tip = (b[0] + (t[0] - b[0]) * frac, b[1] + (t[1] - b[1]) * frac)
+            L = math.hypot(tip[0] - b[0], tip[1] - b[1])
+            row.append((b, tip, min(2.9, max(1.7, L * 0.42))))
+        covs.append(row)
+    return flight, covs
+
+
+def aw_poly(b, t, w, shape="feather", n=12):
+    """A feather's outline from base b to tip t: 'feather' a blade with a rounded point (the leading vane narrower),
+    'shard' a faceted crystal, 'blade' a metal plate with a clipped tip, 'scale' a short rounded covert."""
+    dx, dy = t[0] - b[0], t[1] - b[1]
+    L = max(1e-3, math.hypot(dx, dy))
+    ux, uy = dx / L, dy / L
+    nx, ny = -uy, ux
+    if shape == "shard":
+        prof = [(0, 0.35), (0.12, 1.0), (0.78, 0.9), (1.0, 0.0)]
+    elif shape == "blade":
+        prof = [(0, 0.5), (0.1, 1.0), (0.82, 1.0), (1.0, 0.25)]
+    else:
+        prof = []
+        for i in range(n + 1):
+            s = i / n
+            k = 1.0 if shape == "scale" else min(1.0, 0.45 + s / 0.4 * 0.55)
+            prof.append((s, k * math.sqrt(max(0.0, min(1.0, (1 - s) / (0.45 if shape == "scale" else 0.3))))))
+    left = [(b[0] + dx * s + nx * w / 2 * k * 0.8, b[1] + dy * s + ny * w / 2 * k * 0.8) for s, k in prof]
+    right = [(b[0] + dx * s - nx * w / 2 * k, b[1] + dy * s - ny * w / 2 * k) for s, k in prof]
+    return left + right[::-1]
+
+
+def crisp_mask(W):
+    return (W.done()[..., 3] > 0.5).astype(np.float32)
+
+
+class AwFace:
+    """A wing plane's face in wing units: south (seen from behind) has u growing to the right; north mirrors it."""
+
+    def __init__(self, cv, top):
+        self.cv, self.top, self.s = cv, top, cv.s
+        self.north = cv.face == "north"
+        y, x = cv.grid()
+        xu = (x + 0.5) / cv.s
+        self.U = (cv.w / cv.s - xu) if self.north else xu
+        self.Y = top + (y + 0.5) / cv.s
+
+    def P(self, u, y):
+        x = (self.cv.w / self.s - u) if self.north else u
+        return (x * self.s, (y - self.top) * self.s)
+
+    def mask(self, pts):
+        return pmask(self.cv, lambda d: d.polygon([self.P(u, y) for u, y in pts], fill=255))
+
+    def line(self, pts, width):
+        return pmask(self.cv, lambda d: d.line([self.P(u, y) for u, y in pts], fill=255, width=max(1, int(round(width * self.s))),
+                                               joint="curve"))
+
+    def frame(self, b, t):
+        """Per texel: position along the feather (0 base .. 1 tip) and signed distance from its shaft (units)."""
+        dx, dy = t[0] - b[0], t[1] - b[1]
+        L = max(1e-3, math.hypot(dx, dy))
+        along = ((self.U - b[0]) * dx + (self.Y - b[1]) * dy) / (L * L)
+        side = ((self.U - b[0]) * -dy + (self.Y - b[1]) * dx) / L
+        return along, side
+
+
+def aw_paint_feathers(F, feathers, st, shape="feather", alpha=1.0, glow_tip=None, where=None):
+    """Draws feathers back to front: an outline under each (so it shows over the ones below), flat bands from root to
+    tip (darker on the trailing vane), a shaft, a lit rim; `where(a, along, side)` can colour them by place instead."""
+    cv = F.cv
+    line, cols, shaft = st["line"], st["cols"], st.get("shaft")
+    n = len(feathers)
+    for i, (b, t, w) in enumerate(feathers):
+        m = F.mask(aw_poly(b, t, w, shape))
+        if not m.any():
+            continue
+        ring = grow(m, st.get("edge", 1)) & ~m
+        put(cv, ring, line)
+        cv.arr[ring, 3] = max(alpha, 0.9)
+        cv.em[ring] = 0
+        if st.get("line_glow"):
+            em_from(cv, ring * st["line_glow"], line)
+        along, side = F.frame(b, t)
+        if where is not None:
+            col = where(i / max(1, n - 1), np.clip(along, 0, 1), side)
+        else:
+            col = bands(np.clip(along, 0, 1), cols, 0.45)
+        dark = side < -0.05
+        col = col.copy()
+        col[dark, :3] *= st.get("vane", 0.84)
+        if shape == "shard":
+            col[~dark, :3] = np.clip(col[~dark, :3] * 1.1 + 0.04, 0, 1)
+        cv.arr[m] = col[m]
+        cv.arr[m, 3] = alpha
+        if shaft is not None:
+            sm = m & (np.abs(side) < 0.75 / F.s) & (along < 0.88) & (along > 0.04)
+            put(cv, sm, shaft)
+            cv.arr[sm, 3] = max(alpha, 0.9)
+            if st.get("shaft_glow"):
+                em_from(cv, sm * st["shaft_glow"], shaft)
+        if st.get("hi") is not None:
+            rim = lit_rim(m, 1) & (along > 0.08)
+            put(cv, rim, st["hi"])
+            cv.arr[rim, 3] = max(alpha, 0.9)
+        if glow_tip is not None:
+            em_from(cv, (m & (along > glow_tip[1])) * glow_tip[2], glow_tip[0])
+
+
+def aw_arm_band(F, st, width=1.0):
+    """The leading edge drawn into the plane: a thick band along the arm (lit along its top) with an outline."""
+    cv = F.cv
+    m = F.line(AW_ARM, width)
+    put(cv, grow(m, 1) & ~m, st["line"])
+    put(cv, m, st["arm"][1])
+    put(cv, lit_rim(m, 1), st["arm"][0])
+    put(cv, shade_rim(m, 1), st["arm"][2])
+
+
+def aw_plane(top, painter):
+    """A wing plane's painter (both big faces; the edges stay empty): painter(AwFace) draws it as pixel art."""
     def p(face, cv):
-        t, x = cv.yy(), cv.xx()
-        half = np.abs(x - 0.5) * 2
-        shape = 1 - smooth((t - 0.72) / 0.28) ** 1.6
-        inside = half < np.maximum(shape, 0.0) * 0.98 + 0.02
-        col = ramp(t, [(0, c_root), (1, c_tip)])
-        barbs = np.sin((t * cv.h / max(1, cv.s * 0.45) - half * 3.0) * math.pi)
-        col[..., :3] *= (0.92 + 0.08 * barbs)[..., None]
-        col[..., :3] *= (1 - 0.28 * smooth((half - 0.55) / 0.45))[..., None]
-        quill = half < 1.6 / cv.w
-        col[quill, :3] = np.clip(col[quill, :3] * 1.25 + 0.08, 0, 1)
-        n = pnoise(cv.h, cv.w, 2.0, 900 + seed, octaves=2)
-        col[..., :3] *= (0.94 + 0.12 * n)[..., None]
-        col[..., 3] = alpha * inside
-        cv.arr[:] = col
-        if glow_tip:
-            em_from(cv, smooth((t - 0.6) / 0.35) * inside, glow_tip, 0.9)
+        cv.hand = True
+        cv.arr[:] = 0
+        if face in ("north", "south"):
+            painter(AwFace(cv, top))
     return p
 
 
-def feather_row(painters, x_start, x_end, y, z, length, width=2, step=None):
-    """Feathers hanging from a wing arm, shoulder to tip; `length` is a function of 0 (shoulder) .. 1 (tip)."""
-    cubes = []
-    n = len(painters)
-    for i, pnt in enumerate(painters):
-        f = i / max(1, n - 1)
-        x = x_start + (x_end - x_start) * f
-        L = int(round(length(f)))
-        cubes.append(Cube((x - width, y + f * 0.0, z + (i % 2) * 0.06), (width, L, 0), pnt))
-    return cubes
+def aw_rod(cols, line, glow=0.0):
+    """A bone or spar of the arm: lit top, shaded underside, an outline round every face."""
+    def p(face, cv):
+        cv.hand = True
+        t = cv.yy() if face not in ("top", "bottom") else np.zeros((cv.h, cv.w), np.float32) + (0.0 if face == "top" else 1.0)
+        cv.arr[:] = bands(t * 0.999, cols, 0.3)
+        cv.arr[..., 3] = 1
+        y, x = cv.grid()
+        e = max(1, cv.s // 8)
+        if face in ("west", "east"):
+            edge = (y < e) | (y >= cv.h - e) | (x < e) | (x >= cv.w - e)
+        else:
+            edge = (y < e) | (y >= cv.h - e)
+        cv.arr[edge, :3] = hexc(line)[:3]
+        if glow:
+            em_rgb(cv, cv.arr, (~edge) * glow)
+    return p
 
 
-# -------- Aurora (upgraded): a see-through membrane with glowing veins, a crystal spar and a gem at the joint
-
-def aurora_membrane(face, cv, pulse=None):
-    r, t = wing_root(face, cv), cv.yy()
-    W = WingDraw(face, cv)
-    pts = [(0.02, 0.06), (1.0, 0.0), (1.0, 0.78), (0.86, 0.94), (0.7, 0.82), (0.55, 0.97), (0.38, 0.8), (0.22, 0.86),
-           (0.1, 0.58), (0.0, 0.3)]
-    W.poly(pts, (255, 255, 255, 255))
-    mask = W.done()[..., 3]
-    col = ramp(smooth(1 - r * 0.85 + t * 0.25), [(0, "#46f5d6"), (0.5, "#5aa8ff"), (1, "#8a52ff")])
-    col[..., 3] = (0.78 - 0.32 * smooth(t)) * mask
-    # cells between veins, like a dragonfly's wing
-    y, x = cv.grid()
-    n = pnoise(cv.h, cv.w, 5.0, 301, octaves=1)
-    cell = np.abs(np.sin(n * 18))
-    col[..., :3] = np.clip(col[..., :3] * (0.9 + 0.2 * cell)[..., None], 0, 1)
-    cv.arr[:] = col
-    # veins fan out from the shoulder joint
-    ang = np.arctan2(t + 0.02, (1.02 - r))
-    veins = np.zeros_like(t)
-    for a in (0.12, 0.38, 0.66, 0.95, 1.25):
-        veins = np.maximum(veins, smooth(1 - np.abs(ang - a) / 0.03))
-    veins = np.maximum(veins, smooth(1 - cell / 0.08) * 0.5)
-    veins *= mask * (r > 0.04)
-    edge = mask * (1 - smooth(blur(mask[..., None], 1.0)[..., 0] * 1.6 - 0.6))
-    v = np.clip(veins + edge, 0, 1)
-    cv.arr[..., :3] = mix(cv.arr[..., :3], hexc("#d8fff6")[:3], v[..., None])
-    cv.arr[..., 3] = np.maximum(cv.arr[..., 3], v * 0.95)
-    k = 0.85
-    if pulse is not None:
-        dist = np.sqrt((1 - r) ** 2 + t ** 2)
-        k = 0.25 + 0.75 * np.exp(-((((dist - cv.phase * 1.4) + 0.7) % 1.4 - 0.7) / 0.12) ** 2)
-        k = np.maximum(k, 0.3)
-        em_from(cv, mask * k * 0.35, pulse)
-    em_from(cv, v * k, "#c9fff4")
+def aw_arm_bones(root, z, paint, segs=AW_ARM[:3], thick=1, prefix="arm"):
+    """Child bones of the wing, one per arm segment, each a rod turned (roll) to run from one joint to the next."""
+    out = []
+    px0 = AW_PIVOT[0]
+    for k, ((u0, y0), (u1, y1)) in enumerate(zip(segs, segs[1:])):
+        x0, x1 = px0 - u0, px0 - u1
+        n = int(round(math.hypot(x1 - x0, y1 - y0) + 0.6))
+        roll = math.degrees(math.atan2(-(y1 - y0), -(x1 - x0)))
+        out.append(Bone(f"{prefix}{k}_r", "body", (x0, y0, z), (0, 0, roll),
+                        [Cube((x0 - n + 0.3, y0 - thick / 2, z - thick / 2), (n, thick, thick), paint)], parent=root))
+    return out
 
 
-def crystal_spar(face, cv):
-    t = cv.yy()
-    cv.arr[:] = ramp(t, [(0, "#f4fffd"), (0.5, "#9ff5e6"), (1, "#3fb8c8")])
-    cv.arr[..., 3] = 1
-    bevel(cv, 0.2, 0.3)
-    em_from(cv, np.ones_like(t) * 0.35, "#bffff4")
+def aw_pair(bones):
+    """Right bones plus their mirrored left copies (child bones follow their own side's parent)."""
+    left = []
+    for b in bones:
+        mb = mirrored_bone(b, b.name.replace("_r", "_l"), dict(b.anim, side=-1) if b.anim else None)
+        if b.parent:
+            mb.parent = b.parent.replace("_r", "_l")
+        left.append(mb)
+    return list(bones) + left
+
+
+def aw_wing(name, flight_painter, cov_painter, rod, anim, extra=(), alpha=1.0):
+    """A pair of arched wings: the flight plane, the coverts plane (optional), extra cubes on the wing bone, the arm."""
+    root = f"{name}_r"
+    cubes = [Cube((AW_PIVOT[0] - AW_SPAN, AW_TOP, AW_Z), (AW_SPAN, AW_H, 0), aw_plane(AW_TOP, flight_painter))]
+    if cov_painter is not None:
+        cubes.append(Cube((AW_PIVOT[0] - AW_SPAN, AW_TOP, AW_Z + 0.45), (AW_SPAN, AW_COV_H, 0), aw_plane(AW_TOP, cov_painter)))
+    cubes += list(extra)
+    bones = [Bone(root, "body", AW_PIVOT, (0, 0, 0), cubes, anim=anim, alpha=alpha)]
+    bones += aw_arm_bones(root, AW_Z + 1.25, rod)
+    return aw_pair(bones)
+
+
+def aw_bird(st, shape="feather", alpha=1.0, glow_tip=None, where=None):
+    """(flight painter, coverts painter) for a feathered wing in style `st`: line, cols (root to tip), cov (one list of
+    colours per covert row), arm (light, mid, dark), optional shaft, hi (rim light), vane (trailing vane shade), n."""
+    flight, covs = aw_layout(st.get("n", 17), st.get("rows", ((0.52, 14), (0.34, 13), (0.2, 11))))
+    cov_shape = {"shard": "shard", "blade": "blade"}.get(shape, "scale")
+
+    def fl(F):
+        aw_paint_feathers(F, flight[::-1], st, shape, alpha, glow_tip, where)
+
+    def co(F):
+        for k, row in enumerate(covs):
+            aw_paint_feathers(F, row[::-1], dict(st, cols=st["cov"][k]), cov_shape, min(1.0, alpha + 0.12))
+        aw_arm_band(F, st, st.get("arm_w", 1.1))
+    return fl, co
+
+
+# -------- Aurora: see-through light-feathers, cyan at the shoulder to violet at the tips, every feather edged and veined
+# in glowing light, on a crystal spar
+
+AURORA_BANDS = ["#46f5d6", "#3fd8e6", "#4ab4f6", "#5a8cff", "#7366ff", "#8a52ff"]
+
+
+def aurora_colour(a, along, side):
+    return bands(np.clip(a * 0.8 + along * 0.3, 0, 1), AURORA_BANDS, 0.4)
+
+
+AURORA = {"line": "#c9fff4", "line_glow": 0.8, "cols": AURORA_BANDS, "shaft": "#e6fffb", "shaft_glow": 0.9,
+          "cov": [["#5af0dc", "#46c8ea"], ["#62f4e0", "#50d4ee"], ["#7af8e8", "#5ae0f0"]],
+          "arm": ["#f4fffd", "#9ff5e6", "#3fb8c8"], "vane": 0.86}
+CRYSTAL_ROD = (["#f4fffd", "#9ff5e6", "#3fb8c8"], "#1a6a7a")
+
+item("aurora_wings", "Aurora Wings", "WINGS", "REGULAR", 1100,
+     "See-through wings that fade from cyan to violet, with glowing veins, a crystal spar and a slow, easy beat.",
+     aw_wing("wing", *aw_bird(AURORA, alpha=0.72, where=aurora_colour), aw_rod(*CRYSTAL_ROD, glow=0.35),
+             wing_anim(32, 12, 1.6)), view=AW_VIEW)
 
 
 def gem_paint(c_hi, c_lo, glow=0.6):
@@ -2428,73 +2612,49 @@ def gem_paint(c_hi, c_lo, glow=0.6):
     return p
 
 
-def aurora_wing_bones(membrane=aurora_membrane, anim=None, name="wing_r"):
-    anim = anim or wing_anim(32, 12, 1.6)
-    right = [Bone(name, "body", (-1.5, 2, 2.5), (0, 0, 0), [
-        Cube((-15.5, 0, 2), (14, 15, 0), membrane),
-        Cube((-15.5, -0.5, 1.5), (14, 1, 1), crystal_spar),
-        Cube((-3.5, -1, 1), (2, 2, 2), gem_paint("#dffcff", "#2a8fd6")),
-    ], anim=anim)]
-    return wing_pair(right)
-
-
-item("aurora_wings", "Aurora Wings", "WINGS", "REGULAR", 1100,
-     "See-through wings that fade from cyan to violet, with glowing veins, a crystal spar and a slow, easy beat.",
-     aurora_wing_bones(), view=WING_VIEW)
-
-# -------- Pulse Wings (special): an energy membrane with crisp feather veins; packets of light race out along every
-# vein from the shoulder to the tips while a soft wave of glow follows them across the membrane
-
-PULSE_BODY = ["#3a1690", "#3424a8", "#2c3cbc", "#2458c8", "#1e74d0", "#1a92d8"]
-
-
-def crisp_mask(W):
-    return (W.done()[..., 3] > 0.5).astype(np.float32)
-
+# -------- Pulse Wings (special): energy feathers banded violet to cyan; packets of light race out along every shaft from
+# the shoulder to the tips, lighting each feather's edge as they pass
 
 PULSE_FEATHER = ["#2a1066", "#341a8c", "#2c34b0", "#2058c8", "#1c84d8", "#28b4e8", "#5ae0f4"]
+PULSE_LIGHT = ["#5ac8f0", "#9aeaff", "#dcfcff", "#ffffff"]
 
 
-def pulse_membrane(face, cv):
-    """Energy feathers fanned from the shoulder joint: each a long blade banded from deep violet at the root to cyan at
-    the tip, with a bright shaft and outline. Three pulses per loop race up every shaft; the feather's edge lights as
-    a pulse passes."""
-    r, t = wing_root(face, cv), cv.yy()
-    ph = cv.phase
-    X, Y = r * cv.w, t * cv.h                                      # wing coordinates in texels (tip .. shoulder)
-    J = np.array([0.97 * cv.w, 0.02 * cv.h])
-    tips = [(0.0, 0.26), (0.08, 0.55), (0.2, 0.78), (0.37, 0.92), (0.56, 0.98), (0.75, 0.9), (0.9, 0.74)]
-    widths = [0.12, 0.14, 0.14, 0.14, 0.13, 0.12, 0.1]
-    cv.arr[:] = 0
+def pulse_feathers(F):
+    """One plane (the animation's strip has no room for a second): the flight feathers and a row of coverts over them.
+    Three pulses per loop race out along every shaft; a feather's edge and shaft light as one passes."""
+    cv, ph = F.cv, F.cv.phase
+    flight, covs = aw_layout(15, rows=((0.42, 12),))
     lit = np.zeros((cv.h, cv.w), np.float32)
-    for (tr, tt), wd in reversed(list(zip(tips, widths))):         # outer feathers first, inner ones overlap them
-        T = np.array([tr * cv.w, tt * cv.h])
-        L = float(np.hypot(*(T - J)))
-        ux, uy = (T - J) / L
-        sx = ((X - J[0]) * ux + (Y - J[1]) * uy) / L               # 0 at the joint .. 1 at the tip
-        pp = np.abs(-(X - J[0]) * uy + (Y - J[1]) * ux)            # texels from the shaft
-        half = wd * cv.w * np.sin(math.pi * np.clip(sx, 0, 1) ** 0.75) * (0.25 + 0.75 * np.clip(sx * 3, 0, 1))
-        inside = (sx > 0) & (sx < 1) & (pp < half)
-        if not inside.any():
-            continue
-        k = np.zeros_like(sx)
-        for j in range(3):
-            pk = ((ph + j / 3) % 1.0) * 1.3 - 0.15
-            k = np.maximum(k, np.exp(-((sx - pk) / 0.06) ** 2))
-        body = palette(levels(np.clip(sx, 0, 1), 7, 0.5), PULSE_FEATHER)
-        cv.arr[inside] = body[inside]
-        cv.arr[inside, 3] = 0.68
-        edge = inside & (pp >= half - 1.0)
-        shaft = inside & (pp < 0.75)
-        kl = levels(np.clip(k, 0, 1), 4, 0.3)
-        lc = palette(kl, ["#5ac8f0", "#9aeaff", "#dcfcff", "#ffffff"])
-        for m in (edge, shaft):
-            cv.arr[m] = lc[m]
-            cv.arr[m, 3] = 0.95
-        lit[inside] = 0
-        lit = np.where(edge | shaft, 0.4 + 0.6 * kl / 3.0, lit)
-        lit = np.where(inside & ~edge & ~shaft & (kl >= 2), 0.3, lit)     # a soft flash inside, right at the pulse
-        cv.arr[inside & ~edge & ~shaft & (kl >= 2), :3] = hexc("#3a9ae8")[:3]
+    for row, shape, reach in ((flight[::-1], "feather", 1.0), (covs[0][::-1], "scale", 0.42)):
+        for b, t, w in row:
+            m = F.mask(aw_poly(b, t, w, shape))
+            if not m.any():
+                continue
+            along, side = F.frame(b, t)
+            d = np.clip(along, 0, 1) * reach                      # out from the shoulder, as a share of a flight feather
+            k = np.zeros_like(d)
+            for j in range(3):
+                pk = ((ph + j / 3) % 1.0) * 1.3 - 0.15
+                k = np.maximum(k, np.exp(-((d - pk) / 0.07) ** 2))
+            kl = levels(np.clip(k, 0, 1), 4, 0.3)
+            ring = grow(m, 1) & ~m
+            shaft = m & (np.abs(side) < 0.75 / F.s) & (along < 0.9)
+            cv.arr[m] = palette(levels(d, 7, 0.5), PULSE_FEATHER)[m]
+            cv.arr[m, 3] = 0.7
+            flash = m & ~shaft & (kl >= 2)                        # a soft flash inside, right at the pulse
+            cv.arr[flash, :3] = hexc("#3a9ae8")[:3]
+            lc = palette(kl, PULSE_LIGHT)
+            for e in (ring, shaft):
+                cv.arr[e] = lc[e]
+                cv.arr[e, 3] = 0.95
+            lit[m | ring] = 0
+            lit = np.where(ring | shaft, 0.4 + 0.6 * kl / 3.0, lit)
+            lit = np.where(flash, 0.3, lit)
+    arm = F.line(AW_ARM, 1.1)
+    put(cv, grow(arm, 1) & ~arm, CRYSTAL_ROD[1])
+    put(cv, arm, CRYSTAL_ROD[0][1])
+    put(cv, lit_rim(arm, 1), CRYSTAL_ROD[0][0])
+    lit = np.where(arm, 0.35, lit)
     em_rgb(cv, cv.arr, lit)
 
 
@@ -2504,117 +2664,114 @@ def pulse_gem(face, cv):
     em_from(cv, np.ones((cv.h, cv.w)) * (0.4 + 0.6 * b), "#9af6ff")
 
 
-def pulse_wing_bones():
-    right = [Bone("wing_r", "body", (-1.5, 2, 2.5), (0, 0, 0), [
-        Cube((-15.5, 0, 2), (14, 15, 0), pulse_membrane),
-        Cube((-15.5, -0.5, 1.5), (14, 1, 1), crystal_spar),
-        Cube((-3.5, -1, 1), (2, 2, 2), pulse_gem),
-    ], anim=wing_anim(32, 12, 1.6))]
-    return wing_pair(right)
-
-
 item("pulse_wings", "Pulse Wings", "WINGS", "SPECIAL", None,
      "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
-     pulse_wing_bones(), view=WING_VIEW,
-     animation={"frames": 20, "frametime": 1.5, "interpolate": False, "scale": 8})
+     aw_wing("wing", pulse_feathers, None, aw_rod(*CRYSTAL_ROD, glow=0.35), wing_anim(32, 12, 1.6),
+             extra=[Cube((-2.5, 0.4, AW_Z + 0.6), (2, 2, 2), pulse_gem)]), view=AW_VIEW,
+     animation={"frames": 16, "frametime": 1.8, "interpolate": False, "scale": 8})
 
 
-# -------- feathered wings: separate layered feathers on an arm
+# -------- feathered wings: Ashen (grey, the tips smouldering) and Seraph (white and gold)
 
-def feathered_wing(colors, glow=None, arm_color="#e9e4dc", seed=0, big=False):
-    """colors: (coverts, secondaries, primaries) each (root, tip). Returns the right wing's cubes."""
-    cov, sec, pri = colors
-    fc = [feather(cov[0], cov[1], seed=seed + i) for i in range(2)]
-    fs = [feather(sec[0], sec[1], seed=seed + 10 + i) for i in range(2)]
-    fp = [feather(pri[0], pri[1], glow, seed=seed + 20 + i) for i in range(2)]
-    n = 7 if big else 6
-    span = 15 if big else 13
-    cubes = [Cube((-1.5 - span, -0.5, 1.4), (span, 1, 1), edge_paint(hexc(arm_color)))]
-    # primaries: longest towards the tip, the back layer
-    cubes += feather_row([fp[i % 2] for i in range(n)], -2.5, -1.5 - span + 2, 0, 2.6,
-                         lambda f: (9 if big else 7) + 7 * smooth(f * 1.2) - 3 * smooth((f - 0.8) / 0.2), width=3)
-    cubes += feather_row([fs[i % 2] for i in range(n)], -3.5, -1.5 - span + 3, 0, 2.3, lambda f: 7 + 2 * f, width=3)
-    cubes += feather_row([fc[i % 2] for i in range(n - 1)], -2.5, -1.5 - span + 2, -0.5, 2.0, lambda f: 4, width=3)
-    return cubes
-
-
-def ashen():
-    anim = wing_anim(38, 8, 1.1)
-    right = [Bone("feathers_r", "body", (-1.5, 2, 2.5), (0, 0, -12),
-                  feathered_wing((("#e2ddd4", "#b8b0a4"), ("#a7a096", "#6a635b"), ("#6b645d", "#ff6a2a")), "#ff9a3a",
-                                 seed=1), anim=anim)]
-    return wing_pair(right)
-
+ASHEN = {"line": "#1c1817", "cols": ["#aaa399", "#857e75", "#615a54", "#433c38", "#9a3416"], "shaft": "#cfc8bd",
+         "hi": "#c9c2b7", "cov": [["#d9d3c9", "#bdb6ab", "#9c958b"], ["#e4dfd6", "#cbc4b9"], ["#ece8e0", "#d6d0c6"]],
+         "arm": ["#f2eee6", "#d6d0c4", "#9c958a"], "vane": 0.82}
 
 item("ashen_feathers", "Ashen Feathers", "WINGS", "REGULAR", 800,
      "Layered grey feathers, each one separate, darkening towards tips that smoulder like embers.",
-     ashen(), view=WING_VIEW)
+     aw_wing("feathers", *aw_bird(ASHEN, glow_tip=("#ff7a2a", 0.87, 0.85)), aw_rod(["#f2eee6", "#d6d0c4", "#9c958a"], "#2a2420"),
+             wing_anim(38, 8, 1.1)), view=AW_VIEW)
 
-
-def seraph():
-    anim = wing_anim(30, 10, 0.9)
-    right = [Bone("feathers_r", "body", (-1.5, 1, 2.5), (0, 0, -16),
-                  feathered_wing((("#ffffff", "#f1ecdf"), ("#fbf8f0", "#e4dcc6"), ("#f6f1e4", "#e6c65a")), "#fff1b0",
-                                 arm_color="#f2d27a", seed=3, big=True), anim=anim)]
-    return wing_pair(right)
-
+SERAPH = {"line": "#a8916a", "cols": ["#fffdf7", "#f6f0e2", "#ece1c6", "#e8c86a"], "shaft": "#fffef8", "hi": "#ffffff",
+          "cov": [["#fffefa", "#f7f2e6", "#efe6d0"], ["#ffffff", "#faf6ec"], ["#ffffff", "#fdfaf2"]],
+          "arm": ["#fff3c4", "#f2d27a", "#b8902e"], "vane": 0.9, "n": 19}
 
 item("seraph_wings", "Seraph Wings", "WINGS", "REGULAR", 1000,
      "Great white feathered wings, softly gilded at the tips, that sweep slowly behind you.",
-     seraph(), view=dict(WING_VIEW, glow="#fff1c2", glow_strength=0.25))
+     aw_wing("feathers", *aw_bird(SERAPH, glow_tip=("#fff1b0", 0.82, 0.5)), aw_rod(["#fff3c4", "#f2d27a", "#b8902e"], "#7a5a1a"),
+             wing_anim(30, 10, 0.9)), view=dict(AW_VIEW, glow="#fff1c2", glow_strength=0.25))
 
 
-# -------- membrane wings: dragon and demon
+# -------- membrane wings: dragon and demon. The same arm, then four long fingers fan from the wrist (a claw on top) with a
+# scalloped membrane between them; hand-drawn like the feathered wings.
 
-DRAGON_FINGERS = [(0.02, 0.42), (0.2, 0.86), (0.46, 0.98), (0.74, 0.86), (1.0, 0.62)]
+DR_ARM = [(0.4, 1.4), (4.4, -0.6), (10.4, -7.6)]                   # shoulder, elbow, wrist (u, y)
+DR_TIPS = [(21.6, -2.8), (20.6, 5.0), (16.8, 10.4), (11.4, 12.2)]   # finger tips, outermost first
+DR_ROOT = (0.6, 8.4)                                                # where the membrane meets the back
+DR_SPAN, DR_TOP, DR_H = 22, -9, 21                                  # the membrane plane (21 tall: Stormcaller's strip)
 
 
-def dragon_membrane(c_top, c_bottom, bone_c, vein_c, glow=None, alpha=0.96, storm=False):
-    def p(face, cv):
-        r, t = wing_root(face, cv), cv.yy()
-        W = WingDraw(face, cv)
-        wrist = (0.05, 0.04)
-        pts = [(1.0, 0.02), wrist]
-        for (a, b), (c, d) in zip(DRAGON_FINGERS, DRAGON_FINGERS[1:]):
-            pts.append((a, b))
-            # the scalloped edge curls in between finger tips
-            for s in np.linspace(0.2, 0.8, 4):
-                rr, tt = a + (c - a) * s, b + (d - b) * s
-                pts.append((rr, tt - math.sin(s * math.pi) * 0.16))
-        pts.append(DRAGON_FINGERS[-1])
-        W.poly(pts, (255, 255, 255, 255))
-        mask = W.done()[..., 3]
-        if storm:
-            mask = (mask > 0.5).astype(np.float32)                    # special: crisp pixel edges
-        col = ramp(t * 0.7 + (1 - r) * 0.3, [(0, c_top), (1, c_bottom)])
-        n = pnoise(cv.h, cv.w, 4.0, 400, octaves=4)
-        col[..., :3] *= (0.85 + 0.3 * n)[..., None]
+def dr_scallop(a, b, depth, toward, n=6):
+    """The membrane's edge between two finger tips, curling in towards `toward` by up to `depth` units."""
+    pts = []
+    for k in range(1, n):
+        f = k / n
+        x, y = a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f
+        dx, dy = toward[0] - x, toward[1] - y
+        L = max(1e-3, math.hypot(dx, dy))
+        d = depth * math.sin(math.pi * f)
+        pts.append((x + dx / L * d, y + dy / L * d))
+    return pts
+
+
+def dr_outline():
+    w = DR_ARM[-1]
+    pts = list(DR_ARM) + [DR_TIPS[0]]
+    for a, b in zip(DR_TIPS, DR_TIPS[1:]):
+        pts += dr_scallop(a, b, 1.6 + 0.04 * math.hypot(b[0] - a[0], b[1] - a[1]), w) + [b]
+    return pts + dr_scallop(DR_TIPS[-1], DR_ROOT, 2.4, w) + [DR_ROOT]
+
+
+def dr_finger(F, a, b, w0, w1):
+    """A finger bone from a to b, w0 thick at the wrist tapering to w1 (half widths, units)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L = max(1e-3, math.hypot(dx, dy))
+    nx, ny = -dy / L, dx / L
+    return F.mask([(a[0] + nx * w0, a[1] + ny * w0), (b[0] + nx * w1, b[1] + ny * w1), (b[0] - nx * w1, b[1] - ny * w1),
+                   (a[0] - nx * w0, a[1] - ny * w0)])
+
+
+def dr_membrane(cols, bone, line, vein, glow=None, storm=False):
+    """cols: membrane bands from the wrist down to the trailing edge; bone: (light, mid, dark) for the arm and fingers."""
+    def painter(F):
+        cv = F.cv
+        mem = F.mask(dr_outline())
+        w = DR_ARM[-1]
+        d = np.sqrt((F.U - w[0]) ** 2 + (F.Y - w[1]) ** 2) / 22.0
+        col = bands(np.clip(d * 0.85 + (F.Y - DR_TOP) / DR_H * 0.35 - 0.12, 0, 1), cols, 0.4)
         if storm:   # banded storm clouds, darker towards the trailing edge
+            n = pnoise(cv.h, cv.w, 4.0, 400, octaves=4)
+            r, t = 1 - F.U / DR_SPAN, (F.Y - DR_TOP) / DR_H
             cl = levels(np.clip(n * 1.3 - 0.15 - t * 0.35 + (1 - r) * 0.1, 0, 1), 6, 0.4)
-            col[..., :3] = palette(cl, ["#0e1220", "#161c2e", "#1f283e", "#2b3652", "#3a4868", "#4e5f84"])[..., :3]
-        col[..., 3] = mask * alpha
-        cv.arr[:] = col
-        # veins and finger bones
-        B = WingDraw(face, cv)
-        for fr, ft in DRAGON_FINGERS[:-1]:
-            B.line([wrist, ((wrist[0] + fr) / 2 + 0.03, (wrist[1] + ft) / 2), (fr, ft)], (255, 255, 255, 255), 1.2)
-        bones_m = B.done()[..., 3] * mask
-        V = WingDraw(face, cv)
-        rr = np.random.default_rng(7)
-        for _ in range(9):
-            r0, t0 = rr.random() * 0.9 + 0.05, rr.random() * 0.6 + 0.1
-            V.line([(r0, t0), (r0 + (rr.random() - 0.5) * 0.15, t0 + 0.12), (r0 + (rr.random() - 0.5) * 0.2, t0 + 0.25)], (255, 255, 255, 255), 0.5)
-        veins_m = V.done()[..., 3] * mask * (1 - bones_m)
-        cv.arr[..., :3] = mix(cv.arr[..., :3], hexc(vein_c)[:3], (veins_m * 0.55)[..., None])
-        bc = ramp(t, [(0, bone_c), (1, "#1a1416")])
-        cv.arr[..., :3] = mix(cv.arr[..., :3], bc[..., :3], bones_m[..., None])
-        emboss(cv, bones_m, 1.5)
-        cv.arr[..., 3] = np.maximum(cv.arr[..., 3], bones_m)
+            col = palette(cl, ["#0e1220", "#161c2e", "#1f283e", "#2b3652", "#3a4868", "#4e5f84"])
+        put(cv, grow(mem, 1) & ~mem, line)
+        cv.arr[mem] = col[mem]
+        cv.arr[mem, 3] = 1
+        # veins: from each finger a few branches run back into the membrane
+        V = np.zeros_like(mem)
+        rng = np.random.default_rng(7)
+        for tip in DR_TIPS:
+            for f in (0.35, 0.62):
+                p0 = (w[0] + (tip[0] - w[0]) * f, w[1] + (tip[1] - w[1]) * f)
+                q = (p0[0] - 1.8 - rng.random() * 1.5, p0[1] + 2.4 + rng.random() * 1.5)
+                V |= F.line([p0, ((p0[0] + q[0]) / 2 + 0.4, (p0[1] + q[1]) / 2), q], 0.16)
+        V &= mem
+        put(cv, V, vein)
         if glow:
-            em_from(cv, veins_m * 0.9, glow)
+            em_from(cv, V * 0.9, glow)
         if storm:
-            storm_fx(face, cv, mask, veins_m)
-    return p
+            # bolts in the storm's own normalised coordinates (WingDraw: r 0 tip .. 1 shoulder, t 0 top .. 1 bottom)
+            storm_fx(cv.face, cv, mem.astype(np.float32), V.astype(np.float32))
+        # finger bones and the arm over the membrane, outlined and lit along their tops
+        bones_m = F.line(DR_ARM, 1.0)
+        for tip in DR_TIPS:
+            bones_m |= dr_finger(F, w, tip, 0.42, 0.16)
+        put(cv, grow(bones_m, 1) & ~bones_m, line)
+        put(cv, bones_m, bone[1])
+        put(cv, lit_rim(bones_m, 1), bone[0])
+        put(cv, shade_rim(bones_m, 1), bone[2])
+        cv.em[bones_m] = 0
+    return painter
 
 
 def bolt_points(rng, a, b, depth, rough=0.22):
@@ -2631,13 +2788,14 @@ def bolt_points(rng, a, b, depth, rough=0.22):
     return pts
 
 
-# Stormcaller's weather, frame by frame over 24 frames: (first frame, seed, brightness on each following frame)
-STORM_STRIKES = [(0, 3, (1.0, 0.35, 0.95, 0.5, 0.18)), (7, 11, (0.85, 0.3, 0.12)), (13, 5, (1.0, 0.4, 0.9, 0.3)),
-                 (19, 17, (0.7, 0.9, 0.25))]
+# Stormcaller's weather, frame by frame over STORM_FRAMES frames: (first frame, seed, brightness on each following frame)
+STORM_FRAMES = 20
+STORM_STRIKES = [(0, 3, (1.0, 0.35, 0.95, 0.5, 0.18)), (6, 11, (0.85, 0.3, 0.12)), (11, 5, (1.0, 0.4, 0.9, 0.3)),
+                 (16, 17, (0.7, 0.9, 0.25))]
 
 
 def storm_fx(face, cv, mask, veins_m):
-    f = int(round(cv.phase * 24)) % 24
+    f = int(round(cv.phase * STORM_FRAMES)) % STORM_FRAMES
     power, seed = 0.0, None
     for f0, sd, seq in STORM_STRIKES:
         if f0 <= f < f0 + len(seq):
@@ -2684,29 +2842,34 @@ def storm_fx(face, cv, mask, veins_m):
     em_from(cv, core * min(1.0, power + 0.2), "#f4faff")
 
 
-def dragon_wing(name, colors, glow=None, spikes=False, storm=False, anim=None):
-    c_top, c_bottom, bone_c, vein_c, arm_c = colors
-    anim = anim or wing_anim(34, 14, 1.2)
-    cubes = [Cube((-16.5, -1, 2), (15, 14, 0), dragon_membrane(c_top, c_bottom, bone_c, vein_c, glow, storm=storm)),
-             Cube((-16.5, -1.5, 1.5), (15, 1, 1), edge_paint(hexc(arm_c))),
-             Cube((-17.5, -3.5, 1.5), (1, 3, 1), metal("#efe6d6", "#6a5a4a", 0.25, False)),      # thumb claw
-             Cube((-3.5, -2, 1), (2, 2, 2), edge_paint(hexc(arm_c)))]                           # shoulder joint
+def dr_wing(name, cols, bone, line, vein, glow=None, storm=False, spikes=False, anim=None):
+    """A pair of dragon wings: the membrane plane, a hooked claw on the wrist (and spikes along the forearm), the arm."""
+    root = f"{name}_r"
+    w = DR_ARM[-1]
+    px = AW_PIVOT[0]
+    cubes = [Cube((px - DR_SPAN, DR_TOP, AW_Z), (DR_SPAN, DR_H, 0), aw_plane(DR_TOP, dr_membrane(cols, bone, line, vein, glow, storm))),
+             Cube((px - w[0] - 0.5, w[1] - 2.4, AW_Z + 0.75), (1, 2, 1), metal("#efe6d6", "#6a5a4a", 0.25, False))]
     if spikes:
-        cubes += [Cube((x, -3.5, 1.5), (1, 2, 1), metal("#3a3036", "#120c10", 0.2, False)) for x in (-13.5, -10.5, -7.5)]
-    return wing_pair([Bone(name, "body", (-1.5, 2, 2.5), (0, 0, -10), cubes, anim=anim)])
+        for f in (0.3, 0.55, 0.8):
+            a = aw_curve(DR_ARM[1:], f)
+            cubes.append(Cube((px - a[0] - 0.5, a[1] - 2.2, AW_Z + 0.75), (1, 2, 1), metal("#3a3036", "#120c10", 0.2, False)))
+    bones = [Bone(root, "body", AW_PIVOT, (0, 0, 0), cubes, anim=anim or wing_anim(34, 14, 1.2))]
+    bones += aw_arm_bones(root, AW_Z + 1.0, aw_rod(list(bone), line), segs=DR_ARM)
+    return aw_pair(bones)
 
 
 item("wyrmspan_wings", "Wyrmspan Wings", "WINGS", "REGULAR", 1100,
      "Broad dragon wings: a crimson membrane with veins and bony fingers, scalloped edges and a hooked claw.",
-     dragon_wing("wyrm_r", ("#c2341e", "#5a0e14", "#e8d6b8", "#ff8a5a", "#5a2a20")), view=WING_VIEW)
+     dr_wing("wyrm", ["#d8442a", "#b8301e", "#962418", "#741a14", "#561010"], ("#f6ead2", "#e0caa6", "#9a8466"), "#2a0c0a",
+             "#ff8a5a"), view=AW_VIEW)
 item("infernal_wings", "Infernal Wings", "WINGS", "REGULAR", 900,
      "Spiked black demon wings whose veins glow like magma in the dark.",
-     dragon_wing("infernal_r", ("#2a1418", "#0c0608", "#4a3438", "#ff4a1a", "#1a1012"), glow="#ff5a1a", spikes=True),
-     view=dict(WING_VIEW, glow="#ff4a1a", glow_strength=0.22))
+     dr_wing("infernal", ["#84464f", "#6c3640", "#562a32", "#422026", "#30161c"], ("#b89aa0", "#7a5a62", "#45303a"), "#14060a",
+             "#ff4a1a", glow="#ff5a1a", spikes=True), view=dict(AW_VIEW, glow="#ff4a1a", glow_strength=0.22))
 item("stormcaller_wings", "Stormcaller Wings", "WINGS", "SPECIAL", None,
      "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
-     dragon_wing("storm_r", ("#4a5878", "#141a2a", "#c8d4e8", "#7ab8ff", "#2a3040"), storm=True), view=dict(WING_VIEW, thumb_frame=0),
-     animation={"frames": 24, "frametime": 1.5, "interpolate": False, "scale": 8})
+     dr_wing("storm", ["#4a5878"] * 5, ("#e4ecf8", "#c8d4e8", "#6a7a98"), "#0a0e18", "#7ab8ff", storm=True),
+     view=dict(AW_VIEW, thumb_frame=0), animation={"frames": STORM_FRAMES, "frametime": 1.8, "interpolate": False, "scale": 8})
 
 
 # -------- butterfly
@@ -2757,49 +2920,24 @@ def butterfly_lobe(upper):
 
 
 def butterfly():
+    # the lobes hinge on a thorax that stands out from the back, so the upper lobes clear the back of the head
     anim = wing_anim(24, 22, 2.2)
-    right = [Bone("lobes_r", "body", (-1, 3, 2.5), (0, 0, -6), [
-        Cube((-12, -4, 2), (11, 9, 0), butterfly_lobe(True)),
-        Cube((-9, 5, 2.05), (8, 7, 0), butterfly_lobe(False))], anim=anim)]
-    body = Bone("thorax", "body", (0, 3, 2.5), cubes=[Cube((-0.5, 0, 2), (1, 8, 1), solid_paint(hexc("#14141c")))])
+    right = [Bone("lobes_r", "body", (-1, 3, 4.0), (0, 0, -6), [
+        Cube((-12, -4, 4.3), (11, 9, 0), butterfly_lobe(True)),
+        Cube((-9, 5, 4.35), (8, 7, 0), butterfly_lobe(False))], anim=anim)]
+    body = Bone("thorax", "body", (0, 3, 2.5), cubes=[Cube((-0.5, 0, 2), (1, 8, 3), solid_paint(hexc("#14141c")))])
     return wing_pair(right) + [body]
 
 
+INSECT_VIEW = dict(WING_VIEW, frame=[(-16, -19), (16, 10)])
+
 item("azure_butterfly_wings", "Azure Butterfly Wings", "WINGS", "REGULAR", 600,
      "Iridescent blue butterfly wings with black borders and white spots that flutter quickly.",
-     butterfly(), view=WING_VIEW)
+     butterfly(), view=INSECT_VIEW)
 
 
-# -------- mechanical
-
-def steel_plate(c_hi="#d8dde6", c_lo="#6a7280", trim_c="#c99a3a", seam="#5ad8ff"):
-    def p(face, cv):
-        t, x = cv.yy(), cv.xx()
-        col = ramp(t, [(0, c_hi), (0.5, c_lo), (1, "#3a404a")])
-        y, xx = cv.grid()
-        brushed = hash_noise(1, cv.w, 5 + cv.w)[0][None, :]
-        col[..., :3] *= (0.93 + 0.1 * brushed)[..., None]
-        col[..., :3] = np.clip(col[..., :3] + (np.exp(-((t - 0.2) / 0.08) ** 2) * 0.25)[..., None], 0, 1)
-        cv.arr[:] = col
-        if face in ("north", "south"):
-            # a feather-shaped plate: brass leading edge, a raised spine, two rivets at the root, a glowing vent
-            edge = xx < cv.s * 0.45
-            cv.arr[edge, :3] = mix(cv.arr[edge, :3], hexc(trim_c)[:3], 0.85)
-            spine = np.abs(xx + 0.5 - cv.w * 0.55) < cv.s * 0.2
-            cv.arr[spine, :3] = np.clip(cv.arr[spine, :3] * 1.25 + 0.05, 0, 1)
-            for rx in (cv.w * 0.3, cv.w * 0.78):
-                m = ((xx + 0.5 - rx) ** 2 + (y + 0.5 - cv.s * 0.7) ** 2) < (cv.s * 0.28) ** 2
-                cv.arr[m, :3] = hexc("#f4f0e0")[:3]
-            vent = (np.abs(xx + 0.5 - cv.w * 0.55) < cv.s * 0.18) & (y > cv.h - cv.s * 3.2) & (y < cv.h - cv.s * 1.6)
-            cv.arr[vent, :3] = hexc(seam)[:3]
-            em_from(cv, vent.astype(np.float32), seam)
-            tip = (y > cv.h - cv.s * 1.5) & (np.abs(xx + 0.5 - cv.w * 0.6) > (cv.h - y) * 0.9)
-            cv.arr[tip, 3] = 0
-            cv.em[tip] = 0
-        cv.arr[..., 3] = np.where(cv.arr[..., 3] > 0, 1, 0)
-        bevel(cv, 0.18, 0.28)
-    return p
-
+# -------- mechanical: riveted steel blades fanned from a brass arm, brass plates over their roots, glowing blue seams,
+# a brass gear at the shoulder
 
 def gear_paint(face, cv):
     y, x = cv.grid()
@@ -2820,52 +2958,48 @@ def gear_paint(face, cv):
     bevel(cv, 0.15, 0.25)
 
 
+CLOCK = {"line": "#1f2228", "cols": ["#eef1f5", "#c3cad4", "#959ead", "#6a7382"], "shaft": "#4a525e", "hi": "#ffffff",
+         "cov": [["#ffe9a0", "#e0b04a", "#a87428"], ["#fff0b8", "#e8bc58"]], "rows": ((0.5, 9), (0.27, 8)),
+         "arm": ["#fff0b8", "#d9a640", "#8a5a1a"], "vane": 0.8, "n": 13}
+
+
+def clock_coverts(base):
+    """The brass plates, then two rivets on each plate of the lowest row."""
+    _, covs = aw_layout(CLOCK["n"], CLOCK["rows"])
+
+    def p(F):
+        base(F)
+        for b, t, w in covs[0]:
+            for f in (0.3, 0.62):
+                x, y = F.P(b[0] + (t[0] - b[0]) * f, b[1] + (t[1] - b[1]) * f)
+                m = disc(F.cv, x, y, max(1.2, F.s * 0.2))
+                put(F.cv, grow(m, 1) & ~m, "#5a3a10")
+                put(F.cv, m, "#fff6d8")
+    return p
+
+
 def clockwork():
-    anim = wing_anim(32, 10, 1.3)
-    plate = steel_plate()
-    cubes = [Cube((-15.5, -1, 1.5), (14, 1, 1), metal("#e8e2d0", "#7a6a4a", 0.3))]
-    for i, (x, L) in enumerate([(-5.5, 7), (-8.5, 9), (-11.5, 12), (-14.5, 13), (-17, 11)]):
-        cubes.append(Cube((x, -0.5 + i * 0.0, 2 + (i % 2) * 0.5), (3, L, 1), plate))
-    cubes.append(Cube((-4.5, -2.5, 0.8), (4, 4, 1), gear_paint))
-    return wing_pair([Bone("blades_r", "body", (-1.5, 2, 2.5), (0, 0, 0), cubes, anim=anim)])
+    fl, co = aw_bird(CLOCK, shape="blade", glow_tip=("#5ad8ff", 0.8, 1.0))
+    return aw_wing("blades", fl, clock_coverts(co), aw_rod(["#fff0b8", "#d9a640", "#8a5a1a"], "#3a2408"),
+                   wing_anim(32, 10, 1.3), extra=[Cube((-4.5, 0.0, AW_Z + 0.9), (3, 3, 1), gear_paint)])
 
 
 item("clockwork_wings", "Clockwork Wings", "WINGS", "REGULAR", 1000,
      "Riveted steel blades with brass trim and glowing blue seams, turning on a brass gear at each shoulder.",
-     clockwork(), view=WING_VIEW)
+     clockwork(), view=AW_VIEW)
 
 
-# -------- ice crystal
+# -------- ice crystal: faceted see-through shards laid like feathers, frosted glowing tips, an ice spar
 
-def ice_shard(face, cv):
-    t, x = cv.yy(), cv.xx()
-    col = ramp(t, [(0, "#f2fdff"), (0.4, "#9fe4ff"), (1, "#3a8fd6")])
-    facet = (x > 0.5)
-    col[facet, :3] *= 0.84
-    shine = np.exp(-((x - 0.3 + t * 0.1) / 0.08) ** 2)
-    col[..., :3] = np.clip(col[..., :3] + shine[..., None] * 0.3, 0, 1)
-    col[..., 3] = 0.86
-    if face in ("north", "south", "east", "west"):
-        y, xx = cv.grid()
-        tip = (y > cv.h - cv.w * 1.2) & (np.abs(xx + 0.5 - cv.w / 2) > (cv.h - y) * 0.45)
-        col[tip, 3] = 0
-    cv.arr[:] = col
-    em_from(cv, shine * 0.6 * (col[..., 3] > 0), "#e8fbff")
-    em_from(cv, (t < 0.12) * 0.4 * (col[..., 3] > 0), "#bff4ff")
-    bevel(cv, 0.2, 0.2)
-
-
-def glacier():
-    anim = wing_anim(34, 8, 1.0)
-    cubes = [Cube((-14.5, -1, 1.5), (13, 1, 1), ice_shard)]
-    for i, (x, y, L) in enumerate([(-4.5, 0, 7), (-7, -1, 10), (-9.5, -2, 13), (-12, -2, 12), (-14.5, -3, 10), (-16.5, -4, 7)]):
-        cubes.append(Cube((x, y, 2 + (i % 2) * 0.5), (2, L, 1), ice_shard))
-    return wing_pair([Bone("shards_r", "body", (-1.5, 2, 2.5), (0, 0, 0), cubes, anim=anim, alpha=0.95)])
-
+GLACIER = {"line": "#1d4f8a", "cols": ["#f2fdff", "#c4efff", "#8ed6f6", "#58a8e6", "#3a7ed0"], "hi": "#ffffff",
+           "cov": [["#e8fbff", "#b8eaff", "#86d0f4"], ["#f2fdff", "#c8f0ff"], ["#ffffff", "#d8f6ff"]],
+           "arm": ["#ffffff", "#bff4ff", "#5ab4e0"], "vane": 0.78, "n": 13}
 
 item("glacier_wings", "Glacier Wings", "WINGS", "REGULAR", 900,
      "A fan of see-through ice crystals with glinting facets and frosted, glowing tips.",
-     glacier(), view=dict(WING_VIEW, glow="#9fe4ff", glow_strength=0.22))
+     aw_wing("shards", *aw_bird(GLACIER, shape="shard", alpha=0.9, glow_tip=("#d8f8ff", 0.8, 0.6)),
+             aw_rod(["#ffffff", "#bff4ff", "#5ab4e0"], "#1d4f8a", glow=0.3), wing_anim(34, 8, 1.0)),
+     view=dict(AW_VIEW, glow="#9fe4ff", glow_strength=0.22))
 
 # ---------------------------------------------------------------------------------------------- hats
 # Head space: the head spans x -4..4, y -8..0 (top at -8), z -4..4 (face at -4).
@@ -2873,49 +3007,60 @@ item("glacier_wings", "Glacier Wings", "WINGS", "REGULAR", 900,
 HEAD_VIEW = {"yaw": 28, "pitch": 18, "focus": "head"}
 
 
-def knit(face, cv):
-    """Knitted rib: columns of V stitches, shaded between ribs."""
-    y, x = cv.grid()
-    s = max(2, cv.s)
-    col_ph = (x % s) / s
-    row_ph = (y % s) / s
-    v = 1 - np.abs(col_ph - 0.5) * 2                          # rounded rib profile
-    vst = np.abs(((row_ph + np.abs(col_ph - 0.5)) % 1) - 0.5)   # V stitches
-    g = 0.72 + 0.2 * v + 0.1 * (vst < 0.18)
-    cv.arr[..., :3] = (g * 0.97)[..., None]
-    cv.arr[..., 3] = 1
-    if face not in ("top", "bottom"):
-        cv.arr[..., :3] *= (1 - 0.14 * cv.yy())[..., None]
+KNIT =["#6e6e72", "#a2a2a6", "#c6c6ca", "#e4e4e8", "#fafafc"]       # greys: the wearer's colour tints them
+
+
+def knit_px(face, cv):
+    """The beanie's crown as pixel art: raised rib columns of V stitches with a shadow line between ribs, darker towards
+    the cuff; the top a square spiral of ribs closing in on the pom-pom."""
+    cv.hand = True
+    y, x = cv.grid().astype(int)
+    s = cv.s
+    if face in ("top", "bottom"):
+        ring = np.maximum(np.abs(x + 0.5 - cv.w / 2), np.abs(y + 0.5 - cv.h / 2)).astype(int)
+        lv = np.where(ring % 4 == 0, 1, np.where(ring % 4 == 1, 3, 2))
     else:
-        cv.arr[..., :3] *= 1.04
-    grain(cv, 0.03, seed=5)
-    ao_edges(cv, 0.1)
-
-
-def knit_band(face, cv):
-    y, x = cv.grid()
-    s = max(2, cv.s)
-    rib = 1 - np.abs((x % s) / s - 0.5) * 2
-    cv.arr[..., :3] = (0.66 + 0.24 * rib)[..., None]
+        cx = x % 4                                               # rib columns four texels wide
+        lv = np.choose(cx, [0, 2, 3, 2])
+        vee = (cx > 0) & (((y + np.abs(cx - 2)) % 4) == 0)        # a V of stitches down each rib
+        lv = np.where(vee, lv + 1, lv)
+        lv = np.where((y >= cv.h - s // 2) & (lv > 1), lv - 1, lv)  # in shade just above the cuff
+    cv.arr[:] = palette(lv, KNIT)
     cv.arr[..., 3] = 1
-    bevel(cv, 0.12, 0.22)
 
 
-def pompom(face, cv):
-    n = pnoise(cv.h, cv.w, max(2.0, cv.w / 2), 55, octaves=2)
-    y, x = cv.grid()
-    tufts = 0.5 + 0.5 * np.sin(x * 2.1 + y * 1.3) * np.cos(y * 1.7 - x)
-    cv.arr[..., :3] = (0.82 + 0.12 * n + 0.08 * tufts)[..., None]
+def knit_cuff_px(face, cv):
+    """The turned-up cuff: tighter ribs, lighter, a crisp fold line along the top and a shadow along the bottom."""
+    cv.hand = True
+    y, x = cv.grid().astype(int)
+    lv = np.choose(x % 3, [1, 3, 4])
+    if face not in ("top", "bottom"):
+        lv = np.where(y < 2, 4, lv)
+        lv = np.where((y >= 2) & (y < 3), 0, lv)                 # the fold
+        lv = np.where(y >= cv.h - 2, np.minimum(lv, 1), lv)
+    cv.arr[:] = palette(lv, KNIT)
     cv.arr[..., 3] = 1
-    ao_edges(cv, 0.15)
+
+
+def pompom_px(face, cv):
+    """A round, fluffy pom-pom: the face's corners cut away, tufts in three light tones, a glow from inside."""
+    cv.hand = True
+    y, x = cv.grid()
+    r = np.maximum(np.abs(x + 0.5 - cv.w / 2) / (cv.w / 2), np.abs(y + 0.5 - cv.h / 2) / (cv.h / 2))
+    d = np.sqrt(((x + 0.5 - cv.w / 2) / (cv.w / 2)) ** 2 + ((y + 0.5 - cv.h / 2) / (cv.h / 2)) ** 2)
+    tuft = levels(pnoise(cv.h, cv.w, max(2.0, cv.w / 5), 55, octaves=2) * 0.7 + (1 - d) * 0.5, 3, 0.3)
+    cv.arr[:] = palette(tuft + 2, KNIT)
+    cv.arr[..., 3] = (d < 1.28) & (r <= 1)
+    em_rgb(cv, cv.arr, (cv.arr[..., 3] > 0) * (0.55 + 0.15 * tuft))
 
 
 item("comet_cap", "Comet Cap", "HAT", "REGULAR", 200,
      "A ribbed knit beanie with a turned-up cuff and a glowing pom-pom, in any colour you like.",
-     [Bone("beanie", "head", cubes=[Cube((-4, -9, -4), (8, 3, 8), knit, inflate=0.8),
-                                    Cube((-4, -6.5, -4), (8, 2, 8), knit_band, inflate=1.05)], tint=True),
-      Bone("pompom", "head", (0, -10, 0), cubes=[Cube((-1.5, -12.6, -1.5), (3, 3, 3), pompom)], emissive=True,
-           anim={"type": "bob", "amp": 0.25, "speed": 2.0}, tint=True)],
+     [Bone("beanie", "head", cubes=[Cube((-4, -10, -4), (8, 2, 8), knit_px, inflate=0.6),
+                                    Cube((-3, -11, -3), (6, 1, 6), knit_px, inflate=0.6),
+                                    Cube((-4, -8, -4), (8, 2, 8), knit_cuff_px, inflate=1.0)], tint=True),
+      Bone("pompom", "head", (0, -12, 0), cubes=[Cube((-1.5, -14.4, -1.5), (3, 3, 3), pompom_px)], emissive=True,
+           anim={"type": "bob", "amp": 0.25, "speed": 2.0})],
      colourable=True, default_color="#3D7BFF", view=HEAD_VIEW)
 
 
@@ -2978,26 +3123,64 @@ def jewel(c_hi, c_mid, c_lo, glint_at=None, n_glint=8):
     return p
 
 
-def crown_bones(metal_paint, band_paint, gems, name="crown", unique=False):
-    """A crown: a band around the head, points on every side, and a gem on each face of the band and on top of the
-    front points. gems: painters for the front, right, back and left gems, plus the point tips. unique: the painters
-    are factories called once per cube, so every cube gets its own texture (animations that depend on where it is)."""
-    mp = metal_paint if unique else (lambda: metal_paint)
-    bp = band_paint if unique else (lambda: band_paint)
-    band = [Cube((-5, -9.5, -5), (10, 2, 1), bp()), Cube((-5, -9.5, 4), (10, 2, 1), bp()),
-            Cube((-5, -9.5, -4), (1, 2, 8), bp()), Cube((4, -9.5, -4), (1, 2, 8), bp())]
-    points = [Cube((x, -11.5, -5), (1, 2, 1), mp()) for x in (-5, -2, 1, 4)] + \
-             [Cube((x, -11.5, 4), (1, 2, 1), mp()) for x in (-5, -2, 1, 4)] + \
-             [Cube((-5, -11.5, z), (1, 2, 1), mp()) for z in (-2, 1)] + \
-             [Cube((4, -11.5, z), (1, 2, 1), mp()) for z in (-2, 1)]
-    g_front, g_right, g_back, g_left, g_tip = gems
-    tip = g_tip if unique else (lambda: g_tip)
-    jewels = [Cube((-1, -12.5, -5.3), (2, 3, 1), g_front),
-              Cube((-5.4, -9.0, -0.5), (1, 1, 1), g_right), Cube((4.4, -9.0, -0.5), (1, 1, 1), g_left),
-              Cube((-0.5, -9.0, 4.4), (1, 1, 1), g_back)] + \
-             [Cube((x, -12.3, -5.2), (1, 1, 1), tip()) for x in (-5, 4)]
-    velvet = Cube((-4, -10.5, -4), (8, 2, 8), velvet_paint)
-    return [Bone(name, "head", cubes=band + points + jewels + [velvet])]
+def crown_ring(mk, y=-9.5, h=2):
+    """A crown's band: four slabs round the head (x, z -5..5) sitting on its top edge. mk() gives each slab's painter
+    (a factory, so an animated crown can give every cube its own texture)."""
+    return [Cube((-5, y, -5), (10, h, 1), mk()), Cube((-5, y, 4), (10, h, 1), mk()),
+            Cube((-5, y, -4), (1, h, 8), mk()), Cube((4, y, -4), (1, h, 8), mk())]
+
+
+def band_gems(front, right, back, left, y=-9.5):
+    """Four big gems set into the middle of the band's sides."""
+    return [Cube((-1, y, -5.4), (2, 2, 1), front), Cube((-5.4, y, -1), (1, 2, 2), right),
+            Cube((-1, y, 4.4), (2, 2, 1), back), Cube((4.4, y, -1), (1, 2, 2), left)]
+
+
+def regal_bones():
+    """The classic: a gold band with a ruby, sapphires and an emerald, tall pearl-tipped points between short corner
+    points, a red velvet dome, two gold arches crossing over it and an orb and cross on top."""
+    pearl = jewel("#ffffff", "#f2eee6", "#b8b0a4")
+    points = []
+    for x, z in ((-0.5, -5), (-0.5, 4), (-5, -0.5), (4, -0.5)):              # tall middle points, pearl-tipped
+        points += [Cube((x, -12.5, z), (1, 3, 1), gold), Cube((x, -13.5, z), (1, 1, 1), pearl)]
+    for x, z in ((-5, -5), (4, -5), (-5, 4), (4, 4)):                        # short corner points
+        points.append(Cube((x, -11.5, z), (1, 2, 1), gold))
+    velvet = [Cube((-4, -11, -4), (8, 2, 8), velvet_paint), Cube((-3, -12, -3), (6, 1, 6), velvet_paint)]
+    arches = [Cube((-4.5, -12.5, -0.5), (1, 3, 1), gold), Cube((3.5, -12.5, -0.5), (1, 3, 1), gold),
+              Cube((-3.5, -13.5, -0.5), (7, 1, 1), gold),
+              Cube((-0.5, -12.5, -4.5), (1, 3, 1), gold), Cube((-0.5, -12.5, 3.5), (1, 3, 1), gold),
+              Cube((-0.5, -13.5, -3.5), (1, 1, 7), gold)]
+    top = [Cube((-1, -15.5, -1), (2, 2, 2), gold), Cube((-0.5, -17.5, -0.5), (1, 2, 1), gold),
+           Cube((-1.5, -17, -0.5), (3, 1, 1), gold)]
+    ruby, sapphire = jewel("#ffd0d8", "#e8203a", "#6a0414"), jewel("#d0e0ff", "#2a5aff", "#0a1a6a")
+    gems = band_gems(ruby, sapphire, jewel("#d8ffe0", "#22c46a", "#0a4a24"), sapphire)
+    scroll = engraved_band(gold, "filigree")
+    return [Bone("crown", "head", cubes=crown_ring(lambda: scroll) + points + velvet + arches + top + gems)]
+
+
+def circuit_bones():
+    """An open circlet: a gold band traced with glowing circuitry and a cluster of crystals rising at the front, tallest
+    in the middle, with a crystal over each ear and at the back."""
+    band = engraved_band(gold, "circuit")
+    c = jewel("#e8ffff", "#5ae0ff", "#0a6a9a")
+    crystals = [Cube((-1, -14, -5.3), (2, 5, 1), c), Cube((-3.5, -12, -5.2), (1, 3, 1), c), Cube((2.5, -12, -5.2), (1, 3, 1), c),
+                Cube((-5.3, -12, -0.5), (1, 3, 1), c), Cube((4.3, -12, -0.5), (1, 3, 1), c), Cube((-0.5, -11.5, 4.3), (1, 2, 1), c)]
+    return [Bone("crown", "head", cubes=crown_ring(lambda: band) + crystals)]
+
+
+def sovereign_bones():
+    """A platinum crown with tall spires at the corners and shorter ones between, four big gems in the band. Every cube
+    has its own painter, so the sweep of light knows where it is."""
+    spires = []
+    for z in (-5, 4):
+        for x, hgt in ((-5, 5), (-2, 3), (1, 3), (4, 5)):
+            spires.append(Cube((x, -9.5 - hgt, z), (1, hgt, 1), swept(platinum)))
+    for x in (-5, 4):
+        for z in (-2, 1):
+            spires.append(Cube((x, -12.5, z), (1, 3, 1), swept(platinum)))
+    gems = band_gems(royal_gem("#ffd0d8", "#ff2a4a", "#6a0414"), royal_gem("#d0e0ff", "#3a6aff", "#0a1a6a"),
+                     royal_gem("#f0d8ff", "#a04aff", "#3a0a6a"), royal_gem("#d8ffe0", "#22d46a", "#0a4a24"))
+    return [Bone("crown", "head", cubes=crown_ring(lambda: swept(engraved_band(platinum, "filigree"))) + spires + gems)]
 
 
 def velvet_paint(face, cv):
@@ -3016,16 +3199,10 @@ def velvet_paint(face, cv):
 
 item("circuit_crown", "Circuit Crown", "HAT", "REGULAR", 400,
      "A gold crown traced with glowing cyan circuitry, set with crystal gems and a tall crystal at the front.",
-     crown_bones(gold, engraved_band(gold, "circuit"),
-                 [jewel("#e8ffff", "#5ae0ff", "#0a6a9a")] * 4 + [jewel("#e8ffff", "#5ae0ff", "#0a6a9a")]),
-     view=HEAD_VIEW)
+     circuit_bones(), view=HEAD_VIEW)
 item("regal_crown", "Regal Crown", "HAT", "REGULAR", 400,
      "A classic gold crown with engraved scrollwork, a red velvet cap and a ruby, sapphire and emerald set in the band.",
-     crown_bones(gold, engraved_band(gold, "filigree"),
-                 [jewel("#ffd0d8", "#e8203a", "#6a0414"), jewel("#d0e0ff", "#2a5aff", "#0a1a6a"),
-                  jewel("#ffd0d8", "#e8203a", "#6a0414"), jewel("#d8ffe0", "#22c46a", "#0a4a24"),
-                  jewel("#ffffff", "#e8ecf4", "#9aa4b8")]),
-     view=HEAD_VIEW)
+     regal_bones(), view=HEAD_VIEW)
 # Sovereign Crown (special): a band of light sweeps round the crown once per loop, and each gem flares as it passes
 
 SWEEP_SPAN = 0.7          # the part of the loop the sweep takes (then a rest, so it reads as a glint, not a spin)
@@ -3082,11 +3259,7 @@ def royal_gem(c_hi, c_mid, c_lo):
 
 item("sovereign_crown", "Sovereign Crown", "HAT", "SPECIAL", None,
      "A platinum crown whose ruby, sapphire, emerald and amethyst catch the light one after another, round and round.",
-     crown_bones(lambda: swept(platinum), lambda: swept(engraved_band(platinum, "filigree")),
-                 [royal_gem("#ffd0d8", "#ff2a4a", "#6a0414"), royal_gem("#d0e0ff", "#3a6aff", "#0a1a6a"),
-                  royal_gem("#f0d8ff", "#a04aff", "#3a0a6a"), royal_gem("#d8ffe0", "#22d46a", "#0a4a24"),
-                  lambda: royal_gem("#ffffff", "#e8ecf4", "#9aa4b8")], unique=True),
-     view=HEAD_VIEW, animation={"frames": 16, "frametime": 2.5, "interpolate": True, "scale": 8})
+     sovereign_bones(), view=HEAD_VIEW, animation={"frames": 16, "frametime": 2.5, "interpolate": True, "scale": 8})
 
 
 # -------- witch hat
@@ -3141,16 +3314,24 @@ item("witch_hat", "Hollow Witch Hat", "HAT", "REGULAR", 300,
 # -------- party hat
 
 def party_paint(face, cv):
+    """Pixel art: two yellow stripes spiralling up a pink cone (the same spiral on every tier, from where each texel is
+    round the head), sky-blue dots on the pink, a lit top row and a shaded bottom row on every tier."""
+    cv.hand = True
     y, x = cv.grid()
-    t = cv.yy()
-    stripes = ((x + y * 0.9) // max(2, cv.s * 1.2)) % 3
-    pal = np.array([hexc("#ff4a7a")[:3], hexc("#ffd23a")[:3], hexc("#3ac8ff")[:3]])
-    cv.arr[..., :3] = pal[stripes.astype(int)]
+    if face in ("top", "bottom"):
+        cv.arr[:] = hexc("#ff4f86" if face == "top" else "#b8285a")
+        return
+    wx, wz, wy = face_world(cv)
+    turn = (np.arctan2(wz, wx) / math.tau * 2 - wy * 0.22) % 1.0
+    stripe = turn < 0.36
+    cv.arr[:] = np.where(stripe[..., None], hexc("#ffd23a"), hexc("#ff4f86"))
+    edge = (np.abs(turn - 0.36) < 0.025) | (turn < 0.025)
+    cv.arr[edge, :3] = hexc("#c8285e")[:3]
+    dots = ~stripe & ~edge & ((x % 6) < 2) & ((y % 6) < 2) & (((x // 6 + y // 6) % 2) == 0)
+    cv.arr[dots, :3] = hexc("#5ad0ff")[:3]
+    cv.arr[:2, :, :3] = np.clip(cv.arr[:2, :, :3] * 1.15 + 0.06, 0, 1)
+    cv.arr[-2:, :, :3] *= 0.72
     cv.arr[..., 3] = 1
-    dots = ((x % (cv.s * 2)) - cv.s) ** 2 + ((y % (cv.s * 2)) - cv.s) ** 2 < (cv.s * 0.28) ** 2
-    cv.arr[dots, :3] = 1
-    cv.arr[..., :3] *= (1 - 0.15 * t)[..., None]
-    bevel(cv, 0.16, 0.26)
 
 
 def tinsel(face, cv):
@@ -3170,8 +3351,9 @@ def tinsel(face, cv):
 item("party_cone", "Party Cone", "HAT", "REGULAR", 100,
      "A striped, polka-dotted party hat worn at a jaunty angle, with a fluffy pink tuft on top.",
      [Bone("cone", "head", (0, -8, 0), (0, 0, 14), cubes=[
-         Cube((-3, -11, -3), (6, 3, 6), party_paint), Cube((-2, -14, -2), (4, 3, 4), party_paint),
-         Cube((-1, -16, -1), (2, 2, 2), party_paint), Cube((-1.5, -17.5, -1.5), (3, 2, 3), tinsel)])],
+         Cube((-3, -10, -3), (6, 2, 6), party_paint), Cube((-2.5, -12, -2.5), (5, 2, 5), party_paint),
+         Cube((-2, -14, -2), (4, 2, 4), party_paint), Cube((-1.5, -16, -1.5), (3, 2, 3), party_paint),
+         Cube((-1, -17, -1), (2, 1, 2), party_paint), Cube((-1.5, -19, -1.5), (3, 2, 3), tinsel)])],
      view=HEAD_VIEW)
 
 
@@ -3234,31 +3416,38 @@ item("orbit_halo", "Orbit Halo", "HAT", "SPECIAL", None,
 
 # -------- horns
 
-def horn_paint(c_base, c_tip, glow=None):
+HORN = ["#3a2624", "#4e2e26", "#6a3622", "#94401c", "#d0581c", "#ff8a32", "#ffd27a"]
+HORN_SEGS = [((2, 3, 2), -18, -6), ((2, 2, 2), -16, -10), ((1, 2, 1), -6, -16), ((1, 2, 1), 10, -14), ((1, 1, 1), 18, -8)]
+
+
+def horn_px(i, n):
+    """Segment i of n: dark keratin at the root warming to a coal-bright tip, a darker ring every half unit (the
+    ridges), lit on the left, the last two segments glowing."""
     def p(face, cv):
-        t = cv.yy()
-        y0 = getattr(cv.cube, "seg", 0)
-        f = (y0 + (1 - t)) / 4
-        cv.arr[:] = ramp(f, [(0, c_base), (1, c_tip)])
+        cv.hand = True
         y, x = cv.grid()
-        ridge = ((y // max(1, cv.s // 2)) % 2 == 0)
-        cv.arr[ridge, :3] *= 0.86
+        f = (i + 1 - cv.yy()) / n                                      # 0 at the root .. 1 at the very tip
+        lv = levels(f, len(HORN) - 1, 0.4) + (0 if face in ("top", "bottom") else (x < max(1, cv.w // 4)))
+        cv.arr[:] = palette(lv, HORN)
+        ring = (y % max(2, cv.s // 2)) == 0
+        cv.arr[ring, :3] *= 0.7
         cv.arr[..., 3] = 1
-        bevel(cv, 0.2, 0.3)
-        if glow and y0 >= 2:
-            em_from(cv, np.ones_like(t) * (0.3 + 0.35 * (y0 - 2)), glow)
+        if i >= n - 3:
+            em_rgb(cv, cv.arr, np.clip(f * 1.4 - 0.6, 0, 1) * ~ring)
     return p
 
 
 def horns():
-    """Each horn climbs in four shrinking segments; each segment's painter knows its place so the glow builds upward."""
-    segs = [((-5, -9, -1), (2, 2, 2)), ((-6, -10.5, -0.5), (2, 2, 2)), ((-6.5, -12, 0), (1, 2, 1)), ((-6.5, -13.5, 0.5), (1, 2, 1))]
-    out = []
-    for i, (o, s) in enumerate(segs):
-        c = Cube(o, s, (lambda i: (lambda face, cv: (setattr(cv.cube, "seg", i), horn_paint("#2a1a1a", "#ff7a3a", "#ff6a2a")(face, cv))))(i))
-        out.append(c)
-    right = Bone("horn_r", "head", cubes=out)
-    return [right, mirrored_bone(right, "horn_l")]
+    """Each horn is a chain of shrinking segments, each a child bone turned a little more than the last, so it sweeps
+    out from the temple, back over the head and curls up at the tip."""
+    bones, parent = [], None
+    px, py, pz = -3.0, -7.5, -0.5
+    for i, ((w, h, d), roll, pitch) in enumerate(HORN_SEGS):
+        name = f"horn{i}_r"
+        bones.append(Bone(name, "head", (px, py, pz), (pitch, 0, roll),
+                          [Cube((px - w / 2, py - h, pz - d / 2), (w, h, d), horn_px(i, len(HORN_SEGS)))], parent=parent))
+        parent, py = name, py - h
+    return aw_pair(bones)
 
 
 item("ember_horns", "Ember Horns", "HAT", "REGULAR", 300,
@@ -3376,19 +3565,13 @@ def bandana_cloth(face, cv):
     cv.arr[:] = ramp(t, [(0, "#d42a2a"), (1, "#8a1218")])
     y, x = cv.grid()
     s = cv.s * 0.6
-    # an original print: little four-petal flowers in offset rows, with dots between them
-    cell = s * 3
+    # an original print, kept sparse so it reads at a glance: small four-point stars in offset rows on the red
+    cell = s * 4.5
     row = np.floor(y / cell)
     cx = ((x + (row % 2) * cell / 2) % cell) - cell / 2
     cy = (y % cell) - cell / 2
-    r = np.sqrt(cx ** 2 + cy ** 2)
-    a = np.arctan2(cy, cx)
-    petal = r < s * (0.55 + 0.4 * np.abs(np.cos(a * 2)))
-    centre = r < s * 0.28
-    dots = (np.abs(np.abs(cx) - cell / 2) < s * 0.25) & (np.abs(np.abs(cy) - cell / 2) < s * 0.25)
-    cv.arr[petal, :3] = hexc("#fff2e0")[:3]
-    cv.arr[centre, :3] = hexc("#1a1a22")[:3]
-    cv.arr[dots, :3] = hexc("#fff2e0")[:3]
+    star = (np.abs(cx) + np.abs(cy) * 2.2 < s * 0.9) | (np.abs(cx) * 2.2 + np.abs(cy) < s * 0.9)
+    cv.arr[star, :3] = hexc("#fff2e0")[:3]
     if face == "north":
         border = (x < s * 0.5) | (x >= cv.w - s * 0.5) | (y >= cv.h - s * 0.5)
         cv.arr[border, :3] = hexc("#1a1a22")[:3]
@@ -3880,6 +4063,8 @@ def ember_mote(face, cv):
 
 
 AURA_VIEW = {"yaw": 30, "pitch": 40, "frame": [(-15.5, -30.5), (15.5, 12.5)], "margin": 1.0}
+# the thumbnail: looking down on the sigil so it fills the card, the player from the chest down standing in it
+AURA_CLOSE = {"yaw": 30, "pitch": 55, "frame": [(-12, -23.5), (12, 0.5)], "margin": 1.0}
 
 item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
      "A ring of fire runes turns at your feet while three embers circle your waist.",
@@ -3890,7 +4075,7 @@ item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
            anim={"type": "spin", "speed": -70}, emissive=True)],
      fx={"type": "aura", "particle": "soft", "colors": ["#FFE08A", "#FF7A2A", "#8A1A0A"], "rate": 4, "size": 0.6,
          "life": 1.4, "sizeEnd": 0.3, "gravity": -0.35},
-     view=AURA_VIEW)
+     view=AURA_CLOSE)
 
 
 def frost_fn(cv, X, Z):
@@ -3929,7 +4114,7 @@ item("frost_sigil", "Frost Sigil", "AURA", "REGULAR", 400,
      "A pale, branching frost star slowly turns beneath you, with a few drifting snowflakes.",
      sigil_bones(frost_fn, spin=-12),
      fx={"type": "aura", "particle": "snow", "colors": ["#E8FBFF"], "rate": 2, "size": 1.0},
-     view=AURA_VIEW)
+     view=AURA_CLOSE)
 
 
 def bloom_extra(X, Z, r, ang):
@@ -3978,21 +4163,21 @@ item("verdant_bloom", "Verdant Bloom", "AURA", "REGULAR", 400,
      sigil_bones(verdant_fn, spin=10),
      fx={"type": "aura", "particle": "soft", "colors": ["#E8FFC8", "#8CFF6A", "#2A8A3A"], "rate": 3, "size": 0.6,
          "life": 1.8, "sizeEnd": 0.4, "gravity": -0.1},
-     view=AURA_VIEW)
+     view=AURA_CLOSE)
 
 item("void_rift", "Void Rift", "AURA", "REGULAR", 400,
      "A violet rune circle with a dark, starry core opens under you, shedding motes of purple light.",
      sigil_bones(ring_sigil("#ffd0ff", "#8a2aff", 12, 0.8, extra=lambda X, Z, r, a: smooth(1 - r / 0.32) * 0.45, star=8), spin=-30),
      fx={"type": "aura", "particle": "soft", "colors": ["#FF9AF0", "#B04FFF", "#3A0A6A"], "rate": 4, "size": 0.7,
          "life": 1.5, "sizeEnd": 0.3, "gravity": -0.25},
-     view=AURA_VIEW)
+     view=AURA_CLOSE)
 
 item("spectrum_aura", "Spectrum Aura", "AURA", "SPECIAL", None,
      "A rune circle whose colours sweep through the whole rainbow as it turns, with rainbow motes rising around you.",
      sigil_bones(ring_sigil("#ffffff", "#ffffff", 12, 0.9, hue=True, star=6), spin=20),
      fx={"type": "aura", "particle": "soft", "colors": ["#FF4A4A", "#FFD23A", "#3AFF7A", "#3AC8FF", "#B04FFF"], "rate": 5,
          "size": 0.6, "life": 1.6, "sizeEnd": 0.35, "gravity": -0.3},
-     view=AURA_VIEW, animation={"frames": 20, "frametime": 3, "interpolate": True, "scale": 16})
+     view=AURA_CLOSE, animation={"frames": 20, "frametime": 3, "interpolate": True, "scale": 16})
 
 # ---------------------------------------------------------------------------------------------- pets
 # Little creatures that ride beside your head: the perching ones sit on your left shoulder (like a shoulder parrot),
@@ -5417,7 +5602,24 @@ def thumb_emote(it, size=THUMB):
     scene = Scene()
     add_mannequin(scene, pose)
     im = render_scene(scene, it["view"].get("yaw", -24), it["view"].get("pitch", 6), size=size)
-    return badge(im, it["view"].get("glow", "#ffd36a"), 0.4)
+    return emote_light(im, it["view"].get("glow", "#ffd36a"))
+
+
+def emote_light(im, color):
+    """Lifts a posed figure off the dark card so the pose reads at a glance: the figure brighter, a crisp rim of the
+    emote's colour round its silhouette, and a stronger glow behind it."""
+    a = np.asarray(im, np.float32) / 255
+    m = a[..., 3]
+    a[..., :3] = np.where(m[..., None] > 0, np.clip(a[..., :3] * 1.25 + 0.06, 0, 1), a[..., :3])
+    k = max(3, im.width // 64 + (1 - im.width // 64 % 2))
+    grown = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(k)), np.float32) / 255
+    rim = np.zeros_like(a)
+    rim[..., :3] = hexc(color)[:3]
+    rim[..., 3] = np.clip(grown - m, 0, 1) * 0.95
+    out = badge(Image.new("RGBA", im.size, (0, 0, 0, 0)), color, 0.6)
+    out.alpha_composite(to_image(rim, dither=False))
+    out.alpha_composite(to_image(a, dither=False))
+    return out
 
 
 def badge(im, color, strength=0.35):
@@ -6492,15 +6694,15 @@ def moth_body(face, cv):
 
 def moth():
     anim = wing_anim(24, 18, 1.8)
-    right = [Bone("lobes_r", "body", (-1, 3, 2.5), (0, 0, -6), [
-        Cube((-12, -4, 2), (11, 9, 0), moth_wing(True)), Cube((-9, 5, 2.05), (8, 7, 0), moth_wing(False))], anim=anim)]
-    body = Bone("thorax", "body", (0, 3, 2.5), cubes=[Cube((-1, 0, 2), (2, 8, 1), moth_body)])
+    right = [Bone("lobes_r", "body", (-1, 3, 4.0), (0, 0, -6), [      # on a thorax standing out, clear of the head
+        Cube((-12, -4, 4.3), (11, 9, 0), moth_wing(True)), Cube((-9, 5, 4.35), (8, 7, 0), moth_wing(False))], anim=anim)]
+    body = Bone("thorax", "body", (0, 3, 2.5), cubes=[Cube((-1, 0, 2), (2, 8, 3), moth_body)])
     return wing_pair(right) + [body]
 
 
 item("dusk_moth_wings", "Dusk Moth Wings", "WINGS", "REGULAR", 700,
      "Soft, dusty moth wings in cream and bark brown, with a golden eye-spot on each.",
-     moth(), view=WING_VIEW)
+     moth(), view=INSECT_VIEW)
 
 
 # ---------------------------------------------------------------------------------------------- hats
@@ -8345,8 +8547,8 @@ def storm_ring_fn(ground):
 
 
 def storm_ring_bones():
-    waist = sigil_bones(storm_ring_fn(0), R=11, spin=90, y=13.5, name="ring")
-    ground = sigil_bones(storm_ring_fn(1), R=10, spin=-30, y=23.6, name="ground")
+    waist = sigil_bones(storm_ring_fn(0), R=13, spin=90, y=10.5, name="ring")
+    ground = sigil_bones(storm_ring_fn(1), R=9, spin=-30, y=23.6, name="ground")
     return waist + ground
 
 
@@ -8457,11 +8659,11 @@ def panda_body(face, A):
 
 def panda_head(face, A):
     if face == "north":                        # 16 x 12: tilted eye patches, eyes, a little blush
-        for cx_, tilt in ((4.5, 1), (11.5, -1)):
+        for cx_, tilt in ((4.5, -1), (11.5, 1)):
             m = (((A.x + 0.5 - cx_) + (A.y + 0.5 - 5) * 0.4 * tilt) / 2.3) ** 2 + ((A.y + 0.5 - 4.9) / 2.6) ** 2 <= 1
             A.put(m, PANDA_K)
-        eye(A, 3, 3, 3, 3, "#7a5a3a", dark="#06060a", lid=PANDA_K)
-        eye(A, 10, 3, 3, 3, "#7a5a3a", dark="#06060a", lid=PANDA_K)
+        eye(A, 3, 3, 3, 3, "#4a4a66", dark="#06060a", lid=PANDA_K)
+        eye(A, 10, 3, 3, 3, "#4a4a66", dark="#06060a", lid=PANDA_K)
         A.rect(1, 8, 3, 9, "#ffb0c0")
         A.rect(13, 8, 15, 9, "#ffb0c0")
     elif face == "top":
@@ -8598,18 +8800,24 @@ def shark_hull(face, A):
 
 def shark_head(face, A):
     shark_hull(face, A)
-    if face == "north":                        # 12 x 12: goggle eyes up top, a toothy grin below
+    if face == "north":                        # 12 x 12: the snout on top, goggle eyes, a toothy grin below
         for ex in (0, 7):
-            A.rect(ex, 2, ex + 5, 7, SHARK_DARK)
-            A.rect(ex + 1, 3, ex + 4, 6, SHARK_COPPER)
-        eye(A, 1, 3, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
-        eye(A, 8, 3, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
-        A.rect(0, 8, 12, 12, SHARK_BELLY)
+            A.rect(ex, 4, ex + 5, 9, SHARK_DARK)
+            A.rect(ex + 1, 5, ex + 4, 8, SHARK_COPPER)
+        eye(A, 1, 5, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
+        eye(A, 8, 5, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
+        A.rect(0, 9, 12, 12, SHARK_BELLY)
         A.rect(1, 9, 11, 11, "#3a0a0a")
         A.pix([(x, 9) for x in range(1, 11, 2)] + [(x, 10) for x in range(2, 11, 2)], "#fffbe8")
     elif face in ("east", "west"):
         A.pix([(A.w // 2 - 1, 6), (A.w // 2, 6), (A.w // 2 + 1, 6)], SHARK_DARK)      # gill slits
         A.pix([(A.w // 2 - 1, 7), (A.w // 2 + 1, 7)], SHARK_DARK)
+
+
+def shark_nose(face, A):
+    shark_hull(face, A)
+    if face == "north":                        # 8 x 4: the pointed brass snout, two nostrils
+        A.pix([(2, 2), (5, 2)], SHARK_DARK)
 
 
 def shark_fin(face, A):
@@ -8660,9 +8868,10 @@ def shark_pet():
         PC(a, (0, -6.5, 1.25), (0, 3, 3), px(SHARK_COPPER, shark_fin, rim=0))])   # the dorsal fin
     body.anim = dict(PET_ANIM, amp=1.0, speed=1.2)
     head = Bone("head", "root", P(a, 0, -2, -1), cubes=[
-        PC(a, (-1.5, -3.75, -4), (3, 3, 3), px(SHARK_BRASS, shark_head))],
+        PC(a, (-1.5, -3.75, -4), (3, 3, 3), px(SHARK_BRASS, shark_head)),
+        PC(a, (-1, -3.75, -5), (2, 1, 1), px(SHARK_BRASS, shark_nose))],
         anim={"type": "pet_head", "amp": 10}, parent="shark")
-    lids = blink_bone("lids", "head", a, (-1.5, -3.0, -4.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
+    lids = blink_bone("lids", "head", a, (-1.5, -2.5, -4.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
     gear = Bone("cog", "root", P(a, 0, -4.1, -0.25), cubes=[PC(a, (-1.5, -4.1, -1.75), (3, 0, 3), px("#e0b050", shark_gear, rim=0))],
                 anim={"type": "spin", "speed": 120}, parent="shark")
     tail = Bone("tail", "root", P(a, 0, -2, 2), cubes=[
