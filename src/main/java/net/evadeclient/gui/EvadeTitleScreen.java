@@ -1,8 +1,6 @@
 package net.evadeclient.gui;
 
 import net.evadeclient.EvadeClient;
-import net.evadeclient.gui.title.Discover;
-import net.evadeclient.gui.title.DiscoverScreen;
 import net.evadeclient.gui.title.FriendsStrip;
 import net.evadeclient.gui.title.Intro;
 import net.evadeclient.gui.title.RecentServers;
@@ -72,7 +70,7 @@ public class EvadeTitleScreen extends Screen {
     private static final Text COPYRIGHT = Text.translatable("title.credits");
     /** The backdrop's motion state, kept across showings so the parallax doesn't jump. */
     private static final TitleScene SCENE = new TitleScene();
-    /** The Discover link in the top-right corner: its row is kept clear of cards. */
+    /** Space kept clear at the top of the screen. */
     private static final int TOP_BAR = 24;
     private static final int TEASER_H = 104, FRIENDS_H = 22, ACCOUNT_H = 48, CARD_GAP = 8;
 
@@ -224,7 +222,7 @@ public class EvadeTitleScreen extends Screen {
         // ---- side cards
         if (wide) addCardWidgets(recent, mpDisabled);
 
-        // ---- footer: language, accessibility, wardrobe (and Discover when the corner is taken), version, copyright
+        // ---- footer: language, accessibility, wardrobe, version, copyright
         int fb = 16, fy = footerCy - fb / 2, fx = wide ? margin : 8;
         add(new TitleButton(fx, fy, fb, fb, Text.translatable("options.language"), Style.ICON, "server",
                 () -> client.setScreen(new LanguageOptionsScreen(this, client.options, client.getLanguageManager())))
@@ -240,21 +238,6 @@ public class EvadeTitleScreen extends Screen {
             fx += fb + 4;
         }
 
-        // The Discover link: top-right, unless the logo or the column would reach it (tiny windows), then the footer.
-        String dl = "Discover servers";
-        int dlw = TitleArt.width(dl, Role.SMALL) + 16;
-        int dlx = width - 10 - dlw;
-        boolean corner = dlx > Math.max(colX + colW, logoX + TitleArt.lockupWidth(markSize)) + 4 || logoY >= TOP_BAR;
-        if (corner) {
-            add(new TitleButton(dlx, 8, dlw, 12, Text.literal(dl), Style.LINK, "server",
-                    () -> client.setScreen(new DiscoverScreen(this))).intro(intro, 320, 0, -4))
-                    .setTooltip(Tooltip.of(Text.literal(Discover.TIP)));
-        } else {
-            add(new TitleButton(fx, fy, fb, fb, Text.literal(dl), Style.ICON, "search",
-                    () -> client.setScreen(new DiscoverScreen(this))).intro(intro, 320, 0, 4))
-                    .setTooltip(Tooltip.of(Text.literal(dl + ": " + Discover.TIP)));
-            fx += fb + 4;
-        }
         versionX = fx + 4;
 
         // The required notice, clickable to the credits like vanilla's, in the menu's own type.
@@ -294,7 +277,7 @@ public class EvadeTitleScreen extends Screen {
         int buttons = 2 * primH + gap + (rejoin ? gap + rowH : 0) + (compact ? 4 : 6) + gap
                 + 2 * rowH + gap + (mods ? gap + rowH : 0);
         int block = markSize + (tagline ? 12 : 0) + (compact ? 12 : 22) + buttons;
-        // Clear of the Discover link's row when there is room; tiny windows use the full height.
+        // Clear of the top bar when there is room; tiny windows use the full height.
         int top = bottom - TOP_BAR >= block ? TOP_BAR : 8;
 
         colW = wide ? bw : Math.min(220, W - 32);
