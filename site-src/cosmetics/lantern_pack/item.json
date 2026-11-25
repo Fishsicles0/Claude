@@ -2,7 +2,7 @@
  "id": "lantern_pack",
  "name": "Lantern Pack",
  "slot": "BACK",
- "rarity": "RARE",
+ "rarity": "REGULAR",
  "colourable": false,
  "defaultColor": null,
  "partner": null,

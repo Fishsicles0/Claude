@@ -2,7 +2,7 @@
  "id": "shatterburst",
  "name": "Shatterburst",
  "slot": "KILL_EFFECT",
- "rarity": "EPIC",
+ "rarity": "REGULAR",
  "colourable": false,
  "defaultColor": null,
  "partner": null,

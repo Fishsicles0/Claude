@@ -2,7 +2,7 @@
  "id": "circuit_crown",
  "name": "Circuit Crown",
  "slot": "HAT",
- "rarity": "EPIC",
+ "rarity": "REGULAR",
  "colourable": false,
  "defaultColor": null,
  "partner": null,

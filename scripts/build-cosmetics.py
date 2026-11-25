@@ -15,7 +15,7 @@ Per item, in <id>/:
   thumb.png     128 x 128 preview used by the Wardrobe grid and the shop cards
 
 And catalog.json: every item with the sha256 of each of its files under assets.files (the client checks bundled and
-downloaded files against it) plus the test-mode prices. This is the catalogue the backend serves at
+downloaded files against it) plus the prices (USD cents; null = not priced yet). This is the catalogue the backend serves at
 /api/cosmetics/catalog (it adds assets.base) and the shop page reads.
 
 Also draws the Wardrobe sidebar icon (assets/evade/textures/gui/nav/wardrobe*.png) in the menu's icon style.
@@ -267,11 +267,23 @@ def edge_paint(color, top_face_color=None):
 ITEMS = []
 
 
+# Rarities (the owner's three tiers):
+#   REGULAR  not animated. Normal cape sway, wing beats, pet bobbing and particle effects don't count as "animated".
+#   SPECIAL  animated items (animated textures and the like). Prices are announced later: an unpriced (None) special
+#            item shows "Price coming soon" in the shop and can't be bought.
+#   PARTNER  partner-server items; may be unpriced (granted by the partner server only). Give them partner={id, name}.
+RARITIES = ("REGULAR", "SPECIAL", "PARTNER")
+
+
 def item(id, name, slot, rarity, price, desc, bones=None, colourable=False, default_color=None, fx=None,
-         emote=None, view=None, item_space=False, display=None, thumb=None):
+         emote=None, view=None, item_space=False, display=None, thumb=None, partner=None):
+    if rarity not in RARITIES:
+        raise SystemExit(f"{id}: rarity must be one of {RARITIES}")
+    if price is None and rarity == "REGULAR":
+        raise SystemExit(f"{id}: regular items need a price")
     ITEMS.append(dict(id=id, name=name, slot=slot, rarity=rarity, price=price, desc=desc, bones=bones or [],
                       colourable=colourable, default_color=default_color, fx=fx, emote=emote, view=view or {},
-                      item_space=item_space, display=display, thumb=thumb))
+                      item_space=item_space, display=display, thumb=thumb, partner=partner))
 
 
 # ---------------------------------------------------------------------------------------------- capes
@@ -400,16 +412,16 @@ def chevron_lining(cv):
     weave(cv, 0.03)
 
 
-item("ember_mantle", "Ember Mantle", "CAPE", "EPIC", 799,
+item("ember_mantle", "Ember Mantle", "CAPE", "REGULAR", 600,
      "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark.",
      cape_bones(ember_outer, lining("#2a1412", "#140808"), ember_glow), view={"yaw": 200})
-item("tidal_weave", "Tidal Weave", "CAPE", "RARE", 499,
+item("tidal_weave", "Tidal Weave", "CAPE", "REGULAR", 500,
      "Deep-sea blue with rolling waves of foam and a sand-gold collar.",
      cape_bones(tidal_outer, lining("#0d2a40", "#061624")), view={"yaw": 200})
-item("starlit_veil", "Starlit Veil", "CAPE", "LEGENDARY", 1199,
+item("starlit_veil", "Starlit Veil", "CAPE", "REGULAR", 800,
      "A night sky with a violet nebula, a crescent moon and stars that shine in the dark.",
      cape_bones(starlit_outer, lining("#1a1440", "#0b0a1e"), starlit_glow), view={"yaw": 200})
-item("chevron_standard", "Chevron Standard", "CAPE", "COMMON", 299,
+item("chevron_standard", "Chevron Standard", "CAPE", "REGULAR", 400,
      "A clean banner cape with three chevrons, in any colour you like.",
      cape_bones(chevron_outer, chevron_lining, tint=True), colourable=True, default_color="#E11D2E", view={"yaw": 200})
 
@@ -500,10 +512,10 @@ def wings_ashen():
     return right + left
 
 
-item("aurora_wings", "Aurora Wings", "WINGS", "LEGENDARY", 1499,
+item("aurora_wings", "Aurora Wings", "WINGS", "REGULAR", 1100,
      "See-through wings that fade from cyan to violet, with glowing veins and a slow, easy beat.",
      wings_aurora(), view={"yaw": 205, "pitch": 12})
-item("ashen_feathers", "Ashen Feathers", "WINGS", "EPIC", 999,
+item("ashen_feathers", "Ashen Feathers", "WINGS", "REGULAR", 800,
      "Layered grey feathers that darken towards ember-lit tips.",
      wings_ashen(), view={"yaw": 205, "pitch": 12})
 
@@ -537,7 +549,7 @@ def pompom(face, cv):
     cv.arr[..., :3] *= (0.85 + 0.15 * n)[..., None]
 
 
-item("comet_cap", "Comet Cap", "HAT", "COMMON", 249,
+item("comet_cap", "Comet Cap", "HAT", "REGULAR", 200,
      "A ribbed knit beanie with a glowing pom-pom, in any colour you like.",
      [Bone("beanie", "head", cubes=[Cube((-4, -9, -4), (8, 3, 8), knit, inflate=0.8),
                                     Cube((-4, -6.5, -4), (8, 1, 8), knit_band, inflate=1.05)], tint=True),
@@ -585,7 +597,7 @@ def crown_bones():
     return [Bone("crown", "head", cubes=band + spikes), Bone("crown_glow", "head", cubes=glow, emissive=True)]
 
 
-item("circuit_crown", "Circuit Crown", "HAT", "EPIC", 899,
+item("circuit_crown", "Circuit Crown", "HAT", "REGULAR", 400,
      "A gold crown traced with glowing cyan circuitry and a crystal at the front.",
      crown_bones(), view={"yaw": 25, "pitch": 18, "focus": "head"})
 
@@ -616,7 +628,7 @@ def strap(face, cv):
     bevel(cv, 0.08, 0.2)
 
 
-item("dusk_visor", "Dusk Visor", "MASK", "RARE", 449,
+item("dusk_visor", "Dusk Visor", "MASK", "REGULAR", 250,
      "A sleek gunmetal visor across the eyes with a glowing red slit.",
      [Bone("visor", "head", cubes=[Cube((-4.5, -6, -5), (9, 3, 1), visor_shell, inflate=0.1),
                                    Cube((-5, -5.5, -4), (1, 1, 8), strap, inflate=0.05),
@@ -661,7 +673,7 @@ def lantern_core(face, cv):
     cv.arr[:] = mix(hexc("#fff2b0"), hexc("#ff9a2a"), t[..., None])
 
 
-item("lantern_pack", "Lantern Pack", "BACK", "RARE", 549,
+item("lantern_pack", "Lantern Pack", "BACK", "REGULAR", 400,
      "A sturdy canvas backpack with leather straps and a little lantern that glows at night.",
      [Bone("pack", "body", cubes=[Cube((-3, 1, 2), (6, 7, 3), canvas_bag), Cube((-2, 0, 2), (4, 1, 2), leather),
                                   Cube((-3.5, 6, 2.5), (7, 1, 2), leather, inflate=0.1)]),
@@ -722,7 +734,7 @@ def ember_mote(face, cv):
     cv.arr[:] = mix(hexc("#ffe08a"), hexc("#ff5a1f"), cv.yy()[..., None])
 
 
-item("ember_orbit", "Ember Orbit", "AURA", "EPIC", 799,
+item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
      "A faint ring of fire turns at your feet while three embers circle your waist.",
      [Bone("ring", "root", (0, 23.6, 0), cubes=[Cube((-11, 23.6, -11), (22, 0, 22),
                                                      ring_paint("#ffd36a", "#ff4a1a", 8, 0.42, 1))],
@@ -733,7 +745,7 @@ item("ember_orbit", "Ember Orbit", "AURA", "EPIC", 799,
            anim={"type": "spin", "speed": -70}, emissive=True)],
      fx={"type": "aura", "particle": "dust", "colors": ["#FFB347", "#FF5A1F"], "rate": 3, "size": 0.7},
      view={"yaw": 30, "pitch": 32})
-item("frost_sigil", "Frost Sigil", "AURA", "RARE", 549,
+item("frost_sigil", "Frost Sigil", "AURA", "REGULAR", 400,
      "A pale snowflake sigil slowly turns beneath you, with a few drifting flakes.",
      [Bone("sigil", "root", (0, 23.6, 0), cubes=[Cube((-11, 23.6, -11), (22, 0, 22), frost_paint)],
            anim={"type": "spin", "speed": -12}, emissive=True)],
@@ -743,16 +755,16 @@ item("frost_sigil", "Frost Sigil", "AURA", "RARE", 549,
 
 # ---------------------------------------------------------------------------------------------- trail, effects
 
-item("stardust_trail", "Stardust Trail", "TRAIL", "RARE", 449,
+item("stardust_trail", "Stardust Trail", "TRAIL", "REGULAR", 400,
      "Glittering violet and gold dust drifts from your feet as you move.",
      fx={"type": "trail", "particle": "dust", "colors": ["#B98CFF", "#FFD36A", "#FFFFFF"], "rate": 10, "size": 0.8},
      thumb="trail")
-item("shatterburst", "Shatterburst", "KILL_EFFECT", "EPIC", 699,
+item("shatterburst", "Shatterburst", "KILL_EFFECT", "REGULAR", 400,
      "When you get a kill, crystal shards burst outward from where they fell.",
      fx={"type": "burst", "particle": "dust", "colors": ["#9FFCFF", "#3EF0D0", "#FFFFFF"], "count": 42, "size": 1.1,
          "spark": True},
      thumb="burst")
-item("victory_spiral", "Victory Spiral", "WIN_EFFECT", "EPIC", 699,
+item("victory_spiral", "Victory Spiral", "WIN_EFFECT", "REGULAR", 400,
      "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
      fx={"type": "spiral", "particle": "dust", "colors": ["#FFD36A", "#FFF4C2", "#FF8A3A"], "count": 80, "size": 1.0,
          "height": 3.0},
@@ -766,18 +778,18 @@ def wisp_body(face, cv):
     t, x = cv.yy(), cv.xx()
     cv.arr[:] = mix(hexc("#a8f0ff"), hexc("#3a7bd6"), smooth(t)[..., None])
     grain(cv, 0.04)
-    if face == "north":
-        # two big friendly eyes and a little mouth
-        for ex in (0.28, 0.72):
-            eye = ((x - ex) ** 2 / 0.012 + (t - 0.45) ** 2 / 0.03) < 1
-            cv.arr[eye, :3] = hexc("#0b1a33")[:3]
-            shine = ((x - ex + 0.05) ** 2 / 0.002 + (t - 0.38) ** 2 / 0.004) < 1
-            cv.arr[shine, :3] = 1.0
-        mouth = (np.abs(t - 0.72) < 0.05) & (np.abs(x - 0.5) < 0.12)
-        cv.arr[mouth, :3] = hexc("#0b1a33")[:3]
-        blush = (((x - 0.15) ** 2 + (t - 0.66) ** 2) < 0.006) | (((x - 0.85) ** 2 + (t - 0.66) ** 2) < 0.006)
-        cv.arr[blush, :3] = mix(cv.arr[blush, :3], hexc("#ff8ab0")[:3], 0.6)
     bevel(cv, 0.15, 0.2)
+    if face == "north" and cv.h == 8 and cv.w == 8:
+        # a friendly face, drawn pixel by pixel on the 8 x 8 front: two tall eyes with a shine, a small smile, blush
+        ink, white, pink = hexc("#0b1a33")[:3], np.ones(3, np.float32), hexc("#ff8ab0")[:3]
+        for c0 in (1, 5):
+            cv.arr[1:4, c0:c0 + 2, :3] = ink
+            cv.arr[1, c0, :3] = white
+        cv.arr[5, 3:5, :3] = ink
+        cv.arr[4, 2, :3] = mix(cv.arr[4, 2, :3], ink, 0.6)
+        cv.arr[4, 5, :3] = mix(cv.arr[4, 5, :3], ink, 0.6)
+        for c0 in (0, 7):
+            cv.arr[4, c0, :3] = mix(cv.arr[4, c0, :3], pink, 0.7)
 
 
 def wisp_flame(face, cv):
@@ -786,26 +798,27 @@ def wisp_flame(face, cv):
     cv.arr[..., 3] = 0.9
 
 
-item("pip_wisp", "Pip the Wisp", "PET", "EPIC", 899,
+item("pip_wisp", "Pip the Wisp", "PET", "REGULAR", 500,
      "A tiny friendly wisp that bobs along above your shoulder, with a flickering flame on its head.",
      [Bone("wisp", "body", (7, -6, 1), cubes=[Cube((5, -8, -1), (4, 4, 4), wisp_body)],
            anim={"type": "pet", "amp": 0.8, "speed": 2.0}),
       Bone("wisp_flame", "body", (7, -6, 1), cubes=[Cube((6, -10, 0), (2, 2, 2), wisp_flame),
                                                     Cube((6.5, -11.5, 0.5), (1, 2, 1), wisp_flame)],
            anim={"type": "pet", "amp": 0.8, "speed": 2.0}, emissive=True)],
-     view={"yaw": 330, "pitch": 10, "focus": "shoulder"})
+     view={"yaw": 345, "pitch": 12, "focus": "pet", "glow": "#6cf2ff"})
 
 
 # ---------------------------------------------------------------------------------------------- emotes
 # Keyframes: [seconds, pitch, yaw, roll] in degrees for each model part, replacing its usual angles while it plays.
 
-item("sunny_wave", "Sunny Wave", "EMOTE", "COMMON", 199,
+item("sunny_wave", "Sunny Wave", "EMOTE", "REGULAR", 200,
      "A big, cheerful wave hello.",
      emote={"length": 1.6, "loop": True, "parts": {
          "rightArm": [[0, -170, 0, 15], [0.4, -170, 0, -15], [0.8, -170, 0, 15], [1.2, -170, 0, -15], [1.6, -170, 0, 15]],
          "head": [[0, 0, 0, 0], [0.8, 0, 0, 6], [1.6, 0, 0, 0]]}},
+     view={"pose": {"rightArm": (-168, 0, -18), "head": (0, 0, 6)}, "yaw": -20},   # the arm swung out, mid-wave
      thumb="emote")
-item("drum_solo", "Drum Solo", "EMOTE", "RARE", 399,
+item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 200,
      "Air drums: alternate hits with a head bob to the beat.",
      emote={"length": 1.0, "loop": True, "parts": {
          "rightArm": [[0, -50, 0, 0], [0.25, -85, 0, 0], [0.5, -50, 0, 0], [0.75, -60, 0, 0], [1.0, -50, 0, 0]],
@@ -843,7 +856,7 @@ def blade_core(face, cv):
 
 
 SWORD_ANIM = None
-item("nightglass_blade", "Nightglass Blade", "ITEM_SKIN", "LEGENDARY", 1299,
+item("nightglass_blade", "Nightglass Blade", "ITEM_SKIN", "REGULAR", 250,
      "Your sword, re-forged in dark glass with a glowing violet core. Shows on swords you hold, on your screen.",
      [Bone("blade", "item", (8, 8, 8), (0, 0, -45), [
          Cube((7, -1, 7), (2, 2, 2), silver),                 # pommel
@@ -891,7 +904,7 @@ def model_json(it, tw, th):
 
 def item_json(it):
     j = {"id": it["id"], "name": it["name"], "slot": it["slot"], "rarity": it["rarity"], "colourable": it["colourable"],
-         "defaultColor": it["default_color"], "partner": None, "description": it["desc"]}
+         "defaultColor": it["default_color"], "partner": it["partner"], "description": it["desc"]}
     if it["fx"]:
         j["fx"] = it["fx"]
     if it["emote"]:
@@ -1037,9 +1050,51 @@ def render_scene(scene, yaw, pitch, focus, size=THUMB, ss=3, yup=False):
 
 
 MANNEQUIN_COLOR = np.array([0.36, 0.37, 0.42, 1.0], np.float32)
+SKIN_UV = {"head": (0, 0), "body": (16, 16), "rightArm": (40, 16), "leftArm": (32, 48), "rightLeg": (0, 16),
+           "leftLeg": (16, 48)}
 
 
-def add_mannequin(scene, pose=None, alpha=1.0, parts=None):
+def preview_skin():
+    """The shop's preview skin (the same drawing as defaultSkin() in site/assets/shop.js), 64 x 64 classic layout:
+    an original dark hoodie with Evade-red trim. Thumbnails that show the player use it, so they match the 3D
+    previews on the shop."""
+    im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+
+    def rect(x, y, w, h, col):
+        d.rectangle((x, y, x + w - 1, y + h - 1), fill=col)
+
+    def box(u, v, w, h, dd, col):
+        rect(u + dd, v, w * 2, dd, col)
+        rect(u, v + dd, (w + dd) * 2, h, col)
+
+    box(0, 0, 8, 8, 8, "#c99a76")                                                       # head
+    for r in ((8, 0, 16, 8), (0, 8, 32, 2), (24, 8, 8, 8), (0, 8, 2, 6), (16, 8, 2, 5)):  # hair
+        rect(*r, "#2a1c16")
+    rect(9, 12, 2, 1, "#ffffff"); rect(13, 12, 2, 1, "#ffffff")                          # eyes
+    rect(10, 12, 1, 1, "#1d3b6e"); rect(13, 12, 1, 1, "#1d3b6e")
+    rect(11, 14, 2, 1, "#a8775a")                                                       # mouth shadow
+    box(16, 16, 8, 12, 4, "#17171c")                                                    # body: dark hoodie
+    rect(20, 20, 8, 1, "#e11d2e"); rect(23, 21, 2, 4, "#e11d2e")                         # red trim + zip
+    rect(20, 28, 8, 4, "#24242b")
+    box(40, 16, 4, 12, 4, "#17171c"); box(32, 48, 4, 12, 4, "#17171c")                  # arms
+    for r in ((40, 28, 16, 4), (32, 60, 16, 4), (44, 16, 4, 4), (36, 48, 4, 4)):
+        rect(*r, "#c99a76")
+    rect(40, 26, 16, 1, "#e11d2e"); rect(32, 58, 16, 1, "#e11d2e")
+    box(0, 16, 4, 12, 4, "#2c2f3a"); box(16, 48, 4, 12, 4, "#2c2f3a")                   # legs
+    for r in ((0, 29, 16, 3), (16, 61, 16, 3), (8, 16, 4, 4), (24, 48, 4, 4)):           # shoes
+        rect(*r, "#0d0d10")
+    arr = np.asarray(im, np.float32) / 255
+    # lift the very dark hoodie a little so the figure reads against the dark cards
+    arr[..., :3] = arr[..., :3] * 0.88 + 0.07
+    return arr
+
+
+SKIN = preview_skin()
+
+
+def add_mannequin(scene, pose=None, alpha=1.0, parts=None, skin=True):
+    """The player for context: the preview skin (or a plain grey figure with skin=False)."""
     mats = {}
     for part, (pivot, origin, size) in MANNEQUIN.items():
         if parts is not None and part not in parts:
@@ -1050,9 +1105,14 @@ def add_mannequin(scene, pose=None, alpha=1.0, parts=None):
         M = translate(pivot) @ rotate(rx, ry, rz)
         mats[part] = M
         local = [o - pv for o, pv in zip(origin, pivot)]
-        c = MANNEQUIN_COLOR.copy()
-        c[3] = alpha
-        scene.cube(M, local, size, None, 0, False, 1, 1, None, c, False)
+        if skin:
+            c = np.ones(4, np.float32)
+            c[3] = alpha
+            scene.cube(M, local, size, SKIN_UV[part], 0, False, 64, 64, SKIN, c, False)
+        else:
+            c = MANNEQUIN_COLOR.copy()
+            c[3] = alpha
+            scene.cube(M, local, size, None, 0, False, 1, 1, None, c, False)
     return mats
 
 
@@ -1067,9 +1127,9 @@ def thumb_model(it, tex_arr, tw, th):
     view = it["view"]
     focus = view.get("focus")
     parts = {"head": {"head"}, "shoulder": {"head"}}.get(focus)
-    mats = add_mannequin(scene, parts=parts) if focus != "item" else {}
+    mats = add_mannequin(scene, parts=parts) if focus not in ("item", "pet") else {}
     for b in it["bones"]:
-        base = mats.get(ATTACH.get(b.attach)) if ATTACH.get(b.attach) else np.eye(4)
+        base = mats.get(ATTACH.get(b.attach), np.eye(4))
         # thumbnails show a gentle rest pose for the animated bones
         rx, ry, rz = b.rotation
         anim = b.anim or {}
@@ -1083,26 +1143,48 @@ def thumb_model(it, tex_arr, tw, th):
         color[3] = b.alpha
         for c in b.cubes:
             scene.cube(M, c.origin, c.size, c.uv, c.inflate, c.mirror, tw, th, tex_arr, color, b.emissive)
-    return render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), None, yup=focus == "item")
+    im = render_scene(scene, view.get("yaw", 30), view.get("pitch", 10), None, yup=focus == "item")
+    if focus == "pet":
+        # the pet on its own, filling most of the card, with its glow behind it
+        im = im.resize((int(THUMB * 0.8),) * 2, Image.LANCZOS)
+        framed = Image.new("RGBA", (THUMB, THUMB), (0, 0, 0, 0))
+        framed.alpha_composite(im, ((THUMB - im.width) // 2, (THUMB - im.height) // 2))
+        return badge(framed, view.get("glow", "#6cf2ff"), 0.55)
+    return im
+
+
+def emote_key_pose(emote):
+    """The emote's most expressive moment: the keyframe time where the parts are turned furthest from standing."""
+    parts = emote["parts"]
+    times = sorted({k[0] for keys in parts.values() for k in keys})
+
+    def at(keys, t):
+        for a, b in zip(keys, keys[1:]):
+            if a[0] <= t <= b[0]:
+                f = 0 if b[0] == a[0] else (t - a[0]) / (b[0] - a[0])
+                return tuple(a[i] + (b[i] - a[i]) * f for i in (1, 2, 3))
+        return tuple(keys[-1][1:4])
+
+    best = max(times, key=lambda t: sum(sum(abs(v) for v in at(keys, t)) for keys in parts.values()))
+    return {p: at(keys, best) for p, keys in parts.items()}
 
 
 def thumb_emote(it):
-    parts = it["emote"]["parts"]
-    pose = {p: tuple(keys[1][1:4]) for p, keys in parts.items()}
+    pose = it["view"].get("pose") or emote_key_pose(it["emote"])
     scene = Scene()
     add_mannequin(scene, pose)
-    im = render_scene(scene, 25, 8, None)
+    im = render_scene(scene, it["view"].get("yaw", -24), it["view"].get("pitch", 6), None)
     return badge(im, "#ffd36a")
 
 
-def badge(im, color):
+def badge(im, color, strength=0.35):
     """A soft radial glow behind a thumbnail."""
     bg = np.zeros((THUMB, THUMB, 4), np.float32)
     yy, xx = np.mgrid[0:THUMB, 0:THUMB].astype(np.float32)
     r = np.sqrt((xx - THUMB / 2) ** 2 + (yy - THUMB / 2) ** 2) / (THUMB / 2)
     c = hexc(color)
     bg[..., :3] = c[:3]
-    bg[..., 3] = np.clip(1 - r, 0, 1) ** 2 * 0.35
+    bg[..., 3] = np.clip(1 - r, 0, 1) ** 2 * strength
     out = to_image(bg)
     out.alpha_composite(im)
     return out
@@ -1218,7 +1300,7 @@ def main():
                 (d / name).write_bytes(data)
         index["items"].append({
             "id": it["id"], "name": it["name"], "slot": it["slot"], "rarity": it["rarity"].lower(),
-            "priceCents": it["price"], "currency": "USD", "partner": None, "colourable": it["colourable"],
+            "priceCents": it["price"], "currency": "USD", "partner": it["partner"], "colourable": it["colourable"],
             "defaultColor": it["default_color"], "description": it["desc"],
             "assets": {"files": {name: sha256(data) for name, data in files.items()}}})
     data = (json.dumps(index, indent=1) + "\n").encode()

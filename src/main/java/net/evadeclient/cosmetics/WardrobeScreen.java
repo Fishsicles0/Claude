@@ -201,7 +201,9 @@ public final class WardrobeScreen extends EvadePanelScreen {
         String sub = wearing ? "Wearing" : owned ? (it.slot == Slot.EMOTE ? "Owned · preview" : "Owned · click to wear")
                 : "Locked · try on";
         int subColor = wearing ? Theme.RED : owned ? Theme.OK : Theme.TEXT_FAINT;
-        text(ctx, ellipsize(it.partner != null ? it.partner + " · " + sub : sub, Role.SMALL, cardW - 10), x + 5, y + cardH - 16, subColor, Role.SMALL);
+        // special and partner items say so (regular is the default and needs no tag)
+        String tag = it.partner != null ? it.partner : it.rarity != Rarity.REGULAR ? it.rarity.label : null;
+        text(ctx, ellipsize(tag != null ? tag + " · " + sub : sub, Role.SMALL, cardW - 10), x + 5, y + cardH - 16, subColor, Role.SMALL);
         contentHit(x, y, x + cardW, y + cardH, b -> clickItem(it));
     }
 

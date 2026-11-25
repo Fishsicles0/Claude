@@ -95,6 +95,7 @@ public final class CosmeticsCatalog {
                 JsonObject p = o.getAsJsonObject("partner");
                 partner = p.has("name") ? p.get("name").getAsString() : p.has("id") ? p.get("id").getAsString() : null;
             }
+            if (partner != null && rarity == Rarity.REGULAR) rarity = Rarity.PARTNER;
             int price = o.has("priceCents") && !o.get("priceCents").isJsonNull() ? o.get("priceCents").getAsInt() : 0;
             String currency = o.has("currency") && !o.get("currency").isJsonNull() ? o.get("currency").getAsString() : "USD";
             String base = null;
