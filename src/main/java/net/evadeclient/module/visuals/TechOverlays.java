@@ -254,6 +254,7 @@ public class TechOverlays extends Module {
         int[] out = new int[64 * 8];
         int n = 0;
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
+            if (!sw.getChunkManager().isChunkLoaded(center.x + dx, center.z + dz)) continue;
             Chunk chunk = sw.getChunk(center.x + dx, center.z + dz, ChunkStatus.STRUCTURE_REFERENCES, false);
             if (chunk == null) continue;
             for (Map.Entry<Structure, it.unimi.dsi.fastutil.longs.LongSet> e : chunk.getStructureReferences().entrySet()) {

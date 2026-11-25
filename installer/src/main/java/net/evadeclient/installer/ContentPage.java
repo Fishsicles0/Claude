@@ -82,7 +82,7 @@ final class ContentPage {
     boolean offline;
 
     enum Tab {
-        INSTALLED("Installed"), BROWSE("Browse Modrinth"), WORLDS("Worlds"), PACKS("Modpacks & sharing");
+        INSTALLED("Installed"), ADDONS("Add-ons"), BROWSE("Browse Modrinth"), WORLDS("Worlds"), PACKS("Modpacks & sharing");
         final String label;
         Tab(String label) { this.label = label; }
     }
@@ -155,10 +155,13 @@ final class ContentPage {
     private Object pending;
     /** Version list, pins and Undo last update. */
     final ContentVersions versions;
+    /** The Add-ons tab: tested mods, one click each. */
+    final ContentAddons addons;
 
     ContentPage(LauncherView v) {
         this.v = v;
         versions = new ContentVersions(this, v);
+        addons = new ContentAddons(this, v);
         filterField = field("Search installed");
         browseField = field("Search Modrinth");
         v.add(filterField);
@@ -376,6 +379,7 @@ final class ContentPage {
         Rectangle field = null;
         switch (tab) {
             case INSTALLED -> paintInstalled(g, sel, CX, y, CW, h);
+            case ADDONS -> addons.paint(g, sel, CX, y, CW, h);
             case BROWSE -> paintBrowse(g, sel, CX, y, CW, h);
             case WORLDS -> paintWorlds(g, sel, CX, y, CW, h);
             case PACKS -> paintPacks(g, sel, CX, y, CW, h);
@@ -1351,6 +1355,7 @@ final class ContentPage {
         int ix = x + 28, iw = w - 56;
         if (sheet.equals("problems")) { paintProblems(g, x, y, w, h, ix, iw); return; }
         if (sheet.equals("versions")) { versions.paint(g, x, y, w, h, ix, iw); return; }
+        if (sheet.startsWith("addon:")) { addons.paintSheet(g, sel, sheet.substring(6), x, y, w, h, ix, iw); return; }
         if (sheet.startsWith("datapacks:")) { paintDatapacks(g, sel, x, y, w, h, ix, iw, sheet.substring(10)); return; }
         String title, sub, body = null, projectId = null, url = null;
         Image img = null;
@@ -1531,7 +1536,8 @@ final class ContentPage {
             String act = switch (p.kind()) {
                 case MISSING -> p.option() == null ? "Install" : null;
                 case SWITCHED_OFF -> "Switch on";
-                case BREAKS, DUPLICATE, OVERLAP -> "Switch one off";
+                case BREAKS, DUPLICATE -> "Switch one off";
+                case OVERLAP -> p.evadeModule() != null ? "Turn Evade's off" : p.mods().size() > 1 ? "Switch one off" : null;
             };
             if (act != null) v.ghostButton(g, "c-fix:" + i, ix + iw - 140 - 12, ry + 17, 140, 32, act, false);
             ry += 74;
@@ -1604,6 +1610,7 @@ final class ContentPage {
         String arg = id.indexOf(':') > 0 ? id.substring(id.indexOf(':') + 1) : "";
         String cmd = id.indexOf(':') > 0 ? id.substring(0, id.indexOf(':')) : id;
         if (versions.click(cmd, arg, sel)) return true;
+        if (addons.click(cmd, arg, sel)) return true;
         switch (cmd) {
             case "c-tab" -> {
                 tab = Tab.valueOf(arg);
@@ -2075,15 +2082,27 @@ final class ContentPage {
                     refreshMods(sel);
                 });
             }
-            default -> {
-                // Switch the player's own mod(s) off, keeping one: never an Evade-managed jar.
-                List<Mods.Entry> l = new ArrayList<>();
-                for (Mods.Entry e : v.mods) if (p.mods().contains(e.file()) && !e.managed()) l.add(e);
-                if (l.size() == p.mods().size() && !l.isEmpty()) l.remove(0); // all are the player's: keep the first
-                if (l.isEmpty()) { v.toast("Those are Evade's own mods: switch the other one off"); return; }
-                setEnabled(sel, l, false, null);
+            case OVERLAP -> {
+                if (p.evadeModule() == null) { if (p.mods().size() > 1) switchOneOff(sel, p); return; }
+                try {
+                    Addons.requestOff(sel.dir, p.evadeModule());
+                    v.toast("Evade's " + p.evadeModule() + " goes off the next time " + sel.name + " starts (switch it back on in the Evade menu)");
+                } catch (IOException e) {
+                    fail("Couldn't switch Evade's " + p.evadeModule() + " off", e);
+                }
             }
+            default -> switchOneOff(sel, p);
         }
+        sheet = null;
+    }
+
+    /** Switches the player's own mod(s) of a problem off, keeping one: never an Evade-managed jar. */
+    private void switchOneOff(Launcher.Instance sel, ModChecks.Problem p) {
+        List<Mods.Entry> l = new ArrayList<>();
+        for (Mods.Entry e : v.mods) if (p.mods().contains(e.file()) && !e.managed()) l.add(e);
+        if (l.size() == p.mods().size() && !l.isEmpty()) l.remove(0); // all are the player's: keep the first
+        if (l.isEmpty()) { v.toast("Those are Evade's own mods: switch the other one off"); return; }
+        setEnabled(sel, l, false, null);
         sheet = null;
     }
 

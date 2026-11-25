@@ -44,7 +44,7 @@ public class TechInfoHud extends TextHudModule {
             .describe("How many chunks your game has loaded around you."));
 
     public TechInfoHud() {
-        super("Tech Info", "Technical lines for builders: light, slime chunk, moon phase, weather and more.", 4, 260);
+        super("Tech Info", "Technical lines for builders: light, slime chunk, moon phase, weather and more.", -1, 220);
     }
 
     @Override
