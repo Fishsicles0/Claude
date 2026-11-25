@@ -79,4 +79,25 @@ class ModChecksTest {
         assertTrue(ps.stream().anyMatch(p -> p.kind() == ModChecks.Kind.BREAKS && p.mods().containsAll(List.of(s, o))), ps.toString());
         assertTrue(ps.stream().anyMatch(p -> p.kind() == ModChecks.Kind.OVERLAP && p.warning()), ps.toString());
     }
+
+    @Test
+    void breaksOnlyCountsInsideTheVersionRange(@TempDir Path dir) throws Exception {
+        // Like Sodium: breaks fabric-api only below 0.140.0. With 0.141.6 installed there is no problem.
+        Path s = jar(dir, "sodium.jar", "{\"id\":\"sodium\",\"name\":\"Sodium\",\"breaks\":{\"fabric-api\":\"<0.140.0\",\"oldmod\":[\"<1.0\",\">=3.0\"]}}");
+        Path fapi = jar(dir, "fapi.jar", "{\"id\":\"fabric-api\",\"name\":\"Fabric API\",\"version\":\"0.141.6+1.21.11\"}");
+        Path old = jar(dir, "old.jar", "{\"id\":\"oldmod\",\"version\":\"2.5\"}");
+        Map<Path, ModChecks.Meta> metas = new LinkedHashMap<>();
+        for (Path p : List.of(s, fapi, old)) metas.put(p, ModChecks.read(p));
+        assertTrue(ModChecks.check(metas, Set.of(s, fapi, old), Map.of()).stream().noneMatch(p -> p.kind() == ModChecks.Kind.BREAKS));
+        // An old Fabric API inside the range is still reported.
+        Path fapiOld = jar(dir, "fapi-old.jar", "{\"id\":\"fabric-api\",\"name\":\"Fabric API\",\"version\":\"0.139.2+1.21.11\"}");
+        Map<Path, ModChecks.Meta> metas2 = new LinkedHashMap<>();
+        for (Path p : List.of(s, fapiOld)) metas2.put(p, ModChecks.read(p));
+        assertTrue(ModChecks.check(metas2, Set.of(s, fapiOld), Map.of()).stream().anyMatch(p -> p.kind() == ModChecks.Kind.BREAKS));
+        assertTrue(ModChecks.breaksVersion(List.of(">=3.0", "<1.0"), "0.9.1"));
+        assertFalse(ModChecks.breaksVersion(List.of("<1.0.0"), "1.0.0"));
+        assertTrue(ModChecks.breaksVersion(List.of("<1.0.0"), "1.0.0-beta.2"));
+        assertTrue(ModChecks.breaksVersion(List.of("1.2.x"), "1.2.7"));
+        assertFalse(ModChecks.breaksVersion(List.of(">=2.0 <3.0"), "3.1"));
+    }
 }

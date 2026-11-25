@@ -31,7 +31,12 @@ final class ModChecks {
     private ModChecks() {}
 
     /** What a jar's fabric.mod.json says: its id, the ids it also provides (nested jars included), what it needs and breaks. */
-    record Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license) {}
+    record Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license,
+                String version, Map<String, List<String>> breakRanges) {
+        Meta(Path file, String id, String name, Set<String> provides, Set<String> depends, Set<String> breaks, String license) {
+            this(file, id, name, provides, depends, breaks, license, null, Map.of());
+        }
+    }
 
     enum Kind { MISSING, SWITCHED_OFF, BREAKS, DUPLICATE, OVERLAP }
 
@@ -71,6 +76,71 @@ final class ModChecks {
             {"vulkanmod", "sodium", "VulkanMod and Sodium both replace the renderer: use one."},
             {"vulkanmod", "iris", "VulkanMod can't load Iris shaders."},
     };
+
+    // ------------------------------------------------------------------ version ranges
+
+    /** Whether {@code version} falls in any of a "breaks" entry's ranges. An unknown version only counts for "*". */
+    static boolean breaksVersion(List<String> ranges, String version) {
+        for (String r : ranges) {
+            String s = r == null ? "*" : r.trim();
+            if (s.isEmpty() || s.equals("*")) return true;
+            if (version == null) continue;
+            boolean all = true, any = false;
+            for (String part : s.split("\\s+")) {
+                if (part.isEmpty()) continue;
+                any = true;
+                Boolean ok = matches(part, version);
+                if (ok == null || !ok) { all = false; break; }
+            }
+            if (any && all) return true;
+        }
+        return false;
+    }
+
+    /** One Fabric version predicate (>=1.2, <0.140.0, =1.0, ~1.2, ^1.2, 1.2, 1.2.x). Null when it can't be read. */
+    static Boolean matches(String pred, String version) {
+        String op = "=";
+        for (String o : new String[]{">=", "<=", ">", "<", "=", "~", "^"}) if (pred.startsWith(o)) { op = o; pred = pred.substring(o.length()); break; }
+        if (pred.endsWith(".x") || pred.endsWith(".*")) {
+            String pre = pred.substring(0, pred.length() - 1);
+            return version.startsWith(pre);
+        }
+        int c;
+        try { c = compareVersions(version, pred); } catch (RuntimeException e) { return null; }
+        int[] v = nums(version), p = nums(pred);
+        return switch (op) {
+            case ">=" -> c >= 0;
+            case "<=" -> c <= 0;
+            case ">" -> c > 0;
+            case "<" -> c < 0;
+            case "~" -> c >= 0 && v.length > 1 && p.length > 1 ? v[0] == p[0] && v[1] == p[1] : c >= 0 && v[0] == p[0];
+            case "^" -> c >= 0 && v[0] == p[0];
+            default -> c == 0;
+        };
+    }
+
+    private static int[] nums(String v) {
+        String core = v.split("[-+]", 2)[0];
+        String[] parts = core.split("\\.");
+        int[] out = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            String d = parts[i].replaceAll("[^0-9].*$", "");
+            out[i] = d.isEmpty() ? 0 : Integer.parseInt(d);
+        }
+        return out;
+    }
+
+    /** Semantic-ish comparison: numeric parts, then a release beats any pre-release ("1.0" > "1.0-beta.1"). */
+    static int compareVersions(String a, String b) {
+        int[] x = nums(a), y = nums(b);
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            int p = i < x.length ? x[i] : 0, q = i < y.length ? y[i] : 0;
+            if (p != q) return Integer.compare(p, q);
+        }
+        boolean preA = a.split("\\+", 2)[0].contains("-"), preB = b.split("\\+", 2)[0].contains("-");
+        if (preA != preB) return preA ? -1 : 1;
+        return 0;
+    }
 
     // ------------------------------------------------------------------ reading jars
 
@@ -122,12 +192,24 @@ final class ModChecks {
             Set<String> provides = new LinkedHashSet<>(), depends = new LinkedHashSet<>(), breaks = new LinkedHashSet<>();
             if (o.has("provides") && o.get("provides").isJsonArray()) for (JsonElement x : o.getAsJsonArray("provides")) if (x.isJsonPrimitive()) provides.add(x.getAsString());
             if (o.has("depends") && o.get("depends").isJsonObject()) depends.addAll(o.getAsJsonObject("depends").keySet());
-            if (o.has("breaks") && o.get("breaks").isJsonObject()) breaks.addAll(o.getAsJsonObject("breaks").keySet());
+            Map<String, List<String>> breakRanges = new LinkedHashMap<>();
+            if (o.has("breaks") && o.get("breaks").isJsonObject()) {
+                for (var be : o.getAsJsonObject("breaks").entrySet()) {
+                    breaks.add(be.getKey());
+                    List<String> ranges = new ArrayList<>();
+                    JsonElement v = be.getValue();
+                    if (v.isJsonPrimitive()) ranges.add(v.getAsString());
+                    else if (v.isJsonArray()) for (JsonElement x : v.getAsJsonArray()) if (x.isJsonPrimitive()) ranges.add(x.getAsString());
+                    if (ranges.isEmpty()) ranges.add("*");
+                    breakRanges.put(be.getKey(), ranges);
+                }
+            }
+            String version = InstallerCore.str(o, "version");
             String license = null;
             JsonElement l = o.get("license");
             if (l != null && l.isJsonPrimitive()) license = l.getAsString();
             else if (l != null && l.isJsonArray() && !l.getAsJsonArray().isEmpty() && l.getAsJsonArray().get(0).isJsonPrimitive()) license = l.getAsJsonArray().get(0).getAsString();
-            return new Meta(file, id, name != null ? name : id, provides, depends, breaks, license);
+            return new Meta(file, id, name != null ? name : id, provides, depends, breaks, license, version, breakRanges);
         } catch (RuntimeException e) {
             return null;
         }
@@ -194,6 +276,9 @@ final class ModChecks {
                 Path other = providerOn.get(b);
                 if (other == null || other.equals(m.file())) continue;
                 Meta o = metas.get(other);
+                // A break usually names a version range (e.g. "<0.140.0"): only report it when the installed version is in it.
+                String otherVersion = o != null && b.equals(o.id()) ? o.version() : null;
+                if (!breaksVersion(m.breakRanges().getOrDefault(b, List.of("*")), otherVersion)) continue;
                 out.add(new Problem(Kind.BREAKS, m.name() + " doesn't work with " + (o != null ? o.name() : pretty(b)),
                         m.name() + " says it breaks with " + (o != null ? o.name() : pretty(b)) + ". Switch one of them off.", List.of(m.file(), other), null, null));
             }

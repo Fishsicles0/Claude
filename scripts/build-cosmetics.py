@@ -3065,13 +3065,12 @@ RUNES = [
 ]
 
 
-def rune_field(X, Z, r, ang, n, r_mid, height, width_frac=0.55, offset=0.0):
+def rune_field(X, Z, r, ang, n, r_mid, height, offset=0.0):
     """n rune glyphs evenly round a ring of radius r_mid (each `height` tall, radially), crisp: 1 inside a glyph's
     strokes, 0 elsewhere; plus the glyph index (for colouring)."""
     step = math.tau / n
     k = np.floor((ang - offset) / step + 0.5)
     da = (ang - offset) - k * step                       # angle from the nearest glyph's centre
-    u = da * r_mid / (height * width_frac / 5 * 7 / 7)   # tangential, in glyph widths
     gw = height * 5 / 7                                   # a glyph's width for square cells
     col = np.floor((da * r_mid) / gw * 5 + 2.5).astype(int)
     row = np.floor((r_mid + height / 2 - r) / height * 7).astype(int)
@@ -3108,7 +3107,6 @@ def ring_sigil(c_in, c_out, glyphs=12, alpha=0.8, extra=None, hue=None, star=Non
         if star:
             k = star
             a2 = (ang % (math.tau / k)) - math.pi / k
-            rr = 0.42 / np.maximum(np.cos(a2) * 1.0 + 0.0001, 0.0001)
             st = (np.abs(r * np.cos(a2) - 0.36) < 1.8 * px_ * 1.5) & (r < 0.5)
             A = np.maximum(A, st * 0.9)
         A = np.maximum(A, glow)
@@ -3431,7 +3429,8 @@ def eye(A, x, y, w=4, h=4, iris="#3a8a3a", dark=None, lid=None):
     A.rect(x, y, x + w, y + h, D)
     lo = y + h // 2
     A.rect(x + (1 if w >= 4 else 0), lo, x + w - (1 if w >= 4 else 0), y + h - (1 if h >= 4 else 0), mix(I, D, 0.25))
-    A.rect(x + 1 if w >= 4 else x, y + h - 2 if h >= 4 else y + h - 1, x + w - 1, y + h - 1, mix(I, D, 0.05)) if h >= 5 else None
+    if h >= 5:
+        A.rect(x + 1, y + h - 2, x + w - 1, y + h - 1, mix(I, D, 0.05))
     gx, gy = (x + 1, y + 1) if (w >= 4 and h >= 4) else (x, y)
     A.pix([(gx, gy)], "#ffffff")
     if w >= 5:
@@ -3446,7 +3445,7 @@ def eye(A, x, y, w=4, h=4, iris="#3a8a3a", dark=None, lid=None):
             A.norim[cy, cx] = False
 
 
-def stripes(A, color, rows, faces=None):
+def stripes(A, color, rows):
     """Tabby stripes: art-pixel rows across the face."""
     for yy in rows:
         A.rect(0, yy, A.w, yy + 1, color)
@@ -3784,9 +3783,10 @@ def slime_pet():
     a = SLIME
     core = pet_body("slime", a, [PC(a, (-1, -2.5, -0.5), (2, 2, 2), px("#4ad884", slime_core))])
     core.anim = dict(PET_ANIM, amp=0.8, speed=2.0)
+    # the jelly is the slime's whole face: it glances about on its own, wobbling over the core
     jelly = Bone("jelly", "root", P(a, 0, 0, 0), cubes=[PC(a, (-2, -4, -2), (4, 4, 4), slime_paint)], parent="slime",
-                 alpha=0.97)
-    lids = blink_bone("lids", "slime", a, (-1.25, -2.75, -2.03), (3, 1, 0),
+                 alpha=0.97, anim={"type": "pet_head", "amp": 8})
+    lids = blink_bone("lids", "jelly", a, (-1.25, -2.75, -2.03), (3, 1, 0),
                       lid_paint("#86eaa8", [(0, 3), (7, 3)], SLIME_INK))
     return [core, jelly, lids]
 
