@@ -3172,7 +3172,7 @@ def frost_fn(cv, X, Z):
         ux, uz = math.cos(a0), math.sin(a0)
         along = X * ux + Z * uz
         perp = np.abs(-X * uz + Z * ux)
-        arm = smooth(1 - perp / 0.022) * (along > 0) * (along < 0.86)
+        arm = smooth(1 - perp / 0.042) * (along > 0) * (along < 0.86)
         A = np.maximum(A, arm)
         for f, L in ((0.4, 0.13), (0.64, 0.1)):
             for s in (-1, 1):
@@ -3181,16 +3181,17 @@ def frost_fn(cv, X, Z):
                 rx, rz = X - ux * f, Z - uz * f
                 al = rx * bx + rz * bz
                 pp = np.abs(-rx * bz + rz * bx)
-                A = np.maximum(A, smooth(1 - pp / 0.018) * (al > 0) * (al < L))
+                A = np.maximum(A, smooth(1 - pp / 0.034) * (al > 0) * (al < L))
         tip = np.sqrt((X - ux * 0.86) ** 2 + (Z - uz * 0.86) ** 2)
         A = np.maximum(A, smooth(1 - tip / 0.04))
-    A = np.maximum(A, smooth(1 - np.abs(r - 0.95) / 0.02) + 0.6 * smooth(1 - np.abs(r - 0.9) / 0.012))
+    A = np.maximum(A, smooth(1 - np.abs(r - 0.94) / 0.04) + 0.8 * smooth(1 - np.abs(r - 0.84) / 0.022))
     A = np.maximum(A, smooth(1 - r / 0.08))
     A *= r < 1
     col = ramp(r, [(0, "#ffffff"), (0.6, "#bfeaff"), (1, "#5ab8ff")])
     cv.arr[..., :3] = col[..., :3]
-    cv.arr[..., 3] = A * 0.6
-    em_rgb(cv, col, A * 0.6)
+    A = np.clip(A * 1.25, 0, 1)
+    cv.arr[..., 3] = A * 0.72
+    em_rgb(cv, col, A * 0.72)
 
 
 item("frost_sigil", "Frost Sigil", "AURA", "REGULAR", 400,
@@ -3232,7 +3233,7 @@ def verdant_fn(cv, X, Z):
         A = np.maximum(A, petal * 1.0)
         col[petal] = hexc("#ffb0d8")
         col[d < 0.025] = hexc("#ffe66a")
-    ring = smooth(1 - np.abs(r - 0.95) / 0.018) + smooth(1 - np.abs(r - 0.6) / 0.012) * 0.7
+    ring = smooth(1 - np.abs(r - 0.94) / 0.038) + smooth(1 - np.abs(r - 0.6) / 0.026) * 0.85
     col[(ring > 0.3) & (A < 0.3)] = hexc("#c8ff9a")
     A = np.maximum(A, ring)
     A *= r < 1
@@ -3394,7 +3395,9 @@ class Art:
         h, w = self.cv.h, self.cv.w
         self.cv.arr[:] = 0
         self.cv.arr[:big.shape[0], :big.shape[1]] = big[:h, :w]
-        self.cv.em[:big.shape[0], :big.shape[1]] = bige[:h, :w]
+        bige = bige[:h, :w]
+        bige[..., :3] *= bige[..., 3:4]            # glow colours are stored pre-multiplied (as em_rgb does)
+        self.cv.em[:big.shape[0], :big.shape[1]] = bige
 
 
 FACE_LIGHT = {"top": 1.08, "north": 1.0, "east": 0.95, "west": 0.95, "south": 0.92, "bottom": 0.8}

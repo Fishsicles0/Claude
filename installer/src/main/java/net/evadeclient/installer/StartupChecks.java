@@ -18,12 +18,9 @@ final class StartupChecks {
 
     /** What's new in this launcher version (newest first; shown once after an update). */
     static final String[][] WHATS_NEW = {
-            {"Bring your setup over", "Instances › Import › From another launcher: settings, keybinds, servers, packs and worlds, with your mods fetched again for " + InstallerCore.MC_VERSION + "."},
-            {"Drag and drop", "Drop a mod, resource pack, shader pack or modpack on the window: it's checked and goes where it belongs."},
-            {"Templates and optional extras", "Start a new instance as PvP, Survival + shaders, Building or Low-end laptop. Faster start-up, more FPS and Open to Friends are a switch away."},
-            {"Pick a version, undo an update", "Every mod's version list with changelogs, pins that Update all leaves alone, and Undo update."},
-            {"Safe mode and shortcuts", "Start in safe mode from a crash card or an instance's More menu, and put an instance on your desktop."},
-            {"Memory that fits your PC", "Laptops whose graphics share the RAM get the right amount, and the Game page offers generational ZGC."}};
+            {"Updates ask first", "When a newer Evade Launcher is out, it asks before updating, checks the download's SHA-256, and never installs an older version."},
+            {"Stricter download checks", "A file without a checksum isn't installed, downloads come only from evadeclient.com, Modrinth and ffmpeg's builders, and a rolled-back release list is refused."},
+            {"Faster graphics card, your choice", "Settings > Launcher has its own switch for the Windows graphics setting; turning it off removes what Evade set."}};
 
     /** Checks every installed instance's own mods and packs; {@code report(instance, updates)} runs for each with updates. */
     static void modUpdates(List<Launcher.Instance> instances, BiConsumer<Launcher.Instance, Integer> report) {

@@ -2649,8 +2649,8 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12f));
         g.setColor(FAINT);
         g.drawString(ellipsizeEnd(g, "Version " + version + "  ·  Sign-in stays with the Minecraft Launcher", jw - 48), jx + 48, ay + 56);
-        paintVersionRows(g, jx, ay + 76, jw);
         int ly = ay + ah - 20 - 36;
+        paintVersionRows(g, jx, ay + 76, jw, ly - 4);
         if (legacyClips && !clipsBlocked) {
             ghostButton(g, "clips-legacy", jx, ly, jw, 36, "Remove the old Evade Clips app", true, "trash");
         } else {
@@ -2676,7 +2676,8 @@ public final class LauncherView extends JPanel {
     }
 
     /** Evade, Fabric Loader and Fabric API: installed (in the selected instance) and newest, each with its icon. */
-    private void paintVersionRows(Graphics2D g, int x, int y, int w) {
+    /** The version rows from {@code y}; a row that would reach past {@code bottom} (the buttons) is left out. */
+    private void paintVersionRows(Graphics2D g, int x, int y, int w, int bottom) {
         Launcher.Instance sel = selected();
         InstallerCore.Installed in = sel != null ? sel.installed : null;
         Path apiJar = null;
@@ -2691,6 +2692,7 @@ public final class LauncherView extends JPanel {
                 {"Fabric API", api, in != null ? InstallerCore.shortVersion(in.fabricApiVersion()) : "—", release != null ? InstallerCore.shortVersion(release.fabricApiVersion()) : "…"}};
         int ry = y;
         for (Object[] r : rows) {
+            if (ry + 40 > bottom) break;
             modIcon(g, x, ry + 6, 32, (String) r[0], (Image) r[1], true);
             g.setFont(interBold.deriveFont(13f));
             g.setColor(TEXT);

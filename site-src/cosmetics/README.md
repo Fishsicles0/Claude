@@ -108,9 +108,17 @@ Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added whe
   sprinting, 2.4x faster when falling or flying; sweeps back by `fold` degrees (default 28), tips down and rolls in
   over 0.25 s while sneaking, eased in and out, beating only a quarter as wide. `amp` is the beat's half
   angle; `lift` (degrees, default 0) raises the wing at the top of the beat (rotation about x).
-* **`pet`**: bobs (`amp` px at `speed` Hz), trails your body's turns smoothly like a follower, looks where you look
-  (eased, at most 50 degrees each way), and every few seconds plays a small idle (a hop or a head tilt). Put the pet
-  on `attach: "root"`; a bone named `head` (or with `"anim": {"type": "pet_head"}`) also nods with your look.
+* **`pet`** (the pet's body bone, on `attach: "root"`): turns about your vertical axis together with your head, so it
+  stays beside your head whichever way you look and can never end up inside it, trailing a quick turn by at most 6
+  degrees; drops with your shoulders when you sneak; bobs upward from where it sits (`amp` px at `speed` Hz, never down
+  into your shoulder), and every few seconds hops or sways a little. Build pets from child bones (`parent`):
+* **`pet_head`**: glances about (quick turns and little holds, `amp` degrees each way, default 14), now and then tilts
+  curiously, and nods with your look up and down.
+* **`blink`**: eyelids. The bone is squashed flat (open) about its pivot (put the pivot on the lids' top edge) except
+  for a quick close every `1 / speed` seconds, every third one a double blink. Still pictures draw the eyes open.
+  Tails sway with `sway` or wag with `wing` (`"fold": 0`); a pet's wings use `wing` as usual.
+  `scripts/build-cosmetics.py` refuses a pet that, in any pose its animations can reach, comes within 0.1 px of the
+  wearer's head (looking anywhere), body or arms (swinging as when sprinting), sneaking or not.
 * **`cape`**: real physics, see `physics` in item.json below.
 * **Transparency.** Bones with `alpha` < 1, `emissive` bones and bones with `"glass": true` are drawn translucent and
   sorted back-to-front (so are all bones of a model whose texture has partly see-through pixels); everything else is
