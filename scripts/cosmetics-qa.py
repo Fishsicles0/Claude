@@ -48,15 +48,23 @@ REFERENCE = ("hearthfire_cape", "riptide_cape", "ember_mantle", "mochi_cat", "em
 # By-eye review, judged on the contact sheets against the reference items. Only items with something to say are listed;
 # anything not listed passes the eye test. Update this after looking at sheet-<slot>.png.
 EYE = {
+    # gemini concept collection (reported to its builder, not fixed here)
+    "origami_sakura_wings": ("FAIL", "flat paper fans standing straight up: no arm bone, no layering, and they pass "
+                                     "through the head over the beat"),
+    "steampunk_shark": ("WEAK", "a long brown box that crowds the frame; the shark shape and its fins don't read"),
+    "storm_ring_aura": ("WEAK", "a thin ring of busy sparks, small in the frame; the shipped auras' sigils read far better"),
+    "ace_of_spades_cape": ("WEAK", "near-black cape on the dark card: only the small red card reads"),
+    "void_eye_cape": ("WEAK", "near-black cape: the eye is small and the rest disappears on the card"),
 }
 
 # wings shaped like an insect's (lobes on a thorax, no arm bone): the arch and strip checks don't apply
 INSECT_WINGS = ("azure_butterfly_wings", "dusk_moth_wings")
 
-# per-slot thresholds: (min fill, max busy, max distinct colours in a regular item's texture). The texture palette, not
+# per-slot thresholds (capes' busy limit: Dragonhide's raised scales, 31%, read cleanly by eye; Tidal Weave's
+# old foam rings, 40%, did not): (min fill, max busy, max distinct colours in a regular item's texture). The texture palette, not
 # the lit render: the crisp pixel art keeps a few flat bands per face (the references use 60-160), a noisy painter many.
 SLOT_LIMITS = {
-    "CAPE": (0.30, 0.30, 240), "WINGS": (0.62, 0.30, 120), "HAT": (0.42, 0.20, 170), "MASK": (0.42, 0.20, 170),
+    "CAPE": (0.30, 0.33, 240), "WINGS": (0.62, 0.30, 120), "HAT": (0.42, 0.20, 170), "MASK": (0.42, 0.20, 170),
     "BACK": (0.30, 0.24, 170), "AURA": (0.62, 0.30, 400), "PET": (0.55, 0.24, 9999), "ITEM_SKIN": (0.55, 0.20, 140),
     "EMOTE": (0.45, 1.0, 9999), "TRAIL": (0.45, 1.0, 9999), "KILL_EFFECT": (0.45, 1.0, 9999),
     "WIN_EFFECT": (0.45, 1.0, 9999),
@@ -281,7 +289,9 @@ def measure(im, slot):
     lr = float(L[ring].mean()) if ring.any() else 0
     lc = float(L[core].mean()) if core.any() else lr
     lb = float(lum(card))
-    out["outline"] = max(abs(lr - lc), abs(lr - lb))
+    # colour distance too: a red edge on the dark card stands out though its brightness is close to the card's
+    cr = rgb[ring].mean(0) if ring.any() else card
+    out["outline"] = max(abs(lr - lc), abs(lr - lb), float(np.abs(cr - card).mean()) * 0.5)
     hull = hull_area(m)
     out["solidity"] = float(m.sum()) / hull
     out["frags"] = components(m[::2, ::2], max(6, int(m.sum() / 4 * 0.004)))

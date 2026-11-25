@@ -200,6 +200,11 @@ public final class TechQolTest {
         ctx.runOnClient(c -> c.player.lookAt(net.minecraft.command.argument.EntityAnchorArgumentType.EntityAnchor.EYES, new Vec3d(1206.5, -58.5, 1201.5)));
         ctx.waitTicks(3);
         ctx.takeScreenshot("tech-beacon-range");
+        // Take the conduit away again: its water would flow over the later tests' blocks.
+        server.runCommand("fill 1196 -59 1208 1200 -55 1212 air");
+        server.runCommand("fill 1186 -61 1186 1216 -50 1216 air replace water");
+        ctx.waitTicks(5);
+        server.runCommand("fill 1186 -61 1186 1216 -50 1216 air replace water");
     }
 
     // ------------------------------------------------------------------ overlays and their cost
@@ -405,11 +410,13 @@ public final class TechQolTest {
             boolean progress = c.interactionManager.updateBlockBreakingProgress(new BlockPos(1199, -60, 1202), Direction.UP);
             boolean stoneAttack = c.interactionManager.attackBlock(new BlockPos(1204, -61, 1204), Direction.UP);
             c.interactionManager.cancelBlockBreaking();
-            return new Object[]{budding, stone, young, ripe, attack, progress, stoneAttack, g.blockedForTest()};
+            String seen = c.world.getBlockState(new BlockPos(1201, -60, 1202)) + " / " + c.world.getBlockState(new BlockPos(1199, -60, 1202))
+                    + " / creative=" + c.player.isCreative() + " sneaking=" + c.player.isSneaking() + " enabled=" + g.isEnabled();
+            return new Object[]{budding, stone, young, ripe, attack, progress, stoneAttack, g.blockedForTest(), seen};
         });
         check((boolean) r[0] && !(boolean) r[1], "Break Guard: budding amethyst is protected by default, stone isn't");
         check((boolean) r[2] && !(boolean) r[3], "Break Guard: unripe wheat is protected, fully grown wheat isn't");
-        check(!(boolean) r[4] && !(boolean) r[5] && (int) r[7] >= 2, "Break Guard: your clicks on protected blocks are held back");
+        check(!(boolean) r[4] && !(boolean) r[5] && (int) r[7] >= 2, "Break Guard: your clicks on protected blocks are held back (attack " + r[4] + ", progress " + r[5] + ", held back " + r[7] + "; " + r[8] + ")");
         check((boolean) r[6], "Break Guard: other blocks break as normal");
         ctx.waitTicks(10);
         boolean kept = server.computeOnServer(s -> s.getOverworld().getBlockState(new BlockPos(1201, -60, 1202)).isOf(Blocks.BUDDING_AMETHYST));

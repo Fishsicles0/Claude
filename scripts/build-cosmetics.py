@@ -1056,7 +1056,7 @@ def tidal_px(cv):
     h, w, s = cv.h, cv.w, cv.s
     y, x = cv.grid()
     X, Y = x + 0.5, y + 0.5
-    R = 1.6 * s
+    R = 2.2 * s                                                   # big scallops: fewer foam lines, calmer at a glance
     cv.arr[:] = hexc("#041a34")
     rows = int(h / (R * 0.5)) + 2
     for j in range(rows):
@@ -1071,8 +1071,8 @@ def tidal_px(cv):
         f = d / R
         col = np.where((f > 0.66)[..., None], hexc(c3), np.where((f > 0.47)[..., None], hexc(c1),
                        np.where((f > 0.29)[..., None], hexc(c2), hexc(deep))))
-        col = np.where((d > R - 3.6)[..., None], hexc("#8adcf2"), col)
-        col = np.where((d > R - 2.0)[..., None], hexc("#eefcff"), col)
+        col = np.where((d > R - 3.0)[..., None], hexc("#8adcf2"), col)
+        col = np.where((d > R - 1.5)[..., None], hexc("#eefcff"), col)
         cv.arr[m] = col[m]
     cv.arr[..., 3] = 1
     r = np.random.default_rng(7)
@@ -3290,8 +3290,8 @@ def hat_band(color, buckle=None):
 
 
 def witch_hat():
-    f = felt("#4a2a6a", "#1a0c2a", 1)
-    fb = felt("#3a1f54", "#140a22", 2)
+    f = felt("#6a3c94", "#2e1648", 1)
+    fb = felt("#5a3280", "#24123a", 2)
     cubes = [
         Cube((-7, -8.5, -7), (14, 1, 4), fb), Cube((-7, -8.5, 3), (14, 1, 4), fb),          # brim (front, back)
         Cube((-7, -8.5, -3), (4, 1, 6), fb), Cube((3, -8.5, -3), (4, 1, 6), fb),            # brim (sides)
@@ -6541,7 +6541,7 @@ item("code_rain_cape", "Code Rain Cape", "CAPE", "SPECIAL", 0,
 
 # ---- Warp Speed Cape: stars stream outward from a violet core, longer and brighter as they near the edges
 
-WARP_PAL = ["#03030a", "#07061a", "#0c0a2a", "#1a1248", "#2a1a6a", "#4a2a9a", "#a88aff", "#d8ccff", "#ffffff", "#9ad8ff",
+WARP_PAL = ["#0a0a22", "#120e36", "#1c1650", "#2c1e72", "#40289a", "#6040c8", "#a88aff", "#d8ccff", "#ffffff", "#9ad8ff",
             "#c8a8ff", "#0a0820", "#5a7ad8"]
 
 
@@ -6552,7 +6552,7 @@ def warp_outer(cv):
     cx, cy = w * 0.5, h * 0.45
     y, x = cv.grid()
     rr = np.sqrt(((x + 0.5 - cx) / w) ** 2 + ((y + 0.5 - cy) / w) ** 2)
-    cv.arr[:] = palette(levels(np.clip(1 - rr * 1.5, 0, 1), 6, 0.45), ["#03030a", "#07061a", "#0c0a2a", "#1a1248", "#2a1a6a", "#4a2a9a"])
+    cv.arr[:] = palette(levels(np.clip(1.15 - rr * 1.1, 0, 1), 6, 0.45), WARP_PAL[:6])     # a deep violet tunnel, not black
     cv.arr[..., 3] = 1
     core = np.clip(1 - rr / 0.12, 0, 1)
     put(cv, core > 0.45, "#a88aff", 0.9)
@@ -6761,7 +6761,7 @@ item("pro_headset", "Pro Headset", "HAT", "REGULAR", 300,
 # ---- Dapper Top Hat: tall black felt with a crimson band and a gold buckle, tipped to one side
 
 def th_felt(face, cv):
-    vgrad(cv, hexc("#2a2a34"), hexc("#0e0e12"))
+    vgrad(cv, hexc("#4a4a5c"), hexc("#1c1c26"))          # charcoal, so the hat reads against a dark card
     y, x = cv.grid()
     cv.arr[(x % max(2, cv.s)) == 0, :3] *= 1.15
     bevel(cv, 0.14, 0.24)
