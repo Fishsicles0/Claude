@@ -11,7 +11,8 @@ cosmetics/
   <id>/model.json       cuboid model (not for trails, kill/win effects or emotes)
   <id>/texture.png      texture for model.json (one frame, or a vertical strip of frames for animated items)
   <id>/emissive.png     optional glow layer: same size and frames as texture.png, drawn full-bright
-  <id>/thumb.png        128 x 128 preview (Wardrobe grid, shop cards); animated items may use a strip of frames
+  <id>/thumb.png        square preview (Wardrobe grid, shop cards): 256 x 256 for Evade's regular items, any square
+                        size works; animated items may use a strip of frames
 ```
 
 Served at `https://evadeclient.com/cosmetics/<id>/<file>`; that folder is the item's `assets.base`.
@@ -84,8 +85,10 @@ frame up to 1024 px a side, a whole PNG up to 4096 px tall, files up to 2 MB.
 Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added where you need them.
 
 * **Higher resolution.** `texture` (UV space) can be up to 256 x 256 (128 x 128 is the recommended maximum per item),
-  and the PNG can be 1, 2, 4 or 8 times that (`textureScale`; special items up to 16: Evade's animated capes are 16, laid
-  out with per-face UVs so 24 frames fit the strip limit). The client works out the scale from the PNG's width
+  and the PNG can be 1, 2, 4, 8 or 16 times that (`textureScale`): Evade's capes, regular and animated, are 16, laid
+  out with per-face UVs (so 24 frames fit the strip limit), and every other item is at least 8. Evade's regular items
+  are drawn to the same pixel-art standard as the special ones: flat colour bands, dithering only where two bands
+  meet, outlines and rim light, palette PNGs. The client works out the scale from the PNG's width
   (`png width / texture[0]`), so one frame is always `png width` x `png width * texture[1] / texture[0]` px.
 * **Per-face UVs.** A cube may have `"faces"` instead of (or as well as) `uv`. When `faces` is present the cube draws
   only the faces listed there and box UV is not used for it; sizes may then be fractional (multiples of 0.25):

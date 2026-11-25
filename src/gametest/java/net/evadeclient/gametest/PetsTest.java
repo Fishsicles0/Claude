@@ -48,9 +48,67 @@ public final class PetsTest {
         for (String id : ids) {
             String r = ctx.computeOnClient(c -> clearance(CosmeticAssets.model(CosmeticsCatalog.get(id))));
             check(r.startsWith("ok"), "Pets: " + id + " sits clear of your head, body and arms at rest (" + r + ")");
+            String self = ctx.computeOnClient(c -> selfClash(CosmeticAssets.model(CosmeticsCatalog.get(id))));
+            check(self.equals("ok"), "Pets: " + id + "'s own parts don't pass through each other (ears and horns sit on its head, wings and tail clear of it) (" + self + ")");
             String parts = ctx.computeOnClient(c -> parts(CosmeticAssets.model(CosmeticsCatalog.get(id))));
             check(parts.equals("pet,pet_head,blink"), "Pets: " + id + " has a following body, a head that looks about and blinking eyes (" + parts + ")");
         }
+    }
+
+    /**
+     * At rest, no point of a cube lies inside (deeper than 0.08 px) a cube of another bone, unless one bone moves with
+     * the other (a joint); and a flat part (an ear, tuft or wing plane) never cuts into a cube of its own bone.
+     */
+    private static String selfClash(CosmeticModel m) {
+        if (m == null) return "not loaded";
+        Map<CosmeticModel.Bone, Matrix4f> rest = restPose(m);
+        for (CosmeticModel.Bone a : m.bones) {
+            for (CosmeticModel.Bone b : m.bones) {
+                boolean same = a == b;
+                if (!same && (joined(a, b) || joined(b, a))) continue;
+                Matrix4f toB = new Matrix4f(rest.get(b)).invert().mul(rest.get(a));
+                for (float[] ca : a.boxes()) {
+                    if (same && Math.min(ca[3], Math.min(ca[4], ca[5])) > 0) continue;     // within a bone: flat parts only
+                    for (Vector3f p : surface(ca)) {
+                        Vector3f q = toB.transformPosition(new Vector3f(p));
+                        for (float[] cb : b.boxes()) {
+                            if (cb == ca || Math.min(cb[3], Math.min(cb[4], cb[5])) <= 0) continue;
+                            if (same && java.util.Arrays.equals(cb, ca)) continue;
+                            float e = 0.08f;
+                            if (q.x > cb[0] + e && q.x < cb[0] + cb[3] - e && q.y > cb[1] + e && q.y < cb[1] + cb[4] - e
+                                    && q.z > cb[2] + e && q.z < cb[2] + cb[5] - e)
+                                return String.format("%s goes into %s at (%.2f, %.2f, %.2f)", a.name, b.name, p.x, p.y, p.z);
+                        }
+                    }
+                }
+            }
+        }
+        return "ok";
+    }
+
+    private static boolean joined(CosmeticModel.Bone child, CosmeticModel.Bone ancestor) {
+        for (CosmeticModel.Bone b = child.parent(); b != null; b = b.parent()) if (b == ancestor) return true;
+        return false;
+    }
+
+    private static Map<CosmeticModel.Bone, Matrix4f> restPose(CosmeticModel m) {
+        Map<CosmeticModel.Bone, Matrix4f> rest = new HashMap<>();
+        for (CosmeticModel.Bone b : m.bones)
+            rest.put(b, new Matrix4f(b.parent() != null ? rest.get(b.parent()) : new Matrix4f())
+                    .translate(b.px, b.py, b.pz)
+                    .rotateZYX((float) Math.toRadians(b.roll), (float) Math.toRadians(b.yaw), (float) Math.toRadians(b.pitch))
+                    .translate(-b.px, -b.py, -b.pz));
+        return rest;
+    }
+
+    /** Points on a cube's surface (5 x 5 per face). */
+    private static List<Vector3f> surface(float[] c) {
+        List<Vector3f> out = new ArrayList<>();
+        for (int i = 0; i <= 4; i++) for (int j = 0; j <= 4; j++) for (int k = 0; k <= 4; k++) {
+            if (i % 4 != 0 && j % 4 != 0 && k % 4 != 0) continue;
+            out.add(new Vector3f(c[0] + c[3] * i / 4f, c[1] + c[4] * j / 4f, c[2] + c[5] * k / 4f));
+        }
+        return out;
     }
 
     /** Which of the pet animations the model uses, in a fixed order. */
@@ -65,21 +123,11 @@ public final class PetsTest {
     /** "ok <closest gap>" or what it hits. */
     private static String clearance(CosmeticModel m) {
         if (m == null) return "not loaded";
-        Map<CosmeticModel.Bone, Matrix4f> rest = new HashMap<>();
+        Map<CosmeticModel.Bone, Matrix4f> rest = restPose(m);
         List<Vector3f> pts = new ArrayList<>();
         for (CosmeticModel.Bone b : m.bones) {
             if (b.attach != CosmeticModel.Attach.ROOT && b.parent() == null) return "bone " + b.name + " isn't on the model root";
-            Matrix4f mat = new Matrix4f(b.parent() != null ? rest.get(b.parent()) : new Matrix4f())
-                    .translate(b.px, b.py, b.pz)
-                    .rotateZYX((float) Math.toRadians(b.roll), (float) Math.toRadians(b.yaw), (float) Math.toRadians(b.pitch))
-                    .translate(-b.px, -b.py, -b.pz);
-            rest.put(b, mat);
-            for (float[] c : b.boxes()) {
-                for (int i = 0; i <= 4; i++) for (int j = 0; j <= 4; j++) for (int k = 0; k <= 4; k++) {
-                    if (i % 4 != 0 && j % 4 != 0 && k % 4 != 0) continue;          // the surface only
-                    pts.add(mat.transformPosition(new Vector3f(c[0] + c[3] * i / 4f, c[1] + c[4] * j / 4f, c[2] + c[5] * k / 4f)));
-                }
-            }
+            for (float[] c : b.boxes()) for (Vector3f p : surface(c)) pts.add(rest.get(b).transformPosition(p));
         }
         float worst = Float.MAX_VALUE;
         for (Vector3f p : pts) {
