@@ -36,11 +36,11 @@
    "description": "Living flames climb and flicker up from the hem, throwing off embers that rise and glow in the dark.",
    "assets": {
     "files": {
-     "item.json": "e1be5e1ed0620d0ddd3ac82f8844300fa40f55996c3057ca833385231f8143f9",
-     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
-     "texture.png": "c00918f1ac280b6bd6571fb9840e2ae83f70331e6bda188766d42a3f01489a05",
-     "emissive.png": "e4d9d480cade55672315e72db9206465e538a50b436198b0d34dd793dc0e2246",
-     "thumb.png": "c3710b5258ae13f3cae6fa02249df469bee01613db10b03b16a68d69ebe324ba"
+     "item.json": "55b30538a79513cccbe3bdc0fdd648d0a7058d1635bbc3efd542d2e2843d7424",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "6413fc8b5f21ac0475f1fb8fab9ac8ccdbf1309ba4d2bfd17ade155172dcf63b",
+     "emissive.png": "4e3104fff0ddf57378bd15fec62c3aade247f2e9bc4a8e21780e0395b1276649",
+     "thumb.png": "58115bc47a79c088cad50402007a90d406717a19b430ad8f23713663222c05fe"
     }
    }
   },
@@ -77,11 +77,11 @@
    "description": "Waves roll across the cape for real: crests rise and fall, foam glitters and the water never stops moving.",
    "assets": {
     "files": {
-     "item.json": "8295e88bdb822ce02fb8b5830ccd2d734859ad25dbcb1ef9770e24a990ca5c82",
-     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
-     "texture.png": "18e1438c50bfabd95f5a7b3bd082822991b840f9e704b48fee24bea2c27ee07b",
-     "emissive.png": "03df1b1295bc9f1e65de13ea22f76c4b64462e86ecd01cd7d1bec5a5481d1da9",
-     "thumb.png": "848afaf2ba44d56551b45fe6ac49f226475df3360b1509c7d3bcd02dd990f92c"
+     "item.json": "14980bf31b36383688725d27904d74371e1bad242d50c77606d455e56174c1c5",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "a3ddbe3e1900a17d7302cdbbcb7043afa690b50492518fb2d534d5e7683462d8",
+     "emissive.png": "61aef09216147b9cfe924e7845493889fa8025188c34b92bfa2dd1df3ced5115",
+     "thumb.png": "bbaa7cff29c9381af60d3c176d607ed6f8659b7c16e6f8be44cd7d306457a606"
     }
    }
   },
@@ -119,11 +119,11 @@
    "description": "A whole spiral galaxy on your back: its glowing arms slowly turn, star dust drifts and the stars twinkle.",
    "assets": {
     "files": {
-     "item.json": "a84de31f6a28a850c6b4d3cfb50f694918dec53c6fb92c0838cb24e260212429",
-     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
-     "texture.png": "e13a924e64dbd099324c8f6fa909e23b6ff62f41e6720c666be9b37c04ebaaf3",
-     "emissive.png": "073c14cb1d1a6f4a44253205f61ad8ca4bf2834214c2ca171c1938291ee4b67b",
-     "thumb.png": "3ae7b4651c7f1df193eaeb5ed42a828c372051a89b69f27908fce9c5ccfc9f0d"
+     "item.json": "98fa32f3ff5d7bf1435295ae1e1a13361d84bdde16b52c3ce451b4671f6757d7",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "ec9defdaf35de98c34f2278a31c18d8ca8f1875188010c98b62b450e3e2df477",
+     "emissive.png": "1e340882760a483e72c8a081a037ccb9261190dca2c72177db11f3197d6188a7",
+     "thumb.png": "d99b08c5400ddad979a8fde4eb3a6c341346a762095e678fc4a74ccd76afee12"
     }
    }
   },
@@ -140,11 +140,11 @@
    "description": "Curtains of green, cyan and violet light ripple over snowy peaks, glowing softly in the dark.",
    "assets": {
     "files": {
-     "item.json": "425ed56c4409914d967c9ff4ff05e2a016d7af80f40a7818ce284b9e3c4bdbd7",
-     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
-     "texture.png": "fe7cac99c5ea6c4130628097767a80a30134a03c0194dd6bd35f144487385232",
-     "emissive.png": "248b5f2a6e2ec2a2cfc5e027cb51fc67486c876a562221d7e4f3441345835cad",
-     "thumb.png": "3acf84377471054d4d739feeedee45ed008bfbc8dae4099a3d2e4a279d755080"
+     "item.json": "0f3a93340fdf38d5a04d37f23b6f9b11250b8ee8d1f08efc118d81e82c701165",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "c489dffdfb8526499781575edaf488515710af10923c30cacc2267c2c02ba1e6",
+     "emissive.png": "427f9835a0606231a58a624fa318dc94eeead08bdc4301fa8f6b935e704f8c09",
+     "thumb.png": "447be80fad68bdaf476f5faab1d62393c633297e384333c255dae35896317bb9"
     }
    }
   },
@@ -385,11 +385,11 @@
    "description": "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
    "assets": {
     "files": {
-     "item.json": "d1f0fc030689c7d0cc59701c30b50a2cf7deda127a0b557292ab0ff693fecbf2",
-     "model.json": "4c37cdfe7ea0ae8b6b8fd9a51b1038f715412d13e59418bc3be0896c61a1251d",
-     "texture.png": "007d6cbbbb1c637e8cc178e9806457fcf0aa6a705b62b5ce69d5e9c8f5da2581",
-     "emissive.png": "778b9dccb6dff600e6813cabe4c3a1bce6b33f81e4828621ebd336f3460ae618",
-     "thumb.png": "0c3c195f23e50cd2b4b279ab078b1c5b345fdbdb76e63ab28c356fb05fe812d8"
+     "item.json": "0b3c2de16c31303f64b85d204c5479b1fa80037393caf6f23b7a97a6f8079922",
+     "model.json": "731f27d43ea774eca82e1d451558cbce7b8ac0a7aa90e3a81a27e15719a59ea6",
+     "texture.png": "96c193302feccca5d2434dce04171d4027dd8c4ec1ce3722949cf5eabc64d36a",
+     "emissive.png": "faf8874c46a06a566c85f90f3ed62d547696d409d61c9a774e48056c34e03fe1",
+     "thumb.png": "01c94a11b500135c81bbb825c8338b81783770f17206a221fd7cc922233ed51c"
     }
    }
   },
@@ -489,11 +489,11 @@
    "description": "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
    "assets": {
     "files": {
-     "item.json": "dab5fab2d5a03addbe291902ad09a1fb4b83b77819ba5ddfbcb926c5e1070f90",
-     "model.json": "2331d2d8dad5f716a320d857f7eb1d87d8c2f2cf687f1a720a1b53228c455d1c",
-     "texture.png": "24a2fb7330343b0bb31d122de9737c1d8323de190fe663a0e59e23d61fcdac8a",
-     "emissive.png": "12c58bc5a8f274904abb606c9f137d608b472e4aa303d01ab579eb9807c29c02",
-     "thumb.png": "1888f990d5c867102eb6797f73e0a4c04dd3a5e256f24ec793d5873b2f7ef873"
+     "item.json": "cecd943bb9d08044935fe2eb8fae088ba2f211b851a952b692237c9b5b075bbb",
+     "model.json": "9768f1a57c1296e914f7539008d91d3445b392e0eeb7b5d305792f0a38eac89c",
+     "texture.png": "118a678a23ed174358940f2baa54f62465600e7750b20f7f5727151e5eb0a77f",
+     "emissive.png": "23450f222f78a34b390aa9a83a6e735b077d2dcb64adcf3e0569c15aa2baa83d",
+     "thumb.png": "844d5f06b2f3a3870b454e6c82bf9e7208e7cab98784588f61db604359aca247"
     }
    }
   },
@@ -512,9 +512,9 @@
     "files": {
      "item.json": "c0e803108538c5e96667dd50ab8d51637f95cb018a3797a03f890ba2af415ea4",
      "model.json": "6c08c2a8073c682f3ee884de6a4a4b8f6f9821f7503730f24526d2cc9beccc1b",
-     "texture.png": "b3d29b5e7df3644c37fe5eea3450f9a544789ce8d5d426b65d991650a689ecc4",
+     "texture.png": "2c6e8ef7057b5bd276a52d169c2067150efc125f8a6b4a233418e24d4992ab41",
      "emissive.png": "4c58453845e1323f8a00ba4c66aad333779b724d896ada1cf38717aba90213fb",
-     "thumb.png": "3f95ac62d42e2593cd2fbb6bf2ee82dab0ffcc353a19bd84e5ae8deafb4fdbbe"
+     "thumb.png": "e4d463bff6f81aab04538dbd6ccb5f80b7e87be4048f137ab56a0c4e1210eabd"
     }
    }
   },
@@ -635,11 +635,11 @@
    "description": "A platinum crown whose ruby, sapphire, emerald and amethyst catch the light one after another, round and round.",
    "assets": {
     "files": {
-     "item.json": "ce1fbd09f4d3e2bc2d03e457a413d5ae5d63e7ca6e3cdca0e7d34c652789ed66",
-     "model.json": "f0eb3e67ae062b33c5c8b1c9db430047f7982acd3b1d7089300709cb911f2126",
-     "texture.png": "c06c8e87859984f7042bd412515ef06fdaf524c00e2a767a85bf3bae014badab",
-     "emissive.png": "fe26a7fb64ea02cf94a0357f530e2b44945bf3b9e90306ce5c24c08736180328",
-     "thumb.png": "047430db08cf8839870f09152cab74daffd438be8db730fcaf28bc31d01780bf"
+     "item.json": "066040dc9815204202784e4c11273bb6b6f88e4ba01249b3e2dad5aea8d87711",
+     "model.json": "4fcbf6e971bca18538fc02fa0bee5e965d8768645bccbe3b025d3fed75970ec0",
+     "texture.png": "c866f1f08f95dd7c891154933dfa410d7bcaff9d528fc38489e1a9ff38c7fde4",
+     "emissive.png": "c94180a522db1ae0b12eb24cfb8f1bf0d833e5af7f6419c6e1afa4fe9c07d712",
+     "thumb.png": "a7f13fbe02ae8df3a42ab7d02272b65260cc66d893ce441ea7ed8c173e87407b"
     }
    }
   },
@@ -717,10 +717,10 @@
    "description": "A radiant halo that spins above your head while a band of light races round the ring.",
    "assets": {
     "files": {
-     "item.json": "7be7e6eb88765575dc103222268d3e30edc505755a911e022e40c1c2496fe4ce",
-     "model.json": "15b4977a71bb34717a2a78ee33a8237cdfa1e0abf3afea9b1ca1c85c523fca7c",
-     "texture.png": "adbcb7bf00f18ae5071d870a731da5906c34cccb7a0ccbd453068a5adbff9073",
-     "thumb.png": "eff755afa21042d2d018484f363db7873ba3f6ae2256a38d332d3066583a005e"
+     "item.json": "a18cf38c366e4c21a8dc8f7240ac405b28db570f4494d1bc7b7680e95986a48e",
+     "model.json": "46194d83a6fd00b4faabfc5b1563b1c79e46c25ec2b67a14629d5b0b65d1264f",
+     "texture.png": "5debf65e868c3a09115fe38c01a6a546f37bb431814e9a6a942228aadebf075a",
+     "thumb.png": "89b1b9ec9a07580d7b1718e2553193597f4d4923dc7065f5ad3ee3f7d58bc3c7"
     }
    }
   },
@@ -780,8 +780,8 @@
     "files": {
      "item.json": "4401a4da7d8a7f26c38f0a06128db8e6266d58d15908def34c75eb01dae93863",
      "model.json": "f4d9d925b69ed6103b792d90f3cfbc87c495057662ddf81b8ccdad8cd6930691",
-     "texture.png": "2691093024e9957b641d8fd3548adaae26d8b94cabc29f6ffc76ccd2679e87fa",
-     "thumb.png": "ac10f99924fae0952b473ef58dd7f3ff7aacfa5c4608f1c690fb138865669c99"
+     "texture.png": "1dbe99d8aeec6dff99a4eaa8a6b971c057ffb784e07b081b9fbd6f749c577a37",
+     "thumb.png": "3cfd4513c17928a79feac8fb51d1d600b3ae9dc8082765ab220af14ea21a8977"
     }
    }
   },
@@ -800,9 +800,9 @@
     "files": {
      "item.json": "0ab981f29af441cbd622fe9320ee8df51e1e51eebcfe36ff9ad86d3dabab4093",
      "model.json": "1118a41ca2a537a1f18d877195c69c46cc08c1af2387f0ab3413469dbfe0dc7f",
-     "texture.png": "691579a23a4e1fa379b533ef50faf5dd070684d1ea5500f91f87d8e3cd359baf",
+     "texture.png": "e8c651a5aa3fc9f178c0b8704aa649de94f23a9d0ea027f02dafc76c77b73041",
      "emissive.png": "47334745ab7e3e1e62fc9b1490ac420be01e38dbebe9647ea350a0341aadf590",
-     "thumb.png": "ebc497f2a0a9f04ecf037aca93908cca985715cc1bbd5c32c39b60629797a19c"
+     "thumb.png": "42d289ff16e6a7b07909910332867c1cd4e5946d0ffbc598aed4c1bf8a7cc502"
     }
    }
   },
@@ -1066,11 +1066,11 @@
    "description": "A rune circle whose colours sweep through the whole rainbow as it turns, with rainbow motes rising around you.",
    "assets": {
     "files": {
-     "item.json": "012c3ba0cda0234a023e8bfeec2adecc21334c6ae3297dd7d1527e447fed0d84",
-     "model.json": "18fd4b75977b36b885fcb716318b241d7acba67c8ae335c0ba6249479e1166b8",
-     "texture.png": "6c275a236e570512e1e25f9a0fc9f22a59b1087390065c7f05eb22358e65a169",
-     "emissive.png": "1cc1f370825ee10034e6776da0296bf1a8744495f36c8d6bf6508ec8016402a5",
-     "thumb.png": "a019c57844af17fd967488fb3add5ef2294299e6a24d7d83bb6a709bfdeff6b7"
+     "item.json": "07469f19ddac381d6165c4b6ae0ec7b7abe4fa72077b36eb2103a26d35c96c18",
+     "model.json": "82ff34eabbbf95c598208d43e88fa0ca8277865228f20435dfe837902c35bd50",
+     "texture.png": "e635579a22881e17fa4c36dc2e5c518f1fa5b81f34f4ee2c5f5618fff2be8bff",
+     "emissive.png": "483b137eab855957d101160cad99a2d8e0c1908ee3ceb13bda00b35c622e273b",
+     "thumb.png": "5b6257e06b5cfdc3ae24100c0382ed552a6b3bcd8d97edb52566f4300f21884d"
     }
    }
   },
@@ -1213,11 +1213,11 @@
    "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it hovers by your shoulder.",
    "assets": {
     "files": {
-     "item.json": "4faec7a438a1e746894c50e78cac65a98c4842471b7c66fc460bd1820d38e3d7",
-     "model.json": "dc00913af59567a234df6a58ef6973573d81581f1ee2b77656ccdc597b46eab5",
-     "texture.png": "eaf5ec125eef186984bd239f1c58c908f0c0aa1255c4944936c2c0d323d8a12a",
-     "emissive.png": "2ec1e47121cee010aa1256cc1d2ef6f3180c09abc39b592d2c08d6220bc97152",
-     "thumb.png": "5c6bed680c8365e75d33cb0ba6756909b2413ad4bad3d3153f94c06a4527bfb9"
+     "item.json": "237d3a70811f8ba05a1cbb322ce24c9bf5e8e3e820305797a945e8d60c2f6e28",
+     "model.json": "94180f5286062a517fb5377e8590e9db9f19a5cfd08894290dada7f074f9aa6f",
+     "texture.png": "4e1b67ef85f3e5b78ed82e26cee8b61d3063fce401c5c65294d0ef2a3db34c72",
+     "emissive.png": "1784df43e264f11c01f22a23d886bd404e9495228fcfeaad106ac5e701a18ee2",
+     "thumb.png": "015a8546221334f458e9bdd8b8d01ec4799222ff5e39676986d50844d7d8084a"
     }
    }
   },

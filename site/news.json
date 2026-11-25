@@ -1,6 +1,19 @@
 {
- "version": "2.7.0",
+ "version": "2.7.1",
  "entries": [
+  {
+   "id": "v2.7.1",
+   "title": "v2.7.1",
+   "date": "2026-11-25",
+   "dateText": "25 Nov 2026",
+   "summary": "Much sharper animated Special cosmetics.",
+   "items": [
+    "Special cosmetics redrawn: all 10 animated items now have 2–4 times the detail and smoother, seamless loops (16–24 frames). Hearthfire has real layered flames and rising sparks, Riptide rolling waves with foam, Galaxy Flow a turning spiral galaxy, Polar Lights rippling aurora curtains, and the wings, crown, halo, aura and sprite all got new artwork.",
+    "Crisp in the shop: textures are drawn pixel-sharp on phones and desktops, and the Special items' button now reads \"Coming soon\".",
+    "Smaller download: the cosmetics take about 850 KB less space."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.7.1"
+  },
   {
    "id": "v2.7.0",
    "title": "v2.7.0",
@@ -72,27 +85,6 @@
     "Server API v2: server prompts, transfers you confirm, balance and timer widgets and player-card actions, with server plugin 1.1.0."
    ],
    "url": "https://evadeclient.com/changelog#v2.5.0"
-  },
-  {
-   "id": "v2.4.0",
-   "title": "v2.4.0",
-   "date": "2026-11-24",
-   "dateText": "24 Nov 2026",
-   "summary": "A World Map, Item View, damage numbers, five new widgets, a screenshot gallery, addons, and a launcher you can drive from the keyboard.",
-   "items": [
-    "World Map: press M for a map of the ground you've explored, saved per server and world, with waypoints you can add, edit and target. It only shows surface terrain you've actually seen: no caves, no other players. The Minimap gets height shading, water depth, real biome colours and your explored tiles.",
-    "Item View: move, turn and resize the item in each hand, change the swing animation speed (only how it looks: attack timing is untouched), and hide your shield.",
-    "1.7 Animations: the old sword block pose, red armour when hurt, the old hurt tilt, sneak camera and heart flash.",
-    "Damage Numbers and a hit marker: only for hits the server confirms were yours. Nobody's health is ever shown.",
-    "New widgets: Server TPS (estimate), Connection Watch (warns when the server stops responding), Network, Ping Graph and Paper Doll.",
-    "Screenshot gallery in game (.shots): browse, rename, copy and delete with undo.",
-    "Look and feel: title screen backgrounds (or your own image), custom menu colours with shareable theme codes, and HUD widget stacks that move together.",
-    "Addons: other Fabric mods can add their own mods and widgets to Evade's menu and HUD editor. Each one is labelled with the mod that added it. See For mod developers.",
-    "Evade Launcher: works fully from the keyboard (F1 lists the shortcuts), larger text and reduce-motion options, a light theme and accent colours, instance folders, pins and sorting, instance export and import as a .zip, and a quiet check for mod updates at start.",
-    "Streamer Mode now also hides friend messages and friends' servers.",
-    "More launcher tools: import your instances from another launcher, drag and drop mods, packs and modpacks onto the window, pick or pin a mod's version and undo the last update, new-instance templates (PvP, Survival + shaders, Building, Low-end laptop), memory advice for laptops with integrated graphics, optional extras (faster start-up, more FPS, faster singleplayer chunks), \"Start in safe mode\", and desktop shortcuts that start an instance in one click."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.4.0"
   }
  ]
 }

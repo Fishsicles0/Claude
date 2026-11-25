@@ -339,14 +339,17 @@ function frameClock(an) {
     return [cur.i, next.i, Math.min(steps - 1, Math.floor(t / cur.t * steps)) / steps];
   };
 }
+// Pixel art stays sharp: nearest filtering both ways and no mipmaps (as in the client), never smoothed or smeared.
+const NEAREST = 1003; // THREE.NearestFilter
+const pixelated = t => { t.magFilter = NEAREST; t.minFilter = NEAREST; t.generateMipmaps = false; return t; };
 async function stripTexture(T, src, an, aspect) {
   const img = await loadImage(src);
   const frames = an && an.frames > 1 ? an.frames | 0 : 1;
-  if (frames <= 1) { const t = new T.Tex(img); t.magFilter = T.map.magFilter; t.minFilter = T.map.minFilter; t.generateMipmaps = false; t.needsUpdate = true; return { tex: t, tick: null }; }
+  if (frames <= 1) { const t = pixelated(new T.Tex(img)); t.needsUpdate = true; return { tex: t, tick: null }; }
   const w = img.naturalWidth, fh = Math.round(img.naturalHeight / frames) || Math.round(w * aspect);
   const c = document.createElement("canvas"); c.width = w; c.height = fh;
   const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
-  const tex = new T.Tex(c); tex.magFilter = T.map.magFilter; tex.minFilter = T.map.minFilter; tex.generateMipmaps = false;
+  const tex = pixelated(new T.Tex(c));
   const at = frameClock(an);
   let shown = "";
   const tick = sec => {
@@ -786,7 +789,8 @@ function updateAdd() {
   const own = owned().has(it.id), inCart = state.cart.includes(it.id);
   addBtn.classList.toggle("in", inCart || own);
   addBtn.disabled = !forSale(it) || own;
-  addBtn.textContent = own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : soon(it) ? "Price coming soon" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
+  // the price line already says "Price coming soon" in gold: the (disabled) button just says "Coming soon"
+  addBtn.textContent = own ? "Owned" : !forSale(it) ? (it.partner ? "Earn on the server" : soon(it) ? "Coming soon" : "Not for sale") : inCart ? "In cart ✓ Remove" : "Add to cart";
 }
 addBtn.addEventListener("click", () => {
   if (!current || !forSale(current)) return;
