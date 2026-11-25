@@ -143,7 +143,12 @@ public final class CosmeticsTest {
                 c.options.setPerspective(slot == Slot.ITEM_SKIN ? Perspective.FIRST_PERSON : front ? Perspective.THIRD_PERSON_FRONT : Perspective.THIRD_PERSON_BACK);
                 CosmeticsPerf.takeDrawn();
                 CosmeticFx.takeSpawned();
+                // earlier tests may leave you sneaking (toggle sneak) or "in combat"; auras pause then, by design
+                c.options.sneakKey.setPressed(false);
+                if (c.player != null) c.player.setSneaking(false);
+                net.evadeclient.util.Combat.reset();
             });
+            if (slot == Slot.AURA || slot == Slot.TRAIL) server.runCommand("effect clear @a");
             if (slot == Slot.ITEM_SKIN) {
                 server.runCommand("tp @a 0 -60 0 0 0");
                 server.runCommand("item replace entity @a weapon.mainhand with minecraft:diamond_sword");
@@ -153,7 +158,7 @@ public final class CosmeticsTest {
             if (slot == Slot.TRAIL) for (int i = 0; i < 8; i++) { server.runCommand("execute as @a at @s run tp @s ~0.3 ~ ~"); ctx.waitTicks(1); }
             if (slot == Slot.KILL_EFFECT) ctx.runOnClient(c -> check(CosmeticFx.kill(c.player.getEntityPos().add(1.5, 0, 2)), "Cosmetics: kill effect plays"));
             if (slot == Slot.WIN_EFFECT) ctx.runOnClient(c -> { CosmeticFx.resetWinCooldownForTest(); CosmeticFx.onMessage("You won the game!"); });
-            ctx.waitTicks(slot == Slot.WIN_EFFECT ? 25 : slot == Slot.ITEM_SKIN ? 40 : 8);
+            ctx.waitTicks(slot == Slot.WIN_EFFECT ? 25 : slot == Slot.ITEM_SKIN ? 40 : slot == Slot.AURA ? 30 : 8);
             long drawn = ctx.computeOnClient(c -> CosmeticsPerf.takeDrawn());
             int spawned = ctx.computeOnClient(c -> CosmeticFx.takeSpawned());
             switch (slot.kind) {
@@ -161,7 +166,7 @@ public final class CosmeticsTest {
                 case ITEM -> check(drawn > 0, "Cosmetics: " + id + " replaces your sword in first person (" + drawn + " draws)");
                 case PARTICLES, EFFECT -> check(spawned > 0, "Cosmetics: " + id + " spawns particles (" + spawned + ")");
             }
-            if (slot == Slot.AURA) check(spawned > 0, "Cosmetics: aura " + id + " spawns a few motes (" + spawned + ")");
+            if (slot == Slot.AURA) check(spawned > 0, "Cosmetics: aura " + id + " spawns a few motes (" + spawned + ")" + (spawned > 0 ? "" : ctx.computeOnClient(c -> " sneaking=" + c.player.isSneaking() + " invisible=" + c.player.isInvisible() + " combat=" + net.evadeclient.util.Combat.active() + " showMine=" + EvadeClient.modules.get(net.evadeclient.module.misc.Cosmetics.class).showMine.get())));
             ctx.takeScreenshot("cosmetic-" + id);
             if (slot == Slot.EMOTE) ctx.runOnClient(c -> Emotes.stop());
             if (slot == Slot.ITEM_SKIN) {
