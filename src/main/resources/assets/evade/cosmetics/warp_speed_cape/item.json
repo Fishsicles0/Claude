@@ -1,0 +1,15 @@
+{
+ "id": "warp_speed_cape",
+ "name": "Warp Speed Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Stars stream past from a violet core, like jumping to lightspeed.",
+ "animation": {
+  "frames": 24,
+  "frametime": 2,
+  "interpolate": false
+ }
+}

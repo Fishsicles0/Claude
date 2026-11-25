@@ -1,0 +1,206 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  16,
+  14
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "ghost",
+   "attach": "root",
+   "pivot": [
+    10.75,
+    -5.0,
+    0.75
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.25,
+      -5.5,
+      -1.25
+     ],
+     "size": [
+      3,
+      2,
+      3
+     ],
+     "uv": [
+      0,
+      8
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 1.2,
+    "speed": 0.9
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    10.75,
+    -5.5,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      8.75,
+      -9.5,
+      -1.75
+     ],
+     "size": [
+      4,
+      4,
+      4
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "parent": "ghost",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    11.0,
+    -8.0,
+    -1.7799999999999998
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.5,
+      -8.0,
+      -1.7799999999999998
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "arm_r",
+   "attach": "root",
+   "pivot": [
+    8.75,
+    -7.0,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      8.0,
+      -7.25,
+      -0.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      12,
+      8
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 0,
+    "amp": 20,
+    "speed": 0.9,
+    "fold": 0
+   }
+  },
+  {
+   "name": "arm_l",
+   "attach": "root",
+   "pivot": [
+    12.75,
+    -7.0,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      12.5,
+      -7.25,
+      -0.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      12,
+      8
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 0,
+    "amp": 20,
+    "speed": 0.9,
+    "fold": 0
+   }
+  }
+ ]
+}

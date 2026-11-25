@@ -1,0 +1,10 @@
+{
+ "id": "shadow_wrap",
+ "name": "Shadow Wrap",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A dark cloth face wrap tied at the back with two loose tails."
+}

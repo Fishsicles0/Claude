@@ -1,0 +1,94 @@
+{
+ "id": "air_guitar",
+ "name": "Air Guitar",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Shred an invisible guitar with your head banging to the riff.",
+ "emote": {
+  "length": 1.0,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -50,
+     30,
+     0
+    ],
+    [
+     0.25,
+     -30,
+     30,
+     0
+    ],
+    [
+     0.5,
+     -50,
+     30,
+     0
+    ],
+    [
+     0.75,
+     -30,
+     30,
+     0
+    ],
+    [
+     1.0,
+     -50,
+     30,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     -70,
+     -40,
+     0
+    ],
+    [
+     1.0,
+     -70,
+     -40,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     20,
+     0,
+     0
+    ],
+    [
+     0.25,
+     -5,
+     0,
+     0
+    ],
+    [
+     0.5,
+     20,
+     0,
+     0
+    ],
+    [
+     0.75,
+     -5,
+     0,
+     0
+    ],
+    [
+     1.0,
+     20,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

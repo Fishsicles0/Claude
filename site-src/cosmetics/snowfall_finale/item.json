@@ -1,0 +1,25 @@
+{
+ "id": "snowfall_finale",
+ "name": "Snowfall Finale",
+ "slot": "WIN_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Win a game and a column of snowflakes swirls up around you.",
+ "fx": {
+  "type": "spiral",
+  "particle": "soft",
+  "colors": [
+   "#FFFFFF",
+   "#D8F0FF",
+   "#9AD8FF"
+  ],
+  "count": 70,
+  "size": 0.9,
+  "height": 3.2,
+  "life": 1.6,
+  "fade": 0.3,
+  "sizeEnd": 0.4
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "verdant_thorn",
+ "name": "Verdant Thorn",
+ "slot": "ITEM_SKIN",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword grown from green glass, wrapped in a living vine with leaves. Shows on swords you hold, on your screen."
+}

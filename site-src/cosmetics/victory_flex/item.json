@@ -1,0 +1,76 @@
+{
+ "id": "victory_flex",
+ "name": "Victory Flex",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Both arms up, show the world those gains.",
+ "emote": {
+  "length": 1.6,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -20,
+     0,
+     100
+    ],
+    [
+     0.8,
+     -20,
+     0,
+     115
+    ],
+    [
+     1.6,
+     -20,
+     0,
+     100
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     -20,
+     0,
+     -100
+    ],
+    [
+     0.8,
+     -20,
+     0,
+     -115
+    ],
+    [
+     1.6,
+     -20,
+     0,
+     -100
+    ]
+   ],
+   "head": [
+    [
+     0,
+     -8,
+     0,
+     0
+    ],
+    [
+     0.8,
+     -12,
+     0,
+     0
+    ],
+    [
+     1.6,
+     -8,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

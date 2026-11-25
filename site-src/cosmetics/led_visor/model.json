@@ -1,0 +1,76 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  18,
+  14
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "visor",
+   "attach": "head",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -4.0,
+      -7.0,
+      -4.5
+     ],
+     "size": [
+      8,
+      3,
+      1
+     ],
+     "uv": [
+      0,
+      10
+     ],
+     "inflate": 0.3
+    },
+    {
+     "origin": [
+      -4.5,
+      -6.5,
+      -4.0
+     ],
+     "size": [
+      1,
+      2,
+      8
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      3.5,
+      -6.5,
+      -4.0
+     ],
+     "size": [
+      1,
+      2,
+      8
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

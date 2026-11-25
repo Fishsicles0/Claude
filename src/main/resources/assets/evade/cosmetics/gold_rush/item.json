@@ -1,0 +1,21 @@
+{
+ "id": "gold_rush",
+ "name": "Gold Rush",
+ "slot": "WIN_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Win a game and a fountain of gold coins and sparkles bursts out around you.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#FFD23A",
+   "#FFF0A0",
+   "#C8901A"
+  ],
+  "count": 90,
+  "size": 1.3
+ }
+}

@@ -1,0 +1,256 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  14,
+  18
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "bee",
+   "attach": "root",
+   "pivot": [
+    10.75,
+    -4.5,
+    1.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.25,
+      -6.5,
+      -0.25
+     ],
+     "size": [
+      3,
+      3,
+      4
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      10.25,
+      -5.5,
+      3.75
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      8,
+      13
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 1.0,
+    "speed": 1.8
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    10.75,
+    -5.0,
+    -0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.25,
+      -7.0,
+      -2.75
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      7
+     ]
+    },
+    {
+     "origin": [
+      9.5,
+      -9.0,
+      -1.75
+     ],
+     "size": [
+      1,
+      2,
+      0
+     ],
+     "uv": [
+      12,
+      13
+     ]
+    },
+    {
+     "origin": [
+      11.0,
+      -9.0,
+      -1.75
+     ],
+     "size": [
+      1,
+      2,
+      0
+     ],
+     "uv": [
+      0,
+      16
+     ]
+    }
+   ],
+   "parent": "bee",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    11.0,
+    -6.0,
+    -2.77
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.5,
+      -6.0,
+      -2.77
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      2,
+      16
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "wing_r",
+   "attach": "root",
+   "pivot": [
+    10.25,
+    -6.5,
+    1.25
+   ],
+   "rotation": [
+    0,
+    0,
+    30
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.25,
+      -9.0,
+      1.25
+     ],
+     "size": [
+      4,
+      3,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ]
+    }
+   ],
+   "parent": "bee",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 24,
+    "amp": 22,
+    "speed": 5.0,
+    "lift": -6,
+    "fold": 40
+   }
+  },
+  {
+   "name": "wing_l",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -6.5,
+    1.25
+   ],
+   "rotation": [
+    0,
+    0,
+    -30
+   ],
+   "cubes": [
+    {
+     "origin": [
+      11.25,
+      -9.0,
+      1.25
+     ],
+     "size": [
+      4,
+      3,
+      0
+     ],
+     "uv": [
+      0,
+      13
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "bee",
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 24,
+    "amp": 22,
+    "speed": 5.0,
+    "lift": -6,
+    "fold": 40
+   }
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "id": "honeycomb_cape",
+ "name": "Honeycomb Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Golden honeycomb cells, some full and some empty, with honey dripping from the collar."
+}

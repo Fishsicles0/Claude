@@ -1,0 +1,10 @@
+{
+ "id": "twin_katanas",
+ "name": "Twin Katanas",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Two black-lacquered blades crossed on your back, with gold guards and red-wrapped grips."
+}

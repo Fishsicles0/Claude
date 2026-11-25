@@ -1,0 +1,15 @@
+{
+ "id": "reactor_pack",
+ "name": "Reactor Pack",
+ "slot": "BACK",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A steel backpack with a glowing plasma core that swirls and pulses.",
+ "animation": {
+  "frames": 16,
+  "frametime": 2,
+  "interpolate": true
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "bunny_ears",
+ "name": "Bunny Ears",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Tall fluffy white ears with pink insides that lean back a little."
+}

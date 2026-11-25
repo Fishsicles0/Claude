@@ -1,0 +1,10 @@
+{
+ "id": "candy_cane_blade",
+ "name": "Candy Cane Blade",
+ "slot": "ITEM_SKIN",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword as a striped peppermint candy cane with a gold guard. Shows on swords you hold, on your screen."
+}

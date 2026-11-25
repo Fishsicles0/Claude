@@ -1,0 +1,15 @@
+{
+ "id": "phoenix_rebirth_wings",
+ "name": "Phoenix Rebirth Wings",
+ "slot": "WINGS",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Phoenix feathers alive with real flame: fire runs up every feather while you fly.",
+ "animation": {
+  "frames": 16,
+  "frametime": 1.5,
+  "interpolate": false
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "amethyst_shard_wings",
+ "name": "Amethyst Shard Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Spars of violet and ice-blue crystal fanned out from a silver arm."
+}

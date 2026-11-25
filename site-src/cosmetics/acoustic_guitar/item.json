@@ -1,0 +1,10 @@
+{
+ "id": "acoustic_guitar",
+ "name": "Acoustic Guitar",
+ "slot": "BACK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A warm wooden guitar slung over your back on a black strap."
+}

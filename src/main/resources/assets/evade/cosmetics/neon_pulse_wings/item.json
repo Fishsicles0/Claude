@@ -1,0 +1,15 @@
+{
+ "id": "neon_pulse_wings",
+ "name": "Neon Pulse Wings",
+ "slot": "WINGS",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Black bat wings whose veins light up in waves of neon pink, shoulder to tip.",
+ "animation": {
+  "frames": 20,
+  "frametime": 1.5,
+  "interpolate": false
+ }
+}

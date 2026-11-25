@@ -1,0 +1,21 @@
+{
+ "id": "heartbreaker",
+ "name": "Heartbreaker",
+ "slot": "KILL_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your opponent bursts into a shower of pink and red hearts.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#FF4A8A",
+   "#FF8AB8",
+   "#FFFFFF"
+  ],
+  "count": 40,
+  "size": 1.1
+ }
+}

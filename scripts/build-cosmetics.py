@@ -6497,7 +6497,7 @@ def code_rain_outer(cv):
                     continue
                 b = 1 - d / trail[c]
                 g = CODE_GLYPHS[(glyph[r, c] + int(ph * flip[r, c] * 4)) % len(CODE_GLYPHS)]
-                lv = 7 if d < 1.0 / rows else int(2 + b * 4.6)
+                lv = 7 if d < 0.6 / rows else int(2 + b * 3.4)
                 colr = hexc(CODE_PAL[min(lv, 7)])
                 for gy in range(5):
                     for gx in range(3):
@@ -7997,8 +7997,8 @@ def bee_wing(face, A):
     m = A.poly([(1.0, 0.75), (0.75, 0.2), (0.35, 0.02), (0.05, 0.15), (0.0, 0.5), (0.3, 0.9), (0.75, 1.0)])
     if face == "south":
         m = m[:, ::-1]
-    A.a[..., :3] = rgbf("#dff4ff")
-    A.a[..., 3] = 0.55
+    A.a[..., :3] = rgbf("#e8f8ff")
+    A.a[..., 3] = 0.7
     xs = (A.x + 0.5) / A.w if face != "south" else 1 - (A.x + 0.5) / A.w
     ys = (A.y + 0.5) / A.h
     vein = (np.abs(ys - (0.55 - (1 - xs) * 0.25)) < 0.6 / A.h) | (np.abs(ys - (0.78 - (1 - xs) * 0.1)) < 0.6 / A.h)
