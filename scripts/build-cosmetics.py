@@ -7872,7 +7872,7 @@ item("imperial_dragon_cape", "Imperial Dragon Cape", "CAPE", "REGULAR", 0,
 
 # ---- Ace of Spades Cape: a black playing card with a crimson double border, a big spade and corner pips
 
-SPADES_PAL = ["#08080a", "#101014", "#18181e", "#22222a", "#3a0408", "#6a0a12", "#a8121e", "#d81e2c", "#ff5a5a",
+SPADES_PAL = ["#2a2a34", "#33333e", "#3c3c48", "#464654", "#3a0408", "#6a0a12", "#a8121e", "#d81e2c", "#ff5a5a",
               "#ffd0d0", "#2e2e36"]
 
 
@@ -7888,7 +7888,7 @@ def gm_spade(cv, cx, cy, r):
 def spades_outer(cv):
     h, w, s = cv.h, cv.w, cv.s
     X, Y = gm_grid(cv)
-    cv.arr[:] = bands(np.clip(0.55 - Y / h * 0.4, 0, 1) * gm_fold_shade(cv, 0.25), ["#08080a", "#101014", "#18181e", "#22222a"], 0.5)
+    cv.arr[:] = bands(np.clip(0.75 - Y / h * 0.5, 0, 1) * gm_fold_shade(cv, 0.25), ["#2a2a34", "#33333e", "#3c3c48", "#464654"], 0.5)
     cv.arr[..., 3] = 1
     top = cape_top(cv)
     # the double border: a thick crimson frame and a thin one inside it, rounded corners
@@ -7900,16 +7900,16 @@ def spades_outer(cv):
             corner = (np.abs(X - ccx) > 0) & ((X - ccx) * np.sign(ccx - w / 2) > 0) & ((Y - ccy) * np.sign(ccy - h / 2) > 0)
             inside &= ~(corner & ((X - ccx) ** 2 + (Y - ccy) ** 2 > rr * rr))
         return inside & ~(grow(~inside, width) if width else ~inside)
-    outer = frame(s * 0.55, 0) & ~frame(s * 0.55 + 4, 0)
-    inner = frame(s * 1.0, 0) & ~frame(s * 1.0 + 2, 0)
-    put(cv, outer, "#a8121e")
-    put(cv, lit_rim(outer), "#d81e2c")
-    put(cv, inner, "#6a0a12")
+    outer = frame(s * 0.45, 0) & ~frame(s * 0.45 + 7, 0)
+    inner = frame(s * 1.05, 0) & ~frame(s * 1.05 + 3, 0)
+    put(cv, outer, "#d81e2c", 0.5)
+    put(cv, lit_rim(outer), "#ff5a5a")
+    put(cv, inner, "#a8121e", 0.3)
     # the big spade
-    sp = gm_spade(cv, w * 0.5, h * 0.5, s * 2.6)
-    sprite(cv, sp, "#a8121e", line="#3a0408", hi="#ff5a5a", lo="#6a0a12", e=2)
-    put(cv, disc(cv, w * 0.42, h * 0.43, s * 0.35) & sp, "#ffd0d0")       # a shine
-    em_from(cv, sp * 0.15, "#d81e2c")
+    sp = gm_spade(cv, w * 0.5, h * 0.5, s * 2.9)
+    sprite(cv, sp, "#d81e2c", line="#3a0408", hi="#ff5a5a", lo="#a8121e", e=2)
+    put(cv, disc(cv, w * 0.41, h * 0.42, s * 0.4) & sp, "#ffd0d0")       # a shine
+    em_from(cv, sp * 0.4, "#d81e2c")
     # corner pips: a small spade over a letter A, top left and (upside down) bottom right
     A = ["01110", "10001", "10001", "11111", "10001", "10001"]
     for (ax, ay, flip) in ((s * 1.7, top + s * 1.6, False), (w - s * 1.7, h - s * 1.6, True)):
@@ -7927,7 +7927,7 @@ def spades_outer(cv):
             pip = gm_spade(cv, w - ax, h - ay + s * 1.7, s * 0.55)[::-1, ::-1]
         put(cv, pip, "#d81e2c")
     mc_crisp(cv, SPADES_PAL)
-    mc_cape_trim(cv, "#08080a", "#2e2e36", stitch="#a8121e")
+    mc_cape_trim(cv, "#2a2a34", "#464654", stitch="#d81e2c")
 
 
 item("ace_of_spades_cape", "Ace of Spades Cape", "CAPE", "REGULAR", 0,
@@ -8125,7 +8125,7 @@ item("samurai_cloak", "Crimson Samurai Cape", "CAPE", "REGULAR", 0,
 # ---- Glitch Koi Cape: two neon koi chase each other round dark water; now and then the signal tears and the picture
 # slips sideways in bands, split into pink and cyan
 
-KOI_PAL = ["#04040a", "#080812", "#0c0c1c", "#121428", "#1a1e3a", "#ff3ab8", "#ff8ad8", "#ffd8f4", "#a01a78", "#3af0ff",
+KOI_PAL = ["#101638", "#161e48", "#1c2658", "#24306a", "#34407e", "#ff3ab8", "#ff8ad8", "#ffd8f4", "#a01a78", "#3af0ff",
            "#9af8ff", "#e0ffff", "#0a7a9a", "#ffffff", "#5a1a6a", "#1a5a7a", "#ffb03a", "#ffe08a"]
 
 
@@ -8177,15 +8177,15 @@ def koi_outer(cv):
     f = int(round(cv.phase * 24)) % 24
     ph = f / 24
     # dark water: banded depth, scanlines, slow ripple rings that grow outwards once a loop
-    v = np.clip(0.5 - Y / h * 0.35, 0, 1)
-    cv.arr[:] = bands(v, ["#04040a", "#080812", "#0c0c1c", "#121428"], 0.5)
+    v = np.clip(0.75 - Y / h * 0.5, 0, 1)
+    cv.arr[:] = bands(v, ["#101638", "#161e48", "#1c2658", "#24306a"], 0.5)
     cv.arr[..., 3] = 1
-    cv.arr[(Y.astype(int) // 2) % 3 == 0, :3] *= 0.7
+    cv.arr[(Y.astype(int) // 2) % 3 == 0, :3] *= 0.85
     cx, cy = w * 0.5, h * 0.5
     for k in range(3):
         rr = ((ph + k / 3) % 1) * s * 5.5
         ring = np.abs(np.sqrt((X - cx) ** 2 + ((Y - cy) * 0.8) ** 2) - rr) < 1.2
-        put(cv, ring & ((X.astype(int) // 3) % 2 == 0), "#1a1e3a")
+        put(cv, ring & ((X.astype(int) // 3) % 2 == 0), "#34407e")
     # two koi, half a lap apart, one full lap per loop
     fish = []
     for k, (col, lite, core, deep) in enumerate((("#ff3ab8", "#ff8ad8", "#ffd8f4", "#a01a78"),
@@ -8227,7 +8227,7 @@ def koi_outer(cv):
     blk = (hash_noise(h // 4 + 1, w // 4 + 1, 40 + f)[(Y.astype(int) // 4), (X.astype(int) // 4)] > 0.994)
     put(cv, blk, "#3af0ff" if f % 2 else "#ff3ab8", 0.6)
     mc_crisp(cv, KOI_PAL)
-    mc_cape_trim(cv, "#04040a", "#1a1e3a", stitch="#3af0ff")
+    mc_cape_trim(cv, "#101638", "#34407e", stitch="#3af0ff")
 
 
 item("glitch_koi_cape", "Glitch Koi Cape", "CAPE", "SPECIAL", 0,
@@ -8238,7 +8238,7 @@ item("glitch_koi_cape", "Glitch Koi Cape", "CAPE", "SPECIAL", 0,
 
 # ---- Void Eye Cape: a great violet eye in a swirling void; it looks one way, then the other, and blinks
 
-VOID_PAL = ["#030108", "#08031a", "#10062a", "#1c0a40", "#2c0e5a", "#46147a", "#6a1aa0", "#9a2ac8", "#c85af0", "#f0a8ff",
+VOID_PAL = ["#1a0a3a", "#24104e", "#301662", "#3e1c7a", "#542494", "#6e2cb0", "#6a1aa0", "#9a2ac8", "#c85af0", "#f0a8ff",
             "#ffe0ff", "#ffffff", "#ff3ad8", "#14041e", "#3a0a3a"]
 
 
@@ -8253,10 +8253,10 @@ def void_eye_outer(cv):
     ang = np.arctan2(dy, dx)
     # the void: a three-armed spiral turning a third of a turn per loop (so it loops), brighter towards the eye
     sw = 0.5 + 0.5 * np.sin(3 * (ang - ph * math.tau / 3) + r * 22)
-    v = np.clip(0.75 - r * 1.3, 0, 1) * (0.55 + 0.45 * sw)
-    cv.arr[:] = bands(v, ["#030108", "#08031a", "#10062a", "#1c0a40", "#2c0e5a", "#46147a"], 0.45)
+    v = np.clip(1.05 - r * 1.0, 0, 1) * (0.55 + 0.45 * sw)
+    cv.arr[:] = bands(v, ["#1a0a3a", "#24104e", "#301662", "#3e1c7a", "#542494", "#6e2cb0"], 0.45)
     cv.arr[..., 3] = 1
-    em_from(cv, np.clip(v - 0.45, 0, 1) * 0.6, "#46147a")
+    em_from(cv, np.clip(v - 0.4, 0, 1) * 0.8, "#6e2cb0")
     # motes drifting into the eye along the arms
     for k in range(10):
         a = k * math.tau / 10 + ph * math.tau
@@ -8266,7 +8266,7 @@ def void_eye_outer(cv):
     # the look: centre, glance left and hold, glance right and hold, back; a blink in the middle of the loop
     look = [0, 0, -0.9, -1, -1, -1, -0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 1, 1, 1, 0.9, 0, 0, 0, 0, 0][f]
     lid = {9: 0.55, 10: 0.0, 11: 0.55}.get(f, 1.0)
-    E, H = w * 0.36, s * 2.3 * lid
+    E, H = w * 0.42, s * 2.3 * lid
     lens = np.abs(dx) < E
     lens &= np.abs(Y - cy) < H * np.clip(1 - (dx / E) ** 2, 0, 1)
     # the lids and lashes round it: dark flesh with a bright rim
@@ -8295,7 +8295,7 @@ def void_eye_outer(cv):
         put(cv, (np.abs(Y - cy) < 2) & (np.abs(dx) < E), "#14041e")
     put(cv, grow(lens) & ~lens & (lid > 0), "#14041e")
     mc_crisp(cv, VOID_PAL)
-    mc_cape_trim(cv, "#14041e", "#46147a", stitch="#c85af0")
+    mc_cape_trim(cv, "#24104e", "#6e2cb0", stitch="#c85af0")
 
 
 item("void_eye_cape", "Void Eye Cape", "CAPE", "SPECIAL", 0,
@@ -8321,70 +8321,47 @@ def gm_blossom(cv, x, y, r):
     return pet, disc(cv, x, y, r * 0.28)
 
 
-def origami_panel(shape, hinge, folds, blooms):
-    """A paper panel: `shape` in wing coordinates (r 0 tip .. 1 shoulder, t 0 top .. 1 bottom), creased by fold lines
-    fanning out from `hinge` to each point in `folds`, so it reads as facets that catch the light one after another;
-    blooms: [(r, t, size in units)]."""
-    tones = [ORI_LIGHT, ORI_SHADE, "#fff4f8", ORI_DEEP]
-
-    def p(face, cv):
-        W = WingDraw(face, cv)
-        W.poly(shape, (255, 255, 255, 255))
-        m = crisp_mask(W) > 0
-        r, t = wing_root(face, cv), cv.yy()
-        asp = cv.h / cv.w
-        ang = np.arctan2((t - hinge[1]) * asp, hinge[0] - r)
-        cuts = sorted(math.atan2((ft - hinge[1]) * asp, hinge[0] - fr) for fr, ft in folds)
-        idx = np.searchsorted(np.array(cuts), ang)
-        cv.arr[:] = 0
-        for k in range(len(cuts) + 1):
-            put(cv, m & (idx == k), tones[[0, 1, 2, 1, 0, 1][k]])
-        lines = WingDraw(face, cv)
-        for f in folds:
-            lines.line([hinge, f], (255, 255, 255, 255), 1.6 / cv.s)
-        ln = (lines.done()[..., 3] > 0.4) & m
-        put(cv, ln, "#ffffff")
-        put(cv, nshift(ln, 1, 0) & m & ~ln, ORI_DEEP)
-        for br, bt, sz in blooms:
-            x = (br if face == "north" else 1 - br) * cv.w
-            pet, heart = gm_blossom(cv, x, bt * cv.h, sz * cv.s)
-            pet &= m
-            sprite(cv, pet, ORI_BLOOM, hi="#ffb0cc", lo=ORI_BLOOM_D)
-            put(cv, heart & m, ORI_HEART)
-        for k, (pr, pt) in enumerate(((0.3, 0.3), (0.62, 0.52), (0.18, 0.62), (0.82, 0.35), (0.48, 0.8))):
-            x = (pr if face == "north" else 1 - pr) * cv.w
-            put(cv, disc(cv, x, pt * cv.h, cv.s * 0.2, 1.6) & m, ORI_BLOOM)
-        put(cv, m & ~(nshift(m, 1, 0) & nshift(m, -1, 0) & nshift(m, 0, 1) & nshift(m, 0, -1)), ORI_EDGE)
-        cv.arr[~m] = 0
-    return p
+# Built on the arched-wing skeleton (aw_*): every flight feather and covert is a creased paper panel ("shard": angular,
+# the crease down its middle splitting it into a lit and a shaded facet), pale pink paper printed with blossoms.
+ORIGAMI = {"line": ORI_EDGE, "cols": ["#ffe8f1", "#ffcadf", "#f6a8c6"], "vane": 0.8, "hi": "#ffffff",
+           "cov": [["#fff0f6", "#ffd8e7"], ["#ffe8f1", "#ffcfe2"]], "arm": ["#ffffff", "#f8dce8", "#c890a8"], "arm_w": 1.0}
+ORI_ROWS = ((0.46, 10), (0.26, 8))
 
 
-def origami_knot(face, cv):
-    fill(cv, hexc(ORI_SHADE))
-    y, x = cv.grid()
-    put(cv, (x + y) % 6 < 2, ORI_LIGHT)
-    gm_k = disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.6)
-    put(cv, gm_k, ORI_BLOOM)
-    put(cv, disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.22), ORI_HEART)
+def origami_prints(F, feathers, at, size):
+    """Blossoms printed on every other panel, `at` of the way out along it, and a few loose petals."""
+    cv = F.cv
+    paper = cv.arr[..., 3] > 0.5
+    for i, (b, t, w) in enumerate(feathers):
+        if i % 2:
+            continue
+        x, y = F.P(b[0] + (t[0] - b[0]) * at, b[1] + (t[1] - b[1]) * at)
+        pet, heart = gm_blossom(cv, x, y, size * F.s)
+        sprite(cv, pet & paper, ORI_BLOOM, hi="#ffb0cc", lo=ORI_BLOOM_D)
+        put(cv, heart & paper, ORI_HEART)
+        px_, py_ = F.P(b[0] + (t[0] - b[0]) * (at + 0.2), b[1] + (t[1] - b[1]) * (at + 0.2) + 0.6)
+        put(cv, disc(cv, px_, py_, 0.22 * F.s, 1.6) & paper, ORI_BLOOM)
 
 
-def origami_wings():
-    anim = wing_anim(24, 14, 1.4)
-    upper = origami_panel([(1, 0.66), (0.66, 0.24), (0.0, 0.0), (0.3, 0.46), (0.06, 0.6), (0.4, 0.72), (0.12, 0.92),
-                           (0.62, 0.86), (1, 0.9)],
-                          (1, 0.78), [(0.0, 0.0), (0.3, 0.46), (0.06, 0.6), (0.4, 0.72)],
-                          [(0.6, 0.36, 1.0), (0.26, 0.17, 0.62), (0.74, 0.72, 0.55)])
-    lower = origami_panel([(1, 0.0), (0.5, 0.04), (0.06, 0.96), (0.4, 0.66), (0.3, 0.9), (0.72, 0.56), (1, 0.48)],
-                          (1, 0.1), [(0.06, 0.96), (0.4, 0.66), (0.3, 0.9)], [(0.6, 0.3, 0.7)])
-    right = [Bone("wing_r", "body", (-1, 3, 2.5), (0, 0, -8), [
-        Cube((-16, -10, 2.5), (15, 13, 0), upper), Cube((-12, 2, 2.6), (11, 10, 0), lower)], anim=anim)]
-    knot = Bone("knot", "body", (0, 3, 2.5), cubes=[Cube((-1, 2, 2), (2, 2, 1), origami_knot)])
-    return wing_pair(right) + [knot]
+def origami_painters():
+    flight, covs = aw_layout(13, ORI_ROWS)
+
+    def fl(F):
+        aw_paint_feathers(F, flight[::-1], ORIGAMI, "shard")
+        origami_prints(F, flight, 0.62, 0.8)
+
+    def co(F):
+        for k, row in enumerate(covs):
+            aw_paint_feathers(F, row[::-1], dict(ORIGAMI, cols=ORIGAMI["cov"][k]), "shard")
+        origami_prints(F, covs[0], 0.55, 0.6)
+        aw_arm_band(F, ORIGAMI, ORIGAMI["arm_w"])
+    return fl, co
 
 
 item("origami_sakura_wings", "Origami Sakura Wings", "WINGS", "REGULAR", 800,
      "Wings folded from pale pink paper, every panel creased sharp and printed with cherry blossoms.",
-     origami_wings(), view=WING_VIEW)
+     aw_wing("panels", *origami_painters(), aw_rod(["#ffffff", "#f8dce8", "#c890a8"], "#8a3a5a"), wing_anim(30, 12, 1.4)),
+     view=AW_VIEW)
 
 
 # ---------------------------------------------------------------------------------------------- hats
@@ -8495,6 +8472,8 @@ STORM_CORE, STORM_HOT, STORM_MID, STORM_DEEP = "#ffffff", "#bff8ff", "#3ae0ff", 
 
 
 def storm_ring_fn(ground):
+    """A quarter of a storm ring in bold flat bands: a wide deep-blue glow band, a crisp bright rim on each side and one
+    thick bolt of lightning running round it, re-struck every frame (its zigzag moves; the bands stay put)."""
     def fn(cv, X, Z):
         r = np.sqrt(X * X + Z * Z)
         ang = np.arctan2(Z, X)
@@ -8508,38 +8487,24 @@ def storm_ring_fn(ground):
             nonlocal A
             C[mask] = hexc(col)[:3]
             A = np.where(mask, np.maximum(A, a), A)
+        lo, hi = (0.66, 0.96) if ground else (0.72, 0.94)
+        paint((r > lo) & (r < hi), STORM_DEEP, 0.5)
+        paint((r > lo + 3 * px_) & (r < hi - 3 * px_), "#1a4ad8", 0.42)
+        paint((np.abs(r - hi) < 2.5 * px_) | (np.abs(r - lo) < 2.5 * px_), STORM_MID, 0.95)
         if ground:
-            # a dark scorched circle with a bright rim and a few cracked rune ticks
-            band = (r > 0.78) & (r < 0.95)
-            paint(band, STORM_DEEP, 0.45)
-            paint((np.abs(r - 0.95) < 2 * px_) | (np.abs(r - 0.78) < 1.5 * px_), STORM_MID, 0.9)
-            tick = (r > 0.8) & (r < 0.93) & (np.abs(((ang / math.tau * 24) % 1) - 0.5) < 0.06)
-            paint(tick, STORM_HOT, 0.8)
-        # the lightning: a jagged line round the ring, re-struck every frame (random phases), and short forks off it
-        jag = np.zeros_like(r)
-        for k, amp in ((3, 0.05), (7, 0.03), (13, 0.02), (23, 0.012)):
-            jag += amp * np.sin(ang * k * 4 + rng.random() * math.tau)
-        rm = (0.86 if ground else 0.82) + jag
-        d = np.abs(r - rm)
-        paint(d < 5 * px_, STORM_DEEP, 0.55)
-        paint(d < 3 * px_, STORM_MID, 0.95)
-        paint(d < 1.3 * px_, STORM_CORE, 1.0)
-        for _ in range(3):
-            a0 = rng.uniform(-math.pi / 2, 0)
-            pts = [(math.cos(a0) * 0.84, math.sin(a0) * 0.84)]
-            out = rng.choice((-1, 1))
-            for step in range(4):
-                lx, lz = pts[-1]
-                rad = math.hypot(lx, lz) + out * rng.uniform(0.03, 0.06)
-                aa = math.atan2(lz, lx) + rng.uniform(-0.12, 0.12)
-                pts.append((math.cos(aa) * rad, math.sin(aa) * rad))
-            for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
-                t = np.clip(((X - x0) * (x1 - x0) + (Z - z0) * (z1 - z0)) / ((x1 - x0) ** 2 + (z1 - z0) ** 2 + 1e-9), 0, 1)
-                dd = np.hypot(X - (x0 + t * (x1 - x0)), Z - (z0 + t * (z1 - z0)))
-                paint(dd < 2.2 * px_, STORM_MID, 0.9)
-                paint(dd < 1 * px_, STORM_HOT, 1.0)
+            # bold rune ticks between the rims
+            tick = (r > lo + 6 * px_) & (r < hi - 6 * px_) & (np.abs(((ang / math.tau * 16) % 1) - 0.5) < 0.09)
+            paint(tick, STORM_MID, 0.85)
+        # the bolt: a broad, slow zigzag (two sines with fresh phases each frame), thick and flat-coloured
+        mid = (lo + hi) / 2
+        jag = 0.05 * np.sign(np.sin(ang * 12 + rng.random() * math.tau)) * np.abs(np.sin(ang * 12 + rng.random() * math.tau)) ** 0.3
+        jag += 0.02 * np.sin(ang * 5 + rng.random() * math.tau)
+        d = np.abs(r - (mid + jag))
+        paint(d < 4.5 * px_, STORM_MID, 1.0)
+        paint(d < 2.2 * px_, STORM_HOT, 1.0)
+        paint(d < 1.0 * px_, STORM_CORE, 1.0)
         A *= r < 1.0
-        A = levels(A, 5, 0.2) / 4.0
+        A = levels(A, 5, 0.1) / 4.0
         cv.arr[..., :3] = C
         cv.arr[..., 3] = A
         em_rgb(cv, C, A)
@@ -8557,7 +8522,8 @@ item("storm_ring_aura", "Storm Ring", "AURA", "SPECIAL", None,
      storm_ring_bones(),
      fx={"type": "aura", "particle": "soft", "colors": ["#FFFFFF", "#7AF0FF", "#1A6AFF"], "rate": 5, "size": 0.45,
          "life": 0.6, "fade": 0.15, "sizeEnd": 0.2, "gravity": 0.0},
-     view=AURA_VIEW, animation={"frames": 16, "frametime": 1.5, "interpolate": False, "scale": 8})
+     view=dict(AURA_CLOSE, frame=[(-14.5, -22.5), (14.5, 6.5)]),
+     animation={"frames": 16, "frametime": 1.5, "interpolate": False, "scale": 8})
 
 
 # ---------------------------------------------------------------------------------------------- pets
@@ -8787,13 +8753,13 @@ SHARK = (HOVER[0] + 0.5, HOVER[1], HOVER[2] + 0.5)
 
 
 def shark_hull(face, A):
-    # riveted brass plates: a copper band, rows of rivets, a pale belly
+    # riveted brass plates over a pale belly (a shark's dark back and light underside), one copper band
     A.put(A.y % 6 == 0, shade(SHARK_BRASS, 0.8))
     A.put((A.y % 6 == 2) & (A.x % 3 == 1), "#ffe08a")
-    A.put((A.y >= 3) & (A.y < 5) & (face in ("east", "west", "top")), SHARK_COPPER)
+    A.put((A.y >= 2) & (A.y < 3) & (face in ("east", "west")), SHARK_COPPER)
     if face in ("east", "west"):
-        A.put(A.y >= A.h - 4, SHARK_BELLY)
-        A.put((A.y == A.h - 5), SHARK_DARK)
+        A.put(A.y >= A.h * 0.55, SHARK_BELLY)
+        A.put((A.y == int(A.h * 0.55) - 1), shade(SHARK_BRASS, 0.7))
     elif face == "bottom":
         A.fill(SHARK_BELLY)
 
@@ -8816,12 +8782,12 @@ def shark_head(face, A):
 
 def shark_nose(face, A):
     shark_hull(face, A)
-    if face == "north":                        # 8 x 4: the pointed brass snout, two nostrils
-        A.pix([(2, 2), (5, 2)], SHARK_DARK)
+    if face == "north":                        # 4 x 4: the snub brass nose, two nostrils
+        A.pix([(1, 2), (2, 2)], SHARK_DARK)
 
 
 def shark_fin(face, A):
-    m = A.poly([(0.0, 1.0), (0.35, 0.0), (0.55, 0.05), (1.0, 1.0)])
+    m = A.poly([(0.0, 1.0), (0.5, 0.25), (0.95, 0.0), (0.8, 0.35), (1.0, 1.0)])
     if face == "west":
         m = m[:, ::-1]
     A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
@@ -8831,11 +8797,15 @@ def shark_fin(face, A):
 
 
 def shark_side_fin(face, A):
+    m = A.poly([(1.0, 0.0), (0.0, 0.85), (0.15, 1.0), (1.0, 1.0)])
     A.put(A.x % 3 == 0, shade(SHARK_COPPER, 0.8))
+    A.clip(m)
+    A.rim(RIM)
+    A.norim[:] = True
 
 
 def shark_tail(face, A):
-    m = A.poly([(0.0, 0.0), (0.5, 0.42), (0.85, 0.0), (1.0, 0.0), (0.7, 0.5), (1.0, 1.0), (0.8, 1.0), (0.45, 0.6), (0.0, 0.9)])
+    m = A.poly([(0.0, 0.3), (0.35, 0.42), (0.95, 0.0), (0.6, 0.48), (0.8, 0.95), (0.3, 0.6), (0.0, 0.7)])
     if face == "west":
         m = m[:, ::-1]
     A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
@@ -8861,24 +8831,27 @@ def shark_gear(face, A):
 
 
 def shark_pet():
+    """A tapered shark from nose to forked tail: a snub nose, a short head with goggles and a grin, the hull with a
+    swept dorsal fin and a cog on its back, a tail stem that narrows to a tall forked fin, two drooping side fins."""
     a = SHARK
     body = pet_body("shark", a, [
         PC(a, (-1.5, -3.5, -1), (3, 3, 3), px(SHARK_BRASS, shark_hull)),
-        PC(a, (-0.5, -4, -0.75), (1, 1, 1), px(SHARK_DARK)),                     # the cog's axle
-        PC(a, (0, -6.5, 1.25), (0, 3, 3), px(SHARK_COPPER, shark_fin, rim=0))])   # the dorsal fin
+        PC(a, (-0.5, -4, -1), (1, 1, 1), px(SHARK_DARK)),                        # the cog's axle
+        PC(a, (0, -7.5, 0), (0, 4, 3), px("#e0904a", shark_fin, rim=0))])        # the dorsal fin, swept back
     body.anim = dict(PET_ANIM, amp=1.0, speed=1.2)
     head = Bone("head", "root", P(a, 0, -2, -1), cubes=[
-        PC(a, (-1.5, -3.75, -4), (3, 3, 3), px(SHARK_BRASS, shark_head)),
-        PC(a, (-1, -3.75, -5), (2, 1, 1), px(SHARK_BRASS, shark_nose))],
+        PC(a, (-1.5, -3.5, -3), (3, 3, 2), px(SHARK_BRASS, shark_head)),
+        PC(a, (-0.5, -3.5, -4), (1, 1, 1), px(SHARK_BRASS, shark_nose))],
         anim={"type": "pet_head", "amp": 10}, parent="shark")
-    lids = blink_bone("lids", "head", a, (-1.5, -2.5, -4.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
-    gear = Bone("cog", "root", P(a, 0, -4.1, -0.25), cubes=[PC(a, (-1.5, -4.1, -1.75), (3, 0, 3), px("#e0b050", shark_gear, rim=0))],
+    lids = blink_bone("lids", "head", a, (-1.5, -2.25, -3.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
+    gear = Bone("cog", "root", P(a, 0, -4.1, -0.5), cubes=[PC(a, (-1, -4.1, -1.5), (2, 0, 2), px("#e0b050", shark_gear, rim=0))],
                 anim={"type": "spin", "speed": 120}, parent="shark")
     tail = Bone("tail", "root", P(a, 0, -2, 2), cubes=[
         PC(a, (-1, -3, 2), (2, 2, 2), px(SHARK_BRASS, shark_hull)),
-        PC(a, (0, -5, 4), (0, 6, 3), px(SHARK_COPPER, shark_tail, rim=0))],
+        PC(a, (-0.5, -2.5, 4), (1, 1, 1), px(SHARK_BRASS, shark_hull)),
+        PC(a, (0, -6, 5), (0, 7, 3), px("#e0904a", shark_tail, rim=0))],
         anim=wag(16, 0.9), parent="shark")
-    fin = Bone("fin_r", "root", P(a, -1.5, -1.5, 0.5), (0, 0, -20), cubes=[PC(a, (-4, -1.5, -0.5), (3, 0, 2), px(SHARK_COPPER, shark_side_fin))],
+    fin = Bone("fin_r", "root", P(a, -1.5, -1, 0.5), (0, 0, -28), cubes=[PC(a, (-4.5, -1, -0.5), (3, 0, 2), px("#e0904a", shark_side_fin))],
                anim={"type": "wing", "side": 1, "base": 0, "amp": 8, "speed": 1.2, "fold": 0}, parent="shark")
     return [body, head, lids, gear, tail] + pet_pair(fin, a)
 
@@ -8886,7 +8859,7 @@ def shark_pet():
 item("steampunk_shark", "Steampunk Shark", "PET", "REGULAR", 700,
      "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims "
      "through the air beside your shoulder.",
-     shark_pet(), view=dict(PET_VIEW, glow="#ffb030"))
+     shark_pet(), view=dict(PET_VIEW, glow="#ffb030", margin=1.32))
 
 
 # ---------------------------------------------------------------------------------------------- emotes
@@ -8973,7 +8946,7 @@ def gm_thumb_emote(it, size=THUMB, prop=None):
     for pos, sz, tex, tint in v.get("fx_pic", lambda: [])():
         gm_billboard(scene, view, pos, sz, tex, tint)
     im = render_scene(scene, yaw, pitch, size=size, frame=v.get("frame"), margin=v.get("margin", 1.10))
-    return badge(im, v.get("glow", "#ffd36a"), 0.4)
+    return emote_light(im, v.get("glow", "#ffd36a"))
 
 
 gm_thumb_emote_shipped = thumb_emote

@@ -7,7 +7,7 @@ package net.evadeclient.gui.title;
 public final class WhatsNew {
     private WhatsNew() {}
 
-    public static final String VERSION = "v2.8.0";
-    public static final String HEADLINE = "Rebuilt pets, sharper cosmetics, free capes, faster hotkeys and a safer launcher.";
+    public static final String VERSION = "v2.9.0";
+    public static final String HEADLINE = "Schematics, technical tools, 54 new cosmetics, better wings and launcher add-ons.";
     public static final String URL = "https://evadeclient.com/changelog";
 }

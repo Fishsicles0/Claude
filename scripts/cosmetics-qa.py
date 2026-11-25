@@ -49,12 +49,6 @@ REFERENCE = ("hearthfire_cape", "riptide_cape", "ember_mantle", "mochi_cat", "em
 # anything not listed passes the eye test. Update this after looking at sheet-<slot>.png.
 EYE = {
     # gemini concept collection (reported to its builder, not fixed here)
-    "origami_sakura_wings": ("FAIL", "flat paper fans standing straight up: no arm bone, no layering, and they pass "
-                                     "through the head over the beat"),
-    "steampunk_shark": ("WEAK", "a long brown box that crowds the frame; the shark shape and its fins don't read"),
-    "storm_ring_aura": ("WEAK", "a thin ring of busy sparks, small in the frame; the shipped auras' sigils read far better"),
-    "ace_of_spades_cape": ("WEAK", "near-black cape on the dark card: only the small red card reads"),
-    "void_eye_cape": ("WEAK", "near-black cape: the eye is small and the rest disappears on the card"),
 }
 
 # wings shaped like an insect's (lobes on a thorax, no arm bone): the arch and strip checks don't apply
