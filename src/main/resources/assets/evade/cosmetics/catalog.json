@@ -59,9 +59,9 @@
     "files": {
      "item.json": "be98b5014ca82e97d3bd4dd19940e1005148d4c2af8b571479590d85e48e9976",
      "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "abb00a49982d61f2c2d2564f801bd073ad157a35a229c69e741bbaf364264f54",
-     "emissive.png": "0942e40bb37d46d9c3a2d6c6df114db1b3776901ed567432266f2db62bfebc8d",
-     "thumb.png": "07df038c9bc304b97a47d111b77b74cff5b9eaf769c0924c188228907c8d63e4"
+     "texture.png": "c54942f6e5c0da8f16b58674b11feb8bce16baa1ed62ea6b477718ca705c0a4b",
+     "emissive.png": "405d8882ed4adf70001fe4c1977d3ebddba2543edf2d7bb5c4cf02078b04ca2d",
+     "thumb.png": "9dfb8cbf96587855fe79b0503061d38f42c876497bc3a9cd0140a048db6277d7"
     }
    }
   },
@@ -679,9 +679,9 @@
     "files": {
      "item.json": "366eecdb56f6629c6c62558f020e3f768833169f78589747749ecf71b0f1a7de",
      "model.json": "b955e2520d4696eb5d8b6330ac07879979217939b7d198430d6f8e277cb38e92",
-     "texture.png": "6417e66bec9d760763582a9ffd2cb5e9ab3080ea739b383f7ee96251eaac1905",
-     "emissive.png": "60e8107b8528867e6d9589c953af20e0bfc939042bc2dff73e609def856fca34",
-     "thumb.png": "0e3624644dbe2d0a331d75d3ab1b5135fb1e9bd110d33cfb8b70799f2a57d478"
+     "texture.png": "864ab776a12f9f04acb64924f6bd9330bc194771f1850eb8d389befaf33d1b63",
+     "emissive.png": "636cbd6d839b40fcf4c82ae74dc81c2cde0cfb6f3c615cb7ff8c216d59696b0f",
+     "thumb.png": "08af15b62caf4044b6a81396e9ecc3f469c2901383e4fb7c3c29f6c2f222164f"
     }
    }
   },
@@ -1210,11 +1210,11 @@
    "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
    "assets": {
     "files": {
-     "item.json": "0d87152a4db0961bf15d58b12b3eadf7a4449d25dfa92906a332286020ff483f",
-     "model.json": "72502befdf1350cf7cfd8eb4e45e7280bcd39917b897ba90239c2ceb8c3a0e42",
-     "texture.png": "3e70d74b3e27cbc16f7308cebe87b0fb40ce16afe0e3567e68f523ad3102ce9d",
-     "emissive.png": "c3573dd5b52adb08a1bf727356143b143f624d2001745f32518b1fff1f679aed",
-     "thumb.png": "23eb361bc7368694de8a82804c4932613bd2acfba6ef18750f32793d0ea4e10a"
+     "item.json": "40fc1a120ca09d3e9d671cf37795caa2794f122e920bf96a3f045feb9e960d41",
+     "model.json": "11466261144fbca3e9295bbc38042514d325a3751589f117709edda6b718286b",
+     "texture.png": "1fec544fc95ec11fc266a72250324a102a1c6623b9232213f4a4983b0188a966",
+     "emissive.png": "62dcf3ba71a99a1df1b64c307d1481c86b742c02cf52b9ad46a43b43cacc0567",
+     "thumb.png": "a2e333def85e6fcf9fa55be9c04088ed080450c2dfa37a90dfc17c6b31febbc9"
     }
    }
   },

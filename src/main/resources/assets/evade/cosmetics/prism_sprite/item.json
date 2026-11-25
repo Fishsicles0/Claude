@@ -8,8 +8,8 @@
  "partner": null,
  "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
  "animation": {
-  "frames": 14,
-  "frametime": 2.25,
+  "frames": 16,
+  "frametime": 2,
   "interpolate": true
  }
 }

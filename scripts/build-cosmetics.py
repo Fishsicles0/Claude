@@ -184,9 +184,10 @@ def wing_pair(right_bones, suffix_r="_r", suffix_l="_l"):
     return list(right_bones) + left
 
 
-def pack(bones):
+def pack(bones, max_h=None):
     """Shelf-packs every cube's box-UV rectangle into the smallest square-ish texture (sides multiples of 2).
-    Mirrored copies share their original's rectangle. Returns (tw, th) in model units."""
+    Mirrored copies share their original's rectangle. Returns (tw, th) in model units. With `max_h`, prefers a
+    wider layout no taller than that (an animated strip's frames must fit the client's strip height)."""
     first = {}
     for b in bones:
         for c in b.cubes:
@@ -215,7 +216,7 @@ def pack(bones):
         tw = width + (width % 2)
         th = y + shelf
         th += th % 2
-        score = (max(tw, th), tw * th)
+        score = (max_h is not None and th > max_h, max(tw, th), tw * th)
         if best is None or score < best[0]:
             best = (score, tw, th, placed)
     _, tw, th, placed = best
@@ -4805,7 +4806,7 @@ def prism_pet():
 
 item("prism_sprite", "Prism Sprite", "PET", "SPECIAL", None,
      "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
-     prism_pet(), view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 14, "frametime": 2.25, "interpolate": True, "scale": 16})
+     prism_pet(), view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 16, "frametime": 2, "interpolate": True, "scale": 16})
 
 
 # ---------------------------------------------------------------------------------------------- trails, kill and win effects
@@ -5666,8 +5667,8 @@ def build(it):
     files = {"item.json": (json.dumps(item_json(it), indent=1) + "\n").encode()}
     crisp = it["rarity"] == "REGULAR" and it["slot"] not in CRISP_EXEMPT
     if it["bones"]:
-        tw, th = it["layout"] or pack(it["bones"])
         anim = it["animation"]
+        tw, th = it["layout"] or pack(it["bones"], MAX_STRIP_PX // (anim.get("scale", 8) * anim["frames"]) if anim else None)
         frames = anim["frames"] if anim else 1
         if anim:
             # special items: at least the regular items' 8 texels per unit (capes 16, laid out by hand to fit)
