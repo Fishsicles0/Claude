@@ -1,0 +1,10 @@
+{
+ "id": "bolt_robot",
+ "name": "Bolt the Robot",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna blinks red while it floats beside your shoulder."
+}

@@ -1,0 +1,10 @@
+{
+ "id": "torii_sunset_cape",
+ "name": "Torii Sunset Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A red gate standing in still water with the sun going down behind it, its reflection rippling on the lake."
+}

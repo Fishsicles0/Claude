@@ -1,0 +1,124 @@
+{
+ "id": "heart_toss",
+ "name": "Heart Toss",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Bring a hand to your heart, then toss a little heart out to someone.",
+ "fx": {
+  "type": "burst",
+  "shape": "toss",
+  "particle": "heart",
+  "colors": [
+   "#FF4A6A"
+  ],
+  "rate": 10,
+  "height": 1.5,
+  "from": 0.95,
+  "to": 1.4
+ },
+ "emote": {
+  "length": 2.2,
+  "loop": false,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.45,
+     -70,
+     -45,
+     0
+    ],
+    [
+     0.75,
+     -70,
+     -45,
+     0
+    ],
+    [
+     1.05,
+     -112,
+     0,
+     -14
+    ],
+    [
+     1.8,
+     -112,
+     0,
+     -14
+    ],
+    [
+     2.2,
+     0,
+     0,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.45,
+     -45,
+     30,
+     0
+    ],
+    [
+     1.8,
+     -45,
+     30,
+     0
+    ],
+    [
+     2.2,
+     0,
+     0,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.45,
+     10,
+     0,
+     10
+    ],
+    [
+     1.05,
+     -8,
+     0,
+     -4
+    ],
+    [
+     1.8,
+     -8,
+     0,
+     -4
+    ],
+    [
+     2.2,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

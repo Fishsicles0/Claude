@@ -1,0 +1,94 @@
+{
+ "id": "shrug",
+ "name": "Shrug",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Arms out, shoulders up. Who knows?",
+ "emote": {
+  "length": 1.4,
+  "loop": false,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     -40,
+     0,
+     50
+    ],
+    [
+     1.0,
+     -40,
+     0,
+     50
+    ],
+    [
+     1.4,
+     0,
+     0,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     -40,
+     0,
+     -50
+    ],
+    [
+     1.0,
+     -40,
+     0,
+     -50
+    ],
+    [
+     1.4,
+     0,
+     0,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     0,
+     0,
+     12
+    ],
+    [
+     1.0,
+     0,
+     0,
+     12
+    ],
+    [
+     1.4,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

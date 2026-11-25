@@ -8,8 +8,8 @@
  "partner": null,
  "description": "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
  "animation": {
-  "frames": 24,
-  "frametime": 1.5,
+  "frames": 20,
+  "frametime": 1.8,
   "interpolate": false
  }
 }

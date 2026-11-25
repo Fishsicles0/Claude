@@ -1,0 +1,10 @@
+{
+ "id": "origami_sakura_wings",
+ "name": "Origami Sakura Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Wings folded from pale pink paper, every panel creased sharp and printed with cherry blossoms."
+}

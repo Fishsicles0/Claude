@@ -1,0 +1,10 @@
+{
+ "id": "shadow_samurai_helm",
+ "name": "Shadow Samurai Helm",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A black-violet lacquered samurai helmet with a flared neck guard and a crescent crest that glows violet."
+}
