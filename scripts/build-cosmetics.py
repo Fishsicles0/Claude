@@ -3621,46 +3621,46 @@ item("prism_sprite", "Prism Sprite", "PET", "SPECIAL", None,
 # ---------------------------------------------------------------------------------------------- trails, kill and win effects
 # Particles only (spawned by the viewer's own client); the thumbnail is a picture of the effect.
 
-item("stardust_trail", "Stardust Trail", "TRAIL", "REGULAR", 400,
+item("stardust_trail", "Stardust Trail", "TRAIL", "REGULAR", 200,
      "Glittering violet and gold dust drifts from your feet as you move.",
      fx={"type": "trail", "particle": "soft", "colors": ["#FFFFFF", "#FFD36A", "#B98CFF"], "rate": 12, "size": 0.8,
          "life": 1.1, "fade": 0.3, "sizeEnd": 0.3, "gravity": 0.05},
      thumb="trail")
-item("ember_trail", "Ember Trail", "TRAIL", "REGULAR", 400,
+item("ember_trail", "Ember Trail", "TRAIL", "REGULAR", 200,
      "Hot orange embers flicker up from your footsteps and fade to smoke.",
      fx={"type": "trail", "particle": "soft", "colors": ["#FFF0A8", "#FF7A2A", "#C0200A", "#3A1A14"], "rate": 12,
          "size": 0.7, "life": 1.0, "fade": 0.2, "sizeEnd": 0.25, "gravity": -0.5},
      thumb="embers")
-item("petal_trail", "Petal Trail", "TRAIL", "REGULAR", 400,
+item("petal_trail", "Petal Trail", "TRAIL", "REGULAR", 200,
      "Soft pink and white blossom petals tumble along behind you.",
      fx={"type": "trail", "particle": "dust", "colors": ["#FFC0D8", "#FF8AB8", "#FFF4F8"], "rate": 8, "size": 0.95},
      thumb="petals")
-item("shatterburst", "Shatterburst", "KILL_EFFECT", "REGULAR", 400,
+item("shatterburst", "Shatterburst", "KILL_EFFECT", "REGULAR", 200,
      "When you get a kill, crystal shards burst outward from where they fell.",
      fx={"type": "burst", "particle": "dust", "colors": ["#9FFCFF", "#3EF0D0", "#FFFFFF"], "count": 42, "size": 1.1,
          "spark": True},
      thumb="burst")
-item("firework_pop", "Firework Pop", "KILL_EFFECT", "REGULAR", 400,
+item("firework_pop", "Firework Pop", "KILL_EFFECT", "REGULAR", 200,
      "A kill sets off a bright firework of red, gold and blue sparks where they fell.",
      fx={"type": "burst", "particle": "dust", "colors": ["#FF4A5A", "#FFD23A", "#4A8AFF", "#FFFFFF"], "count": 56, "size": 1.0,
          "spark": True},
      thumb="firework")
-item("soul_release", "Soul Release", "KILL_EFFECT", "REGULAR", 400,
+item("soul_release", "Soul Release", "KILL_EFFECT", "REGULAR", 200,
      "Pale blue wisps spiral up from where your opponent fell and drift away.",
      fx={"type": "spiral", "particle": "soft", "colors": ["#E8FFFF", "#9AF0FF", "#3A7AFF"], "count": 50, "size": 0.9,
          "height": 2.4, "life": 1.6, "fade": 0.3, "sizeEnd": 0.3, "gravity": -0.6},
      thumb="soul")
-item("victory_spiral", "Victory Spiral", "WIN_EFFECT", "REGULAR", 400,
+item("victory_spiral", "Victory Spiral", "WIN_EFFECT", "REGULAR", 200,
      "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
      fx={"type": "spiral", "particle": "soft", "colors": ["#FFF4C2", "#FFD36A", "#FF8A3A"], "count": 80, "size": 1.0,
          "height": 3.0, "life": 1.4, "fade": 0.25, "sizeEnd": 0.35},
      thumb="spiral")
-item("confetti_cannon", "Confetti Cannon", "WIN_EFFECT", "REGULAR", 400,
+item("confetti_cannon", "Confetti Cannon", "WIN_EFFECT", "REGULAR", 200,
      "Win a game and a cloud of rainbow confetti bursts out around you.",
      fx={"type": "burst", "particle": "dust", "colors": ["#FF4A8A", "#FFD23A", "#3AC8FF", "#5AE07A", "#B07AFF"], "count": 90,
          "size": 1.3},
      thumb="confetti")
-item("starlight_fountain", "Starlight Fountain", "WIN_EFFECT", "REGULAR", 400,
+item("starlight_fountain", "Starlight Fountain", "WIN_EFFECT", "REGULAR", 200,
      "Win a game and a tall column of white starlight spirals up around you.",
      fx={"type": "spiral", "particle": "end_rod", "colors": ["#FFFFFF", "#D8E4FF"], "count": 60, "size": 1.0, "height": 3.4},
      thumb="fountain")
