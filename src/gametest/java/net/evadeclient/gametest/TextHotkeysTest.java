@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Text Hotkeys (one-click macros): one press sends exactly one message, holding never repeats, the 1.5 s gap holds
+ * Text Hotkeys (one-click macros): one press sends exactly one message, holding never repeats, the Cooldown holds
  * across keys, Ctrl + K and K are different hotkeys, the per-hotkey server filter, nothing sends while a screen is
  * open, the editor (.hotkeys) edits and saves, presets add with one click, old nine-slot configs migrate, and the
  * menu search finds it as "macro" / "auto text". Messages go to the test's own singleplayer server.
@@ -87,18 +87,28 @@ public final class TextHotkeysTest {
         check(s1 == s0 + 1 && "hotkey test one".equals(last), "Text Hotkeys: one press sends its message once (" + s0 + " -> " + s1 + ", " + last + ")");
         check(s2 == s1, "Text Hotkeys: holding the key doesn't send it again (" + s2 + ")");
 
-        // 2. The 1.5 s gap holds across different keys.
-        ctx.runOnClient(c -> th().resetGapForTest());
+        // 2. The Cooldown (0.5 s by default, 0.25 to 3 s) holds across different keys, at the configured value.
+        String cd = ctx.computeOnClient(c -> {
+            var st = th().cooldownSetting();
+            String r = st.get() + "|" + th().gapMs();
+            st.set(1.0);
+            th().resetGapForTest();
+            return r + "|" + th().gapMs();
+        });
+        check(cd.equals("0.5|500|1000"), "Text Hotkeys: Cooldown defaults to 0.5 s and follows the setting (" + cd + ")");
         int g0 = sent(ctx);
+        long t0 = System.currentTimeMillis();
         tap(ctx, a);
         tap(ctx, b);
+        long within = System.currentTimeMillis() - t0;
         int g1 = sent(ctx);
-        ctx.waitTicks(34);
+        while (System.currentTimeMillis() - t0 < 1150) ctx.waitTick();
         tap(ctx, b);
         int g2 = sent(ctx);
         String lastB = ctx.computeOnClient(c -> th().lastSentForTest);
-        check(g1 == g0 + 1, "Text Hotkeys: a second key within 1.5 s is held back (" + (g1 - g0) + " sent)");
-        check(g2 == g1 + 1 && "hotkey test two".equals(lastB), "Text Hotkeys: after the gap the next press sends (" + lastB + ")");
+        check(within >= 1000 || g1 == g0 + 1, "Text Hotkeys: a second key within the 1 s cooldown is held back (" + (g1 - g0) + " sent in " + within + " ms)");
+        check(g2 == g1 + 1 && "hotkey test two".equals(lastB), "Text Hotkeys: once the cooldown has passed the next press sends (" + lastB + ")");
+        ctx.runOnClient(c -> th().cooldownSetting().reset());
 
         // 3. Combos: Ctrl + A and plain A are different hotkeys; a combo press sends only the combo's text.
         ctx.runOnClient(c -> {

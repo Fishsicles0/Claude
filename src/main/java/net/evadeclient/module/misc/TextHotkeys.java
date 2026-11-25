@@ -10,6 +10,7 @@ import net.evadeclient.module.Module;
 import net.evadeclient.render.RenderContext;
 import net.evadeclient.setting.BooleanSetting;
 import net.evadeclient.setting.KeySetting;
+import net.evadeclient.setting.NumberSetting;
 import net.evadeclient.setting.Setting;
 import net.evadeclient.setting.StatusSetting;
 import net.evadeclient.util.Keybinds;
@@ -29,7 +30,7 @@ import java.util.Map;
 /**
  * Up to twenty keys (or Ctrl / Shift / Alt combos, or a mouse side button) that each send one chat message or
  * command you typed yourself ("/hub", "gg"): one-click macros. One press sends it once: holding the key never repeats
- * it, a hotkey never sends more than its one line, and at most one message goes out every 1.5 seconds whichever keys
+ * it, a hotkey never sends more than its one line, and at most one message goes out per Cooldown (0.5 seconds by default) whichever keys
  * you press, so a hotkey can never flood a server. Nothing is ever sent on its own (no timers, no reacting to chat or
  * events), only on your key press, and only while no menu or chat is open. A hotkey can be limited to the servers it
  * is meant for, so "/hub" only fires where /hub exists. The only placeholders are your own harmless info: {server}
@@ -40,8 +41,8 @@ public class TextHotkeys extends Module {
     public static final int MAX_HOTKEYS = 20;
     /** How many slots the old fixed layout had ("Hotkey 1 Key" ... "Hotkey 9 Text"), for migrating old configs. */
     public static final int OLD_SLOTS = 9;
-    /** At most one message per this many milliseconds, across every hotkey. */
-    public static final long MIN_GAP_MS = 1500;
+    /** The default and the fewest seconds between two hotkey messages, across every hotkey. */
+    public static final double DEFAULT_COOLDOWN = 0.5, MIN_COOLDOWN = 0.25;
     /** Longest message a player can type in chat. */
     public static final int MAX_CHARS = 256;
     public static final int MAX_LABEL = 32, MAX_SERVERS = 160;
@@ -153,6 +154,8 @@ public class TextHotkeys extends Module {
     private final StatusSetting editor = add((StatusSetting) new StatusSetting("Edit Hotkeys", this::editorLabel, "click: open")
             .onClick(() -> openEditor(mc.currentScreen))
             .describe("Add, change, reorder and test your one-click chat macros (auto text, autotext) in the hotkey editor (also .hotkeys)."));
+    private final NumberSetting cooldown = add(new NumberSetting("Cooldown (s)", DEFAULT_COOLDOWN, MIN_COOLDOWN, 3.0, 0.25)
+            .describe("The shortest time between two hotkey messages, so a server's spam filter never kicks you."));
     private final BooleanSetting confirm = add(new BooleanSetting("Confirmation", true)
             .describe("A small notification with what was sent (and the hotkey's label), or why a press was skipped."));
     private final BooleanSetting addToHistory = add(new BooleanSetting("Add To Chat History", true)
@@ -329,7 +332,7 @@ public class TextHotkeys extends Module {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastSent < MIN_GAP_MS) {
+        if (now - lastSent < gapMs()) {
             if (confirm.get()) Notifications.push(title, "Wait a moment before sending again", false);
             return;
         }
@@ -428,7 +431,13 @@ public class TextHotkeys extends Module {
         return InputUtil.isKeyPressed(mc.getWindow(), code);
     }
 
-    /** Test hook: forget the 1.5 s gap, as if the last message went out long ago. */
+    /** The gap between two messages in milliseconds (never under {@link #MIN_COOLDOWN} seconds). */
+    public long gapMs() { return Math.round(Math.max(MIN_COOLDOWN, cooldown.get()) * 1000); }
+
+    /** The Cooldown setting (for the editor and tests). */
+    public NumberSetting cooldownSetting() { return cooldown; }
+
+    /** Test hook: forget the gap, as if the last message went out long ago. */
     public void resetGapForTest() { lastSent = Long.MIN_VALUE / 2; }
 
     /** Test hook: acts as if {@code code} was pressed in game with {@code held} modifiers. */
