@@ -3248,7 +3248,7 @@ def PC(anchor, origin, size, paint, **kw):
 
 
 def rgbf(c):
-    return hexc(c)[:3] if isinstance(c, str) else np.asarray(c, np.float32)[:3]
+    return hexc(c)[:3] if isinstance(c, str) else np.asarray(c, np.float32)[..., :3]
 
 
 def shade(c, k):
@@ -3934,7 +3934,7 @@ item("mini_wyvern", "Mini Wyvern", "PET", "REGULAR", 800,
 
 # -------- Prism Sprite (special): a crystal fairy whose facets and wings shimmer through every colour
 
-SPRITE = (HOVER[0] - 0.25, HOVER[1] - 0.5, HOVER[2])
+SPRITE = (HOVER[0], HOVER[1] - 0.5, HOVER[2])
 
 
 def prism_facets(face, cv):
