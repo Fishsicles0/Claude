@@ -1,0 +1,15 @@
+{
+ "id": "pumpkin_night",
+ "name": "Pumpkin Night",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A harvest moon, a flight of bats and a carved pumpkin whose face glows in the dark.",
+ "physics": {
+  "stiffness": 0.5,
+  "lift": 1.0,
+  "sway": 1.0
+ }
+}

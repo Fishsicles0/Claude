@@ -104,8 +104,8 @@ Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added whe
 * **Animation timing.** Every `anim` also takes `phase` (a fraction of a cycle, 0..1; outer wing bones use ~0.12 so
   the tip trails the beat) and an `ease` of `sine` (default) or `flap` (fast downstroke, slow upstroke).
 * **`wing`** (engine behaviour, nothing to set): idle beat at `speed`; up to 1.8x faster and 1.3x wider while
-  sprinting, 2.4x faster when falling or flying; folds back by `fold` degrees (default 70) over 0.25 s while
-  sneaking, eased in and out. `amp` is the beat's half
+  sprinting, 2.4x faster when falling or flying; sweeps back by `fold` degrees (default 28), tips down and rolls in
+  over 0.25 s while sneaking, eased in and out, beating only a quarter as wide. `amp` is the beat's half
   angle; `lift` (degrees, default 0) raises the wing at the top of the beat (rotation about x).
 * **`pet`**: bobs (`amp` px at `speed` Hz), trails your body's turns smoothly like a follower, looks where you look
   (eased, at most 50 degrees each way), and every few seconds plays a small idle (a hop or a head tilt). Put the pet

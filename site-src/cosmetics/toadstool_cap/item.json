@@ -1,0 +1,10 @@
+{
+ "id": "toadstool_cap",
+ "name": "Toadstool Cap",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A round red mushroom cap with white spots and a frilled underside."
+}

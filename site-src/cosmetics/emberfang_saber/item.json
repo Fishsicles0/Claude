@@ -1,0 +1,10 @@
+{
+ "id": "emberfang_saber",
+ "name": "Emberfang Saber",
+ "slot": "ITEM_SKIN",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Your sword as a broad, notched saber whose edges glow like a forge, with a black iron guard and a ruby. Shows on swords you hold, on your screen."
+}

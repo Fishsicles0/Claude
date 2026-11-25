@@ -1,0 +1,26 @@
+{
+ "id": "soul_release",
+ "name": "Soul Release",
+ "slot": "KILL_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Pale blue wisps spiral up from where your opponent fell and drift away.",
+ "fx": {
+  "type": "spiral",
+  "particle": "soft",
+  "colors": [
+   "#E8FFFF",
+   "#9AF0FF",
+   "#3A7AFF"
+  ],
+  "count": 50,
+  "size": 0.9,
+  "height": 2.4,
+  "life": 1.6,
+  "fade": 0.3,
+  "sizeEnd": 0.3,
+  "gravity": -0.6
+ }
+}

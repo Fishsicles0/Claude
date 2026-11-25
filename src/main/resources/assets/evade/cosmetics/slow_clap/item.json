@@ -1,0 +1,88 @@
+{
+ "id": "slow_clap",
+ "name": "Slow Clap",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A long, slow, meaningful round of applause.",
+ "emote": {
+  "length": 1.2,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -72,
+     18,
+     0
+    ],
+    [
+     0.5,
+     -72,
+     -22,
+     0
+    ],
+    [
+     0.62,
+     -72,
+     -22,
+     0
+    ],
+    [
+     1.2,
+     -72,
+     18,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     -72,
+     -18,
+     0
+    ],
+    [
+     0.5,
+     -72,
+     22,
+     0
+    ],
+    [
+     0.62,
+     -72,
+     22,
+     0
+    ],
+    [
+     1.2,
+     -72,
+     -18,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     4,
+     0,
+     0
+    ],
+    [
+     0.5,
+     8,
+     0,
+     0
+    ],
+    [
+     1.2,
+     4,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "id": "kitsune_mask",
+ "name": "Fox Spirit Mask",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A white fox mask with red markings, pointed ears and a short snout, worn over the face."
+}

@@ -20,7 +20,15 @@ final class InstanceTemplates {
      * {@code shelf}: Modrinth slugs installed when the instance is made.
      */
     record Template(String key, String name, String sub, String icon, boolean perf, boolean shaders, boolean voice, boolean packs,
-                    boolean lights, Set<String> optional, int memory, List<String> shelf) {
+                    boolean lights, Set<String> optional, int memory, List<String> shelf, Set<String> shaderPacks) {
+        /** {@code shaderPacks}: the {@link ShaderPacks} ticked (null: Photon and Complementary Reimagined). */
+        Template {
+            shaderPacks = java.util.Collections.unmodifiableSet(ShaderPacks.clean(shaderPacks));
+        }
+        Template(String key, String name, String sub, String icon, boolean perf, boolean shaders, boolean voice, boolean packs,
+                 boolean lights, Set<String> optional, int memory, List<String> shelf) {
+            this(key, name, sub, icon, perf, shaders, voice, packs, lights, optional, memory, shelf, null);
+        }
         /** The memory this template gives on this PC ({@code fallback} when it follows the default). */
         int memoryGb(int fallback) {
             if (memory > 0) return InstallerCore.clampMemory(memory);
@@ -37,7 +45,9 @@ final class InstanceTemplates {
     static final Template BUILDING = new Template("building", "Building", "Litematica for schematics, with voice chat and resource pack features", "layers",
             true, false, true, true, false, Set.of(OptionalMods.FAST_START.key()), 0, List.of("litematica"));
     static final Template LAPTOP = new Template("laptop", "Low-end laptop", "The lightest setup: FPS extras on, pack features off, memory sized for shared graphics", "gear",
-            true, false, true, false, false, Set.of(OptionalMods.FAST_START.key(), OptionalMods.MORE_FPS.key()), -1, List.of());
+            true, false, true, false, false, Set.of(OptionalMods.FAST_START.key(), OptionalMods.MORE_FPS.key()), -1, List.of(),
+            // If shaders get switched on later: the two packs that suit shared graphics.
+            Set.of(ShaderPacks.REIMAGINED.key(), ShaderPacks.SILDURS.key()));
 
     static final Template[] ALL = {BLANK, PVP, SURVIVAL, BUILDING, LAPTOP};
 
@@ -68,6 +78,7 @@ final class InstanceTemplates {
         i.packs = t.packs();
         i.lights = t.lights();
         i.optional = OptionalMods.clean(t.optional());
+        i.shaderPacks = ShaderPacks.clean(t.shaderPacks());
         i.memoryGb = memoryFor(t, defaultGb);
     }
 

@@ -1,0 +1,10 @@
+Evade Shaders
+Copyright (c) 2026 John Fisher / Evade Client. All rights reserved.
+
+Free to use with Minecraft; redistribution only via evadeclient.com.
+
+All shader source in this pack was written from scratch for Evade Shaders. It uses only
+publicly documented rendering techniques (distorted shadow maps, percentage-closer filtering,
+percentage-closer soft shadows, analytic Rayleigh/Mie sky scattering, screen-space reflections,
+temporal anti-aliasing, the ACES filmic curve fit, interleaved gradient noise, Vogel disks,
+Gerstner/sum-of-sines water waves) implemented in its own code.

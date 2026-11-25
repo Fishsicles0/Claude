@@ -1,0 +1,10 @@
+{
+ "id": "witch_hat",
+ "name": "Hollow Witch Hat",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A tall, crooked violet witch hat with a wide brim and a gold-buckled band."
+}

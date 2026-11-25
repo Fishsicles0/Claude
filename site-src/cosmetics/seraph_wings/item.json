@@ -1,0 +1,10 @@
+{
+ "id": "seraph_wings",
+ "name": "Seraph Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Great white feathered wings, softly gilded at the tips, that sweep slowly behind you."
+}

@@ -1,0 +1,21 @@
+{
+ "id": "starlight_fountain",
+ "name": "Starlight Fountain",
+ "slot": "WIN_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Win a game and a tall column of white starlight spirals up around you.",
+ "fx": {
+  "type": "spiral",
+  "particle": "end_rod",
+  "colors": [
+   "#FFFFFF",
+   "#D8E4FF"
+  ],
+  "count": 60,
+  "size": 1.0,
+  "height": 3.4
+ }
+}

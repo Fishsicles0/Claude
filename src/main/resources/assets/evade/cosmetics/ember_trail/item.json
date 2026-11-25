@@ -1,0 +1,26 @@
+{
+ "id": "ember_trail",
+ "name": "Ember Trail",
+ "slot": "TRAIL",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Hot orange embers flicker up from your footsteps and fade to smoke.",
+ "fx": {
+  "type": "trail",
+  "particle": "soft",
+  "colors": [
+   "#FFF0A8",
+   "#FF7A2A",
+   "#C0200A",
+   "#3A1A14"
+  ],
+  "rate": 12,
+  "size": 0.7,
+  "life": 1.0,
+  "fade": 0.2,
+  "sizeEnd": 0.25,
+  "gravity": -0.5
+ }
+}

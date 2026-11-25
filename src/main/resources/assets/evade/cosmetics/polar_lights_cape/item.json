@@ -1,0 +1,20 @@
+{
+ "id": "polar_lights_cape",
+ "name": "Polar Lights Cape",
+ "slot": "CAPE",
+ "rarity": "SPECIAL",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Curtains of green, cyan and violet light ripple over snowy peaks, glowing softly in the dark.",
+ "physics": {
+  "stiffness": 0.45,
+  "lift": 1.0,
+  "sway": 1.0
+ },
+ "animation": {
+  "frames": 16,
+  "frametime": 3,
+  "interpolate": true
+ }
+}

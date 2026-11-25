@@ -1,0 +1,23 @@
+{
+ "id": "firework_pop",
+ "name": "Firework Pop",
+ "slot": "KILL_EFFECT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A kill sets off a bright firework of red, gold and blue sparks where they fell.",
+ "fx": {
+  "type": "burst",
+  "particle": "dust",
+  "colors": [
+   "#FF4A5A",
+   "#FFD23A",
+   "#4A8AFF",
+   "#FFFFFF"
+  ],
+  "count": 56,
+  "size": 1.0,
+  "spark": true
+ }
+}

@@ -36,6 +36,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (Boolean.getBoolean("evade.footage")) { Footage.film(ctx); return; } // scripts/film-footage.sh
         if (Boolean.getBoolean("evade.menushot")) { menuShots(ctx); return; }      // ./gradlew runClientGameTest -PmenuShot
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
+        if (Boolean.getBoolean("evade.shadershots")) { EvadeShadersTest.film(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.shadershots=true
 
         testStartScreens(ctx);
 
@@ -65,6 +66,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
 
             // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
             if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
+            if (Boolean.getBoolean("evade.fpsonly")) { FpsPassTest.profile(ctx, sp); return; } // FPS pass profiling
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -81,6 +83,8 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
             SocialTest.run(ctx, sp);
+            EvadeShadersTest.run(ctx, sp);
+            FpsPassTest.run(ctx, sp);
             GraphicsUpgradesTest.run(ctx, sp);
             MenuUpgradesTest.run(ctx, sp);
             HudUpgradesTest.run(ctx, sp);

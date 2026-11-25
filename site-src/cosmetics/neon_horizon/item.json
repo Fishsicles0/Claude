@@ -1,0 +1,15 @@
+{
+ "id": "neon_horizon",
+ "name": "Neon Horizon",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A striped sunset over a glowing neon grid, straight out of a retro arcade.",
+ "physics": {
+  "stiffness": 0.5,
+  "lift": 1.0,
+  "sway": 1.0
+ }
+}

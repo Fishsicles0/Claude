@@ -38,7 +38,7 @@ public final class CosmeticModel {
             String type = o.has("type") ? o.get("type").getAsString().toLowerCase(Locale.ROOT) : "";
             return new Anim(type, num(o, "side", 1), num(o, "base", 0), num(o, "amp", 0), num(o, "speed", 1),
                     num(o, "phase", 0), "flap".equals(str(o, "ease", "sine").toLowerCase(Locale.ROOT)),
-                    clamp(num(o, "fold", 70), 0, 120), clamp(num(o, "lift", 0), -45, 45));
+                    clamp(num(o, "fold", 28), 0, 120), clamp(num(o, "lift", 0), -45, 45));
         }
     }
 

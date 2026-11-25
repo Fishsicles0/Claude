@@ -1,0 +1,10 @@
+{
+ "id": "glacier_wings",
+ "name": "Glacier Wings",
+ "slot": "WINGS",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A fan of see-through ice crystals with glinting facets and frosted, glowing tips."
+}

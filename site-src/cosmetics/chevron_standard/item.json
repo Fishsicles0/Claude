@@ -6,5 +6,10 @@
  "colourable": true,
  "defaultColor": "#E11D2E",
  "partner": null,
- "description": "A clean banner cape with three chevrons, in any colour you like."
+ "description": "A clean banner cape with three raised chevrons and a stitched hem, in any colour you like.",
+ "physics": {
+  "stiffness": 0.55,
+  "lift": 1.0,
+  "sway": 1.0
+ }
 }

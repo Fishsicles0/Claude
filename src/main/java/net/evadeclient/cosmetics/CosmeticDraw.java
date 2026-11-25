@@ -152,12 +152,12 @@ public final class CosmeticDraw {
                     else { clock = t; fold = s != null && s.sneaking ? 1 : 0; }
                     if (s != null && s.isGliding) { base *= 0.35f; amp *= 0.4f; }
                     // folded: swept back by `fold` degrees, beating only a little
-                    base += an.fold() * fold * 0.4f;
+                    base += an.fold() * fold;
                     amp *= 1 - 0.75f * fold;
                     float w = wave(clock * an.speed() + phase, an.flap());
                     yaw += an.side() * (base + amp * w);
                     pitch += an.lift() * Math.max(0, w) - fold * 12f;
-                    roll += an.side() * fold * an.fold() * 0.25f;
+                    roll += an.side() * fold * an.fold() * 0.35f;
                 }
                 case "spin" -> yaw += (t * an.speed() + phase * 360f) % 360f;
                 case "bob" -> dy = (float) Math.sin((t * an.speed() + phase) * TAU) * an.amp();

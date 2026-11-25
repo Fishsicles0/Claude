@@ -108,8 +108,8 @@ public final class InstallerCore {
     }
     /** Fabric API: every mod's shared dependency, which we already install ourselves. */
     static final String FABRIC_API_ID = "P7dR8mSH";
-    /** Sodium's Modrinth project id (Iris pins an exact Sodium build) and the shader pack the Shaders option adds. */
-    private static final String SODIUM_ID = "AANobbMI", SHADER_PACK = "photon-shader", LIGHT_PACK = "complementary-reimagined";
+    /** Sodium's Modrinth project id (Iris pins an exact Sodium build). The shader packs are in {@link ShaderPacks}. */
+    private static final String SODIUM_ID = "AANobbMI";
     private static final String USER_AGENT = LauncherInfo.USER_AGENT;
     /** Groups of extra mods, recorded per file in the install marker. */
     private static final String PERF_GROUP = "perf", VOICE_GROUP = "voice", SHADERS_GROUP = "shaders",
@@ -180,10 +180,22 @@ public final class InstallerCore {
     public record Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                           boolean performanceMods, boolean installClips, boolean shaders,
                           String profileKey, String profileName, String javaDir,
-                          boolean packFeatures, boolean dynamicLights, java.util.Set<String> optional) {
-        /** {@code optional}: the {@link OptionalMods} groups switched on (none: the default). */
+                          boolean packFeatures, boolean dynamicLights, java.util.Set<String> optional,
+                          java.util.Set<String> shaderPacks) {
+        /**
+         * {@code optional}: the {@link OptionalMods} groups switched on (none: the default); {@code shaderPacks}: the
+         * {@link ShaderPacks} keys ticked for the Shaders option (null: Photon and Complementary Reimagined).
+         */
         public Options {
             optional = optional == null ? java.util.Set.of() : java.util.Set.copyOf(optional);
+            shaderPacks = java.util.Collections.unmodifiableSet(ShaderPacks.clean(shaderPacks));
+        }
+        public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
+                       boolean performanceMods, boolean installClips, boolean shaders,
+                       String profileKey, String profileName, String javaDir,
+                       boolean packFeatures, boolean dynamicLights, java.util.Set<String> optional) {
+            this(minecraftDir, gameDir, memoryGb, copySettings, voiceChat, performanceMods, installClips, shaders,
+                    profileKey, profileName, javaDir, packFeatures, dynamicLights, optional, null);
         }
         public Options(Path minecraftDir, Path gameDir, int memoryGb, boolean copySettings, boolean voiceChat,
                        boolean performanceMods, boolean installClips, boolean shaders,
@@ -216,10 +228,28 @@ public final class InstallerCore {
                           String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
                           ModFile iris, ModFile irisSodium, ModFile shaderPack,
                           java.util.List<ModFile> packFeatures, ModFile dynamicLights,
-                          java.util.Map<String, java.util.List<ModFile>> optional) {
-        /** {@code optional}: each {@link OptionalMods} group's files (with their libraries); a missing group isn't available. */
+                          java.util.Map<String, java.util.List<ModFile>> optional,
+                          java.util.Map<String, ModFile> shaderPacks) {
+        /**
+         * {@code optional}: each {@link OptionalMods} group's files (with their libraries); a missing group isn't available.
+         * {@code shaderPacks}: each {@link ShaderPacks} key's newest pack on Modrinth; a missing key isn't available.
+         * {@code shaderPack} is Photon's (the same as {@code shaderPacks.get("photon")}).
+         */
         public Release {
             optional = optional == null ? java.util.Map.of() : java.util.Map.copyOf(optional);
+            if (shaderPacks == null) shaderPacks = shaderPack == null ? java.util.Map.of() : java.util.Map.of(ShaderPacks.PHOTON.key(), shaderPack);
+            else shaderPacks = java.util.Map.copyOf(shaderPacks);
+        }
+        public Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
+                       String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
+                       ModFile voiceChat, java.util.List<ModFile> performance,
+                       String clipsVersion, String clipsUrl, String clipsSha256, String ffmpegUrl, String ffmpegShaUrl,
+                       ModFile iris, ModFile irisSodium, ModFile shaderPack,
+                       java.util.List<ModFile> packFeatures, ModFile dynamicLights,
+                       java.util.Map<String, java.util.List<ModFile>> optional) {
+            this(evadeVersion, evadeUrl, evadeSha256, loaderVersion, fabricApiVersion, fabricApiUrl, fabricApiSha512, fabricApiFile,
+                    voiceChat, performance, clipsVersion, clipsUrl, clipsSha256, ffmpegUrl, ffmpegShaUrl, iris, irisSodium, shaderPack,
+                    packFeatures, dynamicLights, optional, null);
         }
         public Release(String evadeVersion, String evadeUrl, String evadeSha256, String loaderVersion,
                        String fabricApiVersion, String fabricApiUrl, String fabricApiSha512, String fabricApiFile,
@@ -358,7 +388,7 @@ public final class InstallerCore {
         // LambDynamicLights only needs Fabric API; anything more (a library we couldn't add) leaves it out.
         ModFile dynamicLights = lightsList.size() == 1 ? lightsList.get(0) : null;
 
-        // Shaders (optional): Iris, the exact Sodium build it asks for, and the Photon shader pack (Complementary Reimagined is added beside it as a lighter choice).
+        // Shaders (optional): Iris, the exact Sodium build it asks for, and the shader packs the player can tick (ShaderPacks).
         ModFile iris = null, irisSodium = null, pack = null;
         try { iris = latestOnModrinth("Iris", "https://api.modrinth.com/v2/project/iris/version" + query); } catch (Exception e) { /* no shaders */ }
         if (iris != null) {
@@ -376,11 +406,15 @@ public final class InstallerCore {
             // Iris can't run without Sodium: no Sodium, no shaders.
             if (irisSodium == null) iris = null;
         }
+        java.util.Map<String, ModFile> shaderPacks = new java.util.LinkedHashMap<>();
         if (iris != null) {
-            try {
-                pack = latestOnModrinth("Photon", "https://api.modrinth.com/v2/project/" + SHADER_PACK
-                        + "/version?loaders=" + enc("[\"iris\"]"));
-            } catch (Exception e) { /* Iris still installs; the pack is reported as skipped */ }
+            for (ShaderPacks.Pack sp : ShaderPacks.ALL) {
+                try {
+                    ModFile f = shaderPackOnModrinth(sp);
+                    if (f != null) shaderPacks.put(sp.key(), f);
+                } catch (Exception e) { /* Iris still installs; that pack is reported as not available */ }
+            }
+            pack = shaderPacks.get(ShaderPacks.PHOTON.key());
         }
 
         // Evade Clips: the Windows .exe on Windows (it finds Java itself), the jar everywhere else.
@@ -407,7 +441,38 @@ public final class InstallerCore {
             if (all && !files.isEmpty()) optional.put(g.key(), files);
         }
         return new Release(evadeVersion, evadeUrl, evadeSha, loader, apiVersion, apiUrl, apiSha, apiFile, voice, perf,
-                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights, optional);
+                clipsVersion, clipsUrl, clipsSha, ffUrl, ffSha, iris, irisSodium, pack, packFeatures, dynamicLights, optional, shaderPacks);
+    }
+
+    /**
+     * A shader pack's newest release for this Minecraft version with the Iris loader (the newest beta when there's no
+     * release), or null. For a pack published as one version per edition, only that edition's versions count.
+     */
+    ModFile shaderPackOnModrinth(ShaderPacks.Pack sp) throws IOException, InterruptedException {
+        JsonArray versions = getJson("https://api.modrinth.com/v2/project/" + sp.slug() + "/version?game_versions="
+                + enc("[\"" + MC_VERSION + "\"]") + "&loaders=" + enc("[\"iris\"]")).getAsJsonArray();
+        JsonObject pick = null, any = null;
+        for (JsonElement e : versions) {
+            JsonObject v = e.getAsJsonObject();
+            if (sp.variant() != null && !isEdition(v, sp.variant())) continue;
+            if (any == null) any = v;
+            if ("release".equals(str(v, "version_type"))) { pick = v; break; }
+        }
+        if (pick == null) pick = any;
+        return pick == null ? null : modFileFromVersion(sp.name(), pick);
+    }
+
+    /** Whether a Modrinth version is the {@code edition} one ("... 2.02 Medium", file "... v2.02 Medium.zip"). */
+    static boolean isEdition(JsonObject v, String edition) {
+        String e = lower(edition), name = str(v, "name") == null ? "" : lower(str(v, "name").strip());
+        if (name.endsWith(" " + e)) return true;
+        if (v.has("files") && v.get("files").isJsonArray()) {
+            for (JsonElement f : v.getAsJsonArray("files")) {
+                String fn = f.isJsonObject() ? str(f.getAsJsonObject(), "filename") : null;
+                if (fn != null && lower(fn).endsWith(" " + e + ".zip")) return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -741,8 +806,9 @@ public final class InstallerCore {
         for (Extra e : wanted) if (e.file().projectId() != null) names.put(e.file().projectId(), e.file().name());
 
         // A. Download everything into staging.
-        ModFile pack = shadersGo ? r.shaderPack() : null;
-        int total = wanted.size() + (pack != null ? 1 : 0), idx = 0;
+        int packCount = 0;
+        if (shadersGo) for (String k : o.shaderPacks()) if (r.shaderPacks().containsKey(k)) packCount++;
+        int total = wanted.size() + packCount, idx = 0;
         Map<Extra, Path> fetched = new LinkedHashMap<>();
         List<Extra> failed = new ArrayList<>();
         for (Extra e : wanted) {
@@ -870,53 +936,10 @@ public final class InstallerCore {
             }
         }
 
-        // E. Shader pack: into shaderpacks/. The previous pack is replaced, and Iris follows it to the new version when
-        //    it was still using ours (a pack the player picked themselves is left alone).
-        Path packs = game.resolve("shaderpacks");
-        String prevPack = prev != null ? str(prev, "shaderPackFile") : null;
-        if (!plainName(prevPack)) prevPack = null;
-        String prevPackVersion = prev != null && str(prev, "shaders") != null ? str(prev, "shaders") : "";
-        if (prevPack == null && !prevPackVersion.isBlank() && r.shaderPack() != null && r.shaderPack().filename() != null) {
-            prevPack = guessOldPack(packs, r.shaderPack().filename(), prevPackVersion);
-        }
-        boolean prevPackThere = prevPack != null && Files.isRegularFile(packs.resolve(prevPack));
-        String packFile = null, packVersion = "", lightPack = null;
-        if (shadersGo && irisReady && pack != null) {
-            double a = 0.75 + 0.08 * idx / Math.max(1, total);
-            p.update(a, "Downloading " + pack.name() + " " + pack.version());
-            try {
-                String name = safeName(pack.filename());
-                Path dir = staging.resolve("pack");
-                Files.createDirectories(dir);
-                download(pack.url(), dir.resolve(name), pack.sha512(), "SHA-512", a, 0.83, p);
-                Files.createDirectories(packs);
-                move(dir.resolve(name), packs.resolve(name));
-                packFile = name;
-                packVersion = pack.version();
-                if (prevPackThere && !prevPack.equalsIgnoreCase(name)) {
-                    try { Files.deleteIfExists(packs.resolve(prevPack)); } catch (IOException ignored) { /* harmless extra pack */ }
-                }
-                pointIrisAt(game.resolve("config").resolve("iris.properties"), prevPack, name);
-                lightPack = installLightPack(packs, staging, prev, p);
-            } catch (InterruptedException e) {
-                throw e;
-            } catch (Exception e) {
-                skipped.add("The shader pack couldn't be downloaded");
-                if (prevPackThere) { packFile = prevPack; packVersion = prevPackVersion; }
-            }
-        } else if (shadersOn) {
-            // Shaders are on but couldn't all be set up this time: the pack that's there stays.
-            if (shadersGo && irisReady && r.shaderPack() == null) skipped.add("The shader pack isn't available right now");
-            if (prevPackThere) { packFile = prevPack; packVersion = prevPackVersion; }
-        } else if (prevPackThere) {
-            try { Files.deleteIfExists(packs.resolve(prevPack)); } catch (IOException ignored) { /* harmless extra pack */ }
-        }
-        String prevLight = prev != null ? str(prev, "lightPackFile") : null;
-        if (lightPack == null && plainName(prevLight)) {
-            // Kept while shaders stay on (a failed download this time keeps the old one); removed with shaders off.
-            if (shadersOn) lightPack = Files.isRegularFile(packs.resolve(prevLight)) ? prevLight : null;
-            else try { Files.deleteIfExists(packs.resolve(prevLight)); } catch (IOException ignored) { /* harmless */ }
-        }
+        // E. Shader packs: the ticked ones into shaderpacks/, from Modrinth. Unticked ones Evade added are removed; the
+        //    player's own packs are never touched.
+        JsonObject packRecord = installShaderPacks(o, r, game, staging, prev, shadersOn, shadersGo && irisReady, skipped, idx, total, p);
+        String packVersion = packSummary(packRecord, shadersGo && irisReady);
 
         JsonObject marker = new JsonObject();
         marker.addProperty("voiceChat", voiceVersion);
@@ -933,8 +956,11 @@ public final class InstallerCore {
         }
         marker.add("optional", optional);
         marker.addProperty("shaders", packVersion);
-        if (packFile != null) marker.addProperty("shaderPackFile", packFile);
-        if (lightPack != null) marker.addProperty("lightPackFile", lightPack);
+        marker.add("shaderPacks", packRecord);
+        // Older launchers only know these two: they keep managing Photon and Complementary Reimagined after a downgrade.
+        String photonFile = packFile(packRecord, ShaderPacks.PHOTON.key()), lightFile = packFile(packRecord, ShaderPacks.REIMAGINED.key());
+        if (photonFile != null) marker.addProperty("shaderPackFile", photonFile);
+        if (lightFile != null) marker.addProperty("lightPackFile", lightFile);
         marker.add("addedFiles", added);
         marker.add("addedGroups", groups);
         marker.add("addedProjects", projects);
@@ -1057,6 +1083,12 @@ public final class InstallerCore {
 
     static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders, boolean packs, boolean lights,
                                Set<String> optional) {
+        return updateReason(gameDir, r, perf, voice, shaders, packs, lights, optional, null);
+    }
+
+    /** {@code shaderPacks}: the {@link ShaderPacks} keys ticked (null: the defaults). */
+    static String updateReason(Path gameDir, Release r, boolean perf, boolean voice, boolean shaders, boolean packs, boolean lights,
+                               Set<String> optional, Set<String> shaderPacks) {
         JsonObject m = readMarker(gameDir);
         if (m == null) return "Evade Client isn't installed in this instance yet";
         if (r == null) return null;
@@ -1074,7 +1106,19 @@ public final class InstallerCore {
                 if (!have.contains(f.name() + " " + f.version())) return f.name() + " " + f.version() + " is out";
             }
         }
-        if (shaders && r.shaderPack() != null && !r.shaderPack().version().equals(str(m, "shaders"))) return r.shaderPack().name() + " " + r.shaderPack().version() + " is out";
+        if (shaders && r.iris() != null) {
+            JsonObject rec = m.has("shaderPacks") && m.get("shaderPacks").isJsonObject() ? m.getAsJsonObject("shaderPacks") : null;
+            for (String key : ShaderPacks.clean(shaderPacks)) {
+                ModFile f = r.shaderPacks().get(key);
+                if (f == null || f.filename() == null) continue;
+                // Markers from before the pack chooser name Photon and Complementary Reimagined on their own.
+                String have = rec != null ? packFile(rec, key)
+                        : key.equals(ShaderPacks.PHOTON.key()) ? str(m, "shaderPackFile")
+                        : key.equals(ShaderPacks.REIMAGINED.key()) ? str(m, "lightPackFile") : null;
+                if (have == null) return f.name() + " " + f.version() + " isn't added yet";
+                if (!have.equalsIgnoreCase(f.filename())) return f.name() + " " + f.version() + " is out";
+            }
+        }
         if (packs && r.packFeatures() != null && !r.packFeatures().isEmpty()) {
             Set<String> have = new HashSet<>();
             // A library both groups need is recorded once, under whichever group asked first.
@@ -1157,16 +1201,178 @@ public final class InstallerCore {
     }
 
     /**
-     * Points Iris at the new shader pack: on a first install (no iris.properties yet), or when Iris was still set to the
-     * pack we installed last time. Only that one line changes; a pack the player picked themselves is left alone.
+     * Installs the ticked shader packs (see {@link ShaderPacks}) into shaderpacks/: each one's newest file from Modrinth,
+     * SHA-512 checked, replacing the copy Evade added last time. A pack that's unticked (or every pack, with Shaders
+     * off) is removed, but only the file Evade added. A pack that can't be downloaded keeps its old copy; with Shaders
+     * on but Iris not set up this time, the ticked packs stay as they are. A file of the same name the player already
+     * had is left in place: Evade uses it when it's the same file, and never removes it.
+     *
+     * @param ready Iris (and its Sodium) are in place, so packs may be installed
+     * @return the record for the install marker: pack key -> {name, file, version[, adopted]}
      */
-    static void pointIrisAt(Path cfg, String prevPack, String pack) throws IOException {
+    JsonObject installShaderPacks(Options o, Release r, Path game, Path staging, JsonObject prev, boolean shadersOn, boolean ready,
+                                          List<String> skipped, int idx, int total, Progress p) throws InterruptedException {
+        Path packs = game.resolve("shaderpacks");
+        Map<String, String[]> was = previousPacks(prev, packs, r.shaderPacks().get(ShaderPacks.PHOTON.key()));
+        Set<String> chosen = shadersOn ? o.shaderPacks() : Set.of();
+        Map<String, String[]> now = new LinkedHashMap<>();
+        // A pack file Iris may be set to -> the file that replaces it (null: removed, Iris moves to the first ticked pack).
+        Map<String, String> renames = new HashMap<>();
+        for (ShaderPacks.Pack sp : ShaderPacks.ALL) {
+            if (!chosen.contains(sp.key())) continue;
+            String[] old = was.get(sp.key());
+            boolean oldThere = old != null && Files.isRegularFile(packs.resolve(old[0]));
+            ModFile f = r.shaderPacks().get(sp.key());
+            String name = f != null && plainName(f.filename()) ? f.filename() : null;
+            if (!ready || name == null) {
+                if (ready) skipped.add(sp.name() + " isn't available right now");
+                if (oldThere) now.put(sp.key(), old);
+                continue;
+            }
+            if (oldThere && old[0].equalsIgnoreCase(name)) {
+                now.put(sp.key(), new String[]{old[0], f.version(), old[2]});
+                continue;
+            }
+            Path target = packs.resolve(name);
+            if (Files.exists(target)) {
+                // The player's own copy under the same name: used when it's the same file, never replaced or removed.
+                boolean same = false;
+                try { same = Files.isRegularFile(target) && f.sha512().equalsIgnoreCase(hashOf(target, "SHA-512")); } catch (Exception ignored) { }
+                if (same) {
+                    now.put(sp.key(), new String[]{name, f.version(), "1"});
+                    if (oldThere) {
+                        renames.put(old[0], name);
+                        if (!"1".equals(old[2])) deleteQuietly(packs.resolve(old[0]));
+                    }
+                } else {
+                    skipped.add(sp.name() + " wasn't added: you already have a different " + name);
+                    if (oldThere) now.put(sp.key(), old);
+                }
+                continue;
+            }
+            double a = 0.75 + 0.08 * idx / Math.max(1, total), b = 0.75 + 0.08 * (idx + 1) / Math.max(1, total);
+            idx++;
+            p.update(a, "Downloading " + sp.name() + " " + f.version());
+            try {
+                Path dir = staging.resolve("pack-" + sp.key());
+                Files.createDirectories(dir);
+                download(f.url(), dir.resolve(name), f.sha512(), "SHA-512", a, b, p);
+                Files.createDirectories(packs);
+                move(dir.resolve(name), target);
+                now.put(sp.key(), new String[]{name, f.version(), ""});
+                if (oldThere) {
+                    renames.put(old[0], name);
+                    if (!"1".equals(old[2])) deleteQuietly(packs.resolve(old[0]));
+                }
+            } catch (InterruptedException e) {
+                throw e;
+            } catch (Exception e) {
+                skipped.add(sp.name() + (oldThere ? " wasn't updated (kept the old one)" : " couldn't be downloaded"));
+                if (oldThere) now.put(sp.key(), old);
+            }
+        }
+        // Packs Evade added that aren't wanted any more.
+        Set<String> nowFiles = new HashSet<>();
+        for (String[] v : now.values()) nowFiles.add(lower(v[0]));
+        for (var e : was.entrySet()) {
+            if (now.containsKey(e.getKey()) || chosen.contains(e.getKey())) continue;
+            String[] old = e.getValue();
+            if (nowFiles.contains(lower(old[0]))) continue;
+            renames.putIfAbsent(old[0], null);
+            if (!"1".equals(old[2])) deleteQuietly(packs.resolve(old[0]));
+        }
+        if (shadersOn && ready) {
+            String first = now.isEmpty() ? null : now.values().iterator().next()[0];
+            try { pointIris(game.resolve("config").resolve("iris.properties"), renames, first); } catch (IOException ignored) { /* Iris picks a pack itself */ }
+        }
+        JsonObject out = new JsonObject();
+        for (var e : now.entrySet()) {
+            ShaderPacks.Pack sp = ShaderPacks.byKey(e.getKey());
+            JsonObject one = new JsonObject();
+            one.addProperty("name", sp != null ? sp.name() : e.getKey());
+            one.addProperty("file", e.getValue()[0]);
+            one.addProperty("version", e.getValue()[1]);
+            if ("1".equals(e.getValue()[2])) one.addProperty("adopted", true);
+            out.add(e.getKey(), one);
+        }
+        return out;
+    }
+
+    private static void deleteQuietly(Path f) {
+        try { Files.deleteIfExists(f); } catch (IOException ignored) { /* a harmless extra pack */ }
+    }
+
+    private static String hashOf(Path f, String algo) throws Exception {
+        MessageDigest md = MessageDigest.getInstance(algo);
+        try (InputStream in = Files.newInputStream(f)) {
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) md.update(buf, 0, n);
+        }
+        return java.util.HexFormat.of().formatHex(md.digest());
+    }
+
+    /**
+     * The shader packs the last install added: key -> {file, version, "1" when it was the player's own file}. Markers
+     * from launchers before the pack chooser recorded Photon ({@code shaderPackFile}, its version in {@code shaders};
+     * before 1.4 only the version, so the file is found by name) and Complementary Reimagined ({@code lightPackFile}).
+     */
+    static Map<String, String[]> previousPacks(JsonObject prev, Path packs, ModFile photonNow) {
+        Map<String, String[]> out = new LinkedHashMap<>();
+        if (prev == null) return out;
+        if (prev.has("shaderPacks") && prev.get("shaderPacks").isJsonObject()) {
+            for (var e : prev.getAsJsonObject("shaderPacks").entrySet()) {
+                if (!e.getValue().isJsonObject()) continue;
+                JsonObject one = e.getValue().getAsJsonObject();
+                String file = str(one, "file"), version = str(one, "version");
+                boolean adopted = one.has("adopted") && one.get("adopted").isJsonPrimitive() && one.get("adopted").getAsBoolean();
+                if (plainName(file)) out.put(e.getKey(), new String[]{file, version == null ? "" : version, adopted ? "1" : ""});
+            }
+            return out;
+        }
+        String main = str(prev, "shaderPackFile"), version = str(prev, "shaders") == null ? "" : str(prev, "shaders");
+        if (!plainName(main)) main = null;
+        if (main == null && !version.isBlank() && photonNow != null && photonNow.filename() != null) main = guessOldPack(packs, photonNow.filename(), version);
+        if (main != null) {
+            ShaderPacks.Pack sp = ShaderPacks.byFile(main);
+            out.put(sp != null ? sp.key() : "old:" + main, new String[]{main, version, ""});
+        }
+        String light = str(prev, "lightPackFile");
+        if (plainName(light)) out.putIfAbsent(ShaderPacks.REIMAGINED.key(), new String[]{light, "", ""});
+        return out;
+    }
+
+    /** The {@code shaders} line of the marker: the packs and versions, "Iris" with none, "" when shaders aren't set up. */
+    private static String packSummary(JsonObject record, boolean ready) {
+        List<String> parts = new ArrayList<>();
+        for (var e : record.entrySet()) {
+            JsonObject one = e.getValue().getAsJsonObject();
+            parts.add(str(one, "name") + " " + str(one, "version"));
+        }
+        if (parts.isEmpty()) return ready ? "Iris" : "";
+        return String.join(", ", parts);
+    }
+
+    /** The file a marker's shader pack record holds for {@code key}, or null. */
+    static String packFile(JsonObject record, String key) {
+        if (record == null || !record.has(key) || !record.get(key).isJsonObject()) return null;
+        String f = str(record.getAsJsonObject(key), "file");
+        return plainName(f) ? f : null;
+    }
+
+    /**
+     * Points Iris at the shader packs Evade just installed: on a first install (no iris.properties yet) at {@code first};
+     * afterwards only when Iris was set to a pack file Evade replaced (to its new file) or removed (to {@code first}).
+     * Only that one line changes; a pack the player picked themselves is left alone.
+     */
+    static void pointIris(Path cfg, Map<String, String> renames, String first) throws IOException {
         if (!Files.exists(cfg)) {
+            if (first == null) return;
             Files.createDirectories(cfg.getParent());
-            Files.writeString(cfg, "enableShaders=true\nshaderPack=" + propertyValue(pack) + "\n", StandardCharsets.ISO_8859_1);
+            Files.writeString(cfg, "enableShaders=true\nshaderPack=" + propertyValue(first) + "\n", StandardCharsets.ISO_8859_1);
             return;
         }
-        if (prevPack == null || prevPack.equals(pack)) return;
+        if (renames.isEmpty()) return;
         // Iris writes it with java.util.Properties: ISO-8859-1 with \\u escapes, so the bytes round-trip unchanged.
         List<String> lines = new ArrayList<>(Files.readAllLines(cfg, StandardCharsets.ISO_8859_1));
         boolean changed = false;
@@ -1175,12 +1381,19 @@ public final class InstallerCore {
             if (t.isEmpty() || t.startsWith("#") || t.startsWith("!")) continue;
             Properties one = new Properties();
             try { one.load(new StringReader(lines.get(i))); } catch (IllegalArgumentException e) { continue; }
-            if (prevPack.equals(one.getProperty("shaderPack"))) {
-                lines.set(i, "shaderPack=" + propertyValue(pack));
-                changed = true;
-            }
+            String was = one.getProperty("shaderPack");
+            if (was == null || !renames.containsKey(was)) continue;
+            String to = renames.get(was) != null ? renames.get(was) : first;
+            if (to == null || to.equals(was)) continue;
+            lines.set(i, "shaderPack=" + propertyValue(to));
+            changed = true;
         }
         if (changed) writeAtomic(cfg, String.join(System.lineSeparator(), lines) + System.lineSeparator(), StandardCharsets.ISO_8859_1);
+    }
+
+    /** As {@link #pointIris}: one pack replaced by another (or, with no iris.properties yet, {@code pack} chosen). */
+    static void pointIrisAt(Path cfg, String prevPack, String pack) throws IOException {
+        pointIris(cfg, prevPack == null ? Map.of() : Map.of(prevPack, pack), pack);
     }
 
     /** A value escaped the way java.util.Properties writes it. */
@@ -1327,33 +1540,6 @@ public final class InstallerCore {
             }
         } catch (Exception e) {
             // A preference, not a requirement: the game runs either way.
-        }
-    }
-
-    /**
-     * The lighter second pack (Complementary Reimagined) next to Photon, for laptops and older graphics: Evade's
-     * Shaders setting switches between them. Downloaded from Modrinth, never bundled. Null if it couldn't be added;
-     * that never fails the install.
-     */
-    private String installLightPack(Path packs, Path staging, JsonObject prev, Progress p) {
-        try {
-            ModFile light = latestOnModrinth("Complementary Reimagined", "https://api.modrinth.com/v2/project/" + LIGHT_PACK
-                    + "/version?loaders=" + enc("[\"iris\"]"));
-            if (light == null || light.filename() == null) return null;
-            String name = safeName(light.filename());
-            String prevLight = prev != null ? str(prev, "lightPackFile") : null;
-            if (name.equalsIgnoreCase(prevLight) && Files.isRegularFile(packs.resolve(name))) return name;
-            Path dir = staging.resolve("lightpack");
-            Files.createDirectories(dir);
-            p.update(0.83, "Downloading " + light.name() + " " + light.version());
-            download(light.url(), dir.resolve(name), light.sha512(), "SHA-512", 0.83, 0.85, p);
-            move(dir.resolve(name), packs.resolve(name));
-            if (plainName(prevLight) && !prevLight.equalsIgnoreCase(name)) {
-                try { Files.deleteIfExists(packs.resolve(prevLight)); } catch (IOException ignored) { /* harmless */ }
-            }
-            return name;
-        } catch (Exception e) {
-            return null;
         }
     }
 

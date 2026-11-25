@@ -15,7 +15,7 @@ public final class FrameStats {
     /** Scratch copy that {@link #summary} sorts, so a summary allocates nothing but its result. */
     private static final float[] SORT = new float[SIZE];
     private static int head, count;
-    private static long last;
+    private static long last, total;
 
     private FrameStats() {}
 
@@ -27,9 +27,13 @@ public final class FrameStats {
             if (ms < 1000) { MS[head] = ms; head = (head + 1) % SIZE; count = Math.min(count + 1, SIZE); Benchmark.onFrame(ms); }
         }
         last = now;
+        total++;
     }
 
     public static int count() { return count; }
+
+    /** Frames ended since launch (every one, unlike the {@link #SIZE}-frame window). */
+    public static long totalFrames() { return total; }
 
     // ---- Evade's own HUD cost per frame (so we can keep it near zero)
     // Two independent accumulators: one for tests and tools (takeHudMicros), one for the Frame Profiler, so the

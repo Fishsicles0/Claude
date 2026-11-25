@@ -1,0 +1,10 @@
+{
+ "id": "party_cone",
+ "name": "Party Cone",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A striped, polka-dotted party hat worn at a jaunty angle, with a fluffy pink tuft on top."
+}

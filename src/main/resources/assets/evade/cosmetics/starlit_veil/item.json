@@ -6,5 +6,10 @@
  "colourable": false,
  "defaultColor": null,
  "partner": null,
- "description": "A night sky with a violet nebula, a crescent moon and stars that shine in the dark."
+ "description": "A night sky with a violet nebula, a crescent moon and stars that shine in the dark.",
+ "physics": {
+  "stiffness": 0.42,
+  "lift": 1.1,
+  "sway": 1.1
+ }
 }

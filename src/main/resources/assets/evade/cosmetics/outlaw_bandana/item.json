@@ -1,0 +1,10 @@
+{
+ "id": "outlaw_bandana",
+ "name": "Outlaw Bandana",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A red printed bandana tied over the nose and mouth, knotted at the back with two loose tails."
+}

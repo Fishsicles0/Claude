@@ -1,0 +1,10 @@
+{
+ "id": "ember_horns",
+ "name": "Ember Horns",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A pair of ridged dark horns that curl up from your temples, glowing like coals at the tips."
+}
