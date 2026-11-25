@@ -12,6 +12,7 @@ output goes to build/cosmetic-mockups/ only.
 Tiers (the owner's): regular = not animated, special = animated textures, partner = not mocked up.
 
 Usage: python3 scripts/cosmetic-mockups.py [--only id,id] [--hero 320]
+       python3 scripts/cosmetic-mockups.py --sheets   (after a full run: one picture per category, in pictures/)
 """
 import importlib.util
 import json
@@ -783,7 +784,7 @@ item("prism_halo", "Prism Halo", "HAT", SPC, None,
      prism_halo(), view=dict(HEAD_VIEW, pitch=24), animation=ANIM)
 item("personal_raincloud", "Personal Raincloud", "HAT", SPC, None,
      "Your own little storm cloud: it rains on you nonstop, with the odd flash of lightning.",
-     storm_cloud(), view=dict(HEAD_VIEW, pitch=10), animation=ANIM)
+     storm_cloud(), view=dict(HEAD_VIEW, pitch=10), animation=dict(ANIM, frames=12))
 
 
 # ============================================================================================== masks
@@ -1275,18 +1276,36 @@ item("air_guitar", "Air Guitar", "EMOTE", REG, 200,
 # ============================================================================================== output
 
 def hero_frames(it, size):
-    """Large previews: one frame, or every frame for animated items (the same renderer as the shop thumbnails)."""
-    bc.THUMB = size
-    d = list(bc.render_scene.__defaults__)
-    d[0] = size
-    d[1] = 3
-    bc.render_scene.__defaults__ = tuple(d)
+    """Large previews: one frame, or every frame for animated items, drawn by the engine's own thumbnail renderer
+    at `size` (not scaled up from the small thumbnails)."""
+    import io
     files = bc.build(it)
-    frames = []
-    strip = Image.open(__import__("io").BytesIO(files["thumb.png"])).convert("RGBA")
-    n = strip.height // size
-    for k in range(max(1, n)):
-        frames.append(strip.crop((0, k * size, size, (k + 1) * size)))
+    d = list(bc.render_scene.__defaults__)
+    keep, keep_thumb = tuple(d), bc.THUMB
+    d[0], d[1] = size, 3
+    bc.render_scene.__defaults__ = tuple(d)
+    bc.THUMB = size
+    try:
+        if it["bones"]:
+            model = json.loads(files["model.json"])
+            tw, th = model["texture"]
+            load = lambda name: np.asarray(Image.open(io.BytesIO(files[name])).convert("RGBA"), np.float32) / 255
+            tex = load("texture.png")
+            em = load("emissive.png") if "emissive.png" in files else None
+            n = it["animation"]["frames"] if it["animation"] else 1
+            fh = tex.shape[0] // n
+            frames = []
+            for k in range(n):
+                t = tex[k * fh:(k + 1) * fh]
+                e = em[k * fh:(k + 1) * fh] if em is not None else None
+                frames.append(bc.thumb_model(it, t, e, tw, th, k / n if n > 1 else None, size=size))
+        elif it["emote"]:
+            frames = [bc.thumb_emote(it)]
+        else:
+            frames = [bc.thumb_particles(it["thumb"], it["fx"]["colors"])]
+    finally:
+        bc.render_scene.__defaults__ = keep
+        bc.THUMB = keep_thumb
     return files, frames
 
 
@@ -1322,5 +1341,125 @@ def main():
     print(f"{len(listing)} mockups -> {OUT.relative_to(ROOT)}", file=sys.stderr)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--sheets" not in sys.argv:
     main()
+
+
+# ============================================================================================== picture sheets
+
+SHEETS = [("capes", "Capes", {"CAPE"}), ("wings", "Wings", {"WINGS"}), ("hats", "Hats", {"HAT"}), ("masks", "Masks", {"MASK"}),
+          ("back-items", "Back Items", {"BACK"}), ("pets", "Pets", {"PET"}), ("sword-skins", "Sword Skins", {"ITEM_SKIN"}),
+          ("auras-and-effects", "Auras & Effects", {"AURA", "TRAIL", "KILL_EFFECT", "WIN_EFFECT"}), ("emotes", "Emotes", {"EMOTE"})]
+SLOT_NAMES = {"CAPE": "Cape", "WINGS": "Wings", "HAT": "Hat", "MASK": "Mask", "BACK": "Back item", "PET": "Pet", "ITEM_SKIN": "Sword skin",
+              "AURA": "Aura", "TRAIL": "Trail", "KILL_EFFECT": "Kill effect", "WIN_EFFECT": "Win effect", "EMOTE": "Emote"}
+
+
+def sheets():
+    """One picture per category (still frames, animated items marked) plus every item as its own picture, in
+    build/cosmetic-mockups/pictures/<category>/ (animated items as GIFs too)."""
+    from PIL import ImageDraw, ImageFont
+    listing = json.loads((OUT / "mockups.json").read_text())
+    fonts = ROOT / "installer/src/main/resources/evade"
+    F = lambda name, size: ImageFont.truetype(str(fonts / name), size)
+    f_title, f_eyebrow = F("chakra-bolditalic.ttf", 64), F("inter-bold.ttf", 17)
+    f_name, f_pill, f_body, f_price = F("inter-bold.ttf", 24), F("inter-bold.ttf", 14), F("inter-medium.ttf", 16), F("inter-bold.ttf", 17)
+    BG, CARD, LINE = (5, 5, 6), (13, 13, 16), (29, 28, 34)
+    TEXT, MUTED, FAINT, RED = (245, 245, 247), (163, 163, 173), (108, 108, 120), (225, 29, 46)
+    TIER = {"regular": ((195, 199, 209), "REGULAR"), "special": ((255, 194, 61), "SPECIAL · ANIMATED")}
+    pics = OUT / "pictures"
+    pics.mkdir(exist_ok=True)
+    IMG, PAD, COLS, GAP = 400, 22, 4, 22
+    CARD_H = IMG + 196
+
+    def stage():
+        yy, xx = np.mgrid[0:IMG, 0:IMG].astype(np.float32)
+        r = np.sqrt((xx - IMG / 2) ** 2 + (yy - IMG * 0.42) ** 2) / (IMG * 0.62)
+        c0, c1 = np.array([42, 31, 10], np.float32), np.array([11, 10, 12], np.float32)
+        a = np.clip(r, 0, 1)[..., None]
+        return Image.fromarray((c0 * (1 - a) + c1 * a).astype(np.uint8), "RGB").convert("RGBA")
+
+    STAGE = stage()
+
+    def wrap(d, text, font, width, lines=3):
+        out, cur = [], ""
+        for w in text.split():
+            t = (cur + " " + w).strip()
+            if d.textlength(t, font=font) <= width:
+                cur = t
+            else:
+                out.append(cur)
+                cur = w
+        out.append(cur)
+        if len(out) > lines:
+            out = out[:lines]
+            while d.textlength(out[-1] + "…", font=font) > width:
+                out[-1] = out[-1][:-1]
+            out[-1] += "…"
+        return out
+
+    made = []
+    for n, (slug, title, slots) in enumerate(SHEETS, 1):
+        items = [i for i in listing if i["slot"] in slots]
+        items.sort(key=lambda i: (i["tier"] != "regular", list(SLOT_NAMES).index(i["slot"]), i["name"]))
+        cols = min(COLS, len(items))
+        rows = (len(items) + cols - 1) // cols
+        W = max(cols, 3) * (IMG + GAP) - GAP + 2 * 48
+        H = 190 + rows * (CARD_H + GAP) - GAP + 60
+        sheet = Image.new("RGB", (W, H), BG)
+        d = ImageDraw.Draw(sheet)
+        d.text((48, 44), "EVADE COSMETICS  ·  MOCKUPS", font=f_eyebrow, fill=RED)
+        d.text((44, 70), title, font=f_title, fill=TEXT)
+        reg = sum(i["tier"] == "regular" for i in items)
+        d.text((48, 150), f"{len(items)} designs  ·  {reg} regular  ·  {len(items) - reg} special (animated)", font=f_body, fill=MUTED)
+        folder = pics / f"{n:02d}-{slug}"
+        folder.mkdir(exist_ok=True)
+        for k, it in enumerate(items):
+            x, y = 48 + (k % cols) * (IMG + GAP), 190 + (k // cols) * (CARD_H + GAP)
+            d.rounded_rectangle((x, y, x + IMG - 1, y + CARD_H - 1), 16, fill=CARD, outline=LINE, width=2)
+            hero = Image.open(OUT / it["hero"])
+            frames = []
+            try:
+                while True:
+                    frames.append(hero.convert("RGBA").resize((IMG, IMG), Image.LANCZOS))
+                    hero.seek(hero.tell() + 1)
+            except EOFError:
+                pass
+            still = frames[min(len(frames) - 1, len(frames) // 3)] if len(frames) > 1 else frames[0]
+            card = STAGE.copy()
+            card.alpha_composite(still)
+            mask = Image.new("L", (IMG, IMG), 0)
+            ImageDraw.Draw(mask).rounded_rectangle((0, 0, IMG - 1, IMG + 30), 16, fill=255)
+            sheet.paste(card.convert("RGB"), (x, y), mask)
+            col, label = TIER[it["tier"]]
+            tw = d.textlength(label, font=f_pill)
+            d.rounded_rectangle((x + 14, y + 14, x + 14 + tw + 20, y + 42), 8, fill=(0, 0, 0), outline=col, width=2)
+            d.text((x + 24, y + 19), label, font=f_pill, fill=col)
+            ty = y + IMG + 16
+            d.text((x + 18, ty), it["name"], font=f_name, fill=TEXT)
+            price = "Price coming soon" if it["price"] is None else f"${it['price'] / 100:.2f}"
+            meta = SLOT_NAMES[it["slot"]] + ("  ·  any colour" if it["colourable"] else "")
+            d.text((x + 18, ty + 36), meta, font=f_body, fill=FAINT)
+            pw = d.textlength(price, font=f_price)
+            d.text((x + IMG - 18 - pw, ty + 35), price, font=f_price, fill=(255, 194, 61) if it["price"] is None else TEXT)
+            for j, line in enumerate(wrap(d, it["description"], f_body, IMG - 36)):
+                d.text((x + 18, ty + 68 + j * 23), line, font=f_body, fill=MUTED)
+            # each design on its own too
+            single = STAGE.copy()
+            single.alpha_composite(still)
+            single.convert("RGB").save(folder / f"{it['id']}.png")
+            if len(frames) > 1:
+                gif = []
+                for fr in frames:
+                    g = STAGE.copy()
+                    g.alpha_composite(fr)
+                    gif.append(g.convert("RGB").resize((320, 320), Image.LANCZOS))
+                gif[0].save(folder / f"{it['id']}.gif", save_all=True, append_images=gif[1:], duration=100, loop=0, optimize=True)
+        path = pics / f"{n:02d}-{slug}.png"
+        sheet.save(path, optimize=True)
+        made.append(path)
+    print(f"{len(made)} category sheets -> {pics.relative_to(ROOT)}", file=sys.stderr)
+    return made
+
+
+if __name__ == "__main__" and "--sheets" in sys.argv:
+    sheets()
