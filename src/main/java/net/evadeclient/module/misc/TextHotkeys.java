@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * Up to twenty keys (or Ctrl / Shift / Alt combos, or a mouse side button) that each send one chat message or
  * command you typed yourself ("/hub", "gg"): one-click macros. One press sends it once: holding the key never repeats
- * it, a hotkey never sends more than its one line, and at most one message goes out per Cooldown (0.5 seconds by default) whichever keys
+ * it, a hotkey never sends more than its one line, and at most one message goes out per Cooldown (0.1 seconds by default) whichever keys
  * you press, so a hotkey can never flood a server. Nothing is ever sent on its own (no timers, no reacting to chat or
  * events), only on your key press, and only while no menu or chat is open. A hotkey can be limited to the servers it
  * is meant for, so "/hub" only fires where /hub exists. The only placeholders are your own harmless info: {server}
@@ -42,7 +42,7 @@ public class TextHotkeys extends Module {
     /** How many slots the old fixed layout had ("Hotkey 1 Key" ... "Hotkey 9 Text"), for migrating old configs. */
     public static final int OLD_SLOTS = 9;
     /** The default and the fewest seconds between two hotkey messages, across every hotkey. */
-    public static final double DEFAULT_COOLDOWN = 0.5, MIN_COOLDOWN = 0.25;
+    public static final double DEFAULT_COOLDOWN = 0.1, MIN_COOLDOWN = 0.05;
     /** Longest message a player can type in chat. */
     public static final int MAX_CHARS = 256;
     public static final int MAX_LABEL = 32, MAX_SERVERS = 160;
@@ -154,8 +154,10 @@ public class TextHotkeys extends Module {
     private final StatusSetting editor = add((StatusSetting) new StatusSetting("Edit Hotkeys", this::editorLabel, "click: open")
             .onClick(() -> openEditor(mc.currentScreen))
             .describe("Add, change, reorder and test your one-click chat macros (auto text, autotext) in the hotkey editor (also .hotkeys)."));
-    private final NumberSetting cooldown = add(new NumberSetting("Cooldown (s)", DEFAULT_COOLDOWN, MIN_COOLDOWN, 3.0, 0.25)
-            .describe("The shortest time between two hotkey messages, so a server's spam filter never kicks you."));
+    private final NumberSetting cooldown = add(new NumberSetting("Cooldown (s)", DEFAULT_COOLDOWN, MIN_COOLDOWN, 3.0, 0.05)
+            .describe("The shortest time between two hotkey messages (0.05 to 3 seconds). Kick Guard below still stops a burst that the game's own spam filter would kick you for."));
+    private final BooleanSetting kickGuard = add(new BooleanSetting("Kick Guard", true)
+            .describe("Holds back a press that would trip Minecraft's built-in spam kick (about 10 quick messages, then about 1 a second). Turn off only if the server allows more."));
     private final BooleanSetting confirm = add(new BooleanSetting("Confirmation", true)
             .describe("A small notification with what was sent (and the hotkey's label), or why a press was skipped."));
     private final BooleanSetting addToHistory = add(new BooleanSetting("Add To Chat History", true)
@@ -164,6 +166,12 @@ public class TextHotkeys extends Module {
     /** Whether each bound key code was down last time we looked (edge detection: one press, one send). */
     private final Map<Integer, Boolean> wasDown = new HashMap<>();
     private long lastSent = Long.MIN_VALUE / 2;
+    /** Mirrors the vanilla server's chat spam counter: +20 per message, -1 per tick (50 ms), kick above 200. */
+    private static final int SPAM_PER_MESSAGE = 20, SPAM_KICK_AT = 190;
+    private double spamScore;
+    private long spamAt;
+
+    private double spamScore(long now) { return Math.max(0, spamScore - (now - spamAt) / 50.0); }
     /** Test hooks: what was last sent (with the slash for commands), how many were sent, and a fake server address. */
     public String lastSentForTest;
     public int sentCountForTest;
@@ -338,6 +346,12 @@ public class TextHotkeys extends Module {
         }
         ClientPlayNetworkHandler net = mc.getNetworkHandler();
         if (net == null) return;
+        if (kickGuard.get() && spamScore(now) + SPAM_PER_MESSAGE > SPAM_KICK_AT) {
+            if (confirm.get()) Notifications.push(title, "Held back so the server doesn't kick you for spam", false);
+            return;
+        }
+        spamScore = spamScore(now) + SPAM_PER_MESSAGE;
+        spamAt = now;
         lastSent = now;
         lastSentForTest = text;
         sentCountForTest++;
@@ -438,7 +452,7 @@ public class TextHotkeys extends Module {
     public NumberSetting cooldownSetting() { return cooldown; }
 
     /** Test hook: forget the gap, as if the last message went out long ago. */
-    public void resetGapForTest() { lastSent = Long.MIN_VALUE / 2; }
+    public void resetGapForTest() { lastSent = Long.MIN_VALUE / 2; spamScore = 0; }
 
     /** Test hook: acts as if {@code code} was pressed in game with {@code held} modifiers. */
     public void pressForTest(int code, int held) { press(code, held); }

@@ -58,7 +58,7 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
         TextHotkeys t = mod();
         int n = list().size();
         String s = n + " of " + TextHotkeys.MAX_HOTKEYS + " hotkeys  ·  one message per press, at most one every "
-                + (t == null ? "0.5" : trim(t.gapMs() / 1000.0)) + " s";
+                + (t == null ? "0.1" : trim(t.gapMs() / 1000.0)) + " s";
         return t != null && !t.isEnabled() ? "Text Hotkeys is off (Server tab)  ·  " + s : s;
     }
 

@@ -87,7 +87,7 @@ public final class TextHotkeysTest {
         check(s1 == s0 + 1 && "hotkey test one".equals(last), "Text Hotkeys: one press sends its message once (" + s0 + " -> " + s1 + ", " + last + ")");
         check(s2 == s1, "Text Hotkeys: holding the key doesn't send it again (" + s2 + ")");
 
-        // 2. The Cooldown (0.5 s by default, 0.25 to 3 s) holds across different keys, at the configured value.
+        // 2. The Cooldown (0.1 s by default, 0.05 to 3 s) holds across different keys, at the configured value.
         String cd = ctx.computeOnClient(c -> {
             var st = th().cooldownSetting();
             String r = st.get() + "|" + th().gapMs();
@@ -95,7 +95,7 @@ public final class TextHotkeysTest {
             th().resetGapForTest();
             return r + "|" + th().gapMs();
         });
-        check(cd.equals("0.5|500|1000"), "Text Hotkeys: Cooldown defaults to 0.5 s and follows the setting (" + cd + ")");
+        check(cd.equals("0.1|100|1000"), "Text Hotkeys: Cooldown defaults to 0.1 s and follows the setting (" + cd + ")");
         int g0 = sent(ctx);
         long t0 = System.currentTimeMillis();
         tap(ctx, a);

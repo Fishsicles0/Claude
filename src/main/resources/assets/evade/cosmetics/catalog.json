@@ -16,10 +16,10 @@
    "assets": {
     "files": {
      "item.json": "3da9b8cb78db96750ef25b18d0de947ff8858c77aaf73eb9c26c11e4449a43d0",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "6dc87b40df0c6d9d8f4966568ea66d1dbec2e652682c8a8e8e2a42d2314df1e0",
-     "emissive.png": "51e49d43582d9a041c3fc3206722dfa2515c919f285ff8bbffef9968968c012a",
-     "thumb.png": "d46bdb09d7285c663a9a10ab80ec0cab6ebf776c7f8d1be9d38f13b5180247e9"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "f1deead2a1f949d92778bcb124bcacc3416076f33d57dd658fc63457c3b0d579",
+     "emissive.png": "6d3f7c1e0bad7df6b6b3505222a6d61337fb5efdedcc12afc6558f85665fe8c2",
+     "thumb.png": "c9ce900329eb507db5c112fa11824384145b532f590f2568cf0cdbac8aef3468"
     }
    }
   },
@@ -58,9 +58,10 @@
    "assets": {
     "files": {
      "item.json": "be98b5014ca82e97d3bd4dd19940e1005148d4c2af8b571479590d85e48e9976",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "ea942ec8b144d841006722c6a6f9b589edbb5483fb013a881cdd91264a6c9fbd",
-     "thumb.png": "3d6fe1d9755d27dc02d25949277ded4e1d452ab86abac14ff0bfc267ce48bff6"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "abb00a49982d61f2c2d2564f801bd073ad157a35a229c69e741bbaf364264f54",
+     "emissive.png": "0942e40bb37d46d9c3a2d6c6df114db1b3776901ed567432266f2db62bfebc8d",
+     "thumb.png": "07df038c9bc304b97a47d111b77b74cff5b9eaf769c0924c188228907c8d63e4"
     }
    }
   },
@@ -99,10 +100,10 @@
    "assets": {
     "files": {
      "item.json": "b1aaa345d76cfa4a08170847eee2ccb4813990124d559b05395985e5bad208ff",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "165e093b4907f82d6a6efc22519f8966e9bf7ae4042e5247489f9fe63c8ccdc0",
-     "emissive.png": "584b92671478cf9487e649a9ae8c96972b028cdbc251dd2df5e0b7d3cd1bb9c4",
-     "thumb.png": "a350b09556a05bd0a40dd5962b7d3d8ecc35b03efd1cec54504795f7f250d69b"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "35584e4bad01eb72f96b901753317b328205b65251f780986b94df280e426905",
+     "emissive.png": "94bc45636931ac7f17b0cab7c26a1ae912388654e24ffc6d5b4ef62b7c2f9e0a",
+     "thumb.png": "09da5a546bce97f242be5242f5261a260d050b69b37d4fd51a27aa24b5967d94"
     }
    }
   },
@@ -162,9 +163,9 @@
    "assets": {
     "files": {
      "item.json": "b57b9792c1306a6e5dcf796ee244ceaaf997b1e075797691d1e2f4160d1b0571",
-     "model.json": "c5d6b358cb697bcd2ff7b5d8caa3456b6dc0df1fa1b62abf013b396ab5337463",
-     "texture.png": "d13f3e4946e028cd9a737ef393f25a5e1e2e372b5d1feb669898869b17ce39c5",
-     "thumb.png": "ba87af2ac8a047d7bb516fbee1f5feede7c4d5dbe1cb328612d7d9d13e853bf3"
+     "model.json": "16a3f9aff8fa2718f6b8e794bed9b8312c639bbee6e6e7d1c126f31a346e88c2",
+     "texture.png": "94d7e54db7f9f90ab3c0215a02c2563fd0358b39481954290a15f3f48941799f",
+     "thumb.png": "9e9e8cd944d68e026385f505ca92ada86e7b9b7efec08ab0a1ecf12924f1905d"
     }
    }
   },
@@ -182,9 +183,9 @@
    "assets": {
     "files": {
      "item.json": "5aaa2a6b3460f82762132952aeaf587eb2804ae8345eb8114809df302948f2b6",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "e28a82fec7e8d4fbec99aeac7668437716cb461d2286edfd91cdec952b50a90a",
-     "thumb.png": "d4aed31e947a9d7b7a0cc5af5407d993ea4df252779f04e327529ab878e36992"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "64699709daa3f612d1f1744da214ca90f27f4fb48d41ff34af1a673fbc3c64b0",
+     "thumb.png": "5a5f8d77b1c363a886d9b724643de7a7f43277fb8cef3eea215b7f568b8ba9ae"
     }
    }
   },
@@ -202,9 +203,9 @@
    "assets": {
     "files": {
      "item.json": "10887f9f2deecfa663e12cd1c584c4ca014e18eaa4773d066b1b413ab795c65b",
-     "model.json": "c5d6b358cb697bcd2ff7b5d8caa3456b6dc0df1fa1b62abf013b396ab5337463",
-     "texture.png": "8eda84c89348bd0e9a03a6296ec52a8e96f504d30c7081420ed252bd6f70a6bc",
-     "thumb.png": "fcf6cf29558d67978625495cdeab3045c08207a2ab6d0f38c624550aa9c1f009"
+     "model.json": "16a3f9aff8fa2718f6b8e794bed9b8312c639bbee6e6e7d1c126f31a346e88c2",
+     "texture.png": "19af72ca57592f0c8e55af022264e26ffdd2888dd9d24372c83dc5b9b1e05eab",
+     "thumb.png": "ed2324f710b98be5483456e320f91b31688a7876e4876e7fa4284b9457853cbc"
     }
    }
   },
@@ -222,9 +223,9 @@
    "assets": {
     "files": {
      "item.json": "a150d9fb28cb66221358c1077ee10045f437d11d9158097eef5fdeb7bd5837bc",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "d048503a7eae9c5a5a7aef94695a5cfc02bfc97b921b69c18c6ed344062901c3",
-     "thumb.png": "80adfd6533e65e17478c310a5ef725310e087030242cb58b831092438414f679"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "309cf12115c65f25894a1dda83c43ccaa5b6eb4a46badab31c6312f6d6efc114",
+     "thumb.png": "0ef464e348dcb46d81d4322044d9bb22a1fa0c82f2a146a33f99adc458d1f3d7"
     }
    }
   },
@@ -242,10 +243,10 @@
    "assets": {
     "files": {
      "item.json": "c2ace36b46ec9e990522e034817c53a2ad1338f37b29543f5c72fc31ab35e5b4",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "e7665544fc8605a2ba92775cf80212a6aaa8213bda52a1dbbc341f8d9ce113f8",
-     "emissive.png": "21ca3629e5782cd19280a9b86283f608c944742b5672119a50862672c524201a",
-     "thumb.png": "21fff9a14d3b3c420b76dc5f62399a08d66df20c8a2901e4b8458549dbf7e36a"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "e4fac9d780db50a17bb4fb96e5f8848f471865f0ce2dbf46372a5df97766f674",
+     "emissive.png": "b622d3ef88ef724d36c83025f923aa1083eefaf78b8621dcd04eda8d36be9455",
+     "thumb.png": "3b15990e21f2b94dffe0d979db973c8e60d53d05413e549dc2935b34e5f8ad91"
     }
    }
   },
@@ -263,10 +264,10 @@
    "assets": {
     "files": {
      "item.json": "8ec51e92f9f6e7b0d027bfd4fd07ac8734d3d0161eb8b65e7387958bc86de3b3",
-     "model.json": "900ebd172f67685cd742aaecd7b1fa3b3f3a2374ded392544755889edd41acdf",
-     "texture.png": "29501762392a26f398216cfbf406872f0a9b04727a15b01f708d47dc25757cda",
-     "emissive.png": "2ad0efb4009228c784f6d2abbce37983dd94f458ee7b67af63cabd24ef2d5b97",
-     "thumb.png": "254c8227ad44eb4ad0a7456f9686dde697723f47fe8a9d8ed0c4db4cbbbbc321"
+     "model.json": "80905a5cb87eacd53ce80e54c1fd69e61b40b39489c4c8495caa0cb1157936a2",
+     "texture.png": "9b9b1bca7841d8787d1e2499ac30f8ebc06f33306314ece6d01ae603ddf1b8c7",
+     "emissive.png": "bb526ac9c42292742c5fd3f2fbeada14fcb9f0f7de69489e1b4f62ed5b6abce9",
+     "thumb.png": "dccd21a9b3378528893bfe03dcdd6853a312412a6dcad8ab235057bd1ec36930"
     }
    }
   },
@@ -284,9 +285,9 @@
    "assets": {
     "files": {
      "item.json": "adb92ab520337f4170bf218f12950fda8d9a36c04b19c5e2b98a585be12c9a29",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "c631e1477062785492bc1260502e0fc1514f336e2f697682eb06c5b584f26d2c",
-     "thumb.png": "9a325ba407c9d8f2267a009a73625c0bae304a02afb4625b03c5033fa8c1cbc3"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "1136a0188655f21d14befffffc1fb4b3744af68a00e96d031fe53b542745aeef",
+     "thumb.png": "5e73a429c16035c3dbb086fca5b685aac2bf53eebec6d08525d5caa00e2835c1"
     }
    }
   },
@@ -304,10 +305,10 @@
    "assets": {
     "files": {
      "item.json": "764397bb821944356523a76a32aab76f71f397ffe27eb035aee7c1ed606bcf21",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "d3637c90a3f48b8af9495e7e2e70f16bcef083b40a3da3c7aaddd54885c0bdd7",
-     "emissive.png": "b42b706290a6625f5e6988faeb9b1f43a04ac98ae8cd79879b38f42039fb8f36",
-     "thumb.png": "4313901696d4eadf944e8b392832192d9f1b309e0c5e879d528485aa257ad9cb"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "fe7a7d21f843ca95a76e6edbce3f60587bd1c48c31efaa620840af6e468d6b78",
+     "emissive.png": "5993a79ded93044946230414735f702d88f032582037be9c4f2143fd62a3926f",
+     "thumb.png": "550802d8b6027e73e6dc9b800385171bb72fe56eaa004fa064adf5c6766ae6cf"
     }
    }
   },
@@ -325,9 +326,9 @@
    "assets": {
     "files": {
      "item.json": "186837642040965e2abad40d7e01d2ec8444b1332f0363703340b9433959b919",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "32f9d48ac1a098b7dc5df856a803bdce861c27c24c4b073cca72fe567173e1ff",
-     "thumb.png": "a0ee8fb9eb698cb0620e397c404f9c96b41af4d338f01b135a734e9f5573882b"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "8ec1a78d156363ba0321674157da4dda1326c5f42433608c16df12c70ff82dee",
+     "thumb.png": "267c723942efd1e8b2814f2c052b3e75ef9c28340a27dd7b107f83c5dc346baa"
     }
    }
   },
@@ -345,9 +346,9 @@
    "assets": {
     "files": {
      "item.json": "e8409cd43d1b29f42cae45908d7017b2c82fab7f255df226673744f84e28e05e",
-     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
-     "texture.png": "d5371e5a827cc120ee3d1fabb3b0955d6e1c3f7666e3e8d695c08ce87a1ea7bd",
-     "thumb.png": "dfc7162558a9e56b157509b2eb801c55d42fa9273d2f531e79ae3a31734515ef"
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "2c6062f8472393c27acdf95e1ee969b4394b0689bdc3f00eee054a472521213d",
+     "thumb.png": "f14fb3d9a9250b861d1cc0ab03cb96960f04f65ef10a0ad7ee44f29165979fb4"
     }
    }
   },
@@ -366,9 +367,9 @@
     "files": {
      "item.json": "ff7122f634e686db778240f78437cd63f73b8215c4ed6da28cdf7931d00ce0aa",
      "model.json": "731f27d43ea774eca82e1d451558cbce7b8ac0a7aa90e3a81a27e15719a59ea6",
-     "texture.png": "36220781c8281097edbbdc5e062e8ca2a492d6d5b18aee8ff8a4bae3f5e3fb35",
-     "emissive.png": "82810294e445ba483933000d22981d6d4947feb24f21de3960a525147f813675",
-     "thumb.png": "5b3aa3b3550183c9b5e6bb2b604168b27f9a6a6ee64145d690ade9fdcaab3d3b"
+     "texture.png": "813dfc399bb6d2384fa5d12df4e56eb3a8b3a25c4fe9e2eb25c2c5fb0e2f628f",
+     "emissive.png": "44435c2fe8fdc4809d1d9a5d21a62a31de5d63f24c1d9c19c37cecfdd69adccf",
+     "thumb.png": "53222ede0f5dfeff9771516cfc4c127cdb6d5693bfb62c24b1b5f7789f2fab6a"
     }
    }
   },
@@ -408,9 +409,9 @@
     "files": {
      "item.json": "c5aa8b9e8d00ff86d718fdfeb15330c6e93a213a28e4ef82520029ed2a8daeaf",
      "model.json": "03b0f75f367febc0a0e54550bde13e374d64054e525cfed8e4f909f015c743bd",
-     "texture.png": "76cc7002239db147803d8417ac5a3e18a6527b637501eeab6a7d30ca60b51baa",
-     "emissive.png": "cb9be3781cf3bcbdd7fb9e35500fdb084a4fabe79d277fa290bef3752203795d",
-     "thumb.png": "79be547063044ddf80d800a7cf17d525e4b930428222dff2ec05b891a929b1fa"
+     "texture.png": "1dfcc27db263fb99412d6ff011b767564b06eb546692e3801f3fbdf374398235",
+     "emissive.png": "e106ec43f8791360a22d986b74747f270b1353899f298408dc2e585fcb8c21ed",
+     "thumb.png": "5e60da3fbf67248aa8d5f03a01bc7c8f4750160c781ea4695e63c1d815c87278"
     }
    }
   },
@@ -429,9 +430,9 @@
     "files": {
      "item.json": "7a556aaea7a7937ecb601ceaae1a565fb62b764ff8390be2a73d185f69da1dca",
      "model.json": "f2dfd4747a19006e982e96341126b2294729dd0294e759beba3661479a22e66e",
-     "texture.png": "02c9b4b08b766b237fb0e679af9cc37ffcd3cd9a854b3e25a445cad5778ef95c",
-     "emissive.png": "dc9bff4ebe8c10ce53755e4c7ae18c7107121de77b0f047aa337733a7871e3fe",
-     "thumb.png": "c447061b9085910e067f44613fefcd064efc751eb64610149da99b3bc75ec756"
+     "texture.png": "0df9405192652e0fa2a903bf45264e3361f19425cd79851d68b03d865a8abda3",
+     "emissive.png": "0bf3d9708fe6131e580aeade99ae064b0a49d3e254ca5c7dac93480d8295cfd7",
+     "thumb.png": "521716ba511326232547b4cbe59d1337f2d69d1e128aee8b3a1986dfe9d792b3"
     }
    }
   },
@@ -450,8 +451,8 @@
     "files": {
      "item.json": "d2ff241c7b41b5127a1132410335ba3fc02c807d3cec204c4be67d11d25f5569",
      "model.json": "c6746d457f7779a3c392c4354ab61e4e5312f4a6fee66237e1e48c65b66f7fc2",
-     "texture.png": "a785d6da50bb8822729cf447c0175f20908ee9b57784b6d9d2cffc427251f9a9",
-     "thumb.png": "1439f65984e64de8f28817550c56428eda7a08cbf323dab0b0a53dae9724386c"
+     "texture.png": "9ceab0777f117c4439aedb7e7109274d24890eaa0c9798bf0d38c4bd45ff6f2e",
+     "thumb.png": "d4f792a47bce9844db76033547f6ae21222dadcb3e587d041c9a47f01ea9e1b7"
     }
    }
   },
@@ -470,9 +471,9 @@
     "files": {
      "item.json": "4580898d46a582b71df3dc1453033750e72f3ea3ce19242d4ad26679ea49cc8b",
      "model.json": "09d8015c42832e6b10079c2ede2fcae02b4590425f392dc24ed62f81d63156ce",
-     "texture.png": "77f7b5475e560aa9ce1f8a3bf4805a6d1150e648991925a71ed7010020f7721f",
-     "emissive.png": "ba7e034837f3a05477b441ce8265de02d440ff04d1f9af451675c70295ada585",
-     "thumb.png": "030aa2baaeb06fe186283a2771e7d76b2038f1d36c0d3cad91a764b0eeeeb59f"
+     "texture.png": "a56d44f30e95f4471de2ce55c311e22846e16d4acbc2c020acaa565bec6ad8d8",
+     "emissive.png": "6ba12dc4a4e5fb311cc0b77b68ce948f1de65346574f6a130f317cbe0287199e",
+     "thumb.png": "ad98519a3a3ceb87a165b4aa6b76a2c6c6ed766a7958afc217b7c27e1babcb7a"
     }
    }
   },
@@ -491,9 +492,9 @@
     "files": {
      "item.json": "cecd943bb9d08044935fe2eb8fae088ba2f211b851a952b692237c9b5b075bbb",
      "model.json": "9768f1a57c1296e914f7539008d91d3445b392e0eeb7b5d305792f0a38eac89c",
-     "texture.png": "118a678a23ed174358940f2baa54f62465600e7750b20f7f5727151e5eb0a77f",
+     "texture.png": "cfbb84897643d9e9accd51e25b07045fc7781e33f94c7eec020164237327625c",
      "emissive.png": "23450f222f78a34b390aa9a83a6e735b077d2dcb64adcf3e0569c15aa2baa83d",
-     "thumb.png": "844d5f06b2f3a3870b454e6c82bf9e7208e7cab98784588f61db604359aca247"
+     "thumb.png": "b8f5f435e7d6527aa7968ca201a59705c85c0aa5b52c2bef22e0be4811a56fba"
     }
    }
   },
@@ -512,9 +513,9 @@
     "files": {
      "item.json": "c0e803108538c5e96667dd50ab8d51637f95cb018a3797a03f890ba2af415ea4",
      "model.json": "6c08c2a8073c682f3ee884de6a4a4b8f6f9821f7503730f24526d2cc9beccc1b",
-     "texture.png": "2c6e8ef7057b5bd276a52d169c2067150efc125f8a6b4a233418e24d4992ab41",
-     "emissive.png": "4c58453845e1323f8a00ba4c66aad333779b724d896ada1cf38717aba90213fb",
-     "thumb.png": "e4d463bff6f81aab04538dbd6ccb5f80b7e87be4048f137ab56a0c4e1210eabd"
+     "texture.png": "32790d0b8260c09ac4a7819eeb78b3885c94097e5ee5307a566784a6f6b64f25",
+     "emissive.png": "df0df5a5ceaf2905b84bd3d28df7662214d005668d78886a6fce3125e9982a35",
+     "thumb.png": "b7d8753e9fe095deb59343ab74b2ee4fe10cae8520228e03ff303ade14d6155b"
     }
    }
   },
@@ -533,9 +534,9 @@
     "files": {
      "item.json": "2ea7462fede00706c60ce0d5fff9152f5f78a0e1215dc5918dd0ee66465f45dd",
      "model.json": "c788bf70235fc3cfa2ace26648b3bdefafc7180c64a1ac235a569aa10880532a",
-     "texture.png": "8db9191ff9ef0937563520a88b4cd164e6014a6ae91920c87232072391416363",
-     "emissive.png": "f1fa9e157fceacfc95a51d465268c8c00fa1a8f9543bef69737449c96b24b68b",
-     "thumb.png": "e9c1b48316a6c5fd52f74ff32a81577b554b333327001c871619f3b3a0e63645"
+     "texture.png": "007eccc9946a78e6636a5ee34a24122fc0bb1c0a9d8bbbf1faf686ba32c1ed64",
+     "emissive.png": "2474e2a0d06494a56032620b60c9628816f1c71e4e76992904449354c69bc8e2",
+     "thumb.png": "55810161c7bec9dab7852b0f8a9adb44c1ed355faef071831ee2d46d5a8ff0c3"
     }
    }
   },
@@ -554,9 +555,9 @@
     "files": {
      "item.json": "afc379c2bbb113a4486205e69d5374657ca9b8d4a3637728103631846c342c4d",
      "model.json": "8c6f17dfee9e618534501e00326da07fe6f2306f5be1c3ae00cc9cc8732f5b70",
-     "texture.png": "5fbe5f75fc0e661dda6bd8bed28d92afc2f9e74b568650d33910140f5ee3adf2",
-     "emissive.png": "2858a80f263d365769b9fd12dc2a0f4909619e3ffbd0d48257943a0b2f4dd2b9",
-     "thumb.png": "b6eafc5dd3116e4e52a8a3f168d498ee2f959d82e3683ce8c834df5335394c73"
+     "texture.png": "2168fcec62a139233d596102b831f7702d47e1a355b49c9e55d642fdb5107aeb",
+     "emissive.png": "68471343f2fd890296e0107c68c00dc2ca74d290d1eb9c956b13c10d64edcc14",
+     "thumb.png": "c0ba9ee05982f47c4d56de0dd8ed1348afe46be17575e66c8d82b5e5ea90cc3c"
     }
    }
   },
@@ -575,8 +576,8 @@
     "files": {
      "item.json": "686097165757aaa7a24cd96b7f13c0131902f9ede8f750f6f516c4e432478262",
      "model.json": "bec667d57e1118e2ce19252853adc8cc207fc1561e2055584fea5e44ccc82582",
-     "texture.png": "6e5e2bf3802c8a01adfbeb155bd1325b305bc5d0a6b538e9d3f3678bcd8bcf5d",
-     "thumb.png": "929d073b5e7020d304525c9b9c42e9bf2c93cc5e0d94ac94a7b6f3390e341d6c"
+     "texture.png": "0cc9ba32c5596addb33bc9ffab740c96d75db8963ac50264764d70e510ca8388",
+     "thumb.png": "9a20fa7b3e1a46d77c6fabedf1281e4a78bce78f81e939f4deb0c9447ecc61bd"
     }
    }
   },
@@ -595,9 +596,9 @@
     "files": {
      "item.json": "56afd60bb8b7b2f571e5978fd74890ea1064fbb724d574df1689f6eb7db6663d",
      "model.json": "822ee146e5fc8179b5b9c22019760a59a9d8504ca2b07d156f5f999d47837007",
-     "texture.png": "355496e68ff468b5bb320d6d243071a4a24730be1483098b34e9dd086a4eeacc",
-     "emissive.png": "3c41e125cd11b95f5379eb69f0e825adb3085bd799211b1cd25c4ce082bf359c",
-     "thumb.png": "67bf43f4b7db306d856371047458e81a3d726915eb24bc9377c1b5f31ce8c1f2"
+     "texture.png": "7104a98a21ae571eff87ac32122270f845f5df98c6fcc116ccbf841f2e45c2fc",
+     "emissive.png": "cd73fc42783af520917a9cb35c11fd3fbadcd867507e2d33bc4add7aa7390174",
+     "thumb.png": "283fecd3bdc72b7bb533a8b7192b93a3f6b876abaef64a4d3e7f18f14dcd955e"
     }
    }
   },
@@ -616,9 +617,9 @@
     "files": {
      "item.json": "ba50d521c6dc8b1007457ea1dfeb5d24c123d848cc5dd6817c1925779e89a267",
      "model.json": "db0d1a0b7a338cc95599658697213d9f36f345dbbe900170ac344fff923879c7",
-     "texture.png": "bb049440d68d3113d465184a9d40c7b15e28e805954bf64250a3e3e12c22ad76",
-     "emissive.png": "8b3355c7dd8a2fda383bc1eb8148a91c74b0e2966a8366a671f0ed75aae2f9a7",
-     "thumb.png": "bf76ae211364f19195cf2ae690025bc27af6dbcfc1fa6bac080c7c04c15d3a95"
+     "texture.png": "0dc42acd92495b1b90440a89e2b5c5d2ca56279017d4f651b5d2946f82ce3ea0",
+     "emissive.png": "23ead837b51b375c977edffaa281a56bde61c0fd3c4741571064822de0b0408f",
+     "thumb.png": "4c301414501ca6e36b57171903013c63ece5fe2c69afb7bdf0c3f3fd5ecc48a6"
     }
    }
   },
@@ -658,8 +659,8 @@
     "files": {
      "item.json": "18d1d453afe8817096c6946e2d8223c1cd488c75693ac799e32c3c1b41bbc037",
      "model.json": "5360db8cc8c403f134878f8f0e3ced964256daf306995cb97eb9dd082935ad97",
-     "texture.png": "339bcb048019d30909b5f61aad4c4a35b8f3fbb7c07333b4e63fbc6ba3e5dced",
-     "thumb.png": "0879250afd2b294470767bfab4078aa218493af85e3f30f4cf6a717084e1752b"
+     "texture.png": "08fe54b4452cdb5f46e00cf6b289e30949c5b6769745a6192c094522db5372bf",
+     "thumb.png": "f0642d3120441b82552b8f055349cd199db6e7f3ce9a55dcf2ac6a77c4d6249e"
     }
    }
   },
@@ -678,9 +679,9 @@
     "files": {
      "item.json": "366eecdb56f6629c6c62558f020e3f768833169f78589747749ecf71b0f1a7de",
      "model.json": "b955e2520d4696eb5d8b6330ac07879979217939b7d198430d6f8e277cb38e92",
-     "texture.png": "ec44b438c51fb0ec713347f4616a6a5cd2dd916fac4377ac3ab46547ead9aa12",
-     "emissive.png": "56622ff6afdddd48bff74c96bab0465355b17214634ff4088394e72b4841238e",
-     "thumb.png": "4ba52d34665af1734111d34b887dd484ccbc0626f369faca01acd08ed61aed54"
+     "texture.png": "6417e66bec9d760763582a9ffd2cb5e9ab3080ea739b383f7ee96251eaac1905",
+     "emissive.png": "60e8107b8528867e6d9589c953af20e0bfc939042bc2dff73e609def856fca34",
+     "thumb.png": "0e3624644dbe2d0a331d75d3ab1b5135fb1e9bd110d33cfb8b70799f2a57d478"
     }
    }
   },
@@ -699,8 +700,8 @@
     "files": {
      "item.json": "e766b2a0af851dbd4e2d6faa3ef51889b7356da5de611c22e1c9ef7c5968c4ac",
      "model.json": "355cd2d7dd5efff6e61ce2489bc4dc27f9c524ef0971cc088d342888c9351b95",
-     "texture.png": "be02c592283718c1f0d8085d035f5b5d41355fee15e0a2f61cb7b74e8b25fb4b",
-     "thumb.png": "924dc03e26c5e1079ad8a469e782487b6dc3d4faf7a71437072141f215b261e5"
+     "texture.png": "eff3af607bf48d545d0f4740814d0e137264444668084b7123f0815f16bfedd3",
+     "thumb.png": "291c98ce936f457fa7b3e208ac64c71c4a5509a60b9aa6add7f4c65e94baef4d"
     }
    }
   },
@@ -739,9 +740,9 @@
     "files": {
      "item.json": "9d689ea468cc69c11cbdc5ed812f50970c2b9283e2711b9e00328b40f9a92594",
      "model.json": "b1414ff95d6044c606c83c1793102d2a749c0f938dc3cd3149009b8472177861",
-     "texture.png": "f481231fabf0a885b676d86834b508f41c5116b0767d162870975695224590fa",
-     "emissive.png": "dbf174f920c69a1cdbc6987d95e11f41978eb1a773098664e61413f932920f23",
-     "thumb.png": "99b7ef9114097f25c924a131dc0adda010b5a35047edda46b55b99d04f6de100"
+     "texture.png": "71b6ffb627d5317ac881229da8a97ee9ae3ca32c9dbadfa4c4944c6f9803e9ee",
+     "emissive.png": "b353f359f2213d0225dfc293b70bd58a0938bf46451195ab821e9ac28ba46fc8",
+     "thumb.png": "18565f26b72c166947cf5684807ad2f7d76c013c22897644ac4635fe239f9112"
     }
    }
   },
@@ -760,8 +761,8 @@
     "files": {
      "item.json": "96f745fe8a28559a8162390e02ad6cd48a81541e0cad54738228ebdc76e306ae",
      "model.json": "d5369e6d3d59e296479ea9aef5075957a863c711656b431ea5e4d2cfd7ba08b3",
-     "texture.png": "4c55e8e217c5a36c76f5a146bfde4cbbdc27a75779c2057d0c4474d12cafba1d",
-     "thumb.png": "2e54290775794a74e75033d16f340668438d7c230931842700b67bb66fa44367"
+     "texture.png": "4a08ce11ebde341e93e5ea76ff2e7c24a274b585c34ff5a798482a8635690b8b",
+     "thumb.png": "1bb3b8f29629437ee9a54f75beefcb9e3e6419b7f3a383c33edc79e633e68f11"
     }
    }
   },
@@ -780,8 +781,8 @@
     "files": {
      "item.json": "4401a4da7d8a7f26c38f0a06128db8e6266d58d15908def34c75eb01dae93863",
      "model.json": "f4d9d925b69ed6103b792d90f3cfbc87c495057662ddf81b8ccdad8cd6930691",
-     "texture.png": "1dbe99d8aeec6dff99a4eaa8a6b971c057ffb784e07b081b9fbd6f749c577a37",
-     "thumb.png": "3cfd4513c17928a79feac8fb51d1d600b3ae9dc8082765ab220af14ea21a8977"
+     "texture.png": "3d7c06f5c59989ece177a391d72b61c282e0e7bbd4ae2c6150f46854a2daf23a",
+     "thumb.png": "6d52c639683b38a662ad9dbb59c9958c7424c86528f5c5d628db61b3b22e1f76"
     }
    }
   },
@@ -800,9 +801,9 @@
     "files": {
      "item.json": "0ab981f29af441cbd622fe9320ee8df51e1e51eebcfe36ff9ad86d3dabab4093",
      "model.json": "1118a41ca2a537a1f18d877195c69c46cc08c1af2387f0ab3413469dbfe0dc7f",
-     "texture.png": "e8c651a5aa3fc9f178c0b8704aa649de94f23a9d0ea027f02dafc76c77b73041",
-     "emissive.png": "47334745ab7e3e1e62fc9b1490ac420be01e38dbebe9647ea350a0341aadf590",
-     "thumb.png": "42d289ff16e6a7b07909910332867c1cd4e5946d0ffbc598aed4c1bf8a7cc502"
+     "texture.png": "b606754fb7b251f5a8de057dc42c75ada6dc34746fb67dd92ba3ed32f790954f",
+     "emissive.png": "a12929fc4c97e4755019c795d1760e8a3c64ed9fb2bfe740d9fecdf471c2cb80",
+     "thumb.png": "7cecabdb7788fbd5ef2f884daa90c909f8313f75be2d2bce4482db00dad3d69f"
     }
    }
   },
@@ -821,8 +822,8 @@
     "files": {
      "item.json": "5c74a42443da1b3980cf83d0222993942b0226a3d78985baa1db3dcdce8a8f0c",
      "model.json": "3a8449f0999808f507d8e9591c42e57105025a6aa9bc60f8800c4fa4a6ea61e8",
-     "texture.png": "cf6c55de7139dd8886bf7a74ebb6c21c714c80ea10d6c045920ff657ed16040e",
-     "thumb.png": "2be8840b4f7a22662358c0798397c8f3868b68f2954fd5782baed9c309f5fe83"
+     "texture.png": "74e69ab1693c58b3cc84dd9fdfec32360e028947d476503d296ac805caa20a29",
+     "thumb.png": "14f5287df9f921a12bec4556b5068704ee93aae0013e3b121b09c5f71a54aa4c"
     }
    }
   },
@@ -840,9 +841,9 @@
    "assets": {
     "files": {
      "item.json": "89974a7f8fabe626c72ba755e5bdc6bb9b8d496b494e8ada38752ff60982554e",
-     "model.json": "bf3dadbe2ad72d5c652894a0a179a09f366b41d088d65ae3eda5971b64d1a7f6",
-     "texture.png": "1164be543a7bcfcc40ea94459b9162fd880a220f9322d9566939f82f43d67d2f",
-     "thumb.png": "96f75e4af8e2da0b214a99285062157752efaaa69a271d90c9ac885eb4688a76"
+     "model.json": "a90cce2f00bdd0eeb5212369bcc79d5e56c9f9fe15a3ca56729dce7a68122a0c",
+     "texture.png": "96c9a6fdb56c68f584037631066c68f192182e333390c16ce6b6d5bc8e2f5ba5",
+     "thumb.png": "8fbc39cff489891e0c1c07aa85294d4f8963d183f68161e813777b8fd4f24cfa"
     }
    }
   },
@@ -861,9 +862,9 @@
     "files": {
      "item.json": "97b4f371c36cf05946eb9c53548b6dd76a51d32fa97e278a6d6faf267d068b4e",
      "model.json": "56e20a98a25c43ab44c5b6f17b28d646f61f48fd57a241e1f578fb705a5cafc8",
-     "texture.png": "88d47733fe7a9529c14a40d5dac100cfddfd27e2211bdc589ddce7ec3cb11d7d",
-     "emissive.png": "86f994680b10f567ff0777a35bcc4e8cf4d98c5399c3742772d0cf78a7f5d5e0",
-     "thumb.png": "2698f8b09f0432fa95888808eebf37d14fb470ee61aa7a66b920be67ddec65bf"
+     "texture.png": "6cc441b7cecd6e068a598a5adf6f0decf65108d30af96471d0123824ae80f356",
+     "emissive.png": "91040b83bda1c7f80639535d1609c897ba661042931cad759749aaba732868a4",
+     "thumb.png": "f75c1b2f7400fb27212fcaf3aad07ea86ec2791e952d017b743df7d6908ee48f"
     }
    }
   },
@@ -882,8 +883,8 @@
     "files": {
      "item.json": "3aaeabd3e71ee5c4c2aa3c1fe7c6eeed4739fe624c67fbf5bc41d3c3d48ef37c",
      "model.json": "92e69ee85faea56c8eb4eb6c2a618dc8985068e7e033fb32b1a8ba12d8f8810c",
-     "texture.png": "4fcd85ed1920d20501dbb3674993b250836cdcf4bc9509b5caa144320db7edcb",
-     "thumb.png": "348af147fcdba5c4e2ed32426314bb5cf7c9c6e85541b398aff5a35042f5bc5f"
+     "texture.png": "f278e3eca2f0835fc51ba8c647d3c5677d9e7538d951b907683d4d7ea14ee6a4",
+     "thumb.png": "25f340c2c79476699508671322a67180b242ea8f98f70b01190b9fac67b2ac15"
     }
    }
   },
@@ -902,9 +903,9 @@
     "files": {
      "item.json": "7115747ccb07623fe69492177659e2d4a22ff1647f44903cfabd46fd2b23b06e",
      "model.json": "0aa69d3272baec6193e7f1633201b61d8dd0348135b1c585bccb4f719adafd86",
-     "texture.png": "a83e3cdcdfea688b3218d1f7d735b1aecb104c5a9eed8639eace68ecf86f80d5",
-     "emissive.png": "408de267e7e2c5ea31e0846e2e8a944f47ef4eca9219dd088bb6879e2f0a4dba",
-     "thumb.png": "6295d0a0dd1643531f00f0aaab3d663365e65b157a6146193ef037b53cbc0c46"
+     "texture.png": "a68de66f2e9fa43dc9344da3671aef43b77af35e22ea2ec3ff461b23f6f4c9f1",
+     "emissive.png": "0ba3f1acf7811a8bed8848643a067f9a7485b27d20d28698a1962255991f33d5",
+     "thumb.png": "bdd60fda1486e0bea36bab73c02c5d6051bc91e9bb3450609a6db1e4ee7797a9"
     }
    }
   },
@@ -923,9 +924,9 @@
     "files": {
      "item.json": "fcd7ff38ad3249e83f0416d8a83ba030147961400b377f9471f4a030922fa898",
      "model.json": "9423abf53bd23e5e4879902fea9451aa0f646c57a9273eab8a48fb8970bf8d32",
-     "texture.png": "52824a25ebf9f289b83762b9f22e901ccd15dca1b4861216239f10a5c6acb07c",
-     "emissive.png": "f3ae4f7753a440bec252758349b245af2e88dde307f91e2e7589ebfcef9e7224",
-     "thumb.png": "182af1d9f1de07bae64ab79748a4170d4cc7f7de8e885c6d9ba038ef01b7de57"
+     "texture.png": "c0fdbe580c8fdb16df408ac5c397c1877730f16b115d80808a98749f6f8a74d1",
+     "emissive.png": "4a61a74e5bc12071d9ec1ce9909f82bf48e85a566f1839235b055ae60761404d",
+     "thumb.png": "14b08879b59ce522cc00fb971d124bc0f4a35aaf40d63d2f8e5a09e723a5cbc8"
     }
    }
   },
@@ -944,8 +945,8 @@
     "files": {
      "item.json": "126f8e18a4af611b75b1a23ac049749af8e6f0c68d1fbac7fd5e1d63341ecf0b",
      "model.json": "63c7f9083672a857d7383fadb49965e6fc9b71381d9af3a2c3527073c0831efc",
-     "texture.png": "aa46f31c2e5cb222a30c6eca89afa6340e61cfb10fb51126a6f8c2e03573d561",
-     "thumb.png": "d0251da8f965c523ebaf191bdbb2e52a59e19150dd207c7473f85f5960cdb6f9"
+     "texture.png": "c649db66a2e3331d06ec063e0e7489200effff4c8648ec2f5ac04cbc3c8cfce0",
+     "thumb.png": "1e9895c32fc37df1d3946a23c12318c05836bbdc1587ae2e205334f0c2811630"
     }
    }
   },
@@ -964,8 +965,8 @@
     "files": {
      "item.json": "1954c0820b61ff742d8ed8c9017948f8422d0028ef50e03011886f6d3b2ca7f8",
      "model.json": "4b972c9eb2d692eebb47cc18c4aad68c6f2d0a527af77e43e55c4b4d013361bb",
-     "texture.png": "6d0f369ea76df18cf57f6f0e4fecb7925ccfeb92732f1b547f4b871ca1a37af9",
-     "thumb.png": "d8167a868ebf27be92afc9d45eda147a11f2ebaf08a2cf4183167cc56c03849f"
+     "texture.png": "aeee9edd5696e82c5a161544d697a5a12a429d70dadfef31638df6046e633d29",
+     "thumb.png": "36922b0c5baf4dae38aaca605a663b89ee54cfe6667050a94f6ee9aab29e9d5c"
     }
    }
   },
@@ -1108,9 +1109,9 @@
    "assets": {
     "files": {
      "item.json": "150dbc1ecf0d444156477a6a70882b56758dee89de615dd0c796eb2fd9e1376f",
-     "model.json": "8d7f89c28865542875d0635e29e10c9c5e73c87f3918e8b15a563d838e28b6ef",
+     "model.json": "21df23510b283783c20c73c30502e5e9c464c0888397774c0ff97dd281fa99dc",
      "texture.png": "d81adf3f69ad35e6dc8eea5c9bf8d6d37ac64d1559ca6a314e822d10fe05541c",
-     "thumb.png": "7e01402db2f9421735ae5866961d1a92392b5c8caeddf20d4dcc2901151a1ef3"
+     "thumb.png": "8d88020fe58f6fda533021dba9d7551284aaf7c276fbf211ee8e603fe0f9337c"
     }
    }
   },
@@ -1128,9 +1129,9 @@
    "assets": {
     "files": {
      "item.json": "7040f0708b2c3b6366c24fc69e6252b9f1b1e7328fa3c9979f2a697cd8c98299",
-     "model.json": "f1d0c3c83200f56cb4ff9974b58ce9561e0e8af71c8e8e881d4e73084d3fdbb7",
-     "texture.png": "61da8695e5c598d97aa8e0b497a0220135fe33d637ea1ff43d686f6bcd43d2c8",
-     "thumb.png": "c40c977a92f337c09a50b6e97a61701f765d5d5d0e8e5fb0847a15f9464f9f96"
+     "model.json": "fb3585029e7120dea426615b41ae70ca1307d255f59890b302d9a484e66b0603",
+     "texture.png": "5497443a827663fd99843af88413d38bb11cdafc2b5d3f2445919886f2ab68d9",
+     "thumb.png": "086e6b407f84d915e96fba3b22553a931a25650539daf9c02d8478d84020df79"
     }
    }
   },
@@ -1169,10 +1170,10 @@
    "assets": {
     "files": {
      "item.json": "22f2d3e269567d32f42039bc1aa2674c04e36785437a7b7b27b89e8a3d2cae1a",
-     "model.json": "ec2d1f7e7434de5a94d1a43f10916e2607bbbd5e41da751ee8476898a74b11c4",
+     "model.json": "6cc94f1914f0f857b6a8b4ee0fc092745ec027b894823778f5abd141743a44c2",
      "texture.png": "e61470ec1e1b3f7065517449223823e1db4cea353409edcffaaa2ef318583b49",
      "emissive.png": "0adf6165da8ec5c76491554f1e4cfd1bf71fe69401ab6539a518f9fc89a400f5",
-     "thumb.png": "63ac68791e26855145ac5d6aa75a6784ab8af7ce84b9eaad5b4e9b1635e282e6"
+     "thumb.png": "89c2bf48300191050b244d055d46c4c1b25aa86e6ed4a41e33b7dfff696dde26"
     }
    }
   },
@@ -1190,9 +1191,9 @@
    "assets": {
     "files": {
      "item.json": "3988eb92094869e62b6ad433418be9f7d25e2775872b09d0e028a42f1e01121e",
-     "model.json": "85d1478224b9adb683a76cbc8ed76fa73b2b30103ed92ba12700a476407a529f",
-     "texture.png": "aa24bf3c07ffd21aa5d41b09f6d1ca6c710ca342f489aa6c23b72946fbb90ffe",
-     "thumb.png": "3bd2a8a117e858aaf7400f98f93d66983ddd7d044e7da75604abcaa9b2b5d7d4"
+     "model.json": "5449fd695406ba885e31eabbf05b838a558298d1dc09c505fab9b9446bae4164",
+     "texture.png": "f097d659d5f84983d84976ac3d80000e36ab162275d4a2758c01f532cb6c08a8",
+     "thumb.png": "55d74d12eeda7122c2bc6193bd5ea32a33b6a21a0cee94c3d02571ed5a54499f"
     }
    }
   },
@@ -1209,11 +1210,11 @@
    "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
    "assets": {
     "files": {
-     "item.json": "40fc1a120ca09d3e9d671cf37795caa2794f122e920bf96a3f045feb9e960d41",
-     "model.json": "cb2d44c9e75e952a3a98816f869ab525c7682767106b0d43e0d293ae77c9be32",
-     "texture.png": "4b4f722b023e6bf1eb1defb9be774c5334d6f5a6d6695bd7dd2bad4c70f12295",
-     "emissive.png": "49250eeb2b96514d00400ac39f50582d4fbe9f8abfba7723bf2f0d99197bbe6c",
-     "thumb.png": "aadafb7829a0d761a3f81b24b0f55bc81f4e4656e634599d6f9ead5224804a3f"
+     "item.json": "0d87152a4db0961bf15d58b12b3eadf7a4449d25dfa92906a332286020ff483f",
+     "model.json": "72502befdf1350cf7cfd8eb4e45e7280bcd39917b897ba90239c2ceb8c3a0e42",
+     "texture.png": "3e70d74b3e27cbc16f7308cebe87b0fb40ce16afe0e3567e68f523ad3102ce9d",
+     "emissive.png": "c3573dd5b52adb08a1bf727356143b143f624d2001745f32518b1fff1f679aed",
+     "thumb.png": "23eb361bc7368694de8a82804c4932613bd2acfba6ef18750f32793d0ea4e10a"
     }
    }
   },
@@ -1231,7 +1232,7 @@
    "assets": {
     "files": {
      "item.json": "2f4d3a579b1202fe2ac76bcc644cf65bf1e29d0dd705217a2cca8c35d3985497",
-     "thumb.png": "a44eba49539f47088a907b627d9ddc25096b104e572ad3b4576e3e937968ad20"
+     "thumb.png": "83766a217add635f60ba862403655eb1962c71c0b5ead8f73fb35a782d421850"
     }
    }
   },
@@ -1249,7 +1250,7 @@
    "assets": {
     "files": {
      "item.json": "c406ce82bee40bebded707bf19eb192133aa6545353fa08965478372bfadd3ec",
-     "thumb.png": "57b3bf587fb87494b3f17d8005f864aba8b5f1a1a4dbfd79c82dc28067672b11"
+     "thumb.png": "b84751ef8e55aeb48237e4603bfbb91ec679e760d484c81abd76c730ce7210b1"
     }
    }
   },
@@ -1267,7 +1268,7 @@
    "assets": {
     "files": {
      "item.json": "f02d0371987103432a05ea6183a833d788ba846887cd248224e40c7bbad62dd2",
-     "thumb.png": "b909fb6a8ded901442c7d04fb559b2996c3988adaa3a9f2dca89f43242e236eb"
+     "thumb.png": "5d566eb0ae6ee1d43755f581fb9edb552575a67424e981ea0ead8213a2271fa3"
     }
    }
   },
@@ -1285,7 +1286,7 @@
    "assets": {
     "files": {
      "item.json": "cd1a38b84ade2ff622e9f04cffb756246ac8b23f06f21a4cb30d2f774bd1283d",
-     "thumb.png": "fc018aad007baac8b0f07517ddb6b1f0e029de1d0098ef25d4abb4e699401c77"
+     "thumb.png": "a35a2849f3c52b2d9313a569670a64a2469422e81dff34f9b0bff076d0afaf3a"
     }
    }
   },
@@ -1303,7 +1304,7 @@
    "assets": {
     "files": {
      "item.json": "6e84501893479627f1ebe0818c68b4c56aff6efbc64f105a19bf225750252155",
-     "thumb.png": "905cbfff725a7905c7f95a402691c736cfeebc42f2551bbe025b94b3e14daa54"
+     "thumb.png": "9648d96b0435f8f8a5dff4c6688d41e2094e81e5edafeb27cc851f3f89c8a379"
     }
    }
   },
@@ -1321,7 +1322,7 @@
    "assets": {
     "files": {
      "item.json": "8f4ce250048bd243e64d8f8e4b7d88708dff60e4cdb332f990999318495bfb87",
-     "thumb.png": "eb8046604cdf075a1163bffd39e63a06311226210fb13a7fa46c1e265f70c47c"
+     "thumb.png": "a680625da4450fa7dd8b73f5842a9d81adff1a8acdcfe59f58fbdfdf3fe72bf3"
     }
    }
   },
@@ -1339,7 +1340,7 @@
    "assets": {
     "files": {
      "item.json": "6ddaf8578d97cec4f99520d7be202e0811e5bbd1ed92be5df187d44ca6bfe55c",
-     "thumb.png": "a472f8b662a02bc1b93f42449b1e78ec6a39d5077b2ab48f43a98029753189bc"
+     "thumb.png": "f173d582ec061258dacdfebaae9113db7ff25180aaf69a096ffdb708874589a8"
     }
    }
   },
@@ -1357,7 +1358,7 @@
    "assets": {
     "files": {
      "item.json": "660c90573370f67ee9374a0950612b82610cd1d566c2f37ca31fc5060240c3f8",
-     "thumb.png": "c5d6d523bb3a9eb02856e1c07707b9d4f88d4a3348613ca12571e1b6d8cc2269"
+     "thumb.png": "c04a014e33123586c461f37d2b8ea8f40e0d48e53e64b81462eadf6ddfb4f661"
     }
    }
   },
@@ -1375,7 +1376,7 @@
    "assets": {
     "files": {
      "item.json": "d08ac5a92853f56c3d5e818e103af76a0b0cb32c9be58df9f6165a5bf51a8855",
-     "thumb.png": "8764b6e8aa8894e47f5c4319c356f9780b3c7725889ce8c63caf19079fae643a"
+     "thumb.png": "343ceef1951c429fa2d18d1204f863d83b31d9fafc9ac7c4dc8d54d884a9d314"
     }
    }
   },
@@ -1393,7 +1394,7 @@
    "assets": {
     "files": {
      "item.json": "e2f3f2e2766f82378d25025b894a3934b8495844854b82eb029ae2dbc2ce2ef8",
-     "thumb.png": "cd37c418107e4a197beb0809010a4e0c98fa1afa243bba73253579ca82d75578"
+     "thumb.png": "f1b00f9d24c955936b5fc4d6f6016365a86c3f3f18e6c83c7139256f2ded66e7"
     }
    }
   },
@@ -1411,7 +1412,7 @@
    "assets": {
     "files": {
      "item.json": "c2bbb5fa0ed78d249e28057e6d6184a6bde676e1863b9a53ea0c1d64f49c4b0f",
-     "thumb.png": "5c5d7e05ace8ae7f0f0a50b9b843b858bacaaea4dfd1c41071a528182adf09a1"
+     "thumb.png": "7b1e1734ac8c507db9fec831f469dec121ff5ad6997dd4e95bcf0402ae70af80"
     }
    }
   },
@@ -1429,7 +1430,7 @@
    "assets": {
     "files": {
      "item.json": "5886af88b5542f7a120ae6ef43382b1cbfa2e15cf66d3756715739b57bcbbadc",
-     "thumb.png": "f0a52c64e9e827243b2f33669a9c7de8ad420ff228c9564a1fa782e28f34cdeb"
+     "thumb.png": "eb4db1358d0a6a28a2ff4a53369ba6753d4802930d8e3bf6d007572d7077d565"
     }
    }
   },
@@ -1447,7 +1448,7 @@
    "assets": {
     "files": {
      "item.json": "dccfbd79d61fad3f25e8684a8040311faaf2b3dc1da62d7611955f26557fbe26",
-     "thumb.png": "b81ca50a88408d8a2d7971d208b6b51ffcebb44127e42433dd1d6859761d0da5"
+     "thumb.png": "b71f0a09943bc32c839a11555756c8be663567c49d51a8c2b2cf1ae44f062d8f"
     }
    }
   },
@@ -1465,7 +1466,7 @@
    "assets": {
     "files": {
      "item.json": "b43615b7364e33dbbedc2e924c0b2a84848a8a9a46e6bb6ca358a7afdca2e235",
-     "thumb.png": "ed7e46365b554b7725cd881a9e397f53394c7443995538e8b3eefb429db11b6d"
+     "thumb.png": "016c68d16c67c66692921701baf3e264307c4e06a5f4c88a2ba68f6d08c4df84"
     }
    }
   },
@@ -1484,9 +1485,9 @@
     "files": {
      "item.json": "d7e75a194308770519ccef5e09c5fa773f1f6415d844e88c90f5625fc71ab07b",
      "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
-     "texture.png": "087b24adb24843886191fe77ee049ad9aa7ee8779e39d7d966db535513ed8f7e",
-     "emissive.png": "127d61cfcd6b8f4d24675bb9b33f2b4b6b6530492b544f4216bf812823b59c78",
-     "thumb.png": "4370479ab8db374a0732ce130dd4a3b29d60d71ca2bdc4e629c3d74ee3b27b99"
+     "texture.png": "d5169d556149c9cc3bfe8c11b9228bfe12f1eacb7e11eda0b7b7c7bb3c72b5af",
+     "emissive.png": "e76d985783e7c00eb73755041186abfd04f355216d6ae54a9703625958bc3d3e",
+     "thumb.png": "fbcf0849e2289f88a5146865fc68f59ff9a2eafb89c21404f236ce8df6ae846c"
     }
    }
   },
@@ -1505,9 +1506,9 @@
     "files": {
      "item.json": "b59d6bfbe3fde74acd5b1c1e677fe4a915388700109977dc2e5dcbd3950b5850",
      "model.json": "27862c35e466d640c20410d3da28446e9bec2e0862e96fab4367b007c5dc77de",
-     "texture.png": "a52f2d4e1d5b0b219091728d6b8250fc7b902096a779dfd1fea3eb2600703ede",
-     "emissive.png": "36943db635f872fb588b81df1a38da995fad338ae6749089670a5afbb8a9d1c1",
-     "thumb.png": "c6ea6e4defa88eddc417cddc96a1efa51178f5fc6401f669092e80bd77aea9fd"
+     "texture.png": "b2dd2892377dc860ae6653286f7d7fcfe9eda82903dd122b851bc39eed9a3ee5",
+     "emissive.png": "28074d491f36d6fea8512749496fe58dcc03ccc84f470da22642968a06ddfbd7",
+     "thumb.png": "5ddb3e4f5ed4bafed951d1bbe42f52d47ef7bf12ef3b717ec4b855a4c8a2eef1"
     }
    }
   },
@@ -1526,9 +1527,9 @@
     "files": {
      "item.json": "2c43a6c0c80763e48d193bc83c4eb305e59387bdd0f1049fe4adbaa1bfb57105",
      "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
-     "texture.png": "a282cc9e73b61cd26b0c33babf0673603224ca64e929e654766f1668c582d359",
-     "emissive.png": "bcd184897d9be27e463de77b0adddd9919d9f3ca45b9b1a54ab2e024e2313487",
-     "thumb.png": "84857493a91ba93a7494e432684fc64567fdd7c6e8e6b2b3525c8deb4dca039b"
+     "texture.png": "73ee825491f085de49f7fb4d1c407365581090266be96e6424d54a76d6e378f5",
+     "emissive.png": "79c74e5abbb9f7e8405b54249eb4d9b847e0fa3e0bd2c173c75fcbc391cc294f",
+     "thumb.png": "1fc7087d026b51bae7b3865da8d642a154da5d456aeb3451ea49e09f9e1eb77d"
     }
    }
   }

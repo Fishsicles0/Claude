@@ -1055,7 +1055,7 @@ def tidal_px(cv):
     h, w, s = cv.h, cv.w, cv.s
     y, x = cv.grid()
     X, Y = x + 0.5, y + 0.5
-    R = 1.25 * s
+    R = 1.6 * s
     cv.arr[:] = hexc("#041a34")
     rows = int(h / (R * 0.5)) + 2
     for j in range(rows):
@@ -3154,6 +3154,13 @@ def party_paint(face, cv):
 
 def tinsel(face, cv):
     n = hash_noise(cv.h, cv.w, 9)
+    if CRISP[0]:
+        # pixel art: fluffy tufts (a few flat pinks) with scattered single-texel sparkles
+        tuft = levels(pnoise(cv.h, cv.w, max(2.0, cv.w / 4), 9, octaves=2), 3, 0.3)
+        cv.arr[:] = palette(tuft, ["#ff9ac8", "#ffc2dc", "#ffe6f0"])
+        cv.arr[..., 3] = 1
+        put(cv, n > 0.93, "#ffffff", 0.6)
+        return
     cv.arr[..., :3] = mix(hexc("#ffe6f0"), hexc("#ff9ac8"), n[..., None])[..., :3]
     cv.arr[..., 3] = 1
     em_from(cv, (n > 0.8) * 0.6, "#ffffff")
