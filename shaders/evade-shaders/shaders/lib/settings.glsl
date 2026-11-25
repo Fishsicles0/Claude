@@ -1,5 +1,6 @@
 /*
- * Evade Shaders - every user option lives here so Iris can list it on the shader options screen.
+ * Evade Shaders - free with Evade Client (evadeclient.com).
+ * Every user option lives here so Iris can list it on the shader options screen.
  * Defaults are the MEDIUM profile; shaders.properties defines POTATO..ULTRA on top of these.
  * Option syntax (read by Iris):  #define NAME value // [allowed values]   or   #define FLAG / //#define FLAG
  */
