@@ -3836,13 +3836,14 @@ def wisp_tail(face, A):
 def wisp_pet():
     a = WISP
     body = pet_body("wisp", a, [
-        PC(a, (-2, -6, -2), (4, 4, 4), px(WISP_MID, wisp_head)),
         PC(a, (-1.5, -2, -1.5), (3, 1, 3), px(WISP_LO, lambda f, A: wisp_glow(A, [(0, WISP_LO), (1, "#2a6ad0")], 0.4)))])
     body.anim = dict(PET_ANIM, amp=1.0, speed=1.2)
+    head = Bone("head", "root", P(a, 0, -4, 0), cubes=[PC(a, (-2, -6, -2), (4, 4, 4), px(WISP_MID, wisp_head))],
+                anim={"type": "pet_head", "amp": 12}, parent="wisp")
     flame = Bone("flame", "root", P(a, 0, -6, 0), cubes=[
         PC(a, (-1.5, -8, -1.5), (3, 2, 3), px("#c8f8ff", wisp_flame, rim=0.88)),
         PC(a, (-0.5, -10, -0.5), (1, 2, 1), px("#ffffff", wisp_flame, rim=0.92))],
-        anim={"type": "sway", "amp": 9, "speed": 1.3}, parent="wisp", emissive=True)
+        anim={"type": "sway", "amp": 9, "speed": 1.3}, parent="head", emissive=True)
     tail = Bone("tail", "root", P(a, 0, -1.5, 1), (-20, 0, 0), cubes=[
         PC(a, (-1, -2, 0.5), (2, 1, 3), px(WISP_LO, lambda f, A: wisp_glow(A, [(0, WISP_MID), (1, WISP_LO)], 0.45), rim=0.82)),
         PC(a, (-0.5, -1.75, 3.5), (1, 1, 2), px(WISP_LO, lambda f, A: wisp_glow(A, [(0, WISP_MID), (1, WISP_LO)], 0.45), rim=0.82))],
@@ -3850,8 +3851,8 @@ def wisp_pet():
     hand = Bone("hand_r", "root", P(a, -2, -3, 0), cubes=[
         PC(a, (-2.75, -3.5, -0.5), (1, 1, 1), px(WISP_MID, lambda f, A: wisp_glow(A, [(0, WISP_HI), (1, WISP_MID)], 0.4)))],
         anim={"type": "wing", "side": 1, "base": 0, "amp": 18, "speed": 1.1, "fold": 0}, parent="wisp")
-    lids = blink_bone("lids", "wisp", a, (-1.5, -4.5, -2.03), (3, 1, 0), lid_paint("#b4ecff", [(0, 5), (7, 5)], "#0e1a3a"))
-    return [body, flame, tail, lids] + pet_pair(hand, a)
+    lids = blink_bone("lids", "head", a, (-1.5, -4.5, -2.03), (3, 1, 0), lid_paint("#b4ecff", [(0, 5), (7, 5)], "#0e1a3a"))
+    return [body, head, flame, tail, lids] + pet_pair(hand, a)
 
 
 item("pip_wisp", "Pip the Wisp", "PET", "REGULAR", 500,
