@@ -94,6 +94,24 @@ public final class CaptureSource {
     /** Called by the capture engine when a Desktop Duplication capture died: the next start uses GDI. */
     static void ddagrabFailed() { ddagrabFailed = true; }
 
+    /**
+     * Sound that stopped a capture before it got going is dropped for the rest of the session, so clips keep
+     * recording: first sound straight from Windows (speakers or the game alone) makes way for the old sound-device
+     * route, then desktop sound and mic are left out altogether.
+     */
+    private static volatile boolean loopbackFailed, soundFailed;
+    /** Whether the last capture built took its sound straight from Windows. */
+    static volatile boolean lastUsedLoopback;
+    /** What the last {@link #reduceSound()} changed, for the notice. */
+    static volatile String lastStep = "";
+
+    /** One step down after a failed start; null when there's nothing left to drop. */
+    static String reduceSound() {
+        if (lastUsedLoopback && !loopbackFailed) { loopbackFailed = true; return lastStep = "with the sound device instead of direct Windows sound"; }
+        if (!soundFailed) { soundFailed = true; return lastStep = "without desktop sound or mic"; }
+        return null;
+    }
+
     /** Whether Windows capture uses Desktop Duplication (true unless it isn't available or has failed). */
     static boolean useDdagrab() { return Ffmpeg.WINDOWS && !ddagrabFailed && hasDdagrab(); }
 
@@ -187,19 +205,21 @@ public final class CaptureSource {
             if (s.recordVoice) { a.addAll(List.of("-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000")); tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""}); }
         } else {
             Map<String, String> devices = null; // scanned at most once per build
-            if (s.recordSystemAudio) {
+            lastUsedLoopback = false;
+            if (s.recordSystemAudio && !soundFailed) {
                 String dev = s.systemAudioDevice;
                 // Windows, Default: straight from Windows (no Stereo Mix or virtual cable). With the game running and
                 // "game sound on its own track" on, the Game track is only the game and the rest gets its own track
                 // (mute Discord or music in the editor); otherwise the Game track is everything the speakers play.
                 LoopbackAudio.Stream game = null, rest = null, speakers = null;
-                if (dev.isBlank() && Ffmpeg.WINDOWS) {
+                if (dev.isBlank() && Ffmpeg.WINDOWS && !loopbackFailed) {
                     if (s.gameAudioSeparate) {
                         Long pid = GameDetector.detect().map(GameDetector.Game::pid).orElse(null);
                         if (pid != null && (game = LoopbackAudio.windowsApp(pid, true)) != null) rest = LoopbackAudio.windowsApp(pid, false);
                     }
                     if (game == null) speakers = LoopbackAudio.windows();
                 }
+                lastUsedLoopback = game != null || speakers != null;
                 if (game != null) {
                     a.addAll(game.ffmpegInput());
                     tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
@@ -215,12 +235,12 @@ public final class CaptureSource {
                     if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Game", ""});
                 }
             }
-            if (s.recordMic) {
+            if (s.recordMic && !soundFailed) {
                 String dev = s.micDevice;
                 if (dev.isBlank()) dev = defaultMic(devices = devicesFor(devices));
                 if (dev != null && audioInput(a, dev)) tracks.add(new String[]{"[" + idx++ + ":a]", "Mic", "volume=" + Library.fmt(s.micVolume) + ","});
             }
-            if (s.recordVoice && !s.voiceDevice.isBlank() && audioInput(a, s.voiceDevice))
+            if (s.recordVoice && !soundFailed && !s.voiceDevice.isBlank() && audioInput(a, s.voiceDevice))
                 tracks.add(new String[]{"[" + idx++ + ":a]", "Voice chat", ""});
         }
         String resample = "aresample=48000:async=1000,aformat=channel_layouts=stereo";

@@ -160,6 +160,10 @@ public final class CaptureEngine {
 
     public synchronized boolean isLive() { return state == State.LIVE || state == State.STARTING; }
     public synchronized boolean isRecording() { return recording; }
+    /** Capture is writing the replay buffer (not just starting, not failed). */
+    public synchronized boolean producing() { return state == State.LIVE; }
+    /** Why capture isn't running, when it isn't (blank otherwise). */
+    public synchronized String problem() { return state == State.ERROR ? message : ""; }
 
     // ------------------------------------------------------------------ lifecycle
 
@@ -566,6 +570,19 @@ public final class CaptureEngine {
                         try {
                             start();
                             notice("Switched to window capture (screen capture isn't available on this PC)", 10_000);
+                        } catch (IOException e) {
+                            state = State.ERROR;
+                            message = e.getMessage();
+                        }
+                    } else if (neverLive && !trackTitles.isEmpty() && CaptureSource.reduceSound() != null) {
+                        // Capture never got going and it records sound: the sound sources are the usual cause (a device
+                        // that won't open, sound straight from Windows). Step down rather than record nothing: first the
+                        // sound device instead of direct Windows sound, then video without desktop sound or mic.
+                        String step = CaptureSource.lastStep;
+                        System.err.println("[clips] capture failed before its first frames; retrying " + step + " (" + message + ")");
+                        try {
+                            start();
+                            notice("Capture retried " + step + ": " + why, 15_000);
                         } catch (IOException e) {
                             state = State.ERROR;
                             message = e.getMessage();

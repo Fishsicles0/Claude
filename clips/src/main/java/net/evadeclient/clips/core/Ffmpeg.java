@@ -161,7 +161,56 @@ public final class Ffmpeg {
     }
 
     private static boolean runnable(Path c) {
-        try { return Files.isRegularFile(c) && Files.isExecutable(c); } catch (RuntimeException e) { return false; }
+        try { return Files.isRegularFile(c) && Files.isExecutable(c) && works(c); } catch (RuntimeException e) { return false; }
+    }
+
+    /** Files checked by {@link #works}: path, size and time → whether it ran. */
+    private static final java.util.Map<String, Boolean> checked = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Whether this ffmpeg/ffprobe really runs ({@code -version}), remembered per file version. A download cut off
+     * halfway leaves a file with the right name that Windows can't start; counting it as installed would make every
+     * capture fail and never offer the download again. A broken copy in Clips' own folders is deleted, so the
+     * download is offered again; one anywhere else is just skipped.
+     */
+    public static boolean works(Path c) {
+        try {
+            if (!Files.isRegularFile(c)) return false;
+            String key = c.toAbsolutePath() + "|" + Files.size(c) + "|" + Files.getLastModifiedTime(c).toMillis();
+            Boolean known = checked.get(key);
+            if (known != null) return known;
+            boolean ok;
+            try {
+                Process p = new ProcessBuilder(c.toString(), "-version").redirectErrorStream(true).start();
+                p.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
+                ok = p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0;
+                if (p.isAlive()) p.destroyForcibly();
+            } catch (IOException | InterruptedException e) {
+                ok = false;
+            }
+            checked.put(key, ok);
+            if (!ok) {
+                System.err.println("[clips] " + c + " doesn't run (a broken or unfinished download?)");
+                Path own = Settings.appDir().resolve("ffmpeg").toAbsolutePath();
+                if (c.toAbsolutePath().startsWith(own)) {
+                    try { Files.deleteIfExists(c); } catch (IOException ignored) { }
+                }
+            }
+            return ok;
+        } catch (IOException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** Copies a zip entry to {@code to} through a temporary file, so an interrupted copy never leaves a broken one. */
+    public static void extract(java.io.InputStream entry, Path to) throws IOException {
+        Path part = to.resolveSibling(to.getFileName() + ".part");
+        Files.copy(entry, part, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        try {
+            Files.move(part, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(part, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     // ------------------------------------------------------------------ first-run download (Windows)
@@ -237,7 +286,7 @@ public final class Ffmpeg {
                 String name = e.getName().replace('\\', '/');
                 String file = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
                 if (!e.isDirectory() && (file.equals("ffmpeg.exe") || file.equals("ffprobe.exe"))) {
-                    Files.copy(z, bin.resolve(file), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    extract(z, bin.resolve(file));
                     found++;
                 }
             }
@@ -245,6 +294,7 @@ public final class Ffmpeg {
         Files.deleteIfExists(zip);
         if (found < 2) throw new IOException("The ffmpeg download didn't contain ffmpeg.exe and ffprobe.exe");
         configure("");
+        if (ffmpeg() == null) throw new IOException("ffmpeg downloaded but doesn't start. Your antivirus may have blocked it.");
     }
 
     // ------------------------------------------------------------------ running

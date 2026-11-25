@@ -545,6 +545,20 @@ public final class App {
 
     public void startRecording(String game) throws Exception {
         if (!minecraftRunning()) throw new Exception(NEED_MINECRAFT);
+        // A recording needs capture running: start it (or give it its retries) and say why if it can't, instead of
+        // "recording" with nothing coming in and failing with "No video" at the end.
+        if (!engine.producing()) {
+            if (!engine.isLive()) engine.start();
+            long until = System.currentTimeMillis() + 20_000;
+            while (!engine.producing() && System.currentTimeMillis() < until) {
+                if (!engine.isLive()) break; // failed, with no retry left
+                Thread.sleep(250);
+            }
+            if (!engine.producing()) {
+                String why = engine.problem();
+                throw new Exception("Capture isn't running" + (why.isBlank() ? " (it didn't start in time)" : ": " + why));
+            }
+        }
         engine.startRecording(gameFor(game));
         notify("Recording", "Press " + settings.hotkeyRecord + " to stop", false);
     }

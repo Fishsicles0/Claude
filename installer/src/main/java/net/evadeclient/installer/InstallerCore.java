@@ -613,7 +613,7 @@ public final class InstallerCore {
         String exe = WINDOWS ? "ffmpeg.exe" : "ffmpeg";
         for (Path d : new Path[]{clipsDataDir().resolve("ffmpeg").resolve("bin"), clipsDataDir().resolve("ffmpeg"),
                 clipsAppDir().resolve("ffmpeg").resolve("bin"), clipsAppDir().resolve("ffmpeg")})
-            if (Files.isRegularFile(d.resolve(exe))) return true;
+            if (net.evadeclient.clips.core.Ffmpeg.works(d.resolve(exe))) return true;
         return false;
     }
 
@@ -661,7 +661,7 @@ public final class InstallerCore {
                 String name = e.getName().replace('\\', '/');
                 String file = name.substring(name.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
                 if (!e.isDirectory() && (file.equals("ffmpeg.exe") || file.equals("ffprobe.exe"))) {
-                    Files.copy(z, binDir.resolve(file), StandardCopyOption.REPLACE_EXISTING);
+                    net.evadeclient.clips.core.Ffmpeg.extract(z, binDir.resolve(file));
                     found++;
                 }
             }
