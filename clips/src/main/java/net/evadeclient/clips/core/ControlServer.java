@@ -94,7 +94,12 @@ public final class ControlServer {
                 Map<String, String> q = query(ex.getRequestURI().getRawQuery());
                 boolean post = ex.getRequestMethod().equalsIgnoreCase("POST");
                 boolean evade = "evade".equals(q.get("client"));
-                if (evade) h.evadeClientSeen();
+                if (evade) {
+                    h.evadeClientSeen();
+                    // Newer Evade Clients say which process the game is, so Clips knows it's running between requests.
+                    try { if (q.get("pid") != null) GameDetector.minecraftPid(Long.parseLong(q.get("pid"))); }
+                    catch (NumberFormatException ignored) { }
+                }
                 boolean open = path.equals("/status") || path.equals("/open") || path.equals("/quit");
                 if (!open && EVADE_ONLY.contains(path) && !evade) { send(ex, 403, NOT_EVADE); return; }
                 if (!open && !h.apiEnabled()) { send(ex, 403, API_OFF); return; }

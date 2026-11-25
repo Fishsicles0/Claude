@@ -87,7 +87,14 @@ final class AppHost {
             ClipsApp.watchShowRequests(clips);
             new Thread(clips::start, "clips-startup").start();
         }
-        Thread migrate = new Thread(() -> handOverShortcuts(homePath(args)), "clips-shortcuts");
+        Thread migrate = new Thread(() -> {
+            Path self = homePath(args);
+            handOverShortcuts(self);
+            // Old versions go, so only this one runs: update copies left in the temp folder, and the old separate
+            // Evade Clips app (a copy of it starting at login would record instead of the built-in Clips).
+            deleteOldUpdateCopies();
+            if (legacyAppInstalled() && launcher[0] != null) SwingUtilities.invokeLater(launcher[0]::cleanUpOldVersions);
+        }, "clips-shortcuts");
         migrate.setDaemon(true);
         migrate.start();
     }
@@ -291,6 +298,30 @@ final class AppHost {
                 if (Files.isDirectory(p)) Files.createDirectories(t);
                 else Files.copy(p, t, StandardCopyOption.REPLACE_EXISTING);
             }
+        }
+    }
+
+    /**
+     * Deletes the launcher copies earlier self-updates downloaded into the temp folder ({@code evade-installer-update*}),
+     * except the one running now (a just-updated copy runs from there until it's next started).
+     */
+    static void deleteOldUpdateCopies() {
+        try {
+            Path tmp = Paths.get(System.getProperty("java.io.tmpdir", "")).toAbsolutePath();
+            Path running = SelfUpdate.selfPath();
+            try (var l = Files.list(tmp)) {
+                for (Path d : l.toList()) {
+                    if (!d.getFileName().toString().startsWith("evade-installer-update") || !Files.isDirectory(d)) continue;
+                    if (running != null && running.startsWith(d)) continue;
+                    try (var w = Files.walk(d)) {
+                        for (Path q : w.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                            try { Files.deleteIfExists(q); } catch (IOException inUse) { /* next time */ }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Old launcher copies kept: " + e.getMessage());
         }
     }
 

@@ -899,8 +899,11 @@ public class Clips extends Module {
      * A URL of Evade Clips' local control API, on the port the app recorded in location.json (or the App Port
      * setting), saying it's Evade Client asking (so the app leaves Minecraft's events to us).
      */
+    /** This game's process id: Evade Clips uses it to know Minecraft is still running (Windows hides command lines). */
+    private static final long PID = ProcessHandle.current().pid();
+
     private String api(String pathAndQuery) {
-        return "http://127.0.0.1:" + appPort() + pathAndQuery + (pathAndQuery.indexOf('?') < 0 ? "?" : "&") + "client=evade";
+        return "http://127.0.0.1:" + appPort() + pathAndQuery + (pathAndQuery.indexOf('?') < 0 ? "?" : "&") + "client=evade&pid=" + PID;
     }
 
     private synchronized int appPort() {

@@ -1037,6 +1037,23 @@ final class LauncherApp implements LauncherView.Actions {
         });
     }
 
+    /**
+     * At start, after an update: removes the old separate Evade Clips app (closing it if it runs; clips, settings
+     * and ffmpeg are kept) and, if it was holding Clips, starts the built-in Clips in its place.
+     */
+    void cleanUpOldVersions() {
+        work.submit(() -> {
+            String result = AppHost.removeLegacyApp();
+            ui(() -> {
+                settings.legacyClipsHandled = true;
+                Launcher.saveSettings(settings);
+                view.legacyClips = AppHost.legacyAppInstalled();
+                if (view.clipsBlocked && clips == null) takeOverClips();
+                else view.toast(result);
+            });
+        });
+    }
+
     @Override public void sidebarToggled() {
         Launcher.saveSettings(settings);
     }

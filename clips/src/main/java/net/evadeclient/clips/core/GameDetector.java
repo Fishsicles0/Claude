@@ -72,6 +72,17 @@ public final class GameDetector {
             java.time.Instant started = info.startInstant().orElse(java.time.Instant.EPOCH);
             if (best == null || started.isAfter(newest)) { best = new Game(name, ph.pid()); newest = started; }
         }
+        if (best == null) {
+            // Windows hides other programs' command lines: Minecraft started with any other Java is only known
+            // because Evade Client told us its process id. It counts for exactly as long as that process runs.
+            long pid = knownPid;
+            if (pid > 0 && pid != self && ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) best = new Game(MINECRAFT, pid);
+        }
         return Optional.ofNullable(best);
     }
+
+    private static volatile long knownPid;
+
+    /** Evade Client's process (it sends it with every request to the app). */
+    public static void minecraftPid(long pid) { knownPid = pid; }
 }

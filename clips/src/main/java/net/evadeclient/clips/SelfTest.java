@@ -430,6 +430,18 @@ final class SelfTest {
         check(none.isEmpty() && found.isPresent() && found.get().name().equals("Minecraft") && found.get().pid() == mc.pid(),
                 "game detection finds a running Minecraft client and ignores other games (other game: " + none.map(Object::toString).orElse("none")
                         + ", Minecraft: " + found.map(Object::toString).orElse("none") + ")");
+
+        // Windows hides command lines: a game Evade Client reported (its process id) counts while that process runs.
+        Process hidden = new ProcessBuilder("sleep", "20").start();
+        net.evadeclient.clips.core.GameDetector.minecraftPid(hidden.pid());
+        var told = net.evadeclient.clips.core.GameDetector.detect();
+        hidden.destroyForcibly();
+        hidden.waitFor();
+        var gone = net.evadeclient.clips.core.GameDetector.detect();
+        net.evadeclient.clips.core.GameDetector.minecraftPid(0);
+        check(told.isPresent() && told.get().pid() == hidden.pid() && gone.isEmpty(),
+                "Minecraft reported by Evade Client counts exactly while its process runs (running: "
+                        + told.map(Object::toString).orElse("none") + ", after it quit: " + gone.map(Object::toString).orElse("none") + ")");
     }
 
     /**
