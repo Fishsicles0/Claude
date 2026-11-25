@@ -1436,11 +1436,8 @@ def sheets():
             d.text((x + 24, y + 19), label, font=f_pill, fill=col)
             ty = y + IMG + 16
             d.text((x + 18, ty), it["name"], font=f_name, fill=TEXT)
-            price = "Price coming soon" if it["price"] is None else f"${it['price'] / 100:.2f}"
             meta = SLOT_NAMES[it["slot"]] + ("  ·  any colour" if it["colourable"] else "")
             d.text((x + 18, ty + 36), meta, font=f_body, fill=FAINT)
-            pw = d.textlength(price, font=f_price)
-            d.text((x + IMG - 18 - pw, ty + 35), price, font=f_price, fill=(255, 194, 61) if it["price"] is None else TEXT)
             for j, line in enumerate(wrap(d, it["description"], f_body, IMG - 36)):
                 d.text((x + 18, ty + 68 + j * 23), line, font=f_body, fill=MUTED)
             # each design on its own too
