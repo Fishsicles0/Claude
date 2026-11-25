@@ -65,6 +65,8 @@ public final class CosmeticsTest {
             Wardrobe.resetForTest();
             Emotes.moveCamera = false;
             CosmeticsApi.transport = CosmeticsTest::mock;
+            // start from the bundled set: the live catalog fetched at start-up may still list an older release's files
+            CosmeticsCatalog.loadBundled();
             Cosmetics m = Cosmetics.get();
             m.setEnabled(true);
             m.showMine.set(true);
