@@ -70,11 +70,14 @@ public class ModuleManager {
         register(new ItemView());
         register(new DamageNumbers());
         register(new LightOverlay());
+        register(new TechOverlays());
         register(new ItemHighlight());
         // Controls & camera
         register(new ToggleSprint());
         register(new Zoom());
         register(new Freelook());
+        register(new PlacementLock());
+        register(new BreakGuard());
         register(new Crosshair());
         register(new NoHurtCam());
         register(new BlockOutline());
@@ -151,6 +154,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.hud.PingGraphHud());
         register(new net.evadeclient.module.hud.PaperDollHud());
         register(new net.evadeclient.module.hud.LookInfoHud());
+        register(new net.evadeclient.module.hud.TechInfoHud());
         register(new net.evadeclient.module.misc.Cosmetics());
         // Client
         register(new ClientSettings());

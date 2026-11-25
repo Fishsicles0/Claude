@@ -1673,9 +1673,9 @@
     "files": {
      "item.json": "f49fda042cefdb11b49cabf1f5697498ab623499edfcc1ea0becb90d463ca4ad",
      "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "4abd23c591cfe06376d8398c5f91ded119f2df8a245f471efc129ecec9b5274d",
-     "emissive.png": "f80c376f3e7a0eaea20af0483c10bda325e3654f19d5c12ad23609c6c9a3942d",
-     "thumb.png": "dd1d694a2f73651c67f7dcb05a15d676f9774bcb3768e993e00b8f3fc5e4f02e"
+     "texture.png": "08b470d8de79f5becb2fbf3e0e0bfe89ce4a9677874d9fe884bfecaa5cb024b7",
+     "emissive.png": "88a47b4b21b8bb84f99d2c7da49bfd9522a8781e78d79e639b85668d62e08bad",
+     "thumb.png": "824aa87fa4d6d9825609762baaf2e1b783362a40fdf882f63f185d70e4d8c7ba"
     }
    }
   },
@@ -2374,8 +2374,8 @@
     "files": {
      "item.json": "9ed607cf7a3f90ace03f8b84fb7f6a13f6cebc5d739afd9df8e6b621e2d665cc",
      "model.json": "fb9615538597d6a252f795aeafba236384abfd96cc39b189d84671e2f314d5d4",
-     "texture.png": "b26be4048be01f6fb7a1bf05a746fbc48e24c797ace040025cc2bae539142d8f",
-     "thumb.png": "bfdde4d2197eb3364c7b282b93f692b006054be5e3caa2eb7d82ceaa3fffe155"
+     "texture.png": "094e160e76e2ad8468243ac2a0351fa8f3f19a9ffbe177f0412103702f72559d",
+     "thumb.png": "f585811cb4db147d786ef35ec29c05d651c61072f8a363c619fd4ac75c506f1f"
     }
    }
   },
