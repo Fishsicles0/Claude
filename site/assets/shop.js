@@ -550,7 +550,7 @@ function emoteAnimation(sv, emote) {
   const len = emote.length || 1, parts = emote.parts || {};
   const R = d => d * Math.PI / 180;
   return new sv.FunctionAnimation(player => {
-    const t = (performance.now() / 1000 % len) / len;
+    const t = performance.now() / 1000 % len; // keyframe times are in seconds, 0 to length
     for (const [part, keys] of Object.entries(parts)) {
       const o = player.skin[part];
       if (!o || !keys.length) continue;
@@ -560,8 +560,26 @@ function emoteAnimation(sv, emote) {
       const lerp = n => a[n] + (b[n] - a[n]) * f;
       o.rotation.set(R(lerp(1)), -R(lerp(2)), -R(lerp(3))); // y and z turn the other way in skinview3d's space
     }
+    // Whole-body keyframes: "root" turns the model about the hips (12 px above the feet), "offset" moves it (px).
+    const at = keys => {
+      if (!keys || !keys.length) return [0, 0, 0];
+      let i = keys.findIndex(k => k[0] > t);
+      if (i <= 0) i = i === 0 ? 1 : keys.length - 1;
+      const a = keys[i - 1], b = keys[i] || a, f = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 0;
+      return [1, 2, 3].map(n => a[n] + (b[n] - a[n]) * f);
+    };
+    if (parts.root || parts.offset) {
+      const r = at(parts.root), off = at(parts.offset);
+      player.rotation.set(R(r[0]), -R(r[1]), -R(r[2]));
+      const pivot = player.position.clone().set(0, HIP_Y, 0);
+      const turned = pivot.clone().applyEuler(player.rotation);
+      player.position.set(pivot.x - turned.x + off[0], pivot.y - turned.y - off[1], pivot.z - turned.z + off[2]);
+    }
   });
 }
+// skinview3d's player: feet at y = -16 in the player's own space, so the hips (top of the legs) are 12 px above that.
+const HIP_Y = -4;
+function resetBody(viewer) { const p = viewer.playerObject; if (p) { p.rotation.set(0, 0, 0); p.position.set(0, 0, 0); } }
 
 const ANIMS = { wave: "WaveAnimation", crouch: "CrouchAnimation", run: "RunningAnimation", fly: "FlyingAnimation", walk: "WalkingAnimation", idle: "IdleAnimation" };
 
@@ -736,6 +754,7 @@ function fxLoop() {
 }
 function setAnim(sv, name) {
   try { viewer.playerObject.resetJoints(); } catch (e) { /* older skinview3d */ }
+  resetBody(viewer);
   viewer.animation = name === "emote" && current && current.emote ? emoteAnimation(sv, current.emote) : new sv[ANIMS[name] || ANIMS.idle]();
   if (name === "walk" || name === "run") viewer.animation.speed = .8;
   (viewer._motion || (viewer._motion = { moving: 0 })).moving = name === "run" || name === "fly" ? 2 : name === "walk" ? 1 : 0;

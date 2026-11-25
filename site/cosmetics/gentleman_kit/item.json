@@ -1,0 +1,10 @@
+{
+ "id": "gentleman_kit",
+ "name": "Gentleman's Kit",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A curled moustache and a gold monocle. Very distinguished."
+}

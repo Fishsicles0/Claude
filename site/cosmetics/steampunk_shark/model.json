@@ -1,0 +1,365 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  24,
+  20
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "shark",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -4.5,
+    1.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.75,
+      -6.0,
+      -0.25
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      12,
+      0
+     ]
+    },
+    {
+     "origin": [
+      10.75,
+      -6.5,
+      -0.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      18,
+      15
+     ]
+    },
+    {
+     "origin": [
+      11.25,
+      -10.0,
+      0.75
+     ],
+     "size": [
+      0,
+      4,
+      3
+     ],
+     "uv": [
+      6,
+      0
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 1.0,
+    "speed": 1.2
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -4.5,
+    -0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.75,
+      -6.0,
+      -2.25
+     ],
+     "size": [
+      3,
+      3,
+      2
+     ],
+     "uv": [
+      0,
+      10
+     ]
+    },
+    {
+     "origin": [
+      10.75,
+      -6.0,
+      -3.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      0,
+      17
+     ]
+    }
+   ],
+   "parent": "shark",
+   "anim": {
+    "type": "pet_head",
+    "amp": 10
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -4.75,
+    -2.27
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.75,
+      -4.75,
+      -2.27
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      8,
+      17
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "cog",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -6.6,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.25,
+      -6.6,
+      -0.75
+     ],
+     "size": [
+      2,
+      0,
+      2
+     ],
+     "uv": [
+      10,
+      15
+     ]
+    }
+   ],
+   "parent": "shark",
+   "anim": {
+    "type": "spin",
+    "speed": 120
+   }
+  },
+  {
+   "name": "tail",
+   "attach": "root",
+   "pivot": [
+    11.25,
+    -4.5,
+    2.75
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.25,
+      -5.5,
+      2.75
+     ],
+     "size": [
+      2,
+      2,
+      2
+     ],
+     "uv": [
+      10,
+      10
+     ]
+    },
+    {
+     "origin": [
+      10.75,
+      -5.0,
+      4.75
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      4,
+      17
+     ]
+    },
+    {
+     "origin": [
+      11.25,
+      -8.5,
+      5.75
+     ],
+     "size": [
+      0,
+      7,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ],
+   "parent": "shark",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 0.0,
+    "amp": 16,
+    "speed": 0.9,
+    "phase": 0.0,
+    "fold": 0
+   }
+  },
+  {
+   "name": "fin_r",
+   "attach": "root",
+   "pivot": [
+    9.75,
+    -3.5,
+    1.25
+   ],
+   "rotation": [
+    0,
+    0,
+    -28
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.75,
+      -3.5,
+      0.25
+     ],
+     "size": [
+      3,
+      0,
+      2
+     ],
+     "uv": [
+      0,
+      15
+     ]
+    }
+   ],
+   "parent": "shark",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 0,
+    "amp": 8,
+    "speed": 1.2,
+    "fold": 0
+   }
+  },
+  {
+   "name": "fin_l",
+   "attach": "root",
+   "pivot": [
+    12.75,
+    -3.5,
+    1.25
+   ],
+   "rotation": [
+    0,
+    0,
+    28
+   ],
+   "cubes": [
+    {
+     "origin": [
+      12.75,
+      -3.5,
+      0.25
+     ],
+     "size": [
+      3,
+      0,
+      2
+     ],
+     "uv": [
+      0,
+      15
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "shark",
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 0,
+    "amp": 8,
+    "speed": 1.2,
+    "fold": 0
+   }
+  }
+ ]
+}

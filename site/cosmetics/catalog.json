@@ -59,9 +59,9 @@
     "files": {
      "item.json": "be98b5014ca82e97d3bd4dd19940e1005148d4c2af8b571479590d85e48e9976",
      "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
-     "texture.png": "c54942f6e5c0da8f16b58674b11feb8bce16baa1ed62ea6b477718ca705c0a4b",
-     "emissive.png": "405d8882ed4adf70001fe4c1977d3ebddba2543edf2d7bb5c4cf02078b04ca2d",
-     "thumb.png": "9dfb8cbf96587855fe79b0503061d38f42c876497bc3a9cd0140a048db6277d7"
+     "texture.png": "9304462b8175c1e8fd10701fe09cd8f1a3bea663c7b13f59ea7e8d9b6e95cd35",
+     "emissive.png": "44395c83b91394550812d970ce288a69dfadf128017b76cbf69f8af6971f994d",
+     "thumb.png": "75a2720accff9c11171216b9243037b798c003d0a693729b49edd78b7119f425"
     }
    }
   },
@@ -366,10 +366,10 @@
    "assets": {
     "files": {
      "item.json": "ff7122f634e686db778240f78437cd63f73b8215c4ed6da28cdf7931d00ce0aa",
-     "model.json": "731f27d43ea774eca82e1d451558cbce7b8ac0a7aa90e3a81a27e15719a59ea6",
-     "texture.png": "813dfc399bb6d2384fa5d12df4e56eb3a8b3a25c4fe9e2eb25c2c5fb0e2f628f",
-     "emissive.png": "44435c2fe8fdc4809d1d9a5d21a62a31de5d63f24c1d9c19c37cecfdd69adccf",
-     "thumb.png": "53222ede0f5dfeff9771516cfc4c127cdb6d5693bfb62c24b1b5f7789f2fab6a"
+     "model.json": "7aa5c2f53d647dae80e557e679d431ef787be48ccdda971263f0987c4bf0e68b",
+     "texture.png": "0315525004a4abdf0a843ef3899681f46c0fac1573772b11c260c3d071d8f934",
+     "emissive.png": "e9124fd4b69bfce5943d3efd23917a32c2786fb0b040471a90d5b282fcedd521",
+     "thumb.png": "2ee28b63ca314c66152f793f3d53b738e5289f2d1b908f53428876b66e5c1d26"
     }
    }
   },
@@ -386,11 +386,11 @@
    "description": "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
    "assets": {
     "files": {
-     "item.json": "0b3c2de16c31303f64b85d204c5479b1fa80037393caf6f23b7a97a6f8079922",
-     "model.json": "731f27d43ea774eca82e1d451558cbce7b8ac0a7aa90e3a81a27e15719a59ea6",
-     "texture.png": "96c193302feccca5d2434dce04171d4027dd8c4ec1ce3722949cf5eabc64d36a",
-     "emissive.png": "faf8874c46a06a566c85f90f3ed62d547696d409d61c9a774e48056c34e03fe1",
-     "thumb.png": "01c94a11b500135c81bbb825c8338b81783770f17206a221fd7cc922233ed51c"
+     "item.json": "7ba26bb0e183ba5e88f89fc4d4336f56e10604ef5a99cd543fe03c3df876b3ea",
+     "model.json": "73edd11c20a513da98a47b3860cbe3a905fc5be5f838f331f34a4d168217ccb9",
+     "texture.png": "ca37143c83c047760455a6d8189d84b499df8b4c62fb8b67dfc45d4f126cb16f",
+     "emissive.png": "f60471d7442b1651873675ac3ebbb51bd40338e22a553aac16256c95e14237cb",
+     "thumb.png": "94ae60c4daa91c03fb111ab043e8daa443e66e64b0f2f24206766772e3591f85"
     }
    }
   },
@@ -408,10 +408,10 @@
    "assets": {
     "files": {
      "item.json": "c5aa8b9e8d00ff86d718fdfeb15330c6e93a213a28e4ef82520029ed2a8daeaf",
-     "model.json": "03b0f75f367febc0a0e54550bde13e374d64054e525cfed8e4f909f015c743bd",
-     "texture.png": "1dfcc27db263fb99412d6ff011b767564b06eb546692e3801f3fbdf374398235",
-     "emissive.png": "e106ec43f8791360a22d986b74747f270b1353899f298408dc2e585fcb8c21ed",
-     "thumb.png": "5e60da3fbf67248aa8d5f03a01bc7c8f4750160c781ea4695e63c1d815c87278"
+     "model.json": "3c3da9cf54522cc84f7a18f48d33741c00836a67c9dcfa0a496b4432581539f5",
+     "texture.png": "ed560f50588e86a235731e4bde7d7eda0363fc980da6341593ef0b7efb17fedc",
+     "emissive.png": "d2c671d8cab551227cac6fcaed964a100877105e1ee28b5599a22a2c940fcf96",
+     "thumb.png": "0d60e46ff44380abecf93f7fffc63097e03cf61f6c1be86fc8306329c70a769a"
     }
    }
   },
@@ -429,10 +429,10 @@
    "assets": {
     "files": {
      "item.json": "7a556aaea7a7937ecb601ceaae1a565fb62b764ff8390be2a73d185f69da1dca",
-     "model.json": "f2dfd4747a19006e982e96341126b2294729dd0294e759beba3661479a22e66e",
-     "texture.png": "0df9405192652e0fa2a903bf45264e3361f19425cd79851d68b03d865a8abda3",
-     "emissive.png": "0bf3d9708fe6131e580aeade99ae064b0a49d3e254ca5c7dac93480d8295cfd7",
-     "thumb.png": "521716ba511326232547b4cbe59d1337f2d69d1e128aee8b3a1986dfe9d792b3"
+     "model.json": "54d640d455118647b8b9faa4435c46303ecd0b222d6727b7f20bb61f3d46555b",
+     "texture.png": "2305395ac179e8cce32ec8a928c1a7cf7aa3036ca79c2c1c6ddd6fb04fb747e0",
+     "emissive.png": "765a845a4dc7e508328963216eb35aa35bdbdfe1ee60dc19b1fa027ce4a9bf6f",
+     "thumb.png": "923cd195f0f7de580d4ec1d3852916551257435920f82145dac9c326baf5e05f"
     }
    }
   },
@@ -450,9 +450,9 @@
    "assets": {
     "files": {
      "item.json": "d2ff241c7b41b5127a1132410335ba3fc02c807d3cec204c4be67d11d25f5569",
-     "model.json": "c6746d457f7779a3c392c4354ab61e4e5312f4a6fee66237e1e48c65b66f7fc2",
-     "texture.png": "9ceab0777f117c4439aedb7e7109274d24890eaa0c9798bf0d38c4bd45ff6f2e",
-     "thumb.png": "d4f792a47bce9844db76033547f6ae21222dadcb3e587d041c9a47f01ea9e1b7"
+     "model.json": "8ce730b343379a1dc90a041a36390f057b98f2f97730e6c8702c5d77c169eaf2",
+     "texture.png": "1486d3e0ea67df9b62b87c4ee80c8440b1973295a0d06de3d7a68f7851772acc",
+     "thumb.png": "c33e048e6e44a348123ae630bcf97235b5bda45fd3b0d10ab2078d9714305556"
     }
    }
   },
@@ -470,10 +470,10 @@
    "assets": {
     "files": {
      "item.json": "4580898d46a582b71df3dc1453033750e72f3ea3ce19242d4ad26679ea49cc8b",
-     "model.json": "09d8015c42832e6b10079c2ede2fcae02b4590425f392dc24ed62f81d63156ce",
-     "texture.png": "a56d44f30e95f4471de2ce55c311e22846e16d4acbc2c020acaa565bec6ad8d8",
-     "emissive.png": "6ba12dc4a4e5fb311cc0b77b68ce948f1de65346574f6a130f317cbe0287199e",
-     "thumb.png": "ad98519a3a3ceb87a165b4aa6b76a2c6c6ed766a7958afc217b7c27e1babcb7a"
+     "model.json": "650ae064d5b0c85efd9c4f43aafc1b8df1a33d48a2fb28256402bd40542eca74",
+     "texture.png": "f266bb135346271a3f1f0a2750f9f73ce3b2a97065651c080314586d5db0e244",
+     "emissive.png": "f4a40c4ac5e8fcc88321952d3a15d09a1bc0ca45674d2940bcd20c7a59dad4fe",
+     "thumb.png": "f843c642de56c8701c09279c421cbf3be60473e7419e605bd3abf922bbf288c4"
     }
    }
   },
@@ -490,11 +490,11 @@
    "description": "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
    "assets": {
     "files": {
-     "item.json": "cecd943bb9d08044935fe2eb8fae088ba2f211b851a952b692237c9b5b075bbb",
-     "model.json": "9768f1a57c1296e914f7539008d91d3445b392e0eeb7b5d305792f0a38eac89c",
-     "texture.png": "cfbb84897643d9e9accd51e25b07045fc7781e33f94c7eec020164237327625c",
-     "emissive.png": "23450f222f78a34b390aa9a83a6e735b077d2dcb64adcf3e0569c15aa2baa83d",
-     "thumb.png": "b8f5f435e7d6527aa7968ca201a59705c85c0aa5b52c2bef22e0be4811a56fba"
+     "item.json": "09c701672e180c002b64b19bfa7c8dce0a0a52bd1e283218d270b1fece8ac80b",
+     "model.json": "faac4b2bf2c5c17f2c4a148d32919ed2fd73e91bac8c908c383837dc27d4a46a",
+     "texture.png": "5238ed0060f17bb816878d63a8ef5375629dea0836ac79373a7c9751a49db8be",
+     "emissive.png": "ecdedfa7233227adcb8ed3fb4b9f29b9719edf0ea63bcfcb18729580c8ad2c85",
+     "thumb.png": "6cb3bd52c9c82033f029fcf9b73ff9b6e613b53cb3969f1525540f830c741f53"
     }
    }
   },
@@ -512,10 +512,10 @@
    "assets": {
     "files": {
      "item.json": "c0e803108538c5e96667dd50ab8d51637f95cb018a3797a03f890ba2af415ea4",
-     "model.json": "6c08c2a8073c682f3ee884de6a4a4b8f6f9821f7503730f24526d2cc9beccc1b",
-     "texture.png": "32790d0b8260c09ac4a7819eeb78b3885c94097e5ee5307a566784a6f6b64f25",
-     "emissive.png": "df0df5a5ceaf2905b84bd3d28df7662214d005668d78886a6fce3125e9982a35",
-     "thumb.png": "b7d8753e9fe095deb59343ab74b2ee4fe10cae8520228e03ff303ade14d6155b"
+     "model.json": "abf474eedacccb59dddcb30c464e6dcfe71904a124ef71a77d55f8ada06ee8ce",
+     "texture.png": "035e409d59b26a13aede678f5f62a48820d649fa8637dc01ac4c059c2783fa24",
+     "emissive.png": "25f8a8df56f2dfa0c18035260a310639b9edd93b1d6a2fccb63e95d3a07088e7",
+     "thumb.png": "a8e1c4d2ec377a94b90c05dfa9a64b549672d7e3ca8dbb3059bb8bf273b34e5e"
     }
    }
   },
@@ -533,10 +533,10 @@
    "assets": {
     "files": {
      "item.json": "2ea7462fede00706c60ce0d5fff9152f5f78a0e1215dc5918dd0ee66465f45dd",
-     "model.json": "c788bf70235fc3cfa2ace26648b3bdefafc7180c64a1ac235a569aa10880532a",
-     "texture.png": "007eccc9946a78e6636a5ee34a24122fc0bb1c0a9d8bbbf1faf686ba32c1ed64",
-     "emissive.png": "2474e2a0d06494a56032620b60c9628816f1c71e4e76992904449354c69bc8e2",
-     "thumb.png": "55810161c7bec9dab7852b0f8a9adb44c1ed355faef071831ee2d46d5a8ff0c3"
+     "model.json": "18cf09152617ac78f23c5e7502248850dff5af5f7544c422d8840215cac4e5fa",
+     "texture.png": "9d3610cb5629c7ba858cd8d9cc20483b367429d3d4b6f9473f5c66dce3dde10a",
+     "emissive.png": "a73342d083dbd15e80daadf62beadc8d79be1346db52baacda43b6a218369a43",
+     "thumb.png": "714d7e80fbbfea85cb60d6c18c41b18775b6f0ab69e0c88e8c56c677830b86fc"
     }
    }
   },
@@ -554,10 +554,10 @@
    "assets": {
     "files": {
      "item.json": "afc379c2bbb113a4486205e69d5374657ca9b8d4a3637728103631846c342c4d",
-     "model.json": "8c6f17dfee9e618534501e00326da07fe6f2306f5be1c3ae00cc9cc8732f5b70",
-     "texture.png": "2168fcec62a139233d596102b831f7702d47e1a355b49c9e55d642fdb5107aeb",
-     "emissive.png": "68471343f2fd890296e0107c68c00dc2ca74d290d1eb9c956b13c10d64edcc14",
-     "thumb.png": "c0ba9ee05982f47c4d56de0dd8ed1348afe46be17575e66c8d82b5e5ea90cc3c"
+     "model.json": "d42dfccb2608cc7cebaf7182ce32c9a513397370039ed9729feaf82bcea2c5bb",
+     "texture.png": "55673b5f84ef7ebc797b367ba5e455a174073f6be80126e75592bf96c8824527",
+     "emissive.png": "e08cfe05449070e03db8ec917bbe97da3a6eea28eca6c66285b4233bfd56c267",
+     "thumb.png": "f6db8c087c921cf54df93a8b2ec28a45cb22700d4089b298419df43ec4f00d13"
     }
    }
   },
@@ -575,9 +575,10 @@
    "assets": {
     "files": {
      "item.json": "686097165757aaa7a24cd96b7f13c0131902f9ede8f750f6f516c4e432478262",
-     "model.json": "bec667d57e1118e2ce19252853adc8cc207fc1561e2055584fea5e44ccc82582",
-     "texture.png": "0cc9ba32c5596addb33bc9ffab740c96d75db8963ac50264764d70e510ca8388",
-     "thumb.png": "9a20fa7b3e1a46d77c6fabedf1281e4a78bce78f81e939f4deb0c9447ecc61bd"
+     "model.json": "6066173c908f6f7c2f52feb41758a669913a163e9e44118cd81de221a2b64e3c",
+     "texture.png": "456eb971dc8efaae66a34882ef28fdfcfe15f2ae86820a8fb7e741f2608412cb",
+     "emissive.png": "04e6bdd56dfbf65001548670aa74931fada79491ead34c24556fb03a372368c1",
+     "thumb.png": "a66b51d8f9b15b94ed93f6076fd13dc82997aea124e47d00b9b036f30bf54441"
     }
    }
   },
@@ -595,10 +596,10 @@
    "assets": {
     "files": {
      "item.json": "56afd60bb8b7b2f571e5978fd74890ea1064fbb724d574df1689f6eb7db6663d",
-     "model.json": "822ee146e5fc8179b5b9c22019760a59a9d8504ca2b07d156f5f999d47837007",
-     "texture.png": "7104a98a21ae571eff87ac32122270f845f5df98c6fcc116ccbf841f2e45c2fc",
-     "emissive.png": "cd73fc42783af520917a9cb35c11fd3fbadcd867507e2d33bc4add7aa7390174",
-     "thumb.png": "283fecd3bdc72b7bb533a8b7192b93a3f6b876abaef64a4d3e7f18f14dcd955e"
+     "model.json": "9f3dea34747f1d2254e04df7d97b1e16942ee64437d0c4074f9a169845694063",
+     "texture.png": "56885fbfc9b74449c655bcf1516d09c78158a3e9595dedbefbb3b9dbd5d24bb8",
+     "emissive.png": "2f8a78aadad553535ea30457345d959d827b22fc50a1dfa6a30b3ab951deefda",
+     "thumb.png": "5bf8fce770c9f09ec2e64da9f1731d782583e4560275197ffd3e134b36c60f46"
     }
    }
   },
@@ -616,10 +617,10 @@
    "assets": {
     "files": {
      "item.json": "ba50d521c6dc8b1007457ea1dfeb5d24c123d848cc5dd6817c1925779e89a267",
-     "model.json": "db0d1a0b7a338cc95599658697213d9f36f345dbbe900170ac344fff923879c7",
-     "texture.png": "0dc42acd92495b1b90440a89e2b5c5d2ca56279017d4f651b5d2946f82ce3ea0",
-     "emissive.png": "23ead837b51b375c977edffaa281a56bde61c0fd3c4741571064822de0b0408f",
-     "thumb.png": "4c301414501ca6e36b57171903013c63ece5fe2c69afb7bdf0c3f3fd5ecc48a6"
+     "model.json": "f26dbea12d7e8ca1573e98759acfe554c36cb652f1a0cfd2cfc9d781c6e5feb1",
+     "texture.png": "cfeaf0d8f68504ef6b6d1d699c2851ba8bc3b7d5f57d2e73c0f04b984f01e231",
+     "emissive.png": "9639dd2500966e9eb1b7ed06ffebcf946b545713326c0efb7eef97bf01c0ab82",
+     "thumb.png": "8ce867024dbfff88c8a9d54664b263bf603aa4e1b3815ba193a49285aa540542"
     }
    }
   },
@@ -637,10 +638,10 @@
    "assets": {
     "files": {
      "item.json": "066040dc9815204202784e4c11273bb6b6f88e4ba01249b3e2dad5aea8d87711",
-     "model.json": "4fcbf6e971bca18538fc02fa0bee5e965d8768645bccbe3b025d3fed75970ec0",
-     "texture.png": "c866f1f08f95dd7c891154933dfa410d7bcaff9d528fc38489e1a9ff38c7fde4",
-     "emissive.png": "c94180a522db1ae0b12eb24cfb8f1bf0d833e5af7f6419c6e1afa4fe9c07d712",
-     "thumb.png": "a7f13fbe02ae8df3a42ab7d02272b65260cc66d893ce441ea7ed8c173e87407b"
+     "model.json": "a87a83dc8044a5c1fb819b7ac9614841e840c774ff788e167bae9ef7331fc7f0",
+     "texture.png": "c9dec9376ccdb86ef5422ba43686b4923d459431fe10a018caf9c96ad6343c67",
+     "emissive.png": "89e5064cf92e95d16dae812379f8ffa4daed490e76325d3ef523ed702461a08a",
+     "thumb.png": "5114b916720cb5b3f78af25683a60ffa80977fb07ac627786417a32fded30c36"
     }
    }
   },
@@ -659,8 +660,8 @@
     "files": {
      "item.json": "18d1d453afe8817096c6946e2d8223c1cd488c75693ac799e32c3c1b41bbc037",
      "model.json": "5360db8cc8c403f134878f8f0e3ced964256daf306995cb97eb9dd082935ad97",
-     "texture.png": "08fe54b4452cdb5f46e00cf6b289e30949c5b6769745a6192c094522db5372bf",
-     "thumb.png": "f0642d3120441b82552b8f055349cd199db6e7f3ce9a55dcf2ac6a77c4d6249e"
+     "texture.png": "0744438365edf7873fa5c91cffa67b8df0a61e80913d3deed5ad1d2cd3354597",
+     "thumb.png": "88135dd0072b311a6f2a3ba67592eb96fd6944525df3151a1d2b2191fae135e2"
     }
    }
   },
@@ -678,10 +679,10 @@
    "assets": {
     "files": {
      "item.json": "366eecdb56f6629c6c62558f020e3f768833169f78589747749ecf71b0f1a7de",
-     "model.json": "b955e2520d4696eb5d8b6330ac07879979217939b7d198430d6f8e277cb38e92",
-     "texture.png": "864ab776a12f9f04acb64924f6bd9330bc194771f1850eb8d389befaf33d1b63",
-     "emissive.png": "636cbd6d839b40fcf4c82ae74dc81c2cde0cfb6f3c615cb7ff8c216d59696b0f",
-     "thumb.png": "08af15b62caf4044b6a81396e9ecc3f469c2901383e4fb7c3c29f6c2f222164f"
+     "model.json": "a6da9f7c6efd7013dadf857ca6c0f528aa1e798fe83a43364b85fe769cb2be92",
+     "texture.png": "cb6c8e6de42b07fd644acb2376c9814db95528db41444dcc905694f07b5627ce",
+     "emissive.png": "ab81d1fabc94b0cfa7cd9c7aad65477be18e85c9b93bbc3eaa4c351160269f68",
+     "thumb.png": "1e4e744bd04ba4e2b7117869f142803cddc2732a85440119bd73e5743ad700ac"
     }
    }
   },
@@ -739,10 +740,10 @@
    "assets": {
     "files": {
      "item.json": "9d689ea468cc69c11cbdc5ed812f50970c2b9283e2711b9e00328b40f9a92594",
-     "model.json": "b1414ff95d6044c606c83c1793102d2a749c0f938dc3cd3149009b8472177861",
-     "texture.png": "71b6ffb627d5317ac881229da8a97ee9ae3ca32c9dbadfa4c4944c6f9803e9ee",
-     "emissive.png": "b353f359f2213d0225dfc293b70bd58a0938bf46451195ab821e9ac28ba46fc8",
-     "thumb.png": "18565f26b72c166947cf5684807ad2f7d76c013c22897644ac4635fe239f9112"
+     "model.json": "88304e8c3e8aef31cc65625614b0487ff5194aaeb08b70276ba54f8e71893f95",
+     "texture.png": "ad1e0969518eb47eae81d6b7600395ff04b72fe36a404b1c6d86d09caf749202",
+     "emissive.png": "1b4342ceecd02a4b67df5db451cccd8dc6e5a0c289f205f292c14debd2719b2f",
+     "thumb.png": "7da5eb30bd9d14e06e1792f82a4f8605c69df94f385515f8aa811e2eab263c99"
     }
    }
   },
@@ -822,8 +823,8 @@
     "files": {
      "item.json": "5c74a42443da1b3980cf83d0222993942b0226a3d78985baa1db3dcdce8a8f0c",
      "model.json": "3a8449f0999808f507d8e9591c42e57105025a6aa9bc60f8800c4fa4a6ea61e8",
-     "texture.png": "74e69ab1693c58b3cc84dd9fdfec32360e028947d476503d296ac805caa20a29",
-     "thumb.png": "14f5287df9f921a12bec4556b5068704ee93aae0013e3b121b09c5f71a54aa4c"
+     "texture.png": "65a8edff96b637af56cccc6f1ff5ef706ceb3da973514a9736d48bea5e03c8c5",
+     "thumb.png": "af3eab2843d346d650f3471c19ca3484da983f00118e672e6281f2312a9090ee"
     }
    }
   },
@@ -987,7 +988,7 @@
      "model.json": "38632bf9ace3e239f497584fdb769485a093bfcfc40401486baa76a70e538ce1",
      "texture.png": "970cb83137153f82280e8a62bb1b30ca790dead2c18aefc15c54ca1a5c045679",
      "emissive.png": "c1b514b33db75af4f6e0f10e3a39f79af04d5861acaeca277d722ded0284852a",
-     "thumb.png": "d7460736b683c4058e8b2e33642a97a362f58c48a3d1c8a4c6def704e5d72cfe"
+     "thumb.png": "94168ac20a506b913ec74f46432a67f388ad831aa9761d15eff0e62bb1314c1b"
     }
    }
   },
@@ -1008,7 +1009,7 @@
      "model.json": "efcfb4795a343a0ae64a665f59e0f778ad8f0b27f434634b9379a16b41dc77e1",
      "texture.png": "c108e3c24ac6520f4f5523dfe1009e0f6176176c9799381b64755c2a3f29df7b",
      "emissive.png": "bb31e6f0201480d87daae72c9f3b4e6bd7b63e66b954323b37f804f86e058104",
-     "thumb.png": "ec46254dbaf41c774025418c5d2e30bd175c7ca132a3252eab1f8ce71f55a24a"
+     "thumb.png": "0d978130565a9b5b7c9db1adb8d2d66ec23fc348a9adccabd68837121a94fd25"
     }
    }
   },
@@ -1029,7 +1030,7 @@
      "model.json": "f71cd10ca68b0d27686c6b47842a5414740b8a6daa015c5cc0819e163e083a5a",
      "texture.png": "721737a4fde7cc4f5bdac21294a088bebda06b56725f7be57cd5cfef89f36d97",
      "emissive.png": "7e6b54ca19beff88fa486763b88de861264dea3d30e158288d96d894e162ea02",
-     "thumb.png": "3b87cfc51bd97f20f1b2a4fa6d0929d9caa1bf6252fc27d577e8b98490d5c1c1"
+     "thumb.png": "8dd511238922f83d4ee2215e3b9290a77d1118e7d7bd1d19453a2dc16378b13a"
     }
    }
   },
@@ -1050,7 +1051,7 @@
      "model.json": "199b60445c8af19cbf4a69a02d1c79f5bb0d5e75d75da4268ad595d902a13189",
      "texture.png": "6c973ab7fd3a87fdc477ba747273b5c306a579ed16d70825e610736a1f9f104c",
      "emissive.png": "ba7a5a91b13520a899930150b44e6bf2dff4ac89e2706fdc3e98510c06018c60",
-     "thumb.png": "79907160d69bfe50a3bfd14205b678b3827dcaee10342868eb6816d3aa7f1140"
+     "thumb.png": "a415f31e4fce530d90da37c645165fcf4ad78427b45db662db6cfb12e8b2156c"
     }
    }
   },
@@ -1071,7 +1072,7 @@
      "model.json": "82ff34eabbbf95c598208d43e88fa0ca8277865228f20435dfe837902c35bd50",
      "texture.png": "bc54f27c3ab8e34a4acbe527dc418027ec726398e35f375550d7049062c1b1d3",
      "emissive.png": "d2139af8296e51155547e583341bfd19bfe040ca9fbe3ffdcbdeec3e75408ea4",
-     "thumb.png": "21c189c27eb8f7a23bf14a52117c973bc096dae6496b76c9806dce48cb89660f"
+     "thumb.png": "c99fa4365a7ee28b2a87d418d2e982bd932b86637930f780a6e9d280b1cfd967"
     }
    }
   },
@@ -1394,7 +1395,7 @@
    "assets": {
     "files": {
      "item.json": "e2f3f2e2766f82378d25025b894a3934b8495844854b82eb029ae2dbc2ce2ef8",
-     "thumb.png": "f1b00f9d24c955936b5fc4d6f6016365a86c3f3f18e6c83c7139256f2ded66e7"
+     "thumb.png": "ff075c651c4fc8e365181d238f47a424af0a6c7f98ca270ee5c7aff7566c02fd"
     }
    }
   },
@@ -1412,7 +1413,7 @@
    "assets": {
     "files": {
      "item.json": "c2bbb5fa0ed78d249e28057e6d6184a6bde676e1863b9a53ea0c1d64f49c4b0f",
-     "thumb.png": "7b1e1734ac8c507db9fec831f469dec121ff5ad6997dd4e95bcf0402ae70af80"
+     "thumb.png": "6befadc0759ad7088a3bcc189061b931e2d5cf1dc551f470531a2467b376e0fc"
     }
    }
   },
@@ -1430,7 +1431,7 @@
    "assets": {
     "files": {
      "item.json": "5886af88b5542f7a120ae6ef43382b1cbfa2e15cf66d3756715739b57bcbbadc",
-     "thumb.png": "eb4db1358d0a6a28a2ff4a53369ba6753d4802930d8e3bf6d007572d7077d565"
+     "thumb.png": "3bd90a31e72cc7a2c28abd6d4b62a03b32a9b955d87a16def3dec0c4dc66566a"
     }
    }
   },
@@ -1448,7 +1449,7 @@
    "assets": {
     "files": {
      "item.json": "dccfbd79d61fad3f25e8684a8040311faaf2b3dc1da62d7611955f26557fbe26",
-     "thumb.png": "b71f0a09943bc32c839a11555756c8be663567c49d51a8c2b2cf1ae44f062d8f"
+     "thumb.png": "e4aec2a40919d6f556c6dfcdd4fff40007e68e45074eb0b49988d744aa74d549"
     }
    }
   },
@@ -1466,7 +1467,7 @@
    "assets": {
     "files": {
      "item.json": "b43615b7364e33dbbedc2e924c0b2a84848a8a9a46e6bb6ca358a7afdca2e235",
-     "thumb.png": "016c68d16c67c66692921701baf3e264307c4e06a5f4c88a2ba68f6d08c4df84"
+     "thumb.png": "e4090b460edaa1d35902bc968bcd21b3276f27e75cf52a2981be70dcab107ebf"
     }
    }
   },
@@ -1530,6 +1531,1081 @@
      "texture.png": "73ee825491f085de49f7fb4d1c407365581090266be96e6424d54a76d6e378f5",
      "emissive.png": "79c74e5abbb9f7e8405b54249eb4d9b847e0fa3e0bd2c173c75fcbc391cc294f",
      "thumb.png": "1fc7087d026b51bae7b3865da8d642a154da5d456aeb3451ea49e09f9e1eb77d"
+    }
+   }
+  },
+  {
+   "id": "honeycomb_cape",
+   "name": "Honeycomb Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Golden honeycomb cells, some full and some empty, with honey dripping from the collar.",
+   "assets": {
+    "files": {
+     "item.json": "2a03b3a8e4a58f36175692e7fe40bd681ed55231bb37f2a4804453fd5676a88d",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "e00bde912a6983f1b2b744564df968a8429ef6aad822653325aff529ca058fc4",
+     "emissive.png": "f66f4130d4c22b16cfac54f3302eaad90a71efe8ca8f1ccfbde72b8822632755",
+     "thumb.png": "98f71e8f6d60bfbc412c272155715ecc24839478d45d37b5848610c225e4c32f"
+    }
+   }
+  },
+  {
+   "id": "royal_ermine_cape",
+   "name": "Royal Ermine Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Crimson velvet with gold embroidery, a jewelled crown crest and a white ermine hem.",
+   "assets": {
+    "files": {
+     "item.json": "084dd2bf751bd157f1f834c5b0fea2d3d32d6289b1f9b3b22ccaa5602ce3d0ae",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "7176db7437f07e61ebc5d5142d73ae703d82e28db00a9322c6e1db2bffec3c33",
+     "emissive.png": "6dd6e55f752a0877f13fe052f547c0283d4965900c0d014068c0a028a01f2bb4",
+     "thumb.png": "1dcb58e5a270b62b9db451ffd2318238f687ec80adf4e90a2ac9aad2db0f5e5e"
+    }
+   }
+  },
+  {
+   "id": "pixel_camo_cape",
+   "name": "Pixel Camo Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": true,
+   "defaultColor": "#6E8A4A",
+   "description": "Blocky camouflage in any colour you like.",
+   "assets": {
+    "files": {
+     "item.json": "d0c4d43866d4ea2ff2646772ad0a55c0ec888336c8f32f5fd6b3221f3a57e0ce",
+     "model.json": "16a3f9aff8fa2718f6b8e794bed9b8312c639bbee6e6e7d1c126f31a346e88c2",
+     "texture.png": "e91bdcf067419c8b5b5625ab0d9a892c0c97d1a9dc23d3a4dfc323535e68c786",
+     "thumb.png": "f359607f33ce39803d4ea3688b96fd63808ba096dc01db6475f3685fb04eff70"
+    }
+   }
+  },
+  {
+   "id": "code_rain_cape",
+   "name": "Code Rain Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Columns of glowing green code stream down the cape and never stop.",
+   "assets": {
+    "files": {
+     "item.json": "f49fda042cefdb11b49cabf1f5697498ab623499edfcc1ea0becb90d463ca4ad",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "08b470d8de79f5becb2fbf3e0e0bfe89ce4a9677874d9fe884bfecaa5cb024b7",
+     "emissive.png": "88a47b4b21b8bb84f99d2c7da49bfd9522a8781e78d79e639b85668d62e08bad",
+     "thumb.png": "824aa87fa4d6d9825609762baaf2e1b783362a40fdf882f63f185d70e4d8c7ba"
+    }
+   }
+  },
+  {
+   "id": "warp_speed_cape",
+   "name": "Warp Speed Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Stars stream past from a violet core, like jumping to lightspeed.",
+   "assets": {
+    "files": {
+     "item.json": "7011a810503dd7af33d4ef207da870e48fbd4e0a6e1a9d25002797f511d0e1e1",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "cddb66269ab11705d778db3ba548cb0fbb6cb561502d03998caf1a89a9559ef1",
+     "emissive.png": "f9c901a219fcb35c3c022ea99f43c185a90a8e1aeb32fcc89590a40d774ec4ea",
+     "thumb.png": "63703e4f1713bc3635adb67535f88ba2f9019e3b6bcf574f13008d4a00cc8d76"
+    }
+   }
+  },
+  {
+   "id": "bass_drop_cape",
+   "name": "Bass Drop Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A neon equalizer that bounces to a beat on your back.",
+   "assets": {
+    "files": {
+     "item.json": "2b0df187507eaaea73a28aadb3aba20a717541aecc5dd1dbdc0910f16384f29b",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "3b306b7a31827a8f63c1eceee4fe183f6db6717d3c79571bc41e54f223ee06af",
+     "emissive.png": "c207e85475c179f21acb276f024dc1eb6b1a08a064758ee14b84e555db36cf05",
+     "thumb.png": "6999914efd598bbe438b05e3b82cb98d3cec92b69c384cc035d72b50402da7f2"
+    }
+   }
+  },
+  {
+   "id": "dusk_moth_wings",
+   "name": "Dusk Moth Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Soft, dusty moth wings in cream and bark brown, with a golden eye-spot on each.",
+   "assets": {
+    "files": {
+     "item.json": "50321ae4a3db52f6c644e2e1fa5a1a85974bb900972406686c174fdbcf1eaab8",
+     "model.json": "2b61b76714c25804efc3f374fcad325cdad7482f41674c63a827f3d123f9cd77",
+     "texture.png": "d1a94967fa6ae50ae617116ba6e2be2744bfab34011f54ee1da3a41b15c4366d",
+     "thumb.png": "cc4a6036137c8224fd462ac978188b32b1b8629a8177fabaade13444ebd697bd"
+    }
+   }
+  },
+  {
+   "id": "pro_headset",
+   "name": "Pro Headset",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 300,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A gaming headset with glowing red rings on the cups and a mic by your mouth.",
+   "assets": {
+    "files": {
+     "item.json": "6cf3cf4de54cbbe09390ff221faae667768630724979af7bebd377c3dfc363c9",
+     "model.json": "2c9eca707339536829cf5202a9e4b59b2a2bed83195dd4bbcf5798eab202de35",
+     "texture.png": "952acec077fb51454e1264927f76d0af9f9d9f74c41db1f902146c20450e83e1",
+     "emissive.png": "ace209eee6f35c26e01208719c0c416cb7844668086a64af64290bb3e15615c1",
+     "thumb.png": "930f6fe77973c299cd52aaf0b08404a7360978db09126d503a93b1f43b4009d9"
+    }
+   }
+  },
+  {
+   "id": "dapper_top_hat",
+   "name": "Dapper Top Hat",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 300,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tall black top hat with a crimson band and a gold buckle, worn at a tilt.",
+   "assets": {
+    "files": {
+     "item.json": "ff98051b2d64d1d0883ddccb6d07a66ef266f8b691d6099a432b47546e963467",
+     "model.json": "6f3cc69b3456f00946e722bd6671f70fc1f92f52f716fa31c4f3ef4bb7e52a13",
+     "texture.png": "7abe2ec073609c432ca93973e5015c50e04be54d9246f13869847b2934bb88b8",
+     "thumb.png": "c4b7312d736a7ed75480b0c91bbb410fb04334fb08e10251fb77ac73f4756a4d"
+    }
+   }
+  },
+  {
+   "id": "raider_helm",
+   "name": "Raider Helm",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A steel helmet with a bronze band, a nose guard and two curved horns.",
+   "assets": {
+    "files": {
+     "item.json": "6ade9654902abab224d7502a72ae3b07038ceb18a20b53cbefacafc2e06754d6",
+     "model.json": "880907ea4e83dc7d2e140a2ba927a76a0622acc11854fc04d27fc3c4e8bbed25",
+     "texture.png": "3b3010fccaf447f16a3ba79b9d1513f30e54b4c7f8225f947d231a25025abaef",
+     "thumb.png": "f80eb584fc463b23383c9eb0dc561174e7ca4646e27810ae78fbd0ddc5978b60"
+    }
+   }
+  },
+  {
+   "id": "personal_raincloud",
+   "name": "Personal Raincloud",
+   "slot": "HAT",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your own little storm cloud: it rains on you nonstop, with the odd flash of lightning.",
+   "assets": {
+    "files": {
+     "item.json": "e65d7123e9fe692e25a0bf282b151bb25e59c03f226aadde187a508b4cd640ba",
+     "model.json": "15f2d1e483659ac888d785efcfef8aee5518b18e22ba358b88f8870989a40c37",
+     "texture.png": "a4c3c59c790cbc75dba63d259d662c39f2f05872985e2320ee8fdae898f7facd",
+     "emissive.png": "56da55dc0d212025c9cffae818ee7f06938aa9bdcaa0526b2565d301bf517bce",
+     "thumb.png": "0f9c23bbd71d92b6f70121e6a07d346e94663138fc4380e389e9574054190aff"
+    }
+   }
+  },
+  {
+   "id": "aviator_goggles",
+   "name": "Aviator Goggles",
+   "slot": "MASK",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Brass flying goggles with amber lenses on a worn leather strap.",
+   "assets": {
+    "files": {
+     "item.json": "d4c0758f1f222707a12387d076fbdff92f37526a9cec4e247556d2ac7c0d6caf",
+     "model.json": "c7fa201d9907e5beea4b4d9ae4c29b8f2242fba7869caf0fd3d6e38682359a68",
+     "texture.png": "4d25c54e6e7acff160e05bb560d570cdac6a0041d1cb688d021db1d661764480",
+     "emissive.png": "0e9942f511eefd854911934c86c348e09c74d83d316dcbbdb11e6a994b34d81d",
+     "thumb.png": "813edb5e4de5ebc056c1805f55f01c25546f6433686bfdb9129a1b517f21aad0"
+    }
+   }
+  },
+  {
+   "id": "gentleman_kit",
+   "name": "Gentleman's Kit",
+   "slot": "MASK",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A curled moustache and a gold monocle. Very distinguished.",
+   "assets": {
+    "files": {
+     "item.json": "ddc32aa917dd7f13dc95bbf15395517ec58023146f952540ea8613216606b435",
+     "model.json": "d2f73ccd66e1e2279775411ef5d8fd525883b0383c8f53c457eb5cd0db99e5cf",
+     "texture.png": "fc2166b891485d57719e687b490a1582fa953226e1beb521677a701c0ccee4df",
+     "thumb.png": "4a91cf2ea8a6cb49ccb88464a5d92cbbfb8bc3df011d0a1a5d0c2c0f5f8834ce"
+    }
+   }
+  },
+  {
+   "id": "acoustic_guitar",
+   "name": "Acoustic Guitar",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A warm wooden guitar slung over your back on a black strap.",
+   "assets": {
+    "files": {
+     "item.json": "eb41d96590913a80a44dcb66d23d3484c964b59b0e2629dfcea4fa22be1f5150",
+     "model.json": "227968b224385d3bff4178fbd1fd8266d35e8247cd7c520a5e751dcae5423994",
+     "texture.png": "3373986517eb579d90d412484c8de9cb5d15b8c9135dfe37c14ed70147bdd397",
+     "thumb.png": "608115d4484cc5a11d716653c1985596fe94835c0562d7cc32cc89053882a238"
+    }
+   }
+  },
+  {
+   "id": "turtle_shell",
+   "name": "Turtle Shell",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A big green turtle shell with pale plate lines. Slow and steady.",
+   "assets": {
+    "files": {
+     "item.json": "a0569797bd7544299f08862ab94800a49d95ac76eb126d728a1118805edc8fa5",
+     "model.json": "4e4719b02bc0786d8e4713932f4349153aff91415934f4fcd5482d2345dd115b",
+     "texture.png": "f4321a6ce7d7e90a3379739d5327e291cbe95c4cc8fec7c6baa4a272aea59e9d",
+     "thumb.png": "574f54d7a52d96e14206553a1d2a59a8d03f9db9ada2b8215e4fcdcf6c5689d5"
+    }
+   }
+  },
+  {
+   "id": "reactor_pack",
+   "name": "Reactor Pack",
+   "slot": "BACK",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A steel backpack with a glowing plasma core that swirls and pulses.",
+   "assets": {
+    "files": {
+     "item.json": "ba032ab1a63566fcea730463a398f42a1412c76e26e9b3e07abde9403863dfe2",
+     "model.json": "ea1120ad4380440320aa7a4f15de06b4616c07899fafed055231fe3186eef214",
+     "texture.png": "5d09c1b91098f1e1865f989acd609d66c165808093b95d2bca5e691b9497ecac",
+     "emissive.png": "5e04064ca66f8cf68f0e168ab8c543a82717ccaed16f56a9e5793089d48c9a6d",
+     "thumb.png": "9ec77cb6cded7e684f5e5c7e3e65eae9a914af50808de745eb877610ed35c474"
+    }
+   }
+  },
+  {
+   "id": "candy_cane_blade",
+   "name": "Candy Cane Blade",
+   "slot": "ITEM_SKIN",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your sword as a striped peppermint candy cane with a gold guard. Shows on swords you hold, on your screen.",
+   "assets": {
+    "files": {
+     "item.json": "1926b8c07d71adb94f376fbde9555440c061b74db9772e16b93b327ee2fc7bbc",
+     "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
+     "texture.png": "3afefaafa72b46c507df74d6a2066962b1cd7a9451f92c7f440ba9361d6cf348",
+     "emissive.png": "3fe9cd19c421f37672bf333d7d898eaec5a9b3e0e0d2458aca16489fbcea26f6",
+     "thumb.png": "44778b722765bdb7c59333cc296fb5df2b1e596dce060bcfcd6e16a3ee3b9bb8"
+    }
+   }
+  },
+  {
+   "id": "verdant_thorn",
+   "name": "Verdant Thorn",
+   "slot": "ITEM_SKIN",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your sword grown from green glass, wrapped in a living vine with leaves. Shows on swords you hold, on your screen.",
+   "assets": {
+    "files": {
+     "item.json": "ba292e600ac6d5cd7df575c3d4f45c3b6e255e7d65e9fab41f8ee62166c691c5",
+     "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
+     "texture.png": "0683fe309022137392142d1e12c415873bd8470bb1c8190e0d693e58581cc92c",
+     "emissive.png": "b7ebc2b2bccfaee1bd0a5325803ba769f796116316b55032fde7a18ff00683d0",
+     "thumb.png": "2f868139a029bc6e7cdcf8c22021bb5d3b29d62ee308400e3bf4d093e98f12c7"
+    }
+   }
+  },
+  {
+   "id": "plasma_edge",
+   "name": "Plasma Edge",
+   "slot": "ITEM_SKIN",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your sword as a humming violet energy blade with light pulsing up the edge. Shows on swords you hold, on your screen.",
+   "assets": {
+    "files": {
+     "item.json": "723433b21d09647c0e9637198463ff13804869b265c73d190155b5efcb8e7acd",
+     "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
+     "texture.png": "a83a957188da0d4d7e3f912b36edca284f64eb13fcc2d8666ded1228d2cb441c",
+     "emissive.png": "f3d7669973cd818888a5cf4b3e1f4f33d8a602c7b5156d26c0f619c3cb129f82",
+     "thumb.png": "aa83eeed4b49635ad4c65628e62894bac0dc71777e06e82a810aa3bdbc731bc8"
+    }
+   }
+  },
+  {
+   "id": "pebble_penguin",
+   "name": "Pebble the Penguin",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round little penguin with flippers out and a bright orange beak, riding on your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "eaf32f070da6514ddb7d96a137ed38f5076d7783a09494b662f9b38504e1b89f",
+     "model.json": "5a13705dbf3d969ec273a7a5ac5c01ecc41247bd139d0692f72677303f80585e",
+     "texture.png": "5cf8598f6b6e05502c28682d9f58d745087e219d05c5fd8c3b2dd592c5251e0e",
+     "thumb.png": "9be7fc6094d35cb2fbd0d059b01047ad4f9ac9765deb6c06c96d5ff4e6edef88"
+    }
+   }
+  },
+  {
+   "id": "buzz_bee",
+   "name": "Buzz the Bee",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A fuzzy striped bee with see-through wings that hovers by your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "9ed607cf7a3f90ace03f8b84fb7f6a13f6cebc5d739afd9df8e6b621e2d665cc",
+     "model.json": "fb9615538597d6a252f795aeafba236384abfd96cc39b189d84671e2f314d5d4",
+     "texture.png": "094e160e76e2ad8468243ac2a0351fa8f3f19a9ffbe177f0412103702f72559d",
+     "thumb.png": "f585811cb4db147d786ef35ec29c05d651c61072f8a363c619fd4ac75c506f1f"
+    }
+   }
+  },
+  {
+   "id": "lily_frog",
+   "name": "Lily the Frog",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A bright green frog with golden eyes perched on your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "4bbecefa98a69531151bac4b3858fefde2d4263bce1d84e774eedd3d468c187d",
+     "model.json": "23c7c9932c8280432b39c8bdc48ed6410ddb3662d952918ab0fe4d097ad2b7ed",
+     "texture.png": "38cc36240dc23797acf20b20c6c73f709f69f25e6a75e177a1d05b409fff7eac",
+     "thumb.png": "d6a74d51fc7c3cdb214b148a93c9ab5850106bbf53cc1413ba41d4c4015a911e"
+    }
+   }
+  },
+  {
+   "id": "boo_ghost",
+   "name": "Boo the Ghost",
+   "slot": "PET",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A shy little ghost that flickers in and out, with glowing eyes that blink now and then.",
+   "assets": {
+    "files": {
+     "item.json": "72f9e1af27e8e8872fb0404e0cbdd1c3edecdb5609607a428a1f2109cda95c6b",
+     "model.json": "cd27659afad8652e373b79d81386a05bb25819db95da978cb528c8eec6c09fdc",
+     "texture.png": "3cb51750f26b8b16d87f09ee00419c74ce488993064dc2b3eaf8f0339cb65f68",
+     "emissive.png": "7bb47680b99c15d14348fd8c4e8e0c10e75db88f58216e509bc234c6a9c6a4f1",
+     "thumb.png": "77a0363d0f416cd0a38c24667372f03f27afcec54af0d467a82f2a74f5bb8c95"
+    }
+   }
+  },
+  {
+   "id": "bubble_trail",
+   "name": "Bubble Trail",
+   "slot": "TRAIL",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Shiny soap bubbles float up from your footsteps and pop.",
+   "assets": {
+    "files": {
+     "item.json": "d2c0a3226b30ac67bb93319749eff24ae6974c9b7edbc79e70a2c251e245b9b1",
+     "thumb.png": "d5aeff4b44c5e80ee594db40d21a12b6d6f79be3e6b2c99b5bc80f7d04695b42"
+    }
+   }
+  },
+  {
+   "id": "heartbreaker",
+   "name": "Heartbreaker",
+   "slot": "KILL_EFFECT",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your opponent bursts into a shower of pink and red hearts.",
+   "assets": {
+    "files": {
+     "item.json": "368c55daac9c9cbcde2ca09364ae847b4336956c492357c94c1569537363ea00",
+     "thumb.png": "f5a3388576f7d3419f806660718a69fa15b254caf6e5fbab353bf9751c6268a0"
+    }
+   }
+  },
+  {
+   "id": "gold_rush",
+   "name": "Gold Rush",
+   "slot": "WIN_EFFECT",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Win a game and a fountain of gold coins and sparkles bursts out around you.",
+   "assets": {
+    "files": {
+     "item.json": "49ebfafc4430607d533169d9940c430285205d87f4fc279816900d36fc90425e",
+     "thumb.png": "741deb5bc73e3985cb605e7c867f5fa185ab195c494e494aab4e389c9844a6f5"
+    }
+   }
+  },
+  {
+   "id": "facepalm",
+   "name": "Facepalm",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Bury your face in your hand. Sometimes it's all you can do.",
+   "assets": {
+    "files": {
+     "item.json": "4c823ff983426e391f381ef61de0f1453d99be2e733ab64e3b82aa6aad881f73",
+     "thumb.png": "0c9f76600f5b4225f9f777a50151e0e3e17b62e5cc7b327be862e0b1e388be6e"
+    }
+   }
+  },
+  {
+   "id": "shrug",
+   "name": "Shrug",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Arms out, shoulders up. Who knows?",
+   "assets": {
+    "files": {
+     "item.json": "eac3199a5ad9b608c7fbe110e4aa4353c9583a320371270fd194df8ff9e04ef7",
+     "thumb.png": "06ca404648e69397a401678486f6dce52e97b05c0394c06219eb9a4237f0015a"
+    }
+   }
+  },
+  {
+   "id": "victory_flex",
+   "name": "Victory Flex",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Both arms up, show the world those gains.",
+   "assets": {
+    "files": {
+     "item.json": "f520de633401810e279070ca01982f8e704c017383ee20e24b71c4a7f59ecf04",
+     "thumb.png": "aba4dfa0f245e875a774ec7431a24ffcf1781ce44e5eaf9103f6d3e9dfe5c0b9"
+    }
+   }
+  },
+  {
+   "id": "torii_sunset_cape",
+   "name": "Torii Sunset Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A red gate standing in still water with the sun going down behind it, its reflection rippling on the lake.",
+   "assets": {
+    "files": {
+     "item.json": "a23524af1f3b776deb89650b4d65535a3b896142e37220a1d1cd67484b9b2adf",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "32d74a6c63cd47878d17ea692d42838f199fa8bdbcba100156d02bed183c21fe",
+     "emissive.png": "b0fdac3c9798c2585830e00c794dc693741c19df7ef5010d4c3568b18e13e291",
+     "thumb.png": "f881091d74a1ef19bd2884d4d8d2b1b907aca630b379bf6d349c999f668282c2"
+    }
+   }
+  },
+  {
+   "id": "graffiti_crown_cape",
+   "name": "Graffiti Crown Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Black cloth with a crown sprayed on in white, the paint still dripping, and a splash of colour underneath.",
+   "assets": {
+    "files": {
+     "item.json": "6c8bdde1ccbbdabb317758d282641dbd0722c4022aa2c29a0df7f0caad3e09f4",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "ce328c595e7fe050536b63c3cd0f911bf527a2e74ad03cad904d13a674cc43d4",
+     "thumb.png": "3e562a1bbda13b11ca9b32426a41e33cdaa6f772b6878d41a32fd0a2c69106ef"
+    }
+   }
+  },
+  {
+   "id": "imperial_dragon_cape",
+   "name": "Imperial Dragon Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Deep navy silk with a long golden dragon coiling down it between curling clouds, chasing a pearl.",
+   "assets": {
+    "files": {
+     "item.json": "0e2d3c965ea55896d7e1b176e7fe73789ceeb4bba3e8aa6b3c19a83112ca884f",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "6ac4dee7d16bf21d2a13d96013128a3bbc8f674fd1140c46211d8e19d5e8559a",
+     "emissive.png": "a3fa64ae865fa6013e8170d47a0d3ce7cd71a41cd593dab5a91393acd614cdee",
+     "thumb.png": "c40d5f5e91385e3edbecbaaaa608bfa6bbf5980d6eb9d8b984dd8f6c5bdb2925"
+    }
+   }
+  },
+  {
+   "id": "ace_of_spades_cape",
+   "name": "Ace of Spades Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A black playing card with a crimson double border, a big red spade in the middle and an ace in the corners.",
+   "assets": {
+    "files": {
+     "item.json": "abba31d9368c882682ecf584e48adc1091d64cb4bf6f9e23eadc6a49830d78f5",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "e2649cc85aab538236a84a93f9003920c18aea15ca75918aecdb325f7a2de631",
+     "emissive.png": "ea08eb6fb4621a6f111f6b576a83d154012e5f552d26591cad4c76f9b38b9a2c",
+     "thumb.png": "de517e1b37891808a367bf7e836fb4a8946649049596e108fe4930ae29df63d6"
+    }
+   }
+  },
+  {
+   "id": "snow_peak_cape",
+   "name": "Snow Peak Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A snowy mountain under a pale winter sky, pines along the shore, all mirrored in a still blue lake.",
+   "assets": {
+    "files": {
+     "item.json": "84001aa5e312bbc0693db4b3917d1668057da3b55150e655e3fa140989fc5291",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "b4f4f82d0181af90ff6482f9de20cf7e1ca4b106abc3ef220bc9f9a9d2983a24",
+     "thumb.png": "da82c2df4b68445ec50d0f10d79d7c42f898119e40264711929a93fd69e97166"
+    }
+   }
+  },
+  {
+   "id": "winged_crest_cape",
+   "name": "Winged Crest Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A golden eagle with its wings spread wide, set on black inside a fine gold border.",
+   "assets": {
+    "files": {
+     "item.json": "c78967482298c8eabf4282b9764784d60a776c9749c9fb6904e0ee8f96fc0405",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "8118ff68cb16dc690a84c4e29374530533ce956de3dbf6d889ada00fa976aeb9",
+     "emissive.png": "639ce0646ad233e5953784708ff8b1c7a61a540204527bae1678876cfb887ff3",
+     "thumb.png": "5847991f221ea659f9b04b8bceffdbfdfd9ead9b658323850e57376808df797d"
+    }
+   }
+  },
+  {
+   "id": "samurai_cloak",
+   "name": "Crimson Samurai Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Deep crimson with gold edging, a round gold family crest of three swirls and gold waves rolling along the hem.",
+   "assets": {
+    "files": {
+     "item.json": "564c7d2260ab2498959b24d208d82260cbf68f63f403a640c7e78dd63379157e",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "61ed23c14d0a3bcc57230daf77d92bcf618230dbb419a56a26d603c8146ee38f",
+     "emissive.png": "c7b1eacf1c2814677c1a9626df548352aefa9b2331c870c4325592e529046a0a",
+     "thumb.png": "b706899f28322a074cae52d48d37943f7bc79c73d22a54920f77a82464788af0"
+    }
+   }
+  },
+  {
+   "id": "glitch_koi_cape",
+   "name": "Glitch Koi Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Two neon koi, one pink and one cyan, chase each other round dark water while the signal glitches and tears.",
+   "assets": {
+    "files": {
+     "item.json": "0a98e1497c1826b66d7421ecc4d7aa087f8564209da453076b928ac150447439",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "8ca9a57d2f8cce27f0a0f6f03bb5dba856aa59a1c300726f05a47bc94c4c8142",
+     "emissive.png": "6aba6a9f95476c3860e9443e32e4209575ff32fe654c91380760279f4e065fb4",
+     "thumb.png": "b30d440c086867fa915b8f8a0bfa788e2ac32e762db58743c5a63c7a8f45a0ea"
+    }
+   }
+  },
+  {
+   "id": "void_eye_cape",
+   "name": "Void Eye Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": 0,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A great glowing eye in a swirling violet void. It looks one way, then the other, and every so often it blinks.",
+   "assets": {
+    "files": {
+     "item.json": "69355c806627f82ef0c24c2bd3cc86b0efb704f452dfd50981cb7ac34b60113a",
+     "model.json": "92cfc7b2ecb445604fb0293f0500294921933e99915b24b483ad54d31b9bdcae",
+     "texture.png": "231dc6a7fbbda9c38a33afd690446e8e4613f2d46e6d973afe52a9c9d1b3b115",
+     "emissive.png": "a4a4dae9055df0aadb42ad236f832022cd97b16497f717888d98d5b96198fd17",
+     "thumb.png": "789d439926853411cb68b7a174de944b9a02de4498bf8c1e3005b66332908d71"
+    }
+   }
+  },
+  {
+   "id": "origami_sakura_wings",
+   "name": "Origami Sakura Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 800,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Wings folded from pale pink paper, every panel creased sharp and printed with cherry blossoms.",
+   "assets": {
+    "files": {
+     "item.json": "fe923268a31b337f3652d80c403233d379a40b69a9dd66a37a24dda0570be3a3",
+     "model.json": "b566067905f227f8275c618b9d45fc09498de26c8a207f2fdcd5911a941c676d",
+     "texture.png": "378bd0d004bf0a9088ccc5d367c41a8710d2b6dc2b2d2e4b5dd53c0564a4b122",
+     "thumb.png": "d0dee1afd309511398a7449a274894a6fb9dfa7730727029d3db2526b71c6aeb"
+    }
+   }
+  },
+  {
+   "id": "shadow_samurai_helm",
+   "name": "Shadow Samurai Helm",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A black-violet lacquered samurai helmet with a flared neck guard and a crescent crest that glows violet.",
+   "assets": {
+    "files": {
+     "item.json": "1f76d0e50fa4730f6215367152593d37ec3260932034a9ce3f5f73a665ab6c17",
+     "model.json": "ae3fc25ee2bb61ed1545ce180a16647523c825e820cd9d42d993531fcfa60704",
+     "texture.png": "7fc70d427bc764ff27272417f6c09ae00bacd7ca6d16effc8bff6029234c61b3",
+     "emissive.png": "a9514ba1ee88e7a83283812522d58a64d28fe944a9f435c1264fd4bd07f9eb33",
+     "thumb.png": "e1e8e8fcf633c7706e2a3ef3f0e39ec00cac41d17a9ea931e4dcaf29e438e883"
+    }
+   }
+  },
+  {
+   "id": "storm_ring_aura",
+   "name": "Storm Ring",
+   "slot": "AURA",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A ring of crackling cyan lightning circles your waist and strikes again and again over a scorched ring at your feet.",
+   "assets": {
+    "files": {
+     "item.json": "02e63247aa8b726319033ad6e5060a9d916809e2cc11ac30f0df06c3cf7e5db0",
+     "model.json": "e07274c8ccb87583f9305922120ed06d669ba2d9e928616dd2a0dacc13cca594",
+     "texture.png": "0a4fbab331364112b0fd0f42f6b2c50c1ab3f00e55927ff993327934426e4f9d",
+     "emissive.png": "e6ef30536498fdd36a2bec4d43df8eb6484fdf823248518f9a623e4c15b2a43c",
+     "thumb.png": "90454dcbfb066b5ac93ce330da876b8bbfb158b1f70f015a0fb8d71591dc1682"
+    }
+   }
+  },
+  {
+   "id": "baby_capybara",
+   "name": "Baby Capybara",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A calm little capybara with a tiny citrus balanced on its head. It sits on your shoulder, blinks slowly and twitches its ears.",
+   "assets": {
+    "files": {
+     "item.json": "5ba54a4bbfbcd8e3c9a27e347502abc88c427cf9d3a6b5e62395cd0f2b349572",
+     "model.json": "d8adebb23922591ee2c5216a9eb662c7074920990dbcd9416fd8b3b22584039c",
+     "texture.png": "23f3def8d15fa905be91460c27800997a4851cc39abb857599d22c75627c75d4",
+     "thumb.png": "b8501fb5a0babf90bdacafdb95b7b530bf04dcc251cc5780660332391b26b606"
+    }
+   }
+  },
+  {
+   "id": "panda_cub",
+   "name": "Panda Cub",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round panda cub with big eyes in dark patches that sits on your shoulder, looks about and blinks.",
+   "assets": {
+    "files": {
+     "item.json": "8d185edae1ba1a933d0f0e3c16e7dcf4d53c59f092bc4940913a42bb2013fc29",
+     "model.json": "c4ccf43bcc724c2e8d446c966d0f166c90307c256b11415393acdfa321eb6e25",
+     "texture.png": "506ac86c7993f2570b270723ea64aad72b478ca7fca7c98749b54d1a272b1c5c",
+     "thumb.png": "fb484aefee6839d375ffd0ae1d113a79634b219a03abd01c15d5fb13dfe958cc"
+    }
+   }
+  },
+  {
+   "id": "bolt_robot",
+   "name": "Bolt the Robot",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna blinks red while it floats beside your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "b7da5ca9c10b3aaa4d9f5d7258935a3fbff872e089477d315c483527906364cd",
+     "model.json": "954549b463e4a534ce2807cc0a759ca5abdec894768bace2663c2ac08d5c43a7",
+     "texture.png": "fa54a6c2a5324b7977fd1c5d9a8e9911037dab6c37c53328b54cac45f54832f8",
+     "emissive.png": "37029523f69b649a6439e8efab1111a7b7f899c00529f55abaecee785f0be6cd",
+     "thumb.png": "2708ee161efc89ab93040b3664691eb4bddb8b01be1d94f6f509b15bfcd6510f"
+    }
+   }
+  },
+  {
+   "id": "steampunk_shark",
+   "name": "Steampunk Shark",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims through the air beside your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "c8cee6f1cb260ab9406057d8e21c06c33806069be4fd0f463d1e402b89edb87b",
+     "model.json": "db852d81d54cf7e988bb48c0e7ccc854e764112ba5fdbd328494f10cf466369b",
+     "texture.png": "c3b873bc0e3a1334633a67604b6bf857f0f651f520f0c5e3c494e72b1c2f438d",
+     "thumb.png": "671380696838da5a7f82c4ef7ea343fdcbdf5488d889287103906bc2782199b7"
+    }
+   }
+  },
+  {
+   "id": "breakdance",
+   "name": "Breakdance",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Drop down, kick up into a handstand and spin round on your hands, legs scissoring, then flip back up.",
+   "assets": {
+    "files": {
+     "item.json": "efb37dcc1f096bcb7907560ca5b63d696560d460660053842da9363a13803b5d",
+     "thumb.png": "c365f5ac732eefc559cb4298f47b53c6ef800495954435363a4bcae8e49c2b38"
+    }
+   }
+  },
+  {
+   "id": "levitate",
+   "name": "Levitate",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Sit cross-legged and float up off the ground, bobbing gently while glowing rune glyphs circle you.",
+   "assets": {
+    "files": {
+     "item.json": "7b983f5cdd92c986c567cb86dfeba04355b78bf3251a6a14814694478efa34e5",
+     "thumb.png": "254f72870aec214dcec278eae3a42d41e78c76504697203bc3ae70d740f033d3"
+    }
+   }
+  },
+  {
+   "id": "heart_toss",
+   "name": "Heart Toss",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Bring a hand to your heart, then toss a little heart out to someone.",
+   "assets": {
+    "files": {
+     "item.json": "d8e24e359a296a7a3c1934f3c77e870b0d4efe58dbf2043e5a1604c6afa6f667",
+     "thumb.png": "2aa16aac90c464747cd026369eae09431b200c5f164943b9dacb5623e8501fea"
+    }
+   }
+  },
+  {
+   "id": "kitty_pat",
+   "name": "Kitty Pat",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Kneel down and give a little white kitten a pat. It closes its eyes and swishes its tail.",
+   "assets": {
+    "files": {
+     "item.json": "de46b31fadcf266ce9d7368e8c36798863ac5cad1c6691e747fa0b34a6e79f4f",
+     "model.json": "265b6b8b16d086375d33e88fdceee0a6da4c400bf3626b1c5d6a087da3c0d1fd",
+     "texture.png": "bde5fdd250cf1a84f7f61447784bd45b0653f7c12743d6512add656b5f4c6d92",
+     "thumb.png": "1cdc547887e192bece81b5f091003766a9a2a3c8e662374669e983a7f5d1e2b0"
+    }
+   }
+  },
+  {
+   "id": "fire_ring",
+   "name": "Fire Ring",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Strike a power pose with one fist raised while a ring of fire roars up around your feet.",
+   "assets": {
+    "files": {
+     "item.json": "b6e903a932bad590b7a665b547ef3107706b713b66234dbcfd6f81bb99b05792",
+     "thumb.png": "f7b01f80175dc1e506a2224a446437404c8c92c2e087033ccf207eb58cd06083"
+    }
+   }
+  },
+  {
+   "id": "disco",
+   "name": "Disco",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Point up to the sky, then down to the floor, hips swinging to the beat while music notes float up.",
+   "assets": {
+    "files": {
+     "item.json": "a9b45cc6bf40ec29d3a34fb05a10f3675d8455254dc6b0ad80e3d2afa2ec1083",
+     "thumb.png": "00772cf0f72fe76f97d667d0af7c3b2e7d44b333046327c024b1476f0923c64d"
+    }
+   }
+  },
+  {
+   "id": "challenge",
+   "name": "Bring It",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Plant your feet, chin up, and beckon with both hands. Come on, then.",
+   "assets": {
+    "files": {
+     "item.json": "2347d95b0101048733175d34e5bf2575d7c14038ac193934db6b093c9e89e304",
+     "thumb.png": "4fd8ca3fac31e96f3bffeddcfb2cbc4ae772e3d4043dfbecb8785f2adc222863"
+    }
+   }
+  },
+  {
+   "id": "laugh",
+   "name": "Laugh",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Clutch your sides, throw your head back and shake with laughter.",
+   "assets": {
+    "files": {
+     "item.json": "1e446f5e0c7c41ed2a48d22c975f1fccdc4078d2bd6d5e3354ea2c77975e92d3",
+     "thumb.png": "50d1e5049a7baa4a5625ff980fd120bd889b9139de08f88d3c0177801b8bcf34"
+    }
+   }
+  },
+  {
+   "id": "superhero_landing",
+   "name": "Hero Landing",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Drop out of the air into a hero's crouch, one knee and one fist to the ground, dust bursting out around you.",
+   "assets": {
+    "files": {
+     "item.json": "136cb333c806651b54f78081da0c9bf0d14f63f5f0959b2c5225a6ec73463687",
+     "thumb.png": "5108b6c89b1806e05decd7ed0d1c1d17f6c89df6771292e6b1a446e7d8a379a7"
     }
    }
   }

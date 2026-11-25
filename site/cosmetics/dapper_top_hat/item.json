@@ -1,0 +1,10 @@
+{
+ "id": "dapper_top_hat",
+ "name": "Dapper Top Hat",
+ "slot": "HAT",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A tall black top hat with a crimson band and a gold buckle, worn at a tilt."
+}

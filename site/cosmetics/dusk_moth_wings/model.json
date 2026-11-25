@@ -1,0 +1,155 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  22,
+  28
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "lobes_r",
+   "attach": "body",
+   "pivot": [
+    -1,
+    3,
+    4.0
+   ],
+   "rotation": [
+    0,
+    0,
+    -6
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -12.0,
+      -4.0,
+      4.3
+     ],
+     "size": [
+      11,
+      9,
+      0
+     ],
+     "uv": [
+      0,
+      11
+     ]
+    },
+    {
+     "origin": [
+      -9.0,
+      5.0,
+      4.35
+     ],
+     "size": [
+      8,
+      7,
+      0
+     ],
+     "uv": [
+      0,
+      20
+     ]
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 24,
+    "amp": 18,
+    "speed": 1.8
+   }
+  },
+  {
+   "name": "lobes_l",
+   "attach": "body",
+   "pivot": [
+    1,
+    3,
+    4.0
+   ],
+   "rotation": [
+    0,
+    0,
+    6
+   ],
+   "cubes": [
+    {
+     "origin": [
+      1.0,
+      -4.0,
+      4.3
+     ],
+     "size": [
+      11,
+      9,
+      0
+     ],
+     "uv": [
+      0,
+      11
+     ],
+     "mirror": true
+    },
+    {
+     "origin": [
+      1.0,
+      5.0,
+      4.35
+     ],
+     "size": [
+      8,
+      7,
+      0
+     ],
+     "uv": [
+      0,
+      20
+     ],
+     "mirror": true
+    }
+   ],
+   "anim": {
+    "type": "wing",
+    "side": -1,
+    "base": 24,
+    "amp": 18,
+    "speed": 1.8
+   }
+  },
+  {
+   "name": "thorax",
+   "attach": "body",
+   "pivot": [
+    0,
+    3,
+    2.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -1.0,
+      0.0,
+      2.0
+     ],
+     "size": [
+      2,
+      8,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

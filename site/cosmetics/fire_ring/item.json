@@ -1,0 +1,139 @@
+{
+ "id": "fire_ring",
+ "name": "Fire Ring",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Strike a power pose with one fist raised while a ring of fire roars up around your feet.",
+ "fx": {
+  "type": "aura",
+  "shape": "ring",
+  "particle": "flame",
+  "colors": [
+   "#FF7A1A"
+  ],
+  "rate": 24,
+  "radius": 1.0,
+  "from": 0.2
+ },
+ "emote": {
+  "length": 2.0,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     -150,
+     0,
+     -25
+    ],
+    [
+     1.0,
+     -158,
+     0,
+     -22
+    ],
+    [
+     2.0,
+     -150,
+     0,
+     -25
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     10,
+     0,
+     -38
+    ],
+    [
+     2.0,
+     10,
+     0,
+     -38
+    ]
+   ],
+   "rightLeg": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     0,
+     0,
+     12
+    ],
+    [
+     2.0,
+     0,
+     0,
+     12
+    ]
+   ],
+   "leftLeg": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     0,
+     0,
+     -12
+    ],
+    [
+     2.0,
+     0,
+     0,
+     -12
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     -12,
+     0,
+     0
+    ],
+    [
+     1.0,
+     -16,
+     0,
+     0
+    ],
+    [
+     2.0,
+     -12,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

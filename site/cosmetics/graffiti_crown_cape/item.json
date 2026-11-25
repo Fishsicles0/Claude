@@ -1,0 +1,10 @@
+{
+ "id": "graffiti_crown_cape",
+ "name": "Graffiti Crown Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Black cloth with a crown sprayed on in white, the paint still dripping, and a splash of colour underneath."
+}

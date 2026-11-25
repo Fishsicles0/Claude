@@ -1,0 +1,68 @@
+{
+ "id": "facepalm",
+ "name": "Facepalm",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Bury your face in your hand. Sometimes it's all you can do.",
+ "emote": {
+  "length": 2.0,
+  "loop": false,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     -130,
+     -40,
+     0
+    ],
+    [
+     1.6,
+     -130,
+     -40,
+     0
+    ],
+    [
+     2.0,
+     0,
+     0,
+     0
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     22,
+     0,
+     0
+    ],
+    [
+     1.6,
+     26,
+     0,
+     0
+    ],
+    [
+     2.0,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

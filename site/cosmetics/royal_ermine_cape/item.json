@@ -1,0 +1,10 @@
+{
+ "id": "royal_ermine_cape",
+ "name": "Royal Ermine Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Crimson velvet with gold embroidery, a jewelled crown crest and a white ermine hem."
+}

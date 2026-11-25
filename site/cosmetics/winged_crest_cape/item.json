@@ -1,0 +1,10 @@
+{
+ "id": "winged_crest_cape",
+ "name": "Winged Crest Cape",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A golden eagle with its wings spread wide, set on black inside a fine gold border."
+}

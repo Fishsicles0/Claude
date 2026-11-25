@@ -1,0 +1,10 @@
+{
+ "id": "panda_cub",
+ "name": "Panda Cub",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A round panda cub with big eyes in dark patches that sits on your shoulder, looks about and blinks."
+}

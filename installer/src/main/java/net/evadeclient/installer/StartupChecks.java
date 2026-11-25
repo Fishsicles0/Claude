@@ -18,9 +18,9 @@ final class StartupChecks {
 
     /** What's new in this launcher version (newest first; shown once after an update). */
     static final String[][] WHATS_NEW = {
-            {"Updates ask first", "When a newer Evade Launcher is out, it asks before updating, checks the download's SHA-256, and never installs an older version."},
-            {"Stricter download checks", "A file without a checksum isn't installed, downloads come only from evadeclient.com, Modrinth and ffmpeg's builders, and a rolled-back release list is refused."},
-            {"Faster graphics card, your choice", "Settings > Launcher has its own switch for the Windows graphics setting; turning it off removes what Evade set."}};
+            {"Add-ons tab", "Mods > Add-ons installs Distant Horizons, Flashback, Litematica, MiniHUD, SkyHanni and Axiom from Modrinth in one click, with each one's licence and what was tested."},
+            {"Smarter mod checks", "Version clashes are spotted (e.g. a mod that needs a different Sodium), no more false \"problems will stop the game\" warnings, and an overlap with an Evade mod offers to switch Evade's off."},
+            {"Updates ask first", "When a newer Evade Launcher is out, it asks before updating, checks the download's SHA-256, and never installs an older version."}};
 
     /** Checks every installed instance's own mods and packs; {@code report(instance, updates)} runs for each with updates. */
     static void modUpdates(List<Launcher.Instance> instances, BiConsumer<Launcher.Instance, Integer> report) {

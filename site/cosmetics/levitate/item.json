@@ -1,0 +1,174 @@
+{
+ "id": "levitate",
+ "name": "Levitate",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "Sit cross-legged and float up off the ground, bobbing gently while glowing rune glyphs circle you.",
+ "fx": {
+  "type": "spiral",
+  "shape": "orbit",
+  "particle": "enchant",
+  "colors": [
+   "#7AF0FF",
+   "#3AC8FF"
+  ],
+  "rate": 10,
+  "radius": 1.0,
+  "height": 1.1,
+  "size": 0.6,
+  "from": 0.5
+ },
+ "emote": {
+  "length": 3.0,
+  "loop": true,
+  "parts": {
+   "offset": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.6,
+     0,
+     -9,
+     0
+    ],
+    [
+     1.8,
+     0,
+     -12,
+     0
+    ],
+    [
+     3.0,
+     0,
+     -9,
+     0
+    ]
+   ],
+   "rightLeg": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -88,
+     32,
+     0
+    ],
+    [
+     3.0,
+     -88,
+     32,
+     0
+    ]
+   ],
+   "leftLeg": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -88,
+     -32,
+     0
+    ],
+    [
+     3.0,
+     -88,
+     -32,
+     0
+    ]
+   ],
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -42,
+     0,
+     18
+    ],
+    [
+     1.8,
+     -46,
+     0,
+     20
+    ],
+    [
+     3.0,
+     -42,
+     0,
+     18
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -42,
+     0,
+     -18
+    ],
+    [
+     1.8,
+     -46,
+     0,
+     -20
+    ],
+    [
+     3.0,
+     -42,
+     0,
+     -18
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     8,
+     0,
+     0
+    ],
+    [
+     1.8,
+     4,
+     0,
+     0
+    ],
+    [
+     3.0,
+     8,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

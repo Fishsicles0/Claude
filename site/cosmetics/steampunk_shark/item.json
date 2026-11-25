@@ -1,0 +1,10 @@
+{
+ "id": "steampunk_shark",
+ "name": "Steampunk Shark",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims through the air beside your shoulder."
+}
