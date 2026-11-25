@@ -773,9 +773,6 @@ def main() -> None:
     if cosmetics.is_dir():
         shutil.copytree(cosmetics, OUT / "cosmetics", dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("README*", "*.md", ".*"))
-    # Until the real catalogue exists the shop shows a TEMPORARY sample (site/assets/shop-catalog.MOCK.json).
-    tokens |= {"{{SHOP_CATALOG}}": "/cosmetics/catalog.json" if (cosmetics / "catalog.json").exists()
-               else "/assets/shop-catalog.MOCK.json"}
     # One card per HUD element, for the Showcase page's HUD gallery (links to each element's detail view).
     hud_cards = "".join(
         f'<a class="card hud-card" href="/features#m={html.escape(m["name"].replace(" ", "%20"))}">'

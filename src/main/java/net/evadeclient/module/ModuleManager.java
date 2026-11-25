@@ -150,6 +150,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.hud.PingGraphHud());
         register(new net.evadeclient.module.hud.PaperDollHud());
         register(new net.evadeclient.module.hud.LookInfoHud());
+        register(new net.evadeclient.module.misc.Cosmetics());
         // Client
         register(new ClientSettings());
     }

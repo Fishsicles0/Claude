@@ -16,20 +16,20 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Every item Evade knows: the bundled starter set (assets/evade/cosmetics/index.json, always there) plus whatever the
+ * Every item Evade knows: the bundled starter set (assets/evade/cosmetics/catalog.json, always there) plus whatever the
  * catalog at evadeclient.com lists. An item is only drawn when it is in here, so a loadout naming an unknown id shows
  * nothing.
  */
 public final class CosmeticsCatalog {
-    static final Pattern ID = Pattern.compile("[a-z0-9_]{1,48}");
+    static final Pattern ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,47}");
     private static volatile Map<String, CosmeticItem> items = Map.of();
-    private static volatile int remoteVersion = -1;
+    private static volatile String remoteVersion;
 
     private CosmeticsCatalog() {}
 
     public static CosmeticItem get(String id) { return id == null ? null : items.get(id); }
     public static Collection<CosmeticItem> all() { return items.values(); }
-    public static int remoteVersion() { return remoteVersion; }
+    public static String remoteVersion() { return remoteVersion; }
 
     public static List<CosmeticItem> forSlot(Slot slot) {
         List<CosmeticItem> out = new ArrayList<>();
@@ -39,7 +39,7 @@ public final class CosmeticsCatalog {
 
     /** Reads the bundled index (startup). */
     public static void loadBundled() {
-        try (InputStream in = CosmeticsCatalog.class.getResourceAsStream("/assets/evade/cosmetics/index.json")) {
+        try (InputStream in = CosmeticsCatalog.class.getResourceAsStream("/assets/evade/cosmetics/catalog.json")) {
             if (in == null) throw new IllegalStateException("bundled cosmetics index missing");
             JsonObject root = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
             Map<String, CosmeticItem> m = new LinkedHashMap<>();
@@ -73,7 +73,7 @@ public final class CosmeticsCatalog {
             }
         }
         items = m;
-        remoteVersion = root.has("version") ? root.get("version").getAsInt() : 0;
+        remoteVersion = root.has("version") && root.get("version").isJsonPrimitive() ? root.get("version").getAsString() : "?";
     }
 
     /**

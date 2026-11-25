@@ -9,7 +9,7 @@ nav: shop
   <p class="rv d2">Capes, wings, hats and more for Evade Client, each one previewed in 3D before you buy. Cosmetics only: nothing here changes how the game plays, and other players see them only if they use Evade.</p>
 </header>
 
-<section class="wrap page-body shop" id="shop" aria-label="Shop" data-catalog="{{SHOP_CATALOG}}">
+<section class="wrap page-body shop" id="shop" aria-label="Shop">
   <div class="shop-banner rv" id="shopBanner" data-state="soon" role="status">
     <span class="shop-banner-dot" aria-hidden="true"></span>
     <div class="shop-banner-txt">
@@ -73,8 +73,9 @@ nav: shop
         <p class="shop-small cart-empty" id="cartEmpty">Your cart is empty. Open an item to preview it and add it.</p>
         <label class="gift-toggle"><input type="checkbox" id="giftToggle"> <span>This is a gift</span></label>
         <div class="gift-field" id="giftField" hidden>
-          <label class="sr-only" for="giftTo">Friend's Minecraft username</label>
-          <input id="giftTo" class="text-input" maxlength="16" placeholder="Friend's Minecraft username" autocomplete="off" spellcheck="false">
+          <label class="sr-only" for="giftTo">Your friend's link code</label>
+          <input id="giftTo" class="code-input" maxlength="6" placeholder="FRIEND" autocapitalize="characters" autocomplete="off" spellcheck="false">
+          <p class="shop-small">Ask your friend for the code from <b>Wardrobe &rarr; Link the shop</b> in their game.</p>
         </div>
         <div class="cart-total"><span>Total</span><b id="cartTotal">&mdash;</b></div>
         <button class="btn btn-red checkout" id="checkoutBtn" type="button" disabled>Checkout opens soon</button>
@@ -99,7 +100,7 @@ nav: shop
   <div class="steps shop-steps">
     <div class="card step rv"><h4>Open the Wardrobe</h4><p>In Evade, open the <b>Wardrobe</b> and choose <b>Link the shop</b>. You'll see a 6-character code.</p></div>
     <div class="card step rv d1"><h4>Type the code here</h4><p>Enter it in <b>Your Minecraft account</b>. Codes expire after a short time, so get a new one if it stops working.</p></div>
-    <div class="card step rv d2"><h4>Pick your items</h4><p>Preview anything in 3D, add it to your cart, or send it to a friend as a gift.</p></div>
+    <div class="card step rv d2"><h4>Pick your items</h4><p>Preview anything in 3D, add it to your cart, or send it to a friend as a gift with their link code.</p></div>
     <div class="card step rv d3"><h4>Wear it in game</h4><p>Your items appear in the Wardrobe. Switch them on and off any time.</p></div>
   </div>
 </section>
@@ -153,6 +154,7 @@ nav: shop
       <img id="itemStill" alt="" hidden>
       <div class="item-loading" id="itemLoading">Loading 3D preview&hellip;</div>
       <div class="item-controls" id="itemControls">
+        <button type="button" class="tab" data-anim="emote" hidden>Emote</button>
         <button type="button" class="tab on" data-anim="idle">Stand</button>
         <button type="button" class="tab" data-anim="walk">Walk</button>
         <button type="button" class="tab" data-view="back">Back</button>

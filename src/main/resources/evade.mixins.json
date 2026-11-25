@@ -133,7 +133,11 @@
     "ItemHighlightSlotMixin",
     "ChatScreenEvadeMixin",
     "ReplayPovHandsMixin",
-    "ReplayPovSkinMixin"
+    "ReplayPovSkinMixin",
+    "CosmeticsPlayerRendererMixin",
+    "CosmeticsEmotePoseMixin",
+    "CosmeticsHeldItemMixin",
+    "CosmeticsHeldItemFeatureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

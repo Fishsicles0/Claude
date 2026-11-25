@@ -14,8 +14,9 @@ Per item, in <id>/:
   texture.png   box-UV texture for model.json, TEX_SCALE texels per model unit
   thumb.png     128 x 128 preview used by the Wardrobe grid and the shop cards
 
-And index.json: every item with the sha256 of each of its files (the client checks bundled and downloaded files
-against it) plus the suggested test-mode prices.
+And catalog.json: every item with the sha256 of each of its files under assets.files (the client checks bundled and
+downloaded files against it) plus the test-mode prices. This is the catalogue the backend serves at
+/api/cosmetics/catalog (it adds assets.base) and the shop page reads.
 
 Also draws the Wardrobe sidebar icon (assets/evade/textures/gui/nav/wardrobe*.png) in the menu's icon style.
 
@@ -1195,7 +1196,7 @@ def main():
         for child in out.iterdir():
             if child.is_dir():
                 shutil.rmtree(child)
-    index = {"version": 1, "format": FORMAT, "items": []}
+    index = {"version": "starter-1", "format": FORMAT, "items": []}
     for it in ITEMS:
         files = {}
         files["item.json"] = (json.dumps(item_json(it), indent=1) + "\n").encode()
@@ -1216,12 +1217,16 @@ def main():
             for name, data in files.items():
                 (d / name).write_bytes(data)
         index["items"].append({
-            "id": it["id"], "name": it["name"], "slot": it["slot"], "rarity": it["rarity"],
-            "colourable": it["colourable"], "partner": None, "priceCents": it["price"], "currency": "USD",
-            "files": {name: sha256(data) for name, data in files.items()}})
+            "id": it["id"], "name": it["name"], "slot": it["slot"], "rarity": it["rarity"].lower(),
+            "priceCents": it["price"], "currency": "USD", "partner": None, "colourable": it["colourable"],
+            "defaultColor": it["default_color"], "description": it["desc"],
+            "assets": {"files": {name: sha256(data) for name, data in files.items()}}})
     data = (json.dumps(index, indent=1) + "\n").encode()
-    (OUT_RES / "index.json").write_bytes(data)
-    (OUT_SITE / "index.json").write_bytes(data)
+    for out in (OUT_RES, OUT_SITE):
+        stale = out / "index.json"
+        if stale.exists():
+            stale.unlink()
+        (out / "catalog.json").write_bytes(data)
     wardrobe_icon()
     print(f"{len(ITEMS)} cosmetics -> {OUT_RES.relative_to(ROOT)} and {OUT_SITE.relative_to(ROOT)}", file=sys.stderr)
 
