@@ -19,19 +19,30 @@ Served at `https://evadeclient.com/cosmetics/<id>/<file>`; that folder is the it
 
 ```json
 {"version": "starter-1", "items": [{
-  "id": "ember_mantle", "name": "Ember Mantle", "slot": "CAPE", "rarity": "epic",
-  "priceCents": 799, "currency": "USD", "partner": null,
+  "id": "ember_mantle", "name": "Ember Mantle", "slot": "CAPE", "rarity": "regular",
+  "priceCents": 600, "currency": "USD", "partner": null,
   "colourable": false, "defaultColor": null, "description": "...",
   "assets": {"files": {"item.json": "<sha256>", "model.json": "<sha256>", "texture.png": "<sha256>", "thumb.png": "<sha256>"}}
 }]}
 ```
 
 * `id`: `[a-z0-9][a-z0-9_-]{0,47}`. `slot`: one of `CAPE WINGS HAT MASK BACK AURA TRAIL PET EMOTE KILL_EFFECT WIN_EFFECT
-  ITEM_SKIN` (there is no nametag slot, on purpose). `rarity`: common, rare, epic, legendary.
+  ITEM_SKIN` (there is no nametag slot, on purpose). The shop lists KILL_EFFECT under "Kill effects" and WIN_EFFECT
+  under "Win effects".
+* `rarity`, one of three tiers:
+  * `regular`: not animated. A cape's normal sway, wing beats, a pet's bobbing and particle effects don't count as
+    animated. Every starter item is regular.
+  * `special`: animated items (animated textures and the like). Prices are announced later: a special item with
+    `priceCents: null` shows "Price coming soon" on the shop and can't be added to the cart or checked out.
+  * `partner`: a partner server's item (`partner` set); may be unpriced, in which case only the partner server grants it.
+
+  The old names (common, rare, epic, legendary) and unknown values are read as `regular` (or `partner` when the item
+  names a partner) by the backend, the shop and the client.
 * `assets.files` lists every file with its sha256 (lowercase hex). The client refuses any file, bundled or downloaded,
   whose bytes don't match, and only downloads from `https://evadeclient.com/`. Downloads are cached in
   `config/evade/cosmetics-cache/<id>/` and re-checked on every load.
-* `priceCents` are test-mode prices (nothing is sold yet). `partner` is `null` or `{id, name}`.
+* `priceCents`: the price in US cents (nothing is sold yet), or `null` for not priced / not for sale. Only items
+  priced above zero can be bought. `partner` is `null` or `{id, name}`.
 
 ## model.json (`evade-cosmetic-model/1`)
 
@@ -68,7 +79,7 @@ Limits the client enforces: 32 bones, 256 cubes, coordinates within ±64, textur
 ## item.json
 
 ```json
-{"id": "...", "name": "...", "slot": "AURA", "rarity": "EPIC", "colourable": false, "defaultColor": null,
+{"id": "...", "name": "...", "slot": "AURA", "rarity": "REGULAR", "colourable": false, "defaultColor": null,
  "partner": null, "description": "...",
  "fx": {"type": "aura", "particle": "dust", "colors": ["#FFB347"], "rate": 3, "size": 0.7},
  "emote": {"length": 1.6, "loop": true, "parts": {"rightArm": [[0, -170, 0, 15], [0.4, -170, 0, -15]]}}}
@@ -83,7 +94,12 @@ Limits the client enforces: 32 bones, 256 cubes, coordinates within ±64, textur
 ## Previewing on the shop
 
 A viewer that reads these files draws each bone's cubes with the box UVs above, attached to the matching part of a
-player model (64 x 64 skin), turning bones about their pivots. `thumb.png` is a ready-made picture for cards.
+player model (64 x 64 skin), turning bones about their pivots. Item-space models (item skins) are held in the right
+hand the way Minecraft draws a held item: the arm's transform, then a turn of -90 degrees about x and 180 about y, an
+offset of (1, 2, -10) pixels, the `thirdperson_righthand` display transform, and -8 pixels to centre the 16-unit
+block. A cape bone is turned 180 degrees about y and then tipped back a few degrees about x (x first), so it hangs
+behind the body. `thumb.png` is a ready-made picture for cards: models on a player wearing the shop's preview skin,
+emotes as that player in the emote's key pose, the pet on its own.
 
 ## Backend API used by the client
 
