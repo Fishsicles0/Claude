@@ -3669,14 +3669,14 @@ item("starlight_fountain", "Starlight Fountain", "WIN_EFFECT", "REGULAR", 200,
 # ---------------------------------------------------------------------------------------------- emotes
 # Keyframes: [seconds, pitch, yaw, roll] in degrees for each model part, replacing its usual angles while it plays.
 
-item("sunny_wave", "Sunny Wave", "EMOTE", "REGULAR", 200,
+item("sunny_wave", "Sunny Wave", "EMOTE", "REGULAR", 250,
      "A big, cheerful wave hello.",
      emote={"length": 1.6, "loop": True, "parts": {
          "rightArm": [[0, -170, 0, 15], [0.4, -170, 0, -15], [0.8, -170, 0, 15], [1.2, -170, 0, -15], [1.6, -170, 0, 15]],
          "head": [[0, 0, 0, 0], [0.8, 0, 0, 6], [1.6, 0, 0, 0]]}},
      view={"pose": {"rightArm": (-168, 0, -18), "head": (0, 0, 6)}, "yaw": -20},   # the arm swung out, mid-wave
      thumb="emote")
-item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 200,
+item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 250,
      "Air drums: alternate hits with a head bob to the beat.",
      emote={"length": 1.0, "loop": True, "parts": {
          "rightArm": [[0, -50, 0, 0], [0.25, -85, 0, 0], [0.5, -50, 0, 0], [0.75, -60, 0, 0], [1.0, -50, 0, 0]],
@@ -3684,14 +3684,14 @@ item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 200,
          "head": [[0, 10, 0, 0], [0.25, -4, 0, 0], [0.5, 10, 0, 0], [0.75, -4, 0, 0], [1.0, 10, 0, 0]]}},
      view={"glow": "#ff8a5a"},
      thumb="emote")
-item("crisp_salute", "Crisp Salute", "EMOTE", "REGULAR", 200,
+item("crisp_salute", "Crisp Salute", "EMOTE", "REGULAR", 250,
      "Stand to attention and snap off a sharp salute.",
      emote={"length": 2.0, "loop": False, "parts": {
          "rightArm": [[0, 0, 0, 0], [0.25, -145, 0, 35], [1.5, -145, 0, 35], [2.0, 0, 0, 0]],
          "head": [[0, 0, 0, 0], [0.25, -6, 0, 0], [1.5, -6, 0, 0], [2.0, 0, 0, 0]]}},
      view={"pose": {"rightArm": (-145, 0, 35), "head": (-6, 0, 0)}, "yaw": -28, "glow": "#7ab8ff"},
      thumb="emote")
-item("slow_clap", "Slow Clap", "EMOTE", "REGULAR", 200,
+item("slow_clap", "Slow Clap", "EMOTE", "REGULAR", 250,
      "A long, slow, meaningful round of applause.",
      emote={"length": 1.2, "loop": True, "parts": {
          "rightArm": [[0, -72, 18, 0], [0.5, -72, -22, 0], [0.62, -72, -22, 0], [1.2, -72, 18, 0]],
@@ -3699,7 +3699,7 @@ item("slow_clap", "Slow Clap", "EMOTE", "REGULAR", 200,
          "head": [[0, 4, 0, 0], [0.5, 8, 0, 0], [1.2, 4, 0, 0]]}},
      view={"pose": {"rightArm": (-72, -22, 0), "leftArm": (-72, 22, 0), "head": (8, 0, 0)}, "yaw": -30, "glow": "#5ae07a"},
      thumb="emote")
-item("grand_bow", "Grand Bow", "EMOTE", "REGULAR", 200,
+item("grand_bow", "Grand Bow", "EMOTE", "REGULAR", 250,
      "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
      emote={"length": 2.4, "loop": False, "parts": {
          "head": [[0, 0, 0, 0], [0.5, 38, 0, 0], [1.8, 38, 0, 0], [2.4, 0, 0, 0]],
