@@ -855,7 +855,7 @@ item("nightglass_blade", "Nightglass Blade", "ITEM_SKIN", "LEGENDARY", 1299,
            emissive=True)],
      item_space=True,
      display={"thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 4.0, 0.5], "scale": [0.85, 0.85, 0.85]},
-              "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 3.2, 1.13], "scale": [0.68, 0.68, 0.68]}},
+              "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 3.6, 1.13], "scale": [0.6, 0.6, 0.6]}},
      view={"yaw": 0, "pitch": 0, "focus": "item"})
 
 

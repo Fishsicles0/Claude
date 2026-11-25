@@ -27,7 +27,9 @@ import java.util.List;
  */
 public final class WardrobeScreen extends EvadePanelScreen {
     public static final String SHOP_URL = "https://evadeclient.com/shop";
-    private static final int PREVIEW_W = 176, CARD_W = 104, CARD_H = 92, GAP = 6;
+    private static final int PREVIEW_W = 176, GAP = 6;
+    /** Card size this frame: as big as fits (up to 104 x 92), so small windows still show a row of items. */
+    private int cardW = 104, cardH = 92;
     private static Slot lastSlot = Slot.CAPE;
 
     private Slot slot = lastSlot;
@@ -130,14 +132,17 @@ public final class WardrobeScreen extends EvadePanelScreen {
         // item cards
         int gy = ty + 24;
         List<CosmeticItem> items = CosmeticsCatalog.forSlot(slot);
-        int cols = Math.max(1, (gw + GAP) / (CARD_W + GAP));
-        int rows = Math.max(1, (cy + ch - 44 - gy + GAP) / (CARD_H + GAP));
+        int avail = cy + ch - 46 - gy;
+        int rows = avail >= 2 * 80 + GAP ? 2 : 1;
+        cardH = Math.max(52, Math.min(92, (avail - (rows - 1) * GAP) / rows));
+        cardW = Math.max(70, Math.round(cardH * 1.13f));
+        int cols = Math.max(1, (gw + GAP) / (cardW + GAP));
         int per = cols * rows, pages = Math.max(1, (items.size() + per - 1) / per);
         page = Math.min(page, pages - 1);
         if (items.isEmpty()) text(ctx, "Nothing here yet: new items arrive with the shop.", gx, gy + 4, Theme.TEXT_DIM, Role.BODY);
         for (int i = page * per; i < Math.min(items.size(), (page + 1) * per); i++) {
             int k = i - page * per;
-            card(ctx, items.get(i), gx + (k % cols) * (CARD_W + GAP), gy + (k / cols) * (CARD_H + GAP), mx, my);
+            card(ctx, items.get(i), gx + (k % cols) * (cardW + GAP), gy + (k / cols) * (cardH + GAP), mx, my);
         }
         if (pages > 1) {
             int by = cy + ch - 18;
@@ -180,24 +185,24 @@ public final class WardrobeScreen extends EvadePanelScreen {
         Loadout.Worn worn = Wardrobe.equipped().get(it.slot);
         boolean wearing = worn != null && worn.id().equals(it.id) && owned;
         boolean tryingThis = trying == it || (previewEmote != null && previewEmote.item() == it);
-        boolean hv = mx >= x && mx < x + CARD_W && my >= y && my < y + CARD_H;
+        boolean hv = mx >= x && mx < x + cardW && my >= y && my < y + cardH;
         float h = hover("card:" + it.id, hv);
         int border = wearing ? Theme.RED : tryingThis ? Theme.WARN : Theme.lerpColor(Theme.BORDER, it.rarity.color, 0.35f + h * 0.4f);
-        Theme.roundBordered(ctx, x, y, x + CARD_W, y + CARD_H, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), border);
+        Theme.roundBordered(ctx, x, y, x + cardW, y + cardH, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), border);
         // rarity strip
-        Theme.round(ctx, x + 1, y + 1, x + CARD_W - 1, y + 3, Theme.alpha(it.rarity.color, 0.85f), 1);
+        Theme.round(ctx, x + 1, y + 1, x + cardW - 1, y + 3, Theme.alpha(it.rarity.color, 0.85f), 1);
         Identifier thumb = CosmeticAssets.thumb(it);
-        int ts = 56;
+        int ts = cardH - 36;
         if (thumb != null) {
             int color = owned ? 0xFFFFFFFF : 0xB0FFFFFF;
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, thumb, x + (CARD_W - ts) / 2, y + 6, 0, 0, ts, ts, 128, 128, 128, 128, color);
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, thumb, x + (cardW - ts) / 2, y + 6, 0, 0, ts, ts, 128, 128, 128, 128, color);
         }
-        text(ctx, ellipsize(it.name, Role.LABEL, CARD_W - 10), x + 5, y + 64, Theme.TEXT, Role.LABEL);
+        text(ctx, ellipsize(it.name, Role.LABEL, cardW - 10), x + 5, y + cardH - 28, Theme.TEXT, Role.LABEL);
         String sub = wearing ? "Wearing" : owned ? (it.slot == Slot.EMOTE ? "Owned · preview" : "Owned · click to wear")
                 : "Locked · try on";
         int subColor = wearing ? Theme.RED : owned ? Theme.OK : Theme.TEXT_FAINT;
-        text(ctx, ellipsize(it.partner != null ? it.partner + " · " + sub : sub, Role.SMALL, CARD_W - 10), x + 5, y + 76, subColor, Role.SMALL);
-        contentHit(x, y, x + CARD_W, y + CARD_H, b -> clickItem(it));
+        text(ctx, ellipsize(it.partner != null ? it.partner + " · " + sub : sub, Role.SMALL, cardW - 10), x + 5, y + cardH - 16, subColor, Role.SMALL);
+        contentHit(x, y, x + cardW, y + cardH, b -> clickItem(it));
     }
 
     private Loadout previewLoadout() {

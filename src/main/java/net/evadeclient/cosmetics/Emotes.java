@@ -77,6 +77,8 @@ public final class Emotes {
     }
 
     private static Playing current;
+    /** Why the last emote ended early (tests). */
+    public static String lastStop = "";
     private static Vec3d startPos;
     private static Perspective savedPerspective;
     private static boolean switchedCamera;
@@ -98,6 +100,7 @@ public final class Emotes {
         if (item.emote() == null) { Notifications.push("Emotes", item.name + " is still loading", false); return false; }
         if (!CosmeticsEngine.allowed()) return false;
         stop();
+        lastStop = "";
         current = new Playing(item, item.emote(), clock());
         startPos = mc.player.getEntityPos();
         if (moveCamera && mc.options.getPerspective() == Perspective.FIRST_PERSON) {
@@ -127,7 +130,9 @@ public final class Emotes {
         var in = p.input == null ? null : p.input.playerInput;
         boolean input = in != null && (in.forward() || in.backward() || in.left() || in.right() || in.jump() || in.sneak());
         boolean moved = startPos != null && p.getEntityPos().squaredDistanceTo(startPos) > 0.15 * 0.15;
-        if (input || moved || p.hurtTime > 0 || p.isUsingItem() || p.handSwinging || p.isDead()) stop();
+        String why = input ? "input" : moved ? "moved" : p.hurtTime > 0 ? "damage" : p.isUsingItem() ? "using an item"
+                : p.handSwinging ? "swing" : p.isDead() ? "dead" : null;
+        if (why != null) { lastStop = why; stop(); }
     }
 
     /** Called right before you attack: an attack always ends the emote. */

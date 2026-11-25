@@ -37,7 +37,7 @@ public class Cosmetics extends Module {
             .describe("How many particles auras, trails and effects make, in %. 0 turns cosmetic particles off."));
     public final NumberSetting distance = add(new NumberSetting("Render Distance", 32, 8, 64, 4)
             .describe("How far away, in blocks, other players' cosmetics are still drawn."));
-    public final KeySetting emoteKey = add(new KeySetting("Emote Wheel Key", GLFW.GLFW_KEY_B)
+    public final KeySetting emoteKey = add(new KeySetting("Emote Wheel Key", GLFW.GLFW_KEY_Y)
             .describe("Opens the emote wheel. Moving, attacking or taking damage ends an emote."));
     public final StatusSetting account = add(new StatusSetting("Account", Wardrobe::status, "auto"));
 

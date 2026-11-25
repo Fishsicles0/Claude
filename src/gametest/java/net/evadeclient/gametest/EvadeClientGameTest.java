@@ -93,6 +93,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             FeaturesV25Test.run(ctx, sp);
             PerfV25Test.run(ctx, sp);
             ReliabilityV25Test.run(ctx, sp);
+            CosmeticsTest.run(ctx, sp);
             ctx.runOnClient(c -> net.evadeclient.social.SocialClient.setLoopback(false));
             testPhase1(ctx, sp);
             testFrameTime(ctx);
