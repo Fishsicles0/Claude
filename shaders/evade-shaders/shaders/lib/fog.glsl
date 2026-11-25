@@ -10,6 +10,20 @@ vec3 underwaterFogColor() {
 }
 const vec3 WATER_EXTINCTION = vec3(0.16, 0.065, 0.05);
 
+#ifdef HAZE_FROM_VERTEX
+// composite.vsh evaluates the sky twice per frame (towards and away from the sun) instead of once per pixel.
+flat in vec3 hazeTowardSun, hazeAwayFromSun;
+vec3 hazeColor(vec3 dir) {
+    vec2 s = normalize(sunDirWorld().xz + vec2(1e-4));
+    float w = dot(normalize(dir.xz + vec2(1e-4)), s) * 0.5 + 0.5;
+    return mix(hazeAwayFromSun, hazeTowardSun, w * w);
+}
+#else
+vec3 hazeColor(vec3 dir) { return skyAtmosphere(vec3(dir.x, max(dir.y, 0.05), dir.z)); }
+#endif
+
+vec3 fogDebug = vec3(0.0); // DEBUG_VIEW 3: r = haze amount, g = sky access at the eye, b = distance / 64
+
 vec3 applyFog(vec3 color, vec3 viewPos, bool isSky) {
     vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
     float dist = isSky ? far * 2.0 : length(viewPos);
@@ -28,11 +42,12 @@ vec3 applyFog(vec3 color, vec3 viewPos, bool isSky) {
             float density = 0.0011 * FOG_DENSITY * (1.0 + rainStrength * 4.0) * heightFalloff;
             float f = 1.0 - exp(-dist * density);
             // In caves the haze takes the colour of the dark, not the sky.
-            vec3 fogCol = skyAtmosphere(vec3(worldDir.x, max(worldDir.y, 0.05), worldDir.z)) * eyeSkyAccess();
+            vec3 fogCol = hazeColor(worldDir) * eyeSkyAccess();
             color = mix(color, fogCol, f);
+            fogDebug = vec3(f, eyeSkyAccess(), dist / 64.0);
 #ifdef BORDER_FOG
             float edge = smoothstep(far * 0.72, far * 0.98, length(viewToPlayer(viewPos).xz));
-            color = mix(color, skyAtmosphere(worldDir), edge);
+            if (edge > 0.0) color = mix(color, skyAtmosphere(worldDir), edge); // exact sky, to meet it seamlessly
 #endif
         }
     } else if (hasCeiling) {

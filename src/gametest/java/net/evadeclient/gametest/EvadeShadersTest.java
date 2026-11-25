@@ -182,6 +182,9 @@ final class EvadeShadersTest {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        // The test framework expects the game's own title screen at the end (as the main suite does).
+        ctx.runOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.misc.TitleScreenModule.class).setEnabled(false));
+        ctx.setScreen(() -> new net.minecraft.client.gui.screen.TitleScreen());
     }
 
     private static final class Filming {

@@ -128,8 +128,8 @@ flat in vec3 ambientCol;
 #if defined PROG_WATER
 /* RENDERTARGETS: 0,1,2 */
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outSurface; // xy: packed normal, z: sky light, w: 1 water / 0.5 reflective glass / 0
-layout(location = 2) out vec4 outWater;   // rgb: water tint, a: sun visibility on the surface
+layout(location = 1) out vec4 outSurface; // xy: packed normal, z: distance from the eye (to verify the data), w: kind
+layout(location = 2) out vec4 outWater;   // rgb: water tint, a: sky light level
 #elif defined PROG_HAND
 /* RENDERTARGETS: 0,1 */
 layout(location = 0) out vec4 outColor;
@@ -187,8 +187,9 @@ void main() {
     #endif
         float sunVis = luma(shadowVisibility(1.0, false)) * step(0.0, NdotL);
         outColor = vec4(0.0);
-        outSurface = vec4(octEncode(wn), lm.y, 1.0);
-        outWater = vec4(vertColor.rgb, sunVis);
+        // w: 0.6..1.0 = water (with the sun visibility on its surface), 0.3 = reflective glass, 0 = nothing
+        outSurface = vec4(octEncode(wn), packDistance(length(playerPos - gbufferModelViewInverse[3].xyz)), 0.6 + 0.4 * sunVis);
+        outWater = vec4(vertColor.rgb, lm.y);
         return;
     }
 #endif
@@ -236,11 +237,11 @@ void main() {
     // Glass, ice, slime, honey...: lit here and blended; glass/ice also flag themselves for reflections.
     float reflective = 0.0;
   #ifdef GLASS_REFLECTIONS
-    if (matId == GLASS_ID || matId == ICE_ID) reflective = 0.5;
+    if (matId == GLASS_ID || matId == ICE_ID) reflective = 0.3;
   #endif
     outColor = vec4(color, albedo.a);
-    outSurface = vec4(octEncode(n), lm.y, reflective);
-    outWater = vec4(0.0);
+    outSurface = vec4(octEncode(n), packDistance(length(playerPos - gbufferModelViewInverse[3].xyz)), reflective);
+    outWater = vec4(0.0, 0.0, 0.0, lm.y);
 #elif defined PROG_HAND
     outColor = vec4(color, albedo.a);
     outSurface = vec4(0.0);

@@ -4,8 +4,8 @@
  *
  * Buffer setup (read by Iris):
  * const int colortex0Format = RGBA16F;   // HDR scene colour
- * const int colortex1Format = RGBA16;    // translucent surface data: packed normal, sky light, material flag
- * const int colortex2Format = RGBA8;     // water tint + sun visibility on the water surface
+ * const int colortex1Format = RGBA16;    // translucent surface data: packed normal, packed eye distance, kind
+ * const int colortex2Format = RGBA8;     // water tint + sky light level
  * const int colortex3Format = RGBA16F;   // volumetric light (half resolution)
  * const int colortex5Format = RGBA16F;   // TAA history
  * const bool colortex5Clear = false;

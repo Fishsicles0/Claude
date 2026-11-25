@@ -109,6 +109,7 @@ const bool shadowHardwareFiltering0 = true;
 #endif
 
 // ---------------------------------------------------------------- internal (not options)
+#define DEBUG_VIEW 0                     // [0 1 2 3 4 5]
 #define SHADOW_DISTORT 0.85              // how strongly shadow texels are concentrated near the player
 #define WATER_ID 1
 #define PLANT_ID 2

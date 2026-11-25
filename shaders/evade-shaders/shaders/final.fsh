@@ -11,6 +11,8 @@ const bool colortex0MipmapEnabled = true;
 #endif
 
 uniform sampler2D colortex0;
+uniform sampler2D depthtex0;
+uniform sampler2D depthtex1;
 
 in vec2 uv;
 
@@ -88,4 +90,17 @@ void main() {
 #endif
     color += (ign(gl_FragCoord.xy) - 0.5) / 255.0; // dither away banding
     outColor = vec4(color, 1.0);
+#if DEBUG_VIEW == 1
+    // Developer view: distance (grey, 64 blocks = white), sky pixels red, hand blue.
+    float d = texture(depthtex0, uv).r;
+    outColor = d >= 1.0 ? vec4(1, 0, 0, 1) : d < 0.56 ? vec4(0, 0, 1, 1) : vec4(vec3(linearDepth(d) / 64.0), 1.0);
+#elif DEBUG_VIEW == 3 || DEBUG_VIEW == 4
+    outColor = vec4(texture(colortex0, uv).rgb, 1.0);
+#elif DEBUG_VIEW == 5
+    // HDR check: red where the scene buffer holds values above 1 (needs the RGBA16F format to be in effect).
+    outColor = vec4(max(texture(colortex0, uv).rgb, vec3(0.0)).r > 1.001 ? vec3(1, 0, 0) : outColor.rgb, 1.0);
+#elif DEBUG_VIEW == 2
+    float d = texture(depthtex1, uv).r;
+    outColor = d >= 1.0 ? vec4(1, 0, 0, 1) : vec4(vec3(linearDepth(d) / 64.0), 1.0);
+#endif
 }
