@@ -4798,7 +4798,7 @@ def prism_pet():
 
 item("prism_sprite", "Prism Sprite", "PET", "SPECIAL", None,
      "A tiny crystal fairy whose facets and wings shimmer through every colour while it flutters beside your shoulder.",
-     prism_pet(), view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 16, "frametime": 2, "interpolate": True, "scale": 16})
+     prism_pet(), view=dict(PET_VIEW, glow="#c8a0ff"), animation={"frames": 14, "frametime": 2.25, "interpolate": True, "scale": 16})
 
 
 # ---------------------------------------------------------------------------------------------- trails, kill and win effects
