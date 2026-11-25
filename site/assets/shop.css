@@ -256,3 +256,9 @@ html.modal-open { overflow: hidden; }
   .item-body h3 { font-size: 14.5px; }
   .rarity { font-size: 10px; letter-spacing: .06em; }
 }
+/* animated thumbnails: thumb.png as a vertical strip of square frames, stepped through */
+.item-thumb.strip img { position: absolute; inset: 0 auto auto 0; width: 100%; height: calc(var(--n) * 100%); object-fit: fill; image-rendering: pixelated;
+  animation: evade-strip var(--dur, 1s) steps(var(--n)) infinite; transition: none; }
+.item-card:hover .item-thumb.strip img { transform: none; }
+@keyframes evade-strip { from { transform: translateY(0); } to { transform: translateY(-100%); } }
+@media (prefers-reduced-motion: reduce) { .item-thumb.strip img { animation: none; } }

@@ -93,7 +93,7 @@ function normItem(raw, i) {
     currency: typeof raw.currency === "string" ? raw.currency.toUpperCase() : null, partner,
     defaultColor: typeof raw.defaultColor === "string" ? raw.defaultColor : null,
     desc: String(raw.description || ""), partnerHow: String(raw.partnerHow || ""),
-    model: has("model.json"), texture: has("texture.png"), image: has("thumb.png"), details: has("item.json"),
+    model: has("model.json"), texture: has("texture.png"), image: has("thumb.png"), details: has("item.json"), glow: has("emissive.png"),
     fx: raw.fx || null, emote: raw.emote || null, order: Number.isFinite(raw.order) ? raw.order : i,
     search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), RARITIES.includes(rarity) ? rarity : "", partner && partner.name].join(" ").toLowerCase(),
   };
@@ -108,6 +108,8 @@ function detailsOf(it) {
       if (d.description && !it.desc) it.desc = String(d.description);
       if (d.fx && !it.fx) it.fx = d.fx;
       if (d.emote && !it.emote) it.emote = d.emote;
+      if (d.animation && typeof d.animation === "object") it.animation = d.animation;
+      if (d.physics && typeof d.physics === "object") it.physics = d.physics;
       return it;
     }));
   }
@@ -288,10 +290,21 @@ function cuboid(T, c, tw, th, mat) {
   const p = v, q = v + sz, r = v + sz + sy;
   const faces = [[[v6, v5, v1, v2], [k, p, l, q]], [[v3, v4, v8, v7], [l, q, m, p]], [[v1, v5, v8, v4], [j, q, k, r]],
                  [[v2, v1, v4, v3], [k, q, l, r]], [[v6, v2, v3, v7], [l, q, n, r]], [[v5, v6, v7, v8], [n, q, o, r]]];
+  // Per-face UVs (format v2): only the listed faces are drawn, each with its own rectangle, laid like the box-UV face.
+  const FACE = ["up", "down", "west", "north", "east", "south"];
+  const per = c.faces && typeof c.faces === "object" ? c.faces : null;
   const geo = new T.Box(1, 1, 1); // 24 corners in 6 groups of 4: [top-left, top-right, bottom-left, bottom-right]
   const pos = geo.attributes.position, uvA = geo.attributes.uv, nor = geo.attributes.normal;
-  faces.forEach(([q4, [u1, va, u2, vb]], fi) => {
-    const uvs = [[u2, va], [u1, va], [u1, vb], [u2, vb]];
+  faces.forEach(([q4, rect], fi) => {
+    const f = per ? per[FACE[fi]] : null;
+    if (per && !(f && Array.isArray(f.uv) && f.uv.length === 4)) { // not listed: collapse the face away
+      for (let ci = 0; ci < 4; ci++) pos.setXYZ(fi * 4 + ci, 0, 0, 0);
+      return;
+    }
+    const [u1, va, u2, vb] = per ? f.uv : rect;
+    let uvs = [[u2, va], [u1, va], [u1, vb], [u2, vb]];
+    const rot = per ? ((Math.round((f.rotation || 0) / 90) % 4) + 4) % 4 : 0;
+    if (rot) uvs = uvs.map((_, i) => uvs[(i + rot) % 4]);
     const slot = [1, 0, 2, 3]; // corner order of the quad -> BoxGeometry's corner order
     const e1 = q4[2].map((a, i) => a - q4[1][i]), e2 = q4[0].map((a, i) => a - q4[1][i]);
     let nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
@@ -309,17 +322,61 @@ function cuboid(T, c, tw, th, mat) {
 }
 
 // Builds every bone of a model onto the viewer's player; returns the added groups and a per-frame animator.
+// Animated textures (item.json "animation"): the PNG is a vertical strip of frames; the GPU texture is a frame-sized
+// canvas redrawn only when the frame (or, with interpolate, the blend step) changes. Same timing as the client.
+function frameClock(an) {
+  const frames = Math.max(1, Math.min(64, an.frames | 0)), ft = Math.max(.5, +an.frametime || 1);
+  let order = Array.isArray(an.order) && an.order.length ? an.order.map(o => typeof o === "object" ? { i: o.index | 0, t: Math.max(.5, +o.time || ft) } : { i: o | 0, t: ft }) : null;
+  if (!order) order = Array.from({ length: frames }, (_, i) => ({ i, t: ft }));
+  order = order.filter(o => o.i >= 0 && o.i < frames);
+  const cycle = order.reduce((a, o) => a + o.t, 0) || 1;
+  return seconds => {
+    let t = (seconds * 20) % cycle, k = 0;
+    while (k < order.length - 1 && t >= order[k].t) { t -= order[k].t; k++; }
+    const cur = order[k], next = order[(k + 1) % order.length];
+    if (!an.interpolate || cur.i === next.i) return [cur.i, cur.i, 0];
+    const steps = Math.max(2, Math.min(16, Math.round(cur.t * 3)));
+    return [cur.i, next.i, Math.min(steps - 1, Math.floor(t / cur.t * steps)) / steps];
+  };
+}
+async function stripTexture(T, src, an, aspect) {
+  const img = await loadImage(src);
+  const frames = an && an.frames > 1 ? an.frames | 0 : 1;
+  if (frames <= 1) { const t = new T.Tex(img); t.magFilter = T.map.magFilter; t.minFilter = T.map.minFilter; t.generateMipmaps = false; t.needsUpdate = true; return { tex: t, tick: null }; }
+  const w = img.naturalWidth, fh = Math.round(img.naturalHeight / frames) || Math.round(w * aspect);
+  const c = document.createElement("canvas"); c.width = w; c.height = fh;
+  const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+  const tex = new T.Tex(c); tex.magFilter = T.map.magFilter; tex.minFilter = T.map.minFilter; tex.generateMipmaps = false;
+  const at = frameClock(an);
+  let shown = "";
+  const tick = sec => {
+    const [a, b, f] = at(sec), key = a + ":" + b + ":" + f;
+    if (key === shown) return;
+    shown = key;
+    g.clearRect(0, 0, w, fh); g.globalAlpha = 1;
+    g.drawImage(img, 0, a * fh, w, fh, 0, 0, w, fh);
+    if (f > 0) { g.globalAlpha = f; g.drawImage(img, 0, b * fh, w, fh, 0, 0, w, fh); g.globalAlpha = 1; }
+    tex.needsUpdate = true;
+  };
+  tick(performance.now() / 1000);
+  return { tex, tick };
+}
+
 async function buildModel(viewer, it, model) {
   const T = threeOf(viewer);
-  let tex = null;
-  if (it.texture) {
-    try {
-      tex = new T.Tex(await loadImage(it.texture));
-      tex.magFilter = T.map.magFilter; tex.minFilter = T.map.minFilter; tex.needsUpdate = true;
-    } catch (e) { tex = null; }
-  }
   const [tw, th] = Array.isArray(model.texture) ? model.texture : [64, 32];
   const made = [], anims = [];
+  let tex = null, glow = null;
+  if (it.texture) {
+    try { const s = await stripTexture(T, it.texture, it.animation, th / tw); tex = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
+    catch (e) { tex = null; }
+  }
+  if (it.glow) {
+    try { const s = await stripTexture(T, it.glow, it.animation, th / tw); glow = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
+    catch (e) { glow = null; }
+  }
+  const phys = Object.assign({ stiffness: .5, lift: 1, sway: 1 }, it.physics || {});
+  const motion = viewer._motion || (viewer._motion = { moving: 0 });
   const adapters = {};
   const adapter = attach => {
     if (adapters[attach]) return adapters[attach];
@@ -349,45 +406,105 @@ async function buildModel(viewer, it, model) {
     return (adapters[attach] = g);
   };
   const tint = it.defaultColor || null;
+  const byName = {};
   for (const b of model.bones || []) {
     const outer = new T.Group(), inner = new T.Group();
     const piv = b.pivot || [0, 0, 0], rot = (b.rotation || [0, 0, 0]).map(a => a * Math.PI / 180);
     outer.position.set(...piv); outer.rotation.order = "ZYX"; outer.rotation.set(...rot);
     inner.position.set(-piv[0], -piv[1], -piv[2]);
     outer.add(inner);
-    const mat = new T.Mat({ map: tex, transparent: true, alphaTest: 1e-3, side: 2, opacity: b.alpha == null ? 1 : b.alpha,
-      color: b.tint && tint ? tint : "#ffffff", emissive: b.emissive ? "#ffffff" : "#000000", emissiveMap: b.emissive ? tex : null,
-      emissiveIntensity: b.emissive ? .85 : 0, depthWrite: !(b.alpha < 1) });
+    const see = b.alpha < 1 || b.glass || b.emissive;
+    const mat = new T.Mat({ map: tex, transparent: see, alphaTest: see ? 1e-3 : .1, side: 2, opacity: b.alpha == null ? 1 : b.alpha,
+      color: b.tint && tint ? tint : "#ffffff", emissive: b.emissive || glow ? "#ffffff" : "#000000", emissiveMap: b.emissive ? tex : glow,
+      emissiveIntensity: b.emissive ? .85 : glow ? 1 : 0, depthWrite: !see });
     for (const c of b.cubes || []) inner.add(cuboid(T, c, tw, th, mat));
-    adapter(b.attach).add(outer);
+    const parent = b.parent && byName[b.parent];
+    (parent ? parent : adapter(b.attach)).add(outer);
+    if (b.name) byName[b.name] = inner;
     const a = b.anim || {}, base = rot.slice();
-    const R = d => d * Math.PI / 180;
+    const R = d => d * Math.PI / 180, TAU = Math.PI * 2, ph = +a.phase || 0;
+    const smooth = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    const wave = (c, flap) => { const f = c - Math.floor(c); if (!flap) return Math.sin(f * TAU); return f < .38 ? 1 - 2 * smooth(f / .38) : -1 + 2 * smooth((f - .38) / .62); };
     if (a.type === "cape") {
       // Hangs from the shoulders like the vanilla cape: turned half round about y, then tipped back about x (x first in
-      // the order, as Minecraft does it) so the hem swings out behind the body, never into it.
+      // the order, as Minecraft does it) so the hem swings out behind the body, never into it. A spring (item.json
+      // "physics") lifts it when the preview walks or runs and lets it settle with a soft overshoot when still.
       outer.rotation.order = "XYZ";
       outer.rotation.set(R(9), Math.PI, 0);
-      anims.push(t => { outer.rotation.x = R(9 + 3 * Math.sin(t * 1.6)); });
-    } else if (a.type === "wing") anims.push(t => { outer.rotation.y = base[1] + R(a.side * (a.base + a.amp * Math.sin(t * a.speed * 2))); });
-    else if (a.type === "bob" || a.type === "pet") anims.push(t => { outer.position.y = piv[1] + Math.sin(t * a.speed * 2) * (a.amp || .5) * (a.type === "pet" ? 2 : 1); });
-    else if (a.type === "sway") anims.push(t => { outer.rotation.z = base[2] + R(a.amp * Math.sin(t * a.speed)); });
-    else if (a.type === "spin") anims.push(t => { outer.rotation.y = base[1] + R(a.speed * t); });
+      const k = 60 + 200 * phys.stiffness, c = 2 * Math.sqrt(k) * .55;
+      let x = 0, v = 0, last = 0;
+      anims.push(t => {
+        const dt = Math.min(.1, Math.max(0, t - last)); last = t;
+        const target = motion.moving * 22 * phys.lift + (motion.moving ? Math.sin(t * 11) * motion.moving * 2.5 * (1.2 - phys.stiffness) : 0);
+        for (let left = dt; left > 1e-5;) { const h = Math.min(left, 1 / 120); left -= h; v += (k * (target - x) - c * v) * h; x += v * h; }
+        outer.rotation.x = R(9 + x + 1.5 * Math.sin(t * 1.6) * phys.sway);
+      });
+    } else if (a.type === "wing") {
+      let clock = 0, rate = 1, last = 0;
+      anims.push(t => {
+        const dt = Math.min(.1, Math.max(0, t - last)); last = t;
+        rate += ((motion.moving > 1 ? 1.8 : 1) - rate) * (1 - Math.exp(-dt * 5)); clock += dt * rate;
+        const w = wave(clock * (a.speed || 1) + ph, a.ease === "flap");
+        outer.rotation.y = base[1] + R((a.side || 1) * ((a.base || 0) + (a.amp || 0) * (motion.moving > 1 ? 1.3 : 1) * w));
+        outer.rotation.x = base[0] + R((a.lift || 0) * Math.max(0, w));
+      });
+    } else if (a.type === "pet") anims.push(t => {
+      let dy = Math.sin((t * (a.speed || 1) * .5 + ph) * TAU) * (a.amp || .5) * 1.4;
+      const cyc = (t + ph * 7) % 7;
+      if (cyc < .5) dy -= Math.sin(cyc / .5 * Math.PI) * 2.5;
+      outer.position.y = piv[1] + dy;
+      outer.rotation.y = base[1] + R(Math.sin(t * .37 * TAU) * 18);
+      outer.rotation.z = base[2] + R(Math.sin(t * .61 * TAU) * 4 + (cyc > 3.5 && cyc < 4.6 ? Math.sin((cyc - 3.5) / 1.1 * Math.PI) * 14 : 0));
+    });
+    else if (a.type === "pet_head") anims.push(t => { outer.rotation.x = base[0] + R(Math.sin(t * .5 * TAU) * 6); });
+    else if (a.type === "bob") anims.push(t => { outer.position.y = piv[1] + Math.sin((t * a.speed + ph) * TAU) * (a.amp || .5); });
+    else if (a.type === "sway") anims.push(t => { outer.rotation.z = base[2] + R(a.amp * Math.sin((t * a.speed + ph) * TAU)); });
+    else if (a.type === "spin") anims.push(t => { outer.rotation.y = base[1] + R(a.speed * t + ph * 360); });
   }
   return { made, anims };
 }
 
-// Particle effects (aura, trail, burst, spiral): small glowing cubes moved every frame.
+// Particle effects (aura, trail, burst, spiral): small glowing cubes moved every frame; "particle": "soft" draws the
+// client's soft additive glow sprites instead (camera-facing, colour over life, fading in and out, shrinking).
+let softSprite = null;
+function softGlow() {
+  if (softSprite) return softSprite;
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(.25, "rgba(255,255,255,.55)"); r.addColorStop(.6, "rgba(255,255,255,.12)"); r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return (softSprite = c);
+}
+const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h)); const n = m ? parseInt(m[1], 16) : 0xffffff; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 function buildEffect(viewer, fx) {
   const T = threeOf(viewer);
   const colors = Array.isArray(fx.colors) && fx.colors.length ? fx.colors : ["#ff3b4c"];
   const type = String(fx.type || "aura");
   const n = type === "trail" ? 24 : type === "burst" ? 30 : type === "spiral" ? 36 : 20;
   const size = (fx.size || 1) * .7;
+  const soft = fx.particle === "soft";
   const group = new T.Group(), parts = [];
+  let glowTex = null;
+  if (soft) { glowTex = new T.Tex(softGlow()); glowTex.needsUpdate = true; }
+  const rgb = colors.map(hexRgb), sizeEnd = fx.sizeEnd == null ? .4 : +fx.sizeEnd;
   for (let i = 0; i < n; i++) {
     const col = colors[i % colors.length], s = size * (.6 + (i % 3) * .3);
-    const m = new T.Mesh(new T.Box(s, s, s), new T.Mat({ color: col, emissive: col, emissiveIntensity: .9, transparent: true, opacity: .9, depthWrite: false }));
+    const m = soft
+      ? new T.Mesh(new T.Box(size * 3.2, size * 3.2, .01), new T.Mat({ map: glowTex, color: "#000000", emissive: col, emissiveMap: glowTex, emissiveIntensity: 1.4, transparent: true, opacity: 1, depthWrite: false, blending: 2 }))
+      : new T.Mesh(new T.Box(s, s, s), new T.Mat({ color: col, emissive: col, emissiveIntensity: .9, transparent: true, opacity: .9, depthWrite: false }));
     group.add(m); parts.push({ m, seed: i / n });
+  }
+  if (soft) {
+    // colour over life and the fade: additive, so a darker emissive colour is a fainter glow
+    const fade = Math.max(.02, Math.min(.5, fx.fade == null ? .25 : +fx.fade));
+    parts.forEach(p => { p.life = k => {
+      const pos = k * (rgb.length - 1), i = Math.min(rgb.length - 1, Math.floor(pos)), j = Math.min(rgb.length - 1, i + 1), f = pos - i;
+      let v = Math.max(0, Math.min(1, k / fade, (1 - k) / fade)); v = v * v * (3 - 2 * v);
+      p.m.material.emissive.setRGB(...rgb[i].map((c, ci) => (c + (rgb[j][ci] - c) * f) / 255 * v));
+      p.m.scale.setScalar(1 + (sizeEnd - 1) * k);
+      p.m.quaternion.copy(viewer.camera.quaternion);
+      if (p.m.parent) { const q = p.m.parent.getWorldQuaternion(p.m.quaternion.clone()).invert(); p.m.quaternion.premultiply(q); }
+    }; });
   }
   viewer.playerObject.add(group);
   const update = t => {
@@ -397,7 +514,8 @@ function buildEffect(viewer, fx) {
       else if (type === "burst") { const kk = (t * .5 + p.seed * .3) % 1, r = 2 + kk * 15; p.m.position.set(Math.cos(p.seed * 41) * r, 2 + Math.sin(p.seed * 17) * r * .7, Math.sin(p.seed * 41) * r); p.m.material.opacity = 1 - kk; }
       else if (type === "spiral") { const kk = (t * .25 + p.seed) % 1, ang = kk * Math.PI * 6; p.m.position.set(Math.cos(ang) * 8, -16 + kk * 38, Math.sin(ang) * 8); p.m.material.opacity = Math.sin(kk * Math.PI); }
       else { const r = 9 + Math.sin(p.seed * 23) * 2; p.m.position.set(Math.cos(a) * r, -16 + k * 30, Math.sin(a) * r); p.m.material.opacity = Math.sin(k * Math.PI); }
-      p.m.rotation.set(t + p.seed * 5, t * 1.3, 0);
+      if (p.life) p.life(type === "burst" ? (t * .5 + p.seed * .3) % 1 : type === "trail" ? (t * .15 + p.seed) % 1 : type === "spiral" ? (t * .25 + p.seed) % 1 : (t * .15 + p.seed) % 1);
+      else p.m.rotation.set(t + p.seed * 5, t * 1.3, 0);
     }
   };
   update(1.3);
@@ -518,7 +636,20 @@ function renderGrid() {
   if (io) io.disconnect();
   const fill = el => {
     const it = state.byId.get(el.dataset.id);
-    const show = src => { if (!src) return; const t = el.querySelector(".item-thumb"), g = t.querySelector(".glyph"); const img = new Image(); img.alt = ""; img.decoding = "async"; img.src = src; g ? g.replaceWith(img) : t.prepend(img); };
+    const show = src => {
+      if (!src) return;
+      const t = el.querySelector(".item-thumb"), g = t.querySelector(".glyph"); const img = new Image(); img.alt = ""; img.decoding = "async";
+      // an animated item's thumb.png may be a strip of square frames: play it (stepped, frametime from item.json)
+      img.onload = () => {
+        const n = Math.round(img.naturalHeight / img.naturalWidth);
+        if (n < 2 || img.naturalHeight !== n * img.naturalWidth) return;
+        detailsOf(it).then(() => {
+          const an = it.animation || {}, ft = Math.max(.5, +an.frametime || 1);
+          t.classList.add("strip"); img.style.setProperty("--n", n); img.style.setProperty("--dur", (n * ft * .05).toFixed(2) + "s");
+        });
+      };
+      img.src = src; g ? g.replaceWith(img) : t.prepend(img);
+    };
     (hasWebGL() ? thumbFor(it) : stillFor(it)).then(show);
   };
   if ("IntersectionObserver" in window) {
@@ -556,6 +687,7 @@ function setAnim(sv, name) {
   try { viewer.playerObject.resetJoints(); } catch (e) { /* older skinview3d */ }
   viewer.animation = name === "emote" && current && current.emote ? emoteAnimation(sv, current.emote) : new sv[ANIMS[name] || ANIMS.idle]();
   if (name === "walk" || name === "run") viewer.animation.speed = .8;
+  (viewer._motion || (viewer._motion = { moving: 0 })).moving = name === "run" || name === "fly" ? 2 : name === "walk" ? 1 : 0;
   all("[data-anim]", controls).forEach(b => b.classList.toggle("on", b.dataset.anim === name));
 }
 async function openItem(id, push = true) {

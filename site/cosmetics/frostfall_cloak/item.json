@@ -1,0 +1,15 @@
+{
+ "id": "frostfall_cloak",
+ "name": "Frostfall Cloak",
+ "slot": "CAPE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "An icy blue cloak scattered with snowflakes, frost creeping up from the hem and a thick white fur collar.",
+ "physics": {
+  "stiffness": 0.68,
+  "lift": 0.8,
+  "sway": 0.8
+ }
+}

@@ -1,13 +1,13 @@
 {
-  "version": "2.6.1",
+  "version": "2.7.0",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "4868 KB",
-  "sha256": "8e3d3b833b2e4f66289abc8b5f45867dc44ae82f7b736171a38cf94b65162ede",
+  "size": "10711 KB",
+  "sha256": "9026631e2a6adf86a2edda02c8e14d48a288c04f62ebaf6c92b02b979c8778b2",
   "installer": {
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7822 KB", "sha256": "535d5024120e58e2bbef4c331981614d051dac5b11b8d04b022a504d566844f3" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7710 KB", "sha256": "e3db20ed411e73ab3d7b0d4fe657cc1e91d83f47f5f8eb74b9f26f93160a6238" }
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7850 KB", "sha256": "0f9121b8f3535f1a85b656a43030d1d209f06a6a1e894dfdef019d74c01a47dc" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7738 KB", "sha256": "aa327a9cf8e5769c151af9dcc9fdaaaeac53d109cb1a277c123a986221665cbd" }
   },
   "clips": {
     "version": "1.1.0",
@@ -17,6 +17,9 @@
       "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
       "sha256url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256"
     }
+  },
+  "shaders": {
+    "evade": { "file": "downloads/EvadeShaders.zip", "version": "1.0", "size": "45 KB", "sha256": "7b74a205975fdb2a66ef225971821de3c963e52caa6a19720313b01ba22b6d90" }
   },
   "date": "2026-11-25"
 }

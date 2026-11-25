@@ -1,5 +1,5 @@
 {
- "version": "starter-1",
+ "version": "2.7-1",
  "format": "evade-cosmetic-model/1",
  "items": [
   {
@@ -15,10 +15,32 @@
    "description": "A charcoal cape that smoulders into molten orange at the hem, with embers that glow in the dark.",
    "assets": {
     "files": {
-     "item.json": "00825fb226b1c4ca6333ca8ce1274bb426306a990e1ec2f712e6e3b5428e1e3a",
-     "model.json": "f9ec3e1892c43a9ced999200984a408642dee0b3e92514c6c76b7f21a8e3fea5",
-     "texture.png": "6bf61e391395e76ac6469c8556c6a3f74bf43ca96b1e2c06259ac51d824caa37",
-     "thumb.png": "f32717094b62ae4ffb457c4413f2c5c33e9f32f298e722c1d18c2a43b0da2ab0"
+     "item.json": "3da9b8cb78db96750ef25b18d0de947ff8858c77aaf73eb9c26c11e4449a43d0",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "6dc87b40df0c6d9d8f4966568ea66d1dbec2e652682c8a8e8e2a42d2314df1e0",
+     "emissive.png": "51e49d43582d9a041c3fc3206722dfa2515c919f285ff8bbffef9968968c012a",
+     "thumb.png": "d46bdb09d7285c663a9a10ab80ec0cab6ebf776c7f8d1be9d38f13b5180247e9"
+    }
+   }
+  },
+  {
+   "id": "hearthfire_cape",
+   "name": "Hearthfire Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Living flames climb and flicker up from the hem, throwing off embers that rise and glow in the dark.",
+   "assets": {
+    "files": {
+     "item.json": "e1be5e1ed0620d0ddd3ac82f8844300fa40f55996c3057ca833385231f8143f9",
+     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
+     "texture.png": "c00918f1ac280b6bd6571fb9840e2ae83f70331e6bda188766d42a3f01489a05",
+     "emissive.png": "e4d9d480cade55672315e72db9206465e538a50b436198b0d34dd793dc0e2246",
+     "thumb.png": "c3710b5258ae13f3cae6fa02249df469bee01613db10b03b16a68d69ebe324ba"
     }
    }
   },
@@ -32,13 +54,34 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "Deep-sea blue with rolling waves of foam and a sand-gold collar.",
+   "description": "Deep-sea blue with rolling waves of foam and a sand-gold rope collar.",
    "assets": {
     "files": {
-     "item.json": "0bc6ae91454e5993f79c99b6c085ba141372ec10b29541d8c95ff2e3e992526b",
-     "model.json": "3f5687b840427ecf61d1f5143c1143de98b7256e03f31b8bd2ca4131ea45dd4d",
-     "texture.png": "9b3a589d4a5772fa1dc29e0e976eac2e982b1054ade573d68e08c5f196eb83ed",
-     "thumb.png": "2f6c4d154d791fc874ac173e631b469fb3b18d9c519fda69db723dab526d384b"
+     "item.json": "be98b5014ca82e97d3bd4dd19940e1005148d4c2af8b571479590d85e48e9976",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "ea942ec8b144d841006722c6a6f9b589edbb5483fb013a881cdd91264a6c9fbd",
+     "thumb.png": "3d6fe1d9755d27dc02d25949277ded4e1d452ab86abac14ff0bfc267ce48bff6"
+    }
+   }
+  },
+  {
+   "id": "riptide_cape",
+   "name": "Riptide Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Waves roll across the cape for real: crests rise and fall, foam glitters and the water never stops moving.",
+   "assets": {
+    "files": {
+     "item.json": "8295e88bdb822ce02fb8b5830ccd2d734859ad25dbcb1ef9770e24a990ca5c82",
+     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
+     "texture.png": "18e1438c50bfabd95f5a7b3bd082822991b840f9e704b48fee24bea2c27ee07b",
+     "emissive.png": "03df1b1295bc9f1e65de13ea22f76c4b64462e86ecd01cd7d1bec5a5481d1da9",
+     "thumb.png": "848afaf2ba44d56551b45fe6ac49f226475df3360b1509c7d3bcd02dd990f92c"
     }
    }
   },
@@ -55,10 +98,53 @@
    "description": "A night sky with a violet nebula, a crescent moon and stars that shine in the dark.",
    "assets": {
     "files": {
-     "item.json": "54a1e36b5d49c83ac7c424a318293a817a2c28914206539a287ba2abfad3fa99",
-     "model.json": "f9ec3e1892c43a9ced999200984a408642dee0b3e92514c6c76b7f21a8e3fea5",
-     "texture.png": "819a8c3d6d283fb0783a56ce344302df829b1240dc02f955e465afacb1e5ecbd",
-     "thumb.png": "b6311b7134b5cf731235a766b4a7047361509b3184903ec204831a4ca73a949c"
+     "item.json": "b1aaa345d76cfa4a08170847eee2ccb4813990124d559b05395985e5bad208ff",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "165e093b4907f82d6a6efc22519f8966e9bf7ae4042e5247489f9fe63c8ccdc0",
+     "emissive.png": "584b92671478cf9487e649a9ae8c96972b028cdbc251dd2df5e0b7d3cd1bb9c4",
+     "thumb.png": "a350b09556a05bd0a40dd5962b7d3d8ecc35b03efd1cec54504795f7f250d69b"
+    }
+   }
+  },
+  {
+   "id": "galaxy_flow_cape",
+   "name": "Galaxy Flow Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A whole spiral galaxy on your back: its glowing arms slowly turn, star dust drifts and the stars twinkle.",
+   "assets": {
+    "files": {
+     "item.json": "a84de31f6a28a850c6b4d3cfb50f694918dec53c6fb92c0838cb24e260212429",
+     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
+     "texture.png": "e13a924e64dbd099324c8f6fa909e23b6ff62f41e6720c666be9b37c04ebaaf3",
+     "emissive.png": "073c14cb1d1a6f4a44253205f61ad8ca4bf2834214c2ca171c1938291ee4b67b",
+     "thumb.png": "3ae7b4651c7f1df193eaeb5ed42a828c372051a89b69f27908fce9c5ccfc9f0d"
+    }
+   }
+  },
+  {
+   "id": "polar_lights_cape",
+   "name": "Polar Lights Cape",
+   "slot": "CAPE",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Curtains of green, cyan and violet light ripple over snowy peaks, glowing softly in the dark.",
+   "assets": {
+    "files": {
+     "item.json": "425ed56c4409914d967c9ff4ff05e2a016d7af80f40a7818ce284b9e3c4bdbd7",
+     "model.json": "055ee0933cfb5ca411fb3d9c8975bb1c4d8596d5fbff7587d608060e736364b9",
+     "texture.png": "fe7cac99c5ea6c4130628097767a80a30134a03c0194dd6bd35f144487385232",
+     "emissive.png": "248b5f2a6e2ec2a2cfc5e027cb51fc67486c876a562221d7e4f3441345835cad",
+     "thumb.png": "3acf84377471054d4d739feeedee45ed008bfbc8dae4099a3d2e4a279d755080"
     }
    }
   },
@@ -72,13 +158,196 @@
    "partner": null,
    "colourable": true,
    "defaultColor": "#E11D2E",
-   "description": "A clean banner cape with three chevrons, in any colour you like.",
+   "description": "A clean banner cape with three raised chevrons and a stitched hem, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "e35dcf7f8ea9802ff7b8374a69052a1dd1d96ef134ab3a4267e31cf861888c08",
-     "model.json": "94376d917155ec2e3622d450c7da461498c04c92e0bea235dd40af5363a656a0",
-     "texture.png": "8a6b631e3ab8aa1f721550f6fd391a782491b3e330ba5f38e814157b6dc6d079",
-     "thumb.png": "4c882009ac30fffb2cb1a822150cc11ff1094de15f92a49de8d415815a7560b4"
+     "item.json": "b57b9792c1306a6e5dcf796ee244ceaaf997b1e075797691d1e2f4160d1b0571",
+     "model.json": "c5d6b358cb697bcd2ff7b5d8caa3456b6dc0df1fa1b62abf013b396ab5337463",
+     "texture.png": "d13f3e4946e028cd9a737ef393f25a5e1e2e372b5d1feb669898869b17ce39c5",
+     "thumb.png": "ba87af2ac8a047d7bb516fbee1f5feede7c4d5dbe1cb328612d7d9d13e853bf3"
+    }
+   }
+  },
+  {
+   "id": "checkered_rally",
+   "name": "Checkered Rally",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A rippling black-and-white chequered flag with a red stripe, for whoever crosses the line first.",
+   "assets": {
+    "files": {
+     "item.json": "5aaa2a6b3460f82762132952aeaf587eb2804ae8345eb8114809df302948f2b6",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "e28a82fec7e8d4fbec99aeac7668437716cb461d2286edfd91cdec952b50a90a",
+     "thumb.png": "d4aed31e947a9d7b7a0cc5af5407d993ea4df252779f04e327529ab878e36992"
+    }
+   }
+  },
+  {
+   "id": "highland_plaid",
+   "name": "Highland Plaid",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": true,
+   "defaultColor": "#2E7D4F",
+   "description": "A woven tartan cape with a fringed hem, in any colour you like.",
+   "assets": {
+    "files": {
+     "item.json": "10887f9f2deecfa663e12cd1c584c4ca014e18eaa4773d066b1b413ab795c65b",
+     "model.json": "c5d6b358cb697bcd2ff7b5d8caa3456b6dc0df1fa1b62abf013b396ab5337463",
+     "texture.png": "8eda84c89348bd0e9a03a6296ec52a8e96f504d30c7081420ed252bd6f70a6bc",
+     "thumb.png": "fcf6cf29558d67978625495cdeab3045c08207a2ab6d0f38c624550aa9c1f009"
+    }
+   }
+  },
+  {
+   "id": "blossom_drift",
+   "name": "Blossom Drift",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A spring dusk with a branch of pink blossom and petals drifting down to the hem.",
+   "assets": {
+    "files": {
+     "item.json": "a150d9fb28cb66221358c1077ee10045f437d11d9158097eef5fdeb7bd5837bc",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "d048503a7eae9c5a5a7aef94695a5cfc02bfc97b921b69c18c6ed344062901c3",
+     "thumb.png": "80adfd6533e65e17478c310a5ef725310e087030242cb58b831092438414f679"
+    }
+   }
+  },
+  {
+   "id": "pumpkin_night",
+   "name": "Pumpkin Night",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A harvest moon, a flight of bats and a carved pumpkin whose face glows in the dark.",
+   "assets": {
+    "files": {
+     "item.json": "c2ace36b46ec9e990522e034817c53a2ad1338f37b29543f5c72fc31ab35e5b4",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "e7665544fc8605a2ba92775cf80212a6aaa8213bda52a1dbbc341f8d9ce113f8",
+     "emissive.png": "21ca3629e5782cd19280a9b86283f608c944742b5672119a50862672c524201a",
+     "thumb.png": "21fff9a14d3b3c420b76dc5f62399a08d66df20c8a2901e4b8458549dbf7e36a"
+    }
+   }
+  },
+  {
+   "id": "frostfall_cloak",
+   "name": "Frostfall Cloak",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "An icy blue cloak scattered with snowflakes, frost creeping up from the hem and a thick white fur collar.",
+   "assets": {
+    "files": {
+     "item.json": "8ec51e92f9f6e7b0d027bfd4fd07ac8734d3d0161eb8b65e7387958bc86de3b3",
+     "model.json": "900ebd172f67685cd742aaecd7b1fa3b3f3a2374ded392544755889edd41acdf",
+     "texture.png": "29501762392a26f398216cfbf406872f0a9b04727a15b01f708d47dc25757cda",
+     "emissive.png": "2ad0efb4009228c784f6d2abbce37983dd94f458ee7b67af63cabd24ef2d5b97",
+     "thumb.png": "254c8227ad44eb4ad0a7456f9686dde697723f47fe8a9d8ed0c4db4cbbbbc321"
+    }
+   }
+  },
+  {
+   "id": "dragonhide_cape",
+   "name": "Dragonhide Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 700,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Rows of raised emerald scales edged in gold, shading down to deep teal.",
+   "assets": {
+    "files": {
+     "item.json": "adb92ab520337f4170bf218f12950fda8d9a36c04b19c5e2b98a585be12c9a29",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "c631e1477062785492bc1260502e0fc1514f336e2f697682eb06c5b584f26d2c",
+     "thumb.png": "9a325ba407c9d8f2267a009a73625c0bae304a02afb4625b03c5033fa8c1cbc3"
+    }
+   }
+  },
+  {
+   "id": "neon_horizon",
+   "name": "Neon Horizon",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A striped sunset over a glowing neon grid, straight out of a retro arcade.",
+   "assets": {
+    "files": {
+     "item.json": "764397bb821944356523a76a32aab76f71f397ffe27eb035aee7c1ed606bcf21",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "d3637c90a3f48b8af9495e7e2e70f16bcef083b40a3da3c7aaddd54885c0bdd7",
+     "emissive.png": "b42b706290a6625f5e6988faeb9b1f43a04ac98ae8cd79879b38f42039fb8f36",
+     "thumb.png": "4313901696d4eadf944e8b392832192d9f1b309e0c5e879d528485aa257ad9cb"
+    }
+   }
+  },
+  {
+   "id": "oakheart_banner",
+   "name": "Oakheart Banner",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A forest-green banner with a golden shield and a great oak, finished with a swallow-tail hem.",
+   "assets": {
+    "files": {
+     "item.json": "186837642040965e2abad40d7e01d2ec8444b1332f0363703340b9433959b919",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "32f9d48ac1a098b7dc5df856a803bdce861c27c24c4b073cca72fe567173e1ff",
+     "thumb.png": "a0ee8fb9eb698cb0620e397c404f9c96b41af4d338f01b135a734e9f5573882b"
+    }
+   }
+  },
+  {
+   "id": "sweetheart_cape",
+   "name": "Sweetheart Cape",
+   "slot": "CAPE",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Rose-pink fading to crimson, scattered with hearts and finished with a lace-scalloped hem.",
+   "assets": {
+    "files": {
+     "item.json": "e8409cd43d1b29f42cae45908d7017b2c82fab7f255df226673744f84e28e05e",
+     "model.json": "e4bc9f3098e234d8bcd3798329a04544a463daeb877b6ed4585bb9a99dbf1df0",
+     "texture.png": "d5371e5a827cc120ee3d1fabb3b0955d6e1c3f7666e3e8d695c08ce87a1ea7bd",
+     "thumb.png": "dfc7162558a9e56b157509b2eb801c55d42fa9273d2f531e79ae3a31734515ef"
     }
    }
   },
@@ -92,13 +361,35 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "See-through wings that fade from cyan to violet, with glowing veins and a slow, easy beat.",
+   "description": "See-through wings that fade from cyan to violet, with glowing veins, a crystal spar and a slow, easy beat.",
    "assets": {
     "files": {
-     "item.json": "c1118e8da0eb93d50d5adfe4d33e3409ac215becea538c5511bb711eca47a448",
-     "model.json": "c40ea5940f160f5a6149c80aa2cd5ccc0b33e534561a5f10da237d3ac1a1a5a2",
-     "texture.png": "6a07d91d5c2c1de587993b0bc0230dfc65061c38deaad667f56fbdcde8ebefee",
-     "thumb.png": "069bd7fd2c805b3398caecd8e0a6e699a2256ae44013f8020b71ec1a315e98bb"
+     "item.json": "ff7122f634e686db778240f78437cd63f73b8215c4ed6da28cdf7931d00ce0aa",
+     "model.json": "731f27d43ea774eca82e1d451558cbce7b8ac0a7aa90e3a81a27e15719a59ea6",
+     "texture.png": "36220781c8281097edbbdc5e062e8ca2a492d6d5b18aee8ff8a4bae3f5e3fb35",
+     "emissive.png": "82810294e445ba483933000d22981d6d4947feb24f21de3960a525147f813675",
+     "thumb.png": "5b3aa3b3550183c9b5e6bb2b604168b27f9a6a6ee64145d690ade9fdcaab3d3b"
+    }
+   }
+  },
+  {
+   "id": "pulse_wings",
+   "name": "Pulse Wings",
+   "slot": "WINGS",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Energy wings with waves of light pulsing out from your shoulders to the tips, over and over.",
+   "assets": {
+    "files": {
+     "item.json": "d1f0fc030689c7d0cc59701c30b50a2cf7deda127a0b557292ab0ff693fecbf2",
+     "model.json": "4c37cdfe7ea0ae8b6b8fd9a51b1038f715412d13e59418bc3be0896c61a1251d",
+     "texture.png": "007d6cbbbb1c637e8cc178e9806457fcf0aa6a705b62b5ce69d5e9c8f5da2581",
+     "emissive.png": "778b9dccb6dff600e6813cabe4c3a1bce6b33f81e4828621ebd336f3460ae618",
+     "thumb.png": "0c3c195f23e50cd2b4b279ab078b1c5b345fdbdb76e63ab28c356fb05fe812d8"
     }
    }
   },
@@ -112,13 +403,160 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "Layered grey feathers that darken towards ember-lit tips.",
+   "description": "Layered grey feathers, each one separate, darkening towards tips that smoulder like embers.",
    "assets": {
     "files": {
-     "item.json": "9784e27eb59bdfaaf6111c9f170bd98d7ce1aae5ed6d9407e420a279ef177541",
-     "model.json": "4441f6144b86ac070d7eb9610642228202c9c595698ebb3a91de5ef62ded7e1f",
-     "texture.png": "f6efd0c1939d121e546a37d1d1ff86946b53851dbaa4a0fd99cde6e036fb6ab4",
-     "thumb.png": "6c9711f5f6a6f2b77303ba53758f54240930917cea243c03f920e10fe87b3d08"
+     "item.json": "c5aa8b9e8d00ff86d718fdfeb15330c6e93a213a28e4ef82520029ed2a8daeaf",
+     "model.json": "03b0f75f367febc0a0e54550bde13e374d64054e525cfed8e4f909f015c743bd",
+     "texture.png": "76cc7002239db147803d8417ac5a3e18a6527b637501eeab6a7d30ca60b51baa",
+     "emissive.png": "cb9be3781cf3bcbdd7fb9e35500fdb084a4fabe79d277fa290bef3752203795d",
+     "thumb.png": "79be547063044ddf80d800a7cf17d525e4b930428222dff2ec05b891a929b1fa"
+    }
+   }
+  },
+  {
+   "id": "seraph_wings",
+   "name": "Seraph Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 1000,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Great white feathered wings, softly gilded at the tips, that sweep slowly behind you.",
+   "assets": {
+    "files": {
+     "item.json": "7a556aaea7a7937ecb601ceaae1a565fb62b764ff8390be2a73d185f69da1dca",
+     "model.json": "f2dfd4747a19006e982e96341126b2294729dd0294e759beba3661479a22e66e",
+     "texture.png": "02c9b4b08b766b237fb0e679af9cc37ffcd3cd9a854b3e25a445cad5778ef95c",
+     "emissive.png": "dc9bff4ebe8c10ce53755e4c7ae18c7107121de77b0f047aa337733a7871e3fe",
+     "thumb.png": "c447061b9085910e067f44613fefcd064efc751eb64610149da99b3bc75ec756"
+    }
+   }
+  },
+  {
+   "id": "wyrmspan_wings",
+   "name": "Wyrmspan Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 1100,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Broad dragon wings: a crimson membrane with veins and bony fingers, scalloped edges and a hooked claw.",
+   "assets": {
+    "files": {
+     "item.json": "d2ff241c7b41b5127a1132410335ba3fc02c807d3cec204c4be67d11d25f5569",
+     "model.json": "c6746d457f7779a3c392c4354ab61e4e5312f4a6fee66237e1e48c65b66f7fc2",
+     "texture.png": "a785d6da50bb8822729cf447c0175f20908ee9b57784b6d9d2cffc427251f9a9",
+     "thumb.png": "1439f65984e64de8f28817550c56428eda7a08cbf323dab0b0a53dae9724386c"
+    }
+   }
+  },
+  {
+   "id": "infernal_wings",
+   "name": "Infernal Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 900,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Spiked black demon wings whose veins glow like magma in the dark.",
+   "assets": {
+    "files": {
+     "item.json": "4580898d46a582b71df3dc1453033750e72f3ea3ce19242d4ad26679ea49cc8b",
+     "model.json": "09d8015c42832e6b10079c2ede2fcae02b4590425f392dc24ed62f81d63156ce",
+     "texture.png": "77f7b5475e560aa9ce1f8a3bf4805a6d1150e648991925a71ed7010020f7721f",
+     "emissive.png": "ba7e034837f3a05477b441ce8265de02d440ff04d1f9af451675c70295ada585",
+     "thumb.png": "030aa2baaeb06fe186283a2771e7d76b2038f1d36c0d3cad91a764b0eeeeb59f"
+    }
+   }
+  },
+  {
+   "id": "stormcaller_wings",
+   "name": "Stormcaller Wings",
+   "slot": "WINGS",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Storm-cloud wings that crackle with lightning: bolts flash across the membrane while the veins flicker.",
+   "assets": {
+    "files": {
+     "item.json": "dab5fab2d5a03addbe291902ad09a1fb4b83b77819ba5ddfbcb926c5e1070f90",
+     "model.json": "2331d2d8dad5f716a320d857f7eb1d87d8c2f2cf687f1a720a1b53228c455d1c",
+     "texture.png": "24a2fb7330343b0bb31d122de9737c1d8323de190fe663a0e59e23d61fcdac8a",
+     "emissive.png": "12c58bc5a8f274904abb606c9f137d608b472e4aa303d01ab579eb9807c29c02",
+     "thumb.png": "1888f990d5c867102eb6797f73e0a4c04dd3a5e256f24ec793d5873b2f7ef873"
+    }
+   }
+  },
+  {
+   "id": "azure_butterfly_wings",
+   "name": "Azure Butterfly Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Iridescent blue butterfly wings with black borders and white spots that flutter quickly.",
+   "assets": {
+    "files": {
+     "item.json": "c0e803108538c5e96667dd50ab8d51637f95cb018a3797a03f890ba2af415ea4",
+     "model.json": "6c08c2a8073c682f3ee884de6a4a4b8f6f9821f7503730f24526d2cc9beccc1b",
+     "texture.png": "b3d29b5e7df3644c37fe5eea3450f9a544789ce8d5d426b65d991650a689ecc4",
+     "emissive.png": "4c58453845e1323f8a00ba4c66aad333779b724d896ada1cf38717aba90213fb",
+     "thumb.png": "3f95ac62d42e2593cd2fbb6bf2ee82dab0ffcc353a19bd84e5ae8deafb4fdbbe"
+    }
+   }
+  },
+  {
+   "id": "clockwork_wings",
+   "name": "Clockwork Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 1000,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Riveted steel blades with brass trim and glowing blue seams, turning on a brass gear at each shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "2ea7462fede00706c60ce0d5fff9152f5f78a0e1215dc5918dd0ee66465f45dd",
+     "model.json": "c788bf70235fc3cfa2ace26648b3bdefafc7180c64a1ac235a569aa10880532a",
+     "texture.png": "8db9191ff9ef0937563520a88b4cd164e6014a6ae91920c87232072391416363",
+     "emissive.png": "f1fa9e157fceacfc95a51d465268c8c00fa1a8f9543bef69737449c96b24b68b",
+     "thumb.png": "e9c1b48316a6c5fd52f74ff32a81577b554b333327001c871619f3b3a0e63645"
+    }
+   }
+  },
+  {
+   "id": "glacier_wings",
+   "name": "Glacier Wings",
+   "slot": "WINGS",
+   "rarity": "regular",
+   "priceCents": 900,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A fan of see-through ice crystals with glinting facets and frosted, glowing tips.",
+   "assets": {
+    "files": {
+     "item.json": "afc379c2bbb113a4486205e69d5374657ca9b8d4a3637728103631846c342c4d",
+     "model.json": "8c6f17dfee9e618534501e00326da07fe6f2306f5be1c3ae00cc9cc8732f5b70",
+     "texture.png": "5fbe5f75fc0e661dda6bd8bed28d92afc2f9e74b568650d33910140f5ee3adf2",
+     "emissive.png": "2858a80f263d365769b9fd12dc2a0f4909619e3ffbd0d48257943a0b2f4dd2b9",
+     "thumb.png": "b6eafc5dd3116e4e52a8a3f168d498ee2f959d82e3683ce8c834df5335394c73"
     }
    }
   },
@@ -132,13 +570,13 @@
    "partner": null,
    "colourable": true,
    "defaultColor": "#3D7BFF",
-   "description": "A ribbed knit beanie with a glowing pom-pom, in any colour you like.",
+   "description": "A ribbed knit beanie with a turned-up cuff and a glowing pom-pom, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "af8647fb4707df0cb36f1de72e2d8b4481c90883c30c24bbbb0e7ee4167baaca",
-     "model.json": "39ebc2cbcfc905194bbbd6c70e5d6a8382b943825035f37cf229b2db4266542f",
-     "texture.png": "0c6781d0dc8da5734dc4cf14e837952a18e16d572d2dbfc49baa0e93a575d535",
-     "thumb.png": "3d97262dc8e4ea1a420b9c198c6d30c0f9074d7e70c6d89bcb65b9da3b561a61"
+     "item.json": "686097165757aaa7a24cd96b7f13c0131902f9ede8f750f6f516c4e432478262",
+     "model.json": "bec667d57e1118e2ce19252853adc8cc207fc1561e2055584fea5e44ccc82582",
+     "texture.png": "6e5e2bf3802c8a01adfbeb155bd1325b305bc5d0a6b538e9d3f3678bcd8bcf5d",
+     "thumb.png": "929d073b5e7020d304525c9b9c42e9bf2c93cc5e0d94ac94a7b6f3390e341d6c"
     }
    }
   },
@@ -152,13 +590,198 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A gold crown traced with glowing cyan circuitry and a crystal at the front.",
+   "description": "A gold crown traced with glowing cyan circuitry, set with crystal gems and a tall crystal at the front.",
    "assets": {
     "files": {
-     "item.json": "96b25d63aa38f956686303c6ee0ebefcbe489288fce680fd77265a7d31734510",
-     "model.json": "c3c3d936b748e8e80cfaa326b75b53509f163404aaeedb015d3fe866cc980bdf",
-     "texture.png": "5021d3806c379fc2524afb89bade93dd11bdd7d347c82d8b020479d6aa08e1ab",
-     "thumb.png": "43a71cbd4d9e0ca11b310116f9211df759d16560ea6915a89a935f62a82c683b"
+     "item.json": "56afd60bb8b7b2f571e5978fd74890ea1064fbb724d574df1689f6eb7db6663d",
+     "model.json": "822ee146e5fc8179b5b9c22019760a59a9d8504ca2b07d156f5f999d47837007",
+     "texture.png": "355496e68ff468b5bb320d6d243071a4a24730be1483098b34e9dd086a4eeacc",
+     "emissive.png": "3c41e125cd11b95f5379eb69f0e825adb3085bd799211b1cd25c4ce082bf359c",
+     "thumb.png": "67bf43f4b7db306d856371047458e81a3d726915eb24bc9377c1b5f31ce8c1f2"
+    }
+   }
+  },
+  {
+   "id": "regal_crown",
+   "name": "Regal Crown",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A classic gold crown with engraved scrollwork, a red velvet cap and a ruby, sapphire and emerald set in the band.",
+   "assets": {
+    "files": {
+     "item.json": "ba50d521c6dc8b1007457ea1dfeb5d24c123d848cc5dd6817c1925779e89a267",
+     "model.json": "db0d1a0b7a338cc95599658697213d9f36f345dbbe900170ac344fff923879c7",
+     "texture.png": "bb049440d68d3113d465184a9d40c7b15e28e805954bf64250a3e3e12c22ad76",
+     "emissive.png": "8b3355c7dd8a2fda383bc1eb8148a91c74b0e2966a8366a671f0ed75aae2f9a7",
+     "thumb.png": "bf76ae211364f19195cf2ae690025bc27af6dbcfc1fa6bac080c7c04c15d3a95"
+    }
+   }
+  },
+  {
+   "id": "sovereign_crown",
+   "name": "Sovereign Crown",
+   "slot": "HAT",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A platinum crown whose ruby, sapphire, emerald and amethyst catch the light one after another, round and round.",
+   "assets": {
+    "files": {
+     "item.json": "ce1fbd09f4d3e2bc2d03e457a413d5ae5d63e7ca6e3cdca0e7d34c652789ed66",
+     "model.json": "f0eb3e67ae062b33c5c8b1c9db430047f7982acd3b1d7089300709cb911f2126",
+     "texture.png": "c06c8e87859984f7042bd412515ef06fdaf524c00e2a767a85bf3bae014badab",
+     "emissive.png": "fe26a7fb64ea02cf94a0357f530e2b44945bf3b9e90306ce5c24c08736180328",
+     "thumb.png": "047430db08cf8839870f09152cab74daffd438be8db730fcaf28bc31d01780bf"
+    }
+   }
+  },
+  {
+   "id": "witch_hat",
+   "name": "Hollow Witch Hat",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 300,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tall, crooked violet witch hat with a wide brim and a gold-buckled band.",
+   "assets": {
+    "files": {
+     "item.json": "18d1d453afe8817096c6946e2d8223c1cd488c75693ac799e32c3c1b41bbc037",
+     "model.json": "5360db8cc8c403f134878f8f0e3ced964256daf306995cb97eb9dd082935ad97",
+     "texture.png": "339bcb048019d30909b5f61aad4c4a35b8f3fbb7c07333b4e63fbc6ba3e5dced",
+     "thumb.png": "0879250afd2b294470767bfab4078aa218493af85e3f30f4cf6a717084e1752b"
+    }
+   }
+  },
+  {
+   "id": "party_cone",
+   "name": "Party Cone",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 100,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A striped, polka-dotted party hat worn at a jaunty angle, with a fluffy pink tuft on top.",
+   "assets": {
+    "files": {
+     "item.json": "366eecdb56f6629c6c62558f020e3f768833169f78589747749ecf71b0f1a7de",
+     "model.json": "b955e2520d4696eb5d8b6330ac07879979217939b7d198430d6f8e277cb38e92",
+     "texture.png": "ec44b438c51fb0ec713347f4616a6a5cd2dd916fac4377ac3ab46547ead9aa12",
+     "emissive.png": "56622ff6afdddd48bff74c96bab0465355b17214634ff4088394e72b4841238e",
+     "thumb.png": "4ba52d34665af1734111d34b887dd484ccbc0626f369faca01acd08ed61aed54"
+    }
+   }
+  },
+  {
+   "id": "angel_halo",
+   "name": "Angel Halo",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 300,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A softly glowing golden halo that floats above your head and bobs gently.",
+   "assets": {
+    "files": {
+     "item.json": "e766b2a0af851dbd4e2d6faa3ef51889b7356da5de611c22e1c9ef7c5968c4ac",
+     "model.json": "355cd2d7dd5efff6e61ce2489bc4dc27f9c524ef0971cc088d342888c9351b95",
+     "texture.png": "be02c592283718c1f0d8085d035f5b5d41355fee15e0a2f61cb7b74e8b25fb4b",
+     "thumb.png": "924dc03e26c5e1079ad8a469e782487b6dc3d4faf7a71437072141f215b261e5"
+    }
+   }
+  },
+  {
+   "id": "orbit_halo",
+   "name": "Orbit Halo",
+   "slot": "HAT",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A radiant halo that spins above your head while a band of light races round the ring.",
+   "assets": {
+    "files": {
+     "item.json": "7be7e6eb88765575dc103222268d3e30edc505755a911e022e40c1c2496fe4ce",
+     "model.json": "15b4977a71bb34717a2a78ee33a8237cdfa1e0abf3afea9b1ca1c85c523fca7c",
+     "texture.png": "adbcb7bf00f18ae5071d870a731da5906c34cccb7a0ccbd453068a5adbff9073",
+     "thumb.png": "eff755afa21042d2d018484f363db7873ba3f6ae2256a38d332d3066583a005e"
+    }
+   }
+  },
+  {
+   "id": "ember_horns",
+   "name": "Ember Horns",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 300,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A pair of ridged dark horns that curl up from your temples, glowing like coals at the tips.",
+   "assets": {
+    "files": {
+     "item.json": "9d689ea468cc69c11cbdc5ed812f50970c2b9283e2711b9e00328b40f9a92594",
+     "model.json": "b1414ff95d6044c606c83c1793102d2a749c0f938dc3cd3149009b8472177861",
+     "texture.png": "f481231fabf0a885b676d86834b508f41c5116b0767d162870975695224590fa",
+     "emissive.png": "dbf174f920c69a1cdbc6987d95e11f41978eb1a773098664e61413f932920f23",
+     "thumb.png": "99b7ef9114097f25c924a131dc0adda010b5a35047edda46b55b99d04f6de100"
+    }
+   }
+  },
+  {
+   "id": "kitty_ears",
+   "name": "Kitty Ears",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 100,
+   "currency": "USD",
+   "partner": null,
+   "colourable": true,
+   "defaultColor": "#F2A65A",
+   "description": "Soft pointed cat ears with pink insides, in any colour you like.",
+   "assets": {
+    "files": {
+     "item.json": "96f745fe8a28559a8162390e02ad6cd48a81541e0cad54738228ebdc76e306ae",
+     "model.json": "d5369e6d3d59e296479ea9aef5075957a863c711656b431ea5e4d2cfd7ba08b3",
+     "texture.png": "4c55e8e217c5a36c76f5a146bfde4cbbdc27a75779c2057d0c4474d12cafba1d",
+     "thumb.png": "2e54290775794a74e75033d16f340668438d7c230931842700b67bb66fa44367"
+    }
+   }
+  },
+  {
+   "id": "toadstool_cap",
+   "name": "Toadstool Cap",
+   "slot": "HAT",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round red mushroom cap with white spots and a frilled underside.",
+   "assets": {
+    "files": {
+     "item.json": "4401a4da7d8a7f26c38f0a06128db8e6266d58d15908def34c75eb01dae93863",
+     "model.json": "f4d9d925b69ed6103b792d90f3cfbc87c495057662ddf81b8ccdad8cd6930691",
+     "texture.png": "2691093024e9957b641d8fd3548adaae26d8b94cabc29f6ffc76ccd2679e87fa",
+     "thumb.png": "ac10f99924fae0952b473ef58dd7f3ff7aacfa5c4608f1c690fb138865669c99"
     }
    }
   },
@@ -172,13 +795,75 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A sleek gunmetal visor across the eyes with a glowing red slit.",
+   "description": "A sleek gunmetal visor across the eyes with a glowing red scanner slit and a woven strap.",
    "assets": {
     "files": {
-     "item.json": "d3ba2c05bda3e2aac04053bd508100c4506afcfcb696f231e85a985d470ee568",
-     "model.json": "b9d8b14318d6e311c3358128d1e2986ed5357cabfb3ddff135962d61a658b589",
-     "texture.png": "1afaeb4f6d3d2733e835c6cb91309a44f6def814bf830e03ae4547d58c7509ef",
-     "thumb.png": "ae2250be5bb757f019deaf59c7f757813d418d8d168f4b7f56c1d233e0cb12ec"
+     "item.json": "0ab981f29af441cbd622fe9320ee8df51e1e51eebcfe36ff9ad86d3dabab4093",
+     "model.json": "1118a41ca2a537a1f18d877195c69c46cc08c1af2387f0ab3413469dbfe0dc7f",
+     "texture.png": "691579a23a4e1fa379b533ef50faf5dd070684d1ea5500f91f87d8e3cd359baf",
+     "emissive.png": "47334745ab7e3e1e62fc9b1490ac420be01e38dbebe9647ea350a0341aadf590",
+     "thumb.png": "ebc497f2a0a9f04ecf037aca93908cca985715cc1bbd5c32c39b60629797a19c"
+    }
+   }
+  },
+  {
+   "id": "outlaw_bandana",
+   "name": "Outlaw Bandana",
+   "slot": "MASK",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A red printed bandana tied over the nose and mouth, knotted at the back with two loose tails.",
+   "assets": {
+    "files": {
+     "item.json": "5c74a42443da1b3980cf83d0222993942b0226a3d78985baa1db3dcdce8a8f0c",
+     "model.json": "3a8449f0999808f507d8e9591c42e57105025a6aa9bc60f8800c4fa4a6ea61e8",
+     "texture.png": "cf6c55de7139dd8886bf7a74ebb6c21c714c80ea10d6c045920ff657ed16040e",
+     "thumb.png": "2be8840b4f7a22662358c0798397c8f3868b68f2954fd5782baed9c309f5fe83"
+    }
+   }
+  },
+  {
+   "id": "kitsune_mask",
+   "name": "Fox Spirit Mask",
+   "slot": "MASK",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A white fox mask with red markings, pointed ears and a short snout, worn over the face.",
+   "assets": {
+    "files": {
+     "item.json": "89974a7f8fabe626c72ba755e5bdc6bb9b8d496b494e8ada38752ff60982554e",
+     "model.json": "bf3dadbe2ad72d5c652894a0a179a09f366b41d088d65ae3eda5971b64d1a7f6",
+     "texture.png": "1164be543a7bcfcc40ea94459b9162fd880a220f9322d9566939f82f43d67d2f",
+     "thumb.png": "96f75e4af8e2da0b214a99285062157752efaaa69a271d90c9ac885eb4688a76"
+    }
+   }
+  },
+  {
+   "id": "neon_shades",
+   "name": "Neon Shades",
+   "slot": "MASK",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Wide sunglasses with a black frame and mirrored lenses that fade from pink to cyan and glow faintly.",
+   "assets": {
+    "files": {
+     "item.json": "97b4f371c36cf05946eb9c53548b6dd76a51d32fa97e278a6d6faf267d068b4e",
+     "model.json": "56e20a98a25c43ab44c5b6f17b28d646f61f48fd57a241e1f578fb705a5cafc8",
+     "texture.png": "88d47733fe7a9529c14a40d5dac100cfddfd27e2211bdc589ddce7ec3cb11d7d",
+     "emissive.png": "86f994680b10f567ff0777a35bcc4e8cf4d98c5399c3742772d0cf78a7f5d5e0",
+     "thumb.png": "2698f8b09f0432fa95888808eebf37d14fb470ee61aa7a66b920be67ddec65bf"
     }
    }
   },
@@ -192,13 +877,95 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A sturdy canvas backpack with leather straps and a little lantern that glows at night.",
+   "description": "A sturdy canvas backpack with a front pocket, leather straps, brass buckles, a rolled blanket and a little lantern that glows at night.",
    "assets": {
     "files": {
-     "item.json": "c417b5e1530efd9abe2a39c21dc47f8f293f38ed5cdf6a2c129329402a618e31",
-     "model.json": "4ab1d819fd4e60839e24c28818c888a65b8f8881b0de94b58125e5c250a445ca",
-     "texture.png": "9507cf655fbe249274fd8e3f5769e2e9b3c19eb6f43985cfdee682db13add1cf",
-     "thumb.png": "1122ec4852fd35526fd18d0a5c1752dcdb1837e66cfc39e83a8db0693cbb64db"
+     "item.json": "3aaeabd3e71ee5c4c2aa3c1fe7c6eeed4739fe624c67fbf5bc41d3c3d48ef37c",
+     "model.json": "92e69ee85faea56c8eb4eb6c2a618dc8985068e7e033fb32b1a8ba12d8f8810c",
+     "texture.png": "4fcd85ed1920d20501dbb3674993b250836cdcf4bc9509b5caa144320db7edcb",
+     "thumb.png": "348af147fcdba5c4e2ed32426314bb5cf7c9c6e85541b398aff5a35042f5bc5f"
+    }
+   }
+  },
+  {
+   "id": "runeblade_sheath",
+   "name": "Runeblade",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A broad steel sword slung across your back, its fuller carved with runes that glow cyan.",
+   "assets": {
+    "files": {
+     "item.json": "7115747ccb07623fe69492177659e2d4a22ff1647f44903cfabd46fd2b23b06e",
+     "model.json": "0aa69d3272baec6193e7f1633201b61d8dd0348135b1c585bccb4f719adafd86",
+     "texture.png": "a83e3cdcdfea688b3218d1f7d735b1aecb104c5a9eed8639eace68ecf86f80d5",
+     "emissive.png": "408de267e7e2c5ea31e0846e2e8a944f47ef4eca9219dd088bb6879e2f0a4dba",
+     "thumb.png": "6295d0a0dd1643531f00f0aaab3d663365e65b157a6146193ef037b53cbc0c46"
+    }
+   }
+  },
+  {
+   "id": "rocket_jetpack",
+   "name": "Rocket Jetpack",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Twin red fuel tanks with hazard stripes and chrome nozzles that burn with a blue flame.",
+   "assets": {
+    "files": {
+     "item.json": "fcd7ff38ad3249e83f0416d8a83ba030147961400b377f9471f4a030922fa898",
+     "model.json": "9423abf53bd23e5e4879902fea9451aa0f646c57a9273eab8a48fb8970bf8d32",
+     "texture.png": "52824a25ebf9f289b83762b9f22e901ccd15dca1b4861216239f10a5c6acb07c",
+     "emissive.png": "f3ae4f7753a440bec252758349b245af2e88dde307f91e2e7589ebfcef9e7224",
+     "thumb.png": "182af1d9f1de07bae64ab79748a4170d4cc7f7de8e885c6d9ba038ef01b7de57"
+    }
+   }
+  },
+  {
+   "id": "ranger_quiver",
+   "name": "Ranger's Quiver",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tooled leather quiver with brass bands, slung across the back and stuffed with bright-fletched arrows.",
+   "assets": {
+    "files": {
+     "item.json": "126f8e18a4af611b75b1a23ac049749af8e6f0c68d1fbac7fd5e1d63341ecf0b",
+     "model.json": "63c7f9083672a857d7383fadb49965e6fc9b71381d9af3a2c3527073c0831efc",
+     "texture.png": "aa46f31c2e5cb222a30c6eca89afa6340e61cfb10fb51126a6f8c2e03573d561",
+     "thumb.png": "d0251da8f965c523ebaf191bdbb2e52a59e19150dd207c7473f85f5960cdb6f9"
+    }
+   }
+  },
+  {
+   "id": "bastion_shield",
+   "name": "Bastion Shield",
+   "slot": "BACK",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round wooden shield on your back, painted in blue and gold quarters with a steel rim and boss.",
+   "assets": {
+    "files": {
+     "item.json": "1954c0820b61ff742d8ed8c9017948f8422d0028ef50e03011886f6d3b2ca7f8",
+     "model.json": "4b972c9eb2d692eebb47cc18c4aad68c6f2d0a527af77e43e55c4b4d013361bb",
+     "texture.png": "6d0f369ea76df18cf57f6f0e4fecb7925ccfeb92732f1b547f4b871ca1a37af9",
+     "thumb.png": "d8167a868ebf27be92afc9d45eda147a11f2ebaf08a2cf4183167cc56c03849f"
     }
    }
   },
@@ -212,13 +979,14 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A faint ring of fire turns at your feet while three embers circle your waist.",
+   "description": "A ring of fire runes turns at your feet while three embers circle your waist.",
    "assets": {
     "files": {
-     "item.json": "badf32a8566a8ba242defab5abd82a7712eb073543445ea00e4c5520940c2490",
-     "model.json": "b2589152b853a0c920cc35d9f48f9614c8da9764588718b12d5d8670c70f94ce",
-     "texture.png": "83d04fed385430dbf13afff2ffe1b3f2af50d08d36ed22bcb3b80fd2003b39b0",
-     "thumb.png": "1b3d8a1b19732aeace71f0e55fc3fc236766f59a52a73e4cd3d0f8d53e78da11"
+     "item.json": "3c6d98c74b3a81066031fa6080da71bbabd27d52d265e11264885337d9374d12",
+     "model.json": "38632bf9ace3e239f497584fdb769485a093bfcfc40401486baa76a70e538ce1",
+     "texture.png": "bdd8edc9ffbba892809dc7e26efb2bd33f1251c0ad577dfe5a9af78680ded097",
+     "emissive.png": "b070447919b48dc88f065f9dc09c13ebe3aa071b4c31dc3ab98bc6330c01e462",
+     "thumb.png": "7903939f905c212861380cf40f3ffd60a9f064c9ad545fc6b9022c7d1f3ad189"
     }
    }
   },
@@ -232,13 +1000,224 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A pale snowflake sigil slowly turns beneath you, with a few drifting flakes.",
+   "description": "A pale, branching frost star slowly turns beneath you, with a few drifting snowflakes.",
    "assets": {
     "files": {
-     "item.json": "d47ec39e8ae82d990faefc29b2feec73821409db3d44edae0ea8d41bed5070be",
-     "model.json": "cb0f01cc0e0df7de477aee933adcfad61197d8d73fa29420ee80a5309e0a5e07",
-     "texture.png": "871a3c1f61b9c318460c6ca4f89b78502bb877e6cfb4b6808e797ce6c1c534bf",
-     "thumb.png": "5b25fb400fe497d7a7f90cdac8324c2c84191df33328f14f81758c9dd74ac544"
+     "item.json": "cfc09ffb40de51fc3cac19a7e843c4d282be96529f32dd97f8df79002838700b",
+     "model.json": "efcfb4795a343a0ae64a665f59e0f778ad8f0b27f434634b9379a16b41dc77e1",
+     "texture.png": "c9faff96e5baf9a71d00ecd91fb8467aac4bdbdaff80c05db93e36647d9762ab",
+     "emissive.png": "7e3497615783ab29ac5ababe298d6ab3bf9ba820cfb7449465ccc9be4466b1a3",
+     "thumb.png": "abe307248113027926a54345a2001e063abd6294148238a846ee27e702448c7f"
+    }
+   }
+  },
+  {
+   "id": "verdant_bloom",
+   "name": "Verdant Bloom",
+   "slot": "AURA",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A wreath of glowing leaves and pink flowers turns slowly round your feet, with green motes in the air.",
+   "assets": {
+    "files": {
+     "item.json": "ae15f670a9abb94e39b8315c30d9824577353bf67eef51b1152e152650a4aa49",
+     "model.json": "f71cd10ca68b0d27686c6b47842a5414740b8a6daa015c5cc0819e163e083a5a",
+     "texture.png": "c81876ec49e73519b60ad348ff6640c2a650dc325950dc90be21631de7ff5311",
+     "emissive.png": "83bcc4568d841d21ecff906f71c990873fd4ad5bbf6c07369ea86cc9cb58b503",
+     "thumb.png": "d858bcb25b19295acd9f419171f574b54151afb8044489c1a2583ef2bcfca0cb"
+    }
+   }
+  },
+  {
+   "id": "void_rift",
+   "name": "Void Rift",
+   "slot": "AURA",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A violet rune circle with a dark, starry core opens under you, shedding motes of purple light.",
+   "assets": {
+    "files": {
+     "item.json": "b1b9a23da2549c359f1f3eeb6944438f86ce1158e78111f49593aadb19e0253a",
+     "model.json": "199b60445c8af19cbf4a69a02d1c79f5bb0d5e75d75da4268ad595d902a13189",
+     "texture.png": "0f30c7870108bbababbc40cb624b11b7c39d7443f3a4f2ffd3c57dc4c1179763",
+     "emissive.png": "6e00b481eef16b8d7ac82f57f4ca720e9d38b1510ff12757798b0a3da403fc0d",
+     "thumb.png": "fca387a4455d46203cae66f12174d475e8d6f81f4ee8e32ff659fba36446b380"
+    }
+   }
+  },
+  {
+   "id": "spectrum_aura",
+   "name": "Spectrum Aura",
+   "slot": "AURA",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A rune circle whose colours sweep through the whole rainbow as it turns, with rainbow motes rising around you.",
+   "assets": {
+    "files": {
+     "item.json": "012c3ba0cda0234a023e8bfeec2adecc21334c6ae3297dd7d1527e447fed0d84",
+     "model.json": "18fd4b75977b36b885fcb716318b241d7acba67c8ae335c0ba6249479e1166b8",
+     "texture.png": "6c275a236e570512e1e25f9a0fc9f22a59b1087390065c7f05eb22358e65a169",
+     "emissive.png": "1cc1f370825ee10034e6776da0296bf1a8744495f36c8d6bf6508ec8016402a5",
+     "thumb.png": "a019c57844af17fd967488fb3add5ef2294299e6a24d7d83bb6a709bfdeff6b7"
+    }
+   }
+  },
+  {
+   "id": "pip_wisp",
+   "name": "Pip the Wisp",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tiny friendly wisp with big shiny eyes that bobs along above your shoulder, a cool flame flickering on its head.",
+   "assets": {
+    "files": {
+     "item.json": "45fac49984269e324460b9612617c97f8d3bd51ed785bcc0ead1075067ac2def",
+     "model.json": "8a931c415344b41f7da418f6598126c7b146453a8d8a587a441db73f0ea2a8f0",
+     "texture.png": "1ed173cef36ad9d60d382eae5bcdc238f68973fa1c49cce681a0d59cbf0b2c93",
+     "emissive.png": "9fe32ed8f83a2dc053eb25071f81f02f2917d8149bc1f10479884c7d9579dfe9",
+     "thumb.png": "2f91ed94fb9f6c7ca7eeb7dd560a901b43684ddb7e15ca7f99bee5f17d930a40"
+    }
+   }
+  },
+  {
+   "id": "mochi_cat",
+   "name": "Mochi the Cat",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A round ginger tabby with green eyes and white paws that sits on your shoulder and flicks its tail.",
+   "assets": {
+    "files": {
+     "item.json": "655ad9b65b233b1b23ec47aa1ed5727e847b81d8d7ad707b1a861358e362437c",
+     "model.json": "07c0ccdf44da23a0ca7b324117ff344b2a0393ee199ce16ef21497969de99876",
+     "texture.png": "59e2aa8c35f165ba140facbb575be50b5b2c5eba477c93f3c935c559891a9ddd",
+     "emissive.png": "5cdc1284dee3efa68b0fc28992767e0ba3ac9e4b7636e616111a46caf37b877b",
+     "thumb.png": "ab2c277c6ab8927349cc08fc0a78b062769c8702bbcd0f449a3d4b7fb91302b8"
+    }
+   }
+  },
+  {
+   "id": "ember_fox",
+   "name": "Ember the Fox",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 600,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A bright orange fox with a white chest, dark socks and a big bushy white-tipped tail curled up behind it.",
+   "assets": {
+    "files": {
+     "item.json": "ec2c78d850ba1a7df1d0faf3d6855ce9f82781309115bf2b09f3181af065c66e",
+     "model.json": "5a39b4e489fab1eafb103739dc3d2c89ae599cfe60ee21d7e14f90859342f832",
+     "texture.png": "1d296560c9199c6d9b3e1ec3d83f50ead6ee7c017b6beeb85143929451e174ae",
+     "emissive.png": "d4e74402fd526e3336c4b3c1bcd02350ddd704904c056bde128ba7c7011883a2",
+     "thumb.png": "e1548c93c018f196a98f40df34f8b45b7c8aa0caece34159360d1a9e305c7ac0"
+    }
+   }
+  },
+  {
+   "id": "hoot_owl",
+   "name": "Hoot the Owl",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A fluffy brown owl with huge amber eyes, ear tufts and a cream speckled chest, perched on your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "a04ae3af1dde9c830410cf487564d82682b196bfd90972c907e24c09c934b564",
+     "model.json": "6bae2aee80ad91116940c7ecbea8ebb51fd186a37ccaf04d48bbff2e5c5312c1",
+     "texture.png": "f40ed433894f637de331d5850355f033e1904f320334474fc1205b042a080fa2",
+     "emissive.png": "9d7a1b18df90f27b15a98b32e5794281fb9de44ab9c139d149396d7d3c7d95d3",
+     "thumb.png": "c24cefe579470e0f665b7e7492c3362b7ff3859b229c9a4df95d3b99881e8687"
+    }
+   }
+  },
+  {
+   "id": "bubble_slime",
+   "name": "Bubble the Slime",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 500,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A wobbly see-through green slime with a glowing core and a goofy grin.",
+   "assets": {
+    "files": {
+     "item.json": "dee40a3dd59bc1949ffc23d65e2a54f3d6f3e1849538e5034d1fc32ab245cf3a",
+     "model.json": "4a54baf3665f6414ba9b152dbeb98e558564b30cb7f54a6c176168e47d1ddae5",
+     "texture.png": "bed9bb2ad8e4f654c15fa9fdec574c66c8331a94dee1b59611d9faf61f92c54e",
+     "emissive.png": "bf77197519ff3611c3caefb1450fb305c10717b4401ff6292723f86a282c3f74",
+     "thumb.png": "38ac2fe3af8709f9fe51304a39feac056d3dc87886d1654ceb4dc7bfff6e8eae"
+    }
+   }
+  },
+  {
+   "id": "mini_wyvern",
+   "name": "Mini Wyvern",
+   "slot": "PET",
+   "rarity": "regular",
+   "priceCents": 800,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A little teal dragon with violet wings, golden eyes and cream horns, curled up on your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "651c18e5d556671eaf4deec903fc638b2470b6d65ad9a188dd8dc36540730990",
+     "model.json": "5d3cf54bb90c683155d5a5e0067a666134ca3c985db3a4c7b8c06d727e123011",
+     "texture.png": "8a2dcc6d87c6d6e46908e1baa6d7e0e69813af459832ac21fe971748ecb5aae4",
+     "emissive.png": "b0dc1f4ccf59111db1353cfc3dab579aa91b7548d3b6ef12992bbde0bea5f0e8",
+     "thumb.png": "73b3d42e39d3f8a628800e4468bdfcd8cbb5c69be3cba268d10d6e6964fb2790"
+    }
+   }
+  },
+  {
+   "id": "prism_sprite",
+   "name": "Prism Sprite",
+   "slot": "PET",
+   "rarity": "special",
+   "priceCents": null,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A tiny crystal fairy whose facets and wings shimmer through every colour while it hovers by your shoulder.",
+   "assets": {
+    "files": {
+     "item.json": "4faec7a438a1e746894c50e78cac65a98c4842471b7c66fc460bd1820d38e3d7",
+     "model.json": "dc00913af59567a234df6a58ef6973573d81581f1ee2b77656ccdc597b46eab5",
+     "texture.png": "eaf5ec125eef186984bd239f1c58c908f0c0aa1255c4944936c2c0d323d8a12a",
+     "emissive.png": "2ec1e47121cee010aa1256cc1d2ef6f3180c09abc39b592d2c08d6220bc97152",
+     "thumb.png": "5c6bed680c8365e75d33cb0ba6756909b2413ad4bad3d3153f94c06a4527bfb9"
     }
    }
   },
@@ -255,8 +1234,44 @@
    "description": "Glittering violet and gold dust drifts from your feet as you move.",
    "assets": {
     "files": {
-     "item.json": "c318ebd904c5304358640b75b631f5bbb6de9d3fac3f5e3ce7966fbddb4f85f5",
-     "thumb.png": "7aa37b0a42f5ae994223c3d925f7047a62dd50edc28d1d5303319a6359602f04"
+     "item.json": "2f4d3a579b1202fe2ac76bcc644cf65bf1e29d0dd705217a2cca8c35d3985497",
+     "thumb.png": "a44eba49539f47088a907b627d9ddc25096b104e572ad3b4576e3e937968ad20"
+    }
+   }
+  },
+  {
+   "id": "ember_trail",
+   "name": "Ember Trail",
+   "slot": "TRAIL",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Hot orange embers flicker up from your footsteps and fade to smoke.",
+   "assets": {
+    "files": {
+     "item.json": "c406ce82bee40bebded707bf19eb192133aa6545353fa08965478372bfadd3ec",
+     "thumb.png": "57b3bf587fb87494b3f17d8005f864aba8b5f1a1a4dbfd79c82dc28067672b11"
+    }
+   }
+  },
+  {
+   "id": "petal_trail",
+   "name": "Petal Trail",
+   "slot": "TRAIL",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Soft pink and white blossom petals tumble along behind you.",
+   "assets": {
+    "files": {
+     "item.json": "f02d0371987103432a05ea6183a833d788ba846887cd248224e40c7bbad62dd2",
+     "thumb.png": "b909fb6a8ded901442c7d04fb559b2996c3988adaa3a9f2dca89f43242e236eb"
     }
    }
   },
@@ -274,7 +1289,43 @@
    "assets": {
     "files": {
      "item.json": "cd1a38b84ade2ff622e9f04cffb756246ac8b23f06f21a4cb30d2f774bd1283d",
-     "thumb.png": "12b7179203007ba4a4fbfd24f635aefcc663f1ce4d735228bc65b532153d880a"
+     "thumb.png": "fc018aad007baac8b0f07517ddb6b1f0e029de1d0098ef25d4abb4e699401c77"
+    }
+   }
+  },
+  {
+   "id": "firework_pop",
+   "name": "Firework Pop",
+   "slot": "KILL_EFFECT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A kill sets off a bright firework of red, gold and blue sparks where they fell.",
+   "assets": {
+    "files": {
+     "item.json": "6e84501893479627f1ebe0818c68b4c56aff6efbc64f105a19bf225750252155",
+     "thumb.png": "905cbfff725a7905c7f95a402691c736cfeebc42f2551bbe025b94b3e14daa54"
+    }
+   }
+  },
+  {
+   "id": "soul_release",
+   "name": "Soul Release",
+   "slot": "KILL_EFFECT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Pale blue wisps spiral up from where your opponent fell and drift away.",
+   "assets": {
+    "files": {
+     "item.json": "8f4ce250048bd243e64d8f8e4b7d88708dff60e4cdb332f990999318495bfb87",
+     "thumb.png": "eb8046604cdf075a1163bffd39e63a06311226210fb13a7fa46c1e265f70c47c"
     }
    }
   },
@@ -291,28 +1342,44 @@
    "description": "Win a game and two golden spirals climb around you, ending in a burst of sparks.",
    "assets": {
     "files": {
-     "item.json": "5508d19941dbad124e99481c0603d0d3f35a2bf905fe34c6e7020beff44a1534",
-     "thumb.png": "5c538d7ecd95677566bab763af1df984f2811e4324cafc786d826214844c3155"
+     "item.json": "6ddaf8578d97cec4f99520d7be202e0811e5bbd1ed92be5df187d44ca6bfe55c",
+     "thumb.png": "a472f8b662a02bc1b93f42449b1e78ec6a39d5077b2ab48f43a98029753189bc"
     }
    }
   },
   {
-   "id": "pip_wisp",
-   "name": "Pip the Wisp",
-   "slot": "PET",
+   "id": "confetti_cannon",
+   "name": "Confetti Cannon",
+   "slot": "WIN_EFFECT",
    "rarity": "regular",
-   "priceCents": 500,
+   "priceCents": 400,
    "currency": "USD",
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A tiny friendly wisp that bobs along above your shoulder, with a flickering flame on its head.",
+   "description": "Win a game and a cloud of rainbow confetti bursts out around you.",
    "assets": {
     "files": {
-     "item.json": "e2ad49fc4a9fb5c31b0bf8f015808c0d36d12f2daf382ef037eba10d08f04d68",
-     "model.json": "de793e158a94a32d4f11e86753ff158f9417a35166b73725dc5defda149f2b51",
-     "texture.png": "a01f6e0c5070d5c559b5d73a4f3f47a7db4669d12dbf205dd075250f495e7bf6",
-     "thumb.png": "ee947ca8f2f16f61ced99e1adf684353059d4ef68492a3060d6ff85a07392bf9"
+     "item.json": "660c90573370f67ee9374a0950612b82610cd1d566c2f37ca31fc5060240c3f8",
+     "thumb.png": "c5d6d523bb3a9eb02856e1c07707b9d4f88d4a3348613ca12571e1b6d8cc2269"
+    }
+   }
+  },
+  {
+   "id": "starlight_fountain",
+   "name": "Starlight Fountain",
+   "slot": "WIN_EFFECT",
+   "rarity": "regular",
+   "priceCents": 400,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Win a game and a tall column of white starlight spirals up around you.",
+   "assets": {
+    "files": {
+     "item.json": "d08ac5a92853f56c3d5e818e103af76a0b0cb32c9be58df9f6165a5bf51a8855",
+     "thumb.png": "8764b6e8aa8894e47f5c4319c356f9780b3c7725889ce8c63caf19079fae643a"
     }
    }
   },
@@ -330,7 +1397,7 @@
    "assets": {
     "files": {
      "item.json": "e2f3f2e2766f82378d25025b894a3934b8495844854b82eb029ae2dbc2ce2ef8",
-     "thumb.png": "2675a1525254f8628e7ae9ffeba3c9cac82353118db8f6ae37af411b010c0df8"
+     "thumb.png": "cd37c418107e4a197beb0809010a4e0c98fa1afa243bba73253579ca82d75578"
     }
    }
   },
@@ -348,7 +1415,61 @@
    "assets": {
     "files": {
      "item.json": "c2bbb5fa0ed78d249e28057e6d6184a6bde676e1863b9a53ea0c1d64f49c4b0f",
-     "thumb.png": "af53299da0747c8c30959e0e95b380f6048aad573f554c0d3d83bed490b8a7aa"
+     "thumb.png": "5c5d7e05ace8ae7f0f0a50b9b843b858bacaaea4dfd1c41071a528182adf09a1"
+    }
+   }
+  },
+  {
+   "id": "crisp_salute",
+   "name": "Crisp Salute",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Stand to attention and snap off a sharp salute.",
+   "assets": {
+    "files": {
+     "item.json": "5886af88b5542f7a120ae6ef43382b1cbfa2e15cf66d3756715739b57bcbbadc",
+     "thumb.png": "f0a52c64e9e827243b2f33669a9c7de8ad420ff228c9564a1fa782e28f34cdeb"
+    }
+   }
+  },
+  {
+   "id": "slow_clap",
+   "name": "Slow Clap",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A long, slow, meaningful round of applause.",
+   "assets": {
+    "files": {
+     "item.json": "dccfbd79d61fad3f25e8684a8040311faaf2b3dc1da62d7611955f26557fbe26",
+     "thumb.png": "b81ca50a88408d8a2d7971d208b6b51ffcebb44127e42433dd1d6859761d0da5"
+    }
+   }
+  },
+  {
+   "id": "grand_bow",
+   "name": "Grand Bow",
+   "slot": "EMOTE",
+   "rarity": "regular",
+   "priceCents": 200,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
+   "assets": {
+    "files": {
+     "item.json": "b43615b7364e33dbbedc2e924c0b2a84848a8a9a46e6bb6ca358a7afdca2e235",
+     "thumb.png": "ed7e46365b554b7725cd881a9e397f53394c7443995538e8b3eefb429db11b6d"
     }
    }
   },
@@ -362,13 +1483,56 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "Your sword, re-forged in dark glass with a glowing violet core. Shows on swords you hold, on your screen.",
+   "description": "Your sword, re-forged in faceted dark glass with a glowing violet core and a silver guard. Shows on swords you hold, on your screen.",
    "assets": {
     "files": {
-     "item.json": "f7699f93652892027257124dc9563e341e410e38f280c2f2da3294ab459b82aa",
-     "model.json": "94e7b5d3fef125c781250883b1e713723e82bc0342e0152924770066f9c0fb90",
-     "texture.png": "1579298835c58285d01a73b70ffc13a408596a99fbf13ce6c03ac0373d278af9",
-     "thumb.png": "9e7733147b193e1e604d4870ef07d1c610c041c1d255fd80d5bf9ba9c98f0b4c"
+     "item.json": "d7e75a194308770519ccef5e09c5fa773f1f6415d844e88c90f5625fc71ab07b",
+     "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
+     "texture.png": "087b24adb24843886191fe77ee049ad9aa7ee8779e39d7d966db535513ed8f7e",
+     "emissive.png": "127d61cfcd6b8f4d24675bb9b33f2b4b6b6530492b544f4216bf812823b59c78",
+     "thumb.png": "4370479ab8db374a0732ce130dd4a3b29d60d71ca2bdc4e629c3d74ee3b27b99"
+    }
+   }
+  },
+  {
+   "id": "emberfang_saber",
+   "name": "Emberfang Saber",
+   "slot": "ITEM_SKIN",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your sword as a broad, notched saber whose edges glow like a forge, with a black iron guard and a ruby. Shows on swords you hold, on your screen.",
+   "assets": {
+    "files": {
+     "item.json": "b59d6bfbe3fde74acd5b1c1e677fe4a915388700109977dc2e5dcbd3950b5850",
+     "model.json": "27862c35e466d640c20410d3da28446e9bec2e0862e96fab4367b007c5dc77de",
+     "texture.png": "a52f2d4e1d5b0b219091728d6b8250fc7b902096a779dfd1fea3eb2600703ede",
+     "emissive.png": "36943db635f872fb588b81df1a38da995fad338ae6749089670a5afbb8a9d1c1",
+     "thumb.png": "c6ea6e4defa88eddc417cddc96a1efa51178f5fc6401f669092e80bd77aea9fd"
+    }
+   }
+  },
+  {
+   "id": "frostbite_edge",
+   "name": "Frostbite Edge",
+   "slot": "ITEM_SKIN",
+   "rarity": "regular",
+   "priceCents": 250,
+   "currency": "USD",
+   "partner": null,
+   "colourable": false,
+   "defaultColor": null,
+   "description": "Your sword carved from clear blue ice, frosted along the edges, with crystal shards on the guard. Shows on swords you hold, on your screen.",
+   "assets": {
+    "files": {
+     "item.json": "2c43a6c0c80763e48d193bc83c4eb305e59387bdd0f1049fe4adbaa1bfb57105",
+     "model.json": "684dbff39416378f27da071047235bd0c3442d665a14c4ca25650a5f66bfddda",
+     "texture.png": "a282cc9e73b61cd26b0c33babf0673603224ca64e929e654766f1668c582d359",
+     "emissive.png": "bcd184897d9be27e463de77b0adddd9919d9f3ca45b9b1a54ab2e024e2313487",
+     "thumb.png": "84857493a91ba93a7494e432684fc64567fdd7c6e8e6b2b3525c8deb4dca039b"
     }
    }
   }

@@ -1,6 +1,22 @@
 {
- "version": "2.6.1",
+ "version": "2.7.0",
  "entries": [
+  {
+   "id": "v2.7.0",
+   "title": "v2.7.0",
+   "date": "2026-11-25",
+   "dateText": "25 Nov 2026",
+   "summary": "Evade Shaders, 76 cosmetics, a new start screen, one-click hotkeys and more FPS.",
+   "items": [
+    "Evade Shaders (free): our own shader pack, with Potato, Low, Medium, High and Ultra levels. Soft shadows, a real sky with sunsets, clouds, reflective water, light rays and more. On laptops it starts on Low. Turn it on in the launcher's Shader packs.",
+    "More shader packs in the launcher: Complementary Unbound, BSL and Sildur's Vibrant join Photon and Complementary Reimagined, all downloaded from Modrinth.",
+    "Cosmetics: 76 items (57 new): capes, wings, hats, masks, back items, pets, auras, trails, kill and win effects, emotes and sword skins. Sharper textures, glowing parts, capes that move like cloth, wings that flap faster when you sprint and fold when you sneak, and pets that follow you. 10 Special items are animated (prices coming soon).",
+    "New start screen: drifting embers, an animated logo, friends online, your character in 3D with your cosmetics, and a Light mode picked automatically on laptops. It now always replaces the vanilla screen, including for players whose settings had it switched off.",
+    "Text Hotkeys: up to 20 one-click hotkeys with an editor, Ctrl/Shift/Alt combos, labels, presets and server-only hotkeys, and a shorter, adjustable cooldown (0.5 s by default).",
+    "Faster: less work for the HUD every frame, quicker mod lookups, and benchmarks no longer slowed by the idle FPS cap."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.7.0"
+  },
   {
    "id": "v2.6.1",
    "title": "v2.6.1",
@@ -77,25 +93,6 @@
     "More launcher tools: import your instances from another launcher, drag and drop mods, packs and modpacks onto the window, pick or pin a mod's version and undo the last update, new-instance templates (PvP, Survival + shaders, Building, Low-end laptop), memory advice for laptops with integrated graphics, optional extras (faster start-up, more FPS, faster singleplayer chunks), \"Start in safe mode\", and desktop shortcuts that start an instance in one click."
    ],
    "url": "https://evadeclient.com/changelog#v2.4.0"
-  },
-  {
-   "id": "v2.3.0",
-   "title": "v2.3.0",
-   "date": "2026-11-24",
-   "dateText": "24 Nov 2026",
-   "summary": "The biggest update yet: friend messages, a new HUD editor, OptiFine-style resource packs, and a launcher that stays with you while you play.",
-   "items": [
-    "Friends: message friends and chat with your party (.msg, .reply, .pc, or the new Chat tab), Join a friend's server or Bring your party to yours (you always confirm first), and friends' names in your colour in chat and the tab list. Messages are passed on, never stored.",
-    "HUD editor: undo and redo, select several widgets and line them up, nudge with the arrow keys, lock widgets, right-click to add one, ready-made layouts and HUD codes to share yours.",
-    "New widgets: Custom Text with live values like {fps}, {ping} and {biome}, much deeper Potion Effects, and titles, the action bar and subtitles you can move and resize.",
-    "Colour picker: a full picker with transparency, hex codes and your recent colours on every colour setting.",
-    "Menu and keys: Tab completes dot commands, a Keybinds page that shows clashes, hold or toggle keys with Ctrl/Shift/Alt combos, pinned mods, share one mod's settings as a code, a Waypoint Manager with icons, clickable coordinates in chat, a first-run setup with \"Tune for my PC\", and Streamer Mode.",
-    "Graphics: resource packs with connected textures, custom items, mob textures and models, and custom skies now work (the launcher adds the mods that read them), optional dynamic lights, a picker for any shader pack, Benchmark Every FPS Mode, Borderless Fullscreen, and the new 1.21.11 video options in every FPS Mode.",
-    "Chat and tab list: Coords Guard stops you posting your own coordinates by accident, a Hypixel chat clean-up, ping colours, friends or yourself first, and map, book and banner previews in tooltips.",
-    "Evade Launcher: stays open after Play and shows when you're playing, play time and a Stop button; a Game page with live logs (share them safely) and crash help with one-click fixes; per-instance memory, Java, window size and icon; resource packs, shaders, data packs and modpacks from Modrinth; Update all; mod checks; world backups; and modpack import and export.",
-    "Fixes: Play now always opens the Evade profile (an already-open Minecraft Launcher used to start an older one), the \"old Evade Clips app is still running\" warning no longer appears by mistake, and Evade Clips can record your game's sound on Windows."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.3.0"
   }
  ]
 }
