@@ -6037,10 +6037,10 @@ def main():
 
 
 # ============================================================================================== mockup collection
-# The owner's 55 mockup designs (capes, wings, hats, masks, back items, pets, sword skins, auras, trails, kill and win
-# effects, emotes), drawn to the shipped standard: regular capes hand-drawn pixel art at 16 texels per unit in the
-# special capes' layout, special items 16-24 seamless frames with a glow layer, pets on the pet engine (looking about,
-# blinking, cleared against the player), auras as bold ground circles. Everything below is self-contained: it only adds
+# The owner's mockup designs that made the cut (29 of 55: no rainbow-striped designs and nothing that repeats an idea
+# already in the catalogue), drawn to the shipped standard: regular capes hand-drawn pixel art at 16 texels per unit in the
+# special capes' layout, special items 16-29 seamless frames with a glow layer, pets on the pet engine (looking about,
+# blinking, cleared against the player). Everything below is self-contained: it only adds
 # helpers (all named mc_* or after their item) and items, and extends the particle thumbnails with new pictures.
 
 MC_SPECIAL = {"frames": 16, "frametime": 2, "interpolate": True, "scale": 8}
@@ -6107,63 +6107,6 @@ def mc_cape_trim(cv, color, light, stitch=None, hem=True):
 
 
 # ---------------------------------------------------------------------------------------------- capes (regular)
-
-# ---- Thunderhead Cape: banded storm clouds over night blue, split by a glowing bolt
-
-THUNDER_SKY = ["#070a14", "#0c1222", "#131b33", "#1c2746", "#283658", "#3a4a70", "#56688e", "#7c8eb2", "#a8b8d8"]
-THUNDER_BOLT = ["#ffffff", "#e4eeff", "#a8c4ff", "#6a8ae8"]
-THUNDER_PAL = THUNDER_SKY + THUNDER_BOLT + ["#141a2a", "#2a3350", "#8aa0d0", "#4a5a7c"]
-
-
-def thunder_clouds(cv, drift=0.0, flash=0.0):
-    h, w = cv.h, cv.w
-    t = cv.yy()
-    n = pnoise(h, w, 2.6, 101, octaves=5)
-    n2 = pnoise(h, w, 5.5, 102, octaves=3)
-    if drift:
-        n = fshift(n, 0, drift * w)
-        n2 = fshift(n2, 0, -drift * w)
-    v = n * 0.75 + n2 * 0.25
-    # lit cloud tops: brighter where the cloud thins out upward (the field rises downward)
-    up = v - fshift(v, cv.s * 0.5, 0)
-    dens = smooth((v - 0.36) / 0.4)
-    lum_ = 0.12 + 0.55 * dens + np.clip(up * 6, -0.15, 0.35) * dens - 0.18 * t
-    lum_ = np.clip(lum_ + flash * dens * 0.45, 0, 1)
-    cv.arr[:] = palette(levels(lum_, len(THUNDER_SKY), 0.35), THUNDER_SKY)
-    cv.arr[..., 3] = 1
-    return dens
-
-
-THUNDER_MAIN = [(0.58, 0.0), (0.44, 0.2), (0.6, 0.31), (0.38, 0.55), (0.55, 0.6), (0.3, 0.93)]
-THUNDER_FORK = [(0.6, 0.31), (0.76, 0.43), (0.71, 0.53), (0.82, 0.62)]
-THUNDER_FORK2 = [(0.38, 0.55), (0.22, 0.66), (0.26, 0.72)]
-
-
-def thunder_bolt(cv, k=1.0, paths=(THUNDER_MAIN, THUNDER_FORK, THUNDER_FORK2)):
-    s = cv.s
-    core = mc_lines(cv, [paths[0]], s * 0.38) | mc_lines(cv, list(paths[1:]), s * 0.22)
-    rim = grow(core, 2) & ~core
-    halo = grow(core, 7) & ~grow(core, 2)
-    y, x = cv.grid()
-    dith = ((x + y) % 2 == 0)
-    if k > 0.05:
-        put(cv, halo & dith, "#4a5a7c")
-        em_from(cv, halo * 0.5 * k, "#6a8ae8")
-        put(cv, rim, "#a8c4ff", 0.9 * k)
-        put(cv, core, "#ffffff", 1.0 * k)
-
-
-def thunder_outer(cv):
-    thunder_clouds(cv)
-    thunder_bolt(cv)
-    mc_crisp(cv, THUNDER_PAL)
-    mc_cape_trim(cv, "#141a2a", "#4a5a7c", stitch="#8aa0d0")
-
-
-item("thunderhead_cape", "Thunderhead Cape", "CAPE", "REGULAR", 0,
-     "Rolling storm clouds over a deep night blue, split by a glowing bolt of lightning.",
-     cape_bones_reg(thunder_outer, lining_hd("#141a2a", "#06080e", "#2a3350")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
-
 
 # ---- Honeycomb Cape: golden wax cells, some full of honey and some empty, honey dripping from the collar
 
@@ -6235,75 +6178,6 @@ item("honeycomb_cape", "Honeycomb Cape", "CAPE", "REGULAR", 0,
      cape_bones_reg(honeycomb_outer, lining_hd("#5a2a04", "#2a1402", "#8a4a0a")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
 
 
-# ---- Circuit Cape: a green board with copper traces and pads, a chip in the middle, a few traces glowing cyan
-
-CIRCUIT_PAL = ["#03120a", "#06180f", "#0a2416", "#0e3a26", "#14502f", "#1c6a3c", "#7a5a1e", "#c8a24a", "#e8c86a",
-               "#fff0b0", "#15151a", "#2a2a32", "#8a8a90", "#c0c0c8", "#1a8a9a", "#5afff0", "#d8fffc"]
-
-
-def circuit_outer(cv):
-    h, w, s = cv.h, cv.w, cv.s
-    y, x = cv.grid()
-    t = cv.yy()
-    base = levels(np.clip(1 - t * 0.8 + (pnoise(h, w, 3.0, 12, octaves=2) - 0.5) * 0.3, 0, 1), 4, 0.5)
-    cv.arr[:] = palette(base, ["#06180f", "#0a2416", "#0e3a26", "#14502f"])
-    cv.arr[..., 3] = 1
-    # faint copper pour grid
-    cv.arr[((x % (s // 2)) == 0) & ((y % (s // 2)) == 0), :3] = hexc("#1c6a3c")[:3]
-    rng = np.random.default_rng(12)
-    step = s / 2
-    copper = np.zeros((h, w), bool)
-    glow = np.zeros((h, w), bool)
-    pads = []
-    cxs, cys = w * 0.5, h * 0.46
-    for i in range(22):
-        gx, gy = rng.integers(1, int(w / step) - 1), rng.integers(4, int(h / step) - 2)
-        px_, py_ = gx * step, gy * step
-        pts = [(px_, py_)]
-        for k in range(rng.integers(3, 6)):
-            if k % 2 == 0:
-                px_ = float(np.clip(px_ + rng.choice([-1, 1]) * step * rng.integers(2, 6), step, w - step))
-            else:
-                py_ = float(np.clip(py_ + rng.choice([-1, 1]) * step * rng.integers(2, 7), step * 3, h - step * 2))
-            # 45-degree corner instead of a square one
-            pts.append((px_, py_))
-        lit = i % 4 == 0
-        m = pmask(cv, lambda d: d.line(pts, fill=255, width=int(s * 0.25)))
-        (glow if lit else copper)[...] |= m
-        pads += [pts[0], pts[-1]]
-    put(cv, copper, "#c8a24a")
-    put(cv, shade_rim(copper), "#7a5a1e")
-    for (px_, py_) in pads:
-        ring = disc(cv, px_, py_, s * 0.34) & ~disc(cv, px_, py_, s * 0.15)
-        put(cv, ring, "#e8c86a")
-        put(cv, disc(cv, px_, py_, s * 0.15), "#03120a")
-    put(cv, grow(glow) & ~glow & ~copper, "#1a8a9a", 0.7)
-    put(cv, glow, "#5afff0", 1.0)
-    # the chip: a black package with silver pins, a notch and a glowing status dot
-    c0 = (np.abs(x + 0.5 - cxs) < s * 1.7) & (np.abs(y + 0.5 - cys) < s * 1.7)
-    for k in range(-3, 4):
-        px_ = cxs + k * s * 0.45
-        pin = (np.abs(x + 0.5 - px_) < s * 0.12) & (np.abs(y + 0.5 - cys) < s * 2.25) & ~c0
-        put(cv, pin, "#c0c0c8")
-        py_ = cys + k * s * 0.45
-        pin = (np.abs(y + 0.5 - py_) < s * 0.12) & (np.abs(x + 0.5 - cxs) < s * 2.25) & ~c0
-        put(cv, pin, "#c0c0c8")
-    sprite(cv, c0, "#15151a", line="#03120a", hi="#2a2a32", lo="#0a0a0e", e=2)
-    put(cv, disc(cv, cxs - s * 1.15, cys - s * 1.15, s * 0.2), "#2a2a32")
-    put(cv, disc(cv, cxs + s * 1.1, cys + s * 1.1, s * 0.16), "#5afff0", 1.0)
-    # silkscreen marks
-    for (mx, my) in ((0.18, 0.2), (0.78, 0.74), (0.2, 0.86)):
-        r0 = pmask(cv, lambda d: d.rectangle((mx * w, my * h, mx * w + s * 0.9, my * h + s * 0.45), outline=255, width=2))
-        put(cv, r0, "#d8fffc")
-    mc_crisp(cv, CIRCUIT_PAL)
-    mc_cape_trim(cv, "#15151a", "#2a2a32", stitch="#5afff0")
-
-
-item("circuit_cape", "Circuit Cape", "CAPE", "REGULAR", 0,
-     "A circuit board: copper traces, a chip at the centre and a few lines that glow cyan.",
-     cape_bones_reg(circuit_outer, lining_hd("#06180f", "#020805", "#0e3a26")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
-
-
 # ---- Royal Ermine Cape: crimson velvet, gold embroidery, a jewelled crown crest and a white ermine hem
 
 ERMINE_PAL = ["#3a020a", "#5a0612", "#7a0a1a", "#980e22", "#b0142a", "#c8203a", "#7a5a12", "#b8861e", "#f0c24a",
@@ -6368,60 +6242,6 @@ def ermine_outer(cv):
 item("royal_ermine_cape", "Royal Ermine Cape", "CAPE", "REGULAR", 0,
      "Crimson velvet with gold embroidery, a jewelled crown crest and a white ermine hem.",
      cape_bones_reg(ermine_outer, lining_hd("#5a0612", "#2a0208", "#f0c24a")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
-
-
-# ---- Sunset Drive Cape: a striped retro sun sinking behind two ranges of purple mountains, the first stars out
-
-SUNSET_SKY = ["#140832", "#1a0b3a", "#2e0f52", "#4a1660", "#6a1a6a", "#962272", "#c8326e", "#e0406a", "#f2645a",
-              "#ff8a3a", "#ffb04a", "#ffd36a"]
-SUNSET_PAL = SUNSET_SKY + ["#fff0a0", "#ffe070", "#ffc040", "#ff9a4a", "#ff6a5a", "#170a22", "#2a1040", "#3e1858",
-                           "#8a3aa0", "#ff5ad0", "#ffffff", "#cfd8ff"]
-
-
-def sunset_outer(cv):
-    h, w, s = cv.h, cv.w, cv.s
-    y, x = cv.grid()
-    X, Y = x + 0.5, y + 0.5
-    t = cv.yy()
-    cv.arr[:] = palette(levels(np.clip((t - 0.05) / 0.72, 0, 1), len(SUNSET_SKY), 0.45), SUNSET_SKY)
-    cv.arr[..., 3] = 1
-    # the sun: banded yellow to orange, cut by stripes that thicken towards its base
-    cx, cy, R = w / 2, h * 0.66, w * 0.33
-    sun = disc(cv, cx, cy, R)
-    sv = np.clip((Y - (cy - R)) / (2 * R), 0, 1)
-    put(cv, grow(sun, 2) & ~sun & (Y < cy + R * 0.2), "#ff5ad0", 0.35)
-    col = palette(levels(sv, 5, 0.35), ["#fff0a0", "#ffe070", "#ffc040", "#ff9a4a", "#ff6a5a"])
-    cv.arr[sun] = col[sun]
-    k = (Y - (cy - R * 0.1)) / (R * 1.1)
-    gap = sun & (k > 0) & ((((Y - (cy - R * 0.1)) / (s * 0.85)) % 1) < 0.18 + 0.4 * np.clip(k, 0, 1))
-    sky = palette(levels(np.clip((t - 0.05) / 0.72, 0, 1), len(SUNSET_SKY), 0.45), SUNSET_SKY)
-    cv.arr[gap] = sky[gap]
-    em_rgb(cv, cv.arr, (sun & ~gap) * 0.85)
-    # two mountain ranges, the far one lit pink along its ridges
-    u = X / w
-    far = h * (0.74 - 0.09 * np.abs(np.sin(u * math.pi * 2.2 + 0.4)) - 0.03 * np.sin(u * 23))
-    near = h * (0.83 - 0.1 * np.abs(np.sin(u * math.pi * 1.6 + 1.6)) - 0.02 * np.sin(u * 31 + 1))
-    mf, mn = Y > far, Y > near
-    put(cv, mf, "#3e1858")
-    put(cv, mf & ~nshift(mf, 3, 0), "#8a3aa0")
-    put(cv, mf & ~nshift(mf, 1, 0), "#ff5ad0", 0.6)
-    put(cv, mn, "#170a22")
-    put(cv, mn & ~nshift(mn, 2, 0), "#2a1040")
-    put(cv, mn & ~nshift(mn, 1, 0), "#8a3aa0", 0.4)
-    rng = np.random.default_rng(31)
-    for i in range(22):
-        sx, sy = rng.random() * w, cape_top(cv) + 4 + rng.random() * h * 0.3
-        if i < 4:
-            px_star(cv, sx, sy, 3, "#cfd8ff")
-        else:
-            put(cv, disc(cv, int(sx) + 0.5, int(sy) + 0.5, 1.2 if i % 3 else 1.7), "#ffffff", 1.0)
-    mc_crisp(cv, SUNSET_PAL)
-    mc_cape_trim(cv, "#1a0b2a", "#5a1a6a", stitch="#ff9a6a")
-
-
-item("sunset_drive_cape", "Sunset Drive Cape", "CAPE", "REGULAR", 0,
-     "A striped retro sun sinking behind purple mountains under the first stars.",
-     cape_bones_reg(sunset_outer, lining_hd("#1a0b3a", "#0a0418", "#5a1a6a")), layout=CAPE_REG, scale_cap=16, view=CAPE_VIEW)
 
 
 # ---- Pixel Camo Cape (colourable): blocky four-tone camouflage in light greys so the wearer's colour shows true
@@ -6517,39 +6337,6 @@ item("code_rain_cape", "Code Rain Cape", "CAPE", "SPECIAL", 0,
      animation=mc_cape_anim(2, False))
 
 
-# ---- Lava Flow Cape: plates of black rock with molten lava creeping down the cracks between them
-
-LAVA_PAL = ["#0e0a0a", "#1a1212", "#261a18", "#3a2a26", "#4c1a14", "#7a1a0e", "#c4300e", "#ff6a1a", "#ffb23a",
-            "#fff1b8", "#1a0e0a", "#5a1a0a"]
-
-
-def lava_outer(cv):
-    h, w, s = cv.h, cv.w, cv.s
-    ph = cv.phase
-    t = cv.yy()
-    n = fshift(pnoise(h, w, 3.0, 61, octaves=4), ph * h, 0)
-    n2 = fshift(pnoise(h, w, 6.0, 62, octaves=3), ph * h * 2, 0)
-    ridge = 1 - np.abs(n - 0.5) * 2
-    heat = np.clip((ridge - 0.72) / 0.26, 0, 1) * (0.65 + 0.35 * n2)
-    heat = np.clip(heat + smooth((t - 0.78) / 0.22) * 0.55 * (0.7 + 0.3 * n2), 0, 1)
-    rock = palette(levels(np.clip(n2 * 0.9 + 0.1 - t * 0.2, 0, 1), 4, 0.4), ["#0e0a0a", "#1a1212", "#261a18", "#3a2a26"])
-    cv.arr[:] = rock
-    cv.arr[..., 3] = 1
-    lv = levels(heat, 7, 0.3)
-    molten = lv >= 1
-    col = palette(lv, ["#3a2a26", "#4c1a14", "#7a1a0e", "#c4300e", "#ff6a1a", "#ffb23a", "#fff1b8"])
-    cv.arr[molten] = col[molten]
-    em_rgb(cv, cv.arr, np.clip((lv - 1) / 4.0, 0, 1) * molten)
-    mc_crisp(cv, LAVA_PAL, alpha=False)
-    mc_cape_trim(cv, "#1a0e0a", "#3a2a26", stitch="#ff8a3a")
-
-
-item("lava_flow_cape", "Lava Flow Cape", "CAPE", "SPECIAL", 0,
-     "Cracked black rock with molten lava creeping down through the cracks.",
-     cape_bones_hd(lava_outer, lining_hd("#1a0e0a", "#080404", "#5a1a0a")), layout=CAPE_HD, view=CAPE_VIEW,
-     animation=mc_cape_anim(2, True))
-
-
 # ---- Warp Speed Cape: stars stream outward from a violet core, longer and brighter as they near the edges
 
 WARP_PAL = ["#03030a", "#07061a", "#0c0a2a", "#1a1248", "#2a1a6a", "#4a2a9a", "#a88aff", "#d8ccff", "#ffffff", "#9ad8ff",
@@ -6597,67 +6384,6 @@ def warp_outer(cv):
 item("warp_speed_cape", "Warp Speed Cape", "CAPE", "SPECIAL", 0,
      "Stars stream past from a violet core, like jumping to lightspeed.",
      cape_bones_hd(warp_outer, lining_hd("#0a0820", "#03030a", "#2a1a6a")), layout=CAPE_HD, view=CAPE_VIEW,
-     animation=mc_cape_anim(2, False))
-
-
-# ---- Spectrum Shift Cape: seven bands of colour slide diagonally across the cape, sparkles twinkle as they pass
-
-SPECTRUM7 = ["#ff4a5a", "#ff9a3a", "#ffe03a", "#5ae05a", "#3ac8ff", "#4a6aff", "#b05aff"]
-SPECTRUM_PAL = SPECTRUM7 + [mix(hexc(c), np.zeros(4), 0.22)[:3] for c in SPECTRUM7] + \
-    [mix(hexc(c), np.ones(4), 0.45)[:3] for c in SPECTRUM7] + ["#ffffff", "#f4f4f8", "#c8c8d8"]
-
-
-def spectrum_outer(cv):
-    h, w, s = cv.h, cv.w, cv.s
-    ph = cv.phase
-    t, u = cv.yy(), cv.xx()
-    f = (u * 0.35 + t * 0.9 * (h / w) * 0.62 - ph) % 1.0
-    idx = np.floor(f * 7).astype(int) % 7
-    fr = (f * 7) % 1
-    base = mc_pal(SPECTRUM7)[idx]
-    dark = mc_pal(SPECTRUM_PAL[7:14])[idx]
-    light = mc_pal(SPECTRUM_PAL[14:21])[idx]
-    col = np.where((fr < 0.12)[..., None], light, np.where((fr > 0.86)[..., None], dark, base))
-    cv.arr[..., :3] = col
-    cv.arr[..., 3] = 1
-    em_rgb(cv, cv.arr, np.full(t.shape, 0.3, np.float32))
-    rng = np.random.default_rng(9)
-    for i in range(10):
-        gx, gy = rng.random() * w, cape_top(cv) + 6 + rng.random() * (h - cape_top(cv) - 16)
-        tw = 0.5 + 0.5 * math.sin(math.tau * (ph * (1 + i % 3) + rng.random()))
-        if tw > 0.3:
-            px_star(cv, gx, gy, 2 + int(tw * 3), "#ffffff", glow=0.6 + 0.4 * tw)
-    mc_crisp(cv, SPECTRUM_PAL, alpha=False)
-    hd_trim(cv, cape_top(cv), s // 3, "#c8c8d8", "#ffffff", stitch="#ffffff")
-
-
-item("spectrum_shift_cape", "Spectrum Shift Cape", "CAPE", "SPECIAL", 0,
-     "Bands of colour slide across the cape forever, with sparkles that twinkle as they pass.",
-     cape_bones_hd(spectrum_outer, lining_hd("#2a2a3a", "#101018", "#6a6a8a")), layout=CAPE_HD, view=CAPE_VIEW,
-     animation=mc_cape_anim(2, True))
-
-
-# ---- Storm Surge Cape: storm clouds drift across; twice per loop lightning strikes and lights up the whole sky
-
-def storm_outer(cv):
-    ph = cv.phase
-    flash = max(math.exp(-((ph - 0.25) / 0.035) ** 2), 0.8 * math.exp(-((ph - 0.33) / 0.025) ** 2),
-                0.9 * math.exp(-((ph - 0.7) / 0.03) ** 2))
-    thunder_clouds(cv, drift=ph, flash=flash)
-    if 0.2 < ph < 0.38:
-        k = max(flash, 0.25)
-        thunder_bolt(cv, k)
-    elif 0.65 < ph < 0.77:
-        k = max(flash, 0.25)
-        thunder_bolt(cv, k, ([(0.3, 0.0), (0.42, 0.22), (0.28, 0.4), (0.5, 0.62), (0.4, 0.7), (0.62, 0.95)],
-                             [(0.28, 0.4), (0.14, 0.52), (0.18, 0.6)], [(0.5, 0.62), (0.7, 0.7)]))
-    mc_crisp(cv, THUNDER_PAL, alpha=False)
-    mc_cape_trim(cv, "#141a2a", "#4a5a7c", stitch="#8aa0d0")
-
-
-item("storm_surge_cape", "Storm Surge Cape", "CAPE", "SPECIAL", 0,
-     "Storm clouds drift across the cape and lightning flashes, lighting up the whole sky.",
-     cape_bones_hd(storm_outer, lining_hd("#141a2a", "#06080e", "#2a3350")), layout=CAPE_HD, view=CAPE_VIEW,
      animation=mc_cape_anim(2, False))
 
 
@@ -6723,93 +6449,6 @@ item("bass_drop_cape", "Bass Drop Cape", "CAPE", "SPECIAL", 0,
 
 # ---------------------------------------------------------------------------------------------- wings
 
-# ---- bat wings (Nightwing, Neon Pulse): a leathery membrane between finger bones, a scalloped trailing edge
-
-BAT_SHAPE = [(1.0, 0.0), (0.55, 0.02), (0.0, 0.06), (0.06, 0.42), (0.17, 0.3), (0.29, 0.7), (0.45, 0.5), (0.6, 0.9),
-             (0.76, 0.62), (0.9, 0.86), (1.0, 0.7)]
-BAT_FINGERS = [(0.06, 0.42), (0.29, 0.7), (0.6, 0.9), (0.9, 0.86)]
-NEON_PAL = ["#050205", "#0c040c", "#12040e", "#1e0820", "#2a0a2a", "#3a0e3a", "#ff3ac8", "#ff8ae0", "#ffd0f4", "#8a1a6a",
-            "#5a0e48", "#1a1418", "#2a2228", "#3a3038"]
-
-
-def bat_membrane(colors, bone_c, edge_c, glow=None, pulse=False, seed=0):
-    def p(face, cv):
-        r, t = wing_root(face, cv), cv.yy()
-        W = WingDraw(face, cv)
-        W.poly(BAT_SHAPE, (255, 255, 255, 255))
-        mask = crisp_mask(W)
-        n = pnoise(cv.h, cv.w, 3.0, 300 + seed, octaves=3)
-        shade_v = np.clip((1 - r) * 0.55 + t * 0.35 + (n - 0.5) * 0.25, 0, 1)
-        col = ramp(shade_v, colors)
-        # wrinkles between the fingers, darker near the trailing edge
-        ang = np.arctan2(t + 0.02, (1.02 - r))
-        wr = (np.sin(ang * 34 + n * 3) > 0.82) & (t > 0.12)
-        col[wr, :3] *= 0.82
-        V = WingDraw(face, cv)
-        root = (0.98, 0.04)
-        for q in BAT_FINGERS:
-            V.line([root, ((root[0] + q[0]) / 2, (root[1] + q[1]) / 2 - 0.03), q], (255, 255, 255, 255), 0.9 if glow is None else 0.75)
-        veins = crisp_mask(V) * mask
-        col[veins > 0, :3] = hexc(bone_c)[:3]
-        # outline round the membrane (the scalloped edge), one or two texels
-        mb = mask > 0
-        edge = mb & ~(nshift(mb, 1, 0) & nshift(mb, -1, 0) & nshift(mb, 0, 1) & nshift(mb, 0, -1))
-        edge = grow(edge, max(0, cv.s // 8 - 1)) & mb
-        col[edge, :3] = hexc(edge_c)[:3]
-        col[..., 3] = mask * 0.98
-        cv.arr[:] = col
-        if glow:
-            if pulse:
-                d = np.sqrt((1 - r) ** 2 + (t * 0.8) ** 2)
-                k = np.zeros_like(d)
-                for j in range(2):
-                    pk = ((cv.phase + j / 2) % 1.0) * 1.5 - 0.2
-                    k = np.maximum(k, np.exp(-((d - pk) / 0.07) ** 2))
-                kl = levels(np.clip(k, 0, 1), 4, 0.3)
-                vc = palette(kl, ["#5a0e48", "#ff3ac8", "#ff8ae0", "#ffd0f4"])
-                vm = (veins > 0) | edge
-                cv.arr[vm, :3] = vc[vm][:, :3]
-                em_rgb(cv, cv.arr, vm * (0.35 + 0.65 * kl / 3.0))
-                inner = mb & ~vm & (kl >= 2)
-                cv.arr[inner, :3] = hexc("#3a0e3a")[:3]
-                em_from(cv, inner * 0.3, "#ff3ac8")
-                mc_crisp(cv, NEON_PAL)
-            else:
-                em_from(cv, veins * 0.9, glow)
-    return p
-
-
-def bat_arm(c_hi, c_lo):
-    def p(face, cv):
-        t = cv.yy()
-        cv.arr[:] = mix(hexc(c_hi), hexc(c_lo), t[..., None])
-        cv.arr[..., 3] = 1
-        y, x = cv.grid()
-        knuckle = (x % (cv.s * 4)) < cv.s // 2
-        cv.arr[knuckle, :3] *= 1.3
-        bevel(cv, 0.2, 0.3)
-    return p
-
-
-def bat_claw(face, cv):
-    vgrad(cv, hexc("#e8dcc8"), hexc("#8a7a64"))
-    bevel(cv, 0.2, 0.3)
-
-
-def bat_wings(colors, bone_c, edge_c, arm=("#3a2a40", "#140a18"), glow=None, pulse=False, seed=0):
-    anim = wing_anim(28, 14, 1.4)
-    right = [Bone("wing_r", "body", (-1.5, 2, 2.5), (0, 0, -8), [
-        Cube((-18, -3.5, 2), (17, 16, 0), bat_membrane(colors, bone_c, edge_c, glow, pulse, seed)),
-        Cube((-18, -4.5, 1.5), (17, 1, 1), bat_arm(*arm)),
-        Cube((-19.5, -5, 1.5), (2, 2, 1), bat_claw)], anim=anim)]
-    return wing_pair(right)
-
-
-item("nightwing_wings", "Nightwing Wings", "WINGS", "REGULAR", 900,
-     "Leathery bat wings in deep violet with dark finger bones and a scalloped edge.",
-     bat_wings([(0, "#8a4ab0"), (0.45, "#5a2a7a"), (0.8, "#341650"), (1, "#1e0a2e")], "#1a0a22", "#140818"), view=WING_VIEW)
-
-
 # ---- Dusk Moth Wings: soft dusty upper and lower wings in cream and bark brown, an eye-spot on each, a furry body
 
 MOTH_UP = [(1.0, 0.85), (0.98, 0.1), (0.7, 0.0), (0.3, 0.02), (0.05, 0.1), (0.0, 0.3), (0.12, 0.6), (0.5, 0.9), (0.85, 1.0)]
@@ -6864,168 +6503,7 @@ item("dusk_moth_wings", "Dusk Moth Wings", "WINGS", "REGULAR", 700,
      moth(), view=WING_VIEW)
 
 
-# ---- Phoenix wings (Plume, Rebirth): a gold arm hung with long feathers burning from yellow to deep red
-
-PHX_PAL = ["#fff6c8", "#ffe08a", "#ffc24a", "#ff9a2a", "#ff6a1a", "#e8401a", "#c4300e", "#8a1a0a", "#5a0e08", "#fff1b8",
-           "#ffb23a", "#ffe9a8", "#e0a838", "#b8781a", "#7a4a10"]
-
-
-def phx_feather(seed, animated):
-    def p(face, cv):
-        t, x = cv.yy(), cv.xx()
-        half = np.abs(x - 0.5) * 2
-        shape = 1 - smooth((t - 0.7) / 0.3) ** 1.5
-        inside = half < np.maximum(shape, 0.0) * 0.98 + 0.03
-        col = ramp(t, [(0, "#ffe08a"), (0.35, "#ffb23a"), (0.65, "#ff6a1a"), (0.88, "#c4300e"), (1, "#8a1a0a")])
-        barbs = np.sin((t * cv.h / max(1, cv.s * 0.5) - half * 2.5) * math.pi) > 0.55
-        col[barbs, :3] *= 0.85
-        col[half > 0.7, :3] *= 0.82
-        quill = half < 1.6 / max(1, cv.w)
-        col[quill, :3] = hexc("#fff6c8")[:3]
-        col[..., 3] = inside
-        cv.arr[:] = col
-        em_from(cv, smooth((t - 0.62) / 0.3) * inside, "#ffb23a", 0.9)
-        if animated:
-            heat = flame_field(cv, 200 + seed, speed=1.0)
-            fire = ramp(np.clip(heat * 1.1, 0, 1), FIRE)
-            hot = (heat > 0.35) & inside
-            cv.arr[hot, :3] = fire[hot, :3]
-            em_rgb(cv, fire, heat * inside * 0.95)
-            mc_crisp(cv, PHX_PAL)
-    return p
-
-
-def phx_arm(face, cv):
-    t = cv.yy()
-    cv.arr[:] = ramp(t, [(0, "#ffe9a8"), (0.5, "#e0a838"), (1, "#7a4a10")])
-    cv.arr[..., 3] = 1
-    y, x = cv.grid()
-    cv.arr[(x % (cv.s * 3)) < 2, :3] = hexc("#fff6c8")[:3]
-    bevel(cv, 0.2, 0.3)
-
-
-def phoenix(animated=False):
-    anim = wing_anim(30, 14, 1.5)
-    arm = Cube((-16, -1, 1.5), (15, 1, 1), phx_arm)
-    feathers = feather_row([phx_feather(i, animated) for i in range(8)], -2.5, -16, 0, 2, lambda f: 6 + 9 * f, width=2)
-    under = feather_row([phx_feather(20 + i, animated) for i in range(6)], -3, -12, 0, 2.3, lambda f: 3 + 4 * f, width=2)
-    return wing_pair([Bone("wing_r", "body", (-1.5, 2, 2.5), (0, 0, -4), [arm] + feathers + under, anim=anim)])
-
-
-item("phoenix_plume_wings", "Phoenix Plume Wings", "WINGS", "REGULAR", 1100,
-     "Gold-armed wings of long feathers that burn from yellow to deep red, glowing at the tips.",
-     phoenix(), view=WING_VIEW)
-
-
-# ---- Amethyst Shard Wings: violet and ice-blue crystal spars fanned from a silver arm
-
-def shard(c_hi, c_mid, c_lo):
-    def p(face, cv):
-        t, x = cv.yy(), cv.xx()
-        col = ramp(t, [(0, c_hi), (0.5, c_mid), (1, c_lo)])
-        if face in ("north", "south"):
-            facet = x < 0.5
-            col[facet, :3] = np.clip(col[facet, :3] * 1.22, 0, 1)
-            ridge = np.abs(x - 0.5) < 0.6 / max(1, cv.w / cv.s) * 0.5
-            col[ridge, :3] = hexc("#ffffff")[:3]
-            tip = (t > 0.78) & (np.abs(x - 0.5) * 2 > (1 - t) / 0.22)
-            col[tip, 3] = 0
-        cv.arr[:] = col
-        cv.arr[..., 3] = np.where(cv.arr[..., 3] > 0, 0.9, 0)
-        em_from(cv, (1 - t) * 0.45 * (cv.arr[..., 3] > 0), c_hi)
-        bevel(cv, 0.2, 0.2)
-    return p
-
-
-def crystal_wings():
-    anim = wing_anim(30, 10, 1.2)
-    a = shard("#f6eaff", "#b48aff", "#6a3ae0")
-    b = shard("#e6fcff", "#8ad8ff", "#2a8ae8")
-    cubes = [Cube((-16, -1, 1.5), (15, 1, 1), metal("#ffffff", "#8a8aa8", 0.4))]
-    for i, (x, L) in enumerate([(-3.5, 6), (-6, 9), (-8.5, 12), (-11, 14), (-13.5, 11), (-16, 8)]):
-        cubes.append(Cube((x, 0, 2 + (i % 2) * 0.4), (2, L, 1), a if i % 2 else b))
-    cubes.append(Cube((-3, -1.5, 1), (2, 2, 2), gem_paint("#f4e8ff", "#8a5aff")))
-    return wing_pair([Bone("wing_r", "body", (-1.5, 2, 2.5), (0, 0, -6), cubes, anim=anim)])
-
-
-item("amethyst_shard_wings", "Amethyst Shard Wings", "WINGS", "REGULAR", 1000,
-     "Spars of violet and ice-blue crystal fanned out from a silver arm.",
-     crystal_wings(), view=WING_VIEW)
-
-item("phoenix_rebirth_wings", "Phoenix Rebirth Wings", "WINGS", "SPECIAL", None,
-     "Phoenix feathers alive with real flame: fire runs up every feather while you fly.",
-     phoenix(True), view=WING_VIEW, animation=dict(MC_SPECIAL, frames=16, frametime=1.5, interpolate=False))
-
-item("neon_pulse_wings", "Neon Pulse Wings", "WINGS", "SPECIAL", None,
-     "Black bat wings whose veins light up in waves of neon pink, shoulder to tip.",
-     bat_wings([(0, "#2a0a2a"), (0.6, "#12040e"), (1, "#050205")], "#5a0e48", "#1e0820", arm=("#2a2228", "#0c040c"),
-               glow="#ff3ac8", pulse=True, seed=4),
-     view=WING_VIEW, animation=dict(MC_SPECIAL, frames=20, frametime=1.5, interpolate=False))
-
-
 # ---------------------------------------------------------------------------------------------- hats
-
-def mc_fur(c_hi, c_lo, seed=0):
-    """Soft fur or felt: a top-lit gradient with a few darker tufts (cleaned into pixel art by crispify)."""
-    def p(face, cv):
-        vgrad(cv, hexc(c_hi), hexc(c_lo))
-        y, x = cv.grid()
-        tuft = ((x * 3 + y * 5 + seed) % 11 == 0) | ((x * 7 + y * 2 + seed) % 13 == 0)
-        cv.arr[tuft, :3] *= 0.88
-        bevel(cv, 0.12, 0.2)
-    return p
-
-
-def mc_then(paint, cols, em_cols=None):
-    """A painter followed by a fixed-palette pixel-art pass (for special items, which crispify() doesn't touch)."""
-    def p(face, cv):
-        paint(face, cv)
-        mc_crisp(cv, cols, em_cols=em_cols)
-    return p
-
-
-# ---- Snowday Beanie (colourable): a chunky ribbed knit with a folded cuff and a fluffy white pompom
-
-def beanie_knit(face, cv):
-    cv.arr[:] = hexc("#ececec")
-    y, x = cv.grid()
-    if face in ("top", "bottom"):
-        rib = ((x // max(1, cv.s // 2)) % 2 == 0)
-    else:
-        rib = ((x // max(1, cv.s // 2)) % 2 == 0)
-    cv.arr[rib, :3] = hexc("#c8c8c8")[:3]
-    v = (y % max(2, cv.s // 2)) == 0
-    cv.arr[v & ~rib, :3] = hexc("#dadada")[:3]
-    cv.arr[v & rib, :3] = hexc("#b4b4b4")[:3]
-    cv.arr[..., 3] = 1
-    bevel(cv, 0.1, 0.2)
-
-
-def beanie_cuff(face, cv):
-    beanie_knit(face, cv)
-    y, x = cv.grid()
-    cv.arr[(y < max(1, cv.s // 8)), :3] = hexc("#f8f8f8")[:3]
-
-
-def beanie_pom(face, cv):
-    cv.arr[:] = hexc("#ffffff")
-    y, x = cv.grid()
-    fluff = ((x * 5 + y * 3) % 7 == 0) | ((x * 2 + y * 7) % 9 == 0)
-    cv.arr[fluff, :3] = hexc("#e2e6ee")[:3]
-    ao_edges(cv, 0.15)
-
-
-def beanie():
-    return [Bone("beanie", "head", cubes=[Cube((-4, -9, -4), (8, 3, 8), beanie_knit, inflate=0.5),
-                                          Cube((-3, -10, -3), (6, 1, 6), beanie_knit, inflate=0.3)], tint=True),
-            Bone("beanie_cuff", "head", cubes=[Cube((-4, -6, -4), (8, 1, 8), beanie_cuff, inflate=0.7)], tint=True),
-            Bone("pompom", "head", cubes=[Cube((-1.5, -12.5, -1.5), (3, 3, 3), beanie_pom)])]
-
-
-item("snowday_beanie", "Snowday Beanie", "HAT", "REGULAR", 200,
-     "A chunky ribbed beanie with a fluffy white pompom, in any colour you like.",
-     beanie(), colourable=True, default_color="#E11D2E", view=HEAD_VIEW)
-
 
 # ---- Pro Headset: a padded band, big cups with glowing red rings, and a boom mic by your mouth
 
@@ -7115,62 +6593,6 @@ item("dapper_top_hat", "Dapper Top Hat", "HAT", "REGULAR", 300,
      top_hat(), view=HEAD_VIEW)
 
 
-# ---- Starweaver Hat: a tall, bent wizard's hat in deep violet, scattered with glowing gold stars
-
-def sw_felt(face, cv):
-    vgrad(cv, hexc("#5a34b0"), hexc("#24104e"))
-    cv.arr[..., 3] = 1
-    y, x = cv.grid()
-    if face not in ("bottom",):
-        rng = np.random.default_rng(int(cv.w * 7 + cv.h * 3 + len(face)))
-        n = max(1, cv.w * cv.h // (cv.s * cv.s * 5))
-        for _ in range(n):
-            sx, sy = rng.random() * cv.w, rng.random() * cv.h
-            r = cv.s * (0.45 + rng.random() * 0.25)
-            m = pmask(cv, lambda d: d.polygon(star_poly(sx, sy, r, r * 0.42), fill=255))
-            put(cv, m, "#ffd84a", 0.8)
-            put(cv, m & lit_rim(m), "#fff4b0", 0.8)
-    bevel(cv, 0.12, 0.2)
-
-
-def sw_band(face, cv):
-    vgrad(cv, hexc("#ffd84a"), hexc("#c8901a"))
-    bevel(cv, 0.2, 0.25)
-
-
-def wizard_hat():
-    p = sw_felt
-    return [Bone("wizard", "head", (0, -8, 0), (0, 0, 8), cubes=[
-        Cube((-6, -9, -6), (12, 1, 12), p), Cube((-4, -12, -4), (8, 3, 8), p), Cube((-4, -10, -4), (8, 1, 8), sw_band, inflate=0.1),
-        Cube((-3, -15, -3), (6, 3, 6), p), Cube((-2, -18, -1.5), (4, 3, 4), p), Cube((-1, -20, 0), (2, 2, 2), p),
-        Cube((0, -21, 1), (1, 1, 2), p)])]
-
-
-item("starweaver_hat", "Starweaver Hat", "HAT", "REGULAR", 300,
-     "A tall, bent wizard's hat in deep violet, covered in glowing gold stars.",
-     wizard_hat(), view=HEAD_VIEW)
-
-
-# ---- Bunny Ears: tall fluffy white ears with pink insides, leaning back a little
-
-def bunny_ear(face, cv):
-    mc_fur("#ffffff", "#e4dfea", seed=31)(face, cv)
-    if face == "north":
-        x, t = cv.xx(), cv.yy()
-        inner = (np.abs(x - 0.5) < 0.26) & (t > 0.1) & (t < 0.92)
-        cv.arr[inner, :3] = mix(hexc("#ffb0c8"), hexc("#ff8aa8"), t[inner][:, None])[:, :3]
-
-
-def bunny_ears():
-    ear = Bone("ear_r", "head", (-2, -8, 0), (-10, 0, -12), cubes=[Cube((-3, -15, -0.5), (2, 7, 1), bunny_ear, inflate=0.1)])
-    return [ear, mirrored_bone(ear, "ear_l")]
-
-
-item("bunny_ears", "Bunny Ears", "HAT", "REGULAR", 100,
-     "Tall fluffy white ears with pink insides that lean back a little.",
-     bunny_ears(), view=HEAD_VIEW)
-
-
 # ---- Raider Helm: a riveted steel cap, a bronze band, a nose guard and two curved horns
 
 def rh_steel(face, cv):
@@ -7210,96 +6632,6 @@ def viking_helm():
 item("raider_helm", "Raider Helm", "HAT", "REGULAR", 400,
      "A steel helmet with a bronze band, a nose guard and two curved horns.",
      viking_helm(), view=HEAD_VIEW)
-
-
-# ---- Inferno Crown (special): a spiked gold crown with flames dancing up from inside the band
-
-CROWN_GOLD = ["#fff6c0", "#ffe08a", "#f0c24a", "#d09a28", "#a8701a", "#7a4a10", "#ff3a2a", "#ffd0c8"]
-CROWN_FIRE = ["#6a160f", "#c4300e", "#ff6a1a", "#ffb23a", "#ffe08a", "#fff1b8"]
-
-
-def ic_gold(face, cv):
-    t = cv.yy()
-    cv.arr[:] = palette(levels(t, 5, 0.4), ["#fff6c0", "#ffe08a", "#f0c24a", "#d09a28", "#a8701a"])
-    cv.arr[..., 3] = 1
-    y, x = cv.grid()
-    e = max(1, cv.s // 8)
-    cv.arr[(y >= cv.h - e) | (x >= cv.w - e), :3] = hexc("#7a4a10")[:3]
-    cv.arr[(y < e), :3] = hexc("#fff6c0")[:3]
-    if face in ("north", "south", "east", "west") and cv.cube.size[1] >= 2 and max(cv.cube.size[0], cv.cube.size[2]) >= 8:
-        gem = disc(cv, cv.w / 2, cv.h / 2, cv.s * 0.45)
-        put(cv, gem, "#ff3a2a", 0.6 + 0.4 * (0.5 + 0.5 * math.cos(math.tau * cv.phase * 2)))
-        put(cv, disc(cv, cv.w / 2 - cv.s * 0.15, cv.h / 2 - cv.s * 0.15, cv.s * 0.15), "#ffd0c8", 1.0)
-
-
-def ic_flames(face, cv):
-    clear(cv)
-    if face not in ("north", "south", "east", "west"):
-        return
-    seed = 77 + int(abs(cv.cube.origin[0]) * 3 + abs(cv.cube.origin[2]) * 5)
-    heat = flame_field(cv, seed, speed=1.0)
-    t = cv.yy()
-    heat = heat * smooth(t / 0.25) * (0.6 + 0.4 * t)
-    lv = levels(np.clip(heat * 1.25, 0, 1), 7, 0.3)
-    col = palette(np.maximum(lv - 1, 0), CROWN_FIRE)
-    cv.arr[..., :3] = col[..., :3]
-    cv.arr[..., 3] = (lv >= 2).astype(np.float32)
-    em_rgb(cv, cv.arr, cv.arr[..., 3] * np.clip(lv / 5.0, 0.5, 1))
-
-
-def inferno_crown():
-    band = [Cube((-4, -10, -4), (8, 2, 8), ic_gold, inflate=0.4)]
-    spikes = []
-    for x, z in ((-4, -4), (3, -4), (-4, 3), (3, 3), (-0.5, -4.4), (-0.5, 3.4), (-4.4, -0.5), (3.4, -0.5)):
-        spikes.append(Cube((x, -12, z), (1, 2, 1), ic_gold))
-    flames = [Cube((-3.5, -16, -3.2), (7, 6, 0), ic_flames), Cube((-3.5, -16, 3.2), (7, 6, 0), ic_flames),
-              Cube((-3.2, -16, -3.5), (0, 6, 7), ic_flames), Cube((3.2, -16, -3.5), (0, 6, 7), ic_flames),
-              Cube((-2, -17, 0), (4, 7, 0), ic_flames), Cube((0, -17, -2), (0, 7, 4), ic_flames)]
-    return [Bone("crown", "head", cubes=band + spikes), Bone("flames", "head", cubes=flames, emissive=True)]
-
-
-item("inferno_crown", "Inferno Crown", "HAT", "SPECIAL", None,
-     "A spiked gold crown with real flames dancing up from the band.",
-     inferno_crown(), view=dict(HEAD_VIEW, pitch=14), animation=dict(MC_SPECIAL, frames=16, frametime=1.5, interpolate=False))
-
-
-# ---- Prism Halo (special): a halo of pure colour that spins above you while the rainbow runs round the ring
-
-PRISM24 = [tuple(hsv_rgb(np.float32(k / 24), 0.62, 1.0).tolist()) for k in range(24)] + \
-    [tuple(hsv_rgb(np.float32(k / 24), 0.25, 1.0).tolist()) for k in range(24)]
-
-
-def prism_bar(face, cv):
-    y, x = cv.grid()
-    idx = getattr(cv.cube, "ring_index", 0)
-    pos = (idx + (x + 0.5) / cv.w) / 8
-    if face in ("east", "west"):
-        pos = np.full_like(x, idx / 8 + (0.125 if face == "east" else 0.0))
-    h = (pos - cv.phase) % 1.0
-    col = hsv_rgb(np.floor(h * 24) / 24, 0.62, 1.0)
-    e = max(1, cv.s // 8)
-    edge = (y < e) | (y >= cv.h - e)
-    col[edge] = hsv_rgb(np.floor(h[edge] * 24) / 24, 0.25, 1.0)
-    cv.arr[..., :3] = col
-    cv.arr[..., 3] = 1
-    em_rgb(cv, cv.arr, np.ones(col.shape[:2], np.float32))
-
-
-def prism_halo():
-    a = [Cube(c.origin, c.size, prism_bar) for c in ring_bars(prism_bar, -12)]
-    b = [Cube(c.origin, c.size, (lambda f, cv: prism_bar(f, cv))) for c in ring_bars(prism_bar, -12)]
-    for i, c in enumerate(a):
-        c.ring_index = (0, 4, 6, 2)[i]
-    for i, c in enumerate(b):
-        c.ring_index = (1, 5, 7, 3)[i]
-    spin = {"type": "spin", "speed": 60}
-    return [Bone("halo_a", "head", (0, -12, 0), (0, 0, 0), a, anim=spin, emissive=True),
-            Bone("halo_b", "head", (0, -12, 0), (0, 45, 0), b, anim=spin, emissive=True)]
-
-
-item("prism_halo", "Prism Halo", "HAT", "SPECIAL", None,
-     "A halo of pure colour that spins above you while the rainbow runs round the ring.",
-     prism_halo(), view=dict(HEAD_VIEW, pitch=24), animation=dict(MC_SPECIAL, frames=24, frametime=1.5, interpolate=True))
 
 
 # ---- Personal Raincloud (special): your own little storm cloud, raining nonstop, with the odd flash of lightning
@@ -7365,44 +6697,6 @@ item("personal_raincloud", "Personal Raincloud", "HAT", "SPECIAL", None,
 
 
 # ---------------------------------------------------------------------------------------------- masks
-
-# ---- Shadow Wrap: a dark cloth face wrap with diagonal folds, knotted at the back with two loose tails
-
-def sw_wrap(face, cv):
-    vgrad(cv, hexc("#2a3048"), hexc("#12141e"))
-    y, x = cv.grid()
-    fold = ((y + x * 0.4) % max(3, cv.s)) < max(1, cv.s // 6)
-    cv.arr[fold, :3] = hexc("#0a0c14")[:3]
-    hi = ((y + x * 0.4 + 1) % max(3, cv.s)) < max(1, cv.s // 6)
-    cv.arr[hi & ~fold, :3] = hexc("#3a4260")[:3]
-    bevel(cv, 0.1, 0.2)
-
-
-def sw_tail(face, cv):
-    sw_wrap(face, cv)
-    t = cv.yy()
-    x = cv.xx()
-    cut = (t > 0.85) & (np.abs(x - 0.5) * 2 < (t - 0.85) / 0.15)
-    cv.arr[cut, 3] = 0
-
-
-def sw_knot(face, cv):
-    fill(cv, hexc("#1a1e2e"))
-    bevel(cv, 0.2, 0.3)
-
-
-def ninja_wrap():
-    return [Bone("wrap", "head", cubes=[Cube((-4, -4, -4), (8, 4, 8), sw_wrap, inflate=0.4),
-                                        Cube((-1, -3.5, 4.2), (2, 2, 1), sw_knot)]),
-            Bone("wrap_tails", "head", (0, -3, 4.8), (20, 0, 0), cubes=[Cube((-1.5, -3.5, 4.8), (1, 5, 0), sw_tail),
-                                                                         Cube((0.5, -3.5, 5.0), (1, 6, 0), sw_tail)],
-                 anim={"type": "sway", "amp": 6, "speed": 0.8})]
-
-
-item("shadow_wrap", "Shadow Wrap", "MASK", "REGULAR", 250,
-     "A dark cloth face wrap tied at the back with two loose tails.",
-     ninja_wrap(), view=dict(HEAD_VIEW, yaw=40))
-
 
 # ---- Aviator Goggles: brass rims with amber lenses on a worn leather strap
 
@@ -7489,62 +6783,6 @@ item("gentleman_kit", "Gentleman's Kit", "MASK", "REGULAR", 250,
      gentleman(), view=dict(HEAD_VIEW, yaw=20))
 
 
-# ---- LED Visor (special): a black visor with a red LED message that scrolls across it: GG WP!
-
-LED_FONT = {"G": ["0111", "1000", "1011", "1001", "0111"], "W": ["10001", "10001", "10101", "10101", "01010"],
-            "P": ["1110", "1001", "1110", "1000", "1000"], " ": ["00", "00", "00", "00", "00"],
-            "!": ["1", "1", "1", "0", "1"]}
-LED_PAL = ["#0a0a0e", "#16161c", "#24242c", "#3a3a44", "#2a0a0c", "#ff2a3a", "#ff8a8a", "#ffd0d0"]
-
-
-def led_visor(face, cv):
-    cv.arr[:] = hexc("#16161c")
-    cv.arr[..., 3] = 1
-    y, x = cv.grid()
-    e = max(1, cv.s // 8)
-    cv.arr[(y < e), :3] = hexc("#3a3a44")[:3]
-    cv.arr[(y >= cv.h - e), :3] = hexc("#0a0a0e")[:3]
-    if face != "north":
-        return
-    msg = "GG WP! "
-    cols = []
-    for ch in msg:
-        g = LED_FONT[ch]
-        for c in range(len(g[0])):
-            cols.append([g[r][c] == "1" for r in range(5)])
-        cols.append([False] * 5)
-    total = len(cols)
-    led = max(2, cv.s // 3)
-    nx, ny = (cv.w - 2) // led, 5
-    y0 = (cv.h - ny * led) // 2
-    x0 = (cv.w - nx * led) // 2
-    shift = int(cv.phase * total)
-    for i in range(nx):
-        colbits = cols[(i + shift) % total]
-        for j in range(ny):
-            sl = (slice(y0 + j * led, y0 + (j + 1) * led - 1), slice(x0 + i * led, x0 + (i + 1) * led - 1))
-            if colbits[j]:
-                cv.arr[sl][..., :3] = hexc("#ff2a3a")[:3]
-                cv.arr[y0 + j * led, x0 + i * led, :3] = hexc("#ff8a8a")[:3]
-                cv.em[sl] = (1.0, 0.16, 0.23, 1.0)
-            else:
-                cv.arr[sl][..., :3] = hexc("#2a0a0c")[:3]
-    mc_crisp(cv, LED_PAL)
-
-
-def led_side(face, cv):
-    vgrad(cv, hexc("#2a2a32"), hexc("#0a0a0e"))
-    mc_crisp(cv, LED_PAL)
-
-
-item("led_visor", "LED Visor", "MASK", "SPECIAL", None,
-     "A black visor with a red LED message that scrolls across it: GG WP!",
-     [Bone("visor", "head", cubes=[Cube((-4, -7, -4.5), (8, 3, 1), led_visor, inflate=0.3),
-                                   Cube((-4.5, -6.5, -4), (1, 2, 8), led_side),
-                                   Cube((3.5, -6.5, -4), (1, 2, 8), led_side)])],
-     view=dict(HEAD_VIEW, yaw=18), animation=dict(MC_SPECIAL, frames=29, frametime=2, interpolate=False))
-
-
 # ---------------------------------------------------------------------------------------------- back items
 
 def mc_wood(c1="#e0a860", c2="#9a5a2a", seed=9):
@@ -7600,82 +6838,6 @@ def guitar():
 item("acoustic_guitar", "Acoustic Guitar", "BACK", "REGULAR", 400,
      "A warm wooden guitar slung over your back on a black strap.",
      guitar(), view=BACK_VIEW)
-
-
-# ---- Trailblazer Pack (colourable): a sturdy hiking backpack with a front pocket and a bedroll on top
-
-def tp_fabric(face, cv):
-    cv.arr[:] = hexc("#e4e4e4")
-    y, x = cv.grid()
-    cv.arr[((x + y) % 4) < 2, :3] = hexc("#d4d4d4")[:3]
-    e = max(1, cv.s // 8)
-    seam = (y == e * 2) | (y == cv.h - e * 2 - 1) | (x == e * 2) | (x == cv.w - e * 2 - 1)
-    cv.arr[seam & (((x + y) // 2) % 2 == 0), :3] = hexc("#a8a8a8")[:3]
-    bevel(cv, 0.12, 0.22)
-
-
-def tp_roll(face, cv):
-    vgrad(cv, hexc("#a8865a"), hexc("#5a3a1a"))
-    y, x = cv.grid()
-    cv.arr[(x % max(2, cv.s * 2)) < max(1, cv.s // 4), :3] = hexc("#3a2410")[:3]
-    bevel(cv, 0.15, 0.2)
-
-
-def tp_strap(face, cv):
-    leather(face, cv, "#3a2a1e")
-
-
-def tp_buckle(face, cv):
-    vgrad(cv, hexc("#fff0a0"), hexc("#b8861e"))
-    bevel(cv, 0.25, 0.25)
-
-
-def backpack():
-    return [Bone("pack", "body", cubes=[Cube((-3.5, 1, 2), (7, 8, 3), tp_fabric), Cube((-2.5, 5, 5), (5, 3, 1), tp_fabric)], tint=True),
-            Bone("pack_extras", "body", cubes=[Cube((-4, -0.5, 2.5), (8, 2, 2), tp_roll),
-                                               Cube((-3.5, 0, -2.3), (1, 7, 0), tp_strap),
-                                               Cube((2.5, 0, -2.3), (1, 7, 0), tp_strap),
-                                               Cube((-0.5, 5.5, 6), (1, 1, 0), tp_buckle)])]
-
-
-item("trailblazer_pack", "Trailblazer Pack", "BACK", "REGULAR", 400,
-     "A sturdy hiking backpack with a bedroll on top, in any colour you like.",
-     backpack(), colourable=True, default_color="#3A8AFF", view=BACK_VIEW)
-
-
-# ---- Twin Katanas: two black-lacquered blades crossed on your back, gold guards and red-wrapped grips
-
-def tk_lacquer(face, cv):
-    vgrad(cv, hexc("#2a2a34"), hexc("#060608"))
-    y, x = cv.grid()
-    cv.arr[(x == 0) & (y % max(2, cv.s * 2) < cv.s), :3] = hexc("#5a5a6a")[:3]
-    bevel(cv, 0.25, 0.2)
-
-
-def tk_gold(face, cv):
-    vgrad(cv, hexc("#ffe9a0"), hexc("#9a6a1a"))
-    bevel(cv, 0.25, 0.25)
-
-
-def tk_grip(face, cv):
-    cv.arr[:] = hexc("#e8e0d0")
-    y, x = cv.grid()
-    k = max(2, cv.s // 2)
-    wrap = ((y + x) % (k * 2)) < k
-    cv.arr[wrap, :3] = hexc("#c0142a")[:3]
-    bevel(cv, 0.15, 0.25)
-
-
-def katana(name, roll):
-    return Bone(name, "body", (0, 5, 3.6), (0, 0, roll), cubes=[
-        Cube((-0.5, -2, 3), (1, 12, 1), tk_lacquer), Cube((-1, -2.5, 2.5), (2, 1, 2), tk_gold),
-        Cube((-0.5, -6.5, 3), (1, 4, 1), tk_grip), Cube((-0.5, -7, 3), (1, 1, 1), tk_gold),
-        Cube((-0.5, 10, 3), (1, 1, 1), tk_gold)])
-
-
-item("twin_katanas", "Twin Katanas", "BACK", "REGULAR", 400,
-     "Two black-lacquered blades crossed on your back, with gold guards and red-wrapped grips.",
-     [katana("katana_a", 32), katana("katana_b", -32)], view=BACK_VIEW)
 
 
 # ---- Turtle Shell: a big domed green shell with pale plate lines and a cream rim
@@ -8165,209 +7327,6 @@ item("boo_ghost", "Boo the Ghost", "PET", "SPECIAL", None,
      ghost_pet(), view=dict(PET_VIEW, glow="#8ad8ff"), animation=dict(MC_SPECIAL, frames=16, frametime=2.5, interpolate=True))
 
 
-# -------- Cinder the spirit (special): a living flame with a happy face, flickering and throwing off sparks
-
-CINDER = (HOVER[0], HOVER[1], HOVER[2])
-CINDER_FIRE = ["#7a1a0e", "#c4300e", "#ff6a1a", "#ffb23a", "#ffe08a", "#fff6d0"]
-
-
-def cinder_fill(A, ph, base=0.0, glow=0.6, span=0.65, amp=0.7):
-    """Banded fire on the art grid, rising: a periodic heat field slid up by whole periods per loop."""
-    seed = {"north": 1, "east": 2, "south": 3, "west": 4, "top": 5, "bottom": 6}[A.face]
-    n = pnoise(A.h * 4, A.w * 4, 2.0, 900 + seed, octaves=3)
-    n = fshift(n, -ph * A.h * 4, 0)[::4, ::4]
-    t = (A.y + 0.5) / A.h
-    v = np.clip(base + t * span + (n - 0.5) * amp, 0, 1)
-    A.a[..., :3] = palette(levels(v, 6, 0.35), CINDER_FIRE[::-1])[..., :3]
-    A.a[..., 3] = 1
-    A.e[..., :3] = A.a[..., :3]
-    A.e[..., 3] = glow
-
-
-def cinder_head(face, cv):
-    A = Art(face, cv)
-    cinder_fill(A, cv.phase, 0.3, 0.55, span=0.35, amp=0.45)
-    if face == "north":                        # 16 x 16: big happy eyes, an open smile
-        A.e[..., 3] = 0.35
-        eye(A, 2, 5, 4, 5, "#ffb23a", dark="#2a0604")
-        eye(A, 10, 5, 4, 5, "#ffb23a", dark="#2a0604")
-        A.e[(A.x >= 2) & (A.x < 14) & (A.y >= 5) & (A.y < 10), 3] = 0
-        A.rect(6, 11, 10, 12, "#2a0604")
-        A.rect(7, 12, 9, 13, "#2a0604")
-        A.pix([(7, 12)], "#ff5a3a")
-        A.rect(0, 11, 2, 12, "#ff4a2a", glow=0.6)
-        A.rect(14, 11, 16, 12, "#ff4a2a", glow=0.6)
-    A.rim(0.8, outline="#5a0e08")
-    A.done()
-
-
-def cinder_flame(face, cv):
-    A = Art(face, cv)
-    cinder_fill(A, cv.phase, -0.1, 0.9)
-    if face in ("north", "south", "east", "west"):
-        sway = 0.08 * math.sin(math.tau * cv.phase * 2)
-        A.clip(A.poly([(0.5 + sway, 0.0), (0.8, 0.4), (1.0, 1.0), (0.0, 1.0), (0.2, 0.4)]))
-    elif face == "top":
-        A.clip(np.zeros((A.h, A.w), bool))
-    A.rim(0.88)
-    A.done()
-
-
-def cinder_base(face, cv):
-    A = Art(face, cv)
-    cinder_fill(A, cv.phase, 0.25, 0.7)
-    if face in ("north", "south", "east", "west"):
-        xs = (A.x + 0.5) / A.w
-        off = {"north": 0, "east": 0.25, "south": 0.5, "west": 0.75}[face]
-        edge = A.h * (0.6 + 0.3 * (0.5 + 0.5 * np.sin(math.tau * (xs * 2 + off + cv.phase * 2))))
-        A.clip(A.y + 0.5 < edge)
-    elif face == "bottom":
-        A.clip(np.zeros((A.h, A.w), bool))
-    A.rim(0.85)
-    A.done()
-
-
-def cinder_hand(face, cv):
-    A = Art(face, cv)
-    cinder_fill(A, cv.phase, 0.3, 0.7)
-    A.rim(0.85)
-    A.done()
-
-
-def cinder_pet():
-    a = CINDER
-    body = pet_body("cinder", a, [PC(a, (-1.5, -2.5, -1.5), (3, 2, 3), cinder_base)])
-    body.anim = dict(PET_ANIM, amp=1.0, speed=1.3)
-    head = Bone("head", "root", P(a, 0, -2.5, 0), cubes=[PC(a, (-2, -6.5, -2), (4, 4, 4), cinder_head)],
-                anim={"type": "pet_head", "amp": 12}, parent="cinder")
-    flame = Bone("flame", "root", P(a, 0, -6.5, 0), cubes=[
-        PC(a, (-1.5, -8.5, -1.5), (3, 2, 3), cinder_flame), PC(a, (-0.5, -10.5, -0.5), (1, 2, 1), cinder_flame)],
-        anim={"type": "sway", "amp": 9, "speed": 1.5}, parent="head", emissive=True)
-    lids = blink_bone("lids", "head", a, (-1.25, -5, -2.03), (3, 1, 0), lid_paint("#ff9a2a", [(0, 4), (7, 4)], "#3a0a04"))
-    hand = Bone("hand_r", "root", P(a, -2, -4, 0), cubes=[PC(a, (-2.75, -4.25, -0.5), (1, 1, 1), cinder_hand)],
-                anim={"type": "wing", "side": 1, "base": 0, "amp": 18, "speed": 1.1, "fold": 0}, parent="head")
-    return [body, head, flame, lids] + pet_pair(hand, a)
-
-
-item("cinder_spirit", "Cinder the Spirit", "PET", "SPECIAL", None,
-     "A living flame with a happy face that flickers and burns by your shoulder.",
-     cinder_pet(), view=dict(PET_VIEW, glow="#ff8a3a"), animation=dict(MC_SPECIAL, frames=16, frametime=2, interpolate=True))
-
-
-# ---------------------------------------------------------------------------------------------- auras
-
-# ---- Clover Ring: a bold green ring set with eight glowing four-leaf clovers, petals drifting up
-
-def clover_fn(cv, X, Z):
-    r = np.sqrt(X * X + Z * Z)
-    ang = np.arctan2(Z, X)
-    px_ = 1.0 / cv.h
-    A = np.zeros_like(r)
-    col = np.zeros(r.shape + (4,), np.float32)
-    col[..., :3] = hexc("#2a9a3a")[:3]
-    outer = (r >= 0.88) & (r < 0.97)
-    outer_hi = (r >= 0.88) & (r < 0.88 + 2.5 * px_)
-    outer_lo = (r >= 0.97 - 2.5 * px_) & (r < 0.97)
-    inner = (r >= 0.5) & (r < 0.55)
-    ticks = (r >= 0.975) & (r < 1.0) & (np.abs(((ang / math.tau * 32) % 1) - 0.5) < 0.2)
-    for m, c, a in ((outer, "#3aba4a", 0.85), (outer_hi, "#c8ff9a", 1.0), (outer_lo, "#1e7a2a", 1.0), (inner, "#7ad84a", 0.9),
-                    (ticks, "#a8f07a", 0.9)):
-        col[m, :3] = hexc(c)[:3]
-        A = np.where(m, a, A)
-    # eight four-leaf clovers round the middle of the ring, each turned to face outward
-    for k in range(8):
-        a0 = (k + 0.5) * math.tau / 8
-        cx, cz = math.cos(a0) * 0.72, math.sin(a0) * 0.72
-        lx, lz = X - cx, Z - cz
-        d = np.sqrt(lx * lx + lz * lz)
-        fa = np.arctan2(lz, lx) - a0 - math.pi / 4
-        petal = d < 0.115 * np.abs(np.cos(fa * 2)) ** 0.5 + 0.02
-        edge = petal & (d > 0.115 * np.abs(np.cos(fa * 2)) ** 0.5 - 0.01)
-        vein = petal & ((np.abs(np.sin(fa + math.pi / 4) * d) < 0.008) | (np.abs(np.cos(fa + math.pi / 4) * d) < 0.008))
-        col[petal, :3] = hexc("#5ae05a")[:3]
-        col[edge, :3] = hexc("#1e7a2a")[:3]
-        col[vein, :3] = hexc("#c8ff9a")[:3]
-        col[petal & (d < 0.03), :3] = hexc("#e8ffc0")[:3]
-        A = np.where(petal, 1.0, A)
-    # small diamonds between the clovers
-    for k in range(8):
-        a0 = k * math.tau / 8
-        cx, cz = math.cos(a0) * 0.72, math.sin(a0) * 0.72
-        dm = (np.abs(X - cx) + np.abs(Z - cz)) < 0.035
-        col[dm, :3] = hexc("#e8ffc0")[:3]
-        A = np.where(dm, 1.0, A)
-    glow = np.clip(1 - r / 0.5, 0, 1) ** 0.7 * 0.22 * (r < 0.5)
-    col[(A < glow), :3] = hexc("#7ad84a")[:3]
-    A = np.maximum(A, glow)
-    A *= r < 1.0
-    cv.arr[..., :3] = col[..., :3]
-    cv.arr[..., 3] = A * 0.85
-    em_rgb(cv, col, A * 0.8)
-
-
-item("clover_ring", "Clover Ring", "AURA", "REGULAR", 400,
-     "A ring of green leaf runes turns at your feet, with a few petals drifting up.",
-     sigil_bones(clover_fn, spin=14),
-     fx={"type": "aura", "particle": "soft", "colors": ["#E8FFC0", "#7AD84A", "#2A9A3A"], "rate": 3, "size": 0.6, "life": 1.6,
-         "sizeEnd": 0.3, "gravity": -0.25},
-     view=AURA_VIEW)
-
-
-# ---- Galaxy Vortex (special): a spiral of every colour turns at your feet while the colours race round it
-
-def vortex_fn(cv, X, Z):
-    r = np.sqrt(X * X + Z * Z)
-    ang = np.arctan2(Z, X)
-    ph = cv.phase
-    px_ = 1.0 / cv.h
-    swirl = ang - np.log(r + 0.05) * 2.4
-    arms = (0.5 + 0.5 * np.cos(4 * swirl)) ** 2 * (r < 0.86) * np.clip((r - 0.08) / 0.1, 0, 1)
-    armv = levels(np.clip(arms * (1.15 - r * 0.6), 0, 1), 5, 0.25)
-    outer = (r >= 0.88) & (r < 0.97)
-    rim = ((r >= 0.88) & (r < 0.88 + 2.5 * px_)) | ((r >= 0.97 - 2.5 * px_) & (r < 0.97))
-    ticks = (r >= 0.975) & (r < 1.0) & (np.abs(((ang / math.tau * 24) % 1) - 0.5) < 0.18)
-    h = (ang * 4 / math.tau + r * 0.6 - ph) % 1
-    hq = np.floor(h * 24) / 24
-    col = np.zeros(r.shape + (4,), np.float32)
-    col[..., :3] = hsv_rgb(hq, 0.7, 1.0)
-    A = np.zeros_like(r)
-    A = np.where(armv >= 1, 0.35 + 0.16 * armv, A)
-    col[armv >= 3, :3] = hsv_rgb(hq[armv >= 3], 0.35, 1.0)
-    A = np.where(outer, 0.85, A)
-    col[rim, :3] = hsv_rgb(hq[rim], 0.2, 1.0)
-    A = np.where(rim | ticks, 1.0, A)
-    core = r < 0.12
-    col[core, :3] = hexc("#ffffff")[:3]
-    A = np.where(core, 1.0, A)
-    halo = (r >= 0.12) & (r < 0.18)
-    col[halo, :3] = hexc("#e0c8ff")[:3]
-    A = np.where(halo, 0.8, A)
-    # stars scattered over the disc, twinkling by whole cycles
-    rng = np.random.default_rng(5)
-    for i in range(14):
-        sr, sa = 0.2 + rng.random() * 0.62, rng.random() * math.pi / 2 - math.pi / 2
-        sx, sz = math.cos(sa) * sr, math.sin(sa) * sr
-        tw = 0.5 + 0.5 * math.cos(math.tau * (ph * (1 + i % 2) + rng.random()))
-        st = (np.abs(X - sx) < 1.6 * px_) & (np.abs(Z - sz) < 1.6 * px_)
-        plus = ((np.abs(X - sx) < 0.6 * px_) & (np.abs(Z - sz) < 4.5 * px_)) | ((np.abs(Z - sz) < 0.6 * px_) & (np.abs(X - sx) < 4.5 * px_))
-        m = st | (plus if tw > 0.6 else np.zeros_like(st))
-        col[m, :3] = 1.0
-        A = np.where(m, 0.6 + 0.4 * tw, A)
-    A *= r < 1.0
-    A = levels(A, 6, 0.2) / 5.0
-    cv.arr[..., :3] = col[..., :3]
-    cv.arr[..., 3] = A * 0.92
-    em_rgb(cv, col, A * 0.92)
-
-
-item("galaxy_vortex", "Galaxy Vortex", "AURA", "SPECIAL", None,
-     "A ring of every colour spins at your feet while the colours race round it.",
-     sigil_bones(vortex_fn, spin=40),
-     fx={"type": "aura", "particle": "soft", "colors": ["#FFFFFF", "#B98CFF", "#5AD8FF"], "rate": 4, "size": 0.6, "life": 1.4,
-         "sizeEnd": 0.3, "gravity": -0.3},
-     view=AURA_VIEW, animation={"frames": 20, "frametime": 3, "interpolate": True, "scale": 16})
-
-
 # ---------------------------------------------------------------------------------------------- trails, kill and win effects
 
 item("bubble_trail", "Bubble Trail", "TRAIL", "REGULAR", 200,
@@ -8379,24 +7338,15 @@ item("heartbreaker", "Heartbreaker", "KILL_EFFECT", "REGULAR", 200,
      "Your opponent bursts into a shower of pink and red hearts.",
      fx={"type": "burst", "particle": "dust", "colors": ["#FF4A8A", "#FF8AB8", "#FFFFFF"], "count": 40, "size": 1.1},
      thumb="hearts")
-item("thunderclap", "Thunderclap", "KILL_EFFECT", "REGULAR", 200,
-     "A kill cracks like thunder: yellow and white sparks burst out where they fell.",
-     fx={"type": "burst", "particle": "dust", "colors": ["#FFF46A", "#FFFFFF", "#9AC8FF"], "count": 50, "size": 1.0, "spark": True},
-     thumb="bolt")
 item("gold_rush", "Gold Rush", "WIN_EFFECT", "REGULAR", 200,
      "Win a game and a fountain of gold coins and sparkles bursts out around you.",
      fx={"type": "burst", "particle": "dust", "colors": ["#FFD23A", "#FFF0A0", "#C8901A"], "count": 90, "size": 1.3},
      thumb="coins")
-item("snowfall_finale", "Snowfall Finale", "WIN_EFFECT", "REGULAR", 200,
-     "Win a game and a column of snowflakes swirls up around you.",
-     fx={"type": "spiral", "particle": "soft", "colors": ["#FFFFFF", "#D8F0FF", "#9AD8FF"], "count": 70, "size": 0.9, "height": 3.2,
-         "life": 1.6, "fade": 0.3, "sizeEnd": 0.4},
-     thumb="snowflakes")
 
 
-# Pictures for the new effects. thumb_particles() above draws the shipped effects' pictures; this wraps it with five more
+# Pictures for the new effects. thumb_particles() above draws the shipped effects' pictures; this wraps it with three more
 # kinds (drawn the same way: shapes on a 4x canvas, the same soft glow and badge) and hands every other kind back to it.
-MC_THUMB_KINDS = ("bubbles", "hearts", "bolt", "coins", "snowflakes")
+MC_THUMB_KINDS = ("bubbles", "hearts", "coins")
 mc_thumb_particles_shipped = thumb_particles
 
 
@@ -8438,16 +7388,6 @@ def mc_thumb_particles(kind, colors, size=THUMB):
             d.ellipse((x - s * 0.45, y - s * 0.45, x - s * 0.2, y - s * 0.2), fill=(255, 255, 255, 200))
         d.polygon(heart_poly(cx, cy, 46), fill=cols[0] + (255,))
         d.line([(cx - 10, cy - 34), (cx + 6, cy - 6), (cx - 8, cy + 6), (cx + 8, cy + 36)], fill=(40, 8, 20, 255), width=7)
-    elif kind == "bolt":
-        cx, cy = S / 2, S * 0.5
-        for i in range(48):
-            a = r.random() * math.tau
-            dist = 50 + r.random() * S * 0.34
-            spark(cx + math.cos(a) * dist, cy + math.sin(a) * dist, 3 + r.random() * 6, cols[i % len(cols)], 230)
-        pts = [(cx + 20, S * 0.12), (cx - 26, cy - 4), (cx + 6, cy + 4), (cx - 20, S * 0.88)]
-        d.line(pts, fill=(154, 200, 255, 140), width=34, joint="curve")
-        d.line(pts, fill=cols[0] + (255,), width=18, joint="curve")
-        d.line(pts, fill=(255, 255, 255, 255), width=8, joint="curve")
     elif kind == "coins":
         for i in range(46):
             x, y = S / 2 + r.normal(0, S * 0.2), S * 0.58 + r.normal(0, S * 0.18)
@@ -8458,22 +7398,6 @@ def mc_thumb_particles(kind, colors, size=THUMB):
             d.ellipse((x - w * k * 0.55, y - w * 0.6, x + w * k * 0.55, y + w * 0.6), outline=cols[1] + (255,), width=3)
         for i in range(18):
             spark(S / 2 + r.normal(0, S * 0.22), S * 0.2 + r.random() * S * 0.5, 3 + r.random() * 5, (255, 244, 200), 230)
-    elif kind == "snowflakes":
-        for arm in range(2):
-            for i in range(26):
-                t = i / 26
-                a = t * math.tau * 1.8 + arm * math.pi
-                x = S / 2 + math.cos(a) * S * 0.25 * (1 - t * 0.25)
-                y = S * 0.9 - t * S * 0.76
-                R = 8 + 10 * t
-                c = cols[(i + arm) % len(cols)] + (int(140 + 115 * t),)
-                for k in range(6):
-                    b = k * math.pi / 3 + t
-                    ex, ey = x + math.cos(b) * R, y + math.sin(b) * R
-                    d.line((x, y, ex, ey), fill=c, width=3)
-                    for s2 in (-1, 1):
-                        mx, my = x + math.cos(b) * R * 0.6, y + math.sin(b) * R * 0.6
-                        d.line((mx, my, mx + math.cos(b + s2 * 0.8) * R * 0.35, my + math.sin(b + s2 * 0.8) * R * 0.35), fill=c, width=2)
     arr = np.asarray(im, np.float32) / 255
     pre = arr[..., :3] * arr[..., 3:4]
     glow = blur(pre, 10) * 0.9 + blur(pre, 28) * 0.7
@@ -8513,14 +7437,9 @@ item("victory_flex", "Victory Flex", "EMOTE", "REGULAR", 250,
          "head": [[0, -8, 0, 0], [0.8, -12, 0, 0], [1.6, -8, 0, 0]]}},
      view={"pose": {"rightArm": (-20, 0, 112), "leftArm": (-20, 0, -112), "head": (-10, 0, 0)}, "yaw": -20, "glow": "#ffd36a"},
      thumb="emote")
-item("air_guitar", "Air Guitar", "EMOTE", "REGULAR", 250,
-     "Shred an invisible guitar with your head banging to the riff.",
-     emote={"length": 1.0, "loop": True, "parts": {
-         "rightArm": [[0, -50, 30, 0], [0.25, -30, 30, 0], [0.5, -50, 30, 0], [0.75, -30, 30, 0], [1.0, -50, 30, 0]],
-         "leftArm": [[0, -70, -40, 0], [1.0, -70, -40, 0]],
-         "head": [[0, 20, 0, 0], [0.25, -5, 0, 0], [0.5, 20, 0, 0], [0.75, -5, 0, 0], [1.0, 20, 0, 0]]}},
-     view={"pose": {"rightArm": (-40, 30, 0), "leftArm": (-70, -40, 0), "head": (18, 0, 0)}, "yaw": -28, "glow": "#ff5a8a"},
-     thumb="emote")
+
+
+# ============================================================================================== end of mockup collection
 
 
 if __name__ == "__main__":

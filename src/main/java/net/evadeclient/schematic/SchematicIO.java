@@ -212,7 +212,7 @@ public final class SchematicIO {
     }
 
     /** Value {@code i} of a tightly packed array ({@code bits} per value, running on across longs). */
-    static long unpack(long[] data, long i, int bits, long mask) {
+    public static long unpack(long[] data, long i, int bits, long mask) {
         long bit = i * bits;
         int start = (int) (bit >>> 6), end = (int) ((bit + bits - 1) >>> 6);
         int off = (int) (bit & 63);
@@ -221,7 +221,7 @@ public final class SchematicIO {
     }
 
     /** Packs values tightly into longs (the inverse of {@link #unpack}). */
-    static long[] pack(int[] values, int bits) {
+    public static long[] pack(int[] values, int bits) {
         long[] out = new long[(int) (((long) values.length * bits + 63) >>> 6)];
         long mask = (1L << bits) - 1;
         for (int i = 0; i < values.length; i++) {
@@ -423,7 +423,7 @@ public final class SchematicIO {
         write(litematicTag(s), file);
     }
 
-    static NbtCompound litematicTag(Schematic s) {
+    public static NbtCompound litematicTag(Schematic s) {
         // Local palette: air first, then the states in use.
         Map<BlockState, Integer> local = new LinkedHashMap<>();
         local.put(Blocks.AIR.getDefaultState(), 0);
@@ -473,7 +473,7 @@ public final class SchematicIO {
         write(structureTag(s), file);
     }
 
-    static NbtCompound structureTag(Schematic s) {
+    public static NbtCompound structureTag(Schematic s) {
         NbtList palette = new NbtList();
         int[] remap = new int[s.palette.length];
         for (int i = 1; i < s.palette.length; i++) {
@@ -502,7 +502,7 @@ public final class SchematicIO {
     }
 
     /** A Sponge v3 tag (used by the tests to check the reader; Evade saves .litematic and .nbt). */
-    static NbtCompound spongeTag(Schematic s, int version) {
+    public static NbtCompound spongeTag(Schematic s, int version) {
         Map<BlockState, Integer> ids = new LinkedHashMap<>();
         ids.put(Blocks.AIR.getDefaultState(), 0);
         java.io.ByteArrayOutputStream data = new java.io.ByteArrayOutputStream();

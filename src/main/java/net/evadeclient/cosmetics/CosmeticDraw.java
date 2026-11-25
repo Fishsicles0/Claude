@@ -52,40 +52,46 @@ public final class CosmeticDraw {
             Loadout.Worn worn = d.loadout.get(slot);
             CosmeticItem item = CosmeticsCatalog.get(worn.id());
             if (item == null || item.slot != slot) continue;
-            CosmeticModel cm = CosmeticAssets.model(item);
-            if (cm == null || cm.itemSpace) continue;
-            cm.updateTextures();
-            int rgb = item.colorFor(worn);
-            // body armour: back pieces sit out over the chestplate the way vanilla moves its cape (no z-fighting)
-            boolean outward = d.chestArmour && (slot == Slot.CAPE || slot == Slot.BACK || slot == Slot.WINGS);
-            Identifier glow = cm.glow == null ? null : cm.glow.id;
-            if (slot == Slot.PET) {
-                // the pet rides beside your head: it turns with your head and drops with your shoulders when you sneak
-                d.petHeadYaw = model.head.yaw;
-                d.petDrop = model.body.originY;
+            model(d, model, s, m, sink, light, item, slot, item.colorFor(worn));
+        }
+        // an emote's prop (a kitten to pat): the emote's own model, shown only while it plays
+        if (d.emote != null && d.emote.item().hasModel()) model(d, model, s, m, sink, light, d.emote.item(), Slot.EMOTE, -1);
+    }
+
+    private static void model(RenderData d, PlayerEntityModel model, PlayerEntityRenderState s, MatrixStack m, Sink sink, int light,
+                              CosmeticItem item, Slot slot, int rgb) {
+        CosmeticModel cm = CosmeticAssets.model(item);
+        if (cm == null || cm.itemSpace) return;
+        cm.updateTextures();
+        // body armour: back pieces sit out over the chestplate the way vanilla moves its cape (no z-fighting)
+        boolean outward = d.chestArmour && (slot == Slot.CAPE || slot == Slot.BACK || slot == Slot.WINGS);
+        Identifier glow = cm.glow == null ? null : cm.glow.id;
+        if (slot == Slot.PET) {
+            // the pet rides beside your head: it turns with your head and drops with your shoulders when you sneak
+            d.petHeadYaw = model.head.yaw;
+            d.petDrop = model.body.originY;
+        }
+        for (CosmeticModel.Bone b : cm.drawOrder) {
+            if (b.part() == null) continue;
+            int a = Math.round(255 * Math.max(0, Math.min(1, d.alpha * b.alpha)));
+            if (a <= 3) continue;
+            m.push();
+            CosmeticModel.Bone root = b;
+            while (root.parent != null) root = root.parent;
+            attach(model, root.attach, m);
+            if (outward && root.attach == CosmeticModel.Attach.BODY) m.translate(0f, -0.053125f, 0.06875f);
+            chain(b, s, d, m);
+            int color = a << 24 | (b.tint && rgb >= 0 ? rgb : 0xFFFFFF);
+            boolean translucent = b.translucent() || a < 255 || cm.tex.partialAlpha;
+            sink.part(b.part(), m, layer(cm, b, translucent), b.emissive ? LightmapTextureManager.MAX_LIGHT_COORDINATE : light, color, false);
+            if (glow != null) {
+                // emissive.png: added on top at full brightness (additive, so black = no glow); fades with the bone
+                int g = a;
+                int c = 0xFF << 24 | (g << 16) | (g << 8) | g;
+                sink.part(b.part(), m, RenderLayers.eyes(glow), LightmapTextureManager.MAX_LIGHT_COORDINATE, c, false);
+                CosmeticsPerf.glowParts++;
             }
-            for (CosmeticModel.Bone b : cm.drawOrder) {
-                if (b.part() == null) continue;
-                int a = Math.round(255 * Math.max(0, Math.min(1, d.alpha * b.alpha)));
-                if (a <= 3) continue;
-                m.push();
-                CosmeticModel.Bone root = b;
-                while (root.parent != null) root = root.parent;
-                attach(model, root.attach, m);
-                if (outward && root.attach == CosmeticModel.Attach.BODY) m.translate(0f, -0.053125f, 0.06875f);
-                chain(b, s, d, m);
-                int color = a << 24 | (b.tint && rgb >= 0 ? rgb : 0xFFFFFF);
-                boolean translucent = b.translucent() || a < 255 || cm.tex.partialAlpha;
-                sink.part(b.part(), m, layer(cm, b, translucent), b.emissive ? LightmapTextureManager.MAX_LIGHT_COORDINATE : light, color, false);
-                if (glow != null) {
-                    // emissive.png: added on top at full brightness (additive, so black = no glow); fades with the bone
-                    int g = a;
-                    int c = 0xFF << 24 | (g << 16) | (g << 8) | g;
-                    sink.part(b.part(), m, RenderLayers.eyes(glow), LightmapTextureManager.MAX_LIGHT_COORDINATE, c, false);
-                    CosmeticsPerf.glowParts++;
-                }
-                m.pop();
-            }
+            m.pop();
         }
     }
 
