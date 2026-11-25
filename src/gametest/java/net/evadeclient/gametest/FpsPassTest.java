@@ -61,6 +61,28 @@ public final class FpsPassTest {
     static void run(ClientGameTestContext ctx, TestSingleplayerContext sp) {
         benchmarksIgnoreIdleCaps(ctx);
         measureAll(ctx, sp, 6, false, false);
+        keystrokesCached(ctx);
+    }
+
+    /** HUD Refresh: Keystrokes is cached while no key moves, and drawn live the moment one is pressed. */
+    private static void keystrokesCached(ClientGameTestContext ctx) {
+        var ks = net.evadeclient.module.hud.KeystrokesHud.class;
+        boolean was = ctx.computeOnClient(c -> EvadeClient.modules.get(ks).isEnabled());
+        ctx.runOnClient(c -> EvadeClient.modules.get(ks).setEnabled(true));
+        ctx.waitTicks(20); // drawn at least once with no key down, fades finished
+        boolean[] r = ctx.computeOnClient(c -> {
+            var k = EvadeClient.modules.get(ks);
+            boolean settled = !net.evadeclient.util.HudCache.animated(k);
+            long key = k.cacheKey();
+            c.options.forwardKey.setPressed(true);
+            boolean pressed = net.evadeclient.util.HudCache.animated(k);
+            boolean keyChanged = k.cacheKey() != key;
+            c.options.forwardKey.setPressed(false);
+            return new boolean[]{settled, pressed, keyChanged};
+        });
+        ctx.runOnClient(c -> EvadeClient.modules.get(ks).setEnabled(was));
+        check(r[0] && r[1] && r[2], "HUD cache: Keystrokes is cached while no key moves and drawn live when one is pressed ("
+                + java.util.Arrays.toString(r) + ")");
     }
 
     /**
@@ -104,6 +126,7 @@ public final class FpsPassTest {
         boolean jfr = !"false".equals(System.getProperty("evade.fpsjfr"));
         benchmarksIgnoreIdleCaps(ctx);
         measureAll(ctx, sp, 12, true, jfr);
+        keystrokesCached(ctx);
     }
 
     private static void measureAll(ClientGameTestContext ctx, TestSingleplayerContext sp, int seconds, boolean allHud, boolean jfr) {

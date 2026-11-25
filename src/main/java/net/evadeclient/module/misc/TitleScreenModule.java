@@ -83,6 +83,7 @@ public class TitleScreenModule extends Module {
         super("Title Screen", "An Evade main menu with quick rejoin and your recent servers. Off: the vanilla title screen.", Category.MISC);
         INSTANCE = this;
         setEnabled(true); // the Evade main menu is the default start screen
+        net.evadeclient.gui.title.TeaserFigure.register();
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> remember(client)));
     }
 

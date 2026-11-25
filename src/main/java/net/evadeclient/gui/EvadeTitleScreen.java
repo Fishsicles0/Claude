@@ -568,19 +568,23 @@ public class EvadeTitleScreen extends Screen {
             Theme.fade = 1f;
             // One veil over the whole screen (the panorama needs a little more), darker rails on wide screens.
             if (layer(L_VEILS)) {
-                if (wide) {
+                if (wide && !light) {
                     int reach = leftX + cardsW + Math.round(W * 0.10f);
                     TitleArt.rampH(ctx, 0, 0, reach, H, 0xB8060608, false);
                     TitleArt.rampH(ctx, W - reach, 0, W, H, 0xB8060608, true);
                 }
-                Theme.fill(ctx, 0, 0, W, H, panorama ? (wide ? 0x56000000 : 0x78000000) : (wide ? 0x30000000 : 0x58000000));
+                // Light: one flat veil, a little darker, in place of the rail ramps.
+                int veil = panorama ? (wide ? (light ? 0x70000000 : 0x56000000) : 0x78000000) : (wide ? 0x30000000 : 0x58000000);
+                Theme.fill(ctx, 0, 0, W, H, veil);
             }
             // Embers between the veil and the vignette: they read as depth, and the edges swallow them.
             if (layer(L_EMBERS) && (mod == null || mod.embers.get())) SCENE.embers(ctx, W, H, intro.p(200, 1400), motion, light);
             if (layer(L_VIGNETTE)) {
-                TitleArt.vignette(ctx, W, H, 0xC8000000);
-                ctx.fillGradient(0, Math.round(H * 0.62f), W, H, 0x00000000, 0xB0000000);
-                ctx.fillGradient(0, 0, W, 36, 0x50000000, 0x00000000);
+                TitleArt.vignette(ctx, W, H, light ? 0xE0000000 : 0xC8000000);
+                if (!light) {
+                    ctx.fillGradient(0, Math.round(H * 0.62f), W, H, 0x00000000, 0xB0000000);
+                    ctx.fillGradient(0, 0, W, 36, 0x50000000, 0x00000000);
+                }
             }
 
             // A soft accent glow behind the logo, breathing slowly, and one rising from the bottom edge.
@@ -590,7 +594,9 @@ public class EvadeTitleScreen extends Screen {
                 float in = intro.p(0, 900);
                 int cx = logoX + TitleArt.lockupWidth(markSize) / 2 - Math.round(SCENE.offX() * 6f);
                 int cy = logoY + markSize / 2 - Math.round(SCENE.offY() * 4f);
-                TitleArt.glow(ctx, cx, cy, markSize * 9, markSize * 6, Theme.alpha(Theme.RED, (0.26f + 0.06f * breathe) * in));
+                // Light: a tighter glow (a quarter of the pixels).
+                int gw = light ? markSize * 5 : markSize * 9, gh = light ? markSize * 3 : markSize * 6;
+                TitleArt.glow(ctx, cx, cy, gw, gh, Theme.alpha(Theme.RED, (light ? 0.34f : 0.26f + 0.06f * breathe) * in));
                 if (!light) {
                     TitleArt.glow(ctx, W / 2, H + H / 10, Math.round(W * 1.1f), Math.round(H * 0.6f),
                             Theme.alpha(Theme.RED, (0.17f + 0.03f * (1f - breathe)) * in));
@@ -839,7 +845,9 @@ public class EvadeTitleScreen extends Screen {
         float fb = Theme.fade;
         Theme.fade = fb * in;
         try {
-            if (layer(L_PREVIEW)) WardrobeTeaser.figure(ctx, figX1, figY1, figX2, figY2, TitleArt.anims() && !TitleScreenModule.lightEffects(), in);
+            if (layer(L_PREVIEW) && skin != null) {
+                WardrobeTeaser.figure(ctx, skin.get(), figX1, figY1, figX2, figY2, TitleArt.anims() && !TitleScreenModule.lightEffects(), in);
+            }
         } finally {
             Theme.fade = fb;
         }

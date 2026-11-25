@@ -361,10 +361,25 @@ public final class TitleScreenTest {
         double auto = fps(ctx);
         double cpu = ctx.computeOnClient(c -> EvadeTitleScreen.frameCostMicros());
         boolean light = ctx.computeOnClient(c -> TitleScreenModule.lightEffects());
+        // A still figure (Light) is rendered once and then reused.
+        int r0 = ctx.computeOnClient(c -> net.evadeclient.gui.title.TeaserFigure.renders());
+        ctx.waitTicks(20);
+        int r1 = ctx.computeOnClient(c -> net.evadeclient.gui.title.TeaserFigure.renders());
+        if (light) check(r1 == r0, "Title Screen: the still Wardrobe figure isn't re-rendered every frame (" + (r1 - r0) + " renders in 20 ticks)");
+        StringBuilder lightProfile = new StringBuilder();
+        String[] names = {"panorama", "veils", "embers", "vignette", "glows", "cards", "preview"};
+        for (int i = 0; i < names.length; i++) {
+            int bit = 1 << i;
+            ctx.runOnClient(c -> EvadeTitleScreen.skipLayersForTest = bit);
+            lightProfile.append(String.format(Locale.ROOT, " -%s %.0f", names[i], fps(ctx)));
+        }
+        ctx.runOnClient(c -> EvadeTitleScreen.skipLayersForTest = 0);
         ctx.runOnClient(c -> EvadeClient.modules.get(TitleScreenModule.class).effects.set("Full"));
         double full = fps(ctx);
+        int f0 = ctx.computeOnClient(c -> net.evadeclient.gui.title.TeaserFigure.renders());
+        ctx.waitTicks(20);
+        int f1 = ctx.computeOnClient(c -> net.evadeclient.gui.title.TeaserFigure.renders());
         StringBuilder profile = new StringBuilder();
-        String[] names = {"panorama", "veils", "embers", "vignette", "glows", "cards", "preview"};
         for (int i = 0; i < names.length; i++) {
             int bit = 1 << i;
             ctx.runOnClient(c -> EvadeTitleScreen.skipLayersForTest = bit);
@@ -373,8 +388,9 @@ public final class TitleScreenTest {
         ctx.runOnClient(c -> { EvadeTitleScreen.skipLayersForTest = 0; EvadeClient.modules.get(TitleScreenModule.class).effects.reset();
             c.setScreen(new TitleScreen()); });
         ctx.waitTicks(4);
-        String msg = String.format(Locale.ROOT, "vanilla %.1f fps, Evade default (%s) %.1f fps, Full %.1f fps; Full without:%s;"
-                + " menu CPU %.0f us/frame", vanilla, light ? "Light" : "Full", auto, full, profile, cpu);
+        String msg = String.format(Locale.ROOT, "vanilla %.1f fps, Evade default (%s) %.1f fps (without:%s), Full %.1f fps"
+                + " (without:%s; turning figure %d renders/s); menu CPU %.0f us/frame", vanilla, light ? "Light" : "Full", auto,
+                lightProfile, full, profile, (f1 - f0), cpu);
         EvadeClient.LOG.info("[gametest] Title Screen cost: {}", msg);
         // Frame time = 1/fps: the default must be within 1.5x of vanilla's (the game caps menus at 60 fps).
         check(auto >= Math.min(58, vanilla / 1.5) && cpu < 4000, "Title Screen: frame cost within 1.5x of vanilla (" + msg + ")");

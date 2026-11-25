@@ -274,14 +274,54 @@ final class EvadeShadersTest {
             cmd("time set " + s.time());
             cmd(String.format(Locale.ROOT, "execute in %s run tp @p %d.5 %d %d.5 %.1f %.1f", s.dimension(),
                     s.pos().getX(), s.pos().getY(), s.pos().getZ(), s.yaw(), s.pitch()));
-            // waitForChunksRender never settles with a shader pack on the software renderer here, so wait a fixed
-            // number of frames instead: long after a pipeline reload or dimension change (chunks rebuild), short otherwise.
+            // waitForChunksRender doesn't settle with a shader pack on the software renderer here, and Sodium only
+            // uploads a few chunk meshes per (slow) frame, so wait until the picture stops changing instead.
             boolean rebuild = freshPipeline || !s.dimension().equals(lastDimension);
             lastDimension = s.dimension();
             freshPipeline = false;
-            ctx.waitTicks(rebuild ? 220 : 40);
+            ctx.waitTicks(rebuild ? 60 : 20);
+            waitStable(s.name());
             // Rain/thunder strength ramps up over a few seconds.
             if (!s.weather().equals("clear")) ctx.waitTicks(120);
+        }
+
+        /** Waits (up to ~25 s of frames) until two screenshots 30 frames apart barely differ: chunks are built. */
+        void waitStable(String scene) {
+            int[] prev = null;
+            for (int i = 0; i < 25; i++) {
+                ctx.waitTicks(30);
+                Path p = ctx.takeScreenshot("shadershot-probe");
+                int[] cur = thumb(p);
+                try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                if (prev != null && cur != null) {
+                    double d = 0;
+                    for (int k = 0; k < cur.length; k++) d += Math.abs(cur[k] - prev[k]);
+                    d /= cur.length;
+                    if (d < 2.5) { System.out.println("[shadershots] " + scene + " stable after " + (i + 1) * 30 + " frames"); return; }
+                }
+                prev = cur;
+            }
+            System.out.println("[shadershots] " + scene + " still changing; shooting anyway");
+        }
+
+        /** 32x18 grey thumbnail of a screenshot (block averages), for change detection. */
+        static int[] thumb(Path png) {
+            try {
+                BufferedImage img = ImageIO.read(png.toFile());
+                int[] out = new int[32 * 18];
+                for (int ty = 0; ty < 18; ty++) for (int tx = 0; tx < 32; tx++) {
+                    long sum = 0; int n = 0;
+                    for (int y = ty * img.getHeight() / 18; y < (ty + 1) * img.getHeight() / 18; y += 2)
+                        for (int x = tx * img.getWidth() / 32; x < (tx + 1) * img.getWidth() / 32; x += 2) {
+                            int rgb = img.getRGB(x, y);
+                            sum += ((rgb >> 16) & 255) + ((rgb >> 8) & 255) + (rgb & 255); n += 3;
+                        }
+                    out[ty * 32 + tx] = (int) (sum / Math.max(n, 1));
+                }
+                return out;
+            } catch (IOException e) {
+                return null;
+            }
         }
 
         /** Milliseconds per client frame (one tick renders one frame in the gametest loop), averaged. */
@@ -309,7 +349,7 @@ final class EvadeShadersTest {
         void run() throws IOException {
             ctx.runOnClient(c -> {
                 c.options.hudHidden = true;
-                c.options.getViewDistance().setValue(8);
+                c.options.getViewDistance().setValue(6);
             });
             List<Scene> scenes = build();
             String only = System.getProperty("evade.shadershots.only", "");
