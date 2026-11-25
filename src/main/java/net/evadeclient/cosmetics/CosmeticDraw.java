@@ -59,6 +59,11 @@ public final class CosmeticDraw {
             // body armour: back pieces sit out over the chestplate the way vanilla moves its cape (no z-fighting)
             boolean outward = d.chestArmour && (slot == Slot.CAPE || slot == Slot.BACK || slot == Slot.WINGS);
             Identifier glow = cm.glow == null ? null : cm.glow.id;
+            if (slot == Slot.PET) {
+                // the pet rides beside your head: it turns with your head and drops with your shoulders when you sneak
+                d.petHeadYaw = model.head.yaw;
+                d.petDrop = model.body.originY;
+            }
             for (CosmeticModel.Bone b : cm.drawOrder) {
                 if (b.part() == null) continue;
                 int a = Math.round(255 * Math.max(0, Math.min(1, d.alpha * b.alpha)));
@@ -131,10 +136,14 @@ public final class CosmeticDraw {
         float pitch = b.pitch, yaw = b.yaw, roll = b.roll, dy = 0;
         CosmeticModel.Anim an = b.anim;
         boolean motion = d != null && d.motion;
-        if (an != null && "pet".equals(an.type()) && motion && b.parent == null && d.petLag != 0) {
-            // the pet trails your body's turns: swing it about your own vertical axis
-            m.multiply(new Quaternionf().rotationY(-d.petLag * DEG));
+        if (an != null && "pet".equals(an.type()) && b.parent == null && d != null) {
+            // the pet turns about your own vertical axis with your head (so it stays beside it, never in it), trailing a
+            // few degrees behind when you turn; it sits lower with your shoulders when you sneak
+            if (d.petDrop != 0) m.translate(0, d.petDrop / 16f, 0);
+            float orbit = d.petHeadYaw - (motion ? Math.max(-CosmeticMotion.PET_LAG, Math.min(CosmeticMotion.PET_LAG, d.petLag)) * DEG : 0);
+            if (orbit != 0) m.multiply(new Quaternionf().rotationY(orbit));
         }
+        float sy = 1;
         m.translate(px, py, pz);
         if (an != null) {
             float phase = an.phase();
@@ -163,29 +172,53 @@ public final class CosmeticDraw {
                 case "bob" -> dy = (float) Math.sin((t * an.speed() + phase) * TAU) * an.amp();
                 case "sway" -> roll += (float) Math.sin((t * an.speed() + phase) * TAU) * an.amp();
                 case "pet" -> {
-                    dy = (float) Math.sin((t * an.speed() * 0.5f + phase) * TAU) * an.amp() * 1.4f;
-                    // small idles every few seconds: a hop, then later a curious head tilt
+                    // bobs up from where it sits (never down into your shoulder); every few seconds a little hop, then
+                    // later a sway; leans a touch into your turns
+                    dy = -(0.5f + 0.5f * (float) Math.sin((t * an.speed() * 0.5f + phase) * TAU)) * an.amp() * 1.4f;
                     float cyc = (t + phase * 7f) % 7f;
                     if (cyc < 0.5f) dy -= (float) Math.sin(cyc / 0.5f * Math.PI) * 2.5f;
-                    else if (cyc > 3.5f && cyc < 4.6f) roll += (float) Math.sin((cyc - 3.5f) / 1.1f * Math.PI) * 14f;
+                    else if (cyc > 3.5f && cyc < 4.6f) roll += (float) Math.sin((cyc - 3.5f) / 1.1f * Math.PI) * 5f;
                     if (motion) {
-                        yaw += -d.petLookYaw * 0.8f;
-                        pitch += -d.petLookPitch * 0.3f;
+                        pitch += -d.petLookPitch * 0.15f;
+                        roll += Math.max(-3f, Math.min(3f, d.petYawV * 0.02f));
                     } else {
-                        yaw += (float) Math.sin(t * 0.37f * TAU) * 18f;
-                        roll += (float) Math.sin(t * 0.61f * TAU) * 4f;
+                        yaw += (float) Math.sin(t * 0.37f * TAU) * 8f;
+                        roll += (float) Math.sin(t * 0.61f * TAU) * 2f;
                     }
                 }
                 case "pet_head" -> {
-                    if (motion) { yaw += -d.petLookYaw * 0.4f; pitch += -d.petLookPitch * 0.6f; }
-                    else pitch += (float) Math.sin(t * 0.5f * TAU) * 6f;
+                    // glances about (quick turns, little holds), now and then a curious tilt; nods with your look
+                    yaw += glance(t * 0.19f + phase) * (an.amp() > 0 ? an.amp() : 14f);
+                    float cyc = (t + 2.3f + phase * 9f) % 9f;
+                    if (cyc < 1.2f) roll += (float) Math.sin(cyc / 1.2f * Math.PI) * 10f;
+                    if (motion) pitch += -d.petLookPitch * 0.35f;
+                    else pitch += (float) Math.sin(t * 0.43f * TAU) * 5f;
+                }
+                case "blink" -> {
+                    // eyelids: squashed flat (open) except for a quick close every 1 / speed seconds, sometimes twice
+                    float f = t * an.speed() + phase;
+                    float c = blink(f - (float) Math.floor(f));
+                    if (((int) Math.floor(f)) % 3 == 1) c = Math.max(c, blink(f - (float) Math.floor(f) - 0.1f));
+                    sy = Math.max(0.02f, c);
                 }
                 default -> { }
             }
         }
         if (dy != 0) m.translate(0, dy / 16f, 0);
         if (pitch != 0 || yaw != 0 || roll != 0) m.multiply(new Quaternionf().rotationZYX(roll * DEG, yaw * DEG, pitch * DEG));
+        if (sy != 1) m.scale(1f, sy, 1f);
         m.translate(-px, -py, -pz);
+    }
+
+    /** A glance in -1..1: turns quickly and holds at each side (a shaped sine). */
+    static float glance(float cycles) {
+        float s = (float) Math.sin(cycles * TAU);
+        return Math.signum(s) * (float) Math.pow(Math.abs(s), 0.35);
+    }
+
+    /** How closed an eyelid is (0..1) at {@code f} of the blink cycle: shut and open again in the first 7%. */
+    static float blink(float f) {
+        return f < 0 || f > 0.07f ? 0 : (float) Math.sin(f / 0.07f * Math.PI);
     }
 
     /**

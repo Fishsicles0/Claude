@@ -23,9 +23,14 @@ public final class RenderData {
     float capeLiftV, capeSwingV, capeSideV;
     /** Wing beat clock (beats at speed 1), current beat-rate and amplitude multipliers, fold 0..1 (sneaking). */
     public float wingClock, wingRate = 1f, wingAmp = 1f, fold;
-    /** Pet: how far it trails your body's turn (degrees), and its eased look (degrees, relative to your body). */
-    public float petLag, petLookYaw, petLookPitch;
-    float petYaw, petYawV;
+    /**
+     * Pet: how far it trails your head's turn (degrees, clamped small so it never swings into your head), its eased
+     * look (degrees, relative to your body), and how fast it is being turned (degrees per second, for a little lean).
+     */
+    public float petLag, petLookYaw, petLookPitch, petYawV;
+    float petYaw;
+    /** Pet, set per frame from the posed model: your head's turn (radians) and how far your shoulders dropped (sneaking). */
+    public float petHeadYaw, petDrop;
     boolean petInit;
     /** A chestplate (or other body armour model) is worn: back items sit a little further out. */
     public boolean chestArmour;
