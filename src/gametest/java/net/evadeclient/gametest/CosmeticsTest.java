@@ -152,7 +152,7 @@ public final class CosmeticsTest {
             if (slot == Slot.EMOTE) ctx.runOnClient(c -> check(Emotes.play(CosmeticsCatalog.get(id)), "Cosmetics: emote " + id + " plays"));
             if (slot == Slot.TRAIL) for (int i = 0; i < 8; i++) { server.runCommand("execute as @a at @s run tp @s ~0.3 ~ ~"); ctx.waitTicks(1); }
             if (slot == Slot.KILL_EFFECT) ctx.runOnClient(c -> check(CosmeticFx.kill(c.player.getEntityPos().add(1.5, 0, 2)), "Cosmetics: kill effect plays"));
-            if (slot == Slot.WIN_EFFECT) ctx.runOnClient(c -> { CosmeticFx.onMessage("You won the game!"); });
+            if (slot == Slot.WIN_EFFECT) ctx.runOnClient(c -> { CosmeticFx.resetWinCooldownForTest(); CosmeticFx.onMessage("You won the game!"); });
             ctx.waitTicks(slot == Slot.WIN_EFFECT ? 25 : slot == Slot.ITEM_SKIN ? 40 : 8);
             long drawn = ctx.computeOnClient(c -> CosmeticsPerf.takeDrawn());
             int spawned = ctx.computeOnClient(c -> CosmeticFx.takeSpawned());

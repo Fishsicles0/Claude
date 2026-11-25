@@ -257,7 +257,7 @@ final class EvadeShadersTest {
             BlockPos eye = new BlockPos(x, y, z);
             return List.of(
                     new Scene("day", ow, eye, 90, 8, "6000", "clear"),
-                    new Scene("sunset", ow, eye, 90, -2, "12400", "clear"),
+                    new Scene("sunset", ow, eye, 90, -2, "11900", "clear"),
                     new Scene("night", ow, eye, 90, 8, "18000", "clear"),
                     new Scene("water", ow, new BlockPos(x - 4, y + 2, z - 4), 60, 28, "4000", "clear"),
                     new Scene("rain", ow, eye, 90, 8, "6000", "thunder"),
@@ -266,16 +266,22 @@ final class EvadeShadersTest {
                     new Scene("end", "minecraft:the_end", new BlockPos(100, 49, 0), 90, -5, "6000", "clear"));
         }
 
+        String lastDimension = "";
+        boolean freshPipeline = true;
+
         void go(Scene s) {
             cmd("weather " + s.weather());
             cmd("time set " + s.time());
             cmd(String.format(Locale.ROOT, "execute in %s run tp @p %d.5 %d %d.5 %.1f %.1f", s.dimension(),
                     s.pos().getX(), s.pos().getY(), s.pos().getZ(), s.yaw(), s.pitch()));
-            ctx.waitTicks(5);
-            try { sp.getClientWorld().waitForChunksRender(); }
-            catch (AssertionError e) { System.out.println("[shadershots] chunks still building for " + s.name()); }
-            // Rain/thunder strength ramps up over a few seconds; TAA/eye adaptation need a few frames too.
-            ctx.waitTicks(s.weather().equals("clear") ? 30 : 140);
+            // waitForChunksRender never settles with a shader pack on the software renderer here, so wait a fixed
+            // number of frames instead: long after a pipeline reload or dimension change (chunks rebuild), short otherwise.
+            boolean rebuild = freshPipeline || !s.dimension().equals(lastDimension);
+            lastDimension = s.dimension();
+            freshPipeline = false;
+            ctx.waitTicks(rebuild ? 220 : 40);
+            // Rain/thunder strength ramps up over a few seconds.
+            if (!s.weather().equals("clear")) ctx.waitTicks(120);
         }
 
         /** Milliseconds per client frame (one tick renders one frame in the gametest loop), averaged. */
@@ -314,6 +320,7 @@ final class EvadeShadersTest {
                 String err;
                 if (prof.equals("OFF")) err = apply(ctx, null, null);
                 else err = apply(ctx, PACK_FILE, profiles.get(prof));
+                freshPipeline = true;
                 System.out.println("[shadershots] profile " + prof + (err.isEmpty() || err.equals("Shaders off") ? "" : " ERROR " + err));
                 if (!err.isEmpty() && !prof.equals("OFF")) timings.add(prof + " failed to load: " + err);
                 shoot(prof, chosen, true);
@@ -324,6 +331,7 @@ final class EvadeShadersTest {
                 Path from = Path.of(other);
                 Files.copy(from, dir.resolve(from.getFileName()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 String err = apply(ctx, from.getFileName().toString(), null);
+                freshPipeline = true;
                 String label = from.getFileName().toString().replaceAll("[^A-Za-z0-9]+", "_");
                 System.out.println("[shadershots] compare " + label + " " + err);
                 shoot(label, chosen.stream().filter(s -> s.name().equals("day") || s.name().equals("sunset")
