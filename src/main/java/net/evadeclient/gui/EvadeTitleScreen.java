@@ -539,10 +539,11 @@ public class EvadeTitleScreen extends Screen {
         int W = width, H = height;
         boolean motion = TitleArt.anims();
         SCENE.update(mouseX, mouseY, W, H, mod == null || mod.parallax.get(), motion);
+        boolean light = TitleScreenModule.lightEffects();
         String bg = mod == null ? "Panorama" : mod.backgroundMode();
         boolean panorama = bg.equals("Panorama");
         if (panorama) {
-            if (layer(L_PANORAMA)) SCENE.panorama(ctx, W, H, motion);
+            if (layer(L_PANORAMA)) SCENE.panorama(ctx, W, H, motion, !light);
         } else {
             switch (bg) {
                 case "Evade Animated" -> TitleBackground.animated(ctx, W, H);
@@ -562,7 +563,6 @@ public class EvadeTitleScreen extends Screen {
                 // Something already blurred this frame.
             }
         }
-        boolean light = TitleScreenModule.lightEffects();
         float base = Theme.fade;
         try {
             Theme.fade = 1f;
@@ -580,8 +580,12 @@ public class EvadeTitleScreen extends Screen {
             // Embers between the veil and the vignette: they read as depth, and the edges swallow them.
             if (layer(L_EMBERS) && (mod == null || mod.embers.get())) SCENE.embers(ctx, W, H, intro.p(200, 1400), motion, light);
             if (layer(L_VIGNETTE)) {
-                TitleArt.vignette(ctx, W, H, light ? 0xE0000000 : 0xC8000000);
-                if (!light) {
+                if (light) {
+                    // Light: two flat-shaded bands instead of the full-screen vignette texture.
+                    ctx.fillGradient(0, 0, W, Math.round(H * 0.28f), 0x90000000, 0x00000000);
+                    ctx.fillGradient(0, Math.round(H * 0.58f), W, H, 0x00000000, 0xC8000000);
+                } else {
+                    TitleArt.vignette(ctx, W, H, 0xC8000000);
                     ctx.fillGradient(0, Math.round(H * 0.62f), W, H, 0x00000000, 0xB0000000);
                     ctx.fillGradient(0, 0, W, 36, 0x50000000, 0x00000000);
                 }

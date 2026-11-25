@@ -359,7 +359,18 @@ final class EvadeShadersTest {
             for (String prof : profilesWanted.split(",")) {
                 String err;
                 if (prof.equals("OFF")) err = apply(ctx, null, null);
-                else err = apply(ctx, PACK_FILE, profiles.get(prof));
+                else {
+                    // "LOW+CLOUD_MODE=2+!TAA": a profile with a few options changed (for tracking down a problem).
+                    String[] parts = prof.split("\\+");
+                    Properties opts = new Properties();
+                    opts.putAll(profiles.get(parts[0]));
+                    for (int i = 1; i < parts.length; i++) {
+                        if (parts[i].startsWith("!")) opts.setProperty(parts[i].substring(1), "false");
+                        else if (parts[i].contains("=")) opts.setProperty(parts[i].split("=")[0], parts[i].split("=")[1]);
+                        else opts.setProperty(parts[i], "true");
+                    }
+                    err = apply(ctx, PACK_FILE, opts);
+                }
                 freshPipeline = true;
                 System.out.println("[shadershots] profile " + prof + (err.isEmpty() || err.equals("Shaders off") ? "" : " ERROR " + err));
                 if (!err.isEmpty() && !prof.equals("OFF")) timings.add(prof + " failed to load: " + err);

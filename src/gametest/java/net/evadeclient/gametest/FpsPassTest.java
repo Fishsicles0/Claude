@@ -29,9 +29,11 @@ import java.util.Map;
  * time per frame; "[gametest] FPSPASS" lines in the log. Allocation and GC figures don't depend on the graphics, so
  * they're the regression budget here (the software renderer's frame times are only compared with each other).
  *
- * <p>{@code -Devade.fpsonly=true}: only this, with a Java Flight Recording of the busy window saved to
- * {@code evade-fps.jfr} in the run folder (for profiling, see the FPS pass report). {@code -Devade.fpsjfr=false}
- * skips the recording.
+ * <p>{@code JAVA_TOOL_OPTIONS=-Devade.fpsonly=true}: only this (no start-screen checks), with longer windows, every
+ * HUD widget, and Java Flight Recordings of the defaults and every-widget windows saved to
+ * {@code evade-fps-defaults.jfr} and {@code evade-fps-allhud.jfr} in the run folder, for profiling.
+ * {@code -Devade.fpsjfr=false} skips the recordings. (Like {@code evade.perfonly}, that mode doesn't end on the title
+ * screen, so Gradle reports the run as failed afterwards; read the "[gametest]" lines.)
  */
 public final class FpsPassTest {
     private FpsPassTest() {}

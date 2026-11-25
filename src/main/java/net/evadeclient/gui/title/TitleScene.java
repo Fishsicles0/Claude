@@ -53,7 +53,7 @@ public final class TitleScene {
      * Advances the game's rotation like vanilla does when {@code rotate}. Falls back to the vanilla call if the
      * accessor isn't there (another mod replaced the renderer).
      */
-    public void panorama(DrawContext ctx, int w, int h, boolean rotate) {
+    public void panorama(DrawContext ctx, int w, int h, boolean rotate, boolean overlay) {
         MinecraftClient mc = MinecraftClient.getInstance();
         RotatingCubeMapRenderer r = mc.gameRenderer.getRotatingPanoramaRenderer();
         if (!(r instanceof RotatingCubeMapAccessor a) || a.evade$cubeMap() == null) {
@@ -68,7 +68,8 @@ public final class TitleScene {
             a.evade$setTurn(turn);
         }
         a.evade$cubeMap().draw(mc, 10f + my.x * PITCH_RANGE, -turn - mx.x * YAW_RANGE);
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, RotatingCubeMapRenderer.OVERLAY_TEXTURE, 0, 0, 0f, 0f, w, h, 16, 128, 16, 128);
+        // The game's soft overlay; the light variant leaves it out (its own veil covers the same ground in one pass).
+        if (overlay) ctx.drawTexture(RenderPipelines.GUI_TEXTURED, RotatingCubeMapRenderer.OVERLAY_TEXTURE, 0, 0, 0f, 0f, w, h, 16, 128, 16, 128);
     }
 
     /**

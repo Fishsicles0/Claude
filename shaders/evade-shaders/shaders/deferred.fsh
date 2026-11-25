@@ -39,7 +39,7 @@ void main() {
 #ifdef STARS
         sky += starField(dir);
 #endif
-#if CLOUD_MODE >= 2
+#if CLOUD_MODE >= 1
         vec4 clouds = drawClouds(dir, cameraPosition);
         sky = sky * clouds.a + clouds.rgb;
 #endif

@@ -1,4 +1,5 @@
 /* Evade Shaders - clouds, drawn behind terrain on sky pixels in deferred.fsh.
+ * CLOUD_MODE 1: the same layer with two noise octaves and no self-shadowing (cheap, POTATO/LOW).
  * CLOUD_MODE 2: one cloud layer: fractal value noise on a plane, shaded with a second lookup towards the sun.
  * CLOUD_MODE 3: volumetric clouds: ray-marched through a slab, density from layered noise, light marched
  *               towards the sun (Beer-Lambert) with a powder term for dark-edged, bright-topped clouds.
@@ -35,7 +36,13 @@ void cloudLights(out vec3 sunLight, out vec3 skyLight) {
     skyLight = skyAtmosphere(vec3(0.0, 1.0, 0.0)) * 1.1 + vec3(0.002);
 }
 
-#if CLOUD_MODE == 2
+#if CLOUD_MODE == 1
+float cloudShape(vec2 p) { return cloudNoise(p) * 0.667 + cloudNoise(p * 2.03 + 17.1) * 0.333; }
+#else
+float cloudShape(vec2 p) { return fbm2(p); }
+#endif
+
+#if CLOUD_MODE == 1 || CLOUD_MODE == 2
 vec4 drawClouds(vec3 dir, vec3 eye) {
     float planeY = CLOUD_ALTITUDE - eye.y;
     if (dir.y * planeY <= 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
@@ -43,12 +50,16 @@ vec4 drawClouds(vec3 dir, vec3 eye) {
     if (t > 6000.0) return vec4(0.0, 0.0, 0.0, 1.0);
     vec2 p = (eye.xz + dir.xz * t + cloudWind()) * 0.006;
     float cov = coverageNow();
-    float d = smoothstep(1.0 - cov, 1.0 - cov + 0.28, fbm2(p));
+    float d = smoothstep(1.0 - cov, 1.0 - cov + 0.28, cloudShape(p));
     if (d <= 0.001) return vec4(0.0, 0.0, 0.0, 1.0);
     vec3 sunDir = sunDirWorld();
     // Self-shadow: how much denser the cloud gets a short way towards the sun.
+#if CLOUD_MODE == 2
     float d2 = smoothstep(1.0 - cov, 1.0 - cov + 0.28, fbm2(p + sunDir.xz * 0.35));
     float shade = exp(-max(d2 - d * 0.6, 0.0) * 2.5);
+#else
+    float shade = 1.0 - d * 0.35;
+#endif
     vec3 sunLight, skyLight;
     cloudLights(sunLight, skyLight);
     float forward = 1.0 + 1.5 * pow(saturate(dot(dir, sunDir)), 8.0); // silver lining near the sun
