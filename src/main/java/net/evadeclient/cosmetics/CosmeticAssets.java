@@ -48,6 +48,8 @@ public final class CosmeticAssets {
     }
 
     private static final Map<String, Loaded> LOADED = new ConcurrentHashMap<>();
+    /** The item instance whose item.json data each loaded id was read into (the catalog can replace instances). */
+    private static final Map<String, CosmeticItem> SOURCE = new ConcurrentHashMap<>();
 
     private CosmeticAssets() {}
 
@@ -95,7 +97,19 @@ public final class CosmeticAssets {
 
     private static Loaded load(CosmeticItem item) {
         Loaded l = LOADED.get(item.id);
-        if (l != null) return l;
+        if (l != null) {
+            // The catalog may have replaced this item with a new instance (start-up merge, reload) for the same files:
+            // give it the item.json data the first one was given, or its effects, emote and physics would be missing.
+            CosmeticItem src = SOURCE.get(item.id);
+            if (src != null && src != item && src.files.equals(item.files)) {
+                if (item.fx == null) item.fx = src.fx;
+                if (item.emote == null) item.emote = src.emote;
+                if (item.animation == null) item.animation = src.animation;
+                item.stiffness = src.stiffness; item.lift = src.lift; item.sway = src.sway;
+            }
+            return l;
+        }
+        SOURCE.put(item.id, item);
         LOADED.put(item.id, new Loaded(State.LOADING, null, null, null));
         if (item.bundled) {
             // Small files inside the jar: read and set up right away.
@@ -251,7 +265,7 @@ public final class CosmeticAssets {
     }
 
     /** Test hook: forget what was loaded (textures stay registered). */
-    public static void resetForTest(String id) { LOADED.remove(id); }
+    public static void resetForTest(String id) { LOADED.remove(id); SOURCE.remove(id); }
 
     /** Loads every bundled item now (Wardrobe preview, tests). Render thread. */
     public static void preloadBundled() {
