@@ -626,6 +626,9 @@ public final class App {
     public void notify(String title, String body, boolean error) {
         if (error) System.err.println("[clips] " + title + ": " + body);
         for (NoticeListener l : noticeListeners) { try { l.notice(title, body, error); } catch (RuntimeException ignored) {} }
+        // No sound and no pop-up while Minecraft isn't open: those are for when you're playing. The notice still goes
+        // to the host's list (the launcher's bell), quietly.
+        if (!minecraftRunning()) return;
         if (settings.playSound) beep(!error);
         if (settings.showToast && toast != null) SwingUtilities.invokeLater(() -> toast.show(title, body, error));
     }
