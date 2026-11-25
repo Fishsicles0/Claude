@@ -6,7 +6,6 @@ import net.evadeclient.mods.ModrinthApi.Version;
 import net.evadeclient.mods.ModrinthApi.VersionFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -15,7 +14,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
@@ -487,13 +485,5 @@ public final class ModManager {
     }
 
     /** A plain file name that stays in the mods folder: no separators, no "..", no control characters. */
-    public static boolean safeFileName(String n) {
-        if (n == null || n.isEmpty() || n.length() > 200 || n.equals(".") || n.equals("..")) return false;
-        if (n.startsWith(".") || n.contains("..")) return false;
-        for (int i = 0; i < n.length(); i++) {
-            char c = n.charAt(i);
-            if (c < 32 || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') return false;
-        }
-        return true;
-    }
+    public static boolean safeFileName(String n) { return AfterExitHelper.safeFileName(n); }
 }

@@ -192,8 +192,9 @@ public class Performance extends Module {
             .describe("Turns on anisotropic texture filtering when yours is off, so floors and walls stay crisp at a distance. Costs very little on most graphics cards. Ignored while Low-End PC Mode is on."));
     public final BooleanSetting borderless = add(new BooleanSetting("Borderless Fullscreen", false)
             .describe("Fills the screen with a frameless window instead of the game's own fullscreen: instant Alt-Tab and no flicker on a second monitor. While F11 fullscreen is on, that one is used."));
-    public final StatusSetting addons = add(new StatusSetting("FPS Mods Installed", Performance::installedAddons, "via installer")
-            .describe("How many of the performance mods the Evade installer adds are loaded right now."));
+    public final StatusSetting addons = add((StatusSetting) new StatusSetting("FPS Mods Installed", Performance::installedAddons,
+            "click: get more").onClick(net.evadeclient.gui.ModBrowserScreen::openOptimization)
+            .describe("How many of the performance mods the Evade installer adds are loaded right now. Click to find them in the Mod Browser."));
     public final BooleanSetting tuneSodium = add(new BooleanSetting("Tune Sodium Too", true)
             .describe("FPS Mode also sets Sodium and Sodium Extra when they're installed: Max FPS turns off water, lava, fire and portal animations and the stars, and defers chunk updates; Max FPS and Balanced size Sodium's chunk build threads to your processor. Your own Sodium settings come back when you turn this off."));
     public final StatusSetting sodiumNow = add(new StatusSetting("Also Changed In Sodium", SodiumBridge::status, "live")
@@ -227,12 +228,18 @@ public class Performance extends Module {
             {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
             {"sodium-extra", "Sodium Extra"}, {"fastipping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
 
+    private static boolean loggedAddons;
+
     /** Which of the installer's performance mods are loaded (they stack with this module). */
     public static String installedAddons() {
         var loader = FabricLoader.getInstance();
         List<String> on = new ArrayList<>();
         for (String[] a : ADDONS) if (loader.isModLoaded(a[0])) on.add(a[1]);
-        if (on.isEmpty()) return "None (re-run the installer)";
+        if (!loggedAddons) {
+            loggedAddons = true;
+            EvadeClient.LOG.info("Performance mods loaded: {} of {} ({})", on.size(), ADDONS.length, String.join(", ", on));
+        }
+        if (on.isEmpty()) return "None (click: Mod Browser, or use the installer)";
         return on.size() == ADDONS.length ? "All " + ADDONS.length : on.size() + " of " + ADDONS.length;
     }
 

@@ -47,7 +47,7 @@ public final class AfterExitHelper {
      * names (no folders); anything else is skipped. Returns true when it is done.
      */
     public static boolean apply(Path mods, Op op, int tries) {
-        for (String n : new String[]{op.delete(), op.from(), op.to()}) if (n != null && !ModManager.safeFileName(n)) return false;
+        for (String n : new String[]{op.delete(), op.from(), op.to()}) if (n != null && !safeFileName(n)) return false;
         if ((op.from() == null) != (op.to() == null)) return false;
         if (op.delete() != null) {
             Path d = mods.resolve(op.delete());
@@ -63,6 +63,17 @@ public final class AfterExitHelper {
             } catch (IOException e) {
                 return false;
             }
+        }
+        return true;
+    }
+
+    /** A plain file name that stays in the mods folder: no separators, no "..", no control characters. */
+    public static boolean safeFileName(String n) {
+        if (n == null || n.isEmpty() || n.length() > 200 || n.equals(".") || n.equals("..")) return false;
+        if (n.startsWith(".") || n.contains("..")) return false;
+        for (int i = 0; i < n.length(); i++) {
+            char c = n.charAt(i);
+            if (c < 32 || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') return false;
         }
         return true;
     }

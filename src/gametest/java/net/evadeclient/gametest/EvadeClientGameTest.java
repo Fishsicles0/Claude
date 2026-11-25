@@ -83,6 +83,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             testFullbrightOnScreen(ctx, sp);
             testServerApi(ctx, sp);
             SocialTest.run(ctx, sp);
+            ModFileSafetyTest.run(ctx, sp);
             EvadeShadersTest.run(ctx, sp);
             EvadeShadersLaptopTest.run(ctx, sp);
             FpsPassTest.run(ctx, sp);

@@ -3235,7 +3235,7 @@ HOVER = (10.75, -2.5, 0.25)  # flying pets: under their body, just outside your 
 PET_ANIM = {"type": "pet", "amp": 0.6, "speed": 1.6}
 ART = 4                      # art pixels per model unit
 PET_LAG = 6                  # the most the engine lets a pet trail your turn (CosmeticMotion.PET_LAG), degrees
-PET_CLEARANCE = 0.3          # the closest a pet may come to your head, body or arms in any pose (px)
+PET_CLEARANCE = 0.1          # the closest a pet may come to your head, body or arms in any pose (px)
 
 
 def P(anchor, x, y, z):
@@ -3521,7 +3521,7 @@ def cat_pet():
         PC(a, (-1, -4, -2.75), (2, 1, 1), px(CAT_CREAM, cat_muzzle)),
         PC(a, (-2, -8, -1.25), (2, 2, 1), px(CAT_FUR, cat_ear)),
         PC(a, (0, -8, -1.25), (2, 2, 1), px(CAT_FUR, cat_ear))],
-        anim={"type": "pet_head", "amp": 12}, parent="cat")
+        anim={"type": "pet_head", "amp": 10}, parent="cat")
     lids = blink_bone("lids", "head", a, (-1.5, -5, -2.27), (3, 1, 0), lid_paint(CAT_FUR, [(0, 4), (8, 4)]))
     tail = Bone("tail", "root", P(a, 0, -1.5, 2.5), cubes=[PC(a, (-0.5, -4.5, 2), (1, 3, 1), px(CAT_FUR, cat_tail))],
                 anim={"type": "sway", "amp": 16, "speed": 0.55}, parent="cat")
@@ -3607,7 +3607,7 @@ def fox_pet():
         PC(a, (-1, -4, -3.75), (2, 1, 2), px(FOX_FUR, fox_snout)),
         PC(a, (-2, -8, -1.25), (1, 2, 1), px(FOX_FUR, fox_ear)),
         PC(a, (1, -8, -1.25), (1, 2, 1), px(FOX_FUR, fox_ear))],
-        anim={"type": "pet_head", "amp": 12}, parent="fox")
+        anim={"type": "pet_head", "amp": 10}, parent="fox")
     lids = blink_bone("lids", "head", a, (-1.25, -5.25, -2.27), (3, 1, 0), lid_paint(FOX_FUR, [(0, 3), (7, 3)]))
     # the tail: out behind, then sweeping up, white-tipped; it wags from its root
     tail = Bone("tail", "root", P(a, 0, -1.5, 2), cubes=[
@@ -3678,15 +3678,15 @@ def owl_pet():
     a = OWL
     body = pet_body("owl", a, [
         PC(a, (-1.5, -3, -1.25), (3, 3, 3), px(OWL_FUR, owl_body)),
-        PC(a, (-1.25, -1, -1.75), (1, 1, 1), px("#f2b23a", owl_foot)),
-        PC(a, (0.25, -1, -1.75), (1, 1, 1), px("#f2b23a", owl_foot)),
-        PC(a, (-1, -1, 1.75), (2, 1, 1), px(OWL_DARK))])
+        PC(a, (-1.25, -1, -1.5), (1, 1, 1), px("#f2b23a", owl_foot)),
+        PC(a, (0.25, -1, -1.5), (1, 1, 1), px("#f2b23a", owl_foot)),
+        PC(a, (-1, -1.5, 1.5), (2, 1, 1), px(OWL_DARK))])
     head = Bone("head", "root", P(a, 0, -3, 0), cubes=[
         PC(a, (-2, -6, -1.75), (4, 3, 3), px(OWL_FUR, owl_head)),
         PC(a, (-0.5, -4.25, -2.5), (1, 1, 1), px("#f2b23a", owl_beak)),
         PC(a, (-2, -7, -1.25), (1, 1, 1), px(OWL_DARK, owl_tuft)),
         PC(a, (1, -7, -1.25), (1, 1, 1), px(OWL_DARK, owl_tuft, alpha=1.0))],
-        anim={"type": "pet_head", "amp": 14}, parent="owl")
+        anim={"type": "pet_head", "amp": 11}, parent="owl")
     head.cubes[3].mirror = True
     lids = blink_bone("lids", "head", a, (-1.5, -5.25, -1.77), (3, 1, 0), lid_paint(OWL_FACE, [(0, 5), (7, 5)], "#5a3a22"))
     wing = Bone("wing_r", "root", P(a, -1.5, -3, -0.75), cubes=[PC(a, (-2, -3, -0.75), (1, 3, 3), px(shade(OWL_FUR, 0.9), owl_wing))],

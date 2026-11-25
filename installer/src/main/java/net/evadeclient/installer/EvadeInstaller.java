@@ -49,10 +49,9 @@ public final class EvadeInstaller {
 
     // ------------------------------------------------------------------ system helpers
 
-    /** This launcher's version (from the jar manifest; "dev" when run from classes). */
+    /** This launcher's version ({@link LauncherInfo#VERSION}; "dev" when run without the build's resources). */
     static String launcherVersion() {
-        String v = EvadeInstaller.class.getPackage().getImplementationVersion();
-        return v != null ? v : "dev";
+        return LauncherInfo.VERSION;
     }
 
     /** Opens a folder in the file manager or a link in the browser. False if nothing could open it. */
