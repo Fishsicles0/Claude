@@ -11,9 +11,9 @@
    "name": "sprite",
    "attach": "root",
    "pivot": [
-    6.5,
-    -4,
-    0.5
+    10.75,
+    -5.0,
+    0.75
    ],
    "rotation": [
     0,
@@ -23,25 +23,9 @@
    "cubes": [
     {
      "origin": [
-      5.0,
-      -8.0,
-      -1.0
-     ],
-     "size": [
-      3,
-      3,
-      3
-     ],
-     "uv": [
-      0,
-      0
-     ]
-    },
-    {
-     "origin": [
-      5.5,
-      -5.0,
-      -0.5
+      9.75,
+      -6.0,
+      -0.75
      ],
      "size": [
       2,
@@ -55,9 +39,9 @@
     },
     {
      "origin": [
-      6.0,
-      -3.0,
-      0.0
+      10.25,
+      -4.0,
+      -0.25
      ],
      "size": [
       1,
@@ -71,9 +55,9 @@
     },
     {
      "origin": [
-      6.0,
-      -9.0,
-      0.0
+      10.25,
+      -6.0,
+      1.0
      ],
      "size": [
       1,
@@ -88,32 +72,123 @@
    ],
    "anim": {
     "type": "pet",
-    "amp": 0.6,
-    "speed": 1.6
+    "amp": 1.2,
+    "speed": 1.0
    }
   },
   {
-   "name": "sprite_wing_r",
+   "name": "head",
    "attach": "root",
    "pivot": [
-    6.5,
-    -4,
-    0.5
+    10.75,
+    -6.0,
+    0.25
    ],
    "rotation": [
     0,
-    25,
+    0,
     0
    ],
    "cubes": [
     {
      "origin": [
-      8.0,
+      9.25,
       -9.0,
-      1.0
+      -1.25
      ],
      "size": [
-      4,
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      10.25,
+      -10.0,
+      -0.25
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      8,
+      11
+     ]
+    }
+   ],
+   "parent": "sprite",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    11.0,
+    -8.0,
+    -1.28
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      9.5,
+      -8.0,
+      -1.28
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      0,
+      15
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "wing_r",
+   "attach": "root",
+   "pivot": [
+    10.25,
+    -5.5,
+    1.85
+   ],
+   "rotation": [
+    0,
+    0,
+    22
+   ],
+   "cubes": [
+    {
+     "origin": [
+      5.25,
+      -9.5,
+      1.85
+     ],
+     "size": [
+      5,
       5,
       0
      ],
@@ -123,34 +198,39 @@
      ]
     }
    ],
+   "parent": "sprite",
    "anim": {
-    "type": "pet",
-    "amp": 0.6,
-    "speed": 1.6
+    "type": "wing",
+    "side": 1,
+    "base": 22,
+    "amp": 22,
+    "speed": 2.6,
+    "lift": 8,
+    "fold": 40
    }
   },
   {
-   "name": "sprite_wing_l",
+   "name": "wing_l",
    "attach": "root",
    "pivot": [
-    6.5,
-    -4,
-    0.5
+    11.25,
+    -5.5,
+    1.85
    ],
    "rotation": [
     0,
-    -25,
-    0
+    0,
+    -22
    ],
    "cubes": [
     {
      "origin": [
-      1.0,
-      -9.0,
-      1.0
+      11.25,
+      -9.5,
+      1.85
      ],
      "size": [
-      4,
+      5,
       5,
       0
      ],
@@ -161,10 +241,15 @@
      "mirror": true
     }
    ],
+   "parent": "sprite",
    "anim": {
-    "type": "pet",
-    "amp": 0.6,
-    "speed": 1.6
+    "type": "wing",
+    "side": -1,
+    "base": 22,
+    "amp": 22,
+    "speed": 2.6,
+    "lift": 8,
+    "fold": 40
    }
   }
  ]

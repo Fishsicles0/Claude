@@ -333,13 +333,15 @@ public final class InstallerCore {
     public Release fetchRelease() throws IOException, InterruptedException {
         JsonObject site;
         try {
-            site = getJson(SITE + "/version.json?t=" + System.currentTimeMillis()).getAsJsonObject(); // never a cached copy
+            // never a cached copy; signature (when enabled) and never-older checks in ReleaseManifest
+            site = ReleaseManifest.fetch(http, SITE);
         } catch (IOException | RuntimeException e) {
-            throw new IOException("Couldn't reach " + host(SITE), e);
+            throw new IOException(e.getMessage() != null && e.getMessage().contains("release list") ? e.getMessage() : "Couldn't reach " + host(SITE), e);
         }
-        String evadeVersion = str(site, "version"), file0 = str(site, "file");
-        if (evadeVersion == null || file0 == null) throw new IOException(host(SITE) + " sent an incomplete version list");
+        String evadeVersion = str(site, "version"), file0 = ReleaseManifest.safeFile(str(site, "file"));
         String evadeSha = str(site, "sha256");
+        if (evadeVersion == null || file0 == null || !ReleaseManifest.sha256(evadeSha))
+            throw new IOException(host(SITE) + " sent an incomplete version list");
         String evadeUrl = SITE + "/" + file0 + bust(evadeSha);
 
         String loader = null;
@@ -426,11 +428,13 @@ public final class InstallerCore {
             JsonObject c = site.getAsJsonObject("clips");
             clipsVersion = str(c, "version");
             JsonObject pick = WINDOWS && c.has("windows") ? c.getAsJsonObject("windows") : c.getAsJsonObject("jar");
-            if (pick != null && str(pick, "file") != null) { clipsSha = str(pick, "sha256"); clipsUrl = SITE + "/" + str(pick, "file") + bust(clipsSha); }
-            if (WINDOWS && c.has("ffmpeg")) {
+            String cf = pick == null ? null : ReleaseManifest.safeFile(str(pick, "file"));
+            if (cf != null && ReleaseManifest.sha256(str(pick, "sha256"))) { clipsSha = str(pick, "sha256"); clipsUrl = SITE + "/" + cf + bust(clipsSha); }
+            if (WINDOWS && c.has("ffmpeg") && c.get("ffmpeg").isJsonObject()) {
                 JsonObject f = c.getAsJsonObject("ffmpeg");
                 ffUrl = str(f, "url");
-                ffSha = str(f, "sha256url");
+                // A pinned build's SHA-256 in the release list; else (older lists) the URL of the builder's own checksum.
+                ffSha = ReleaseManifest.sha256(str(f, "sha256")) ? str(f, "sha256").strip() : str(f, "sha256url");
             }
         }
         // Optional extras (off by default): each group is only offered when all its mods and their libraries were found.
@@ -461,7 +465,7 @@ public final class InstallerCore {
             JsonObject e = sh.getAsJsonObject("evade");
             String file = str(e, "file"), version = str(e, "version"), sha = str(e, "sha256");
             if (file == null || version == null || sha == null || !sha.matches("[0-9a-fA-F]{64}")) return null;
-            if (file.startsWith("/") || file.contains("..") || file.contains("://")) return null;
+            if (ReleaseManifest.safeFile(file) == null) return null;
             String name = ShaderPacks.EVADE.name() + " v" + version.strip() + ".zip";
             if (!plainName(name)) return null;
             return new ModFile(ShaderPacks.EVADE.name(), version.strip(), SITE + "/" + file + bust(sha), sha.toLowerCase(Locale.ROOT), name,
@@ -625,16 +629,26 @@ public final class InstallerCore {
         Path zip = bin.resolveSibling("ffmpeg-download.zip");
         try {
             p.update(0.9, "Downloading ffmpeg for Evade Clips (records and edits video)");
-            String expected = null;
-            if (r.ffmpegShaUrl() != null) {
-                HttpResponse<String> sha = http.send(request(r.ffmpegShaUrl()), HttpResponse.BodyHandlers.ofString());
-                if (sha.statusCode() == 200) expected = sha.body().trim().split("\\s+")[0];
-            }
+            String expected = ffmpegSha(r.ffmpegShaUrl());
             download(r.ffmpegUrl(), zip, expected, "SHA-256", 0.9, 0.96, p, "Downloading ffmpeg");
             unzipFfmpeg(zip, bin);
         } finally {
             try { Files.deleteIfExists(zip); Files.deleteIfExists(zip.resolveSibling(zip.getFileName() + ".part")); } catch (Exception ignored) {}
         }
+    }
+
+    /**
+     * The SHA-256 ffmpeg's zip must have: the pinned one from the release list, or (older lists) the one the builder
+     * publishes at that URL. No checksum, no install: never fetched unchecked.
+     */
+    private String ffmpegSha(String pinnedOrUrl) throws IOException, InterruptedException {
+        if (pinnedOrUrl == null || pinnedOrUrl.isBlank()) throw new IOException("No checksum is listed for ffmpeg, so it wasn't downloaded");
+        if (ReleaseManifest.sha256(pinnedOrUrl)) return pinnedOrUrl.strip();
+        if (!pinnedOrUrl.startsWith("https://")) throw new IOException("ffmpeg's checksum address isn't https");
+        HttpResponse<String> sha = http.send(request(pinnedOrUrl), HttpResponse.BodyHandlers.ofString());
+        String first = sha.statusCode() == 200 ? sha.body().strip().split("\\s+")[0] : "";
+        if (!ReleaseManifest.sha256(first)) throw new IOException("ffmpeg's checksum couldn't be fetched, so ffmpeg wasn't downloaded");
+        return first;
     }
 
     /** Pulls ffmpeg.exe and ffprobe.exe out of an ffmpeg build zip (whatever folder they're in). */
@@ -740,7 +754,8 @@ public final class InstallerCore {
             p.update(0.97, "Adding the Evade Client profile");
             writeProfiles(o);
             // 7. Windows: run Minecraft's Java on the fast graphics card (laptops often default to the weak one).
-            if (WINDOWS) preferHighPerformanceGpu(mc);
+            // Its own switch in Settings > Launcher ("Faster graphics card"); turning it off removes what Evade set.
+            if (WINDOWS && Launcher.loadSettings().preferGpu) preferHighPerformanceGpu(mc);
         } finally {
             try { deleteTree(staging); } catch (Exception ignored) {}
         }
@@ -1592,37 +1607,7 @@ public final class InstallerCore {
      * choice the player already made for that file is kept. Never fails the install.
      */
     static void preferHighPerformanceGpu(Path minecraftDir) {
-        try {
-            java.util.List<Path> javas = new java.util.ArrayList<>();
-            java.util.List<Path> roots = new java.util.ArrayList<>(java.util.List.of(minecraftDir.resolve("runtime")));
-            String local = System.getenv("LOCALAPPDATA");
-            if (local != null) {
-                roots.add(Paths.get(local, "Packages", "Microsoft.4297127D64EC6_8wekyb3d8bbwe", "LocalCache", "Local", "runtime"));
-            }
-            for (Path root : roots) {
-                if (!Files.isDirectory(root)) continue;
-                try (var walk = Files.walk(root, 7)) {
-                    walk.filter(f -> {
-                        String n = f.getFileName().toString().toLowerCase(Locale.ROOT);
-                        return (n.equals("javaw.exe") || n.equals("java.exe")) && f.getParent() != null
-                                && f.getParent().getFileName().toString().equalsIgnoreCase("bin");
-                    }).forEach(javas::add);
-                }
-            }
-            String key = "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences";
-            for (Path java : javas) {
-                String path = java.toAbsolutePath().toString();
-                Process q = new ProcessBuilder("reg", "query", key, "/v", path).redirectErrorStream(true).start();
-                q.getInputStream().readAllBytes();
-                if (q.waitFor() == 0) continue; // already set, by the player or a previous install
-                Process add = new ProcessBuilder("reg", "add", key, "/v", path, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f")
-                        .redirectErrorStream(true).start();
-                add.getInputStream().readAllBytes();
-                add.waitFor();
-            }
-        } catch (Exception e) {
-            // A preference, not a requirement: the game runs either way.
-        }
+        GpuPreference.apply(minecraftDir);
     }
 
     /**
@@ -1653,9 +1638,10 @@ public final class InstallerCore {
         }
     }
 
+    /** Runs a short PowerShell command with its text in plain sight (no encoded command, no hidden window). */
     private static void powershell(String script) throws Exception {
-        String encoded = java.util.Base64.getEncoder().encodeToString(script.getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
-        run("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded);
+        if (script.indexOf('"') >= 0) throw new IllegalArgumentException("double quotes don't survive the command line");
+        run("powershell", "-NoProfile", "-NonInteractive", "-Command", script);
     }
 
     private static void run(String... cmd) throws Exception {
@@ -1840,6 +1826,9 @@ public final class InstallerCore {
      */
     private void download(String url, Path target, String expectedHash, String algo,
                           double from, double to, Progress p, String label) throws Exception {
+        if (!allowedDownload(url)) throw new IOException("Won't download " + target.getFileName() + " from " + host(url) + " (not an allowed host)");
+        if (expectedHash == null || expectedHash.isBlank())
+            throw new IOException("No checksum is listed for " + target.getFileName() + ", so it wasn't downloaded");
         HttpResponse<InputStream> res = http.send(request(url), HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) {
             try { res.body().close(); } catch (IOException ignored) {}
@@ -1858,6 +1847,7 @@ public final class InstallerCore {
                 out.write(buf, 0, n);
                 md.update(buf, 0, n);
                 done += n;
+                if (done > MAX_DOWNLOAD) throw new IOException(target.getFileName() + " is larger than any file the launcher installs");
                 long now = System.nanoTime();
                 String msg = null;
                 if (label != null && now - lastMsg > 250_000_000L) {
@@ -1874,11 +1864,26 @@ public final class InstallerCore {
             throw new IOException("The download from " + host(url) + " stopped (" + e.getMessage() + "). Check your connection and try again.", e);
         }
         String actual = HexFormat.of().formatHex(md.digest());
-        if (expectedHash != null && !expectedHash.isBlank() && !actual.equalsIgnoreCase(expectedHash)) {
+        if (!actual.equalsIgnoreCase(expectedHash.strip())) {
             Files.deleteIfExists(tmp);
             throw new IOException("Download check failed for " + target.getFileName() + " (file was corrupted or changed). Try again.");
         }
         move(tmp, target);
+    }
+
+    /** No single download the launcher makes (the largest is ffmpeg, about 100 MB) is larger than this. */
+    static final long MAX_DOWNLOAD = 512L << 20;
+
+    /** Hosts Evade's own downloads may come from: evadeclient.com, Modrinth's CDN and ffmpeg's builders (gyan.dev, GitHub). */
+    static final Set<String> DOWNLOAD_HOSTS = Set.of("cdn.modrinth.com", "www.gyan.dev", "gyan.dev", "github.com");
+
+    /** True for a URL on evadeclient.com (or the site the launcher was pointed at) or an https URL on {@link #DOWNLOAD_HOSTS}. */
+    static boolean allowedDownload(String url) {
+        if (url == null) return false;
+        if (url.startsWith(SITE + "/")) return true;
+        // The launcher's own tests serve files from a local server (set only by installer/build.gradle's test task).
+        if (Boolean.getBoolean("evade.test.loopbackDownloads") && url.startsWith("http://127.0.0.1:")) return true;
+        return ContentApi.allowed(url, DOWNLOAD_HOSTS);
     }
 
     /** Closes the stream if no bytes arrive for stallMs, so a dead connection fails instead of hanging forever. */

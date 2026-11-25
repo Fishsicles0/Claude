@@ -33,9 +33,12 @@ public class DamageNumbers extends Module {
             .describe("Seconds each number stays up while it floats away."));
     public final NumberSetting size = add(new NumberSetting("Size", 1.0, 0.5, 2.5, 0.1)
             .describe("How big the numbers are drawn."));
-    public final ColorSetting color = add(new ColorSetting("Color", 0xFFFFFFFF));
-    public final ColorSetting critColor = add(new ColorSetting("Crit Color", 0xFFFFB020));
-    public final BooleanSetting shadow = add(new BooleanSetting("Text Shadow", true));
+    public final ColorSetting color = add(new ColorSetting("Color", 0xFFFFFFFF)
+            .describe("Colour of normal damage numbers."));
+    public final ColorSetting critColor = add(new ColorSetting("Crit Color", 0xFFFFB020)
+            .describe("Colour of damage numbers from critical hits."));
+    public final BooleanSetting shadow = add(new BooleanSetting("Text Shadow", true)
+            .describe("Draws a dark drop shadow under the numbers."));
     public final BooleanSetting distanceScaling = add(new BooleanSetting("Distance Scaling", true)
             .describe("Numbers further away are drawn smaller."));
 

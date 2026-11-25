@@ -35,11 +35,15 @@ public abstract class HudElementModule extends Module {
      */
     protected boolean empty;
 
-    public final NumberSetting scale = add(new NumberSetting("Scale", 1.0, 0.5, 2.5, 0.05));
-    public final BooleanSetting background = add(new BooleanSetting("Background", defaultBackground()));
+    public final NumberSetting scale = add(new NumberSetting("Scale", 1.0, 0.5, 2.5, 0.05)
+            .describe("How big the widget is drawn. You can also scroll over it in the HUD editor to resize it."));
+    public final BooleanSetting background = add(new BooleanSetting("Background", defaultBackground())
+            .describe("Draws a panel behind the widget so it stays readable on bright scenes."));
     public final ModeSetting backgroundStyle =
-            add(new ModeSetting("Background Style", "Evade", "Evade", "Solid", "Glass", "Outline"));
-    public final NumberSetting opacity = add(new NumberSetting("Background Opacity", 100, 10, 100, 5));
+            add(new ModeSetting("Background Style", "Evade", "Evade", "Solid", "Glass", "Outline")
+                    .describe("Look of the panel: Evade (soft rounded), Solid, Glass (frosted) or Outline (border only)."));
+    public final NumberSetting opacity = add(new NumberSetting("Background Opacity", 100, 10, 100, 5)
+            .describe("How see-through the panel is. Lower lets more of the game show through."));
     public final BooleanSetting hideInMenus = add(new BooleanSetting("Hide In Menus", false)
             .describe("Hides it while a menu or inventory is open. Chat doesn't count."));
     public final BooleanSetting combatOnly = add(new BooleanSetting("Only In Combat", false)

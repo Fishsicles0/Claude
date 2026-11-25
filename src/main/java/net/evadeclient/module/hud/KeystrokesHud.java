@@ -54,12 +54,15 @@ public class KeystrokesHud extends HudElementModule {
     private static final String[] WASD = {"W", "A", "S", "D"};
     private static final String[] ARROWS = {"▲", "◀", "▼", "▶"};
 
-    private final BooleanSetting mouse = add(new BooleanSetting("Mouse Buttons", true));
-    private final BooleanSetting cps = add(new BooleanSetting("Show CPS", true));
+    private final BooleanSetting mouse = add(new BooleanSetting("Mouse Buttons", true)
+            .describe("Adds left and right mouse button keys under the movement keys."));
+    private final BooleanSetting cps = add(new BooleanSetting("Show CPS", true)
+            .describe("Shows your clicks per second on the mouse buttons."));
     private final ModeSetting cpsStyle = add(new ModeSetting("CPS Style", "Under Label", "Under Label", "Replace Label", "Combined Row")
             .describe("Where clicks per second show: small under LMB/RMB, instead of the labels, or in one row "
                     + "(\"12 | 9 CPS\") under the buttons. Combined Row also shows with Mouse Buttons off."));
-    private final BooleanSetting space = add(new BooleanSetting("Space Bar", true));
+    private final BooleanSetting space = add(new BooleanSetting("Space Bar", true)
+            .describe("Adds a jump key under the others."));
     private final ModeSetting spaceStyle = add(new ModeSetting("Space Bar Style", "Bar", "Bar", "Label")
             .describe("The space bar as a dash, or labelled with the key jump is bound to."));
     private final BooleanSetting sneak = add(new BooleanSetting("Sneak Key", false)
@@ -80,14 +83,21 @@ public class KeystrokesHud extends HudElementModule {
             "Key labels. Reset for the theme's text colour."));
     private final ColorSetting pressedTextColor = add(themeColor("Pressed Text Color",
             "Key labels while pressed. Reset for the theme's text-on-accent colour."));
-    private final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true));
+    private final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true)
+            .describe("Draws a dark drop shadow under the key labels."));
     private final ModeSetting pressAnimation = add(new ModeSetting("Press Animation", "Fade", "Fade", "Instant", "Fill", "Shrink")
             .describe("Fade lights a key at once and fades it out; Instant has no fade; Fill rises from the bottom "
                     + "of the key; Shrink presses the key in a little."));
     private final NumberSetting fadeTime = add(new NumberSetting("Fade Time", 170, 0, 500, 10)
             .describe("Milliseconds a key takes to fade out after you let go. 0 turns it off at once."));
 
+    private final BooleanSetting mouseTracker = add(new BooleanSetting("Mouse Movement", false)
+            .describe("Adds a pad under the keys with a dot that follows how fast and which way you move the mouse while looking around."));
+
     private final float[] fade = new float[9];
+    /** Mouse Movement: the dot's offset (-1..1 each way), eased towards how fast the camera turns, and the last angles. */
+    private float dotX, dotY, lastYaw, lastPitch;
+    private boolean anglesKnown;
     private long lastFrame = System.nanoTime();
     /** While true, {@link #layout} draws only the keys' soft shadows (see {@link #render}). */
     private boolean shadowPass;
@@ -170,6 +180,7 @@ public class KeystrokesHud extends HudElementModule {
         lastFrame = now;
         refreshLabels();
         animate(dt);
+        trackMouse(dt, preview);
         if (!preview) drawnKeys = pressedBits();
         // Every key's soft shadow first, then the keys: a key's shadow never lands on a neighbour drawn before it
         // (with a small Gap it would darken that key's edge, and its press highlight).
@@ -191,6 +202,7 @@ public class KeystrokesHud extends HudElementModule {
      */
     public boolean animatingNow() {
         for (float f : fade) if (f > 0f && f < 1f) return true;
+        if (mouseTracker.get() && (Math.abs(dotX) > 0.01f || Math.abs(dotY) > 0.01f || turning())) return true;
         long keys = pressedBits();
         // A key went down or up since it was last drawn: draw it live so its animation starts this frame.
         return keys != drawnKeys;
@@ -299,6 +311,21 @@ public class KeystrokesHud extends HudElementModule {
                 }
             }
             y += small + g;
+        }
+        if (mouseTracker.get()) {
+            int ph = k + small / 2;
+            box(ctx, left, y, width, ph, 0f);
+            if (!shadowPass) {
+                int cxp = left + width / 2, cyp = y + ph / 2;
+                int faint = Theme.alpha(labelColor(), 0.25f);
+                ctx.fill(cxp, y + 3, cxp + 1, y + ph - 3, faint);
+                ctx.fill(left + 3, cyp, left + width - 3, cyp + 1, faint);
+                int rx = width / 2 - 4, ry = ph / 2 - 4;
+                int dx = cxp + Math.round(dotX * rx), dy = cyp + Math.round(dotY * ry);
+                int pc = pressedColor.get() != 0 ? pressedColor.get() | 0xFF000000 : Theme.RED | 0xFF000000;
+                ctx.fill(dx - 2, dy - 2, dx + 3, dy + 3, pc);
+            }
+            y += ph + g;
         }
         height = Math.max(1, y - top - g);
     }
@@ -421,6 +448,46 @@ public class KeystrokesHud extends HudElementModule {
         if (!background.get() || t >= 1f) return 0f;
         return pressAnimation.is("Fill") ? 1f : 1f - t;
     }
+
+    /** Whether the camera turned since the last frame (Mouse Movement; read for the HUD cache). */
+    private boolean turning() {
+        var p = mc.player;
+        return p != null && anglesKnown && (p.getYaw() != lastYaw || p.getPitch() != lastPitch);
+    }
+
+    /**
+     * Mouse Movement: eases the dot towards the camera's turn speed this frame (full deflection at about 600 degrees a
+     * second) and back to the centre when you stop. Your own look direction only, as vanilla shows it on screen.
+     */
+    private void trackMouse(float dt, boolean preview) {
+        if (!mouseTracker.get()) return;
+        var p = mc.player;
+        float tx = 0f, ty = 0f;
+        if (preview && p == null) {
+            double t = System.currentTimeMillis() / 700.0;
+            tx = (float) Math.sin(t) * 0.6f;
+            ty = (float) Math.cos(t * 1.3) * 0.4f;
+        } else if (p != null) {
+            float yaw = p.getYaw(), pitch = p.getPitch();
+            if (anglesKnown && dt > 0f) {
+                tx = clamp1(net.minecraft.util.math.MathHelper.wrapDegrees(yaw - lastYaw) / dt / 600f);
+                ty = clamp1((pitch - lastPitch) / dt / 600f);
+            }
+            lastYaw = yaw;
+            lastPitch = pitch;
+            anglesKnown = true;
+        }
+        float rate = Math.min(1f, dt * 18f);
+        dotX += (tx - dotX) * rate;
+        dotY += (ty - dotY) * rate;
+        if (Math.abs(dotX) < 0.005f) dotX = 0f;
+        if (Math.abs(dotY) < 0.005f) dotY = 0f;
+    }
+
+    private static float clamp1(float v) { return Math.max(-1f, Math.min(1f, v)); }
+
+    /** The Mouse Movement dot's offset (tests). */
+    public float[] mouseDotForTest() { return new float[]{dotX, dotY}; }
 
     /** Advances the press animation of key {@code slot} by {@code dt} seconds for the chosen Press Animation. */
     private void anim(int slot, boolean down, float dt) {

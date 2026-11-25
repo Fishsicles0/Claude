@@ -344,11 +344,34 @@ final class LauncherApp implements LauncherView.Actions {
             try { SwingUtilities.invokeAndWait(() -> list.addAll(view.instances)); } catch (Exception e) { return; }
             StartupChecks.modUpdates(list, (i, n) -> ui(() -> view.notice(StartupChecks.plural(n, "update") + " for " + i.name,
                     "Mods or packs you added have newer versions. Open Mods to update them.", false)));
-            if (!settings.checkUpdates) {
-                String v = StartupChecks.newerLauncher();
-                if (v != null) ui(() -> view.notice("A newer Evade Launcher is out" + (v.isEmpty() ? "" : ": v" + v),
-                        "Automatic updates are off. Turn them on in Settings, or download it from evadeclient.com.", false));
-            }
+            SelfUpdate.Update u = SelfUpdate.check();
+            if (u != null) ui(() -> offerLauncherUpdate(u));
+        });
+    }
+
+    /** The newer launcher found at start, waiting for the player's yes. */
+    private SelfUpdate.Update launcherUpdate;
+
+    /** Tells the player a newer launcher is out and, unless they turned that off, asks whether to update now. */
+    private void offerLauncherUpdate(SelfUpdate.Update u) {
+        launcherUpdate = u;
+        view.notice("Evade Launcher v" + u.version() + " is out", settings.checkUpdates
+                ? "You have v" + LauncherInfo.VERSION + ". Not now? It asks again the next time you open it."
+                : "You have v" + LauncherInfo.VERSION + ". Turn on \"Launcher updates\" in Settings, or download it from evadeclient.com.", false);
+        if (settings.checkUpdates && view.modal == null && !busy)
+            view.openModal(new LauncherView.Modal("self-update", "Update the Evade Launcher?", "Version " + u.version() + " is out (you have "
+                    + LauncherInfo.VERSION + "). It's checked against the SHA-256 on evadeclient.com before it runs, then the launcher restarts.",
+                    "Update", null, null), null);
+    }
+
+    @Override public void updateLauncher() {
+        SelfUpdate.Update u = launcherUpdate;
+        if (u == null) return;
+        if (busy) { view.toast("Wait a moment: an install is still running"); return; }
+        view.toast("Downloading Evade Launcher v" + u.version());
+        work.submit(() -> {
+            if (SelfUpdate.install(u)) ui(this::quit);
+            else ui(() -> view.notice("The launcher update didn't finish", "Nothing was changed. Try again later, or download it from evadeclient.com.", true));
         });
     }
 

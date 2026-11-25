@@ -55,7 +55,8 @@ public class AutoReconnect extends Module {
             .describe("Don't reconnect when the kick message contains one of these, split with | (case doesn't matter). Bans, whitelist refusals and AFK kicks are always skipped."));
     private final BooleanSetting showButtons = add(new BooleanSetting("Show Buttons", true)
             .describe("Cancel and Reconnect Now buttons on the disconnect screen."));
-    private final ColorSetting countdownColor = add(new ColorSetting("Countdown Color", 0xFFFF3B4C));
+    private final ColorSetting countdownColor = add(new ColorSetting("Countdown Color", 0xFFFF3B4C)
+            .describe("Colour of the reconnect countdown on the disconnect screen."));
     private final ModeSetting countdownStyle = add(new ModeSetting("Countdown Style", "Text", "Text", "Text + Bar", "Hidden")
             .describe("How the countdown shows on the disconnect screen. Hidden still reconnects."));
     private final BooleanSetting titleButton = add(new BooleanSetting("Title Button", false)

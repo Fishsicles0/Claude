@@ -1,5 +1,5 @@
 title: Docs
-description: How to use Evade Client {{VERSION}}: the launcher, the menu, keybinds, chat commands, the HUD editor, waypoints and the World Map, Replay, Streamer Mode and Safe Start.
+description: How to use Evade Client {{VERSION}}: the launcher, the menu, keybinds, chat commands, the HUD editor, the World Map, Replay and Safe Start.
 nav: docs
 ---
 <header class="page-hero wrap">
@@ -163,7 +163,7 @@ nav: docs
           <li><b>Show Icons</b> &mdash; show icons next to other players.</li>
           <li><b>Show That I Use Evade</b> &mdash; let others see your icon. Switch it off and your icon is taken down straight away, and Evade stops reporting that you're online.</li>
         </ul>
-        <p>Your icon is verified through Mojang's sign-in check, the one servers already use, so it can't be faked. Evade only learns your username and player ID; your password and login token stay between you and Mojang. Icons need a Microsoft account; offline or cracked accounts don't get one.</p>
+        <p>Your icon is verified with the chat-signing key Mojang gives every Microsoft account (the one servers use to check signed chat), so it can't be faked. Evade only learns your player ID; your password, login token and username never reach us. Icons need a Microsoft account; offline or cracked accounts don't get one. What is sent and kept is in the <a href="/privacy#icons">privacy policy</a>.</p>
       </div>
 
       <div class="doc-sec rv" id="friends">
@@ -184,10 +184,12 @@ nav: docs
         <ul>
           <li><b>Auto</b> (the default): Evade Clips whenever the app is running, the built-in recorder otherwise.</li>
           <li><b>Evade Clips</b>: clips go to the app, with sound, where you can edit them and share links that play in Discord. See <a href="/clips">Evade Clips</a>.</li>
-          <li><b>Built-in</b>: Evade keeps the last 10&ndash;120 seconds of your screen in memory and saves them as an MP4 in <span class="mono">.minecraft/evade/clips</span>, at 480p, 720p or 1080p and 15&ndash;60 FPS. These clips are video only, with no sound.</li>
+          <li><b>Built-in</b>: Evade keeps the last 10&ndash;120 seconds of your screen in memory and saves them as an MP4 in <span class="mono">.minecraft/evade/clips</span>, at 480p, 720p or 1080p and 15&ndash;60 FPS. These clips are video only, with no sound: for sound, keep Evade Clips running.</li>
         </ul>
-        <p>Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> to save a clip. Evade also clips by itself with either recorder: your kills, totem pops of players you're fighting, wins and advancements are on by default, and deaths are off. <b>Seconds After</b> sets how long it keeps recording after the moment, and in Evade Clips each one gets a named marker on the timeline. Bind <b>Open Clips App</b> to open the app from in game.</p>
-        <p>Evade Clips works only with Evade Client: it records the Minecraft window while Minecraft with Evade Client is open, and only accepts clips from Evade Client.</p>
+        <p>Press <span class="kbd">F8</span> or type <span class="mono">.clip</span> (or <span class="mono">.clips save</span>) to save a clip; <span class="mono">.clips</span> opens Evade Clips and <span class="mono">.clips last</span> opens your newest clip in its editor. Evade also clips by itself with either recorder: your kills (close ones become one &ldquo;Double kill&rdquo; or &ldquo;Triple kill&rdquo; clip), totem pops of players you're fighting, wins and advancements are on by default, and deaths are off. <b>Seconds After</b> sets how long it keeps recording after the moment, and in Evade Clips each one gets a named marker on the timeline. Bind <b>Open Clips App</b> to open the app from in game.</p>
+        <p>Evade Clips works only with Evade Client: it records the Minecraft window while Minecraft with Evade Client is open, and only accepts clips from Evade Client. Windows records the monitor Minecraft is on with Desktop Duplication (or the Minecraft window itself if that isn't available), Linux the window's area of the X11 screen, and macOS the main screen. In Evade Clips, <span class="kbd">F8</span> saves, <span class="kbd">F9</span> starts or stops a recording and <span class="kbd">F7</span> drops a marker; with voice commands on, say &ldquo;clip that&rdquo; (or &ldquo;clip it&rdquo;, &ldquo;save clip&rdquo;, &ldquo;save that&rdquo;), &ldquo;start recording&rdquo;, &ldquo;stop recording&rdquo; or &ldquo;mark that&rdquo;.</p>
+        <p><b>Session recap</b> (the library's toolbar) makes one captioned video from the day's auto-clips, landscape or vertical. Replays you render from <a href="#replay">3D Replay</a> go to the Evade Clips library; <b>Queue render</b> on the Replays screen renders several one after another, each with a share link if you choose. Shared clips get 25 GB of free storage per PC; when it's full, new shares wait until you stop sharing older ones.</p>
+        <p><b>Server-safe recording:</b> Clips only records what's already on your screen. Servers can switch off the Clips mod like any Evade mod: auto-clips and the built-in recorder stop there (its buffer is dropped), and clips you've already saved stay on your PC.</p>
       </div>
 
       <div class="doc-sec rv" id="replay">

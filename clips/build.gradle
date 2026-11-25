@@ -4,13 +4,13 @@ plugins {
 }
 
 // Evade Clips: records, stores and edits gameplay clips. Standalone desktop app, no Minecraft dependencies.
-version = '1.1.0'
+version = '1.2.0'
 
 repositories { mavenCentral() }
 
 dependencies {
-    implementation 'com.google.code.gson:gson:2.11.0'
-    implementation 'com.formdev:flatlaf:3.5.4'
+    implementation 'com.google.code.gson:gson:2.15.0'
+    implementation 'com.formdev:flatlaf:3.8'
     // Global hotkeys (save a clip while the game has focus).
     implementation 'com.github.kwhat:jnativehook:2.2.2'
     // Offline speech recognition for voice commands ("clip that"). Compile-only: the engine (~30 MB of natives)
@@ -18,9 +18,9 @@ dependencies {
     compileOnly 'com.alphacephei:vosk:0.3.45'
     compileOnly 'net.java.dev.jna:jna:5.7.0'
     // QR code to open the phone gallery.
-    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:core:3.5.4'
     // Windows: records what the speakers play (WASAPI loopback) without Stereo Mix or a virtual cable.
-    implementation 'net.java.dev.jna:jna:5.17.0'
+    implementation 'net.java.dev.jna:jna:5.19.1'
 
     // Unit tests for the editor's model (`./gradlew :clips:test`); the export checks that need ffmpeg stay in selfTest.
     testImplementation platform('org.junit:junit-bom:5.11.4')

@@ -39,7 +39,8 @@ public class HitColor extends Module {
     /** Vanilla's death animation length, in ticks. */
     private static final float DEATH_TICKS = 20f;
 
-    public final ColorSetting color = add(new ColorSetting("Color", 0xFF3D7BFF));
+    public final ColorSetting color = add(new ColorSetting("Color", 0xFF3D7BFF)
+            .describe("The colour mobs and players flash when they take damage (vanilla is red)."));
     public final NumberSetting opacity = add(new NumberSetting("Opacity %", 70, 10, 100, 5)
             .describe("How much of the entity's own colours shows through the flash: lower is a stronger tint."));
     public final ModeSetting animation = add(new ModeSetting("Animation", "Static", "Static", "Fade Out")
@@ -48,7 +49,8 @@ public class HitColor extends Module {
             .describe("The flash while a mob or player dies: kept, faded out over the death animation, or none."));
     public final BooleanSetting separatePlayerColor = add(new BooleanSetting("Separate Player Color", false)
             .describe("Players flash in Player Color, mobs in Color."));
-    public final ColorSetting playerColor = add(new ColorSetting("Player Color", 0xFFFF5CC8));
+    public final ColorSetting playerColor = add(new ColorSetting("Player Color", 0xFFFF5CC8)
+            .describe("The flash colour for players, with Separate Player Color on."));
     public final BooleanSetting tintSelf = add(new BooleanSetting("Tint Self", true)
             .describe("Your own player flashes too (third person). Off: you never do."));
     public final BooleanSetting chroma = add(new BooleanSetting("Chroma", false)

@@ -19,7 +19,8 @@ public class VoiceChat extends Module {
     private static final Identifier SVC_CHANNEL = Identifier.of("voicechat", "request_secret");
 
     public final StatusSetting status = add((StatusSetting) new StatusSetting("Voice Chat", VoiceChat::statusLabel,
-            "click: voice menu").onClick(VoiceChat::openMenu));
+            "click: voice menu").onClick(VoiceChat::openMenu)
+            .describe("Whether this server supports Simple Voice Chat. Click to open its menu."));
 
     public VoiceChat() {
         super("Voice Chat", "Opens Simple Voice Chat and shows if this server supports it.", Category.MISC);

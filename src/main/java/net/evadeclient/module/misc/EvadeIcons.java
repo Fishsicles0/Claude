@@ -41,9 +41,12 @@ public class EvadeIcons extends Module {
     private static final Text ICON = Text.literal("\ue000").setStyle(Style.EMPTY.withFont(FONT));
     private static final long CACHE_MS = 5 * 60_000, PRESENCE_MS = 4 * 60_000, SCAN_MS = 30_000;
 
-    public final BooleanSetting showIcons = add(new BooleanSetting("Show Icons", true));
-    public final BooleanSetting shareMe = add(new BooleanSetting("Show That I Use Evade", true));
-    public final StatusSetting status = add(new StatusSetting("Status", () -> statusText, "auto"));
+    public final BooleanSetting showIcons = add(new BooleanSetting("Show Icons", true)
+            .describe("Shows an Evade logo in the tab list next to other players who are using Evade right now."));
+    public final BooleanSetting shareMe = add(new BooleanSetting("Show That I Use Evade", true)
+            .describe("Lets other Evade players see the icon next to your name. Off stops sharing it."));
+    public final StatusSetting status = add(new StatusSetting("Status", () -> statusText, "auto")
+            .describe("Whether Evade Icons is signed in and sharing, or why not."));
 
     private record Entry(boolean evade, long fetchedAt) {}
     private static final Map<UUID, Entry> CACHE = new ConcurrentHashMap<>();

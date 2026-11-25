@@ -44,24 +44,25 @@ LAYOUT = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
-<meta name="theme-color" content="#050506">
-<link rel="canonical" href="{url}">
+{robots}<meta name="theme-color" content="#050506">
+{index_meta}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Evade Client">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{site}/assets/og.png?v={og_key}">
+<meta property="og:image" content="{site}{og_img}?v={og_key}">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{og_alt}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="{site}/assets/og.png?v={og_key}">
+<meta name="twitter:image" content="{site}{og_img}?v={og_key}">
 <meta name="twitter:image:alt" content="{og_alt}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="alternate" type="application/rss+xml" title="Evade Client changelog" href="/changelog.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700;800&family=Chakra+Petch:ital,wght@1,700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -79,7 +80,7 @@ LAYOUT = """<!doctype html>
 {links}
     </div>
     <div class="nav-right">
-      <span class="nav-ver">v{version}</span>
+      <a href="/changelog" class="nav-ver" title="What's new in v{version}">v{version}</a>
       <a href="https://clips.evadeclient.com" class="btn btn-ghost btn-sm nav-clips">Evade Clips &#8599;</a>
       <a href="/download" class="btn btn-red btn-sm">Download</a>
       <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu"><span></span></button>
@@ -87,6 +88,11 @@ LAYOUT = """<!doctype html>
   </div>
   <div class="mobile-menu" id="mobileMenu">
 {mobile_links}
+    <div class="mm-more">
+      <a href="https://clips.evadeclient.com">Evade Clips <span aria-hidden="true">&#8599;</span></a>
+      <a href="/discord">Discord</a>
+    </div>
+    <a href="/download" class="btn btn-red btn-lg mm-dl">Download Evade</a>
   </div>
 </nav>
 
@@ -102,13 +108,13 @@ LAYOUT = """<!doctype html>
       <p>A free Fabric client for Minecraft {mc}. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Studios. Always follow the rules of the servers you play on.</p>
     </div>
     <div class="foot-cols">
-      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/download">Download</a></div>
-      <div><h5>Downloads</h5><a href="/download">Installer</a><a href="/clips">Evade Clips</a><a href="/download#install">Install guide</a></div>
-      <div><h5>Evade Clips</h5><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a><a href="/downloads/Evade-Clips.exe">Download</a></div>
-      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="https://discord.gg/PZSzSFX7DD" target="_blank" rel="noopener">Discord</a><a href="/privacy">Privacy policy</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
+      <div><h5>Client</h5><a href="/features">Features</a><a href="/showcase">Showcase</a><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/changelog.xml">Changelog RSS</a></div>
+      <div><h5>Get Evade</h5><a href="/download">Download</a><a href="/download#install">Install guide</a><a href="/download#verify">Check a download</a><a href="/clips">Evade Clips</a><a href="https://clips.evadeclient.com">clips.evadeclient.com</a></div>
+      <div><h5>Shop</h5><a href="/shop">Cosmetics</a><a href="/shop-terms">Terms of sale</a><a href="/press">Press kit</a></div>
+      <div><h5>Help</h5><a href="/faq">FAQ</a><a href="/faq#update">Updating</a><a href="/servers">Servers</a><a href="/discord">Discord</a><a href="mailto:privacy@evadeclient.com">Contact</a></div>
     </div>
   </div>
-  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made by the Evade Team &middot; <a href="/privacy">Privacy</a></span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
+  <div class="wrap foot-bottom"><span>&copy; 2026 Evade Client &middot; Made and run by the Evade Team &middot; <a href="mailto:privacy@evadeclient.com">privacy@evadeclient.com</a> &middot; <a href="/privacy">Privacy</a></span><span>v{version} &middot; Minecraft {mc} &middot; Fabric</span></div>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText">Download started. Open it and click <b>Install</b>.</span></div>
@@ -132,10 +138,19 @@ def page(name: str, meta: dict, body: str, ver: dict, keys: dict) -> str:
     path = "/" if name == "index" else f"/{name}"
     title = meta["title"] if name == "index" else f'{meta["title"]} · Evade Client'
     og_alt = f'Evade Client: free, server-safe quality of life for Minecraft {ver["minecraft"]}'
-    return LAYOUT.format(
+    # The error page must not be indexed or claim a canonical URL of its own; every other page names its address.
+    index_meta = ('<meta name="robots" content="noindex">' if name == "404"
+                  else f'<link rel="canonical" href="{SITE + path}">')
+    if name == "index":
+        index_meta += "\n" + software_ld(ver)
+    # A page can pick its own share picture (1200x630 PNG under site/assets) with an "image:" header line.
+    og_img = meta.get("image", "/assets/og.png")
+    keys = dict(keys, og_key=file_key(OUT / og_img.lstrip("/")))
+    return LAYOUT.format(index_meta=index_meta, og_img=og_img,
         title=html.escape(title), description=html.escape(meta["description"]), url=SITE + path, site=SITE,
         nav=nav, logo=LOGO, links=links, mobile_links=mobile, version=ver["version"], mc=ver["minecraft"],
-        og_alt=html.escape(og_alt), body=body.strip(), **keys)
+        og_alt=html.escape(og_alt), body=body.strip(),
+        robots=f'<meta name="robots" content="{html.escape(meta["robots"])}">\n' if meta.get("robots") else "", **keys)
 
 
 # ---------- the mod catalogue, read straight from the client source ----------
@@ -144,7 +159,11 @@ JAVA = ROOT / "src" / "main" / "java" / "net" / "evadeclient"
 MODULES = JAVA / "module"
 
 # Category enum key -> label on the site. Sorting follows this order; CLIENT (the Settings page) is left out.
-CATEGORY_ORDER = ["SERVER", "VISUALS", "HUD", "MODS", "MISC"]
+# The features page's "All" list follows the filter chips (HUD, Visuals, Controls, Server-facing, Misc), with the
+# headline mods first so the first cards a visitor sees are the ones most people install Evade for.
+CATEGORY_ORDER = ["HUD", "VISUALS", "MODS", "SERVER", "MISC"]
+FEATURED = ["Zoom", "Freelook", "World Map", "Replay", "Clips", "Keystrokes", "Cooldowns", "Crosshair", "Waypoints",
+            "Performance"]
 CATEGORY_LABEL = {"SERVER": "Server-facing", "VISUALS": "Visuals", "HUD": "HUD", "MODS": "Controls", "MISC": "Misc"}
 
 SETTING_TYPES = ("NumberSetting", "BooleanSetting", "ModeSetting", "ColorSetting", "KeySetting", "StringSetting", "ItemListSetting")
@@ -413,11 +432,13 @@ def color(expr: str):
 
 
 def key_name(k: str) -> str:
+    k = re.sub(r"^(?:[\w.]*\.)?mouseCode\((.*)\)$", r"\1", k.strip())  # KeySetting.mouseCode(GLFW_MOUSE_BUTTON_X)
     k = k.split(".")[-1].replace("GLFW_KEY_", "")
     if k in ("UNKNOWN", "-1"):
         return "None"
     if k.startswith("GLFW_MOUSE_BUTTON_"):
-        return "Mouse " + k.replace("GLFW_MOUSE_BUTTON_", "").title()
+        button = k.replace("GLFW_MOUSE_BUTTON_", "").title()
+        return {"Left": "Left Mouse Button", "Right": "Right Mouse Button", "Middle": "Middle Mouse Button"}.get(button, "Mouse " + button)
     return k.replace("_", " ").title()
 
 
@@ -554,6 +575,8 @@ def scan_settings(src: str, srcs: list, where: str) -> list:
                 c = color(vals[0])
                 if c is None:
                     raise ValueError
+                if c == "#000000" and num(vals[0]) == "0":  # 0 (no alpha) is "follow the theme", e.g. Keystrokes' colours
+                    c = "Theme"
                 st |= {"type": "color", "default": c}
             elif kind == "KeySetting":
                 st |= {"type": "key", "default": key_name(vals[0])}
@@ -671,7 +694,8 @@ def scan_mods(new: set) -> list:
     unknown = new - {f.stem for f in MODULES.rglob("*.java")}
     if unknown:
         warn(f"site-src/new.json names classes that don't exist: {', '.join(sorted(unknown))}")
-    mods.sort(key=lambda x: (CATEGORY_ORDER.index(x["slug"].upper()), x["name"].lower()))
+    mods.sort(key=lambda x: (FEATURED.index(x["name"]) if x["name"] in FEATURED else len(FEATURED),
+                             CATEGORY_ORDER.index(x["slug"].upper()), x["name"].lower()))
     return mods
 
 
@@ -732,6 +756,43 @@ def news_json(ver: dict, limit: int = 6) -> dict:
     return {"version": ver["version"], "entries": entries}
 
 
+def software_ld(ver: dict) -> str:
+    """schema.org SoftwareApplication for the home page: name, version, systems and the price (free). No ratings or
+    download counts: Evade doesn't publish numbers it hasn't measured."""
+    data = {
+        "@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Evade Client",
+        "applicationCategory": "GameApplication", "operatingSystem": "Windows, macOS, Linux",
+        "softwareVersion": ver["version"], "datePublished": ver["date"], "url": SITE + "/",
+        "downloadUrl": SITE + "/download", "image": SITE + "/assets/og.png",
+        "description": f"A free, server-safe Fabric client for Minecraft {ver['minecraft']} Java Edition.",
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+    }
+    return '<script type="application/ld+json">' + json.dumps(data, separators=(",", ":")) + "</script>"
+
+
+def changelog_rss(feed: dict) -> str:
+    """site/changelog.xml: an RSS 2.0 feed of the changelog, so people can follow releases in a feed reader."""
+    import email.utils, datetime
+    def when(d):
+        try:
+            return email.utils.format_datetime(datetime.datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc))
+        except ValueError:
+            return ""
+    items = []
+    for e in feed["entries"]:
+        body = "".join(f"<li>{html.escape(i)}</li>" for i in e["items"])
+        desc = f"<p>{html.escape(e['summary'])}</p>" + (f"<ul>{body}</ul>" if body else "")
+        items.append(
+            f"<item><title>{html.escape(e['title'])}</title><link>{html.escape(e['url'])}</link>"
+            f"<guid isPermaLink=\"true\">{html.escape(e['url'])}</guid>"
+            + (f"<pubDate>{when(e['date'])}</pubDate>" if when(e['date']) else "")
+            + f"<description>{html.escape(desc)}</description></item>")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>'
+            f"<title>Evade Client changelog</title><link>{SITE}/changelog</link>"
+            "<description>New versions of Evade Client, the free server-safe Minecraft client.</description>"
+            "<language>en</language>" + "".join(items) + "</channel></rss>\n")
+
+
 def file_key(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:10]
 
@@ -756,6 +817,12 @@ def main() -> None:
         "{{SIZE_EXE}}": ver["installer"]["windows"]["size"], "{{SHA_EXE}}": ver["installer"]["windows"]["sha256"],
         "{{SIZE_IJAR}}": ver["installer"]["jar"]["size"], "{{SHA_IJAR}}": ver["installer"]["jar"]["sha256"],
         "{{CLIPS_VERSION}}": clips.get("version", ""),
+        "{{SIZE_SHADERS}}": ((ver.get("shaders") or {}).get("evade") or {}).get("size", ""),
+        "{{SHA_SHADERS}}": ((ver.get("shaders") or {}).get("evade") or {}).get("sha256", ""),
+        "{{SHADERS_VERSION}}": ((ver.get("shaders") or {}).get("evade") or {}).get("version", ""),
+        # The launcher has its own version (installer/build.gradle), shown apart from the client's.
+        "{{LAUNCHER_VERSION}}": ver["installer"].get("version", ""),
+        "{{SHA_SERVER_API}}": (ver.get("serverApi") or {}).get("sha256", "not published yet"),
         "{{SIZE_CLIPS_EXE}}": (clips.get("windows") or {}).get("size", ""),
         "{{SHA_CLIPS_EXE}}": (clips.get("windows") or {}).get("sha256", ""),
         "{{SIZE_CLIPS_JAR}}": (clips.get("jar") or {}).get("size", ""),
@@ -765,6 +832,7 @@ def main() -> None:
     news_out = news_json(ver)
     (OUT / "news.json").write_text(json.dumps(news_out, ensure_ascii=False, indent=1) + "\n")
     print(f"news.json: {len(news_out['entries'])} changelog entries")
+    (OUT / "changelog.xml").write_text(changelog_rss(news_json(ver, limit=20)))
     tokens |= {"{{MODS_KEY}}": keys["mods_key"]}
     # The shop pages load their own stylesheet and script; cosmetics from site-src/cosmetics are served at /cosmetics/.
     tokens |= {"{{SHOP_KEY}}": hashlib.sha256(b"".join(
@@ -800,6 +868,8 @@ def main() -> None:
         text = src.read_text()
         for k, v in tokens.items():
             text = text.replace(k, v)
+        if n_new == 0:  # no new mods in this release: drop the empty "New 0" filter chip
+            text = re.sub(r'\s*<button class="tab" data-f="new">.*?</button>', "", text)
         head, body = text.split("\n---\n", 1)
         meta = dict(line.split(": ", 1) for line in head.strip().splitlines())
         out = OUT / src.name
@@ -819,9 +889,16 @@ def main() -> None:
 SITE = "https://evadeclient.com"
 
 
+def noindex(src: pathlib.Path) -> bool:
+    """True when a page's header block has "robots: ...noindex..."."""
+    head = src.read_text().split("\n---\n", 1)[0]
+    return any(line.startswith("robots:") and "noindex" in line for line in head.splitlines())
+
+
 def write_seo_files(ver: dict) -> None:
     """sitemap.xml and robots.txt for search engines, and _headers so browsers always use HTTPS."""
-    pages = sorted(p.stem for p in SRC.glob("*.html") if p.stem != "404")
+    # Pages whose header says "robots: noindex" (drafts such as shop-terms) stay out of the sitemap.
+    pages = sorted(p.stem for p in SRC.glob("*.html") if p.stem != "404" and not noindex(p))
     prio = {"index": "1.0", "download": "0.9", "features": "0.9", "clips": "0.8"}
     urls = "".join(
         f"  <url><loc>{SITE}{'/' if p == 'index' else '/' + p}</loc><lastmod>{ver['date']}</lastmod>"
@@ -834,7 +911,12 @@ def write_seo_files(ver: dict) -> None:
         "/*\n"
         "  Strict-Transport-Security: max-age=31536000; includeSubDomains\n"
         "  X-Content-Type-Options: nosniff\n"
-        "  Referrer-Policy: strict-origin-when-cross-origin\n")
+        "  Referrer-Policy: strict-origin-when-cross-origin\n"
+        # Pictures, videos, CSS and JS: a day in the browser, then refreshed in the background. site.css, site.js and
+        # mods.json are linked with a ?v= content hash, so a new version reaches visitors at once. Downloads and pages
+        # stay uncached, so nobody gets an old build.
+        "\n/assets/*\n  Cache-Control: public, max-age=86400, stale-while-revalidate=604800\n"
+        + "".join(f"\n/{p.stem}\n  X-Robots-Tag: noindex\n" for p in sorted(SRC.glob("*.html")) if noindex(p)))
     print(f"built sitemap.xml ({len(pages)} pages), robots.txt, _headers")
 
 

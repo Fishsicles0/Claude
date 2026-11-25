@@ -39,7 +39,7 @@ public final class Boot {
         String msg = "The Evade Launcher needs Java 17 or newer, but this file was opened with Java " + v + ".\n"
                 + "(" + System.getProperty("java.home") + ")\n\n"
                 + "You may already have a newer Java installed: your computer just opened the file with an older one.\n"
-                + "Installing the latest Java from adoptium.net makes it the default, then open the file again.";
+                + "Installing Java 21 from adoptium.net (Minecraft 1.21.11 needs it) makes it the default, then open the file again.";
         System.err.println(msg);
         if (GraphicsEnvironment.isHeadless()) System.exit(1);
         try {

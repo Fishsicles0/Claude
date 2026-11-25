@@ -21,8 +21,13 @@ clips in R2, and one deployment can serve a whole community.
 - **Storage cost:** R2 has free egress, so watching and downloading clips costs nothing; you pay only for
   storage beyond R2's free tier.
 
-- **Landing page with downloads.** `/` describes Evade Clips and serves its downloads from `public/downloads/`
-  (copied there by `scripts/build-site.sh`, with `clips.json` for versions and checksums).
+- **Landing page, one source of downloads.** `/` describes Evade Clips (built into the Evade Launcher, Minecraft
+  with Evade Client only). This host keeps no downloads of its own: `/downloads/<file>` redirects (302) to
+  `https://evadeclient.com/downloads/<file>`, and the sizes and checksums on the page come from the main site's
+  `site/version.json`, which `scripts/build-clips-share.py` re-checks against the files (it stops on any drift).
+  `/version.json` says what the deployed pages were built from; `scripts/check-clips-share.py` compares it with
+  evadeclient.com after a deploy. `/privacy` redirects to the privacy policy; `/robots.txt` and `/sitemap.xml` list the
+  public pages and keep the API, galleries and raw video out of search engines (private clip pages are `noindex`).
 - **Privacy.** Each clip is *link* (anyone with the link) or *private* (only people given that clip's private
   link, `/c/<clip>?k=<key>`). A private link opens that one clip, never the gallery or other clips, and making a
   clip private again gives it a new link. Uploads that never finish are deleted after a day. Deleting the account
@@ -65,15 +70,15 @@ Settings → Sharing & phone → *Share server*.
 Live at **https://clips.evadeclient.com** (Worker `evade-clips`, bucket `evade-clips`, `ADMIN_TOKEN` set).
 It's a standalone Evade Clips site in the main site's design system: `scripts/build-clips-share.py` builds its
 home page (`site/landing.html`) and page frame (own header, menu and footer) into `src/shell.js`, and the shared
-stylesheet, scripts, logo and screenshots are served from the bucket under `site/`; the downloads under `dl/`. After `scripts/build-site.sh`:
+stylesheet, scripts, logo and screenshots are served from the bucket under `site/`. After `scripts/build-site.sh`
+and after evadeclient.com is deployed with the same build:
 
 ```bash
 cd clips-share
-./sync-assets.sh                                        # shell.js + site/ and dl/ files into the bucket
-npx wrangler deploy --config wrangler.r2-downloads.jsonc
+./sync-assets.sh                          # rebuilds shell.js (stops if version.json and the files disagree), site/ files into the bucket
+npx wrangler deploy                       # the Worker carries the pages, so this is what updates clips.evadeclient.com
+python3 ../scripts/check-clips-share.py   # fails unless the live subdomain matches evadeclient.com
 ```
-
-`wrangler.r2-downloads.jsonc` must carry the same `triggers`, `ratelimits` and `vars` as `wrangler.jsonc`.
 
 Plain-http visits are redirected to https (301 for page loads, 308 for API calls so they keep their method and
 body), except when the `DEV` variable is set, as in the local test below.

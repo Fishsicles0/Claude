@@ -31,10 +31,12 @@ public class MemoryHud extends TextHudModule {
     private static final long ALERT_COOLDOWN_MS = 120_000, GC_WINDOW_MS = 60_000;
 
     private final ModeSetting format = add(new ModeSetting("Format", "Percent + Used/Max",
-            "Percent + Used/Max", "Percent", "Used/Max", "Used", "Free"));
+            "Percent + Used/Max", "Percent", "Used/Max", "Used", "Free")
+            .describe("Which numbers to show: the percentage used, used and maximum memory, only used, or how much is free."));
     private final ModeSetting unit = add(new ModeSetting("Unit", "Auto", "MB", "GB", "Auto")
             .describe("Auto shows GB when the game may use 10 GB or more, MB otherwise."));
-    private final ModeSetting label = add(new ModeSetting("Label", "Mem", "Mem", "RAM", "None"));
+    private final ModeSetting label = add(new ModeSetting("Label", "Mem", "Mem", "RAM", "None")
+            .describe("The word in front of the numbers: Mem, RAM, or nothing."));
     private final BooleanSetting showAllocated = add(new BooleanSetting("Show Allocated", false)
             .describe("Also show how much memory Java has reserved from the system so far, like F3's Allocated line."));
     private final NumberSetting refresh = add(new NumberSetting("Refresh Rate", 0.5, 0.05, 2.0, 0.05)
@@ -45,8 +47,10 @@ public class MemoryHud extends TextHudModule {
             .describe("Usage in percent from which the line uses Warning Color."));
     private final NumberSetting critAt = add(new NumberSetting("Critical At", 85, 60, 99, 1)
             .describe("Usage in percent from which the line uses Critical Color."));
-    private final ColorSetting warnColor = add(new ColorSetting("Warning Color", 0xFFFFD21F));
-    private final ColorSetting critColor = add(new ColorSetting("Critical Color", 0xFFE11D2E));
+    private final ColorSetting warnColor = add(new ColorSetting("Warning Color", 0xFFFFD21F)
+            .describe("Text colour once memory use passes Warning At, with Color By Usage on."));
+    private final ColorSetting critColor = add(new ColorSetting("Critical Color", 0xFFE11D2E)
+            .describe("Text colour once memory use passes Critical At, with Color By Usage on."));
     private final BooleanSetting alert = add(new BooleanSetting("High Usage Alert", false)
             .describe("Warn you (at most every two minutes) when memory is still above Critical At right after "
                     + "Java has freed what it can: the game needs more RAM."));
@@ -59,7 +63,8 @@ public class MemoryHud extends TextHudModule {
             .describe("Briefly flash the text whenever Java frees memory."));
     private final BooleanSetting usageBar = add(new BooleanSetting("Usage Bar", false)
             .describe("A bar under the text that fills as memory is used."));
-    private final NumberSetting barHeight = add(new NumberSetting("Bar Height", 2, 1, 4, 1));
+    private final NumberSetting barHeight = add(new NumberSetting("Bar Height", 2, 1, 4, 1)
+            .describe("Thickness of the Usage Bar in pixels."));
     private final BooleanSetting barAllocated = add(new BooleanSetting("Show Allocated On Bar", true)
             .describe("A fainter part of the bar for the memory Java has reserved but isn't using."));
 

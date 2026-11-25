@@ -331,10 +331,20 @@ public final class SettingsPanel extends JPanel {
         section("Sharing & phone");
         note("Share links play right inside Discord, and every shared clip also appears in a private gallery on your phone. "
                 + "No watermark is added and links don't expire. Clips go to clips.evadeclient.com by default. "
-                + "If your community runs its own share server, enter its address here.");
+                + "Only change the share server if you run one yourself or trust whoever does: they hold every clip you share there. "
+                + "Never paste an address a stranger or a guide sends you.");
         JTextField server = new JTextField(s.cloudUrl);
-        server.putClientProperty("JTextField.placeholderText", "https://clips.example.com");
-        commit(server, v -> s.cloudUrl = v);
+        server.putClientProperty("JTextField.placeholderText", net.evadeclient.clips.core.CloudShare.DEFAULT_SERVER);
+        boolean[] asking = {false};
+        Runnable setServer = () -> {
+            String v = server.getText().trim();
+            if (asking[0] || v.equals(s.cloudUrl == null ? "" : s.cloudUrl.trim())) return;
+            asking[0] = true;
+            try { applyServer(server, v, s); } finally { asking[0] = false; }
+        };
+        server.addActionListener(e -> setServer.run());
+        server.addFocusListener(new FocusAdapter() { @Override public void focusLost(FocusEvent e) { if (!e.isTemporary()) setServer.run(); } });
+
         row("Share server", server);
         JTextField secret = new JTextField(s.cloudRegisterSecret);
         secret.putClientProperty("JTextField.placeholderText", "Only for private servers");
@@ -763,8 +773,10 @@ public final class SettingsPanel extends JPanel {
                     java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(url), null);
                     JLabel img = new JLabel(new javax.swing.ImageIcon(qr));
                     JLabel txt = Theme.label("<html><body style='width:280px'>Scan with your phone's camera to see every clip you've shared or synced. "
-                            + "Add it to your home screen for one-tap access. The link is copied too. Keep it private; "
-                            + "Reset phone link makes a new one if it got out.<br><br>"
+                            + "Add it to your home screen for one-tap access. The link is copied too.<br><br>"
+                            + "<b>This code is a key.</b> Anyone who scans it or gets the link sees all your shared clips, private ones too, "
+                            + "and can upload videos into your library. Don't show it on stream or send it to anyone. "
+                            + "If it got out, close this and press Reset phone link: the old one stops working.<br><br>"
                             + Theme.size(stats.get("used").getAsLong()) + " of " + Theme.size(stats.get("quota").getAsLong()) + " used</body></html>", 12.5f, false, Theme.DIM);
                     JPanel p = new JPanel(new BorderLayout(0, 12));
                     p.add(img, BorderLayout.CENTER);
@@ -1034,6 +1046,24 @@ public final class SettingsPanel extends JPanel {
         b.addActionListener(e -> { set.accept(b.isSelected()); app.settings.save(); });
         Theme.pad(b, 4, 0, 4, 0);
         place(b, 0, 0);
+    }
+
+    /** Sets the share server after checking it: https only (or this computer), and a warning for anything but the default. */
+    private void applyServer(JTextField server, String v, Settings s) {
+        String bad = net.evadeclient.clips.core.CloudShare.serverProblem(v);
+        if (bad == null && !v.isEmpty() && !net.evadeclient.clips.core.CloudShare.isDefaultServer(v)
+                && JOptionPane.showConfirmDialog(this, "Send shared clips to " + v + " instead of clips.evadeclient.com?\n\n"
+                        + "That server is run by someone else. They can see, keep and delete every clip you share there,\n"
+                        + "and Evade can't remove them for you. Only use a server you run yourself or fully trust.",
+                "Use another share server?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION)
+            bad = "";
+        if (bad != null) {
+            if (!bad.isEmpty()) JOptionPane.showMessageDialog(this, bad, "Share server", JOptionPane.WARNING_MESSAGE);
+            server.setText(s.cloudUrl);
+            return;
+        }
+        s.cloudUrl = v;
+        s.save();
     }
 
     private void commit(JTextField f, Consumer<String> set) {

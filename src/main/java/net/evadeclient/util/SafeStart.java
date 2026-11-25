@@ -86,11 +86,16 @@ public final class SafeStart {
         ClientTickEvents.END_CLIENT_TICK.register(SafeStart::tick);
     }
 
-    private static boolean testing() {
-        return System.getProperty("fabric.client.gametest") != null || FabricLoader.getInstance().isModLoaded("evade-gametest");
+    /**
+     * Whether Evade's in-game tests are running: Loom's clientGameTest run sets {@code -Dfabric.client.gametest} in a
+     * development environment. A mod can't switch Safe Start or the first-run setup off by picking a mod id, and a
+     * normal install ignores the property.
+     */
+    public static boolean testing() {
+        return FabricLoader.getInstance().isDevelopmentEnvironment() && System.getProperty("fabric.client.gametest") != null;
     }
 
-    static boolean isTitle(Screen s) {
+    public static boolean isTitle(Screen s) {
         return s instanceof TitleScreen || s instanceof net.evadeclient.gui.EvadeTitleScreen;
     }
 

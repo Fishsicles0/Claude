@@ -12,6 +12,9 @@ import net.minecraft.util.math.MathHelper;
  * flying) and fold (sneaking, eased), and a pet that trails your turns and looks where you look.
  */
 public final class CosmeticMotion {
+    /** The most a pet trails your head's turn, in degrees: small enough that it never swings into your head. */
+    public static final float PET_LAG = 6f;
+
     private CosmeticMotion() {}
 
     public static void update(RenderData d, PlayerEntity p, PlayerEntityRenderState s, CosmeticItem cape) {
@@ -21,7 +24,7 @@ public final class CosmeticMotion {
         d.motion = true;
         if (dt <= 0) {
             d.capeLift = s.field_53536; d.capeSwing = s.field_53537; d.capeSide = s.field_53538;
-            d.petYaw = s.bodyYaw;
+            d.petYaw = s.bodyYaw + s.relativeHeadYaw;
             return;
         }
 
@@ -57,14 +60,16 @@ public final class CosmeticMotion {
         if (d.wingClock > 10_000f) d.wingClock -= 10_000f;
         d.fold = MathHelper.clamp(d.fold + (s.sneaking ? dt : -dt) / 0.25f, 0f, 1f);
 
-        // ---- pet: a follower that trails your turns, and looks where you look
-        if (!d.petInit) { d.petYaw = s.bodyYaw; d.petInit = true; }
-        float diff = MathHelper.wrapDegrees(s.bodyYaw - d.petYaw);
+        // ---- pet: rides beside your head (it turns with it, so it can never end up inside it), trailing your turns by
+        // a few degrees like a follower, and looks where you look
+        float headYaw = s.bodyYaw + s.relativeHeadYaw;
+        if (!d.petInit) { d.petYaw = headYaw; d.petInit = true; }
+        float diff = MathHelper.wrapDegrees(headYaw - d.petYaw);
         float pk = 28f, pc = 2f * (float) Math.sqrt(pk) * 0.85f;
         d.petYawV += (pk * diff - pc * d.petYawV) * dt;
         d.petYaw += d.petYawV * dt;
-        d.petLag = MathHelper.clamp(MathHelper.wrapDegrees(s.bodyYaw - d.petYaw), -70f, 70f);
-        d.petYaw = s.bodyYaw - d.petLag;
+        d.petLag = MathHelper.clamp(MathHelper.wrapDegrees(headYaw - d.petYaw), -PET_LAG, PET_LAG);
+        d.petYaw = headYaw - d.petLag;
         float look = 1f - (float) Math.exp(-dt * 7f);
         d.petLookYaw += (MathHelper.clamp(s.relativeHeadYaw, -50f, 50f) - d.petLookYaw) * look;
         d.petLookPitch += (MathHelper.clamp(s.pitch, -40f, 40f) - d.petLookPitch) * look;

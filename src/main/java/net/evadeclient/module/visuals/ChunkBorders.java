@@ -14,7 +14,8 @@ import net.minecraft.util.math.ChunkPos;
  * height.
  */
 public class ChunkBorders extends Module {
-    public final ColorSetting color = add(new ColorSetting("Color", 0xFFE11D2E));
+    public final ColorSetting color = add(new ColorSetting("Color", 0xFFE11D2E)
+            .describe("Colour of the chunk border lines."));
     public final NumberSetting height = add(new NumberSetting("Height", 32, 8, 96, 4)
             .describe("How many blocks above and below you the grid reaches."));
     private final BooleanSetting sectionLines = add(new BooleanSetting("Section Lines", true)

@@ -5,16 +5,41 @@ main site (its stylesheet, fonts and components), with its own header, menu and 
 Writes clips-share/src/shell.js with:
   LANDING     the home page (clips-share/site/landing.html in the layout)
   TOP/BOTTOM  the layout around page content, for clip pages, the phone gallery and error pages
-The stylesheet, scripts, logo and screenshots are served from the R2 bucket (see clips-share/sync-assets.sh);
-versions, sizes and checksums come from clips-share/public/downloads/clips.json.
+  BUILD       what the pages were built from (served at /version.json, checked by scripts/check-clips-share.py)
+The stylesheet, scripts, logo and screenshots are served from the R2 bucket (see clips-share/sync-assets.sh).
+
+One source of truth for downloads: clips.evadeclient.com keeps no copies of its own. Every download link points at
+evadeclient.com/downloads, and versions, sizes and checksums come from the main site's site/version.json, written by
+scripts/build-site.sh from the same files. This script re-hashes site/downloads/ and stops if anything differs, so
+the two sites can't show different files or checksums for the same version.
 """
+import hashlib
 import json
 import pathlib
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SHARE = ROOT / "clips-share"
-dl = json.loads((SHARE / "public" / "downloads" / "clips.json").read_text())
-css_v = json.loads((ROOT / "site" / "version.json").read_text())["version"]  # cache-busts the shared stylesheet
+site = json.loads((ROOT / "site" / "version.json").read_text())
+css_v = site["version"]  # cache-busts the shared stylesheet
+
+
+def checked(entry: dict, what: str) -> dict:
+    """The version.json entry for a download, after checking the file in site/downloads matches it."""
+    f = ROOT / "site" / entry["file"]
+    if not f.is_file():
+        sys.exit(f"build-clips-share: {f.relative_to(ROOT)} is missing (run scripts/build-site.sh first)")
+    data = f.read_bytes()
+    sha, size = hashlib.sha256(data).hexdigest(), f"{len(data) // 1024} KB"
+    if sha != entry["sha256"] or size != entry["size"]:
+        sys.exit(f"build-clips-share: {what} drifted: site/version.json says {entry['size']} {entry['sha256']}, "
+                 f"{f.relative_to(ROOT)} is {size} {sha}. Rebuild with scripts/build-site.sh.")
+    return entry
+
+
+clips = site["clips"]
+dl = {"version": clips["version"], "windows": checked(clips["windows"], "Evade-Clips.exe"), "jar": checked(clips["jar"], "EvadeClips.jar")}
+inst = {"windows": checked(site["installer"]["windows"], "Evade-Installer.exe"), "jar": checked(site["installer"]["jar"], "EvadeInstaller.jar")}
 
 LOGO = ('<img src="/assets/logo-mark.svg" alt="" width="32" height="32">'
         '<span><span class="wordmark">EVADE</span><span class="logo-tag">CLIPS</span></span>')
@@ -72,12 +97,12 @@ FOOT = """</main>
   <div class="wrap foot">
     <div>
       <a href="/" class="logo" aria-label="Evade Clips home">LOGO</a>
-      <p>Record, edit and share your gameplay. Free, with no watermark and no ads.</p>
+      <p>Record, edit and share your Minecraft clips with Evade Client. Built into the Evade Launcher. Free, with no watermark and no ads.</p>
     </div>
     <div class="foot-cols">
       <div><h5>Product</h5><a href="/#features">Features</a><a href="/#editor">Editor</a><a href="/presets">Presets</a><a href="/#share">Sharing</a></div>
-      <div><h5>Download</h5><a href="/downloads/Evade-Clips.exe">Windows</a><a href="/downloads/EvadeClips.jar">macOS &amp; Linux</a><a href="/#checksums">Checksums</a></div>
-      <div><h5>Help</h5><a href="/#faq">FAQ</a><a href="/#report">Report a clip</a></div>
+      <div><h5>Download</h5><a href="https://evadeclient.com/downloads/Evade-Installer.exe">Evade Launcher (Windows)</a><a href="https://evadeclient.com/download">macOS &amp; Linux</a><a href="/#checksums">Checksums</a></div>
+      <div><h5>Help</h5><a href="/#faq">FAQ</a><a href="/#report">Report a clip</a><a href="https://evadeclient.com/privacy#clips">Privacy</a><a href="https://evadeclient.com/clips">Evade Clips on evadeclient.com</a></div>
     </div>
   </div>
   <div class="wrap foot-bottom"><span>&copy; 2026 Evade Clips</span><span>vVERSION</span></div>
@@ -100,9 +125,14 @@ top, bottom = fill(HEAD), fill(FOOT)
 
 body = (SHARE / "site" / "landing.html").read_text()
 for k, v in {"{{VERSION}}": dl["version"], "{{SIZE_EXE}}": dl["windows"]["size"], "{{SHA_EXE}}": dl["windows"]["sha256"],
-             "{{SIZE_JAR}}": dl["jar"]["size"], "{{SHA_JAR}}": dl["jar"]["sha256"]}.items():
+             "{{SIZE_JAR}}": dl["jar"]["size"], "{{SHA_JAR}}": dl["jar"]["sha256"],
+             "{{SIZE_INSTALLER}}": inst["windows"]["size"], "{{SHA_INSTALLER}}": inst["windows"]["sha256"],
+             "{{SIZE_INSTALLER_JAR}}": inst["jar"]["size"], "{{SHA_INSTALLER_JAR}}": inst["jar"]["sha256"]}.items():
     body = body.replace(k, v)
-desc = "Evade Clips: instant replay, auto-clips, voice commands, a full editor and share links that play in Discord. Free, no watermark, no ads."
+if "{{" in body:
+    sys.exit("build-clips-share: unfilled placeholder in landing.html: " + body[body.index("{{"):][:40])
+desc = ("Evade Clips, built into the Evade Launcher, records Minecraft with Evade Client: instant replay, auto-clips, "
+        "voice commands, a full editor and share links that play in Discord. Free, no watermark, no ads.")
 landing_head = (f'<meta name="description" content="{desc}">\n<link rel="canonical" href="https://clips.evadeclient.com/">\n'
                 '<meta property="og:type" content="website">\n<meta property="og:site_name" content="Evade Clips">\n'
                 '<meta property="og:title" content="Evade Clips: clip it, edit it, share it">\n'
@@ -112,11 +142,17 @@ landing_head = (f'<meta name="description" content="{desc}">\n<link rel="canonic
 landing = (top.replace("{{TITLE}}", "Evade Clips: clip it, edit it, share it").replace("{{HEAD}}", landing_head)
            + "\n" + body + bottom)
 
+# What this build shows, so a release can check the live subdomain matches the main site (scripts/check-clips-share.py).
+build = {"site": site["version"], "date": site.get("date", ""),
+         "clips": {"version": dl["version"], "windows": dl["windows"]["sha256"], "jar": dl["jar"]["sha256"]},
+         "installer": {"windows": inst["windows"]["sha256"], "jar": inst["jar"]["sha256"]}}
+
 out = SHARE / "src" / "shell.js"
 out.write_text(
     "// Generated by scripts/build-clips-share.py from clips-share/site/landing.html. Do not edit by hand.\n"
     f"export const LANDING = {json.dumps(landing)};\n"
     f"export const TOP = {json.dumps(top)};\n"
     f"export const BOTTOM = {json.dumps(bottom)};\n"
+    f"export const BUILD = {json.dumps(build)};\n"
 )
 print(f"wrote {out.relative_to(ROOT)} ({out.stat().st_size // 1024} KB)")

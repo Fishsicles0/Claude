@@ -34,8 +34,11 @@ public class AutoTip extends Module {
             .describe("How often to tip while you stay on the server."));
     private final StringSetting serverFilter = add(new StringSetting("Server Filter", "hypixel.net", "addresses split by |")
             .describe("Only tip on servers whose address contains one of these, split with | (case doesn't matter)."));
-    private final ModeSetting command = add(new ModeSetting("Command", "tip all", "tip all")
-            .describe("The command sent each time. Only tip commands can be chosen."));
+    /** The only command AutoTip ever sends: shown as a read-only line, not a choice with one option. */
+    private static final String COMMAND = "tip all";
+    private final net.evadeclient.setting.StatusSetting command = add(new net.evadeclient.setting.StatusSetting("Command",
+            () -> "/" + COMMAND, "fixed")
+            .describe("The command sent each time. It is always /tip all, the only command AutoTip sends."));
     private final BooleanSetting tipOnJoin = add(new BooleanSetting("Tip On Join", true)
             .describe("Tip once Join Delay after you join, instead of waiting a whole interval first."));
     private final NumberSetting joinDelay = add(new NumberSetting("Join Delay (s)", 30, 10, 120, 5)
@@ -89,7 +92,7 @@ public class AutoTip extends Module {
         sentAt = now;
         summarized = false;
         sessionTips++;
-        mc.player.networkHandler.sendChatCommand(command.get());
+        mc.player.networkHandler.sendChatCommand(COMMAND);
     }
 
     private long interval() { return (long) (minutes.get() * 60_000); }

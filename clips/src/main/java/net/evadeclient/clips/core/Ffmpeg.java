@@ -251,8 +251,11 @@ public final class Ffmpeg {
     public static void downloadForWindows(DoubleConsumer progress) throws IOException, InterruptedException {
         java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder().followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
                 .connectTimeout(java.time.Duration.ofSeconds(15)).build();
-        String expected = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP + ".sha256")).timeout(java.time.Duration.ofSeconds(30)).build(),
-                java.net.http.HttpResponse.BodyHandlers.ofString()).body().trim().split("\\s+")[0];
+        var shaRes = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(FFMPEG_ZIP + ".sha256")).timeout(java.time.Duration.ofSeconds(30)).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        String expected = shaRes.statusCode() == 200 ? shaRes.body().trim().split("\\s+")[0] : "";
+        // No checksum, no download: ffmpeg is never installed unchecked.
+        if (!expected.matches("[0-9a-fA-F]{64}")) throw new IOException("ffmpeg's checksum couldn't be fetched, so it wasn't downloaded. Try again later.");
         Path bin = Settings.appDir().resolve("ffmpeg").resolve("bin");
         Files.createDirectories(bin);
         Path zip = bin.resolveSibling("ffmpeg-download.zip");

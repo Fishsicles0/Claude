@@ -86,6 +86,8 @@ public final class LauncherView extends JPanel {
         default void play() {}
         default void setupInstall() {}
         default void retryRelease() {}
+        /** Download, check and start the newer launcher the player agreed to (see SelfUpdate). */
+        default void updateLauncher() {}
         default void select(Launcher.Instance i) {}
         default void createInstance(String name, String copyFrom) {}
         default void rename(Launcher.Instance i, String name) {}
@@ -596,6 +598,12 @@ public final class LauncherView extends JPanel {
             // settings
             case "set-close" -> { settings.closeOnPlay = !settings.closeOnPlay; actions.settingsChanged(); }
             case "set-updates" -> { settings.checkUpdates = !settings.checkUpdates; actions.settingsChanged(); }
+            case "set-gpu" -> {
+                settings.preferGpu = !settings.preferGpu;
+                actions.settingsChanged();
+                java.nio.file.Path mc = settings.minecraftDir();
+                new Thread(settings.preferGpu ? () -> GpuPreference.apply(mc) : GpuPreference::undo, "gpu-preference").start();
+            }
             case "set-replay" -> { if (clips != null) actions.setReplay(!clips.settings.replayEnabled); }
             case "set-tray" -> { if (clips != null) { clips.settings.minimizeToTray = !clips.settings.minimizeToTray; clips.settings.save(); } }
             case "java-browse" -> actions.browseJava();
@@ -759,6 +767,7 @@ public final class LauncherView extends JPanel {
                 actions.saveServer(m.index(), text.isEmpty() ? addr : text, addr);
             }
             case "remove-mod" -> actions.removeMod(m.mod());
+            case "self-update" -> actions.updateLauncher();
             case "group" -> {
                 if (text.isEmpty()) return;
                 extras.setGroup(m.target(), text);
@@ -2615,14 +2624,16 @@ public final class LauncherView extends JPanel {
         // ---- Launcher
         int rx = lx + lw + 24, jx = rx + 24, jw = rw - 48;
         boolean tray = clips != null && clips.settings.minimizeToTray;
-        int lh = clips != null ? 56 + 4 * 58 + 8 : 56 + 2 * 58 + 8;
+        int lh = (clips != null ? 56 + 4 * 58 + 8 : 56 + 2 * 58 + 8) + (InstallerCore.WINDOWS ? 58 : 0);
         card(g, rx, y, rw, lh, false);
         g.setFont(interBold.deriveFont(17f));
         g.setColor(TEXT);
         g.drawString("Launcher", jx, y + 40);
         int sy = y + 52;
         sy = toggleRow(g, "set-close", jx, sy, jw, "Hide on Play", tray ? "To the tray: Clips keeps recording" : "Once the Minecraft Launcher opens", settings.closeOnPlay, false);
-        sy = toggleRow(g, "set-updates", jx, sy, jw, "Update automatically", "Keeps this launcher current", settings.checkUpdates, clips == null);
+        sy = toggleRow(g, "set-updates", jx, sy, jw, "Launcher updates", "Ask when a newer version is out", settings.checkUpdates, clips == null && !InstallerCore.WINDOWS);
+        if (InstallerCore.WINDOWS)
+            sy = toggleRow(g, "set-gpu", jx, sy, jw, "Faster graphics card", "Windows graphics setting for Minecraft's Java", settings.preferGpu, clips == null);
         if (clips != null) {
             sy = toggleRow(g, "set-replay", jx, sy, jw, "Instant replay", "Evade Clips records while you play", clips.settings.replayEnabled, false);
             toggleRow(g, "set-tray", jx, sy, jw, "Keep running in the tray", "When the window is closed", tray, true);

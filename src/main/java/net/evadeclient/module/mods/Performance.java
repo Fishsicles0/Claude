@@ -84,8 +84,10 @@ import java.util.function.Function;
  * ever changes the values in effect, never your settings, and never goes below its own floors.
  */
 public class Performance extends Module {
-    public final BooleanSetting entityCulling = add(new BooleanSetting("Entity Culling", true));
-    public final NumberSetting entityDistance = add(new NumberSetting("Entity Distance", 64, 16, 160, 8));
+    public final BooleanSetting entityCulling = add(new BooleanSetting("Entity Culling", true)
+            .describe("Skips drawing mobs and other entities farther away than Entity Distance. Bosses, holograms, map art, glowing and name-tagged entities always show."));
+    public final NumberSetting entityDistance = add(new NumberSetting("Entity Distance", 64, 16, 160, 8)
+            .describe("How far away entities are still drawn while Entity Culling is on, in blocks."));
     public final NumberSetting itemDistance = add(new NumberSetting("Item Distance", 32, 8, 128, 8)
             .describe("Dropped items farther away than this aren't drawn."));
     public final NumberSetting decorationDistance = add(new NumberSetting("Decoration Distance", 48, 8, 128, 8)
@@ -94,43 +96,61 @@ public class Performance extends Module {
             .describe("Also skip far arrows, tridents, thrown items and experience orbs. Your own are always drawn. Off: the game decides, as usual."));
     public final NumberSetting projectileDistance = add(new NumberSetting("Projectile & XP Distance", 48, 16, 160, 8)
             .describe("How far projectiles and experience orbs are drawn while Cull Projectiles & XP is on."));
-    public final BooleanSetting alwaysPlayers = add(new BooleanSetting("Always Show Players", true));
-    public final BooleanSetting blockEntityCulling = add(new BooleanSetting("Block Entity Culling", true));
-    public final NumberSetting blockEntityDistance = add(new NumberSetting("Block Entity Distance", 40, 16, 64, 4));
-    public final StatusSetting culledNow = add(new StatusSetting("Culled Right Now", this::culledNowText, "last frame"));
-    public final BooleanSetting singleItems = add(new BooleanSetting("Render One Item Per Stack", true));
+    public final BooleanSetting alwaysPlayers = add(new BooleanSetting("Always Show Players", true)
+            .describe("Other players are drawn as far as the game normally draws them, whatever Entity Distance says."));
+    public final BooleanSetting blockEntityCulling = add(new BooleanSetting("Block Entity Culling", true)
+            .describe("Skips drawing chests, signs, banners, beds and similar blocks farther away than Block Entity Distance."));
+    public final NumberSetting blockEntityDistance = add(new NumberSetting("Block Entity Distance", 40, 16, 64, 4)
+            .describe("How far away chests, signs and other block entities are still drawn, in blocks. Never past the game's own 64."));
+    public final StatusSetting culledNow = add(new StatusSetting("Culled Right Now", this::culledNowText, "last frame")
+            .describe("How many entities and block entities were skipped in the last frame."));
+    public final BooleanSetting singleItems = add(new BooleanSetting("Render One Item Per Stack", true)
+            .describe("A dropped stack of items is drawn as a single item instead of a small pile."));
     public final NumberSetting particlePercent = add(new NumberSetting("Particles Kept %", 60, 10, 100, 10)
             .describe("Share of particles still drawn; the rest are skipped. Lower helps FPS where there are lots of them."));
     // Effects: the particles and extras that cost frames without telling you anything.
-    public final NumberSetting particleDistance = add(new NumberSetting("Particle Distance", 32, 8, 96, 4));
+    public final NumberSetting particleDistance = add(new NumberSetting("Particle Distance", 32, 8, 96, 4)
+            .describe("Particles farther away than this are skipped. Fishing bites, splashes, explosions and fireworks always show."));
     public final NumberSetting maxParticles = add(new NumberSetting("Max Particles", 4000, 500, 16000, 500)
             .describe("A hard limit on live particles: past it new ones are skipped until some fade. Fishing bites, splashes and fireworks always show."));
-    public final BooleanSetting ambientParticles = add(new BooleanSetting("Hide Ambient Particles", true));
+    public final BooleanSetting ambientParticles = add(new BooleanSetting("Hide Ambient Particles", true)
+            .describe("Hides decorative particles that tell you nothing: campfire smoke, ash, spores, falling leaves, water drips and fireflies."));
     /** Off by default: dripping lava is how you spot lava above you. */
-    public final BooleanSetting lavaDrips = add(new BooleanSetting("Hide Lava Drips", false));
-    public final BooleanSetting lessDust = add(new BooleanSetting("Less Block Break Dust", true));
-    public final BooleanSetting rainSplashes = add(new BooleanSetting("Hide Rain Splashes", true));
-    public final BooleanSetting mobFire = add(new BooleanSetting("Hide Fire On Mobs", true));
-    public final BooleanSetting weather = add(new BooleanSetting("Hide Rain & Snow", false));
+    public final BooleanSetting lavaDrips = add(new BooleanSetting("Hide Lava Drips", false)
+            .describe("Also hides lava dripping through ceilings. Off by default, because drips warn you there is lava above."));
+    public final BooleanSetting lessDust = add(new BooleanSetting("Less Block Break Dust", true)
+            .describe("Draws only a quarter of the dust that flies off a block while you break it."));
+    public final BooleanSetting rainSplashes = add(new BooleanSetting("Hide Rain Splashes", true)
+            .describe("Hides the small splashes raindrops make on the ground."));
+    public final BooleanSetting mobFire = add(new BooleanSetting("Hide Fire On Mobs", true)
+            .describe("Burning mobs skip their fire layer. Players on fire still show it."));
+    public final BooleanSetting weather = add(new BooleanSetting("Hide Rain & Snow", false)
+            .describe("Stops drawing falling rain and snow. The weather itself and its sounds are unchanged."));
     /** On top of the game's "Reduce FPS when": applies only with "AFK" there (with "Minimized" the game keeps full speed). */
-    public final BooleanSetting unfocusedCap = add(new BooleanSetting("Low FPS When Tabbed Out", true));
-    public final NumberSetting unfocusedFps = add(new NumberSetting("Tabbed Out FPS", 30, 5, 60, 5));
+    public final BooleanSetting unfocusedCap = add(new BooleanSetting("Low FPS When Tabbed Out", true)
+            .describe("Lowers the frame rate while another window has focus, so your PC runs cooler. Only while the game's \"Reduce FPS when\" is AFK (its default)."));
+    public final NumberSetting unfocusedFps = add(new NumberSetting("Tabbed Out FPS", 30, 5, 60, 5)
+            .describe("Frame rate used while Low FPS When Tabbed Out is on and the game isn't the focused window."));
     /** Only ever lowers the game's own 10 FPS while minimised; in a world it stays at {@link #MIN_WORLD_FPS} or more. */
     public final NumberSetting minimisedFps = add(new NumberSetting("Minimised FPS", 1, 1, 10, 1)
-            .describe("Frame rate while the game is minimised (the game's own is 10). In a world it stays at 4 or more, so the game keeps running at full speed."));
+            .describe("Frame rate while the game is minimised (the game's own is 10). Used as set outside a world (title screen, server list); in a world it never goes below 4, so the game keeps all 20 ticks a second."));
     public final NumberSetting backgroundVolume = add(new NumberSetting("Volume When Tabbed Out %", 100, 0, 100, 10)
             .describe("Turns every sound down while the game isn't the focused window. Your volume settings are never changed."));
     /** On top of the game's "Reduce FPS when": applies only with "AFK" there, and only ever lowers the game's own cap. */
-    public final BooleanSetting afkCap = add(new BooleanSetting("Low FPS When AFK", true));
-    public final NumberSetting afkSeconds = add(new NumberSetting("AFK After (s)", 60, 15, 600, 15));
-    public final NumberSetting afkFps = add(new NumberSetting("AFK FPS", 15, 5, 60, 5));
+    public final BooleanSetting afkCap = add(new BooleanSetting("Low FPS When AFK", true)
+            .describe("Lowers the frame rate after a while with no mouse or keyboard input; any input brings full speed back. Only while the game's \"Reduce FPS when\" is AFK."));
+    public final NumberSetting afkSeconds = add(new NumberSetting("AFK After (s)", 60, 15, 600, 15)
+            .describe("Seconds without any input before Low FPS When AFK kicks in."));
+    public final NumberSetting afkFps = add(new NumberSetting("AFK FPS", 15, 5, 60, 5)
+            .describe("Frame rate used while you are AFK. Only ever lowers the game's own cap."));
     public final BooleanSetting adaptive = add(new BooleanSetting("Adaptive Quality", false)
             .describe("While the frame rate is under Target FPS, thin particles first, then draw entities and block entities less far. Everything comes back once it recovers."));
     public final NumberSetting targetFps = add(new NumberSetting("Target FPS", 90, 30, 240, 10)
             .describe("The frame rate Adaptive Quality aims for. Never above your Max Framerate or, with VSync, your monitor's refresh rate."));
     public final ModeSetting adaptSpeed = add(new ModeSetting("Adapt Speed", "Normal", "Slow", "Normal", "Fast")
             .describe("How quickly Adaptive Quality reacts to the frame rate."));
-    public final StatusSetting adaptiveNow = add(new StatusSetting("Adaptive Now", this::adaptiveNowText, "live"));
+    public final StatusSetting adaptiveNow = add(new StatusSetting("Adaptive Now", this::adaptiveNowText, "live")
+            .describe("How much lighter Adaptive Quality is running right now to hold Target FPS."));
     /** One-click presets that set the options below. Changing any of them afterwards is fine: the preset only applies when picked. */
     public final ModeSetting fpsMode = add(new ModeSetting("FPS Mode", "Balanced", "Max FPS", "Balanced", "Quality", "Custom")
             .describe("Max FPS: the highest frame rate, render distance up to 8. Balanced: big gains while it still looks good, render distance up to 12. Quality: unlocks the frame rate, keeps your visuals and sharpens distant textures. Custom: set everything yourself."));
@@ -153,7 +173,8 @@ public class Performance extends Module {
             .describe("How the smaller world image is scaled up. Evade (best): Evade's own edge-aware upscaler, which keeps edges clean and detail crisp, so 50 to 80% looks close to full resolution. Smooth: filtered, soft edges. Sharp: blocky, pixel-exact."));
     public final BooleanSetting sharpen = add(new BooleanSetting("Sharpen", true)
             .describe("A light sharpening pass on the scaled-up world that wins back detail without halos. Costs next to nothing. Only used below 100%."));
-    public final StatusSetting renderScaleNow = add(new StatusSetting("Render Scale Now", this::renderScaleText, "live"));
+    public final StatusSetting renderScaleNow = add(new StatusSetting("Render Scale Now", this::renderScaleText, "live")
+            .describe("The resolution the world is being drawn at right now, or why Render Scale is paused."));
     /** Why Render Scale is paused right now (null = it isn't). */
     private String renderScalePaused;
     /** Iris shader packs the launcher adds. "Leave Alone" never touches Iris; any other choice applies once when picked. */
@@ -171,23 +192,29 @@ public class Performance extends Module {
             .describe("Turns on anisotropic texture filtering when yours is off, so floors and walls stay crisp at a distance. Costs very little on most graphics cards. Ignored while Low-End PC Mode is on."));
     public final BooleanSetting borderless = add(new BooleanSetting("Borderless Fullscreen", false)
             .describe("Fills the screen with a frameless window instead of the game's own fullscreen: instant Alt-Tab and no flicker on a second monitor. While F11 fullscreen is on, that one is used."));
-    public final StatusSetting addons = add(new StatusSetting("FPS Mods Installed", Performance::installedAddons, "via installer"));
+    public final StatusSetting addons = add((StatusSetting) new StatusSetting("FPS Mods Installed", Performance::installedAddons,
+            "click: get more").onClick(net.evadeclient.gui.ModBrowserScreen::openOptimization)
+            .describe("How many of the performance mods the Evade installer adds are loaded right now. Click to find them in the Mod Browser."));
     public final BooleanSetting tuneSodium = add(new BooleanSetting("Tune Sodium Too", true)
             .describe("FPS Mode also sets Sodium and Sodium Extra when they're installed: Max FPS turns off water, lava, fire and portal animations and the stars, and defers chunk updates; Max FPS and Balanced size Sodium's chunk build threads to your processor. Your own Sodium settings come back when you turn this off."));
-    public final StatusSetting sodiumNow = add(new StatusSetting("Also Changed In Sodium", SodiumBridge::status, "live"));
+    public final StatusSetting sodiumNow = add(new StatusSetting("Also Changed In Sodium", SodiumBridge::status, "live")
+            .describe("What Tune Sodium Too changed in Sodium right now, or why it couldn't."));
     // HUD cache: Evade's widgets are drawn once and repeated until something changes (see HudCache).
     public final ModeSetting hudRefresh = add(new ModeSetting("HUD Refresh", "Auto", "Auto", "Every Frame", "60 Hz", "30 Hz")
             .describe("How often Evade's HUD widgets are redrawn. Between redraws the last drawing is reused, and a widget whose text changes is redrawn at once. Auto: 60 times a second while the game runs above 90 FPS, every frame below that. Moving widgets (minimap, graphs, keystrokes while a key lights up) are drawn every frame."));
-    public final StatusSetting hudCacheNow = add(new StatusSetting("HUD Cache Now", HudCache::status, "live"));
+    public final StatusSetting hudCacheNow = add(new StatusSetting("HUD Cache Now", HudCache::status, "live")
+            .describe("How often Evade's HUD is actually being redrawn right now."));
     // Battery and frame pacing.
     public final ModeSetting batteryCap = add(new ModeSetting("Battery FPS Cap", "60", "Off", "60", "90")
             .describe("While your laptop runs on battery, the frame rate is held at this, for a longer battery life and a cooler laptop. Plugged in, nothing changes."));
-    public final StatusSetting powerNow = add(new StatusSetting("Power Now", this::powerText, "live"));
+    public final StatusSetting powerNow = add(new StatusSetting("Power Now", this::powerText, "live")
+            .describe("Whether your laptop is on battery or plugged in, and any Battery FPS Cap in effect."));
     public final BooleanSetting smoothPacing = add(new BooleanSetting("Smooth Pacing", false)
             .describe("Caps the frame rate 3 below your monitor's refresh rate and spaces frames evenly, for steadier motion without VSync's input delay. Only used while VSync is off."));
     /** The graphics the laptop profile last looked at (so it's applied once per GPU, not on every start). */
     public final StringSetting tunedGpu = add(new StringSetting("Tuned For Graphics", "", "").hidden());
-    public final StatusSetting graphicsNow = add(new StatusSetting("Graphics", Performance::graphicsText, "detected"));
+    public final StatusSetting graphicsNow = add(new StatusSetting("Graphics", Performance::graphicsText, "detected")
+            .describe("The graphics chip the game is running on, as Evade detected it."));
     public final StatusSetting benchScene = add((StatusSetting) new StatusSetting("Benchmark Scene", BenchmarkScene::status, "click: run")
             .onClick(() -> {
                 if (BenchmarkScene.running()) BenchmarkScene.cancel();
@@ -201,12 +228,18 @@ public class Performance extends Module {
             {"krypton", "Krypton"}, {"badoptimizations", "BadOptimizations"},
             {"sodium-extra", "Sodium Extra"}, {"fastipping", "Fast IP Ping"}, {"fastquit", "FastQuit"}};
 
+    private static boolean loggedAddons;
+
     /** Which of the installer's performance mods are loaded (they stack with this module). */
     public static String installedAddons() {
         var loader = FabricLoader.getInstance();
         List<String> on = new ArrayList<>();
         for (String[] a : ADDONS) if (loader.isModLoaded(a[0])) on.add(a[1]);
-        if (on.isEmpty()) return "None (re-run the installer)";
+        if (!loggedAddons) {
+            loggedAddons = true;
+            EvadeClient.LOG.info("Performance mods loaded: {} of {} ({})", on.size(), ADDONS.length, String.join(", ", on));
+        }
+        if (on.isEmpty()) return "None (click: Mod Browser, or use the installer)";
         return on.size() == ADDONS.length ? "All " + ADDONS.length : on.size() + " of " + ADDONS.length;
     }
 
@@ -909,6 +942,68 @@ public class Performance extends Module {
         applyLighter(li);
         applySharper(sh);
         applyLowEnd(lo);
+    }
+
+    /** Plain names for the option ids above, for {@link #videoChangesSummary}. */
+    private static final Map<String, String> OPTION_LABELS = Map.ofEntries(
+            Map.entry("clouds", "Clouds"), Map.entry("entityShadows", "Entity Shadows"), Map.entry("particles", "Particles"),
+            Map.entry("weatherRadius", "Weather Radius"), Map.entry("cutoutLeaves", "Leaves"), Map.entry("ao", "Smooth Lighting"),
+            Map.entry("improvedTransparency", "Improved Transparency"), Map.entry("chunkFade", "Chunk Fade"),
+            Map.entry("biomeBlendRadius", "Biome Blend"), Map.entry("entityDistanceScaling", "Entity Distance"),
+            Map.entry("enableVsync", "VSync"), Map.entry("maxFps", "Max Framerate"), Map.entry("renderDistance", "Render Distance"),
+            Map.entry("simulationDistance", "Simulation Distance"), Map.entry("textureFiltering", "Texture Filtering"),
+            Map.entry("vignette", "Vignette"), Map.entry("cloudRenderDistance", "Cloud Distance"));
+
+    private static String optionValue(String id, Object v) {
+        if (v instanceof Boolean b) return b ? "On" : "Off";
+        if (id.equals("maxFps") && v instanceof Integer i && i >= UNLIMITED_FPS) return "Unlimited";
+        if (v instanceof Enum<?> e) {
+            String n = e.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+            return Character.toUpperCase(n.charAt(0)) + n.substring(1);
+        }
+        if (v instanceof Double d) return d == Math.rint(d) ? String.valueOf(d.longValue()) : String.format(java.util.Locale.ROOT, "%.2f", d);
+        return String.valueOf(v);
+    }
+
+    /**
+     * What Performance has changed in your own settings right now, one line each ("Render Distance: 16 → 12"), plus
+     * Render Scale when it's below 100%. Shown by the first-run setup so nothing changes silently. Empty when nothing is.
+     */
+    public List<String> videoChangesSummary() {
+        Map<String, String[]> seen = new java.util.LinkedHashMap<>(); // id -> {yours, Evade's}: the first holds your value
+        for (List<Changed> list : List.of(unlockChanged, distanceChanged, lighterChanged, lowEndChanged, sharperChanged)) {
+            for (Changed c : list) {
+                String[] row = seen.computeIfAbsent(c.id(), k -> new String[]{optionValue(k, c.original()), null});
+                row[1] = optionValue(c.id(), c.applied());
+            }
+        }
+        List<String> out = new ArrayList<>();
+        seen.forEach((id, v) -> {
+            if (!v[0].equals(v[1])) out.add(OPTION_LABELS.getOrDefault(id, id) + ": " + v[0] + " → " + v[1]);
+        });
+        if (isEnabled() && renderScale.get() < 100) out.add("World drawn at " + renderScale.getInt() + "% resolution (Render Scale)");
+        return out;
+    }
+
+    /**
+     * The first-run "Keep my settings": FPS Mode to Custom, then everything that changes your own video settings off
+     * (Unlock FPS, Render Distance Cap, Lighter Video Settings, Low-End PC Mode, Sharper Distant Textures) and Render
+     * Scale back to 100%, so your values come back. Culling, particle thinning and the idle frame caps stay: they only
+     * skip drawing and change none of your settings.
+     */
+    public void keepMyVideoSettings() {
+        fpsMode.set("Custom");
+        appliedMode.set("Custom" + PRESET_VERSION);
+        unlockFps.set(false);
+        renderCap.set(0.0);
+        lighterOptions.set(false);
+        lowEnd.set(false);
+        sharperTextures.set(false);
+        renderScale.set(100.0);
+        applyUnlock(false);
+        applyDistance(0);
+        applyVideo();
+        if (EvadeClient.config != null) EvadeClient.config.save();
     }
 
     /** Keep the restore file in step, and rewrite options.txt after putting your values back. */

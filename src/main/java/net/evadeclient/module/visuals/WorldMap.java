@@ -30,8 +30,8 @@ public class WorldMap extends Module {
     private final StatusSetting open = add((StatusSetting) new StatusSetting("World Map", WorldMap::statusLabel, "click: open")
             .onClick(() -> WorldMapScreen.open(mc.currentScreen))
             .describe("Open the map of the ground you've explored (also the Open Key and .map)."));
-    public final KeySetting openKey = add(new KeySetting("Open Key", GLFW.GLFW_KEY_M)
-            .describe("Opens and closes the World Map."));
+    public final KeySetting openKey = add(new KeySetting("Open Key", GLFW.GLFW_KEY_J)
+            .describe("Opens and closes the World Map. J by default: M is Simple Voice Chat's Mute Microphone key."));
     public final ModeSetting shading = add(new ModeSetting("Height Shading", "Smooth", MapShading.MODES)
             .describe("Shade slopes so hills stand out: Classic uses three steps like a vanilla map, Smooth one per block."));
     public final BooleanSetting waterDepth = add(new BooleanSetting("Water Depth", true)

@@ -73,20 +73,24 @@ public class ModuleListHud extends HudElementModule {
             .describe("Length stacks the longest names against the edge; Category groups mods by tab."));
     public final NumberSetting lineSpacing = add(new NumberSetting("Line Spacing", 1, 0, 4, 1)
             .describe("Extra space between lines, in pixels."));
-    public final ModeSetting align = add(new ModeSetting("Align", "Auto", "Auto", "Left", "Right"));
+    public final ModeSetting align = add(new ModeSetting("Align", "Auto", "Auto", "Left", "Right")
+            .describe("Which side the names line up on. Auto follows the screen edge the list is placed against."));
     public final ModeSetting sidebar = add(new ModeSetting("Sidebar", "Outer", "Outer", "Inner", "Outline", "None")
             .describe("A coloured bar on the edge side, on the text side, an outline around the list, or none."));
-    public final ModeSetting textCase = add(new ModeSetting("Text Case", "Normal", "Normal", "lowercase", "UPPERCASE"));
+    public final ModeSetting textCase = add(new ModeSetting("Text Case", "Normal", "Normal", "lowercase", "UPPERCASE")
+            .describe("Write mod names as they are, in lowercase or in UPPERCASE."));
     public final ModeSetting suffixStyle = add(new ModeSetting("Suffix Style", "Plain", "Plain", "Brackets", "Dash", "Hidden")
             .describe("How a mod's mode is shown after its name: Mod Mode, Mod [Mode], Mod - Mode, or not at all."));
-    public final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true));
+    public final BooleanSetting textShadow = add(new BooleanSetting("Text Shadow", true)
+            .describe("Draws a dark drop shadow under the names."));
     // Smooth Font is the shared HudElementModule setting (same name, so saved values carry over).
 
     // ---- animation -------------------------------------------------------------------------------------
 
     public final ModeSetting animation = add(new ModeSetting("Animation", "Slide", "Slide", "Fade", "Off")
             .describe("How mods enter and leave the list. Off when Animations is off in Client Settings."));
-    public final NumberSetting animationSpeed = add(new NumberSetting("Animation Speed", 1.0, 0.25, 3.0, 0.25));
+    public final NumberSetting animationSpeed = add(new NumberSetting("Animation Speed", 1.0, 0.25, 3.0, 0.25)
+            .describe("How fast mods slide or fade in and out of the list."));
 
     // ---- filtering -------------------------------------------------------------------------------------
 

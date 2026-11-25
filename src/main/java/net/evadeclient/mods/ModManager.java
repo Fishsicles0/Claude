@@ -6,7 +6,6 @@ import net.evadeclient.mods.ModrinthApi.Version;
 import net.evadeclient.mods.ModrinthApi.VersionFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -15,7 +14,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
@@ -451,49 +449,41 @@ public final class ModManager {
     }
 
     /**
-     * On Windows a jar the game has loaded can't be deleted until the game exits: start a small hidden PowerShell job
-     * that waits for this process to end, then does the changes. Elsewhere files can be deleted while open, so this
-     * never has anything to do. If it fails, {@link #processPending} retries on the next start.
+     * On Windows a jar the game has loaded can't be deleted until the game exits: start {@link AfterExitHelper} in a
+     * small separate Java process (plain arguments, no PowerShell, no hidden or encoded command) that waits for this
+     * process to end, then does the changes. Elsewhere files can be deleted while open, so this never has anything to
+     * do. If it fails, {@link #processPending} retries on the next start.
      */
     private void afterExit(List<ModIndex.Pending> ops) {
         if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) return;
-        StringBuilder ps = new StringBuilder();
-        ps.append("Wait-Process -Id ").append(ProcessHandle.current().pid()).append(" -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500;\n");
-        for (ModIndex.Pending p : ops) {
-            String d = p.delete() == null ? null : quote(mods.resolve(p.delete()));
-            if (d != null) {
-                ps.append("$d=").append(d).append("; for($i=0;$i -lt 20 -and (Test-Path -LiteralPath $d);$i++){")
-                        .append("Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue;")
-                        .append("if(Test-Path -LiteralPath $d){Start-Sleep -Milliseconds 500}}\n");
-            }
-            if (p.from() != null) {
-                String cond = d == null ? "$true" : "-not (Test-Path -LiteralPath $d)";
-                ps.append("if(").append(cond).append("){$f=").append(quote(mods.resolve(p.from()))).append(";$t=").append(quote(mods.resolve(p.to())))
-                        .append("; if((Test-Path -LiteralPath $f) -and -not (Test-Path -LiteralPath $t)){Move-Item -LiteralPath $f -Destination $t}}\n");
-            }
-        }
         try {
-            String enc = Base64.getEncoder().encodeToString(ps.toString().getBytes(StandardCharsets.UTF_16LE));
-            new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", enc)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+            String java = ProcessHandle.current().info().command().orElse(null);
+            Path jar = evadeJar();
+            if (java == null || jar == null) throw new IOException("no Java or Evade jar to run the helper from");
+            List<String> cmd = new ArrayList<>(List.of(java, "-Xmx32m", "-cp", jar.toString(), AfterExitHelper.class.getName(),
+                    Long.toString(ProcessHandle.current().pid()), mods.toAbsolutePath().toString()));
+            List<AfterExitHelper.Op> list = new ArrayList<>();
+            for (ModIndex.Pending p : ops) list.add(new AfterExitHelper.Op(p.delete(), p.from(), p.to()));
+            cmd.addAll(AfterExitHelper.args(list));
+            new ProcessBuilder(cmd).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
         } catch (IOException | RuntimeException e) {
             EvadeClient.LOG.warn("Mod Browser: couldn't schedule file changes for when the game closes: {}", e.toString());
         }
     }
 
-    /** A path as a single-quoted PowerShell literal. */
-    private static String quote(Path p) {
-        return "'" + p.toAbsolutePath().toString().replace("'", "''") + "'";
+    /** The Evade jar (or classes folder in a dev run) the helper class is loaded from. */
+    private static Path evadeJar() {
+        try {
+            var c = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("evade");
+            if (c.isPresent()) for (Path p : c.get().getOrigin().getPaths()) if (Files.exists(p)) return p;
+        } catch (RuntimeException ignored) { }
+        try {
+            return Path.of(AfterExitHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** A plain file name that stays in the mods folder: no separators, no "..", no control characters. */
-    public static boolean safeFileName(String n) {
-        if (n == null || n.isEmpty() || n.length() > 200 || n.equals(".") || n.equals("..")) return false;
-        if (n.startsWith(".") || n.contains("..")) return false;
-        for (int i = 0; i < n.length(); i++) {
-            char c = n.charAt(i);
-            if (c < 32 || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') return false;
-        }
-        return true;
-    }
+    public static boolean safeFileName(String n) { return AfterExitHelper.safeFileName(n); }
 }

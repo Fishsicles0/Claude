@@ -34,7 +34,8 @@ public class Freelook extends Module {
     /** Servers whose rules forbid freelook (each domain also covers its subdomains). Always applied. */
     private static final List<String> FORBIDDEN = List.of("hypixel.net", "playhive.com");
 
-    private final KeySetting key = add(new KeySetting("Freelook Key", GLFW.GLFW_KEY_LEFT_ALT, true));
+    private final KeySetting key = add(new KeySetting("Freelook Key", GLFW.GLFW_KEY_LEFT_ALT, true)
+            .describe("The key that lets you look around your character without turning it."));
     private final ModeSetting mode = add(new ModeSetting("Mode", "Hold", "Hold", "Toggle")
             .describe("Hold the key to look around, or tap it to start and tap again to stop."));
     private final BooleanSetting stayInScreens = add(new BooleanSetting("Stay Active In Screens", true)

@@ -59,7 +59,8 @@ public class Friends extends Module {
     public final StatusSetting cloudBackup = add((StatusSetting) new StatusSetting("Cloud Backup", net.evadeclient.config.CloudBackup::statusLine, "")
             .onClick(() -> mc.setScreen(new net.evadeclient.gui.CloudBackupScreen(mc.currentScreen)))
             .describe("Opt-in: keep your profiles, HUD layout and waypoints on evadeclient.com, locked with a passphrase only you know (also .backup)."));
-    public final StatusSetting connection = add(new StatusSetting("Connection", SocialClient::status, "auto"));
+    public final StatusSetting connection = add(new StatusSetting("Connection", SocialClient::status, "auto")
+            .describe("Whether you're connected to Evade's friends service."));
     /** Set the first time you use Friends: until then nothing is sent to evadeclient.com. */
     private final BooleanSetting activated = add(new BooleanSetting("Activated", false).hidden());
 

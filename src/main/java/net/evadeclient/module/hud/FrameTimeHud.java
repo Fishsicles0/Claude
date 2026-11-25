@@ -38,7 +38,8 @@ public class FrameTimeHud extends HudElementModule {
     /** What the HUD editor shows before any frame has been recorded, in {@link FrameStats#summary} order. */
     private static final float[] SAMPLE = {144, 98, 12.4f, 71, 6.9f, 9.8f, 6.8f};
 
-    public final NumberSetting bars = add(new NumberSetting("Frames Shown", 120, 60, 240, 30));
+    public final NumberSetting bars = add(new NumberSetting("Frames Shown", 120, 60, 240, 30)
+            .describe("How many recent frames the graph shows, one bar each."));
 
     // ---- header
     public final ModeSetting header = add(new ModeSetting("Header", "Top", "Top", "Bottom", "Off")
@@ -55,15 +56,18 @@ public class FrameTimeHud extends HudElementModule {
             .describe("The single slowest frame in the stats window, in milliseconds."));
     public final BooleanSetting showFrameTime = add(new BooleanSetting("Show Frame Time", false)
             .describe("The average time per frame, in milliseconds."));
-    public final ColorSetting headerColor = add(new ColorSetting("Header Color", 0xFFFFFFFF));
+    public final ColorSetting headerColor = add(new ColorSetting("Header Color", 0xFFFFFFFF)
+            .describe("Colour of the stats line above or below the graph."));
 
     // ---- graph
-    public final NumberSetting graphHeight = add(new NumberSetting("Graph Height", 32, 16, 64, 4));
+    public final NumberSetting graphHeight = add(new NumberSetting("Graph Height", 32, 16, 64, 4)
+            .describe("Height of the graph in pixels."));
     public final NumberSetting barWidth = add(new NumberSetting("Bar Width", 1, 1, 3, 1)
             .describe("Pixels per frame. Wider bars make a wider graph."));
     public final ModeSetting graphRange = add(new ModeSetting("Graph Range", "50 ms", "Auto", "25 ms", "50 ms", "100 ms", "200 ms")
             .describe("The frame time that fills the graph's height. Auto fits it to your recent frames."));
-    public final ModeSetting graphStyle = add(new ModeSetting("Graph Style", "Bars", "Bars", "Line", "Area"));
+    public final ModeSetting graphStyle = add(new ModeSetting("Graph Style", "Bars", "Bars", "Line", "Area")
+            .describe("Draw each frame as a bar, as a connected line, or as a filled area."));
 
     // ---- target and colours
     public final ModeSetting targetFps = add(new ModeSetting("Target FPS", "60", "30", "60", "120", "144", "165", "240", "Monitor", "FPS Limit")
@@ -71,9 +75,12 @@ public class FrameTimeHud extends HudElementModule {
                     + "Monitor uses your screen's refresh rate, FPS Limit the game's Max Framerate."));
     public final BooleanSetting targetLine = add(new BooleanSetting("Target Line", true)
             .describe("A faint line across the graph at the target frame time."));
-    public final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF22C55E));
-    public final ColorSetting slowColor = add(new ColorSetting("Slow Color", 0xFFEAB308));
-    public final ColorSetting stutterColor = add(new ColorSetting("Stutter Color", 0xFFE11D2E));
+    public final ColorSetting goodColor = add(new ColorSetting("Good Color", 0xFF22C55E)
+            .describe("Colour of frames that made the Target FPS budget."));
+    public final ColorSetting slowColor = add(new ColorSetting("Slow Color", 0xFFEAB308)
+            .describe("Colour of frames that took up to twice the target budget."));
+    public final ColorSetting stutterColor = add(new ColorSetting("Stutter Color", 0xFFE11D2E)
+            .describe("Colour of frames that took more than twice the target budget: visible stutters."));
 
     // ---- freeze and stutters
     public final KeySetting freezeKey = add(new KeySetting("Freeze Key", GLFW.GLFW_KEY_UNKNOWN)

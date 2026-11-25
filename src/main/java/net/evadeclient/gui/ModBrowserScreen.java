@@ -180,6 +180,19 @@ public class ModBrowserScreen extends Screen {
         open();
     }
 
+    /**
+     * Open on Browse, Fabric mods in the Optimization category, most downloaded first: where Performance sends a
+     * player whose game was set up without the Evade Installer, so the performance mods it adds are one click away.
+     */
+    public static void openOptimization() {
+        type = ContentType.MOD;
+        query = "";
+        sort = Sort.DOWNLOADS;
+        category = "optimization";
+        tab = Tab.BROWSE;
+        open();
+    }
+
     /** Test hook: browse another kind of content (mods, resource packs, shaders, data packs). */
     public static void setContentTypeForTest(ContentType t) {
         type = t;

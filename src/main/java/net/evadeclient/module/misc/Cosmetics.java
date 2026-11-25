@@ -39,7 +39,8 @@ public class Cosmetics extends Module {
             .describe("How far away, in blocks, other players' cosmetics are still drawn."));
     public final KeySetting emoteKey = add(new KeySetting("Emote Wheel Key", GLFW.GLFW_KEY_Y)
             .describe("Opens the emote wheel. Moving, attacking or taking damage ends an emote."));
-    public final StatusSetting account = add(new StatusSetting("Account", Wardrobe::status, "auto"));
+    public final StatusSetting account = add(new StatusSetting("Account", Wardrobe::status, "auto")
+            .describe("Whether you are signed in to Evade cosmetics, which other Evade players need to see what you wear."));
 
     private boolean emoteKeyWasDown;
     private int ticks;

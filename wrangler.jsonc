@@ -9,7 +9,7 @@
     "directory": "./site",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/404", "/404.html"]
   },
   // One SQLite-backed Durable Object holds icon state and the one-time sign-in ids; Cloudflare creates it on
   // deploy (free plan supports it). A second one, EvadeSocial, holds friends, parties and the party-ping WebSockets

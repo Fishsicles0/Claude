@@ -130,6 +130,7 @@ public class ModuleManager {
         register(new net.evadeclient.module.hud.MinimapHud());
         register(new TotemCounterHud());
         register(new DayCounterHud());
+        register(new net.evadeclient.module.hud.PlaytimeHud());
         register(new net.evadeclient.module.hud.BedWarsHud());
         for (int i = 1; i <= net.evadeclient.module.hud.CustomTextHud.COUNT; i++) register(new net.evadeclient.module.hud.CustomTextHud(i));
         register(new net.evadeclient.module.hud.TitlesHud());
