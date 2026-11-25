@@ -36,14 +36,16 @@ if (navEl) {
   addEventListener("scroll", onScroll, { passive: true });
 }
 if (burger) {
-  const close = () => { navEl.classList.remove("open"); burger.setAttribute("aria-expanded", "false"); burger.setAttribute("aria-label", "Open menu"); };
+  const close = () => { navEl.classList.remove("open"); document.documentElement.classList.remove("menu-open"); burger.setAttribute("aria-expanded", "false"); burger.setAttribute("aria-label", "Open menu"); };
   burger.addEventListener("click", () => {
     const open = navEl.classList.toggle("open");
+    document.documentElement.classList.toggle("menu-open", open);
     burger.setAttribute("aria-expanded", open);
     burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
   });
   all("#mobileMenu a").forEach(a => a.addEventListener("click", close));
   addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  matchMedia("(min-width: 1121px)").addEventListener("change", e => { if (e.matches) close(); });
 }
 
 // ---------- deep links to a FAQ answer (/faq#update) open it, also when the hash changes on the same page

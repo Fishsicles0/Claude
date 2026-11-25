@@ -84,7 +84,8 @@ frame up to 1024 px a side, a whole PNG up to 4096 px tall, files up to 2 MB.
 Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added where you need them.
 
 * **Higher resolution.** `texture` (UV space) can be up to 256 x 256 (128 x 128 is the recommended maximum per item),
-  and the PNG can be 1, 2, 4 or 8 times that (`textureScale`). The client works out the scale from the PNG's width
+  and the PNG can be 1, 2, 4 or 8 times that (`textureScale`; special items up to 16: Evade's animated capes are 16, laid
+  out with per-face UVs so 24 frames fit the strip limit). The client works out the scale from the PNG's width
   (`png width / texture[0]`), so one frame is always `png width` x `png width * texture[1] / texture[0]` px.
 * **Per-face UVs.** A cube may have `"faces"` instead of (or as well as) `uv`. When `faces` is present the cube draws
   only the faces listed there and box UV is not used for it; sizes may then be fractional (multiples of 0.25):
@@ -139,7 +140,8 @@ Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added whe
   `{"index": 3, "time": 6}` to hold that frame for its own number of ticks. The animation plays in game, in the
   Wardrobe preview and grid, and on the shop. All wearers share one clock per item, and the client uploads the texture
   only when what is shown changes (once per item, however many players wear it). `thumb.png` of an animated item may
-  be a 128 x (128 x `frames`) strip (at most 32 frames) and then plays in the Wardrobe grid; a plain 128 x 128 thumb
+  be a square-framed strip, one frame per texture frame (at most 32; Evade's are as large as fits 4096 px, up to
+  256 x 256 a frame, so the shop cards stay sharp) and then plays in the Wardrobe grid; a plain 128 x 128 thumb
   is fine too. Frame side at most 1024 px, whole strip at most 4096 px tall.
 * `emissive.png` (file, optional): a glow layer with the same size and frames as `texture.png`. Its pixels are added
   on top of the item at full brightness (unaffected by light or night, like a spider's eyes): black or transparent =

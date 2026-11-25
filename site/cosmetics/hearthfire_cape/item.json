@@ -13,8 +13,8 @@
   "sway": 1.0
  },
  "animation": {
-  "frames": 16,
-  "frametime": 2,
-  "interpolate": true
+  "frames": 24,
+  "frametime": 1.5,
+  "interpolate": false
  }
 }
