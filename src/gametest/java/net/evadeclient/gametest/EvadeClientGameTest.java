@@ -2117,6 +2117,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             ctx.takeScreenshot("evade-splash-" + String.format(java.util.Locale.ROOT, "%.2f", t).replace('.', '_'));
         }
         ctx.setScreen(() -> null);
+        TitleScreenTest.run(ctx); // every path back to the title shows the Evade menu; layout at every size
         // The test framework expects every run to end on the game's own title screen.
         disable(ctx, net.evadeclient.module.misc.TitleScreenModule.class);
     }

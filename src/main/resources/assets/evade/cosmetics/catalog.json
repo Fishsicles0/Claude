@@ -532,10 +532,10 @@
    "assets": {
     "files": {
      "item.json": "2ea7462fede00706c60ce0d5fff9152f5f78a0e1215dc5918dd0ee66465f45dd",
-     "model.json": "598200f3782c10c851a0ad3dc8bc6adabe10c701c168a9c56c4ec95b0547c489",
-     "texture.png": "7642f0c2b6af0a623a68d3758f3a0c90a7dc8ab41720693740b3690863c77a0a",
-     "emissive.png": "ad0ba3224f8afb8d88ef7b695c115cae8455ee56408cea6eb34aed5d75dc87bb",
-     "thumb.png": "3d756da1cbb78f66bc37ce8be64ac6416161d9960dbfc66a2b8536c206221da8"
+     "model.json": "c788bf70235fc3cfa2ace26648b3bdefafc7180c64a1ac235a569aa10880532a",
+     "texture.png": "8db9191ff9ef0937563520a88b4cd164e6014a6ae91920c87232072391416363",
+     "emissive.png": "f1fa9e157fceacfc95a51d465268c8c00fa1a8f9543bef69737449c96b24b68b",
+     "thumb.png": "e9c1b48316a6c5fd52f74ff32a81577b554b333327001c871619f3b3a0e63645"
     }
    }
   },
@@ -986,7 +986,7 @@
      "model.json": "38632bf9ace3e239f497584fdb769485a093bfcfc40401486baa76a70e538ce1",
      "texture.png": "bdd8edc9ffbba892809dc7e26efb2bd33f1251c0ad577dfe5a9af78680ded097",
      "emissive.png": "b070447919b48dc88f065f9dc09c13ebe3aa071b4c31dc3ab98bc6330c01e462",
-     "thumb.png": "62dedebfa2efdfada8342ed67f547d80708656128e6d6821dd600a1e442e3eca"
+     "thumb.png": "7903939f905c212861380cf40f3ffd60a9f064c9ad545fc6b9022c7d1f3ad189"
     }
    }
   },
@@ -1000,14 +1000,14 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A pale branching snowflake slowly turns beneath you, with a few drifting flakes.",
+   "description": "A pale, branching frost star slowly turns beneath you, with a few drifting snowflakes.",
    "assets": {
     "files": {
-     "item.json": "1f79964c9cfd6514b344c909c3395b7c64568b498e024512965722b009dca99f",
+     "item.json": "cfc09ffb40de51fc3cac19a7e843c4d282be96529f32dd97f8df79002838700b",
      "model.json": "efcfb4795a343a0ae64a665f59e0f778ad8f0b27f434634b9379a16b41dc77e1",
-     "texture.png": "5ee9e213638f636ddc7afcabeb452dd5c1ffad36813ea34439e792cff146d255",
-     "emissive.png": "82d044c82c87fca584bb48b6224109af42d78ed6e74f4bef5309fcc4fe6f7a1b",
-     "thumb.png": "6cc6d3bd4db817a22e03936b73e4a423d95f1231032b7638a272492ccd211bb9"
+     "texture.png": "c9faff96e5baf9a71d00ecd91fb8467aac4bdbdaff80c05db93e36647d9762ab",
+     "emissive.png": "7e3497615783ab29ac5ababe298d6ab3bf9ba820cfb7449465ccc9be4466b1a3",
+     "thumb.png": "abe307248113027926a54345a2001e063abd6294148238a846ee27e702448c7f"
     }
    }
   },
@@ -1028,7 +1028,7 @@
      "model.json": "f71cd10ca68b0d27686c6b47842a5414740b8a6daa015c5cc0819e163e083a5a",
      "texture.png": "c81876ec49e73519b60ad348ff6640c2a650dc325950dc90be21631de7ff5311",
      "emissive.png": "83bcc4568d841d21ecff906f71c990873fd4ad5bbf6c07369ea86cc9cb58b503",
-     "thumb.png": "89339f79e138dcc2cbfb733857ba28ce0004ec069852618aa2983ab1274e0c5a"
+     "thumb.png": "d858bcb25b19295acd9f419171f574b54151afb8044489c1a2583ef2bcfca0cb"
     }
    }
   },
@@ -1047,9 +1047,9 @@
     "files": {
      "item.json": "b1b9a23da2549c359f1f3eeb6944438f86ce1158e78111f49593aadb19e0253a",
      "model.json": "199b60445c8af19cbf4a69a02d1c79f5bb0d5e75d75da4268ad595d902a13189",
-     "texture.png": "93cc6831691fc2df894bfad5e207da9c86c90613d7f74707ab6a4a799257def0",
-     "emissive.png": "dd70d1c003f58549ca5a42479abc6d53bba848d76184caed10504dd8db453a3b",
-     "thumb.png": "e8ad415905cd3b1787ac40c0cf4ac844fcf8f32e3db832fba3c0e3e6ae0c2181"
+     "texture.png": "0f30c7870108bbababbc40cb624b11b7c39d7443f3a4f2ffd3c57dc4c1179763",
+     "emissive.png": "6e00b481eef16b8d7ac82f57f4ca720e9d38b1510ff12757798b0a3da403fc0d",
+     "thumb.png": "fca387a4455d46203cae66f12174d475e8d6f81f4ee8e32ff659fba36446b380"
     }
    }
   },
@@ -1068,9 +1068,9 @@
     "files": {
      "item.json": "012c3ba0cda0234a023e8bfeec2adecc21334c6ae3297dd7d1527e447fed0d84",
      "model.json": "18fd4b75977b36b885fcb716318b241d7acba67c8ae335c0ba6249479e1166b8",
-     "texture.png": "50338fdc670b94ece8048f9ff100c1dd3fd7baf4bdd919043425b30dd0ef57cd",
-     "emissive.png": "124939d2f81b93d7cb23cd8e21e0812377a87fed60dc039bc13b99d5fa0dddf0",
-     "thumb.png": "b4bc1bda89a12ac008399c6d889670e107ce2fb0e6d9d0c6bc7f0056f6726eb2"
+     "texture.png": "6c275a236e570512e1e25f9a0fc9f22a59b1087390065c7f05eb22358e65a169",
+     "emissive.png": "1cc1f370825ee10034e6776da0296bf1a8744495f36c8d6bf6508ec8016402a5",
+     "thumb.png": "a019c57844af17fd967488fb3add5ef2294299e6a24d7d83bb6a709bfdeff6b7"
     }
    }
   },

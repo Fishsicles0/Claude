@@ -151,7 +151,7 @@ class ShaderPacksTest {
     }
 
     @Test
-    void updateReasonNamesThePack(@TempDir Path game) throws IOException {
+    void updateReasonNamesThePack(@TempDir Path game) throws Exception {
         JsonObject marker = new JsonObject();
         marker.addProperty("evade", "1");
         marker.addProperty("loader", "1");

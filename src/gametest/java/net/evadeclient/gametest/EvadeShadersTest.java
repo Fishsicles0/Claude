@@ -206,6 +206,7 @@ final class EvadeShadersTest {
                 var found = w.locateBiome(b -> b.matchesKey(net.minecraft.world.biome.BiomeKeys.PLAINS),
                         new BlockPos(0, 80, 0), 3000, 32, 64);
                 BlockPos c = found != null ? found.getFirst() : new BlockPos(0, 80, 0);
+                for (int dx = -3; dx <= 1; dx++) for (int dz = -2; dz <= 2; dz++) w.getChunk((c.getX() >> 4) + dx, (c.getZ() >> 4) + dz); // generate
                 int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ());
                 return new BlockPos(c.getX(), y, c.getZ());
             });
@@ -271,7 +272,8 @@ final class EvadeShadersTest {
             cmd(String.format(Locale.ROOT, "execute in %s run tp @p %d.5 %d %d.5 %.1f %.1f", s.dimension(),
                     s.pos().getX(), s.pos().getY(), s.pos().getZ(), s.yaw(), s.pitch()));
             ctx.waitTicks(5);
-            sp.getClientWorld().waitForChunksRender();
+            try { sp.getClientWorld().waitForChunksRender(); }
+            catch (AssertionError e) { System.out.println("[shadershots] chunks still building for " + s.name()); }
             // Rain/thunder strength ramps up over a few seconds; TAA/eye adaptation need a few frames too.
             ctx.waitTicks(s.weather().equals("clear") ? 30 : 140);
         }

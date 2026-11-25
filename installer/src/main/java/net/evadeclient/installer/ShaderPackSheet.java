@@ -86,13 +86,13 @@ final class ShaderPackSheet {
         g.setColor(DIM);
         int ly = y + 72;
         for (String l : LauncherView.wrapLines(g, "Tick the packs Play adds with Iris. Each comes from Modrinth when you press Play (Evade never hosts them) "
-                + "and goes away again when you untick it. Packs you added yourself stay. Switch between them in game.", iw, 2)) {
+                + "and goes again when unticked. Your own packs stay.", iw, 2)) {
             g.drawString(l, ix, ly);
             ly += 17;
         }
         int ry = y + 114;
         if (hintShared) {
-            strip(g, ix, ry, iw, new Color(245, 165, 36, 26), AMBER, "Built-in graphics: Complementary Reimagined or Sildur's Vibrant run best on this PC.",
+            strip(g, ix, ry, iw, new Color(245, 165, 36, 26), AMBER, "Built-in graphics: Complementary Reimagined or Sildur's run best here.",
                     "ov-sp-light", "Use those two");
             ry += 50;
         }
@@ -143,7 +143,7 @@ final class ShaderPackSheet {
         g.setFont(v.inter.deriveFont(12f));
         Set<String> c = ShaderPacks.clean(i.shaderPacks);
         String foot = c.isEmpty() ? "No packs ticked: Iris only, with the packs you add yourself."
-                : i.dirty ? "Applied the next time you press Play with " + i.name + "." : "Changes apply the next time you press Play.";
+                : i.dirty ? "Applied the next time you press Play." : "Changes apply the next time you press Play.";
         g.setColor(c.isEmpty() || i.dirty ? AMBER : FAINT);
         g.drawString(ellipsizeEnd(g, foot, iw - 300), ix, y + h - 34);
         if (!ShaderPacks.isDefault(i.shaderPacks)) v.textLink(g, "ov-sp-reset", "Back to the defaults", x + w - 32 - 120 - 18, y + h - 34, 1);

@@ -177,7 +177,7 @@ public class Performance extends Module {
     public final StatusSetting sodiumNow = add(new StatusSetting("Also Changed In Sodium", SodiumBridge::status, "live"));
     // HUD cache: Evade's widgets are drawn once and repeated until something changes (see HudCache).
     public final ModeSetting hudRefresh = add(new ModeSetting("HUD Refresh", "Auto", "Auto", "Every Frame", "60 Hz", "30 Hz")
-            .describe("How often Evade's HUD widgets are redrawn. Between redraws the last drawing is reused, and a widget whose text changes is redrawn at once. Auto: 60 times a second while the game runs above 90 FPS, every frame below that. Moving widgets (minimap, keystrokes, graphs) are always drawn every frame."));
+            .describe("How often Evade's HUD widgets are redrawn. Between redraws the last drawing is reused, and a widget whose text changes is redrawn at once. Auto: 60 times a second while the game runs above 90 FPS, every frame below that. Moving widgets (minimap, graphs, keystrokes while a key lights up) are drawn every frame."));
     public final StatusSetting hudCacheNow = add(new StatusSetting("HUD Cache Now", HudCache::status, "live"));
     // Battery and frame pacing.
     public final ModeSetting batteryCap = add(new ModeSetting("Battery FPS Cap", "60", "Off", "60", "90")

@@ -661,10 +661,11 @@ def ember_outer(cv, speed=0.0, seed=11):
     for _ in range(26):
         ex, ey = r.random() * cv.w, (0.25 + r.random() * 0.6) * cv.h
         if speed:
-            ey = (ey - cv.phase * cv.h * 0.5 * speed) % cv.h
+            ey = (ey - cv.phase * cv.h * speed) % cv.h          # a whole height per loop: seamless
         s = 0.5 + r.random() * 0.9
         m = np.exp(-((x - ex) ** 2 + (y - ey) ** 2) / (s * s))
-        em_from(cv, m * (0.4 + 0.6 * (ey / cv.h)), "#ffcf6a")
+        f = ey / cv.h
+        em_from(cv, m * (0.4 + 0.6 * f) * smooth(f / 0.15) * smooth((1 - f) / 0.1), "#ffcf6a")   # fade at the wrap
     em_rgb(cv, ramp(heat, FIRE), smooth((heat - 0.6) / 0.3) * 0.75)
     trim(cv, cv.s // 2 + 1, cv.s // 2 + 1, "#3a2418", stitch="#d9a441")
     bevel(cv, 0.05, 0.12)
@@ -1626,20 +1627,20 @@ def steel_plate(c_hi="#d8dde6", c_lo="#6a7280", trim_c="#c99a3a", seam="#5ad8ff"
         col[..., :3] = np.clip(col[..., :3] + (np.exp(-((t - 0.2) / 0.08) ** 2) * 0.25)[..., None], 0, 1)
         cv.arr[:] = col
         if face in ("north", "south"):
-            edge = (xx < cv.s * 0.5) | (xx >= cv.w - cv.s * 0.5)
-            cv.arr[edge, :3] = mix(cv.arr[edge, :3], hexc(trim_c)[:3], 0.8)
-            # rivets every 2 units
-            for ry in np.arange(cv.s, cv.h - cv.s * 0.5, cv.s * 2):
-                for rx in (cv.s * 1.0, cv.w - cv.s * 1.0):
-                    if cv.w > cv.s * 2.5:
-                        m = ((xx + 0.5 - rx) ** 2 + (y + 0.5 - ry) ** 2) < (cv.s * 0.3) ** 2
-                        cv.arr[m, :3] = hexc("#f4f0e0")[:3]
-            sm = (np.abs(xx + 0.5 - cv.w / 2) < 0.6) & (y > cv.s) & (y < cv.h - cv.s)
-            cv.arr[sm, :3] = hexc(seam)[:3]
-            em_from(cv, sm.astype(np.float32), seam)
-            # pointed tip
-            tip = (y > cv.h - cv.s * 1.5) & (np.abs(xx + 0.5 - cv.w / 2) > (cv.h - y) * 0.9)
+            # a feather-shaped plate: brass leading edge, a raised spine, two rivets at the root, a glowing vent
+            edge = xx < cv.s * 0.45
+            cv.arr[edge, :3] = mix(cv.arr[edge, :3], hexc(trim_c)[:3], 0.85)
+            spine = np.abs(xx + 0.5 - cv.w * 0.55) < cv.s * 0.2
+            cv.arr[spine, :3] = np.clip(cv.arr[spine, :3] * 1.25 + 0.05, 0, 1)
+            for rx in (cv.w * 0.3, cv.w * 0.78):
+                m = ((xx + 0.5 - rx) ** 2 + (y + 0.5 - cv.s * 0.7) ** 2) < (cv.s * 0.28) ** 2
+                cv.arr[m, :3] = hexc("#f4f0e0")[:3]
+            vent = (np.abs(xx + 0.5 - cv.w * 0.55) < cv.s * 0.18) & (y > cv.h - cv.s * 3.2) & (y < cv.h - cv.s * 1.6)
+            cv.arr[vent, :3] = hexc(seam)[:3]
+            em_from(cv, vent.astype(np.float32), seam)
+            tip = (y > cv.h - cv.s * 1.5) & (np.abs(xx + 0.5 - cv.w * 0.6) > (cv.h - y) * 0.9)
             cv.arr[tip, 3] = 0
+            cv.em[tip] = 0
         cv.arr[..., 3] = np.where(cv.arr[..., 3] > 0, 1, 0)
         bevel(cv, 0.18, 0.28)
     return p
@@ -1668,8 +1669,8 @@ def clockwork():
     anim = wing_anim(32, 10, 1.3)
     plate = steel_plate()
     cubes = [Cube((-15.5, -1, 1.5), (14, 1, 1), metal("#e8e2d0", "#7a6a4a", 0.3))]
-    for i, (x, L) in enumerate([(-5, 8), (-8, 10), (-11, 12), (-14, 11), (-17, 9)]):
-        cubes.append(Cube((x, 0, 2 + i * 0.12), (3, L, 1), plate))
+    for i, (x, L) in enumerate([(-5.5, 7), (-8.5, 9), (-11.5, 12), (-14.5, 13), (-17, 11)]):
+        cubes.append(Cube((x, -0.5 + i * 0.0, 2 + (i % 2) * 0.5), (3, L, 1), plate))
     cubes.append(Cube((-4.5, -2.5, 0.8), (4, 4, 1), gear_paint))
     return wing_pair([Bone("blades_r", "body", (-1.5, 2, 2.5), (0, 0, 0), cubes, anim=anim)])
 
@@ -2024,19 +2025,11 @@ def horn_paint(c_base, c_tip, glow=None):
 
 
 def horns():
-    cubes = []
+    """Each horn climbs in four shrinking segments; each segment's painter knows its place so the glow builds upward."""
     segs = [((-5, -9, -1), (2, 2, 2)), ((-6, -10.5, -0.5), (2, 2, 2)), ((-6.5, -12, 0), (1, 2, 1)), ((-6.5, -13.5, 0.5), (1, 2, 1))]
-    for i, (o, s) in enumerate(segs):
-        c = Cube(o, s, horn_paint("#2a1a1a", "#ff6a2a", "#ff6a2a"))
-        c.seg = i
-        cubes.append(c)
-    for c in cubes:
-        c.paint = horn_paint("#2a1a1a", "#ff7a3a", "#ff6a2a")
-    # give each segment its own painter so the gradient climbs the horn
     out = []
     for i, (o, s) in enumerate(segs):
         c = Cube(o, s, (lambda i: (lambda face, cv: (setattr(cv.cube, "seg", i), horn_paint("#2a1a1a", "#ff7a3a", "#ff6a2a")(face, cv))))(i))
-        c.seg = i
         out.append(c)
     right = Bone("horn_r", "head", cubes=out)
     return [right, mirrored_bone(right, "horn_l")]
@@ -2223,9 +2216,10 @@ def fox_snout(face, cv):
     cv.arr[:] = ramp(cv.yy(), [(0, "#ffffff"), (1, "#e2dacb")])
     y, x = cv.grid()
     if face == "north":
-        nose = (y < cv.h * 0.45) & (np.abs(x + 0.5 - cv.w / 2) < cv.w * 0.3)
+        nose = (y < cv.h * 0.32) & (np.abs(x + 0.5 - cv.w / 2) < cv.w * (0.2 - y / cv.h * 0.25))
         cv.arr[nose, :3] = hexc("#1a1416")[:3]
-        cv.arr[(y < 1) & nose, :3] = hexc("#5a4a50")[:3]
+        mouth = (np.abs(y + 0.5 - cv.h * 0.72) < cv.s * 0.12) & (np.abs(x + 0.5 - cv.w / 2) < cv.w * 0.3)
+        cv.arr[mouth, :3] = hexc("#d6242e")[:3]
     if face == "top":
         stripe = np.abs(x + 0.5 - cv.w / 2) < cv.s * 0.3
         cv.arr[stripe, :3] = hexc("#d6242e")[:3]
@@ -2570,7 +2564,7 @@ def ring_sigil(c_in, c_out, spokes=8, alpha=0.6, extra=None, hue=None):
             A = np.clip(A + extra(X, Z, r, ang), 0, 1)
         col = ramp(smooth((r - 0.3) / 0.65), [(0, c_in), (1, c_out)])
         if hue is not None:
-            h = (ang / math.tau + r * 0.5 + cv.phase) % 1
+            h = (ang * 4 / math.tau + r * 0.5 + cv.phase) % 1      # a whole hue cycle per quarter: no seams
             col[..., :3] = hsv_rgb(h, 0.75, 1.0)
         A *= (r < 1.0)
         cv.arr[..., :3] = col[..., :3]
@@ -2596,7 +2590,7 @@ def ember_mote(face, cv):
     cv.arr[:] = mix(hexc("#fff0a8"), hexc("#ff5a1f"), cv.yy()[..., None])
 
 
-AURA_VIEW = {"yaw": 30, "pitch": 40, "frame": [(-15.5, -31), (15.5, 12)], "margin": 1.0}
+AURA_VIEW = {"yaw": 30, "pitch": 40, "frame": [(-15.5, -30.5), (15.5, 12.5)], "margin": 1.0}
 
 item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
      "A ring of fire runes turns at your feet while three embers circle your waist.",
@@ -2613,16 +2607,16 @@ item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
 def frost_fn(cv, X, Z):
     r = np.sqrt(X * X + Z * Z)
     ang = np.arctan2(Z, X)
-    # a six-armed snowflake with branches, inside a double ring
+    # an eight-armed frost star with branches, inside a double ring (eight arms: the four quarter-plates repeat it)
     A = np.zeros_like(r)
-    for k in range(6):
-        a0 = k * math.pi / 3
+    for k in range(8):
+        a0 = k * math.pi / 4
         ux, uz = math.cos(a0), math.sin(a0)
         along = X * ux + Z * uz
         perp = np.abs(-X * uz + Z * ux)
         arm = smooth(1 - perp / 0.022) * (along > 0) * (along < 0.86)
         A = np.maximum(A, arm)
-        for f, L in ((0.38, 0.16), (0.62, 0.12)):
+        for f, L in ((0.4, 0.13), (0.64, 0.1)):
             for s in (-1, 1):
                 b = a0 + s * 0.85
                 bx, bz = math.cos(b), math.sin(b)
@@ -2642,7 +2636,7 @@ def frost_fn(cv, X, Z):
 
 
 item("frost_sigil", "Frost Sigil", "AURA", "REGULAR", 400,
-     "A pale branching snowflake slowly turns beneath you, with a few drifting flakes.",
+     "A pale, branching frost star slowly turns beneath you, with a few drifting snowflakes.",
      sigil_bones(frost_fn, spin=-12),
      fx={"type": "aura", "particle": "snow", "colors": ["#E8FBFF"], "rate": 2, "size": 1.0},
      view=AURA_VIEW)
@@ -2698,7 +2692,7 @@ item("verdant_bloom", "Verdant Bloom", "AURA", "REGULAR", 400,
 
 item("void_rift", "Void Rift", "AURA", "REGULAR", 400,
      "A violet rune circle with a dark, starry core opens under you, shedding motes of purple light.",
-     sigil_bones(ring_sigil("#ffd0ff", "#8a2aff", 6, 0.7, extra=lambda X, Z, r, a: smooth(1 - r / 0.32) * 0.55), spin=-30),
+     sigil_bones(ring_sigil("#ffd0ff", "#8a2aff", 12, 0.7, extra=lambda X, Z, r, a: smooth(1 - r / 0.32) * 0.55), spin=-30),
      fx={"type": "aura", "particle": "soft", "colors": ["#FF9AF0", "#B04FFF", "#3A0A6A"], "rate": 4, "size": 0.7,
          "life": 1.5, "sizeEnd": 0.3, "gravity": -0.25},
      view=AURA_VIEW)
@@ -2720,7 +2714,7 @@ PET = (6.5, -4, 0.5)        # the pets' shared pivot, above the left shoulder
 PET_ANIM = {"type": "pet", "amp": 0.6, "speed": 1.6}
 
 
-def pet(name, cubes, glow=None, **kw):
+def pet(name, cubes, **kw):
     return Bone(name, "root", PET, cubes=cubes, anim=dict(PET_ANIM), **kw)
 
 
@@ -2934,8 +2928,8 @@ def owl_pet():
     wing = fur_paint("#6a4a30", "#3a2818", seed=23)
     foot = fur_paint("#e8b84a", "#a87a2a", seed=24)
     tuft = fur_paint("#6a4a30", "#3a2818", seed=25)
-    cubes = [Cube((4.5, -5, -1), (4, 5, 3), owl_body), Cube((4.25, -8.5, -1.5), (4.5 // 1 + 0, 4, 4), owl_face),
-             Cube((4.25, -9.5, -1.5), (1, 1, 1), tuft), Cube((7.25, -9.5, -1.5), (1, 1, 1), tuft),
+    cubes = [Cube((4.5, -5, -1), (4, 5, 3), owl_body), Cube((4.5, -8.5, -1.5), (4, 4, 4), owl_face),
+             Cube((4.5, -9.5, -1.5), (1, 1, 1), tuft), Cube((7.5, -9.5, -1.5), (1, 1, 1), tuft),
              Cube((3.75, -4.5, -0.5), (1, 4, 3), wing), Cube((8.25, -4.5, -0.5), (1, 4, 3), wing),
              Cube((5, 0, -1.2), (1, 1, 1), foot), Cube((7, 0, -1.2), (1, 1, 1), foot)]
     return [pet("owl", cubes)]
@@ -3048,7 +3042,6 @@ def wyvern_pet():
              Cube((5, -1, -0.8), (1, 1, 1), body), Cube((7, -1, -0.8), (1, 1, 1), body),
              Cube((5, -1, 2.5), (1, 1, 1), body), Cube((7, -1, 2.5), (1, 1, 1), body),
              Cube((6, -3, 4), (1, 1, 3), body), Cube((6, -2, 7), (1, 1, 2), body), Cube((5.5, -2.5, 9), (2, 1, 1), horn_tip)]
-    wings = [Cube((8, -9, 0), (5, 5, 0), wyvern_wing)]
     wr = Bone("wyvern_wing_r", "root", PET, (0, 30, -25), [Cube((8, -9, 0), (5, 5, 0), wyvern_wing)], anim=dict(PET_ANIM))
     wl = Bone("wyvern_wing_l", "root", PET, (0, -30, 25), [Cube((0, -9, 0), (5, 5, 0), wyvern_wing, mirror=True)], anim=dict(PET_ANIM))
     wl.cubes[0].share = wr.cubes[0]
@@ -3898,7 +3891,26 @@ def build(it):
     else:
         thumb = thumb_particles(it["thumb"], it["fx"]["colors"])
     files["thumb.png"] = png_bytes(thumb)
+    check_limits(it, files)
     return files
+
+
+def check_limits(it, files):
+    """The limits the client enforces (README): refuse to write an item it would reject."""
+    bones = it["bones"]
+    cubes = [c for b in bones for c in b.cubes]
+    problems = []
+    if len(bones) > 32 or len(cubes) > 256:
+        problems.append(f"{len(bones)} bones / {len(cubes)} cubes")
+    for c in cubes:
+        for v in c.origin + [o + s for o, s in zip(c.origin, c.size)]:
+            if abs(v) > 64:
+                problems.append(f"coordinate {v} outside +-64")
+    for name, data in files.items():
+        if len(data) > 2 * 1024 * 1024:
+            problems.append(f"{name} is {len(data)} bytes")
+    if problems:
+        raise SystemExit(f"{it['id']}: " + "; ".join(problems))
 
 
 def contact_sheet(path, built):

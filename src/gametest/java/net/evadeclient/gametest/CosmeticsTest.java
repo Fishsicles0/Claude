@@ -90,10 +90,12 @@ public final class CosmeticsTest {
         });
         check(loadErrors.isEmpty(), "Cosmetics: every starter item loads (models, textures, thumbnails) " + loadErrors);
         testDownloadCache(ctx);
-        // ---- tiers and prices: three tiers, old names read as regular; every starter item is regular and priced
+        // ---- tiers and prices: three tiers, old names read as regular; bundled regular items are priced, bundled
+        //      special (animated) items wait for their price
         String tiers = ctx.computeOnClient(c -> {
             StringBuilder b = new StringBuilder();
-            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.bundled && (i.rarity != Rarity.REGULAR || i.priceCents <= 0)) b.append(i.id).append(' ');
+            for (CosmeticItem i : CosmeticsCatalog.all()) if (i.bundled && (i.rarity == Rarity.PARTNER
+                    || (i.rarity == Rarity.REGULAR && i.priceCents <= 0) || (i.rarity == Rarity.SPECIAL && i.priceCents > 0))) b.append(i.id).append(' ');
             return b.toString();
         });
         check(tiers.isEmpty() && Rarity.values().length == 3 && Rarity.parse("legendary") == Rarity.REGULAR && Rarity.parse("special") == Rarity.SPECIAL
@@ -250,7 +252,8 @@ public final class CosmeticsTest {
         int wheel = ctx.computeOnClient(c -> { EmoteWheelScreen.open(); int n = c.currentScreen instanceof EmoteWheelScreen w ? w.emotes().size() : -1; return n; });
         ctx.takeScreenshot("cosmetic-emote-wheel");
         ctx.runOnClient(c -> c.setScreen(null));
-        check(wheel == 2, "Cosmetics: the emote wheel lists your emotes (" + wheel + ")");
+        int ownedEmotes = ctx.computeOnClient(c -> (int) CosmeticsCatalog.forSlot(Slot.EMOTE).stream().filter(i -> Wardrobe.owns(i.id)).count());
+        check(wheel == Math.min(8, ownedEmotes) && wheel >= 2, "Cosmetics: the emote wheel lists your emotes (" + wheel + " of " + ownedEmotes + ")");
 
         // ---- Wardrobe: opens, equips, colours, saves and wears an outfit, try-on for locked items
         ctx.runOnClient(c -> { c.options.hudHidden = false; WardrobeScreen.openFromCurrent(); });

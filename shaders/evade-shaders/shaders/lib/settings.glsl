@@ -66,6 +66,48 @@ const bool shadowHardwareFiltering0 = true;
 #define NETHER_HAZE                      // Thick, warm haze in the Nether
 #define END_NEBULA                       // Swirling nebula and stars in the End sky
 
+// Iris lists a boolean #define as an option only when an #ifdef names it, so reference each one here.
+#ifdef SHADOWS
+#endif
+#ifdef COLORED_SHADOWS
+#endif
+#ifdef FOLIAGE_TRANSLUCENCY
+#endif
+#ifdef WARM_BLOCKLIGHT
+#endif
+#ifdef EMISSIVE_BLOCKS
+#endif
+#ifdef STARS
+#endif
+#ifdef VOLUMETRIC_LIGHT
+#endif
+#ifdef BORDER_FOG
+#endif
+#ifdef WATER_WAVES
+#endif
+#ifdef WATER_REFRACTION
+#endif
+#ifdef GLASS_REFLECTIONS
+#endif
+#ifdef WATER_CAUSTICS
+#endif
+#ifdef UNDERWATER_WOBBLE
+#endif
+#ifdef WAVING_PLANTS
+#endif
+#ifdef WAVING_LEAVES
+#endif
+#ifdef TAA
+#endif
+#ifdef BLOOM
+#endif
+#ifdef VIGNETTE
+#endif
+#ifdef NETHER_HAZE
+#endif
+#ifdef END_NEBULA
+#endif
+
 // ---------------------------------------------------------------- internal (not options)
 #define SHADOW_DISTORT 0.85              // how strongly shadow texels are concentrated near the player
 #define WATER_ID 1

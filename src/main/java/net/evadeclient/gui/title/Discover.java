@@ -43,21 +43,18 @@ public final class Discover {
 
     private Discover() {}
 
-    /** Adds the Discover button to the title screens. Safe to call more than once. */
+    /** One line for the Discover button's tooltip. */
+    public static final String TIP = "Servers picked by Evade, with live player counts. You choose if and when to join.";
+
+    /** Adds the Discover button to the vanilla title screen. Safe to call more than once. */
     public static synchronized void init() {
         if (registered) return;
         registered = true;
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            Tooltip tip = Tooltip.of(Text.literal("Servers picked by Evade, with live player counts. You choose if and when to join."));
-            if (screen instanceof net.evadeclient.gui.EvadeTitleScreen) {
-                // The Evade menu: a quiet link in the top-right corner, in the menu's own style.
-                String label = "Discover servers";
-                int lw = TitleArt.width(label, net.evadeclient.util.UiFont.Role.SMALL) + 16;
-                TitleButton link = new TitleButton(w - 10 - lw, 8, lw, 12, Text.literal(label), TitleButton.Style.LINK, "server",
-                        () -> client.setScreen(new DiscoverScreen(screen)));
-                link.setTooltip(tip);
-                Screens.getButtons(screen).add(link);
-            } else if (screen instanceof TitleScreen) {
+            Tooltip tip = Tooltip.of(Text.literal(TIP));
+            // The Evade menu places its own Discover link (see EvadeTitleScreen), so it never lands on a card.
+            if (screen instanceof net.evadeclient.gui.EvadeTitleScreen) return;
+            if (screen instanceof TitleScreen) {
                 Screens.getButtons(screen).add(ButtonWidget.builder(Text.literal("Discover"), b -> client.setScreen(new DiscoverScreen(screen)))
                         .dimensions(204, 6, 70, 20).tooltip(tip).build()); // after Replays and Auto Reconnect's Rejoin
             }

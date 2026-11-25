@@ -155,12 +155,13 @@ public class ModuleManager {
         register(new ClientSettings());
     }
 
-    private void register(Module module) { modules.add(module); }
+    private void register(Module module) { modules.add(module); byType.clear(); }
 
     /** Adds a module from an Evade addon (net.evadeclient.addon.EvadeAddons checks it first). Startup only. */
     public void registerAddon(Module module) {
         modules.add(module);
         hudElements = null;
+        byType.clear();
     }
 
     public List<Module> all() { return modules; }
@@ -201,9 +202,22 @@ public class ModuleManager {
         return b.toString();
     }
 
+    /**
+     * Modules by the class asked for. Mixins look modules up this way per entity, particle and frame
+     * ({@code Performance.active()} and friends), so the scan over ~100 modules is done once per class.
+     */
+    private final java.util.Map<Class<?>, Module> byType = new java.util.concurrent.ConcurrentHashMap<>();
+
     @SuppressWarnings("unchecked")
     public <T extends Module> T get(Class<T> type) {
-        for (Module m : modules) if (type.isInstance(m)) return (T) m;
+        Module hit = byType.get(type);
+        if (hit != null) return (T) hit;
+        for (Module m : modules) {
+            if (type.isInstance(m)) {
+                byType.put(type, m);
+                return (T) m;
+            }
+        }
         return null;
     }
 

@@ -6,7 +6,7 @@
  "colourable": false,
  "defaultColor": null,
  "partner": null,
- "description": "A pale branching snowflake slowly turns beneath you, with a few drifting flakes.",
+ "description": "A pale, branching frost star slowly turns beneath you, with a few drifting snowflakes.",
  "fx": {
   "type": "aura",
   "particle": "snow",

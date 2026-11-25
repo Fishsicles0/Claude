@@ -79,15 +79,22 @@ public final class Hud {
             // HUD Refresh: widgets that don't move every frame come from the HUD cache's texture (see HudCache),
             // drawn under the ones that do.
             if (HudCache.active()) {
-                java.util.List<HudElementModule> cached = new java.util.ArrayList<>(), moving = new java.util.ArrayList<>();
+                java.util.List<HudElementModule> cached = CACHED, moving = MOVING;
+                cached.clear();
+                moving.clear();
                 for (HudElementModule el : EvadeClient.modules.hudElements()) {
                     if (!el.isEnabled() || !el.shouldShow()) continue;
                     // hidden in this replay (the replay editor's HUD mods list)
                     if (net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) continue;
                     (HudCache.animated(el) ? moving : cached).add(el);
                 }
-                HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
-                for (HudElementModule el : moving) drawWidget(ctx, el, sw, sh);
+                try {
+                    HudCache.draw(ctx, cached, sw, sh, k, (c, el) -> drawWidget(c, el, sw, sh));
+                    for (HudElementModule el : moving) drawWidget(ctx, el, sw, sh);
+                } finally {
+                    cached.clear();
+                    moving.clear();
+                }
             } else {
                 for (HudElementModule el : EvadeClient.modules.hudElements())
                     if (el.isEnabled() && el.shouldShow() && !net.evadeclient.replay.ReplayOverrides.hudHidden(el.getName())) drawWidget(ctx, el, sw, sh);
@@ -96,6 +103,9 @@ public final class Hud {
             ctx.getMatrices().popMatrix();
         }
     }
+
+    /** This frame's cached and live widgets (reused every frame, render thread only). */
+    private static final java.util.List<HudElementModule> CACHED = new java.util.ArrayList<>(), MOVING = new java.util.ArrayList<>();
 
     /** One widget, timed for the profiler, switched off if it throws. */
     private static void drawWidget(DrawContext ctx, HudElementModule el, int sw, int sh) {

@@ -24,6 +24,9 @@ cp "$CEXE" site/downloads/Evade-Clips.exe
 mkdir -p clips-share/public/downloads
 cp "$CJAR" clips-share/public/downloads/EvadeClips.jar
 cp "$CEXE" clips-share/public/downloads/Evade-Clips.exe
+# Evade Shaders: "Evade Shaders v<version>.zip" + a stable EvadeShaders.zip (fails the build if a program won't compile
+# when glslangValidator is installed).
+if command -v glslangValidator >/dev/null; then python3 scripts/build-evade-shaders.py --validate; else python3 scripts/build-evade-shaders.py; fi
 kb() { echo "$(( $(stat -c%s "$1") / 1024 )) KB"; }
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 cat > site/version.json <<JSON
