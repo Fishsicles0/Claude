@@ -179,9 +179,28 @@ public abstract class HudElementModule extends Module {
         y = defaultY;
     }
 
-    /** Text in this element's font: the smooth HUD font while Smooth Font is on, else the pixel font. */
+    /** {@link #styled} results kept between frames (created on first use; cleared when the font changes). */
+    private java.util.Map<String, net.minecraft.text.MutableText> styledCache;
+    private Style styledCacheFont;
+
+    /**
+     * Text in this element's font: the smooth HUD font while Smooth Font is on, else the pixel font. The same string
+     * gives back the same Text from frame to frame, so the game doesn't lay its characters out again (bidirectional
+     * reordering included) every frame for labels that rarely change. Don't modify the result.
+     */
     protected net.minecraft.text.MutableText styled(String s) {
-        return net.evadeclient.hud.HudDraw.styled(s, smoothFont.get());
+        Style font = smoothFont.get() ? smoothStyle() : null;
+        if (styledCache == null) styledCache = new java.util.HashMap<>();
+        if (!java.util.Objects.equals(font, styledCacheFont) || styledCache.size() >= 64) {
+            styledCache.clear();
+            styledCacheFont = font;
+        }
+        net.minecraft.text.MutableText t = styledCache.get(s);
+        if (t == null) {
+            t = net.evadeclient.hud.HudDraw.styled(s, font != null);
+            styledCache.put(s, t);
+        }
+        return t;
     }
 
     public int scaledWidth() { return Math.round(width * scale.getFloat()); }
