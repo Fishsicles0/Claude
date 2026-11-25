@@ -3065,13 +3065,12 @@ RUNES = [
 ]
 
 
-def rune_field(X, Z, r, ang, n, r_mid, height, width_frac=0.55, offset=0.0):
+def rune_field(X, Z, r, ang, n, r_mid, height, offset=0.0):
     """n rune glyphs evenly round a ring of radius r_mid (each `height` tall, radially), crisp: 1 inside a glyph's
     strokes, 0 elsewhere; plus the glyph index (for colouring)."""
     step = math.tau / n
     k = np.floor((ang - offset) / step + 0.5)
     da = (ang - offset) - k * step                       # angle from the nearest glyph's centre
-    u = da * r_mid / (height * width_frac / 5 * 7 / 7)   # tangential, in glyph widths
     gw = height * 5 / 7                                   # a glyph's width for square cells
     col = np.floor((da * r_mid) / gw * 5 + 2.5).astype(int)
     row = np.floor((r_mid + height / 2 - r) / height * 7).astype(int)
@@ -3108,7 +3107,6 @@ def ring_sigil(c_in, c_out, glyphs=12, alpha=0.8, extra=None, hue=None, star=Non
         if star:
             k = star
             a2 = (ang % (math.tau / k)) - math.pi / k
-            rr = 0.42 / np.maximum(np.cos(a2) * 1.0 + 0.0001, 0.0001)
             st = (np.abs(r * np.cos(a2) - 0.36) < 1.8 * px_ * 1.5) & (r < 0.5)
             A = np.maximum(A, st * 0.9)
         A = np.maximum(A, glow)
@@ -3172,7 +3170,7 @@ def frost_fn(cv, X, Z):
         ux, uz = math.cos(a0), math.sin(a0)
         along = X * ux + Z * uz
         perp = np.abs(-X * uz + Z * ux)
-        arm = smooth(1 - perp / 0.022) * (along > 0) * (along < 0.86)
+        arm = smooth(1 - perp / 0.042) * (along > 0) * (along < 0.86)
         A = np.maximum(A, arm)
         for f, L in ((0.4, 0.13), (0.64, 0.1)):
             for s in (-1, 1):
@@ -3181,16 +3179,17 @@ def frost_fn(cv, X, Z):
                 rx, rz = X - ux * f, Z - uz * f
                 al = rx * bx + rz * bz
                 pp = np.abs(-rx * bz + rz * bx)
-                A = np.maximum(A, smooth(1 - pp / 0.018) * (al > 0) * (al < L))
+                A = np.maximum(A, smooth(1 - pp / 0.034) * (al > 0) * (al < L))
         tip = np.sqrt((X - ux * 0.86) ** 2 + (Z - uz * 0.86) ** 2)
         A = np.maximum(A, smooth(1 - tip / 0.04))
-    A = np.maximum(A, smooth(1 - np.abs(r - 0.95) / 0.02) + 0.6 * smooth(1 - np.abs(r - 0.9) / 0.012))
+    A = np.maximum(A, smooth(1 - np.abs(r - 0.94) / 0.04) + 0.8 * smooth(1 - np.abs(r - 0.84) / 0.022))
     A = np.maximum(A, smooth(1 - r / 0.08))
     A *= r < 1
     col = ramp(r, [(0, "#ffffff"), (0.6, "#bfeaff"), (1, "#5ab8ff")])
     cv.arr[..., :3] = col[..., :3]
-    cv.arr[..., 3] = A * 0.6
-    em_rgb(cv, col, A * 0.6)
+    A = np.clip(A * 1.25, 0, 1)
+    cv.arr[..., 3] = A * 0.72
+    em_rgb(cv, col, A * 0.72)
 
 
 item("frost_sigil", "Frost Sigil", "AURA", "REGULAR", 400,
@@ -3232,7 +3231,7 @@ def verdant_fn(cv, X, Z):
         A = np.maximum(A, petal * 1.0)
         col[petal] = hexc("#ffb0d8")
         col[d < 0.025] = hexc("#ffe66a")
-    ring = smooth(1 - np.abs(r - 0.95) / 0.018) + smooth(1 - np.abs(r - 0.6) / 0.012) * 0.7
+    ring = smooth(1 - np.abs(r - 0.94) / 0.038) + smooth(1 - np.abs(r - 0.6) / 0.026) * 0.85
     col[(ring > 0.3) & (A < 0.3)] = hexc("#c8ff9a")
     A = np.maximum(A, ring)
     A *= r < 1
@@ -3394,7 +3393,9 @@ class Art:
         h, w = self.cv.h, self.cv.w
         self.cv.arr[:] = 0
         self.cv.arr[:big.shape[0], :big.shape[1]] = big[:h, :w]
-        self.cv.em[:big.shape[0], :big.shape[1]] = bige[:h, :w]
+        bige = bige[:h, :w]
+        bige[..., :3] *= bige[..., 3:4]            # glow colours are stored pre-multiplied (as em_rgb does)
+        self.cv.em[:big.shape[0], :big.shape[1]] = bige
 
 
 FACE_LIGHT = {"top": 1.08, "north": 1.0, "east": 0.95, "west": 0.95, "south": 0.92, "bottom": 0.8}
@@ -3428,7 +3429,8 @@ def eye(A, x, y, w=4, h=4, iris="#3a8a3a", dark=None, lid=None):
     A.rect(x, y, x + w, y + h, D)
     lo = y + h // 2
     A.rect(x + (1 if w >= 4 else 0), lo, x + w - (1 if w >= 4 else 0), y + h - (1 if h >= 4 else 0), mix(I, D, 0.25))
-    A.rect(x + 1 if w >= 4 else x, y + h - 2 if h >= 4 else y + h - 1, x + w - 1, y + h - 1, mix(I, D, 0.05)) if h >= 5 else None
+    if h >= 5:
+        A.rect(x + 1, y + h - 2, x + w - 1, y + h - 1, mix(I, D, 0.05))
     gx, gy = (x + 1, y + 1) if (w >= 4 and h >= 4) else (x, y)
     A.pix([(gx, gy)], "#ffffff")
     if w >= 5:
@@ -3443,7 +3445,7 @@ def eye(A, x, y, w=4, h=4, iris="#3a8a3a", dark=None, lid=None):
             A.norim[cy, cx] = False
 
 
-def stripes(A, color, rows, faces=None):
+def stripes(A, color, rows):
     """Tabby stripes: art-pixel rows across the face."""
     for yy in rows:
         A.rect(0, yy, A.w, yy + 1, color)
@@ -3749,7 +3751,7 @@ item("hoot_owl", "Hoot the Owl", "PET", "REGULAR", 500,
 
 # -------- Bubble the slime: a wobbly see-through jelly cube with a glowing core, a big grin and rosy cheeks
 
-SLIME = PERCH
+SLIME = (PERCH[0], PERCH[1] - 0.75, PERCH[2])     # a little higher: the whole jelly turns as it looks about
 SLIME_HI, SLIME_LO, SLIME_INK = "#b6ffcc", "#36c878", "#0e3a22"
 
 
@@ -3781,9 +3783,10 @@ def slime_pet():
     a = SLIME
     core = pet_body("slime", a, [PC(a, (-1, -2.5, -0.5), (2, 2, 2), px("#4ad884", slime_core))])
     core.anim = dict(PET_ANIM, amp=0.8, speed=2.0)
-    jelly = Bone("jelly", "root", P(a, 0, 0, 0), cubes=[PC(a, (-2, -4, -2), (4, 4, 4), slime_paint)], parent="slime",
-                 alpha=0.97)
-    lids = blink_bone("lids", "slime", a, (-1.25, -2.75, -2.03), (3, 1, 0),
+    # the jelly is the slime's whole face: it glances about on its own, wobbling over the core
+    jelly = Bone("jelly", "root", P(a, 0, -2, 0), cubes=[PC(a, (-2, -4, -2), (4, 4, 4), slime_paint)], parent="slime",
+                 alpha=0.97, anim={"type": "pet_head", "amp": 8})
+    lids = blink_bone("lids", "jelly", a, (-1.25, -2.75, -2.03), (3, 1, 0),
                       lid_paint("#86eaa8", [(0, 3), (7, 3)], SLIME_INK))
     return [core, jelly, lids]
 

@@ -95,6 +95,16 @@ public final class CosmeticModel {
 
         /** Drawn translucent (sorted) rather than cut-out. */
         public boolean translucent() { return alpha < 1f || emissive || glass; }
+
+        /** The bone this one moves with, or null. */
+        public Bone parent() { return parent; }
+
+        /** Its cubes as {x, y, z, w, h, d} (the attach part's units, before the bone's own turn), for checks. */
+        public List<float[]> boxes() {
+            List<float[]> out = new ArrayList<>();
+            for (float[] c : cubes) out.add(new float[]{c[0], c[1], c[2], c[3], c[4], c[5]});
+            return out;
+        }
     }
 
     private static final String[] FACE_NAMES = {"up", "down", "west", "north", "east", "south"};   // visual names, Direction order
