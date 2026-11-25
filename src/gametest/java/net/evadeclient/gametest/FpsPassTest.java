@@ -142,6 +142,7 @@ public final class FpsPassTest {
             ctx.runOnClient(c -> EvadeClient.modules.get(Performance.class).hudRefresh.set("60 Hz"));
             out.add(measure(ctx, "defaults-hud-60hz", seconds));
 
+            hudDrawCost(ctx);
             hudCacheBreakEven(ctx);
 
             // 5: every HUD widget on as well (the heaviest HUD anyone could set up), drawn live and then cached.
@@ -190,6 +191,46 @@ public final class FpsPassTest {
                 "FPS pass: Evade's defaults allocate under %.0f KB more per frame than Performance alone in a busy scene (%.1f KB)", ALLOC_BUDGET_KB, extraKb));
         check(def.hudUs() < HUD_BUDGET_US, String.format(Locale.ROOT,
                 "FPS pass: Evade's default HUD draws in under %.0f us per frame here (%.0f us)", HUD_BUDGET_US, def.hudUs()));
+    }
+
+    /**
+     * Evade's default HUD drawn live 400 times back to back into a scratch GUI state: microseconds and bytes allocated
+     * per draw, on frames within one tick (most frames, at any frame rate over 20) and on frames that start a new tick
+     * (the text widgets read their text again). Allocation counts don't depend on how busy the computer is.
+     */
+    private static void hudDrawCost(ClientGameTestContext ctx) {
+        double[] r = ctx.computeOnClient(c -> {
+            double[] out = new double[4];
+            var bean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+            long tid = Thread.currentThread().threadId();
+            net.evadeclient.util.HudCache.forceOff = true;
+            try {
+                for (int pass = 0; pass < 3; pass++) { // pass 0 warms up; 1 = same tick, 2 = a new tick every draw
+                    long best = Long.MAX_VALUE, bytes = 0;
+                    for (int round = 0; round < 4; round++) {
+                        long b0 = bean.getThreadAllocatedBytes(tid), t0 = System.nanoTime();
+                        for (int i = 0; i < 100; i++) {
+                            if (pass == 2) EvadeClient.ticks++;
+                            var dc = new net.minecraft.client.gui.DrawContext(c, new net.minecraft.client.gui.render.state.GuiRenderState(), 0, 0);
+                            net.evadeclient.hud.Hud.render(dc);
+                        }
+                        best = Math.min(best, System.nanoTime() - t0);
+                        bytes += bean.getThreadAllocatedBytes(tid) - b0;
+                    }
+                    if (pass > 0) {
+                        out[(pass - 1) * 2] = best / 100 / 1000.0;
+                        out[(pass - 1) * 2 + 1] = bytes / 400.0;
+                    }
+                }
+            } finally {
+                net.evadeclient.util.HudCache.forceOff = false;
+                FrameStats.takeHudMicros();
+            }
+            return out;
+        });
+        // A scratch DrawContext and GuiRenderState are part of each draw here (a few hundred bytes).
+        log("HUD draw (defaults, live): within a tick %.0f us and %.1f KB per frame; on a new tick %.0f us and %.1f KB",
+                r[0], r[1] / 1024, r[2], r[3] / 1024);
     }
 
     /**

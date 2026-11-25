@@ -96,6 +96,7 @@ public final class Keybinds {
                 out.add(new Binding(Kind.SETTING, k, settingLabel(m, k), "Evade keys", k.get(), 0, false));
             }
         }
+        out.addAll(net.evadeclient.module.misc.TextHotkeys.bindings());
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc != null && mc.options != null) {
             for (KeyBinding kb : mc.options.allKeys) {
@@ -173,6 +174,11 @@ public final class Keybinds {
                 if (!k.accepts(code)) return false;
                 if (code == GLFW.GLFW_KEY_UNKNOWN && EvadeClient.modules.get(ClientSettings.class).menuKey == k) return false;
                 k.set(code);
+            }
+            case net.evadeclient.module.misc.TextHotkeys.Hotkey h -> {
+                if (code != GLFW.GLFW_KEY_UNKNOWN && !net.evadeclient.module.misc.TextHotkeys.validKey(code)) return false;
+                h.key = code;
+                if (code == GLFW.GLFW_KEY_UNKNOWN) h.mods = 0;
             }
             case KeyBinding kb -> {
                 InputUtil.Key key = code == GLFW.GLFW_KEY_UNKNOWN ? InputUtil.UNKNOWN_KEY

@@ -303,7 +303,7 @@ final class EvadeShadersTest {
         void run() throws IOException {
             ctx.runOnClient(c -> {
                 c.options.hudHidden = true;
-                c.options.getViewDistance().setValue(10);
+                c.options.getViewDistance().setValue(8);
             });
             List<Scene> scenes = build();
             String only = System.getProperty("evade.shadershots.only", "");

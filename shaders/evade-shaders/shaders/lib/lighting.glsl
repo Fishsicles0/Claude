@@ -44,9 +44,9 @@ vec3 surfaceLight(LightInputs li) {
     if (hasSkylight) {
         float skyEnergy = max(luma(skyL) - luma(floorL), 0.0);
         float ndl = li.foliage > 0.5 ? 0.35 + 0.65 * abs(li.NdotL) : max(li.NdotL, 0.0);
-        vec3 direct = li.directCol * ndl * li.shadow * 1.7;
+        vec3 direct = li.directCol * ndl * li.shadow * 1.35;
         float upness = li.foliage > 0.5 ? 0.6 : li.normal.y;
-        vec3 ambient = li.ambientCol * (0.52 + 0.22 * upness + 0.04 * li.normal.x);
+        vec3 ambient = li.ambientCol * (0.42 + 0.18 * upness + 0.04 * li.normal.x);
         light += skyEnergy * (direct + ambient);
     } else {
         light += max(skyL - floorL, 0.0); // Nether/End: keep vanilla exactly
