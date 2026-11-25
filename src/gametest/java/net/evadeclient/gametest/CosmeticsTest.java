@@ -429,7 +429,8 @@ public final class CosmeticsTest {
                 + ", worn " + PlayerCosmetics.get(BOT) + ", on " + Cosmetics.get().isEnabled());
         check(drawn > 0 && glow > 0, "Cosmetics v2: the animated cape and its emissive layer are drawn in game (" + drawn + " draws, " + glow + " glow parts; " + why + ")");
         check(ups > 0 && ups <= 23 * 4, "Cosmetics v2: the frame advances in game, a bounded number of uploads (" + ups + " in ~23 ticks)");
-        check(soft > 0, "Cosmetics v2: a soft-particle aura spawns soft glow particles (" + soft + ")");
+        boolean stillOn = ctx.computeOnClient(c -> Cosmetics.get().isEnabled());
+        check(soft > 0 && stillOn, "Cosmetics v2: a soft-particle aura spawns soft glow motes without crashing (" + soft + " spawned, module still on: " + stillOn + ")");
 
         // ---- cape physics: at rest it settles, walking lifts it (the spring follows vanilla's cape values)
         ctx.waitTicks(20);
