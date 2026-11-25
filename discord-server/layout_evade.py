@@ -246,6 +246,9 @@ WELCOME_LINES = [
     "❓ Questions? #download-help or #create-ticket",
 ]
 HELP_LINES = ["Download: #download · Install help: #install-guide · Rules: #rules"]
+# Extra line on the Verify panel, the first thing new people see.
+VERIFY_NOTE = ("🎮 Looking for the Roblox game *Evade*? Wrong server: this is **Evade Client**, "
+               "a mod for Minecraft Java Edition.")
 LEGAL_PAGES = True   # serve /terms and /privacy from worker/legal/
 LEGAL_NOTE = "Terms & privacy: fish-claude-bot.pages.dev/terms"
 
@@ -279,6 +282,8 @@ def _p(title, description, fields=()):
 POSTS = {
     # ── Start Here ──
     "rules": [_p("Server Rules", (
+        "🎮 **Looking for the Roblox game *Evade*?** You're in the wrong place. This is **Evade Client**, "
+        "a mod for **Minecraft Java Edition**. We're not connected to the Roblox game.\n\n"
         "**1. Be respectful.** No harassment, slurs, hate speech or personal attacks.\n\n"
         "**2. No cheating.** Evade is a quality-of-life client with no combat or movement cheats. Don't ask for, "
         "share or advertise hacked clients, cheat mods or anti-cheat bypasses, and follow the rules of every server you play on.\n\n"
@@ -337,6 +342,8 @@ POSTS = {
         "**Email:** privacy@evadeclient.com\n\n"
         "These are the only official links. More socials will be added here as they launch."))],
     "faq": [_p("Frequently Asked Questions", (
+        "**Is this the Roblox game Evade?**\nNo. Evade Client is a mod for Minecraft Java Edition, made by "
+        "a different team. We're not connected to the Roblox game *Evade*.\n\n"
         "**Is it free?**\nYes, completely. No account or licence key.\n\n"
         "**Is it allowed on servers?**\nOn the great majority. Evade is quality of life only: HUD, zoom, freelook, "
         "crosshair, waypoints and visual tweaks. No combat or movement cheats, ESP or x-ray. Some servers (including "

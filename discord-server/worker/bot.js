@@ -756,7 +756,8 @@ export function panels() {
           ? "Read the rules, then press **Verify** to request access.\n\nLeadership reviews every request by hand. " +
             "You'll get a DM and the server unlocks as soon as you're approved."
           : "Read the rules, then press **Verify** to unlock the server.\n\nYou'll be asked to pick a code to prove you're human. " +
-            `Accounts younger than ${s.min_account_age_days} days can't verify automatically. If that's you, wait a little or ask staff.`) }],
+            `Accounts younger than ${s.min_account_age_days} days can't verify automatically. If that's you, wait a little or ask staff.`)
+        + (CONFIG.verify_note ? `\n\n${CONFIG.verify_note}` : "") }],
       components: [{ type: 1, components: [{ type: 2, style: 3, label: "Verify", emoji: { name: "✅" }, custom_id: "verify:start" }] }],
     },
     ticket: {

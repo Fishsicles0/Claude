@@ -54,6 +54,7 @@ def config() -> dict:
         "tickets": layout.TICKET_TYPES, "lockdown_categories": layout.LOCKDOWN_CATEGORIES,
         "welcome_lines": [mention(x, state) for x in layout.WELCOME_LINES],
         "welcome_channel": getattr(layout, "WELCOME_CHANNEL", "welcome"),
+        "verify_note": getattr(layout, "VERIFY_NOTE", ""),
         "verify_approvers": getattr(layout, "VERIFY_APPROVERS", []),
         "help_lines": [mention(x, state) for x in layout.HELP_LINES],
         "legal_note": getattr(layout, "LEGAL_NOTE", ""),
