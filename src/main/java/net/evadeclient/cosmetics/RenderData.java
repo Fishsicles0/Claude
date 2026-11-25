@@ -15,6 +15,21 @@ public final class RenderData {
     /** Seconds for animations (bob, spin, wing beat). */
     public float time;
 
+    // ---- motion state, kept per player between frames by CosmeticMotion (false in the Wardrobe: time-based there)
+    public boolean motion;
+    long lastNanos;
+    /** Cape spring: current lift, forward swing and side swing (degrees, vanilla's three cape values) and their speeds. */
+    public float capeLift, capeSwing, capeSide;
+    float capeLiftV, capeSwingV, capeSideV;
+    /** Wing beat clock (beats at speed 1), current beat-rate and amplitude multipliers, fold 0..1 (sneaking). */
+    public float wingClock, wingRate = 1f, wingAmp = 1f, fold;
+    /** Pet: how far it trails your body's turn (degrees), and its eased look (degrees, relative to your body). */
+    public float petLag, petLookYaw, petLookPitch;
+    float petYaw, petYawV;
+    boolean petInit;
+    /** A chestplate (or other body armour model) is worn: back items sit a little further out. */
+    public boolean chestArmour;
+
     public boolean shows(Slot s) { return (hidden & (1 << s.ordinal())) == 0 && loadout.get(s) != null; }
 
     public RenderData hide(Slot s) { hidden |= 1 << s.ordinal(); return this; }

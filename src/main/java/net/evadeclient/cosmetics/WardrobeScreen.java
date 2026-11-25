@@ -195,7 +195,16 @@ public final class WardrobeScreen extends EvadePanelScreen {
         int ts = cardH - 36;
         if (thumb != null) {
             int color = owned ? 0xFFFFFFFF : 0xB0FFFFFF;
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, thumb, x + (cardW - ts) / 2, y + 6, 0, 0, ts, ts, 128, 128, 128, 128, color);
+            // animated items: a strip of frames, played (the next frame faded over this one when it interpolates)
+            float[] fr = CosmeticAssets.thumbFrame(it);
+            int frames = fr == null ? 1 : (int) fr[3];
+            int fa = fr == null ? 0 : (int) fr[0];
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, thumb, x + (cardW - ts) / 2, y + 6, 0, fa * 128, ts, ts, 128, 128, 128, 128 * frames, color);
+            if (fr != null && fr[2] > 0.02f && fr[1] != fr[0]) {
+                int a2 = Math.round(((color >>> 24) & 255) * fr[2]);
+                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, thumb, x + (cardW - ts) / 2, y + 6, 0, (int) fr[1] * 128, ts, ts, 128, 128, 128, 128 * frames,
+                        a2 << 24 | (color & 0xFFFFFF));
+            }
         }
         text(ctx, ellipsize(it.name, Role.LABEL, cardW - 10), x + 5, y + cardH - 28, Theme.TEXT, Role.LABEL);
         String sub = wearing ? "Wearing" : owned ? (it.slot == Slot.EMOTE ? "Owned · preview" : "Owned · click to wear")

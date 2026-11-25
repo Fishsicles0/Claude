@@ -135,8 +135,16 @@ public final class CosmeticsEngine {
         if (!s.equippedHeadStack.isEmpty()) d.hide(Slot.HAT).hide(Slot.MASK);
         if (s.equippedChestStack.contains(DataComponentTypes.GLIDER)) d.hide(Slot.CAPE).hide(Slot.WINGS).hide(Slot.BACK);
         d.emote = self ? Emotes.current() : null;
+        net.minecraft.component.type.EquippableComponent eq = s.equippedChestStack.get(DataComponentTypes.EQUIPPABLE);
+        d.chestArmour = eq != null && eq.slot() == net.minecraft.entity.EquipmentSlot.CHEST && eq.assetId().isPresent()
+                && !s.equippedChestStack.contains(DataComponentTypes.GLIDER);
+        Loadout.Worn capeWorn = l.get(Slot.CAPE) != null ? l.get(Slot.CAPE) : l.get(Slot.BACK);
+        CosmeticMotion.update(d, p, s, capeWorn == null ? null : CosmeticsCatalog.get(capeWorn.id()));
         return d;
     }
+
+    /** The latest per-frame data for a player (tests: motion state), or null. */
+    public static RenderData dataFor(UUID player) { return DATA.get(player); }
 
     public static RenderData data(PlayerEntityRenderState s) {
         return ((FabricRenderState) s).getData(KEY);

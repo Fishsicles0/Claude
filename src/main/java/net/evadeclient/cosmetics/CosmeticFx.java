@@ -196,7 +196,7 @@ public final class CosmeticFx {
                 z = pos.z + Math.sin(a) * rad;
                 vy = 0.02;
             }
-            spawn(particle, cols[r.nextInt(cols.length)], size, x, y, z, vx, vy, vz);
+            spawn(fx, particle, cols[r.nextInt(cols.length)], size, x, y, z, vx, vy, vz);
         }
     }
 
@@ -218,7 +218,7 @@ public final class CosmeticFx {
                     float t = (age + i / (float) per) / e.length();
                     for (int arm = 0; arm < 2; arm++) {
                         double a = t * Math.PI * 2 * 2.2 + arm * Math.PI, rad = 0.9 * (1 - t * 0.3);
-                        spawn(str(fx, "particle"), e.colors()[(age + arm) % e.colors().length], e.size(),
+                        spawn(fx, str(fx, "particle"), e.colors()[(age + arm) % e.colors().length], e.size(),
                                 e.at().x + Math.cos(a) * rad, e.at().y + t * h, e.at().z + Math.sin(a) * rad, 0, 0.01, 0);
                     }
                 }
@@ -234,12 +234,23 @@ public final class CosmeticFx {
         boolean spark = fx.has("spark") && fx.get("spark").getAsBoolean();
         for (int i = 0; i < n; i++) {
             double vx = r.nextGaussian() * 0.18, vy = r.nextDouble() * 0.25, vz = r.nextGaussian() * 0.18;
-            spawn(str(fx, "particle"), e.colors()[i % e.colors().length], e.size(), at.x, at.y, at.z, vx, vy, vz);
+            spawn(fx, str(fx, "particle"), e.colors()[i % e.colors().length], e.size(), at.x, at.y, at.z, vx, vy, vz);
             if (spark && i % 4 == 0) raw(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, vx * 2, vy * 2, vz * 2);
         }
     }
 
-    private static void spawn(String particle, int rgb, float size, double x, double y, double z, double vx, double vy, double vz) {
+    private static void spawn(JsonObject fx, String particle, int rgb, float size, double x, double y, double z, double vx, double vy, double vz) {
+        if ("soft".equals(particle)) {
+            // Evade's soft additive glow: colour over life through the effect's colours (or just this one)
+            int[] cols = colors(fx);
+            int[] grad = cols.length >= 2 ? cols : new int[]{rgb, rgb};
+            if (SoftParticle.spawn(x, y, z, vx, vy, vz, grad, Math.max(0.1f, Math.min(4f, size)), Math.max(0f, Math.min(3f, num(fx, "sizeEnd", 0.4f))),
+                    Math.max(0.2f, Math.min(4f, num(fx, "life", 1.2f))), num(fx, "fade", 0.25f), Math.max(-2f, Math.min(2f, num(fx, "gravity", -0.15f))))) {
+                spawned++;
+                budget--;
+                return;
+            }
+        }
         ParticleEffect p = switch (particle == null ? "dust" : particle) {
             case "snow" -> ParticleTypes.SNOWFLAKE;
             case "end_rod" -> ParticleTypes.END_ROD;

@@ -27,6 +27,10 @@ public final class CosmeticItem {
     volatile JsonObject fx;
     /** Emote keyframes, from item.json; null until loaded or for none. */
     volatile Emotes.Animation emote;
+    /** Texture animation from item.json (special items), or null for a still texture. */
+    volatile AnimatedTexture.Spec animation;
+    /** Cape physics from item.json: stiffness 0..1, lift 0..2, sway 0..2. */
+    volatile float stiffness = 0.5f, lift = 1f, sway = 1f;
 
     CosmeticItem(String id, String name, String description, Slot slot, Rarity rarity, boolean colourable, int defaultColor,
                  String partner, int priceCents, String currency, String base, Map<String, String> files, boolean bundled) {
@@ -47,6 +51,7 @@ public final class CosmeticItem {
 
     public JsonObject fx() { return fx; }
     public Emotes.Animation emote() { return emote; }
+    public AnimatedTexture.Spec animation() { return animation; }
     public boolean hasModel() { return files.containsKey("model.json"); }
 
     /** The colour to draw it in: the wearer's pick for colourable items, else its default (-1: none). */

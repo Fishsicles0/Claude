@@ -9,8 +9,9 @@ cosmetics/
   catalog.json          the catalogue: the backend serves it at /api/cosmetics/catalog, the shop page reads it
   <id>/item.json        what the item is (name, slot, rarity, colours, particle / emote data)
   <id>/model.json       cuboid model (not for trails, kill/win effects or emotes)
-  <id>/texture.png      box-UV texture for model.json
-  <id>/thumb.png        128 x 128 preview (Wardrobe grid, shop cards)
+  <id>/texture.png      texture for model.json (one frame, or a vertical strip of frames for animated items)
+  <id>/emissive.png     optional glow layer: same size and frames as texture.png, drawn full-bright
+  <id>/thumb.png        128 x 128 preview (Wardrobe grid, shop cards); animated items may use a strip of frames
 ```
 
 Served at `https://evadeclient.com/cosmetics/<id>/<file>`; that folder is the item's `assets.base`.
@@ -22,7 +23,8 @@ Served at `https://evadeclient.com/cosmetics/<id>/<file>`; that folder is the it
   "id": "ember_mantle", "name": "Ember Mantle", "slot": "CAPE", "rarity": "regular",
   "priceCents": 600, "currency": "USD", "partner": null,
   "colourable": false, "defaultColor": null, "description": "...",
-  "assets": {"files": {"item.json": "<sha256>", "model.json": "<sha256>", "texture.png": "<sha256>", "thumb.png": "<sha256>"}}
+  "assets": {"files": {"item.json": "<sha256>", "model.json": "<sha256>", "texture.png": "<sha256>", "thumb.png": "<sha256>",
+                       "emissive.png": "<sha256>  (only when the item has one)"}}
 }]}
 ```
 
@@ -74,7 +76,45 @@ Blockbench-style cuboids, Minecraft entity units (1 unit = 1 skin pixel = 1/16 b
   `bob` (`amp` units at `speed` Hz), `sway` (roll by `amp` degrees), `pet` (bob plus a slow look-around).
 * `display` (item skins): Minecraft item-model display transforms for the right hand; the left hand mirrors them.
 
-Limits the client enforces: 32 bones, 256 cubes, coordinates within ±64, textures up to 2048 px, files up to 2 MB.
+Limits the client enforces: 32 bones, 256 cubes, coordinates within ±64, UV space (`texture`) up to 256 x 256, one
+frame up to 1024 px a side, a whole PNG up to 4096 px tall, files up to 2 MB.
+
+### Format v2 additions (client 2.7+; everything optional, v1 files work unchanged)
+
+Keep `"format": "evade-cosmetic-model/1"`; the fields below are simply added where you need them.
+
+* **Higher resolution.** `texture` (UV space) can be up to 256 x 256 (128 x 128 is the recommended maximum per item),
+  and the PNG can be 1, 2, 4 or 8 times that (`textureScale`). The client works out the scale from the PNG's width
+  (`png width / texture[0]`), so one frame is always `png width` x `png width * texture[1] / texture[0]` px.
+* **Per-face UVs.** A cube may have `"faces"` instead of (or as well as) `uv`. When `faces` is present the cube draws
+  only the faces listed there and box UV is not used for it; sizes may then be fractional (multiples of 0.25):
+  ```json
+  {"origin": [-4, -8, -4], "size": [8, 8, 8], "faces": {
+     "north": {"uv": [8, 8, 16, 16]}, "south": {"uv": [24, 8, 32, 16]}, "east": {"uv": [0, 8, 8, 16]},
+     "west": {"uv": [16, 8, 24, 16], "rotation": 90}, "up": {"uv": [8, 0, 16, 8]}, "down": {"uv": [16, 0, 24, 8]}}}
+  ```
+  `uv` is `[u1, v1, u2, v2]` in the same UV space as box UV (texture units, not pixels); `u1 > u2` or `v1 > v2` flips
+  the face; each rectangle is laid on its face exactly the way the same face of a box-UV cube is (so `[d, d, d+w, d+h]`
+  on `north` gives the same result as box UV). `rotation` (0, 90, 180, 270) turns the UVs. Face names are as seen by someone looking at the
+  wearer: `north` = front (-z), `south` = back (+z), `east` = the wearer's left side (+x), `west` = the wearer's right
+  side (-x), `up` = top, `down` = bottom (Blockbench's names, with Minecraft's entity space). Box UV stays the default.
+* **Bone hierarchy.** `"parent": "<bone name>"` makes a bone move with another (defined earlier in the list) before its
+  own pivot, rotation and animation; its `attach` is ignored. Use it for two-part wings (an outer bone on the inner),
+  a pet's head on its body, a dangling charm on a hat.
+* **Animation timing.** Every `anim` also takes `phase` (a fraction of a cycle, 0..1; outer wing bones use ~0.12 so
+  the tip trails the beat) and an `ease` of `sine` (default) or `flap` (fast downstroke, slow upstroke).
+* **`wing`** (engine behaviour, nothing to set): idle beat at `speed`; up to 1.8x faster and 1.3x wider while
+  sprinting, 2.4x faster when falling or flying; folds back by `fold` degrees (default 70) over 0.25 s while
+  sneaking, eased in and out. `amp` is the beat's half
+  angle; `lift` (degrees, default 0) raises the wing at the top of the beat (rotation about x).
+* **`pet`**: bobs (`amp` px at `speed` Hz), trails your body's turns smoothly like a follower, looks where you look
+  (eased, at most 50 degrees each way), and every few seconds plays a small idle (a hop or a head tilt). Put the pet
+  on `attach: "root"`; a bone named `head` (or with `"anim": {"type": "pet_head"}`) also nods with your look.
+* **`cape`**: real physics, see `physics` in item.json below.
+* **Transparency.** Bones with `alpha` < 1, `emissive` bones and bones with `"glass": true` are drawn translucent and
+  sorted back-to-front (so are all bones of a model whose texture has partly see-through pixels); everything else is
+  drawn as cut-out (fully opaque or fully clear pixels), which is faster and
+  never sorts wrong. Mipmapping is always off (pixel art stays sharp).
 
 ## item.json
 
@@ -88,10 +128,40 @@ Limits the client enforces: 32 bones, 256 cubes, coordinates within ±64, textur
 * `fx` (auras, trails, kill and win effects): `type` aura | trail | burst | spiral; `particle` dust | snow | end_rod |
   spark | glow; `colors` (dust colours); `rate` per second (auras/trails), `count` (effects), `size`, `height`
   (spiral), `spark` (burst adds sparks). Particles are spawned by the viewer's own client only.
+* `animation` (special items, animated textures). `texture.png` (and `emissive.png`, `thumb.png` if they are strips)
+  is a vertical strip of `frames` equal frames, top to bottom, like Minecraft's `.mcmeta` animations:
+  ```json
+  "animation": {"frames": 8, "frametime": 2, "interpolate": true, "order": [0, 1, 2, 3, 4, 5, 6, 7, 6, 5]}
+  ```
+  `frames` 1..64 (the PNG height must be exactly `frames` x the frame height); `frametime` game ticks per frame (20
+  ticks = 1 s, default 1, may be fractional, at least 0.5); `interpolate` (default false) blends each frame smoothly into
+  the next; `order` (optional) plays frames in this order (0-based indices, repeats allowed); an entry can also be
+  `{"index": 3, "time": 6}` to hold that frame for its own number of ticks. The animation plays in game, in the
+  Wardrobe preview and grid, and on the shop. All wearers share one clock per item, and the client uploads the texture
+  only when what is shown changes (once per item, however many players wear it). `thumb.png` of an animated item may
+  be a 128 x (128 x `frames`) strip (at most 32 frames) and then plays in the Wardrobe grid; a plain 128 x 128 thumb
+  is fine too. Frame side at most 1024 px, whole strip at most 4096 px tall.
+* `emissive.png` (file, optional): a glow layer with the same size and frames as `texture.png`. Its pixels are added
+  on top of the item at full brightness (unaffected by light or night, like a spider's eyes): black or transparent =
+  no glow. Use it for runes, eyes, energy lines; it never makes the item bigger or the player easier to see through
+  walls (it is depth-tested like the rest of the model). A bone's `"emissive": true` still makes a whole bone glow.
+* `physics` (capes, and `back` items with a `cape` bone): `{"stiffness": 0.5, "lift": 1.0, "sway": 1.0}`. The cape
+  follows the vanilla cape's movement values (it lifts when you run or fall, swings with turns, settles when still),
+  through a spring: `stiffness` 0..1 (higher = stiffer cloth, smaller swing, settles faster; 0.5 feels like vanilla),
+  `lift` 0..2 (how far it rises when running/falling, 1 = vanilla), `sway` 0..2 (sideways swing, 1 = vanilla).
+* `fx` quality fields (all optional): `"particle": "soft"` draws Evade's own soft round glow sprite, blended
+  additively (glows over dark backgrounds, never a hard square); `colors` with two or more entries is a colour-over-
+  life gradient for `soft` (first colour at birth, last at death); `life` seconds (default 1.2), `fade` (fraction of
+  the life spent fading in and out, default 0.25), `sizeEnd` (size at death as a multiple of `size`, default 0.4),
+  `gravity` (blocks/s², negative floats up, default -0.15). Other particle names keep working as before.
 * `emote`: `parts` maps head, body, rightArm, leftArm, rightLeg, leftLeg to keyframes `[seconds, pitch, yaw, roll]`
   (degrees, replacing that part's angles; smoothstep between keys). `loop` repeats until the player moves.
 
 ## Previewing on the shop
+
+The shop's 3D preview plays `animation` (the texture is a canvas redrawn when the frame changes, blending frames when
+`interpolate` is on), adds `emissive.png` as a full-bright glow, uses per-face UVs, parents bones, and runs the same
+cape spring, wing beat and pet motion as the client (simplified).
 
 A viewer that reads these files draws each bone's cubes with the box UVs above, attached to the matching part of a
 player model (64 x 64 skin), turning bones about their pivots. Item-space models (item skins) are held in the right
