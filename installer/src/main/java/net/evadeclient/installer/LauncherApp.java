@@ -347,6 +347,15 @@ final class LauncherApp implements LauncherView.Actions {
             SelfUpdate.Update u = SelfUpdate.check();
             if (u != null) ui(() -> offerLauncherUpdate(u));
         });
+        // The launcher stays open after Play (often for hours): look for a new Evade and a new launcher every 10 minutes.
+        java.util.concurrent.ScheduledExecutorService every = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread th = new Thread(r, "evade-update-check"); th.setDaemon(true); return th; });
+        every.scheduleWithFixedDelay(() -> {
+            if (busy) return;
+            ui(this::retryRelease);
+            SelfUpdate.Update u = SelfUpdate.check();
+            if (u != null && (launcherUpdate == null || !u.version().equals(launcherUpdate.version()))) ui(() -> offerLauncherUpdate(u));
+        }, RECHECK_EVERY, RECHECK_EVERY, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     /** The newer launcher found at start, waiting for the player's yes. */
@@ -382,11 +391,13 @@ final class LauncherApp implements LauncherView.Actions {
             try {
                 InstallerCore.Release r = core.fetchRelease();
                 ui(() -> {
+                    releaseAt = System.currentTimeMillis();
                     view.release = r;
                     view.releaseError = null;
                     for (Launcher.Instance i : view.instances) {
                         Launcher.check(i, r);
-                        if (i.installed != null && i.pending != null) view.notice("Update ready for " + i.name, i.pending + ". Press Play to update.", false);
+                        if (i.installed != null && i.pending != null && notified.add(i.id + "|" + i.pending))
+                            view.notice("Update ready for " + i.name, i.pending + ". Press Play to update.", false);
                     }
                 });
             } catch (Exception e) {
@@ -597,9 +608,31 @@ final class LauncherApp implements LauncherView.Actions {
 
     // ------------------------------------------------------------------ play & install
 
+    /** When the release list was last fetched; the launcher stays open after Play, so it's checked again regularly. */
+    private volatile long releaseAt;
+    private boolean playAfterCheck;
+    /** Update notices already shown (instance + reason), so the regular re-check doesn't repeat them. */
+    private final java.util.Set<String> notified = new java.util.HashSet<>();
+    private static final long RELEASE_MAX_AGE = 60_000, RECHECK_EVERY = 10 * 60_000;
+
     @Override public void play() {
         Launcher.Instance i = view.selected();
         if (i == null || busy) return;
+        if (view.release != null && !playAfterCheck && System.currentTimeMillis() - releaseAt > RELEASE_MAX_AGE) {
+            // a list from more than a minute ago may be out of date: get the latest first, then play
+            playAfterCheck = true;
+            view.toast("Checking for updates…");
+            work.submit(() -> {
+                InstallerCore.Release fresh = null;
+                try { fresh = core.fetchRelease(); } catch (Exception e) { /* offline: play with what we have */ }
+                InstallerCore.Release f = fresh;
+                ui(() -> {
+                    if (f != null) { view.release = f; releaseAt = System.currentTimeMillis(); for (Launcher.Instance x : view.instances) Launcher.check(x, f); }
+                    try { play(); } finally { playAfterCheck = false; }
+                });
+            });
+            return;
+        }
         InstallerCore.Release r = view.release;
         Launcher.check(i, r);
         String reason = i.pending;

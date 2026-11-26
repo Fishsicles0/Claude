@@ -18,6 +18,7 @@ final class StartupChecks {
 
     /** What's new in this launcher version (newest first; shown once after an update). */
     static final String[][] WHATS_NEW = {
+            {"Always up to date", "The launcher now looks for a new Evade and a new launcher every 10 minutes and again right before Play, so leaving it open never keeps you on an old version."},
             {"Add-ons tab", "Mods > Add-ons installs Distant Horizons, Flashback, Litematica, MiniHUD, SkyHanni and Axiom from Modrinth in one click, with each one's licence and what was tested."},
             {"Smarter mod checks", "Version clashes are spotted (e.g. a mod that needs a different Sodium), no more false \"problems will stop the game\" warnings, and an overlap with an Evade mod offers to switch Evade's off."},
             {"Updates ask first", "When a newer Evade Launcher is out, it asks before updating, checks the download's SHA-256, and never installs an older version."}};
