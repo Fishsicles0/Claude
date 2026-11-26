@@ -1,52 +1,24 @@
 {
-  "version": "2.9.0",
+  "version": "2.9.1",
   "minecraft": "1.21.11",
   "loader": "Fabric",
   "file": "downloads/evade-client-latest.jar",
-  "size": "12501 KB",
-  "sha256": "26459f2c3e27b1073787128683437db8414b4c5865f63c4906c0166e8d867533",
+  "size": "12324 KB",
+  "sha256": "9be1734c8714c254950bcea6ce92ca601545abe8ec3076428dd5b9e091074d03",
   "installer": {
-    "version": "2.7.1",
-    "windows": {
-      "file": "downloads/Evade-Installer.exe",
-      "size": "7853 KB",
-      "sha256": "e313d2ddb19ffedcbbf2d8fca0522d5b54a7d47e060dce2b6471275818077aa4"
-    },
-    "jar": {
-      "file": "downloads/EvadeInstaller.jar",
-      "size": "7741 KB",
-      "sha256": "1e46888b9f4cb2b6f5724792aa79193173ac96984bd078f909382f4976600415"
-    }
+    "version": "2.7.2",
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7856 KB", "sha256": "9fc948b769b4b1eabed89fc1a788ac5611f6fe4822b6e22dbf3e9ef942d02e8a" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7744 KB", "sha256": "ac3e0d08d2be7776da3d047d0eccaad3f08ca3e72799baa9d537bfa8c517730f" }
   },
   "clips": {
-    "version": "1.2.0",
-    "windows": {
-      "file": "downloads/Evade-Clips.exe",
-      "size": "4241 KB",
-      "sha256": "a64e7a99fbad65be3d1bf2423f6d7de5a49ae16c2c080e0ae4b510014b43df9d"
-    },
-    "jar": {
-      "file": "downloads/EvadeClips.jar",
-      "size": "4129 KB",
-      "sha256": "945e8a654478cbb55ceaa9776876a2c6f6271ebd37a4e28033ce5aa61765a9b3"
-    },
-    "ffmpeg": {
-      "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip",
-      "sha256": "04861d3339c5ebe38b56c19a15cf2c0cc97f5de4fa8910e4d47e5e6404e4a2d4"
-    }
+    "version": "1.2.1",
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4244 KB", "sha256": "22928a4714afeb3c99592101552822a553bd2a7cf668af9a2933de115305282a" },
+    "jar": { "file": "downloads/EvadeClips.jar", "size": "4132 KB", "sha256": "9241cafcf2f170bb3a494277784f007070a023f7c6b27d841140bbf36541690d" },
+    "ffmpeg": { "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip", "sha256": "04861d3339c5ebe38b56c19a15cf2c0cc97f5de4fa8910e4d47e5e6404e4a2d4" }
   },
-  "serverApi": {
-    "file": "downloads/EvadeServerAPI.jar",
-    "size": "38 KB",
-    "sha256": "7d5dd7444188205ae2a7e0679d2c5a3f198ca04300ef5135195639a47c28532a"
-  },
+  "serverApi": { "file": "downloads/EvadeServerAPI.jar", "size": "38 KB", "sha256": "7d5dd7444188205ae2a7e0679d2c5a3f198ca04300ef5135195639a47c28532a" },
   "shaders": {
-    "evade": {
-      "file": "downloads/EvadeShaders.zip",
-      "version": "1.0",
-      "size": "45 KB",
-      "sha256": "7b74a205975fdb2a66ef225971821de3c963e52caa6a19720313b01ba22b6d90"
-    }
+    "evade": { "file": "downloads/EvadeShaders.zip", "version": "1.0", "size": "45 KB", "sha256": "7b74a205975fdb2a66ef225971821de3c963e52caa6a19720313b01ba22b6d90" }
   },
-  "date": "2026-11-25"
+  "date": "2026-11-26"
 }

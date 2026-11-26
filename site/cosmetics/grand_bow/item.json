@@ -7,6 +7,24 @@
  "defaultColor": null,
  "partner": null,
  "description": "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
+ "fx": {
+  "type": "aura",
+  "shape": "toss",
+  "particle": "soft",
+  "colors": [
+   "#E0203A",
+   "#FF6A7A"
+  ],
+  "rate": 6,
+  "height": 1.2,
+  "size": 0.4,
+  "sizeEnd": 0.3,
+  "life": 1.6,
+  "fade": 0.3,
+  "gravity": 0.35,
+  "from": 0.4,
+  "to": 1.6
+ },
  "emote": {
   "length": 2.4,
   "loop": false,

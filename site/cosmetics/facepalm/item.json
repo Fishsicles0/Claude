@@ -7,6 +7,24 @@
  "defaultColor": null,
  "partner": null,
  "description": "Bury your face in your hand. Sometimes it's all you can do.",
+ "fx": {
+  "type": "aura",
+  "shape": "puff",
+  "particle": "soft",
+  "colors": [
+   "#8AD0FF",
+   "#FFFFFF"
+  ],
+  "rate": 3,
+  "height": 1.75,
+  "size": 0.35,
+  "sizeEnd": 0.25,
+  "life": 0.9,
+  "fade": 0.3,
+  "gravity": 0.5,
+  "from": 0.3,
+  "to": 1.6
+ },
  "emote": {
   "length": 2.0,
   "loop": false,

@@ -110,8 +110,7 @@
     "type": "bob",
     "amp": 0.25,
     "speed": 2.0
-   },
-   "emissive": true
+   }
   }
  ]
 }

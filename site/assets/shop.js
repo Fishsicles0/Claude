@@ -89,6 +89,11 @@ function normItem(raw, i) {
   // Asset files live next to the page at /cosmetics/<id>/ (the API names the production origin; use this one).
   const base = new URL("/cosmetics/" + encodeURIComponent(id) + "/", location.href).href;
   const has = f => files.includes(f) ? base + f : null;
+  // the card picture: the 512 px retina thumbnail where there is one (still items), else thumb.png (animated items keep
+  // their strip); cache-busted by the file's hash from the catalogue
+  const hd = raw.thumbHd && typeof raw.thumbHd === "object" && typeof raw.thumbHd.file === "string" && /^[\w.-]+\.png$/.test(raw.thumbHd.file) ? raw.thumbHd : null;
+  const bust = h => typeof h === "string" && /^[0-9a-f]{8,}$/i.test(h) ? "?v=" + h.slice(0, 12) : "";
+  const image = hd ? base + hd.file + bust(hd.sha256) : files.includes("thumb.png") ? base + "thumb.png" + bust(fileMap["thumb.png"]) : null;
   const rarity = String(raw.rarity || "").toLowerCase();
   const partner = raw.partner && typeof raw.partner === "object" ? { id: raw.partner.id, name: String(raw.partner.name || raw.partner.id || "Partner") } : null;
   return {
@@ -96,7 +101,7 @@ function normItem(raw, i) {
     currency: typeof raw.currency === "string" ? raw.currency.toUpperCase() : null, partner,
     defaultColor: typeof raw.defaultColor === "string" ? raw.defaultColor : null,
     desc: String(raw.description || ""), partnerHow: String(raw.partnerHow || ""),
-    model: has("model.json"), texture: has("texture.png"), image: has("thumb.png"), details: has("item.json"), glow: has("emissive.png"),
+    model: has("model.json"), texture: has("texture.png"), image, details: has("item.json"), glow: has("emissive.png"),
     fx: raw.fx || null, emote: raw.emote || null, order: Number.isFinite(raw.order) ? raw.order : i,
     search: [raw.name, CAT_LABEL[cat], slot.replace(/_/g, " "), RARITIES.includes(rarity) ? rarity : "", partner && partner.name, priceCents === 0 ? "free" : ""].join(" ").toLowerCase(),
   };
@@ -345,11 +350,39 @@ function frameClock(an) {
 // Pixel art stays sharp: nearest filtering both ways and no mipmaps (as in the client), never smoothed or smeared.
 const NEAREST = 1003; // THREE.NearestFilter
 const pixelated = t => { t.magFilter = NEAREST; t.minFilter = NEAREST; t.generateMipmaps = false; return t; };
-async function stripTexture(T, src, an, aspect) {
-  const img = await loadImage(src);
+// The item's texture and glow layer as drawn by the thumbnails (scripts/build-cosmetics.py): where the glow layer has
+// alpha it replaces the lit colour (so the diffuse is darkened there, not added to and blown out to white), and the
+// glow layer is flattened onto black so its see-through texels never glow with whatever colour the PNG kept in them.
+const canvasOf = (img, w = img.naturalWidth || img.width, h = img.naturalHeight || img.height) => {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; return c;
+};
+async function layerImages(texSrc, glowSrc) {
+  const [tex, glow] = await Promise.all([texSrc ? loadImage(texSrc).catch(() => null) : null, glowSrc ? loadImage(glowSrc).catch(() => null) : null]);
+  if (!glow) return { tex, glow: null };
+  const w = glow.naturalWidth, h = glow.naturalHeight;
+  const gc = canvasOf(glow), g = gc.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h); g.drawImage(glow, 0, 0);
+  let dc = tex;
+  if (tex && tex.naturalWidth === w && tex.naturalHeight === h) {
+    const mask = canvasOf(glow), m = mask.getContext("2d");
+    m.drawImage(glow, 0, 0); m.globalCompositeOperation = "source-in"; m.fillStyle = "#000"; m.fillRect(0, 0, w, h);
+    dc = canvasOf(tex); const d = dc.getContext("2d");
+    d.drawImage(tex, 0, 0); d.globalCompositeOperation = "source-atop"; d.drawImage(mask, 0, 0);
+  }
+  // an emissive bone shows all of it at full strength: the darkened texture with the glow layer over it
+  const full = () => {
+    if (dc === tex) return tex;
+    const fc = canvasOf(dc), f = fc.getContext("2d");
+    f.drawImage(dc, 0, 0); f.globalCompositeOperation = "lighter"; f.drawImage(gc, 0, 0);
+    return fc;
+  };
+  return { tex: dc, glow: gc, full };
+}
+async function stripTexture(T, img, an, aspect) {
+  if (typeof img === "string") img = await loadImage(img);
   const frames = an && an.frames > 1 ? an.frames | 0 : 1;
   if (frames <= 1) { const t = pixelated(new T.Tex(img)); t.needsUpdate = true; return { tex: t, tick: null }; }
-  const w = img.naturalWidth, fh = Math.round(img.naturalHeight / frames) || Math.round(w * aspect);
+  const w = img.naturalWidth || img.width, fh = Math.round((img.naturalHeight || img.height) / frames) || Math.round(w * aspect);
   const c = document.createElement("canvas"); c.width = w; c.height = fh;
   const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
   const tex = pixelated(new T.Tex(c));
@@ -373,14 +406,22 @@ async function buildModel(viewer, it, model) {
   const [tw, th] = Array.isArray(model.texture) ? model.texture : [64, 32];
   const made = [], anims = [];
   let tex = null, glow = null;
-  if (it.texture) {
-    try { const s = await stripTexture(T, it.texture, it.animation, th / tw); tex = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
+  const layers = await layerImages(it.texture, it.glow);
+  if (layers.tex) {
+    try { const s = await stripTexture(T, layers.tex, it.animation, th / tw); tex = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
     catch (e) { tex = null; }
   }
-  if (it.glow) {
-    try { const s = await stripTexture(T, it.glow, it.animation, th / tw); glow = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
+  if (layers.glow) {
+    try { const s = await stripTexture(T, layers.glow, it.animation, th / tw); glow = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
     catch (e) { glow = null; }
   }
+  let full = tex;
+  if (layers.glow && layers.full && (model.bones || []).some(b => b.emissive)) {
+    try { const s = await stripTexture(T, layers.full(), it.animation, th / tw); full = s.tex; if (s.tick) anims.push(() => s.tick(performance.now() / 1000)); }
+    catch (e) { full = tex; }
+  }
+  const texs = viewer._texs || (viewer._texs = []);
+  texs.push(...[tex, glow, full !== tex ? full : null].filter(Boolean));
   const phys = Object.assign({ stiffness: .5, lift: 1, sway: 1 }, it.physics || {});
   const motion = viewer._motion || (viewer._motion = { moving: 0 });
   const adapters = {};
@@ -420,10 +461,14 @@ async function buildModel(viewer, it, model) {
     inner.position.set(-piv[0], -piv[1], -piv[2]);
     outer.add(inner);
     const see = b.alpha < 1 || b.glass || b.emissive;
-    const mat = new T.Mat({ map: tex, transparent: see, alphaTest: see ? 1e-3 : .1, side: 2, opacity: b.alpha == null ? 1 : b.alpha,
-      color: b.tint && tint ? tint : "#ffffff", emissive: b.emissive || glow ? "#ffffff" : "#000000", emissiveMap: b.emissive ? tex : glow,
-      emissiveIntensity: b.emissive ? .85 : glow ? 1 : 0, depthWrite: !see });
-    for (const c of b.cubes || []) inner.add(cuboid(T, c, tw, th, mat));
+    // an emissive bone is unlit (its texture at full strength, as in the thumbnails); a glow layer adds to the lit colour
+    const opts = { map: tex, transparent: see, alphaTest: see ? 1e-3 : .1, side: 2, opacity: b.alpha == null ? 1 : b.alpha, depthWrite: !see };
+    const mat = new T.Mat({ ...opts, color: b.emissive ? "#000000" : b.tint && tint ? tint : "#ffffff",
+      emissive: b.emissive || glow ? "#ffffff" : "#000000", emissiveMap: b.emissive ? full : glow, emissiveIntensity: b.emissive || glow ? 1 : 0 });
+    // what the bloom pass sees of this bone: its glowing texels only (see glowPass)
+    const glowMat = b.emissive || glow ? new T.Mat({ ...opts, color: "#000000", emissive: "#ffffff", emissiveMap: b.emissive ? full : glow }) : null;
+    if (b.tint && tint && b.emissive) glowMat.emissive.set(tint), mat.emissive.set(tint);
+    for (const c of b.cubes || []) { const m = cuboid(T, c, tw, th, mat); if (glowMat) m.userData.glow = glowMat; inner.add(m); }
     const parent = b.parent && byName[b.parent];
     if (!parent && b.anim && b.anim.type === "pet") {
       // like the client: the pet turns about the player's vertical axis with the head, so it stays beside it
@@ -487,76 +532,113 @@ async function buildModel(viewer, it, model) {
   return { made, anims };
 }
 
-// Particle effects (aura, trail, burst, spiral): small glowing cubes moved every frame; "particle": "soft" draws the
-// client's soft additive glow sprites instead (camera-facing, colour over life, fading in and out, shrinking).
+// Particle effects (item.json "fx": aura, trail, burst, spiral), played as the client spawns them: each particle lives
+// "life" seconds, rises or falls with "gravity", shrinks to "sizeEnd" and fades in and out ("fade"). Glowing kinds
+// (soft, flame, enchant, spark) are camera-facing additive glow sprites, coloured over their life by "colors"; "dust"
+// is small solid flakes in the palette's colours. Counts are steady-state (rate x life) with a floor, so a preview that
+// stands still shows as much as a player who keeps moving. Units: px, the player's space (feet at y -16, front +z).
 let softSprite = null;
 function softGlow() {
   if (softSprite) return softSprite;
   const c = document.createElement("canvas"); c.width = c.height = 64;
   const g = c.getContext("2d"), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(.25, "rgba(255,255,255,.55)"); r.addColorStop(.6, "rgba(255,255,255,.12)"); r.addColorStop(1, "rgba(255,255,255,0)");
+  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(.22, "rgba(255,255,255,.7)"); r.addColorStop(.55, "rgba(255,255,255,.16)"); r.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = r; g.fillRect(0, 0, 64, 64);
   return (softSprite = c);
 }
 const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h)); const n = m ? parseInt(m[1], 16) : 0xffffff; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 function buildEffect(viewer, fx) {
   const T = threeOf(viewer);
   const colors = Array.isArray(fx.colors) && fx.colors.length ? fx.colors : ["#ff3b4c"];
-  const type = String(fx.type || "aura");
-  const n = type === "trail" ? 24 : type === "burst" ? 30 : type === "spiral" ? 36 : 20;
-  const size = (fx.size || 1) * .7;
-  const soft = fx.particle === "soft";
-  const group = new T.Group(), parts = [];
+  const type = String(fx.type || "aura"), kind = String(fx.particle || "soft"), glowy = kind !== "dust";
+  const num = (v, d) => Number.isFinite(+v) && v !== null && v !== undefined ? +v : d;
+  const life = Math.max(.3, num(fx.life, type === "burst" ? 1.2 : 1.3)), size = num(fx.size, .8), sizeEnd = num(fx.sizeEnd, glowy ? .4 : .7);
+  const grav = num(fx.gravity, type === "burst" ? .4 : 0), fade = Math.max(.02, Math.min(.5, num(fx.fade, type === "burst" ? .1 : .25)));
+  const radius = num(fx.radius, type === "spiral" ? .55 : .62) * 16, height = num(fx.height, 2.2) * 16, from = num(fx.from, 0);
+  const n = type === "burst" || type === "spiral" ? Math.round(Math.min(90, Math.max(36, num(fx.count, 48))))
+    : Math.round(Math.min(72, Math.max(28, num(fx.rate, 8) * life * 3)));
+  const period = type === "burst" ? life + .3 : life; // a burst goes off, clears, and goes off again
+  const group = new T.Group(), parts = [], rgb = colors.map(hexRgb);
+  group.userData.fx = true;
+  const geo = new T.Box(1, 1, glowy ? .001 : 1);
   let glowTex = null;
-  if (soft) { glowTex = new T.Tex(softGlow()); glowTex.needsUpdate = true; }
-  const rgb = colors.map(hexRgb), sizeEnd = fx.sizeEnd == null ? .4 : +fx.sizeEnd;
+  if (glowy) { glowTex = pixelated(new T.Tex(softGlow())); glowTex.magFilter = glowTex.minFilter = 1006; glowTex.needsUpdate = true; } // linear: a smooth glow
   for (let i = 0; i < n; i++) {
-    const col = colors[i % colors.length], s = size * (.6 + (i % 3) * .3);
-    const m = soft
-      ? new T.Mesh(new T.Box(size * 3.2, size * 3.2, .01), new T.Mat({ map: glowTex, color: "#000000", emissive: col, emissiveMap: glowTex, emissiveIntensity: 1.4, transparent: true, opacity: 1, depthWrite: false, blending: 2 }))
-      : new T.Mesh(new T.Box(s, s, s), new T.Mat({ color: col, emissive: col, emissiveIntensity: .9, transparent: true, opacity: .9, depthWrite: false }));
-    group.add(m); parts.push({ m, seed: i / n });
-  }
-  if (soft) {
-    // colour over life and the fade: additive, so a darker emissive colour is a fainter glow
-    const fade = Math.max(.02, Math.min(.5, fx.fade == null ? .25 : +fx.fade));
-    parts.forEach(p => { p.life = k => {
-      const pos = k * (rgb.length - 1), i = Math.min(rgb.length - 1, Math.floor(pos)), j = Math.min(rgb.length - 1, i + 1), f = pos - i;
-      let v = Math.max(0, Math.min(1, k / fade, (1 - k) / fade)); v = v * v * (3 - 2 * v);
-      p.m.material.emissive.setRGB(...rgb[i].map((c, ci) => (c + (rgb[j][ci] - c) * f) / 255 * v));
-      p.m.scale.setScalar(1 + (sizeEnd - 1) * k);
-      p.m.quaternion.copy(viewer.camera.quaternion);
-      if (p.m.parent) { const q = p.m.parent.getWorldQuaternion(p.m.quaternion.clone()).invert(); p.m.quaternion.premultiply(q); }
-    }; });
+    const col = colors[i % colors.length];
+    const mat = glowy
+      ? new T.Mat({ map: glowTex, color: "#000000", emissive: "#ffffff", emissiveMap: glowTex, emissiveIntensity: 1.25, transparent: true, depthWrite: false, blending: 2 })
+      : new T.Mat({ color: fx.spark ? "#000000" : col, emissive: col, emissiveIntensity: fx.spark ? 1 : .35, transparent: true, depthWrite: false });
+    const m = new T.Mesh(geo, mat);
+    m.userData.glow = mat; // particles glow in the bloom pass too
+    group.add(m); parts.push({ m, seed: i / n, col: rgb[i % rgb.length] });
   }
   viewer.playerObject.add(group);
-  const update = t => {
-    for (const p of parts) {
-      const k = (t * .15 + p.seed) % 1, a = p.seed * Math.PI * 6 + t * .9;
-      if (type === "trail") { p.m.position.set(Math.sin(p.seed * 40) * 3, -15 + k * 4, -3 - k * 16); p.m.material.opacity = 1 - k; }
-      else if (type === "burst") { const kk = (t * .5 + p.seed * .3) % 1, r = 2 + kk * 15; p.m.position.set(Math.cos(p.seed * 41) * r, 2 + Math.sin(p.seed * 17) * r * .7, Math.sin(p.seed * 41) * r); p.m.material.opacity = 1 - kk; }
-      else if (type === "spiral") { const kk = (t * .25 + p.seed) % 1, ang = kk * Math.PI * 6; p.m.position.set(Math.cos(ang) * 8, -16 + kk * 38, Math.sin(ang) * 8); p.m.material.opacity = Math.sin(kk * Math.PI); }
-      else { const r = 9 + Math.sin(p.seed * 23) * 2; p.m.position.set(Math.cos(a) * r, -16 + k * 30, Math.sin(a) * r); p.m.material.opacity = Math.sin(k * Math.PI); }
-      if (p.life) p.life(type === "burst" ? (t * .5 + p.seed * .3) % 1 : type === "trail" ? (t * .15 + p.seed) % 1 : type === "spiral" ? (t * .25 + p.seed) % 1 : (t * .15 + p.seed) % 1);
-      else p.m.rotation.set(t + p.seed * 5, t * 1.3, 0);
+  const s0 = glowy ? size * 3.8 : size * 1.6, TAU = Math.PI * 2;
+  const place = (p, i, t) => {
+    // this particle's own clock: spread over the period, with fresh randoms every time it respawns
+    const off = type === "burst" ? hash(i, 9) * .12 : p.seed * period;
+    const ct = t + off, cyc = Math.floor(ct / period), age = ct - cyc * period, k = age / life;
+    const r1 = hash(i, cyc), r2 = hash(i + 31, cyc), r3 = hash(i + 77, cyc);
+    if (k >= 1) { p.m.visible = false; return; }
+    p.m.visible = true;
+    let x = 0, y = 0, z = 0;
+    if (type === "trail") { // left behind at the feet as the player walks on (+z), drifting with gravity
+      x = (r1 - .5) * 7; y = -15.2 + r2 * 2.5 - grav * 26 * age + Math.sin(age * 5 + i) * .6; z = 1 - age * 16 - r3 * 3;
+    } else if (type === "burst") { // out from the body's centre, slowing, then falling with gravity
+      const th = r1 * TAU, ph = Math.acos(2 * r2 - 1), sp = 20 * (.55 + .7 * r3), d = 4 + sp * life * (1 - Math.pow(1 - k, 2.2)) / 2.2 * 2; // from the body's surface out
+      x = Math.sin(ph) * Math.cos(th) * d; y = 2 + Math.cos(ph) * d * .8 - grav * 30 * age * age; z = Math.sin(ph) * Math.sin(th) * d;
+    } else if (type === "spiral" && fx.shape === "orbit") { // a ring circling the body at one height
+      const th = p.seed * TAU + t * 2.2; x = Math.cos(th) * radius * (1 + (r1 - .5) * .2); z = Math.sin(th) * radius;
+      y = -16 + (from || .5) * 32 + Math.sin(t * 3 + p.seed * 9) * 1.5 + (r2 - .5) * 3;
+    } else if (type === "spiral") { // two arms winding up around the player
+      const u = k, th = u * TAU * 1.6 + (i % 2) * Math.PI + t * .6;
+      x = Math.cos(th) * radius * (1 - u * .25); z = Math.sin(th) * radius * (1 - u * .25); y = -16 + u * height + (r1 - .5) * 2;
+    } else { // aura: rising around the player (a flat ring at one height for "ring")
+      const th = r1 * TAU + age * .9, rr = (fx.shape === "ring" ? radius : radius * (.75 + .5 * r2));
+      x = Math.cos(th) * rr; z = Math.sin(th) * rr;
+      y = (fx.shape === "ring" ? -16 + from * 32 : -16 + r3 * 10) + (4 - grav * 26) * age;
     }
+    p.m.position.set(x, y, z);
+    // fade in and out, shrink, and (glow) colour over life: additive, so a darker colour is a fainter glow
+    let v = Math.max(0, Math.min(1, k / fade, (1 - k) / fade)); v = v * v * (3 - 2 * v);
+    p.m.scale.setScalar(s0 * (1 + (sizeEnd - 1) * k) * (.75 + .5 * r3));
+    if (glowy) {
+      const pos = k * (rgb.length - 1), a = Math.min(rgb.length - 1, Math.floor(pos)), b = Math.min(rgb.length - 1, a + 1), f = pos - a;
+      p.m.material.emissive.setRGB(...rgb[a].map((c, ci) => (c + (rgb[b][ci] - c) * f) / 255 * v));
+    } else { p.m.material.opacity = v; p.m.rotation.set(t * 2 + r1 * 6, t * 1.4 + r2 * 6, 0); }
+  };
+  const q = viewer.camera.quaternion.clone();
+  const update = t => {
+    if (glowy) { group.updateWorldMatrix(true, false); group.getWorldQuaternion(q).invert().multiply(viewer.camera.quaternion); }
+    parts.forEach((p, i) => { place(p, i, t); if (glowy) p.m.quaternion.copy(q); });
   };
   update(1.3);
-  return { group, update };
+  // where the effect can reach (player space), so the preview frames all of it
+  const R = radius + 4, top = Math.max(-16 + height, -16 + 10 + (4 - grav * 26) * life);
+  const bounds = type === "trail" ? [[-6, -17, -2 - 15 * life], [6, Math.max(-9, -13 - grav * 26 * life), 3]]
+    : type === "burst" ? [[-20, -14, -20], [20, 20, 20]]
+    : type === "spiral" && fx.shape === "orbit" ? [[-R, -16 + (from || .5) * 32 - 4, -R], [R, -16 + (from || .5) * 32 + 4, R]]
+    : type === "spiral" ? [[-R, -17, -R], [R, -16 + height + 2, R]]
+    : [[-R, -17, -R], [R, fx.shape === "ring" ? -16 + from * 32 + 4 + 4 * life : Math.min(24, top), R]];
+  return { group, update, bounds, dispose() { geo.dispose(); if (glowTex) glowTex.dispose(); } };
 }
 
 // Emotes: keyframes [time, pitch, yaw, roll] (degrees, Minecraft's axes) per body part, played on a loop.
 function emoteAnimation(sv, emote) {
-  const len = emote.length || 1, parts = emote.parts || {};
+  const len = emote.length || 1;
+  return new sv.FunctionAnimation(player => emotePose(player, emote, performance.now() / 1000 % len));
+}
+function emotePose(player, emote, t) { // t: seconds into the emote, 0 to its length
+  const parts = emote.parts || {};
   const R = d => d * Math.PI / 180;
-  return new sv.FunctionAnimation(player => {
-    const t = performance.now() / 1000 % len; // keyframe times are in seconds, 0 to length
+  {
     for (const [part, keys] of Object.entries(parts)) {
       const o = player.skin[part];
       if (!o || !keys.length) continue;
       let i = keys.findIndex(k => k[0] > t);
       if (i <= 0) i = i === 0 ? 1 : keys.length - 1;
-      const a = keys[i - 1], b = keys[i], f = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 0;
+      const a = keys[i - 1] || keys[0], b = keys[i] || a, f = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 0;
       const lerp = n => a[n] + (b[n] - a[n]) * f;
       o.rotation.set(R(lerp(1)), -R(lerp(2)), -R(lerp(3))); // y and z turn the other way in skinview3d's space
     }
@@ -575,7 +657,7 @@ function emoteAnimation(sv, emote) {
       const turned = pivot.clone().applyEuler(player.rotation);
       player.position.set(pivot.x - turned.x + off[0], pivot.y - turned.y - off[1], pivot.z - turned.z + off[2]);
     }
-  });
+  }
 }
 // skinview3d's player: feet at y = -16 in the player's own space, so the hips (top of the legs) are 12 px above that.
 const HIP_Y = -4;
@@ -585,36 +667,167 @@ const ANIMS = { wave: "WaveAnimation", crouch: "CrouchAnimation", run: "RunningA
 
 // Put one item on a viewer (removing the previous one). Returns a per-frame animator, or null.
 async function dress(viewer, it) {
+  // free the previous item's GPU memory: geometry, materials (with the bloom pass's copies) and every texture it made
+  const skinMap = viewer._evade && viewer._evade.length ? threeOf(viewer).map : null;
   for (const o of viewer._evade || []) {
     o.parent && o.parent.remove(o);
-    o.traverse(x => { if (x.geometry) x.geometry.dispose(); if (x.material) { if (x.material.map && x.material.map !== threeOf(viewer).map) x.material.map.dispose(); x.material.dispose(); } });
+    o.traverse(x => {
+      if (x.geometry) x.geometry.dispose();
+      for (const m of [x.material, x.userData.glow]) {
+        if (!m) continue;
+        if (m.map && m.map !== skinMap) m.map.dispose();
+        if (m.userData.black) m.userData.black.dispose();
+        m.dispose();
+      }
+    });
   }
-  viewer._evade = []; viewer._tick = null;
+  for (const t of viewer._texs || []) t.dispose();
+  viewer._evade = []; viewer._texs = []; viewer._tick = null;
   viewer.loadCape(null);
   await detailsOf(it);
+  viewer._item = it;
   const ticks = [];
   const model = it.model ? await getJson(it.model) : null;
   if (model && model.bones) { const m = await buildModel(viewer, it, model); viewer._evade.push(...m.made); ticks.push(...m.anims); }
-  if (it.fx) { const fx = buildEffect(viewer, it.fx); viewer._evade.push(fx.group); ticks.push(fx.update); }
+  viewer._fxBounds = null;
+  if (it.fx) { const fx = buildEffect(viewer, it.fx); viewer._evade.push(fx.group); ticks.push(fx.update); viewer._fxBounds = fx.bounds; }
   viewer._tick = ticks.length ? t => ticks.forEach(f => f(t)) : null;
   if (viewer._tick) viewer._tick(1.3);
 }
 
+// How each category is shown: turned to the side that shows the item (back or front, a little round so it reads as 3D),
+// and framed on the item together with the body parts that give it scale, with room for its motion. The camera is
+// fitted to the actual shapes (and to where the item's particles go, and an emote's whole move), so every item fills the
+// space above the pose buttons, on a phone or a desktop, whatever its size.
+const ALL_PARTS = ["head", "body", "rightArm", "leftArm", "rightLeg", "leftLeg"];
+const VIEWS = {
+  capes: { turn: .34, parts: ["head", "body"], margin: 1.2 }, wings: { turn: .4, parts: ["head", "body"], margin: 1.28 },
+  back: { turn: .6, parts: ["head", "body"], margin: 1.16 }, trails: { turn: 1.25, parts: ALL_PARTS, margin: 1.06 },
+  hats: { turn: .5, parts: ["head"], margin: 1.26 }, masks: { turn: .5, parts: ["head"], margin: 1.22 },
+  auras: { turn: .5, tilt: .62, parts: ["body", "rightLeg", "leftLeg"], margin: 1.08 }, pets: { turn: -.7, parts: [], margin: 1.75 },
+  emotes: { turn: .45, parts: ALL_PARTS, margin: 1.06 }, killfx: { turn: .5, parts: ALL_PARTS, margin: 1.02 },
+  winfx: { turn: .5, parts: ALL_PARTS, margin: 1.04 }, skins: { turn: .75, parts: ["head", "body", "rightArm"], margin: 1.12 },
+};
 function pose(viewer, cat, back) {
-  const wrap = viewer.playerWrapper, fit = viewer._fit || 1; // fit: the share of the stage above the pose buttons
-  wrap.rotation.y = back ? Math.PI - .55 : .5;
-  // auras: tipped towards the camera, so the rune circle at the feet is seen from above and reads clearly
-  wrap.rotation.x = cat === "auras" ? .42 : 0;
-  wrap.position.x = 0;
-  wrap.position.y = HEAD_VIEW.has(cat) ? -13 : 0;
-  // full-body views keep the feet and the ground (aura circles, trails) clear of the buttons
-  viewer.zoom = (HEAD_VIEW.has(cat) ? 1.05 : cat === "killfx" || cat === "winfx" ? .6 : cat === "auras" ? .8 : .72) * fit;
-  if (cat === "pets") { // the head, the left shoulder and the pet beside it, turned a little towards the pet
-    wrap.rotation.y = back ? Math.PI + .5 : -.5;
-    wrap.position.y = -13;
-    wrap.position.x = back ? 4 : -4;
-    viewer.zoom = 1.45 * fit;
+  const wrap = viewer.playerWrapper, cam = viewer.camera, cfg = VIEWS[cat] || { turn: .5, parts: ALL_PARTS, margin: 1.1 };
+  wrap.rotation.set(cfg.tilt || 0, back ? Math.PI - cfg.turn : cfg.turn, 0);
+  wrap.position.set(0, 0, 0);
+  wrap.updateMatrixWorld(true);
+  const V = cam.position.constructor, v = new V(), pts = [];
+  const lo = new V(Infinity, Infinity, Infinity), hi = new V(-Infinity, -Infinity, -Infinity);
+  const add = () => { lo.min(v); hi.max(v); pts.push(v.x, v.y, v.z); };
+  const items = new Set(viewer._evade || []);
+  const walk = (o, skipItems) => {
+    if (!o || !o.visible || o.userData.fx || (skipItems && items.has(o))) return;
+    const pos = o.isMesh && o.geometry && o.geometry.attributes.position;
+    if (pos) for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      if (v.x === 0 && v.y === 0 && v.z === 0) continue; // a face a per-face-UV cube leaves out (collapsed)
+      v.applyMatrix4(o.matrixWorld); add();
+    }
+    o.children.forEach(c => walk(c, skipItems));
+  };
+  const player = viewer.playerObject;
+  const hasModel = [...items].some(o => !o.userData.fx);
+  const collect = () => {
+    player.updateMatrixWorld(true);
+    for (const o of items) walk(o, false);
+    for (const part of cfg.parts) walk(player.skin[part], true);
+    // where the particles go, when they are the item (an aura's own rune circle is framed instead of its sparks, an
+    // emote's move instead of its sparkles)
+    const b = viewer._fxBounds && cat !== "emotes" && (cat !== "auras" || !hasModel) ? viewer._fxBounds : null;
+    if (b) for (let i = 0; i < 8; i++) { v.set(b[i & 1][0], b[i >> 1 & 1][1], b[i >> 2][2]).applyMatrix4(player.matrixWorld); add(); }
+  };
+  const emote = viewer._item && viewer._item.emote;
+  if (emote && emote.parts) { // the whole move: sampled over its length, then back to standing
+    for (let k = 0; k < 24; k++) { emotePose(player, emote, (emote.length || 1) * k / 24); collect(); }
+    try { player.resetJoints(); } catch (e) { /* older skinview3d */ }
+    resetBody(viewer); player.updateMatrixWorld(true);
+  } else collect();
+  if (!(hi.x > lo.x)) { viewer.zoom = .72 * (viewer._fit || 1); return; }
+  const c = lo.clone().add(hi).multiplyScalar(.5);
+  wrap.position.set(-c.x, -c.y, -c.z);
+  // the nearest distance at which every point is inside the frame, in perspective (near parts look bigger)
+  const tan = Math.tan(cam.fov * Math.PI / 360), fit = viewer._fit || 1, m = cfg.margin;
+  const ky = m / (tan * fit), kx = m / (tan * cam.aspect);
+  let d = 10.5;
+  for (let i = 0; i < pts.length; i += 3) {
+    const z = pts[i + 2] - c.z;
+    d = Math.max(d, z + Math.abs(pts[i + 1] - c.y) * ky, z + Math.abs(pts[i] - c.x) * kx);
   }
+  viewer.zoom = 16.5 / tan / (d - 4.5);
+}
+
+// ---- the preview's look: the same light and glow as the generator's thumbnails (scripts/build-cosmetics.py
+// render_scene), sharp on every screen. skinview3d's own setup is flat light (ambient only) and FXAA, which smears
+// texels; here: a warm key light from the upper left and a cool fill from the right (both fixed to the camera, like
+// the thumbnails), multisampled edges instead of FXAA (texels stay crisp), and a bloom of only the glowing parts.
+const PR_MAX = 3, PX_BUDGET = 5.5e6; // device pixels: the full density of today's phones, capped for huge screens
+const pixelRatioFor = (w, h) => Math.max(1, Math.min(window.devicePixelRatio || 1, PR_MAX, Math.sqrt(PX_BUDGET / Math.max(1, w * h))));
+const FS_VERT = "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
+const BLUR = { uniforms: { tDiffuse: { value: null }, dir: { value: [0, 0] }, sigma: { value: 3 } }, vertexShader: FS_VERT,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 dir; uniform float sigma; varying vec2 vUv;
+  void main() { vec4 s = vec4(0.0); float n = 0.0;
+    for (int i = -12; i <= 12; i++) { float x = float(i), w = exp(-0.5 * x * x / (sigma * sigma)); s += texture2D(tDiffuse, vUv + dir * x) * w; n += w; }
+    gl_FragColor = s / n; }` };
+const COMPOSE = { uniforms: { tDiffuse: { value: null }, tA: { value: null }, tB: { value: null }, k: { value: 0 } }, vertexShader: FS_VERT,
+  fragmentShader: `uniform sampler2D tDiffuse, tA, tB; uniform float k; varying vec2 vUv;
+  void main() { vec4 c = texture2D(tDiffuse, vUv); vec3 g = (texture2D(tA, vUv).rgb + texture2D(tB, vUv).rgb) * k; gl_FragColor = vec4(c.rgb + g, c.a); }` };
+function enhanceViewer(viewer) {
+  const T = threeOf(viewer), PI = Math.PI, cam = viewer.camera;
+  // light: 0.42 ambient + 0.62 key + 0.22 fill in the thumbnails' units (three's lights here are physical: x PI)
+  viewer.globalLight.intensity = .44 * PI;
+  viewer.cameraLight.intensity = 0;
+  const Light = viewer.cameraLight.constructor; // a point light far away with no falloff: a directional light
+  for (const [rgb, k, dir] of [[[1.04, 1, .95], .62, [-.45, .7, .55]], [[.55, .62, .78], .22, [.6, -.1, .4]]]) {
+    const l = new Light(0xffffff, k * PI, 0, 0), n = Math.hypot(...dir);
+    l.color.setRGB(...rgb); l.position.set(...dir.map(v => v / n * 4000)); cam.add(l);
+  }
+  // edges: 4x MSAA on the scene (WebGL2), no FXAA
+  const comp = viewer.composer, r = viewer.renderer, SP = viewer.fxaaPass.constructor, RT = comp.renderTarget1.constructor;
+  if (r.capabilities.isWebGL2) for (const rt of [comp.renderTarget1, comp.renderTarget2]) { rt.samples = 4; rt.dispose(); }
+  comp.removePass(viewer.fxaaPass);
+  // bloom: the glowing parts alone (everything else black, so it still hides what is behind it), blurred twice (a tight
+  // and a wide halo, as in the thumbnails) at half and quarter size, then added to the picture
+  const rt = () => new RT(1, 1), A = rt(), B = rt(), C = rt(), D = rt();
+  const blur = new SP(BLUR), compose = new SP(COMPOSE);
+  compose.uniforms.tA.value = A.texture; compose.uniforms.tB.value = D.texture;
+  let H = 1, W = 1;
+  const black = m => m.userData.black || (m.userData.black = new T.Mat({ color: "#000000", map: m.map, alphaTest: Math.max(.1, m.alphaTest || 0), side: m.side }));
+  const pass = (src, dst, dx, dy, px) => { // a Gaussian of px pixels (of dst) along one axis
+    const step = Math.max(1, px / 4);
+    blur.uniforms.dir.value = [dx * step / dst.width, dy * step / dst.height]; blur.uniforms.sigma.value = px / step;
+    blur.render(r, dst, src);
+  };
+  const glowPass = {
+    enabled: true, needsSwap: false, clear: false, renderToScreen: false,
+    setSize(w, h) { W = w; H = h; A.setSize(w >> 1, h >> 1); B.setSize(w >> 1, h >> 1); C.setSize(w >> 2, h >> 2); D.setSize(w >> 2, h >> 2); },
+    render(renderer) {
+      const swapped = [];
+      viewer.scene.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        if (o.userData.glow) { swapped.push([o, o.material]); o.material = o.userData.glow; }
+        else if (o.material.transparent) { swapped.push([o, o.material, o.visible]); o.visible = false; }
+        else { swapped.push([o, o.material]); o.material = black(o.material); }
+      });
+      const lit = swapped.some(([o]) => o.userData.glow && o.visible);
+      compose.uniforms.k.value = lit ? .9 * .55 : 0;
+      if (lit) {
+        const bg = viewer.scene.background; viewer.scene.background = null;
+        renderer.setRenderTarget(A); renderer.setClearColor(0, 0); renderer.clear(); renderer.render(viewer.scene, cam);
+        viewer.scene.background = bg;
+      }
+      for (const [o, m, vis] of swapped) { o.material = m; if (vis !== undefined) o.visible = vis; }
+      if (!lit) return;
+      const s = H * .8 / 128; // the thumbnails' blur radii (2.2 and 7 px of a 128 px picture), at this picture's size
+      pass(A, B, 1, 0, 2.2 * s / 2); pass(B, A, 0, 1, 2.2 * s / 2);
+      pass(A, C, 1, 0, 7 * s / 4); pass(C, D, 0, 1, 7 * s / 4);
+    },
+    dispose() { [A, B, C, D].forEach(t => t.dispose()); },
+  };
+  comp.addPass(glowPass);
+  comp.addPass(compose);
+  viewer._post = glowPass;
 }
 
 // ---- thumbnails: the catalogue's thumb.png; without one, a hidden viewer renders a picture, one item at a time
@@ -664,6 +877,16 @@ function card(it) {
     <span class="item-body"><span class="rarity" data-r="${it.rarity}">${esc(RARITY_LABEL[it.rarity])}</span><h3>${esc(it.name)}</h3>
     <span class="item-row"><span class="item-cat">${esc(it.partner ? it.partner.name : CAT_LABEL[it.cat])}</span>${price}</span></span></button>`;
 }
+// Thumbnails are smooth renders (antialiased, 128-256 px a frame). Blown up 2x or more on the screen's own pixels (any
+// phone, a retina desktop) they are drawn pixel for pixel (nearest), which keeps the texels sharp instead of blurring
+// them; at smaller steps (a 1x desktop) smooth scaling looks better than uneven blocks.
+function crisp(img) {
+  const box = img.getBoundingClientRect().width;
+  if (!box || !img.naturalWidth) return;
+  img.classList.toggle("px", box * (window.devicePixelRatio || 1) / img.naturalWidth >= 1.9);
+}
+let crispT = 0;
+addEventListener("resize", () => { clearTimeout(crispT); crispT = setTimeout(() => all(".item-thumb img.ok, #itemStill").forEach(crisp), 150); });
 let io = null;
 function renderGrid() {
   const q = state.q.trim().toLowerCase();
@@ -691,14 +914,17 @@ function renderGrid() {
       if (!src) return;
       const t = el.querySelector(".item-thumb"), g = t.querySelector(".glyph"); const img = new Image(); img.decoding = "async";
       img.alt = it.name + " " + (CAT_LABEL[it.cat] || "cosmetic").replace(/s$/, "").toLowerCase() + " preview";
-      // an animated item's thumb.png may be a strip of square frames: play it (stepped, frametime from item.json)
+      // an animated item's thumb.png is a strip of square frames, one per texture frame: play it (stepped, at the
+      // texture's frametime from item.json). The picture stays hidden until it is laid out, so a strip never flashes
+      // squashed, and it fades in without moving anything (the box has its size already).
       img.onload = () => {
         const n = Math.round(img.naturalHeight / img.naturalWidth);
-        if (n < 2 || img.naturalHeight !== n * img.naturalWidth) return;
-        detailsOf(it).then(() => {
-          const an = it.animation || {}, ft = Math.max(.5, +an.frametime || 1);
-          t.classList.add("strip"); img.style.setProperty("--n", n); img.style.setProperty("--dur", (n * ft * .05).toFixed(2) + "s");
-        });
+        if (n >= 2 && img.naturalHeight === n * img.naturalWidth) {
+          t.classList.add("strip"); img.style.setProperty("--n", n);
+          const dur = () => { const an = it.animation || {}, ft = Math.max(.5, +an.frametime || 1); img.style.setProperty("--dur", (n * ft * .05).toFixed(2) + "s"); };
+          dur(); detailsOf(it).then(dur);
+        }
+        crisp(img); img.classList.add("ok");
       };
       img.src = src; g ? g.replaceWith(img) : t.prepend(img);
     };
@@ -727,8 +953,13 @@ const modal = one("#itemModal"), stage = one("#itemStage"), canvas = one("#itemC
 const loading = one("#itemLoading"), controls = one("#itemControls"), hint = one("#itemHint"), addBtn = one("#itemAdd");
 let viewer = null, current = null, lastFocus = null, fxRaf = 0, backView = false;
 function sizeViewer() {
-  if (viewer && stage.clientWidth) viewer.setSize(stage.clientWidth, stage.clientHeight);
+  if (viewer && stage.clientWidth) {
+    const pr = pixelRatioFor(stage.clientWidth, stage.clientHeight);
+    if (viewer.pixelRatio !== pr) viewer.pixelRatio = pr;
+    viewer.setSize(stage.clientWidth, stage.clientHeight);
+  }
   frameStage();
+  if (viewer && current && viewer._item === current && !modal.hidden) pose(viewer, current.cat, backView); // refit
 }
 // The pose buttons and the hint sit over the bottom of the stage: the picture is moved up so the model is framed in the
 // space above them (and scaled to fit it, see pose()), and the canvas fades out just above them (shop.css), so nothing
@@ -797,7 +1028,9 @@ async function openItem(id, push = true) {
   try { sv = await loadSV(); } catch (e) { return showStill(it); }
   if (current !== it || modal.hidden) return;
   if (!viewer) {
-    viewer = new sv.SkinViewer({ canvas, width: stage.clientWidth || 400, height: stage.clientHeight || 400, skin: defaultSkin(), model: "default" });
+    const w = stage.clientWidth || 400, h = stage.clientHeight || 400;
+    viewer = new sv.SkinViewer({ canvas, width: w, height: h, pixelRatio: pixelRatioFor(w, h), skin: defaultSkin(), model: "default" });
+    try { enhanceViewer(viewer); } catch (e) { /* the plain skinview3d look still works */ }
     viewer.controls.enablePan = false;
     viewer.autoRotateSpeed = .8;
     addEventListener("resize", sizeViewer);
@@ -820,7 +1053,20 @@ async function openItem(id, push = true) {
 async function showStill(it) {
   canvas.hidden = true; controls.hidden = true; hint.hidden = true;
   const src = await stillFor(it);
-  if (src) { still.src = src; still.alt = it.name; still.hidden = false; loading.hidden = true; }
+  await detailsOf(it);
+  if (current !== it) return;
+  if (src) {
+    still.classList.remove("strip", "px");
+    still.onload = () => {
+      const n = Math.round(still.naturalHeight / still.naturalWidth);
+      if (n >= 2 && still.naturalHeight === n * still.naturalWidth) {
+        const an = it.animation || {}, ft = Math.max(.5, +an.frametime || 1);
+        still.classList.add("strip"); still.style.setProperty("--n", n); still.style.setProperty("--dur", (n * ft * .05).toFixed(2) + "s");
+      }
+      crisp(still);
+    };
+    still.src = src; still.alt = it.name; still.hidden = false; loading.hidden = true;
+  }
   else { still.hidden = true; loading.hidden = false; loading.innerHTML = glyph(it.cat) + "<br>3D preview needs WebGL"; }
 }
 function closeItem() {
@@ -833,6 +1079,9 @@ function closeItem() {
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
 }
 grid.addEventListener("click", e => { const c = e.target.closest(".item-card"); if (c) openItem(c.dataset.id); });
+// the 3D library (about 480 kB) starts loading as soon as a card is pointed at, so the preview opens sooner
+let svWarm = false;
+grid.addEventListener("pointerover", e => { if (!svWarm && e.target.closest(".item-card") && hasWebGL()) { svWarm = true; loadSV().catch(() => {}); } }, { passive: true });
 all("[data-close]", modal).forEach(b => b.addEventListener("click", closeItem));
 addEventListener("keydown", e => {
   if (modal.hidden) return;

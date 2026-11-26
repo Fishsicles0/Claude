@@ -1,6 +1,21 @@
 {
- "version": "2.9.0",
+ "version": "2.9.1",
  "entries": [
+  {
+   "id": "v2.9.1",
+   "title": "v2.9.1",
+   "date": "2026-11-26",
+   "dateText": "26 Nov 2026",
+   "summary": "Every cosmetic upgraded, a much sharper shop, the Wardrobe preview fixed, and launcher and Clips fixes.",
+   "items": [
+    "All 130 cosmetics upgraded to a stricter quality test that checks every side of every item: capes get a quilted, stitched lining and bound edges; sharper hats, masks, back items and pets; emotes get props and sparkles.",
+    "Sharper shop: full-resolution 3D previews with real lighting and glowing parts that actually glow, every item framed properly on phones, denser particle effects, and crisp 512 px pictures on high-resolution screens.",
+    "Wardrobe: tall hats and pets are no longer cut off at the top of the preview.",
+    "Launcher 2.7.2: checks for a new Evade and a new launcher every 10 minutes and right before Play, so leaving it open never keeps you on an old version; \"Close it now\" closes the old Clips app wherever it runs from.",
+    "Evade Clips 1.2.1: no more falling back to slow capture after an unrelated error, quiet (no sounds or pop-ups) while Minecraft is closed, and editor toolbars that wrap instead of overlapping."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.9.1"
+  },
   {
    "id": "v2.9.0",
    "title": "v2.9.0",
@@ -76,20 +91,6 @@
     "Shop on phones: the search bar no longer covers the items."
    ],
    "url": "https://evadeclient.com/changelog#v2.6.1"
-  },
-  {
-   "id": "v2.6.0",
-   "title": "v2.6.0",
-   "date": "2026-11-25",
-   "dateText": "25 Nov 2026",
-   "summary": "Cosmetics and the Wardrobe.",
-   "items": [
-    "Cosmetics: capes, wings, hats, masks, back items, auras, trails, a pet, emotes, kill and win effects and item skins, 19 original items to start. Only Evade players see them, and they never change hitboxes or make anyone harder to see. Armour still shows over them.",
-    "Wardrobe (in the Evade menu, or .wardrobe): a 3D preview of you, colours, up to 6 saved outfits, try-on for items you don't own yet, and an emote wheel on Y.",
-    "Your choice: hide your own or everyone else's cosmetics, hide them in combat, turn particles down, and servers can switch cosmetics off.",
-    "Shop at evadeclient.com/shop: browse every item in 3D now; checkout opens soon. Redeem codes work with .redeem."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.6.0"
   }
  ]
 }

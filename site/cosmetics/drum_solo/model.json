@@ -1,0 +1,76 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  4,
+  10
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "stick_r",
+   "attach": "right_arm",
+   "pivot": [
+    -1,
+    9.5,
+    0
+   ],
+   "rotation": [
+    -20,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      -1.5,
+      8.0,
+      -0.5
+     ],
+     "size": [
+      1,
+      9,
+      1
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "stick_l",
+   "attach": "right_arm",
+   "pivot": [
+    1,
+    9.5,
+    0
+   ],
+   "rotation": [
+    -20,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      0.5,
+      8.0,
+      -0.5
+     ],
+     "size": [
+      1,
+      9,
+      1
+     ],
+     "uv": [
+      0,
+      0
+     ],
+     "mirror": true
+    }
+   ]
+  }
+ ]
+}
