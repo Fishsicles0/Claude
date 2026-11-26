@@ -993,7 +993,7 @@ public final class SettingsPanel extends JPanel {
     }
 
     /** Lays buttons out left to right, going on to a new line when the card is too narrow for all of them. */
-    private static final class WrapLayout implements java.awt.LayoutManager {
+    static final class WrapLayout implements java.awt.LayoutManager {
         private static final int GAP = 6;
         @Override public void addLayoutComponent(String name, Component comp) {}
         @Override public void removeLayoutComponent(Component comp) {}

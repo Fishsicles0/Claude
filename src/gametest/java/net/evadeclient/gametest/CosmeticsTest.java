@@ -303,6 +303,20 @@ public final class CosmeticsTest {
                 && wardrobe.contains("comet_cap"), "Wardrobe: equips, colours, saves an outfit and wears it again (" + wardrobe + ")");
         ctx.waitTicks(5);
         ctx.takeScreenshot("cosmetic-wardrobe");
+        // Tall hat + pet: nothing may be cut off at the top of the preview (checked on this screenshot).
+        ctx.runOnClient(c -> {
+            WardrobeScreen w = (WardrobeScreen) c.currentScreen;
+            w.selectSlot(Slot.HAT); w.clickItem(CosmeticsCatalog.get("witch_hat"));
+            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("mini_wyvern"));
+        });
+        ctx.waitTicks(5);
+        ctx.takeScreenshot("cosmetic-wardrobe-tall");
+        ctx.runOnClient(c -> {
+            WardrobeScreen w = (WardrobeScreen) c.currentScreen;
+            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("mini_wyvern"));
+            w.selectSlot(Slot.HAT); w.clickItem(CosmeticsCatalog.get("comet_cap"));
+        });
+        ctx.waitTicks(2);
         String locked = ctx.computeOnClient(c -> {
             WardrobeScreen w = (WardrobeScreen) c.currentScreen;
             Wardrobe.setTestMode(false);

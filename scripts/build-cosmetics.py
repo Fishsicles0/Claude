@@ -716,12 +716,17 @@ CAPE_HD = (32, 10)
 CAPE_HD_FX = {"frames": 24, "scale": 16}
 
 
+# The thin edges of a cape (1 unit deep) sample the lining's bound edge 1:1 (lining_binding): the lining is stored a
+# quarter turned in [16, 0, 32, 10] (cape rows run along u, its columns down v, right to left), so each side's strip is
+# one unit of that rect, turned to run along the edge.
+CAPE_EDGES = {"west": ([16, 9, 32, 10], 3, False), "east": ([16, 0, 32, 1], 1, False),
+              "top": ([16, 0, 17, 10], 1, False), "bottom": ([31, 0, 32, 10], 3, False)}
+
+
 def cape_bones_hd(outer, lining_fn):
     def p(face, cv):
         (outer if face == "north" else lining_fn)(cv)
-    edge = ([0.125, 4.0, 0.375, 4.25], 0, False)
-    faces = {"north": ([0, 0, 16, 10], 1, True), "south": ([16, 0, 32, 10], 1, True),
-             "west": edge, "east": edge, "top": edge, "bottom": edge}
+    faces = dict({"north": ([0, 0, 16, 10], 1, True), "south": ([16, 0, 32, 10], 1, True)}, **CAPE_EDGES)
     return [Bone("cape", "body", (0, 0, 2), cubes=[Cube((-5, 0, 1), (10, 16, 1), p, faces=faces)], anim={"type": "cape"})]
 
 
@@ -782,22 +787,94 @@ def hd_trim(cv, top, bottom, color, light, stitch=None):
         cv.arr[top // 2, m, :3] = hexc(stitch)[:3]
 
 
+def lining_binding(cv, bind, thread, unit=1.0, light=None):
+    """The bound edge of a cape's lining, `unit` model units wide all round: piping rounded by its light (a dark
+    outline at both sides, a lit crown), with a running stitch along its middle. The cape's thin edges sample this
+    band 1:1 (see CAPE_EDGES), so it also reads as the rolled hem seen edge-on."""
+    y, x = cv.grid()
+    w = cv.s * unit
+    d = np.minimum(np.minimum(x, cv.w - 1 - x), np.minimum(y, cv.h - 1 - y))       # texels from the outer edge
+    band = d < w
+    t = np.clip((d + 0.5) / w, 0, 1)                                                # 0 outer .. 1 inner
+    b = hexc(bind) if isinstance(bind, str) else np.asarray(bind, np.float32)
+    hi = np.ones(4, np.float32) if light is None else (hexc(light) if isinstance(light, str) else np.asarray(light, np.float32))
+    cols = [mix(b, np.zeros(4, np.float32), 0.62), mix(b, np.zeros(4, np.float32), 0.35), b,
+            mix(b, hi, 0.3), mix(b, hi, 0.55)]
+    prof = np.clip(np.sin(t * math.pi), 0, 1) ** 0.8 * 0.92 + 0.08 * (1 - t)                       # rounded piping, lit crown
+    idx = np.clip(levels(prof, 5, 0.3), 0, 4)
+    rgb = palette(idx, cols)
+    line = (d < 1) | ((d >= w - 1) & (d < w))
+    rgb[line] = mix(b, np.zeros(4, np.float32), 0.72)
+    cv.arr[band] = rgb[band]
+    # a running stitch down the middle of the band, following it round the corners
+    along = np.where(np.minimum(x, cv.w - 1 - x) < np.minimum(y, cv.h - 1 - y), y, x)
+    st = band & (np.abs(d - (w - 1) / 2) < max(0.75, cv.s / 16)) & ((along % (cv.s * 0.5)) < cv.s * 0.28)
+    cv.arr[st, :3] = (hexc(thread) if isinstance(thread, str) else np.asarray(thread, np.float32))[:3]
+    cv.arr[band, 3] = 1
+    cv.em[band] = 0
+
+
+def lining_label(cv, cx, cy, thread, ground="#efe6d2"):
+    """A small woven maker's label stitched to the lining under the collar: a cream tab with an outline, corner
+    stitches and an embroidered four-point star in the cape's thread colour."""
+    s = cv.s
+    w, h = int(s * 2.25), int(s * 1.0)
+    x0, y0 = int(cx * s - w / 2), int(cy * s - h / 2)
+    g = hexc(ground)
+    th = hexc(thread) if isinstance(thread, str) else np.asarray(thread, np.float32)
+    cv.arr[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1, :3] = (g * 0.42)[:3]
+    cv.arr[y0:y0 + h, x0:x0 + w, :3] = g[:3]
+    cv.arr[y0:y0 + 1, x0:x0 + w, :3] = mix(g, np.ones(4, np.float32), 0.5)[:3]
+    cv.arr[y0 + h - 1:y0 + h, x0:x0 + w, :3] = (g * 0.8)[:3]
+    for ox, oy in ((2, 2), (w - 3, 2), (2, h - 3), (w - 3, h - 3)):
+        cv.arr[y0 + oy, x0 + ox, :3] = (g * 0.55)[:3]
+    mx, my = x0 + w // 2, y0 + h // 2
+    r = max(2, h // 2 - 2)
+    for k in range(-r, r + 1):
+        a = 1 - abs(k) / (r + 1)
+        cv.arr[my, mx + k, :3] = mix(g, th, 0.5 + 0.5 * a)[:3]
+        cv.arr[my + k, mx, :3] = mix(g, th, 0.5 + 0.5 * a)[:3]
+    cv.arr[my - 1:my + 2, mx - 1:mx + 2, :3] = th[:3]
+    cv.arr[y0 - 1:y0 + h + 1, x0 - 1:x0 + w + 1, 3] = 1
+
+
 def lining_hd(color_top, color_bottom, quilt):
-    """The HD capes' lining: a banded satin gradient with crisp quilting (no noise: it repeats in every frame)."""
+    """Every cape's lining: padded satin quilted in diamonds (each pad lit at its crown and shaded into its seams, the
+    seams sewn with a running stitch), a soft diagonal sheen across the satin, a bound edge all round (lining_binding,
+    which the cape's thin edges sample too) and a woven maker's label under the collar. Crisp bands, no noise (it
+    repeats in every frame of an animated cape)."""
     def p(cv):
-        t = cv.yy()
-        n = 7
-        cv.arr[:] = palette(levels(t, n, 0.5), [mix(hexc(color_top), hexc(color_bottom), k / (n - 1)) for k in range(n)])
         y, x = cv.units()
-        q = hexc(quilt)
-        d = (np.abs(((x + y) % 2.5) - 1.25) < 0.07) | (np.abs(((x - y) % 2.5) - 1.25) < 0.07)
-        cv.arr[d, :3] = mix(hexc(color_bottom), q, 0.55)[:3]
-        knot = (np.abs(((x + y) % 2.5) - 1.25) < 0.16) & (np.abs(((x - y) % 2.5) - 1.25) < 0.16)
-        cv.arr[knot, :3] = q[:3]
+        W, H = cv.w / cv.s, cv.h / cv.s
+        top, bot, q = hexc(color_top), hexc(color_bottom), hexc(quilt)
+        # satin: top to bottom, lifted by a broad diagonal sheen and a narrow second one
+        sd = x / W * 0.55 + y / H * 0.45
+        sheen = np.exp(-((sd - 0.34) / 0.11) ** 2) * 0.55 + np.exp(-((sd - 0.7) / 0.05) ** 2) * 0.3
+        v = np.clip(y / H * 0.92 - sheen * 0.42 + 0.12, 0, 1)
+        n = 9
+        cols = [mix(mix(top, np.ones(4, np.float32), 0.16), top, k / 2) if k < 2 else mix(top, bot, (k - 2) / (n - 3))
+                for k in range(n)]
+        rgb = palette(levels(v, n, 0.45), cols)
+        # quilted pads: lit at the crown, darker into the seams (three crisp steps)
+        P = 2.5
+        a = np.abs(((x + y) % P) - P / 2)
+        b = np.abs(((x - y) % P) - P / 2)
+        puff = np.minimum(a, b) / (P / 2)                    # 0 on a seam .. 1 at the pad's middle
+        lit = (((x + y) % P) < P / 2) & (((x - y) % P) >= P / 2)
+        k = levels(np.clip(puff * 1.25, 0, 1), 3, 0.3)
+        shade = np.where(k == 0, 0.78, np.where(k == 1, 0.9, 1.0)) * np.where(lit & (k > 0), 1.06, 1.0)
+        rgb[..., :3] = np.clip(rgb[..., :3] * shade[..., None], 0, 1)
+        seam = puff < 0.05
+        stitch = seam & (((x * 2.0) % 1.0) < 0.62)
+        thread = mix(q, mix(top, np.ones(4, np.float32), 0.3), 0.15)
+        rgb[seam, :3] = mix(bot, q, 0.35)[:3]
+        rgb[stitch, :3] = thread[:3]
+        knot = (a < 0.13) & (b < 0.13)
+        rgb[knot, :3] = mix(q, np.ones(4, np.float32), 0.25)[:3]
+        cv.arr[:] = rgb
         cv.arr[..., 3] = 1
-        e = max(1, cv.s // 8)
-        for sl in (np.s_[:e, :], np.s_[-e:, :], np.s_[:, :e], np.s_[:, -e:]):
-            cv.arr[sl + (np.s_[:3],)] = hexc(color_bottom)[:3] * 0.6
+        lining_binding(cv, mix(bot, q, 0.45), mix(q, np.ones(4, np.float32), 0.3), light=mix(q, np.ones(4, np.float32), 0.35))
+        lining_label(cv, W / 2, 2.15, q)
     return p
 
 
@@ -980,9 +1057,7 @@ def cape_bones_reg(outer, lining_fn, tint=False, collar=None):
             cut = ref.arr[:, ::-1, 3] < 0.5
             cv.arr[cut] = 0
             cv.em[cut] = 0
-    edge = ([0.125, 4.0, 0.375, 4.25], 0, False)
-    faces = {"north": ([0, 0, 16, 10], 1, True), "south": ([16, 0, 32, 10], 1, True),
-             "west": edge, "east": edge, "top": edge, "bottom": edge}
+    faces = dict({"north": ([0, 0, 16, 10], 1, True), "south": ([16, 0, 32, 10], 1, True)}, **CAPE_EDGES)
     bones = [Bone("cape", "body", (0, 0, 2), cubes=[Cube((-5, 0, 1), (10, 16, 1), p, faces=faces)], anim={"type": "cape"},
                   tint=tint)]
     if collar is not None:
@@ -3030,9 +3105,15 @@ def knit_px(face, cv):
 
 
 def knit_cuff_px(face, cv):
-    """The turned-up cuff: tighter ribs, lighter, a crisp fold line along the top and a shadow along the bottom."""
+    """The turned-up cuff: tighter ribs, lighter, a crisp fold line along the top and a shadow along the bottom; its
+    top and bottom (the fold seen from above) in rings like the crown."""
     cv.hand = True
     y, x = cv.grid().astype(int)
+    if face in ("top", "bottom"):
+        ring = np.maximum(np.abs(x + 0.5 - cv.w / 2), np.abs(y + 0.5 - cv.h / 2)).astype(int)
+        cv.arr[:] = palette(np.where(ring % 3 == 0, 1, np.where(ring % 3 == 1, 4, 3)), KNIT)
+        cv.arr[..., 3] = 1
+        return
     lv = np.choose(x % 3, [1, 3, 4])
     if face not in ("top", "bottom"):
         lv = np.where(y < 2, 4, lv)
@@ -3042,16 +3123,32 @@ def knit_cuff_px(face, cv):
     cv.arr[..., 3] = 1
 
 
+COMET = ["#3a5a9a", "#6a9ae0", "#a8d4ff", "#e4f4ff", "#ffffff"]
+
+
 def pompom_px(face, cv):
-    """A round, fluffy pom-pom: the face's corners cut away, tufts in three light tones, a glow from inside."""
+    """A comet for a pom-pom: a round fluffy ball (the face's corners cut away) of icy tufts, lit on the top-left and
+    shaded bottom-right, an outline round it, a white-hot core that glows and a few star sparks in the tufts."""
     cv.hand = True
     y, x = cv.grid()
-    r = np.maximum(np.abs(x + 0.5 - cv.w / 2) / (cv.w / 2), np.abs(y + 0.5 - cv.h / 2) / (cv.h / 2))
-    d = np.sqrt(((x + 0.5 - cv.w / 2) / (cv.w / 2)) ** 2 + ((y + 0.5 - cv.h / 2) / (cv.h / 2)) ** 2)
-    tuft = levels(pnoise(cv.h, cv.w, max(2.0, cv.w / 5), 55, octaves=2) * 0.7 + (1 - d) * 0.5, 3, 0.3)
-    cv.arr[:] = palette(tuft + 2, KNIT)
-    cv.arr[..., 3] = (d < 1.28) & (r <= 1)
-    em_rgb(cv, cv.arr, (cv.arr[..., 3] > 0) * (0.55 + 0.15 * tuft))
+    u, v = (x + 0.5 - cv.w / 2) / (cv.w / 2), (y + 0.5 - cv.h / 2) / (cv.h / 2)
+    r = np.maximum(np.abs(u), np.abs(v))
+    d = np.sqrt(u ** 2 + v ** 2)
+    ball = (d < 1.28) & (r <= 1)
+    tuft = pnoise(cv.h, cv.w, max(2.0, cv.w / 5), 55, octaves=2)
+    light = 0.62 - 0.28 * (u + v) * (face not in ("bottom",)) - 0.35 * d + 0.35 * tuft
+    if face == "bottom":
+        light = light - 0.25
+    lv = levels(np.clip(light, 0, 1), 4, 0.3)
+    cv.arr[:] = palette(lv, COMET)
+    core = d < 0.5
+    cv.arr[core, :3] = hexc("#ffffff")[:3]
+    rim = ball & ~(nshift(ball, 1, 0) & nshift(ball, -1, 0) & nshift(ball, 0, 1) & nshift(ball, 0, -1))
+    cv.arr[rim, :3] = hexc(COMET[0])[:3]
+    sparks = ball & ~core & ~rim & (hash_noise(cv.h, cv.w, 57) > 0.965)
+    cv.arr[sparks, :3] = hexc("#fff6c8")[:3]
+    cv.arr[..., 3] = ball
+    em_rgb(cv, cv.arr, (core * 0.95 + (ball & (d < 0.8) & ~core) * 0.45 + sparks * 0.9).astype(np.float32))
 
 
 item("comet_cap", "Comet Cap", "HAT", "REGULAR", 200,
@@ -3059,7 +3156,7 @@ item("comet_cap", "Comet Cap", "HAT", "REGULAR", 200,
      [Bone("beanie", "head", cubes=[Cube((-4, -10, -4), (8, 2, 8), knit_px, inflate=0.6),
                                     Cube((-3, -11, -3), (6, 1, 6), knit_px, inflate=0.6),
                                     Cube((-4, -8, -4), (8, 2, 8), knit_cuff_px, inflate=1.0)], tint=True),
-      Bone("pompom", "head", (0, -12, 0), cubes=[Cube((-1.5, -14.4, -1.5), (3, 3, 3), pompom_px)], emissive=True,
+      Bone("pompom", "head", (0, -12, 0), cubes=[Cube((-1.5, -14.4, -1.5), (3, 3, 3), pompom_px)],
            anim={"type": "bob", "amp": 0.25, "speed": 2.0})],
      colourable=True, default_color="#3D7BFF", view=HEAD_VIEW)
 
@@ -3319,7 +3416,24 @@ def party_paint(face, cv):
     cv.hand = True
     y, x = cv.grid()
     if face in ("top", "bottom"):
-        cv.arr[:] = hexc("#ff4f86" if face == "top" else "#b8285a")
+        # the ledge round each tier seen from above: the stripes carry on round it (from the angle of each texel),
+        # dots on the pink, a lit outer edge and a shaded inner one where the next tier sits
+        ox, oy, oz = cv.cube.origin
+        w, h, d = cv.cube.size
+        wx = ox + (x + 0.5) / cv.w * w
+        wz = oz + (y + 0.5) / cv.h * d
+        turn = (np.arctan2(wz, wx) / math.tau * 2 - (oy if face == "top" else oy + h) * 0.22) % 1.0
+        stripe = turn < 0.36
+        base = np.where(stripe[..., None], hexc("#ffd23a"), hexc("#ff4f86"))
+        cv.arr[:] = base if face == "top" else base * np.array([0.72, 0.72, 0.72, 1], np.float32)
+        edge = (np.abs(turn - 0.36) < 0.03) | (turn < 0.03)
+        cv.arr[edge, :3] = hexc("#c8285e")[:3]
+        dots = ~stripe & ~edge & ((x % 6) < 2) & ((y % 6) < 2) & (((x // 6 + y // 6) % 2) == 0)
+        cv.arr[dots, :3] = hexc("#5ad0ff")[:3]
+        ring = np.minimum(np.minimum(x, cv.w - 1 - x), np.minimum(y, cv.h - 1 - y))
+        cv.arr[ring < 1, :3] = np.clip(cv.arr[ring < 1, :3] * 1.18 + 0.06, 0, 1)
+        cv.arr[(ring >= cv.s // 2) & (ring < cv.s // 2 + 1), :3] *= 0.7
+        cv.arr[..., 3] = 1
         return
     wx, wz, wy = face_world(cv)
     turn = (np.arctan2(wz, wx) / math.tau * 2 - wy * 0.22) % 1.0
@@ -3337,11 +3451,20 @@ def party_paint(face, cv):
 def tinsel(face, cv):
     n = hash_noise(cv.h, cv.w, 9)
     if CRISP[0]:
-        # pixel art: fluffy tufts (a few flat pinks) with scattered single-texel sparkles
-        tuft = levels(pnoise(cv.h, cv.w, max(2.0, cv.w / 4), 9, octaves=2), 3, 0.3)
-        cv.arr[:] = palette(tuft, ["#ff9ac8", "#ffc2dc", "#ffe6f0"])
-        cv.arr[..., 3] = 1
-        put(cv, n > 0.93, "#ffffff", 0.6)
+        # pixel art: a round fluffy tuft (the corners cut away) of flat pinks, lit top-left, shaded bottom-right and
+        # outlined, with scattered single-texel sparkles of tinsel
+        cv.hand = True
+        y, x = cv.grid()
+        u, v = (x + 0.5 - cv.w / 2) / (cv.w / 2), (y + 0.5 - cv.h / 2) / (cv.h / 2)
+        dd = np.sqrt(u ** 2 + v ** 2)
+        ball = dd < 1.3
+        tuft = pnoise(cv.h, cv.w, max(2.0, cv.w / 4), 9, octaves=2)
+        lv = levels(np.clip(0.6 - 0.25 * (u + v) - 0.3 * dd + 0.4 * tuft - (0.25 if face == "bottom" else 0), 0, 1), 4, 0.3)
+        cv.arr[:] = palette(lv, ["#c8467e", "#ff8ab8", "#ffc2dc", "#fff0f6"])
+        rim = ball & ~(nshift(ball, 1, 0) & nshift(ball, -1, 0) & nshift(ball, 0, 1) & nshift(ball, 0, -1))
+        cv.arr[rim, :3] = hexc("#9a2a5e")[:3]
+        cv.arr[..., 3] = ball
+        put(cv, ball & ~rim & (n > 0.93), "#ffffff", 0.6)
         return
     cv.arr[..., :3] = mix(hexc("#ffe6f0"), hexc("#ff9ac8"), n[..., None])[..., :3]
     cv.arr[..., 3] = 1
@@ -3364,6 +3487,23 @@ def halo_paint(shimmer=False):
         t, x = cv.yy(), cv.xx()
         cv.arr[:] = ramp(t, [(0, "#fffbe0"), (0.5, "#ffe27a"), (1, "#e0a83a")])
         cv.arr[..., 3] = 0.95
+        if not shimmer:
+            # a twisted rope of light gold: diagonal strands (lit crowns, shaded grooves) round a bright band, the top
+            # lit and the underside warmer, a fine outline at the edges
+            y, xx = cv.grid()
+            k = cv.s
+            strand = ((xx + y * (0.9 if face not in ("top", "bottom") else 0.0)) % k) / k
+            lit = np.sin(strand * math.pi)
+            base = 0.55 + 0.4 * lit - 0.25 * t * (face not in ("top", "bottom")) + (0.15 if face == "top" else 0) \
+                - (0.25 if face == "bottom" else 0)
+            cols = ["#b06a18", "#de9426", "#f5bd44", "#ffe596", "#fffbe8"]
+            cv.arr[..., :3] = palette(levels(np.clip(base, 0, 1), 5, 0.25), cols)[..., :3]
+            groove = strand < 0.12
+            cv.arr[groove, :3] = hexc("#a85e14")[:3]
+            edge = (y == 0) | (y == cv.h - 1)
+            if face not in ("top", "bottom"):
+                cv.arr[edge, :3] = mix(cv.arr[edge, :3], hexc("#8a4a10")[:3], 0.6)
+            cv.arr[..., 3] = 0.96
         if shimmer:
             # special: crisp bands of gold, and a comet of light with a fading tail runs round the ring once per loop
             # (the bars tile one after another round the octagon)
@@ -3458,10 +3598,22 @@ item("ember_horns", "Ember Horns", "HAT", "REGULAR", 300,
 # -------- ears
 
 def ear_outer(face, cv):
-    n = pnoise(cv.h, cv.w, max(2.0, cv.w / 2), 140, octaves=2)
-    cv.arr[..., :3] = (0.82 + 0.14 * n)[..., None]
+    """Light fur (greys: the wearer's colour tints it): short strokes of shade in rows, a lit top-left rim, a darker
+    bottom-right rim and a tuft of darker fur at the tip."""
+    cv.hand = True
+    y, x = cv.grid()
+    n = hash_noise(cv.h, cv.w, 140 + len(face))
+    lv = np.full((cv.h, cv.w), 2)
+    stroke = ((x + (y // 3) * 2) % 4 == 0) & (n > 0.35)
+    lv = np.where(stroke, 1, lv)
+    lv = np.where(n > 0.93, 3, lv)
+    e = max(1, cv.s // 8)
+    lv = np.where((y < e) | (x < e), 3, lv)
+    lv = np.where((y >= cv.h - e) | (x >= cv.w - e), 0, lv)
+    if face not in ("top", "bottom"):
+        lv = np.where((y < cv.s // 2) & (lv > 1) & (face in ("north", "south")) & (cv.cube.size[1] == 1), lv - 1, lv)
+    cv.arr[:] = palette(lv, ["#9a9a9e", "#c2c2c6", "#dedee2", "#f6f6f8"])
     cv.arr[..., 3] = 1
-    bevel(cv, 0.14, 0.24)
 
 
 def ear_inner(face, cv):
@@ -3594,7 +3746,24 @@ item("outlaw_bandana", "Outlaw Bandana", "MASK", "REGULAR", 250,
      view=dict(HEAD_VIEW, yaw=30, pitch=6))
 
 
+def fox_lacquer(cv):
+    """The inside of a lacquered mask: deep red, a darker grain running down it, lit along the top and left."""
+    cv.hand = True
+    y, x = cv.grid()
+    lv = levels(np.clip(0.85 - cv.yy() * 0.75, 0, 1), 4, 0.2)
+    cv.arr[:] = palette(lv, ["#4a0a12", "#7a1420", "#a01e2a", "#c83038"])
+    grain = ((x * 7 + (y // max(1, cv.s // 2)) * 3) % (cv.s * 2) == 0)            # brush strokes of the lacquer
+    cv.arr[grain, :3] *= 0.8
+    e = max(1, cv.s // 8)
+    cv.arr[(y < e) | (x < e), :3] = hexc("#e0545a")[:3]
+    cv.arr[(y >= cv.h - e) | (x >= cv.w - e), :3] = hexc("#30060c")[:3]
+    cv.arr[..., 3] = 1
+
+
 def fox_face(face, cv):
+    if face == "south":
+        fox_lacquer(cv)
+        return
     t = cv.yy()
     y, x = cv.grid()
     cv.arr[:] = bands(t, ["#fdfbf6", "#f4efe6", "#e8e0d2"], 0.4)
@@ -3641,8 +3810,11 @@ def fox_snout(face, cv):
 
 
 def fox_ear(face, cv):
-    cv.arr[:] = hexc("#fdfbf6")
+    cv.arr[:] = bands(cv.yy(), ["#fdfbf6", "#f2ece2", "#e2d8c8"], 0.4)
     y, x = cv.grid()
+    if face == "south":
+        # the back of the ear: a red lacquered seam up the middle, like the markings on the front
+        put(cv, (np.abs(x + 0.5 - cv.w / 2) < cv.s * 0.2) & (y > cv.s * 0.4), "#b81c28")
     if face == "north":
         W, H = cv.w, cv.h
         inner = pmask(cv, lambda d: d.polygon([(W * 0.5, H * 0.22), (W * 0.82, H * 1.0), (W * 0.18, H * 1.0)], fill=255))
@@ -5045,20 +5217,57 @@ item("starlight_fountain", "Starlight Fountain", "WIN_EFFECT", "REGULAR", 200,
 # ---------------------------------------------------------------------------------------------- emotes
 # Keyframes: [seconds, pitch, yaw, roll] in degrees for each model part, replacing its usual angles while it plays.
 
+def stick_px(face, cv):
+    """A maple drumstick: pale wood with a fine grain down it, lit on one side, a dark tape grip at the hand end and a
+    rounded lighter tip."""
+    cv.hand = True
+    y, x = cv.grid()
+    t = cv.yy()
+    g = hash_noise(cv.h, cv.w, 303)
+    lv = np.where(x < max(1, cv.w // 3), 3, 2) - ((g > 0.7) & ((y // 2) % 3 == 0))
+    lv = np.where(x >= cv.w - max(1, cv.w // 4), 1, lv)
+    cv.arr[:] = palette(lv, ["#6a4220", "#b07a44", "#d8a868", "#f0cc90"])
+    if face not in ("top", "bottom"):
+        grip = t < 0.32
+        cv.arr[grip, :3] = palette(np.where(((y + x) % 3 == 0)[grip], 0, 1), ["#141418", "#2c2c34"])[:, :3]
+        tip = t > 0.88
+        cv.arr[tip, :3] = hexc("#f8e4b8")[:3]
+    elif face == "bottom":
+        cv.arr[..., :3] = hexc("#f8e4b8")[:3]
+    cv.arr[..., 3] = 1
+
+
+def drumsticks():
+    """A stick in each hand (the emote's prop, only there while it plays): held at the end, pointing on past the fist
+    and tipped forward, so the hits land in front of you."""
+    r = Bone("stick_r", "right_arm", (-1, 9.5, 0), (-20, 0, 0), [Cube((-1.5, 8, -0.5), (1, 9, 1), stick_px)])
+    return [r, mirrored_bone(r, "stick_l")]
+
+
 item("sunny_wave", "Sunny Wave", "EMOTE", "REGULAR", 250,
      "A big, cheerful wave hello.",
      emote={"length": 1.6, "loop": True, "parts": {
          "rightArm": [[0, -170, 0, 15], [0.4, -170, 0, -15], [0.8, -170, 0, 15], [1.2, -170, 0, -15], [1.6, -170, 0, 15]],
          "head": [[0, 0, 0, 0], [0.8, 0, 0, 6], [1.6, 0, 0, 0]]}},
-     view={"pose": {"rightArm": (-168, 0, -18), "head": (0, 0, 6)}, "yaw": -20},   # the arm swung out, mid-wave
+     fx={"type": "aura", "shape": "toss", "particle": "soft", "colors": ["#FFE27A", "#FFFFFF"], "rate": 5, "height": 1.95,
+         "size": 0.45, "sizeEnd": 0.1, "life": 0.8, "fade": 0.3, "gravity": -0.05},
+     view={"gm": True, "pose": {"rightArm": (-168, 0, -18), "head": (0, 0, 6)}, "yaw": -20,   # the arm swung out, mid-wave
+           "glow": "#ffd36a",
+           "fx_pic": lambda: [((-9.5, -12.5, -3), 3.4, GM_SPARK, None), ((-4.5, -15, -3), 2.4, GM_SPARK, None),
+                              ((-12, -7.5, -3), 2.0, GM_SPARK, None)]},
      thumb="emote")
 item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 250,
      "Air drums: alternate hits with a head bob to the beat.",
+     drumsticks(),
      emote={"length": 1.0, "loop": True, "parts": {
          "rightArm": [[0, -50, 0, 0], [0.25, -85, 0, 0], [0.5, -50, 0, 0], [0.75, -60, 0, 0], [1.0, -50, 0, 0]],
          "leftArm": [[0, -60, 0, 0], [0.25, -50, 0, 0], [0.5, -60, 0, 0], [0.75, -85, 0, 0], [1.0, -60, 0, 0]],
          "head": [[0, 10, 0, 0], [0.25, -4, 0, 0], [0.5, 10, 0, 0], [0.75, -4, 0, 0], [1.0, 10, 0, 0]]}},
-     view={"glow": "#ff8a5a"},
+     fx={"type": "aura", "shape": "rise", "particle": "note", "colors": ["#FFFFFF"], "rate": 3, "radius": 0.9, "height": 2.0},
+     view={"gm": True, "pose": {"rightArm": (-85, 0, 0), "leftArm": (-50, 0, 0), "head": (-4, 0, 0)}, "yaw": -38, "pitch": 8,
+           "glow": "#ff8a5a",
+           "fx_pic": lambda: [((-12, -13, -2), 3.6, GM_NOTE, "#ff8a5a"), ((11, -9, -3), 3.0, GM_NOTE, "#ffd23a"),
+                              ((-10, -4, 4), 2.6, GM_NOTE, "#6ae0ff")]},
      thumb="emote")
 item("crisp_salute", "Crisp Salute", "EMOTE", "REGULAR", 250,
      "Stand to attention and snap off a sharp salute.",
@@ -5073,7 +5282,12 @@ item("slow_clap", "Slow Clap", "EMOTE", "REGULAR", 250,
          "rightArm": [[0, -72, 18, 0], [0.5, -72, -22, 0], [0.62, -72, -22, 0], [1.2, -72, 18, 0]],
          "leftArm": [[0, -72, -18, 0], [0.5, -72, 22, 0], [0.62, -72, 22, 0], [1.2, -72, -18, 0]],
          "head": [[0, 4, 0, 0], [0.5, 8, 0, 0], [1.2, 4, 0, 0]]}},
-     view={"pose": {"rightArm": (-72, -22, 0), "leftArm": (-72, 22, 0), "head": (8, 0, 0)}, "yaw": -30, "glow": "#5ae07a"},
+     fx={"type": "aura", "shape": "toss", "particle": "soft", "colors": ["#FFFFFF", "#C8FFD8"], "rate": 4, "height": 1.3,
+         "size": 0.35, "sizeEnd": 0.05, "life": 0.6, "fade": 0.3, "gravity": 0.0},
+     view={"gm": True, "pose": {"rightArm": (-72, -22, 0), "leftArm": (-72, 22, 0), "head": (8, 0, 0)}, "yaw": -30,
+           "glow": "#5ae07a",
+           "fx_pic": lambda: [((0.5, 4.5, -11), 3.0, GM_SPARK, None), ((-3.5, 1.5, -12), 1.8, GM_SPARK, None),
+                              ((4, 2, -12), 1.6, GM_SPARK, None)]},
      thumb="emote")
 item("grand_bow", "Grand Bow", "EMOTE", "REGULAR", 250,
      "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
@@ -5081,7 +5295,12 @@ item("grand_bow", "Grand Bow", "EMOTE", "REGULAR", 250,
          "head": [[0, 0, 0, 0], [0.5, 38, 0, 0], [1.8, 38, 0, 0], [2.4, 0, 0, 0]],
          "rightArm": [[0, 0, 0, 0], [0.5, -55, -30, 30], [1.8, -55, -30, 30], [2.4, 0, 0, 0]],
          "leftArm": [[0, 0, 0, 0], [0.5, 25, 0, -55], [1.8, 25, 0, -55], [2.4, 0, 0, 0]]}},
-     view={"pose": {"head": (38, 0, 0), "rightArm": (-55, -30, 30), "leftArm": (25, 0, -55)}, "yaw": -34, "glow": "#ffd36a"},
+     fx={"type": "aura", "shape": "toss", "particle": "soft", "colors": ["#E0203A", "#FF6A7A"], "rate": 6, "height": 1.2,
+         "size": 0.4, "sizeEnd": 0.3, "life": 1.6, "fade": 0.3, "gravity": 0.35, "from": 0.4, "to": 1.6},
+     view={"gm": True, "pose": {"head": (38, 0, 0), "rightArm": (-55, -30, 30), "leftArm": (25, 0, -55)}, "yaw": -34,
+           "glow": "#ffd36a",
+           "fx_pic": lambda: [((-9, -3, -12), 2.4, GM_PETAL, "matte"), ((-4, -9, -14), 2.0, GM_PETAL, "matte"),
+                              ((-12, 3, -9), 1.8, GM_PETAL, "matte"), ((2, -6, -15), 1.6, GM_PETAL, "matte")]},
      thumb="emote")
 
 
@@ -6730,18 +6949,40 @@ def hs_cup(face, cv):
 
 
 def hs_pad(face, cv):
-    fill(cv, hexc("#1a1a20"))
+    """Leatherette padding: quilted in diamonds (lit crowns, dark seams), lit top-left and shaded bottom-right."""
+    cv.hand = True
     y, x = cv.grid()
-    cv.arr[((x + y) % max(2, cv.s // 2) == 0), :3] = hexc("#2a2a32")[:3]
-    bevel(cv, 0.1, 0.2)
+    k = max(4, cv.s // 2)
+    a = np.abs(((x + y) % k) - k / 2)
+    b = np.abs(((x - y) % k) - k / 2)
+    puff = np.minimum(a, b)
+    lv = np.where(puff < 1, 0, np.where(puff < k / 4, 1, 2))
+    e = max(1, cv.s // 8)
+    lv = np.where((y < e) | (x < e), 3, lv)
+    lv = np.where((y >= cv.h - e) | (x >= cv.w - e), 0, lv)
+    cv.arr[:] = palette(lv, ["#0e0e12", "#1e1e26", "#2c2c36", "#44444f"])
+    cv.arr[..., 3] = 1
 
 
 def hs_mic(face, cv):
-    fill(cv, hexc("#2a2a30"))
+    """A foam windscreen: dark foam in a fine checked weave, lit top-left, with a glowing red ring round its tip (the
+    mic is live) and a red light on its end."""
+    cv.hand = True
     y, x = cv.grid()
-    cv.arr[(x + y) % 2 == 0, :3] = hexc("#3a3a44")[:3]
-    em_from(cv, np.ones((cv.h, cv.w)) * 0.5, "#ff3a4a")
-    cv.arr[..., :3] = mix(cv.arr[..., :3], hexc("#ff3a4a")[:3], 0.6)
+    n = hash_noise(cv.h, cv.w, 77)
+    lv = np.where((x + y) % 2 == 0, 1, 0) + (n > 0.8)
+    e = max(1, cv.s // 8)
+    lv = np.where((y < e) | (x < e), 3, lv)
+    lv = np.where((y >= cv.h - e) | (x >= cv.w - e), 0, lv)
+    cv.arr[:] = palette(lv, ["#16161c", "#2a2a32", "#3e3e48", "#5a5a66"])
+    cv.arr[..., 3] = 1
+    if face == "west":
+        r = np.maximum(np.abs(x + 0.5 - cv.w / 2) / (cv.w / 2), np.abs(y + 0.5 - cv.h / 2) / (cv.h / 2))
+        put(cv, r < 0.45, "#ff3a4a", 1.0)
+        put(cv, r < 0.2, "#ffc0c4", 1.0)
+    elif face in ("north", "south", "top", "bottom"):
+        ring = (x < cv.s // 4) if face in ("north", "top", "bottom") else (x >= cv.w - cv.s // 4)
+        put(cv, ring, "#ff2a3a", 0.9)
 
 
 def headset():
@@ -6823,12 +7064,41 @@ def rh_horn(i):
     return p
 
 
+RAIDER_HORN = ["#4a3a2a", "#6e5838", "#94784e", "#b89c70", "#d6c29a", "#ece0c2", "#fbf6e8"]
+RAIDER_SEGS = [((2, 2, 2), -80, 0), ((2, 2, 2), 22, -6), ((1, 2, 1), 22, -6), ((1, 2, 1), 20, -4), ((1, 1, 1), 16, 0)]
+
+
+def raider_horn_px(i, n):
+    """Segment i of n: ivory at the root darkening to a horn-brown tip, a ridge every half unit, lit on its upper
+    side, an outline at the segment's ends."""
+    def p(face, cv):
+        cv.hand = True
+        y, x = cv.grid()
+        f = (i + 1 - cv.yy()) / n                                     # 0 at the root .. 1 at the tip
+        lit = 0 if face in ("top", "bottom") else (x < max(1, cv.w // 3)).astype(int)
+        lv = np.clip((len(RAIDER_HORN) - 2) - levels(f, len(RAIDER_HORN) - 1, 0.4) + lit, 0, len(RAIDER_HORN) - 1)
+        cv.arr[:] = palette(lv, RAIDER_HORN)
+        ring = (y % max(2, cv.s // 2)) == 0
+        cv.arr[ring, :3] *= 0.72
+        cv.arr[..., 3] = 1
+    return p
+
+
 def viking_helm():
-    segs = [((-6, -8, -1), (2, 2, 2)), ((-7.5, -9.5, -1), (2, 2, 2)), ((-8, -11.5, -0.5), (1, 2, 1)), ((-8, -13, -0.5), (1, 2, 1))]
-    hr = Bone("horn_r", "head", cubes=[Cube(o, s, rh_horn(i)) for i, (o, s) in enumerate(segs)])
-    return [Bone("helm", "head", cubes=[Cube((-4, -9, -4), (8, 2, 8), rh_steel, inflate=0.5),
-                                        Cube((-4, -7, -4), (8, 1, 8), rh_bronze, inflate=0.6),
-                                        Cube((-0.5, -6.5, -5), (1, 3, 1), rh_steel)]), hr, mirrored_bone(hr, "horn_l")]
+    """The horns are chains of shrinking segments (child bones, each turned on from the last) that leave the helm's
+    sides, sweep outward and curl up and forward."""
+    bones, parent = [], None
+    px_, py, pz = -4.4, -7.6, 0.0
+    for i, ((w, h, d), roll, pitch) in enumerate(RAIDER_SEGS):
+        name = f"horn{i}_r"
+        bones.append(Bone(name, "head", (px_, py, pz), (pitch, 0, roll),
+                          [Cube((px_ - w / 2, py - h, pz - d / 2), (w, h, d), raider_horn_px(i, len(RAIDER_SEGS)))],
+                          parent=parent))
+        parent, py = name, py - h
+    helm = Bone("helm", "head", cubes=[Cube((-4, -9, -4), (8, 2, 8), rh_steel, inflate=0.5),
+                                      Cube((-4, -7, -4), (8, 1, 8), rh_bronze, inflate=0.6),
+                                      Cube((-0.5, -6.5, -5), (1, 3, 1), rh_steel)])
+    return [helm] + aw_pair(bones)
 
 
 item("raider_helm", "Raider Helm", "HAT", "REGULAR", 400,
@@ -6924,6 +7194,11 @@ def av_strap(face, cv):
     y, x = cv.grid()
     st = (y == max(1, cv.s // 8)) & ((x // max(1, cv.s // 4)) % 2 == 0)
     cv.arr[st, :3] = hexc("#c8a070")[:3]
+    if face in ("top", "bottom"):
+        # a band round the head: only its edge, the leather's thickness, is there (the middle is your head)
+        ring = np.minimum(np.minimum(x, cv.w - 1 - x), np.minimum(y, cv.h - 1 - y))
+        cv.arr[ring >= max(2, cv.s // 2)] = 0
+        cv.arr[ring == 0, :3] = hexc("#3a2212")[:3]
 
 
 def aviator_goggles():
@@ -7211,8 +7486,18 @@ def pe_blade(face, cv):
         cv.arr[..., 3] = 1
         em_rgb(cv, cv.arr, np.clip(0.55 + v * 0.45, 0, 1))
     else:
-        cv.arr[:] = hexc("#c03aff")
-        em_from(cv, np.ones_like(t), "#e08aff")
+        # the blade's edges: a white-hot line down the middle of the edge, violet either side, the same pulses running
+        # up it as on the flats (so the edge never reads as a flat bar)
+        lng = t if cv.h >= cv.w else x
+        acr = x if cv.h >= cv.w else t
+        k = np.zeros_like(t)
+        for j in range(3):
+            pk = ((cv.phase + j / 3) % 1.0) * 1.2 - 0.1
+            k = np.maximum(k, np.exp(-(((1 - lng) - pk) / 0.06) ** 2))
+        v = np.clip((1 - np.abs(acr - 0.5) * 2) * 0.7 + k * 0.45 + 0.1, 0, 1)
+        cv.arr[:] = palette(levels(v, 7, 0.3), ["#3a0aff", "#6a1aff", "#9a2aff", "#c03aff", "#e08aff", "#f4d8ff", "#ffffff"])
+        cv.arr[..., 3] = 1
+        em_rgb(cv, cv.arr, np.clip(0.55 + v * 0.45, 0, 1))
     mc_crisp(cv, PLASMA_PAL)
 
 
@@ -7264,6 +7549,19 @@ def pen_body(face, A):
         A.put((A.y >= 10) & (((A.x + 0.5 - 6) / 4.2) ** 2 < 0.7), shade(PEN_WHITE, 0.88))
     elif face in ("east", "west"):
         A.put((A.y >= 4) & ((A.x <= 1) if face == "west" else (A.x >= A.w - 2)), shade(PEN_WHITE, 0.9))
+        pen_feathers(A, 1)
+    elif face in ("south", "top"):
+        pen_feathers(A, 0)
+        if face == "south":                    # a glossy sheen across the shoulders
+            A.put((A.y == 2) & (A.x >= 3) & (A.x <= 8), shade(PEN_DARK, 1.32))
+            A.put((A.y == 3) & (A.x >= 4) & (A.x <= 7), shade(PEN_DARK, 1.18))
+
+
+def pen_feathers(A, off):
+    """Rows of small feather scallops over the dark back: a darker arc under each feather, offset row by row."""
+    m = (A.y % 3 == 2) & ((A.x + (A.y // 3) * 2 + off) % 4 != 0) & (A.y > 1)
+    A.put(m & ~((A.x + (A.y // 3) * 2 + off) % 4 == 2), shade(PEN_DARK, 0.66))
+    A.put((A.y % 3 == 0) & ((A.x + (A.y // 3) * 2 + off) % 4 == 2) & (A.y > 1), shade(PEN_DARK, 1.2))
 
 
 def pen_head(face, A):
@@ -7277,6 +7575,12 @@ def pen_head(face, A):
         A.rect(10, 10, 12, 11, "#ffa0b8")
     elif face == "top":
         A.pix([(5, 2), (6, 2), (6, 1)], shade(PEN_DARK, 1.25))
+        A.put((A.x + A.y == 9) & (A.x > 2) & (A.x < 8), shade(PEN_DARK, 1.35))      # gloss across the crown
+        A.put((A.x + A.y == 10) & (A.x > 3) & (A.x < 8), shade(PEN_DARK, 1.18))
+    elif face == "south":                      # the back of the head: a glossy crown and feathered nape
+        A.put((A.y == 2) & (A.x >= 3) & (A.x <= 8), shade(PEN_DARK, 1.3))
+        A.put((A.y == 1) & (A.x >= 5) & (A.x <= 6), shade(PEN_DARK, 1.45))
+        A.put((A.y >= 8) & (A.y % 2 == 0) & (A.x % 3 == 1), shade(PEN_DARK, 0.8))
 
 
 def pen_beak(face, A):
@@ -7621,7 +7925,10 @@ item("facepalm", "Facepalm", "EMOTE", "REGULAR", 250,
      emote={"length": 2.0, "loop": False, "parts": {
          "rightArm": [[0, 0, 0, 0], [0.3, -130, -40, 0], [1.6, -130, -40, 0], [2.0, 0, 0, 0]],
          "head": [[0, 0, 0, 0], [0.3, 22, 0, 0], [1.6, 26, 0, 0], [2.0, 0, 0, 0]]}},
-     view={"pose": {"rightArm": (-130, -40, 0), "head": (24, 0, 0)}, "yaw": -24, "glow": "#ffb07a"},
+     fx={"type": "aura", "shape": "puff", "particle": "soft", "colors": ["#8AD0FF", "#FFFFFF"], "rate": 3, "height": 1.75,
+         "size": 0.35, "sizeEnd": 0.25, "life": 0.9, "fade": 0.3, "gravity": 0.5, "from": 0.3, "to": 1.6},
+     view={"gm": True, "pose": {"rightArm": (-130, -40, 0), "head": (24, 0, 0)}, "yaw": -24, "glow": "#ffb07a",
+           "fx_pic": lambda: [((6.5, -8.5, -3), 3.2, GM_DROP, "matte"), ((8.5, -4, -2), 2.0, GM_DROP, "matte")]},
      thumb="emote")
 item("shrug", "Shrug", "EMOTE", "REGULAR", 250,
      "Arms out, shoulders up. Who knows?",
@@ -7637,7 +7944,13 @@ item("victory_flex", "Victory Flex", "EMOTE", "REGULAR", 250,
          "rightArm": [[0, -20, 0, 100], [0.8, -20, 0, 115], [1.6, -20, 0, 100]],
          "leftArm": [[0, -20, 0, -100], [0.8, -20, 0, -115], [1.6, -20, 0, -100]],
          "head": [[0, -8, 0, 0], [0.8, -12, 0, 0], [1.6, -8, 0, 0]]}},
-     view={"pose": {"rightArm": (-20, 0, 112), "leftArm": (-20, 0, -112), "head": (-10, 0, 0)}, "yaw": -20, "glow": "#ffd36a"},
+     fx={"type": "aura", "shape": "rise", "particle": "soft", "colors": ["#FFD23A", "#FFF4C0"], "rate": 8, "radius": 0.9,
+         "height": 2.0, "size": 0.4, "sizeEnd": 0.1, "life": 1.0, "fade": 0.3, "gravity": -0.2},
+     view={"gm": True, "pose": {"rightArm": (-20, 0, 112), "leftArm": (-20, 0, -112), "head": (-10, 0, 0)}, "yaw": -20,
+           "glow": "#ffd36a",
+           "fx_pic": lambda: [((-13, -12, -2), 3.0, GM_SPARK, None), ((13, -13, -2), 2.6, GM_SPARK, None),
+                              ((-10, 6, -3), 2.0, GM_SPARK, None), ((11, 4, -3), 2.2, GM_SPARK, None),
+                              ((0, -16, -1), 1.8, GM_SPARK, None)]},
      thumb="emote")
 
 
@@ -8621,6 +8934,14 @@ def panda_body(face, A):
     A.put(A.y < 3, PANDA_K)
     if face == "north":
         A.ellipse(A.w / 2, A.h * 0.8, A.w * 0.32, A.h * 0.45, PANDA_W)
+    else:
+        # fur: the black saddle dips into a point down the back, tufts of shade in the white below it
+        if face == "south":
+            A.put((A.y == 3) & (np.abs(A.x + 0.5 - A.w / 2) < 3), PANDA_K)
+            A.put((A.y == 4) & (np.abs(A.x + 0.5 - A.w / 2) < 1.5), PANDA_K)
+        A.put((A.y == 0) & (A.x % 3 == 1), "#3a3a44")
+        A.put((A.y >= 5) & ((A.x * 3 + A.y * 2) % 7 == 0), PANDA_G)
+        A.put((A.y >= A.h - 1), shade(PANDA_W, 0.84))
 
 
 def panda_head(face, A):
@@ -8634,6 +8955,11 @@ def panda_head(face, A):
         A.rect(13, 8, 15, 9, "#ffb0c0")
     elif face == "top":
         A.put((A.y < 2) & (A.x % 5 == 2), PANDA_G)
+        A.put(((A.x * 2 + A.y * 3) % 7 == 0) & (A.y >= 2), PANDA_G)
+        A.put((A.y == A.h - 1), shade(PANDA_W, 0.9))
+    elif face in ("south", "east", "west"):    # fur tufts on the back and sides of the head
+        A.put(((A.x * 2 + A.y * 3) % 7 == 0) & (A.y > 1), PANDA_G)
+        A.put(A.y >= A.h - 1, shade(PANDA_W, 0.86))
 
 
 def panda_muzzle(face, A):
@@ -8689,10 +9015,25 @@ def bolt_head(face, A):
         A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
     elif face == "top":
         A.put((A.x + A.y) % 6 == 0, BOLT_G)
+    elif face == "south":                      # 16 x 12: the back of the head, a grille and two screws
+        A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
+        for yy in (3, 5, 7):
+            A.rect(4, yy, 12, yy + 1, BOLT_D)
+        A.pix([(2, 2), (13, 2)], BOLT_G)
 
 
 def bolt_body(face, A):
     A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
+    if face == "south":                        # 12 x 12: a screwed-on back panel with vent slots and a status light
+        A.rect(2, 1, 10, 9, BOLT_G)
+        A.rect(3, 2, 9, 8, shade(BOLT_W, 0.94))
+        for yy in (3, 5):
+            A.rect(4, yy, 8, yy + 1, BOLT_D)
+        A.pix([(2, 1), (9, 1), (2, 8), (9, 8)], BOLT_D)
+        A.pix([(8, 7)], BOLT_CYAN, glow=1.0)
+    elif face in ("east", "west"):             # a panel seam and a rivet
+        A.rect(0, 4, A.w, 5, BOLT_G)
+        A.pix([(A.w // 2, 2)], BOLT_D)
     if face == "north":                        # 12 x 12: a round chest light
         A.ellipse(6, 5.5, 2.6, 2.6, BOLT_D)
         A.ellipse(6, 5.5, 1.7, 1.7, BOLT_CYAN, glow=1.0)
@@ -8891,6 +9232,10 @@ GM_FLAME = gm_sprite(["...1...", "..121..", "..121..", ".12321.", ".12321.", "12
                      ["#000000", "#c4300e", "#ff7a1a", "#ffc23a", "#fff4c0"])
 GM_PUFF = gm_sprite(["..111..", ".12221.", "1222221", "1222221", "1222221", ".12221.", "..111.."], ["#000000", "#c8ccd8", "#ffffff"])
 GM_DUST = gm_sprite([".111.", "12221", "12221", ".111."], ["#000000", "#9a8a72", "#d8ccb8"])
+GM_SPARK = gm_sprite(["...1...", "...2...", "..121..", "1233321", "..121..", "...2...", "...1..."],
+                     ["#000000", "#ffd23a", "#fff0a0", "#ffffff"])
+GM_DROP = gm_sprite(["..1..", "..1..", ".121.", "12221", "12321", ".111."], ["#000000", "#2a6ab8", "#8ad0ff", "#ffffff"])
+GM_PETAL = gm_sprite([".11..", "1221.", "12221", ".1221", "..11."], ["#000000", "#a8122a", "#ff5a6e"])
 
 
 def gm_rune(k, col):
@@ -8920,9 +9265,11 @@ def gm_thumb_emote(it, size=THUMB, prop=None):
     pose = v.get("pose") or emote_key_pose(it["emote"])
     Mr = gm_root_matrix(v.get("root", (0, 0, 0)), v.get("offset", (0, 0, 0)))
     scene = Scene()
+    mats = {}
     for part, (pivot, origin, sz) in MANNEQUIN.items():
         rx, ry, rz = pose.get(part, (0, 0, 0))
         M = Mr @ translate(pivot) @ rotate(rx, ry, rz)
+        mats[part] = M
         local = [o - pv for o, pv in zip(origin, pivot)]
         scene.cube(M, local, sz, SKIN_UV[part], 0, False, 64, 64, SKIN, np.ones(4, np.float32), False)
     add_shadow(scene)
@@ -8930,7 +9277,7 @@ def gm_thumb_emote(it, size=THUMB, prop=None):
         tex, em, tw, th = prop
         placed = {}
         for b in it["bones"]:
-            base = placed[b.parent] if b.parent else Mr
+            base = placed[b.parent] if b.parent else mats.get(ATTACH.get(b.attach), Mr)
             M = base @ translate(b.pivot) @ rotate(*b.rotation) @ translate([-q for q in b.pivot])
             placed[b.name] = M
             if (b.anim or {}).get("type") == "blink":

@@ -643,7 +643,11 @@ final class SelfTest {
                 "[Parsed_ddagrab_0 @ 000001] Failed to duplicate output: 887a0004\n[lavfi @ 000002] Error initializing filters");
         boolean otherFail = net.evadeclient.clips.core.CaptureEngine.ddagrabError(
                 "[dshow @ 000001] Could not find audio only device with name [Stereo Mix]\naudio=Stereo Mix: I/O error");
-        check(ddaFail && !otherFail, "a Desktop Duplication failure is recognised (falls back to window capture); an audio failure isn't");
+        boolean optionFail = net.evadeclient.clips.core.CaptureEngine.ddagrabError(
+                "Option thread_queue_size (set number of queued packets) cannot be applied to input url ddagrab=output_idx=0:framerate=60 -- you are trying to apply an input option to an output file or vice versa. Move this option before the file it belongs to.\n"
+                        + "Error parsing options for input file ddagrab=output_idx=0:framerate=60:draw_mouse=0.\nError opening input files: Invalid argument");
+        check(ddaFail && !otherFail && !optionFail, "a Desktop Duplication failure is recognised (falls back to window capture); an audio failure "
+                + "or an option ffmpeg refuses for the ddagrab input isn't (that would leave capture on slow GDI)");
 
         // Linux: the Minecraft window's area of the screen is what's captured.
         if (Ffmpeg.WINDOWS || Ffmpeg.MAC || java.awt.GraphicsEnvironment.isHeadless() || !new java.io.File("/usr/bin/xwininfo").canExecute()) {

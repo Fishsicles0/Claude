@@ -364,8 +364,16 @@ public final class EditorPanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
         Theme.pad(p, 8, 0, 8, 0);
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        // Wraps (the parts label drops to a second row) instead of running under the volume controls when narrow
+        JPanel left = new JPanel(new SettingsPanel.WrapLayout());
         left.setOpaque(false);
+        left.addComponentListener(new java.awt.event.ComponentAdapter() {
+            private int rows = -1;
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                int h = left.getLayout().preferredLayoutSize(left).height;
+                if (h != rows) { rows = h; p.revalidate(); }
+            }
+        });
         JButton prev = Theme.iconButton(Theme.icon(Theme.Glyph.FRAME_PREV, 18, Theme.TEXT), "Previous frame (←)");
         prev.addActionListener(e -> step(-1));
         JButton next = Theme.iconButton(Theme.icon(Theme.Glyph.FRAME_NEXT, 18, Theme.TEXT), "Next frame (→)");
@@ -384,12 +392,12 @@ public final class EditorPanel extends JPanel {
         cover.setVisible(coverSupported());
         left.add(Box.createHorizontalStrut(10));
         left.add(cover);
-        p.add(left, BorderLayout.WEST);
+        left.add(Box.createHorizontalStrut(14));
+        left.add(outLabel);
+        p.add(left, BorderLayout.CENTER);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         right.setOpaque(false);
-        right.add(outLabel);
-        right.add(Box.createHorizontalStrut(14));
         JToggleButton muteBtn = new JToggleButton(Theme.icon(Theme.Glyph.VOLUME, 18, Theme.TEXT));
         muteBtn.setSelectedIcon(Theme.icon(Theme.Glyph.MUTE, 18, Theme.DIM));
         muteBtn.putClientProperty("JButton.buttonType", "toolBarButton");
@@ -411,8 +419,16 @@ public final class EditorPanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
         Theme.pad(p, 8, 10, 0, 14);
-        JPanel l = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        // Wraps onto a second row when the window is narrow, instead of running under the buttons on the right
+        JPanel l = new JPanel(new SettingsPanel.WrapLayout());
         l.setOpaque(false);
+        l.addComponentListener(new java.awt.event.ComponentAdapter() {
+            private int rows = -1;
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                int h = l.getLayout().preferredLayoutSize(l).height;
+                if (h != rows) { rows = h; p.revalidate(); }
+            }
+        });
         JButton split = Theme.button("Split", Theme.icon(Theme.Glyph.SPLIT, 16, Theme.TEXT), false);
         split.setToolTipText("Split at the playhead (S)");
         split.addActionListener(e -> split());
@@ -435,7 +451,7 @@ public final class EditorPanel extends JPanel {
         undoBtn.addActionListener(e -> undo());
         redoBtn.addActionListener(e -> redo());
         for (Component c : new Component[]{split, del, in, out, hl, mark, shot, undoBtn, redoBtn}) l.add(c);
-        p.add(l, BorderLayout.WEST);
+        p.add(l, BorderLayout.CENTER);
 
         JPanel r = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         r.setOpaque(false);
@@ -1212,25 +1228,55 @@ public final class EditorPanel extends JPanel {
         Path out = app.library.thumbsDir().resolve(c.id + "-estrip-" + frames + ".jpg");
         Thread t = new Thread(() -> {
             try {
-                if (!Files.exists(out)) {
-                    Files.createDirectories(out.getParent());
-                    Path tmp = out.resolveSibling(c.id + "-estrip-" + frames + ".tmp.jpg");
-                    List<String> args = new ArrayList<>();
-                    // long recordings: key frames only, which is plenty for a filmstrip and far quicker
-                    if (c.duration > 60) args.addAll(List.of("-skip_frame", "nokey"));
-                    args.addAll(List.of("-i", file.toString(), "-an", "-vf", "fps=" + Library.fmt(frames / c.duration)
-                            + ",scale=96:54:force_original_aspect_ratio=decrease,pad=96:54:(ow-iw)/2:(oh-ih)/2:color=black,tile=" + frames + "x1",
-                            "-frames:v", "1", "-q:v", "6", tmp.toString()));
-                    Ffmpeg.run(args);
-                    Files.move(tmp, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                BufferedImage img = Files.exists(out) ? ImageIO.read(out.toFile()) : null;
+                // long recordings: key frames only first, which is plenty for a filmstrip and far quicker. Some
+                // hardware-encoded recordings decode mostly black that way: then every frame is decoded instead.
+                if (img == null || mostlyBlack(img, frames)) {
+                    for (boolean keyOnly : c.duration > 60 && img == null ? new boolean[]{true, false} : new boolean[]{false}) {
+                        img = makeStrip(c, file, frames, out, keyOnly);
+                        if (img != null && !mostlyBlack(img, frames)) break;
+                    }
                 }
-                BufferedImage img = ImageIO.read(out.toFile());
-                if (img != null) SwingUtilities.invokeLater(() -> { if (clip == c) timeline.setStrip(img, frames); });
+                BufferedImage done = img;
+                if (done != null) SwingUtilities.invokeLater(() -> { if (clip == c) timeline.setStrip(done, frames); });
             } catch (Exception ignored) {}
         }, "dense-strip");
         t.setDaemon(true);
         t.setPriority(Thread.MIN_PRIORITY);
         t.start();
+    }
+
+    /** Writes the timeline filmstrip ({@code frames} tiles of 96 x 54) to {@code out} and reads it back. */
+    private static BufferedImage makeStrip(Clip c, Path file, int frames, Path out, boolean keyOnly) throws Exception {
+        Files.createDirectories(out.getParent());
+        Path tmp = out.resolveSibling(c.id + "-estrip-" + frames + ".tmp.jpg");
+        List<String> args = new ArrayList<>();
+        if (keyOnly) args.addAll(List.of("-skip_frame", "nokey"));
+        args.addAll(List.of("-i", file.toString(), "-an", "-vf", "fps=" + Library.fmt(frames / c.duration)
+                + ",scale=96:54:force_original_aspect_ratio=decrease,pad=96:54:(ow-iw)/2:(oh-ih)/2:color=black,tile=" + frames + "x1",
+                "-frames:v", "1", "-q:v", "6", tmp.toString()));
+        Ffmpeg.run(args);
+        Files.move(tmp, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        return ImageIO.read(out.toFile());
+    }
+
+    /** True when more than a third of the strip's tiles are (nearly) black: frames that didn't decode. */
+    static boolean mostlyBlack(BufferedImage strip, int frames) {
+        int tw = strip.getWidth() / Math.max(1, frames), black = 0;
+        if (tw <= 0) return true;
+        for (int i = 0; i < frames; i++) {
+            long sum = 0;
+            int n = 0;
+            for (int y = 4; y < strip.getHeight() - 4; y += 3) {
+                for (int x = i * tw + 4; x < (i + 1) * tw - 4; x += 3) {
+                    int rgb = strip.getRGB(x, y);
+                    sum += ((rgb >> 16) & 255) + ((rgb >> 8) & 255) + (rgb & 255);
+                    n++;
+                }
+            }
+            if (n > 0 && sum / (3.0 * n) < 10) black++;
+        }
+        return black * 3 > frames;
     }
 
     private void loadControls() {
