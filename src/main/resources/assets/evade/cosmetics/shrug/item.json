@@ -7,6 +7,24 @@
  "defaultColor": null,
  "partner": null,
  "description": "Arms out, shoulders up. Who knows?",
+ "fx": {
+  "type": "aura",
+  "shape": "puff",
+  "particle": "soft",
+  "colors": [
+   "#D8E4F0",
+   "#FFFFFF"
+  ],
+  "rate": 4,
+  "height": 1.7,
+  "size": 0.45,
+  "sizeEnd": 0.7,
+  "life": 0.9,
+  "fade": 0.4,
+  "gravity": -0.1,
+  "from": 0.3,
+  "to": 1.0
+ },
  "emote": {
   "length": 1.4,
   "loop": false,

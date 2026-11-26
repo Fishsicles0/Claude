@@ -7,6 +7,17 @@
  "defaultColor": null,
  "partner": null,
  "description": "Air drums: alternate hits with a head bob to the beat.",
+ "fx": {
+  "type": "aura",
+  "shape": "rise",
+  "particle": "note",
+  "colors": [
+   "#FFFFFF"
+  ],
+  "rate": 3,
+  "radius": 0.9,
+  "height": 2.0
+ },
  "emote": {
   "length": 1.0,
   "loop": true,
