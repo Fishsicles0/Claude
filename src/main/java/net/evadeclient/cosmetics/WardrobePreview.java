@@ -55,10 +55,23 @@ public final class WardrobePreview {
         d.self = true;
         d.emote = emote;
         ((FabricRenderState) ps).setData(CosmeticsEngine.KEY, d);
-        float scale = 0.97f * (y2 - y1) / 2.125f;
+        // Fit the player plus what sticks out above the head: tall hats, pets beside/above it, arched wings.
+        float scale = 0.97f * (y2 - y1) / (2.125f + headroom(loadout));
         ScreenRect bounds = SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, null);
         ((DrawContextStateAccessor) ctx).evade$state().addSpecialElement(new State(skin.model() == PlayerSkinType.SLIM ? slim : wide,
                 skin.body().texturePath(), ps, d, yaw, pitch, x1, y1, x2, y2, scale, null, bounds));
+    }
+
+    /** Extra height (blocks) to leave above the head for what's worn, so nothing is cut off at the top. */
+    static float headroom(Loadout loadout) {
+        if (loadout == null) return 0f;
+        float h = 0f;
+        if (loadout.get(Slot.PET) != null) h = Math.max(h, 1.0f);
+        if (loadout.get(Slot.HAT) != null) h = Math.max(h, 0.8f);
+        if (loadout.get(Slot.WINGS) != null) h = Math.max(h, 0.55f);
+        if (loadout.get(Slot.BACK) != null) h = Math.max(h, 0.35f);
+        if (loadout.get(Slot.MASK) != null) h = Math.max(h, 0.15f);
+        return h;
     }
 
     public static final class Renderer extends SpecialGuiElementRenderer<State> {
@@ -78,7 +91,8 @@ public final class WardrobePreview {
             float f = st.scale() * k;
             view.rotateAround(RotationAxis.POSITIVE_X.rotationDegrees(st.pitch()), 0f, f * 1.0625f, 0f);
             m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-st.yaw()));
-            m.translate(0f, -1.601f, 0f);
+            // Shift down by half the headroom so the feet stay at the bottom and the free space is all above the head.
+            m.translate(0f, -1.601f + headroom(st.data().loadout) / 2f, 0f);
             long t0 = System.nanoTime();
             try {
                 PlayerEntityModel model = st.model();

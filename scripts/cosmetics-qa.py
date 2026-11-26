@@ -468,6 +468,354 @@ def feature(im):
     return np.concatenate([a[..., :3] * a[..., 3:4], a[..., 3:4]], -1), g, h / max(1.0, h.sum())
 
 
+# ---------------------------------------------------------------------------------------------- strict tier
+# The "best in class" bar: every item judged against the best ones (hearthfire_cape, riptide_cape, the rebuilt pets, the
+# arched wings), face by face on the texture and view by view on renders from every side, not just the thumbnail.
+#
+#   faces     every face of every cube, on frame 0 of the texture: no flat (one colour) or default-grey (unpainted)
+#             faces, a defined edge (its outer texel ring stands out from the ring inside it) on faces big enough to
+#             show one, no stretched sampling (a face's UV rect must match its size: 1 texel = 1 texel), no tiled faces
+#             (the same block repeated across a face), and the same texel density on every face of an item (effective
+#             density: a face painted in 2x2 or 4x4 blocks counts as half or a quarter of the stored density)
+#   views     front, back, side, top and both three-quarter views of the item alone (the emote figure with its prop):
+#             no view that is mostly flat colour or mostly grey, every view lit (backs and sides hide low effort)
+#   read64    the silhouette still reads at 64 px: contrast with the card and edge, no crumbling into fragments
+#   glow      items that are described as glowing (glow, neon, molten, plasma, lightning ...) light emissive.png
+#   loop      animated specials: visible motion between frames, no frame-to-frame jump much bigger than the rest (the
+#             loop seam included), in the texture strip and the thumbnail strip
+#   thumb     centred (the item's centroid within 9% of the middle), not cut off at the frame, lit
+# The strict verdict is the worse of these and EYE_STRICT (the honest by-eye verdict on the per-view sheets).
+
+VIEWS = (("front", 0, 8), ("back", 180, 8), ("side", 90, 4), ("top", 0, 82), ("3/4 front", 35, 22), ("3/4 back", 215, 20))
+GLOW_WORDS = re.compile(r"\b(glow\w*|neon|molten|plasma|lightning|lava|blaz\w*|lumin\w*|radiant|incandescent|"
+                        r"energy|reactor|fiery|aflame|crackl\w*)\b", re.I)
+# By-eye strict review: id -> (verdict, note). Every item is listed (judged on views/<id>.png next to the references).
+EYE_STRICT = {}
+
+# items that are meant to be flat white/grey (tinted by the wearer's colour): the grey check doesn't apply to tint bones
+FACE_IDS = ("top", "bottom", "west", "north", "east", "south")
+JSON_FACE = {"up": "top", "down": "bottom", "west": "west", "north": "north", "east": "east", "south": "south"}
+
+
+def face_rects(bc, cube, scale):
+    """[(face, (x0, y0, x1, y1) texels, (geom w, geom h) units, (uv w, uv h) units)] for one cube of model.json."""
+    w, h, d = cube["size"]
+    out = []
+    if "faces" in cube:
+        for jf, f in cube["faces"].items():
+            face = JSON_FACE[jf]
+            gw, gh = bc.FACE_DIMS[face](w, h, d)
+            u1, v1, u2, v2 = f["uv"]
+            rw, rh = abs(u2 - u1), abs(v2 - v1)
+            if int(f.get("rotation", 0)) // 90 % 2:
+                rw, rh = rh, rw
+            x0, x1 = sorted((u1 * scale, u2 * scale))
+            y0, y1 = sorted((v1 * scale, v2 * scale))
+            out.append((face, tuple(int(round(v)) for v in (x0, y0, x1, y1)), (gw, gh), (rw, rh)))
+        return out
+    u, v = cube.get("uv") or (0, 0)
+    for face, rect in bc.FACE_RECTS.items():
+        ox, oy, fw, fh = rect(w, h, d)
+        x0, y0 = (u + ox) * scale, (v + oy) * scale
+        out.append((face, (int(x0), int(y0), int(x0 + fw * scale), int(y0 + fh * scale)), (fw, fh), (fw, fh)))
+    return out
+
+
+def block_size(t, scale):
+    """The largest k in (1, 2, 4, 8) (k <= scale) such that the face is constant on aligned k x k blocks (97%)."""
+    best = 1
+    h, w = t.shape[:2]
+    for k in (2, 4, 8):
+        if k > scale or h < k or w < k or h % k or w % k:
+            break
+        b = t[:h // k * k, :w // k * k].reshape(h // k, k, w // k, k, -1)
+        same = (np.abs(b - b[:, :1, :, :1]).max((1, 3, 4)) < 1 / 255).mean()
+        if same >= 0.97:
+            best = k
+        else:
+            break
+    return best
+
+
+def face_stats(bc, it, model, tex):
+    """Per-face measurements on frame 0 of the texture. Returns (rows, problems, weak)."""
+    scale = model["textureScale"]
+    rows, fails, weak = [], [], []
+    eff = []
+    seen = {}
+    for b in model["bones"]:
+        tint = b.get("tint", False)
+        for ci, c in enumerate(b["cubes"]):
+            w, h, d = c["size"]
+            solid = min(w, h, d) > 0
+            for face, (x0, y0, x1, y1), (gw, gh), (rw, rh) in face_rects(bc, c, scale):
+                if gw == 0 or gh == 0:
+                    continue
+                tag = f"{b['name']}#{ci}.{face}"
+                area = gw * gh
+                # stretch: the UV rect against the face's size (texels per unit along each axis)
+                sx, sy = rw / gw, rh / gh
+                if area >= 1 and (max(sx, sy) > 1.3 or min(sx, sy) < 0.77):
+                    fails.append(f"{tag}: stretched sampling ({gw:g}x{gh:g} face from a {rw:g}x{rh:g} UV rect)")
+                t = tex[max(0, y0):y1, max(0, x0):x1]
+                if t.size == 0:
+                    continue
+                op = t[..., 3] > 0.5
+                key = (x0, y0, x1, y1)
+                if key in seen:
+                    continue
+                seen[key] = tag
+                n = int(op.sum())
+                row = dict(tag=tag, area=area, opaque=n / max(1, op.size))
+                rows.append(row)
+                if n == 0:
+                    if solid and area >= 4 and not b.get("emissive"):
+                        weak.append(f"{tag}: empty face on a solid cube ({gw:g}x{gh:g})")
+                    continue
+                px = t[op][:, :3]
+                q = np.round(px * 255).astype(int)
+                ncol = len(np.unique(q[:, 0] * 65536 + q[:, 1] * 256 + q[:, 2]))
+                row["colours"] = ncol
+                L = lum(px)
+                sat = px.max(1) - px.min(1)
+                if ncol == 1 and n >= 2 * scale * scale:
+                    fails.append(f"{tag}: one flat colour ({gw:g}x{gh:g})")
+                elif ncol <= 2 and float(L.std()) < 0.01 and n >= 4 * scale * scale:
+                    weak.append(f"{tag}: almost flat ({ncol} colours, {gw:g}x{gh:g})")
+                if not tint and not it["colourable"] and n >= scale * scale:
+                    grey = (sat < 0.045) & (L > 0.3) & (L < 0.72)
+                    if grey.mean() > 0.92 and ncol <= 4:
+                        fails.append(f"{tag}: default grey, unpainted ({gw:g}x{gh:g})")
+                # edge: the outer ring of texels against the ring inside it
+                k = block_size(t, scale)
+                if min(gw, gh) >= 2 and t.shape[0] >= 2 * k + 2 and t.shape[1] >= 2 * k + 2 and op.mean() > 0.9:
+                    tl = lum(t[..., :3])          # (rings one art pixel apart: k texels)
+                    outer = np.concatenate([tl[0, k:-k], tl[-1, k:-k], tl[k:-k, 0], tl[k:-k, -1]])
+                    inner = np.concatenate([tl[k, k:-k], tl[-1 - k, k:-k], tl[k:-k, k], tl[k:-k, -1 - k]])
+                    ed = float((np.abs(outer - inner) > 0.025).mean())
+                    row["edge"] = ed
+                    # a plain face (a few colours) needs its edge drawn; a detailed one reads by its art and the
+                    # per-face light (the reference pets have no drawn edges)
+                    if ed < 0.25 and area >= 4 and ncol <= 3:
+                        weak.append(f"{tag}: plain face with no drawn edge ({ncol} colours, {ed:.0%} of its border)")
+                # tiling: the face equals itself moved by a whole block, both ways (a stamped pattern)
+                if gw >= 4 and gh >= 4:
+                    th_, tw_ = t.shape[:2]
+                    tiled = False
+                    for p in range(scale, tw_ // 2 + 1, scale):
+                        for q_ in range(scale, th_ // 2 + 1, scale):
+                            a1 = t[q_:, p:]
+                            a0 = t[:th_ - q_, :tw_ - p]
+                            if (np.abs(a1 - a0).max(-1) < 1 / 255).mean() > 0.97 and ncol > 1:
+                                tiled = True
+                                break
+                        if tiled:
+                            break
+                    cols_same = (np.abs(t - t[:, :1]).max((0, 2)) < 1 / 255).mean() > 0.97
+                    rows_same = (np.abs(t - t[:1]).max((1, 2)) < 1 / 255).mean() > 0.97
+                    if tiled:
+                        weak.append(f"{tag}: the same block repeated across the face")
+                    elif (cols_same or rows_same) and ncol > 1 and n >= 16 * scale * scale:
+                        weak.append(f"{tag}: every {'column' if cols_same else 'row'} the same (a stretched gradient)")
+                row["eff"] = scale / k
+                if area >= 2:
+                    eff.append((scale / k, area, tag))
+    if eff:
+        top = max(e for e, _, _ in eff)
+        low = [(e, a, tag) for e, a, tag in eff if e * 4 <= top]
+        if low:
+            share = sum(a for _, a, _ in low) / sum(a for _, a, _ in eff)
+            (fails if share > 0.15 else weak).append(
+                f"texel density varies: {len(low)} faces at {min(e for e, _, _ in low):g} tx/u vs {top:g} "
+                f"({share:.0%} of the surface), e.g. {low[0][2]}")
+    return rows, fails, weak
+
+
+def alone_scene_view(bc, it, d, yaw, pitch, size=192):
+    """The item alone (the emote figure with its prop) from any angle, framed to fit."""
+    if it["emote"]:
+        v = dict(it["view"], yaw=yaw, pitch=pitch, frame=None, margin=1.08)
+        prop = None
+        if (d / "model.json").exists():
+            model = json.loads((d / "model.json").read_text())
+            tw, th = model["texture"]
+            sc = model["textureScale"]
+            prop = (load_tex(d / "texture.png", tw, th, sc), load_tex(d / "emissive.png", tw, th, sc), tw, th)
+            it = dict(it, bones=bones_from_json(bc, model))
+        if v.get("gm"):
+            return bc.gm_thumb_emote(dict(it, view=v), size, prop=prop)
+        pose = v.get("pose") or bc.emote_key_pose(it["emote"])
+        scene = bc.Scene()
+        bc.add_mannequin(scene, pose)
+        return bc.render_scene(scene, yaw, pitch, size=size, margin=1.08)
+    mpath = d / "model.json"
+    if not mpath.exists():
+        return None
+    model = json.loads(mpath.read_text())
+    tw, th = model["texture"]
+    sc = model["textureScale"]
+    tex = load_tex(d / "texture.png", tw, th, sc)
+    em = load_tex(d / "emissive.png", tw, th, sc)
+    bones = bones_from_json(bc, model)
+    view = dict(it["view"], yaw=yaw, pitch=pitch, frame=None, margin=1.08)
+    view.pop("glow", None)
+    with NoPlayer(bc):
+        return bc.gm_thumb_model_shipped(dict(it, bones=bones, view=view), tex, em, tw, th, size=size)
+
+
+def view_stats(im, tinted):
+    a = np.asarray(im.convert("RGBA"), np.float32) / 255
+    m = a[..., 3] > 0.5
+    if m.sum() < 30:
+        return None
+    rgb = a[..., :3]
+    L = lum(rgb)
+    # flat: pixels whose 5 x 5 neighbourhood (all inside the item) has no colour variation at all
+    pad = 2
+    Lp = np.pad(L, pad, mode="edge")
+    mp = np.pad(m, pad)
+    win_max = np.full_like(L, -1)
+    win_min = np.full_like(L, 2)
+    inside = np.ones_like(m)
+    for dy in range(5):
+        for dx in range(5):
+            s = Lp[dy:dy + L.shape[0], dx:dx + L.shape[1]]
+            win_max = np.maximum(win_max, s)
+            win_min = np.minimum(win_min, s)
+            inside &= mp[dy:dy + L.shape[0], dx:dx + L.shape[1]]
+    flat = m & inside & ((win_max - win_min) < 0.006)
+    sat = rgb.max(-1) - rgb.min(-1)
+    grey = m & flat & (sat < 0.05) & (L > 0.25) & (L < 0.75)      # unpainted grey: grey AND flat (steel is not)
+    card = np.array(CARD, np.float32) / 255
+    comp = rgb * a[..., 3:4] + card * (1 - a[..., 3:4])
+    return dict(flat=float(flat.sum() / m.sum()), grey=0.0 if tinted else float(grey.sum() / m.sum()),
+                lum=float(lum(comp)[m].mean()))
+
+
+def strip_frames(path, frames):
+    if not path.exists():
+        return None
+    a = np.asarray(Image.open(path).convert("RGBA"), np.float32) / 255
+    h = a.shape[0] // frames
+    return [a[k * h:(k + 1) * h] for k in range(frames)]
+
+
+def loop_stats(frames):
+    """(motion: mean per-frame change, jump: biggest change / median, seam: last->first / median)."""
+    def diff(x, y):
+        m = (x[..., 3] > 0.3) | (y[..., 3] > 0.3)
+        if not m.any():
+            return 0.0
+        return float(np.abs(x - y)[m].mean())
+    ds = [diff(frames[k], frames[(k + 1) % len(frames)]) for k in range(len(frames))]
+    med = float(np.median(ds)) + 1e-6
+    return float(np.mean(ds)), max(ds[:-1]) / med, ds[-1] / med
+
+
+def strict_checks(bc, it, d, thumb, alone, views, catalog_item):
+    """Strict tier: (fails, weak, info)."""
+    fails, weak, info = [], [], {}
+    slot = it["slot"]
+    mpath = d / "model.json"
+    model = json.loads(mpath.read_text()) if mpath.exists() else None
+    if model is not None:
+        tw, th = model["texture"]
+        sc = model["textureScale"]
+        tex = load_tex(d / "texture.png", tw, th, sc)
+        rows, f, w = face_stats(bc, it, model, tex)
+        info["faces"] = len(rows)
+        # pets are drawn in their own soft style (rim-lit art at 4 art px per unit): their faces are judged by eye
+        fails += f
+        weak += w
+    # views
+    tinted = it["colourable"]
+    for name, vs in views.items():
+        if vs is None:
+            continue
+        info[f"view:{name}"] = vs
+        if vs["flat"] > 0.45:
+            fails.append(f"{name} view: {vs['flat']:.0%} flat colour")
+        elif vs["flat"] > 0.30:
+            weak.append(f"{name} view: {vs['flat']:.0%} flat colour")
+        if vs["grey"] > 0.3:
+            fails.append(f"{name} view: {vs['grey']:.0%} flat plain grey")
+        elif vs["grey"] > 0.15:
+            weak.append(f"{name} view: {vs['grey']:.0%} flat plain grey")
+        if vs["lum"] < 0.09:
+            weak.append(f"{name} view: dark (mean {vs['lum']:.2f})")
+    # read at 64 px
+    if alone is not None and slot not in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT"):
+        small = alone.convert("RGBa").resize((64, 64), Image.BOX).convert("RGBA")
+        m64 = measure(small, slot)
+        info["read64"] = {k: m64.get(k) for k in ("outline", "fill", "frags", "lum")}
+        if not m64.get("empty"):
+            if m64["outline"] < 0.05:
+                weak.append(f"at 64 px the edge barely reads ({m64['outline']:.3f})")
+            if m64["frags"] > 8 and slot in ("HAT", "MASK", "BACK", "ITEM_SKIN", "PET", "CAPE"):
+                weak.append(f"at 64 px it crumbles into {m64['frags']} pieces")
+    # glow
+    desc = it["desc"]
+    has_em = (d / "emissive.png").exists() or (model is not None and any(b.get("emissive") for b in model["bones"]))
+    if model is not None and GLOW_WORDS.search(desc) and not has_em:
+        fails.append(f"described as glowing ('{GLOW_WORDS.search(desc).group(0)}') but has no emissive layer")
+    if has_em and (d / "emissive.png").exists():
+        e = np.asarray(Image.open(d / "emissive.png").convert("RGBA"), np.float32)[..., 3]
+        info["emissive"] = float((e > 0).mean())
+    # loops
+    anim = it["animation"]
+    if anim:
+        n = anim["frames"]
+        fr = strip_frames(d / "texture.png", n)
+        if fr:
+            motion, jump, seam = loop_stats(fr)
+            info["loop"] = (motion, jump, seam)
+            if motion < 0.004:
+                fails.append(f"animated texture barely moves ({motion:.4f} per frame)")
+            if seam > 3.0 and not it["view"].get("flash"):
+                weak.append(f"loop seam: last->first frame changes {seam:.1f}x a usual step")
+            if jump > 4.0 and not it["view"].get("flash"):
+                weak.append(f"uneven animation: one step {jump:.1f}x a usual step")
+        tf = strip_frames(d / "thumb.png", n) if (d / "thumb.png").exists() and Image.open(d / "thumb.png").height > Image.open(d / "thumb.png").width else None
+        if tf:
+            motion, jump, seam = loop_stats(tf)
+            info["thumb_loop"] = (motion, jump, seam)
+            if motion < 0.003:
+                weak.append(f"the thumbnail strip barely moves ({motion:.4f})")
+    elif it["rarity"] == "SPECIAL" and model is not None:
+        if not any((b.get("anim") or {}).get("type") for b in model["bones"]) and not it["fx"]:
+            weak.append("special without any animation")
+    # thumbnail framing
+    if thumb is not None:
+        # the item alone from the thumbnail camera (the player in a cape's thumbnail is cropped on purpose)
+        # centred: the whole picture (player included); cut off: the item alone, from the same camera
+        at = np.asarray(thumb.convert("RGBA"), np.float32)[..., 3] / 255
+        a = np.asarray((alone or thumb).convert("RGBA"), np.float32) / 255
+        al = a[..., 3]
+        S = al.shape[0]
+        solid = al > 0.6
+        if solid.any() and (at > 0.6).any():
+            ys, xs = np.nonzero(at > 0.6)
+            St = at.shape[0]
+            cx, cy = (xs.min() + xs.max()) / 2 / St - 0.5, (ys.min() + ys.max()) / 2 / St - 0.5
+            info["centre"] = (float(cx), float(cy))
+            if max(abs(cx), abs(cy)) > 0.09 and slot not in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT"):
+                weak.append(f"thumbnail off centre ({cx:+.0%}, {cy:+.0%})")
+            border = np.concatenate([solid[0], solid[-1], solid[:, 0], solid[:, -1]])
+            if border.mean() > 0.04:
+                weak.append(f"thumbnail cut off at the frame ({border.mean():.0%} of the border)")
+    return fails, weak, info
+
+
+def view_sheet(path, label, ims, cell=192):
+    W = Image.new("RGB", (cell * len(ims), cell + 18), (14, 14, 18))
+    dd = ImageDraw.Draw(W)
+    for k, (name, im) in enumerate(ims):
+        if im is not None:
+            W.paste(on_card(im.resize((cell, cell), Image.LANCZOS)), (k * cell, 18))
+        dd.text((k * cell + 4, 3), f"{label} - {name}" if k == 0 else name, fill=(230, 230, 236))
+    W.save(path)
+
+
 # ---------------------------------------------------------------------------------------------- sheets
 
 VCOL = {"PASS": (90, 200, 120), "WEAK": (240, 190, 70), "FAIL": (240, 80, 80)}
@@ -495,6 +843,8 @@ def main():
     only = set(opt("--only").split(",")) if opt("--only") else None
     compare = opt("--compare")
     (out / "items").mkdir(parents=True, exist_ok=True)
+    (out / "views").mkdir(parents=True, exist_ok=True)
+    no_strict = "--no-strict" in args
     bc = load_generator()
     secs = sections()
     catalog = json.loads((built / "catalog.json").read_text()) if (built / "catalog.json").exists() else {"items": []}
@@ -544,6 +894,33 @@ def main():
                             poses.append(im)
             feats[iid] = (it["slot"],) + feature(alone)
         fails, weak = score(it, d, m, wing, clear, texinfo)
+        # strict tier: every side of the item, every face of its texture
+        vims, vstats = [], {}
+        if thumb is not None and not no_strict:
+            if it["slot"] in ("TRAIL", "KILL_EFFECT", "WIN_EFFECT") or (it["slot"] == "AURA" and not (d / "model.json").exists()):
+                vims = [("thumbnail", thumb)]
+            else:
+                vims = [("thumbnail", thumb)]
+                for name, yaw, pitch in VIEWS:
+                    try:
+                        im = alone_scene_view(bc, it, d, yaw, pitch)
+                    except Exception as ex:          # a view that can't be drawn is a finding, not a crash
+                        im = None
+                        print(f"  view {name} of {iid}: {ex}", file=sys.stderr)
+                    vims.append((name, im))
+                    if im is not None and not it["emote"]:
+                        vstats[name] = view_stats(im, it["colourable"])
+            view_sheet(out / "views" / f"{iid}.png", iid, vims)
+            sfails, sweak, sinfo = strict_checks(bc, it, d, thumb, alone, vstats, None)
+        else:
+            sfails, sweak, sinfo = [], [], {}
+        sauto = "FAIL" if sfails else "WEAK" if sweak else "PASS"
+        seye = EYE_STRICT.get(iid)
+        sverdict = sauto
+        if seye:
+            sverdict = max(sauto, seye[0], key=["PASS", "WEAK", "FAIL"].index)
+        elif not no_strict:
+            sverdict = max(sauto, "WEAK", key=["PASS", "WEAK", "FAIL"].index)     # not yet judged by eye
         auto = "FAIL" if fails else "WEAK" if weak else "PASS"
         eye = EYE.get(iid)
         verdict = auto
@@ -552,7 +929,8 @@ def main():
             verdict = max(auto, eye[0], key=order.index)
         results.append(dict(id=iid, name=it["name"], slot=it["slot"], rarity=it["rarity"], section=secs.get(iid, "?"),
                             listed=iid in in_catalog, verdict=verdict, auto=auto, fails=fails, weak=weak, eye=eye,
-                            m=m, wing=wing, clear=clear, tex=texinfo))
+                            m=m, wing=wing, clear=clear, tex=texinfo, strict=sverdict, sauto=sauto, sfails=sfails,
+                            sweak=sweak, seye=seye, sinfo=sinfo))
         # per-item picture: the shipped thumbnail | the item alone | wing poses
         if thumb is not None:
             ims = [thumb.resize((256, 256), Image.LANCZOS), (alone or thumb).resize((256, 256), Image.LANCZOS)]
@@ -561,7 +939,8 @@ def main():
             for k, im in enumerate(ims):
                 P.paste(on_card(im), (256 * k, 0))
             P.save(out / "items" / f"{iid}.png")
-        print(f"{verdict:4} {iid}", file=sys.stderr)
+        print(f"{verdict:4} strict {sverdict:4} {iid}" + (f"  {'; '.join((sfails + sweak)[:3])}" if sfails or sweak else ""),
+              file=sys.stderr)
     # look-alikes
     sims = similarity_pairs(feats)
     for a, b, s in sims:
@@ -629,11 +1008,38 @@ def main():
             lines.append(f"| {r['id']} | {r['slot']} | **{r['verdict']}** | {'; '.join(reasons) or 'ok'} | {f('fill', '.0%')} | "
                          f"{f('busy', '.0%')} | {f('lum', '.2f')} | {r['tex'].get('tex_colours', '-')} | {f('solidity', '.2f')} | {extra} |")
         lines.append("")
+    if not no_strict:
+        counts = {v: sum(1 for r in results if r["strict"] == v) for v in ("PASS", "WEAK", "FAIL")}
+        lines += [f"## Strict tier ({len(results)} items: {counts['PASS']} pass, {counts['WEAK']} weak, {counts['FAIL']} fail)",
+                  "", "Criteria: see the strict-tier block in `scripts/cosmetics-qa.py`. Per-view sheets: `views/<id>.png` "
+                  "(thumbnail, front, back, side, top, 3/4 front, 3/4 back).", "",
+                  "| item | slot | strict | auto findings | by eye |", "|---|---|---|---|---|"]
+        for r in sorted(results, key=lambda r: (["FAIL", "WEAK", "PASS"].index(r["strict"]), r["slot"], r["id"])):
+            fnd = r["sfails"] + r["sweak"]
+            more = f" (+{len(fnd) - 4} more)" if len(fnd) > 4 else ""
+            eye = f"{r['seye'][0]}: {r['seye'][1]}" if r["seye"] else "not judged"
+            lines.append(f"| {r['id']} | {r['slot']} | **{r['strict']}** | {'; '.join(fnd[:4]) + more or 'ok'} | {eye} |")
+        lines.append("")
     if sims:
         lines += ["## Look-alikes (same slot)", ""] + [f"- {a} ~ {b}: {s:.0%}" for a, b, s in sims] + [""]
     (out / "report.md").write_text("\n".join(lines))
-    js = [{k: v for k, v in r.items() if k != "eye"} | {"eye": list(r["eye"]) if r["eye"] else None} for r in results]
+    js = [{k: v for k, v in r.items() if k not in ("eye", "seye")} | {"eye": list(r["eye"]) if r["eye"] else None,
+          "seye": list(r["seye"]) if r["seye"] else None} for r in results]
     (out / "report.json").write_text(json.dumps(js, indent=1, default=float))
+    if not no_strict:
+        # contact sheets of every view, a few items per sheet, for the by-eye review
+        vfiles = [out / "views" / f"{r['id']}.png" for r in results if (out / "views" / f"{r['id']}.png").exists()]
+        per = 5
+        for g in range(0, len(vfiles), per):
+            ims = [Image.open(f) for f in vfiles[g:g + per]]
+            W = Image.new("RGB", (max(i.width for i in ims), sum(i.height for i in ims)), (14, 14, 18))
+            y = 0
+            for i in ims:
+                W.paste(i, (0, y))
+                y += i.height
+            W.save(out / f"views-{g // per:02d}.png")
+        sbad = [r for r in results if r["strict"] != "PASS"]
+        print(f"strict: {len(results) - len(sbad)} pass, {len(sbad)} weak/fail", file=sys.stderr)
     bad = [r for r in results if r["verdict"] != "PASS"]
     print(f"{len(results)} items: {len(results) - len(bad)} pass, {len(bad)} weak/fail -> {out / 'report.md'}", file=sys.stderr)
 
