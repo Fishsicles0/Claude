@@ -8,7 +8,7 @@ plugins {
 // User-Agents, About, What's new and the self-update's "never older" check), and scripts/build-site.sh reads it from here
 // for version.json and the download page. The files keep their old installer names (Evade-Installer.exe,
 // EvadeInstaller.jar) so existing downloads and self-update keep working.
-version = '2.7.1'
+version = '2.7.2'
 
 tasks.named('processResources') {
     inputs.property 'version', project.version

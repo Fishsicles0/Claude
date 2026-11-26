@@ -48,6 +48,7 @@ MAX_STRIP_PX = 4096    # tallest texture strip the client takes (all frames)
 MAX_SCALE = 8          # most texels per model unit (the client takes 1, 2, 4 or 8)
 THUMB = 128
 THUMB_HD = 256         # regular items' thumbnails (the special items' strips are 168-256 per frame)
+THUMB_SITE = 512       # the website's still thumbnails (thumb-hd.png, site-src only)
 CRISP_EXEMPT = ("PET", "AURA")   # drawn in their own style by their own painters (see the pets and auras sections)
 RNG = np.random.default_rng(20261124)
 
@@ -4198,7 +4199,7 @@ def rune_field(X, Z, r, ang, n, r_mid, height, offset=0.0):
     return out
 
 
-def ring_sigil(c_in, c_out, glyphs=12, alpha=0.8, extra=None, hue=None, star=None):
+def ring_sigil(c_in, c_out, glyphs=12, alpha=0.8, extra=None, hue=None, star=None, opaque=False):
     """A bold rune circle: a thick outer ring with crisp edges, a thinner inner ring, evenly spaced rune glyphs between
     them with diamond studs between the glyphs, tick marks round the rim, a soft glow filling the middle and an
     optional inner star. Crisp pixel shapes (no thin hairlines), so it reads from a distance and at a low angle."""
@@ -4238,7 +4239,8 @@ def ring_sigil(c_in, c_out, glyphs=12, alpha=0.8, extra=None, hue=None, star=Non
             col[bright, :3] = mix(col[bright, :3], np.ones(3), 0.45)
         A *= (r < 1.0)
         cv.arr[..., :3] = col[..., :3]
-        cv.arr[..., 3] = A * alpha
+        # opaque: the drawn lines are solid (they read the same on a light stage), only their soft fringe fades
+        cv.arr[..., 3] = np.where(A >= 0.45, 1.0, A * alpha) if opaque else A * alpha
         em_rgb(cv, col, A * alpha)
     return fn
 
@@ -4266,7 +4268,7 @@ AURA_CLOSE = {"yaw": 30, "pitch": 55, "frame": [(-12, -23.5), (12, 0.5)], "margi
 
 item("ember_orbit", "Ember Orbit", "AURA", "REGULAR", 400,
      "A ring of fire runes turns at your feet while three embers circle your waist.",
-     sigil_bones(ring_sigil("#ffe08a", "#ff3a0a", 12, 0.78, star=6)) +
+     sigil_bones(ring_sigil("#ffe08a", "#ff3a0a", 12, 0.78, star=6, opaque=True)) +
      [Bone("embers", "root", (0, 14, 0), cubes=[Cube((8.5, 13, -0.5), (1, 1, 1), ember_mote),
                                                Cube((-5.25, 15, 7.1), (1, 1, 1), ember_mote),
                                                Cube((-5.25, 11, -8.1), (1, 1, 1), ember_mote)],
@@ -4304,7 +4306,7 @@ def frost_fn(cv, X, Z):
     col = ramp(r, [(0, "#ffffff"), (0.6, "#bfeaff"), (1, "#5ab8ff")])
     cv.arr[..., :3] = col[..., :3]
     A = np.clip(A * 1.25, 0, 1)
-    cv.arr[..., 3] = A * 0.72
+    cv.arr[..., 3] = np.where(A >= 0.45, 1.0, A * 0.72)          # solid frost lines, a soft fringe
     em_rgb(cv, col, A * 0.72)
 
 
@@ -6077,6 +6079,85 @@ def quantize256(a, cols, inv):
     return q
 
 
+def _palette_png(a, k, dither=0.0):
+    """a (h, w, 4 uint8) on the k colours k-means finds for it (alpha weighted), optionally with ordered dithering of
+    `dither` levels (soft glow keeps its gradient instead of banding). Returns (bytes, mean rgb error, mean alpha error)."""
+    flat = a.reshape(-1, 4).view(np.uint32).ravel()
+    cols, inv = np.unique(flat, return_inverse=True)
+    if len(cols) > 40000:
+        q4 = (a.astype(np.int32) // 4 * 4 + 2).clip(0, 255).astype(np.uint8)
+        cols, inv = np.unique(q4.reshape(-1, 4).view(np.uint32).ravel(), return_inverse=True)
+    w = np.array([1.0, 1.0, 1.0, 3.0], np.float32)
+    X = cols.view(np.uint8).reshape(-1, 4).astype(np.float32) * w
+    count = np.bincount(inv.ravel(), minlength=len(cols)).astype(np.float32)
+    rng = np.random.default_rng(k)
+    sub = rng.choice(len(X), size=min(len(X), 12000), replace=False, p=count / count.sum())
+    S = X[sub]
+    C = [S[0]]
+    d = ((S - S[0]) ** 2).sum(1)
+    for _ in range(min(k - 1, len(S) - 1)):
+        j = rng.choice(len(S), p=d / d.sum()) if d.sum() > 0 else 0
+        C.append(S[j])
+        d = np.minimum(d, ((S - S[j]) ** 2).sum(1))
+    C = np.array(C, np.float32)
+
+    def nearest(P, c):
+        out = np.empty(len(P), np.int64)
+        for i in range(0, len(P), 4096):
+            out[i:i + 4096] = ((P[i:i + 4096, None, :] - c[None, :, :]) ** 2).sum(-1).argmin(1)
+        return out
+    for _ in range(8):
+        lab = nearest(X, C)
+        tot = np.zeros_like(C)
+        np.add.at(tot, lab, X * count[:, None])
+        n = np.bincount(lab, weights=count, minlength=len(C))[:, None]
+        C = np.where(n > 0, tot / np.maximum(n, 1e-6), C).astype(np.float32)
+    h, wd = a.shape[:2]
+    if dither:
+        P = a.reshape(-1, 4).astype(np.float32)
+        P[:, :3] += (bayer(h, wd).reshape(-1)[:, None] * dither)
+        idx = nearest(P * w, C).reshape(h, wd)
+    else:
+        idx = nearest(X, C)[inv.reshape(h, wd)]
+    pal = np.clip(C / w + 0.5, 0, 255).astype(np.uint8)
+    q = Image.fromarray(idx.astype(np.uint8), "P")
+    q.putpalette(pal[:, :3].ravel().tolist())
+    buf = io.BytesIO()
+    q.save(buf, "PNG", optimize=True, transparency=bytes(pal[:, 3].tolist()))
+    raw = buf.getvalue()
+    back = np.asarray(Image.open(io.BytesIO(raw)).convert("RGBA"), np.float32)
+    err = np.abs(back - a.astype(np.float32))
+    # the mean hides banding in a smooth gradient: judge the worst 1% of pixels too (as a colour error)
+    worst = float(np.percentile(err[..., :3].max(-1)[a[..., 3] > 0], 99)) if (a[..., 3] > 0).any() else 0.0
+    return raw, max(float(err[..., :3].mean()), worst / 4), float(err[..., 3].mean())
+
+
+def strip_png(im, strict=False):
+    """A thumbnail strip, or (strict) the website's 512 px still: the smallest encoding that stays visually the same.
+    Exact palette when there are at most 256 colours; otherwise k-means palettes of 128-256 colours, kept when the mean
+    colour error is under 3 levels of 255 and the worst 1% of pixels under 12 (no banding in soft gradients), else
+    full RGBA. Strips keep their old encoding as the fallback; a strip still over 400 KB (a soft rainbow glow no single
+    palette holds) takes 256 colours with a light ordered dither instead of banding."""
+    a = np.asarray(im.convert("RGBA"))
+    if strict:
+        best = png_bytes(im)
+        if len(np.unique(a.reshape(-1, 4).view(np.uint32))) <= 256:
+            return png_bytes(im, indexed=True)
+    else:
+        best = png_bytes(im, indexed=True, soft_alpha=True)
+    if len(best) > 60_000 or strict:
+        for k in (128, 192, 256):
+            cand, e, ea = _palette_png(a, k)
+            if e < 3.0 and ea < 2.0 and len(cand) < len(best):
+                best = cand
+                break
+    if not strict and len(best) > 400_000:
+        cand, e, ea = _palette_png(a, 256, dither=7.0)
+        if ea < 3.0 and len(cand) < len(best):
+            best = cand
+    return best
+
+
 def png_bytes(im, indexed=False, soft_alpha=False):
     """PNG bytes. indexed: when the picture has at most 256 distinct colours, store it as a palette PNG (lossless,
     much smaller for the special items' banded pixel art; the client and browsers read it as RGBA all the same)."""
@@ -6162,7 +6243,30 @@ def build(it):
         thumb = thumb_emote(it, size=THUMB_HD if crisp else THUMB)
     else:
         thumb = thumb_particles(it["thumb"], it["fx"]["colors"], size=THUMB_HD if crisp else THUMB)
-    files["thumb.png"] = png_bytes(thumb, indexed=bool(it["animation"]) or crisp, soft_alpha=True)
+    strip = thumb.height > thumb.width
+    files["thumb.png"] = strip_png(thumb) if strip else png_bytes(thumb, indexed=bool(it["animation"]) or crisp,
+                                                                    soft_alpha=True)
+    if strip and len(files["thumb.png"]) > 250_000 and thumb.width > 208:
+        # a heavy strip (soft glow in every frame): 208 px frames, still sharp on the cards, about a third lighter
+        frames = thumb.height // thumb.width
+        small = Image.new("RGBA", (208, 208 * frames), (0, 0, 0, 0))
+        for k in range(frames):
+            small.paste(thumb_model(it, texs[k], ems[k] if has_em else None, tw, th, k / frames, size=208), (0, k * 208))
+        cand = strip_png(small)
+        if len(cand) < len(files["thumb.png"]):
+            files["thumb.png"] = cand
+    # the shop's cards are ~500 device px wide: a 512 px still for the website only (site-src), listed in the catalogue
+    # as "thumbHd" and not among the item's files, so the client (which checks every listed file against the jar)
+    # keeps reading its own bundled thumbnail and never re-downloads
+    if not strip:
+        if it["bones"]:
+            k = it["view"].get("thumb_frame", 0)
+            hd = thumb_model(it, texs[k], ems[k] if has_em else None, tw, th, size=THUMB_SITE)
+        elif it["emote"]:
+            hd = thumb_emote(it, size=THUMB_SITE)
+        else:
+            hd = thumb_particles(it["thumb"], it["fx"]["colors"], size=THUMB_SITE)
+        it["_site_files"] = {"thumb-hd.png": strip_png(hd, strict=True)}
     check_limits(it, files)
     if it["slot"] == "PET":
         gap = check_pet_clearance(it)
@@ -6471,11 +6575,16 @@ def main():
             d.mkdir(parents=True, exist_ok=True)
             for name, data in files.items():
                 (d / name).write_bytes(data)
+        site_files = it.get("_site_files") or {}
+        for name, data in site_files.items():
+            (OUT_SITE / it["id"] / name).write_bytes(data)
         index["items"].append({
             "id": it["id"], "name": it["name"], "slot": it["slot"], "rarity": it["rarity"].lower(),
             "priceCents": it["price"], "currency": "USD", "partner": it["partner"], "colourable": it["colourable"],
             "defaultColor": it["default_color"], "description": it["desc"],
-            "assets": {"files": {name: sha256(data) for name, data in files.items()}}})
+            "assets": {"files": {name: sha256(data) for name, data in files.items()}}}
+            | ({"thumbHd": {"file": "thumb-hd.png", "size": THUMB_SITE, "sha256": sha256(site_files["thumb-hd.png"])}}
+               if "thumb-hd.png" in site_files else {}))
     data = (json.dumps(index, indent=1) + "\n").encode()
     for out in (OUT_RES, OUT_SITE):
         stale = out / "index.json"

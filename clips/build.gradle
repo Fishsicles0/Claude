@@ -4,7 +4,7 @@ plugins {
 }
 
 // Evade Clips: records, stores and edits gameplay clips. Standalone desktop app, no Minecraft dependencies.
-version = '1.2.0'
+version = '1.2.1'
 
 repositories { mavenCentral() }
 
