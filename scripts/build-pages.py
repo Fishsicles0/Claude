@@ -798,6 +798,39 @@ SHOP_CATS = {"CAPE": "Capes", "WINGS": "Wings", "HAT": "Hats", "MASK": "Masks", 
              "ITEM_SKIN": "Item skins"}
 
 
+def cosmetic_thumb(it: dict, root: pathlib.Path) -> tuple[str, int] | None:
+    """An item's card picture and its size: the 512 px retina thumbnail (thumbHd) where there is one, else thumb.png
+    (animated items: their frame strip), cache-busted by the file's hash from the catalogue."""
+    base = f"/cosmetics/{html.escape(it['id'])}/"
+    hd = it.get("thumbHd")
+    if isinstance(hd, dict) and re.fullmatch(r"[\w.-]+\.png", str(hd.get("file", ""))) and (root / it["id"] / hd["file"]).is_file():
+        sha = str(hd.get("sha256") or "")[:12]
+        return base + hd["file"] + (f"?v={sha}" if sha else ""), int(hd.get("size") or 512)
+    files = (it.get("assets") or {}).get("files", {})
+    if "thumb.png" in files:
+        sha = str(files["thumb.png"] or "")[:12]
+        return base + "thumb.png" + (f"?v={sha}" if sha else ""), 256
+    return None
+
+
+def cosmetic_tiles(text: str, catalog: pathlib.Path) -> str:
+    """Pages that show cosmetics (the home page's strip) name /cosmetics/<id>/thumb.png: point them at the retina
+    thumbnail where the catalogue has one, with its width and height."""
+    try:
+        items = {i["id"]: i for i in json.loads(catalog.read_text())["items"]}
+    except (OSError, ValueError, KeyError):
+        return text
+
+    def swap(m):
+        it = items.get(m.group(1))
+        t = cosmetic_thumb(it, catalog.parent) if it else None
+        if not t:
+            return m.group(0)
+        rest = re.sub(r'width="\d+" height="\d+"', f'width="{t[1]}" height="{t[1]}"', m.group(2))
+        return f'<img src="{t[0]}"{rest}'
+    return re.sub(r'<img src="/cosmetics/([\w-]+)/thumb\.png"([^>]*)', swap, text)
+
+
 def shop_grid(catalog: pathlib.Path) -> str:
     """The shop's item cards rendered into the page (names, prices and still pictures), so the catalogue works without
     JavaScript and for search engines. shop.js replaces them with the interactive grid."""
@@ -813,8 +846,9 @@ def shop_grid(catalog: pathlib.Path) -> str:
         cents = it.get("priceCents")
         price = "Free" if cents == 0 else f"${cents / 100:.2f}" if isinstance(cents, int) and cents > 0 else "Price coming soon"
         cls = " gift" if cents == 0 else "" if isinstance(cents, int) and cents > 0 else " soon"
-        img = (f'<img src="/cosmetics/{html.escape(it["id"])}/thumb.png" alt="{name} {html.escape(cat.rstrip("s").lower())} preview" '
-               f'loading="lazy" decoding="async" width="256" height="256">' if "thumb.png" in (it.get("assets") or {}).get("files", {}) else "")
+        thumb = cosmetic_thumb(it, catalog.parent)
+        img = (f'<img src="{thumb[0]}" alt="{name} {html.escape(cat.rstrip("s").lower())} preview" '
+               f'loading="lazy" decoding="async" width="{thumb[1]}" height="{thumb[1]}">' if thumb else "")
         out.append(f'<a class="card item-card static" href="/shop#item={html.escape(it["id"])}" data-r="{html.escape(rarity)}">'
                    f'<span class="item-thumb">{img}</span><span class="item-body"><span class="rarity" data-r="{html.escape(rarity)}">'
                    f'{html.escape(rarity.title())}</span><h3>{name}</h3><span class="item-row"><span class="item-cat">{html.escape(cat)}</span>'
@@ -898,6 +932,8 @@ def main() -> None:
         text = src.read_text()
         for k, v in tokens.items():
             text = text.replace(k, v)
+        if cosmetics.is_dir():
+            text = cosmetic_tiles(text, cosmetics / "catalog.json")
         if n_new == 0:  # no new mods in this release: drop the empty "New 0" filter chip
             text = re.sub(r'\s*<button class="tab" data-f="new">.*?</button>', "", text)
         head, body = text.split("\n---\n", 1)
