@@ -91,8 +91,8 @@ public final class WardrobePreview {
             float f = st.scale() * k;
             view.rotateAround(RotationAxis.POSITIVE_X.rotationDegrees(st.pitch()), 0f, f * 1.0625f, 0f);
             m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-st.yaw()));
-            // Shift down by half the headroom so the feet stay at the bottom and the free space is all above the head.
-            m.translate(0f, -1.601f + headroom(st.data().loadout) / 2f, 0f);
+            // Centred: the smaller scale (see headroom) leaves room above the hat or pet and keeps the feet in view.
+            m.translate(0f, -1.601f, 0f);
             long t0 = System.nanoTime();
             try {
                 PlayerEntityModel model = st.model();
