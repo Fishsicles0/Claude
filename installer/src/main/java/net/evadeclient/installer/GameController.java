@@ -699,6 +699,8 @@ final class GameController implements GamePages.Actions {
     /** A desktop notification (the tray's, or a short-lived tray icon of its own), when they're on. */
     void notifyOs(String title, String body) {
         if (!pages.osNotify) return;
+        // Desktop pop-ups only while Minecraft is open; otherwise the bell has it, quietly.
+        if (!minecraftOpen()) return;
         try {
             TrayIcon t = tray.get();
             if (t != null) { t.displayMessage(title, body, TrayIcon.MessageType.WARNING); return; }
@@ -715,4 +717,16 @@ final class GameController implements GamePages.Actions {
 
     /** For update notices raised elsewhere. */
     void notifyUpdate(String title, String body) { notifyOs(title, body); }
+
+    /**
+     * Whether a Minecraft client is running: one the launcher started or can see, or one Evade Client reported to the
+     * built-in Clips (Windows hides other programs' command lines).
+     */
+    static boolean minecraftOpen() {
+        try {
+            return net.evadeclient.clips.core.GameDetector.detect().isPresent();
+        } catch (RuntimeException | LinkageError e) {
+            return true; // can't tell: don't hide anything
+        }
+    }
 }

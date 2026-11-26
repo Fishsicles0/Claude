@@ -537,8 +537,13 @@ public final class CaptureEngine {
     public static boolean ddagrabError(String log) {
         for (String line : log.split("\r?\n")) {
             String l = line.toLowerCase(java.util.Locale.ROOT);
-            if ((l.contains("ddagrab") || l.contains("hwdownload") || l.contains("dxgi") || l.contains("duplicat"))
-                    && (l.contains("error") || l.contains("fail") || l.contains("invalid") || l.contains("unsupported") || l.contains("not ")))
+            // Only what Desktop Duplication itself reports (its own log prefix, or DXGI/duplication errors). A line
+            // that merely names the ddagrab input, such as an option ffmpeg refuses for it ("cannot be applied to
+            // input url ddagrab=..."), is not a Desktop Duplication failure and mustn't switch to slow GDI capture.
+            if (l.contains("cannot be applied") || l.contains("option ")) continue;
+            boolean dda = l.contains("ddagrab @") || l.contains("parsed_ddagrab") || l.contains("hwdownload @")
+                    || l.contains("dxgi") || l.contains("duplicat");
+            if (dda && (l.contains("error") || l.contains("fail") || l.contains("invalid") || l.contains("unsupported") || l.contains("not supported")))
                 return true;
         }
         return false;

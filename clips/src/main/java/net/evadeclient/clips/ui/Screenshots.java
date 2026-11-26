@@ -122,6 +122,12 @@ public final class Screenshots {
         SwingUtilities.invokeAndWait(() -> { win.editor.showTab("Edit"); win.editor.seek(d * 0.34 + 4 * 0.3 + 0.08); });
         Thread.sleep(2500);
         shot(win, out.resolve("editor.png"));
+        // a small window (a laptop at 125%): the timeline buttons wrap instead of overlapping
+        SwingUtilities.invokeAndWait(() -> { win.setSize(1080, 760); win.validate(); });
+        Thread.sleep(1500);
+        shot(win, out.resolve("editor-narrow.png"));
+        SwingUtilities.invokeAndWait(() -> { win.setSize(1440, 900); win.validate(); });
+        Thread.sleep(800);
         SwingUtilities.invokeAndWait(() -> { win.editor.showTab("Effects"); win.editor.seek(d * 0.30 + 0.05); });
         Thread.sleep(2000);
         shot(win, out.resolve("editor-effects.png"));

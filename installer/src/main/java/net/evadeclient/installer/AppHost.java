@@ -128,6 +128,9 @@ final class AppHost {
         if (!lock(32)) {
             Path legacy = legacyRunningApp();
             if (legacy != null) closeLegacy(legacy);
+            // Still held: the old app may run from a file location.json doesn't name (an old download, a copy Evade
+            // Client started). Close whatever really holds Clips: the program on its port, any old Clips program.
+            if (!lock(8)) forceCloseOldClips(cs.controlPort);
             if (!lock(40)) return null;
         }
         if (ClipsApp.alreadyRunning(cs.controlPort, true)) {
@@ -243,6 +246,7 @@ final class AppHost {
         try {
             if (InstallerCore.WINDOWS) {
                 InstallerCore.closeRunningClips(app);
+                if (!lockFree()) forceCloseOldClips(Settings.load().controlPort);
                 return;
             }
             String needle = app.toString();
@@ -259,6 +263,53 @@ final class AppHost {
                 if (ph.isAlive()) ph.destroyForcibly();
             }
         } catch (Exception ignored) { /* the launcher says it's still running */ }
+    }
+
+    /**
+     * Windows: ends the old separate Evade Clips wherever it runs from. Two ways to find it, neither needing its file:
+     * the program listening on Clips' control port (unless that's an Evade Launcher, which is never closed), and any
+     * process whose command line names an old Clips program (Evade-Clips.exe, EvadeClips.jar, the "Evade Clips"
+     * install folder). This program is never touched. It was already asked to quit politely (/quit) first.
+     */
+    static void forceCloseOldClips(int port) {
+        if (!InstallerCore.WINDOWS) return;
+        long self = ProcessHandle.current().pid();
+        try {
+            if (!otherLauncherRunning(port)) {
+                Process ns = new ProcessBuilder("netstat", "-ano", "-p", "TCP").redirectErrorStream(true).start();
+                String out = new String(ns.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                ns.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+                long pid = listeningPid(out, port);
+                if (pid > 0 && pid != self) {
+                    ProcessHandle.of(pid).ifPresent(ph -> System.err.println("Closing the old Clips app on port " + port
+                            + ": " + ph.info().command().orElse("pid " + pid)));
+                    run("taskkill", "/F", "/T", "/PID", String.valueOf(pid));
+                }
+            }
+            String ps = "Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne " + self + " -and $_.CommandLine -and "
+                    + "($_.CommandLine -match '(?i)evade[- ]?clips[^\\\\]*[.](exe|jar)' -or $_.CommandLine -match '(?i)[\\\\]Evade Clips[\\\\]') } "
+                    + "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+            run("powershell", "-NoProfile", "-NonInteractive", "-Command", ps);
+        } catch (Exception e) {
+            System.err.println("Couldn't close the old Clips app: " + e.getMessage());
+        }
+    }
+
+    /** The process id listening on 127.0.0.1 (or any address) at {@code port} in `netstat -ano` output, or -1. */
+    static long listeningPid(String netstat, int port) {
+        for (String line : netstat.split("\\R")) {
+            String[] f = line.trim().split("\\s+");
+            if (f.length < 5 || !f[0].equalsIgnoreCase("TCP") || !f[3].equalsIgnoreCase("LISTENING")) continue;
+            if (!f[1].endsWith(":" + port)) continue;
+            try { return Long.parseLong(f[4]); } catch (NumberFormatException ignored) { }
+        }
+        return -1;
+    }
+
+    private static void run(String... cmd) throws Exception {
+        Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+        pr.getInputStream().readAllBytes();
+        pr.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     /**
