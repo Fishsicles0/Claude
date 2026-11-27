@@ -48,7 +48,7 @@ from PIL import Image, ImageDraw
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "scripts/build-cosmetics.py"
 CARD = (32, 33, 42)
-REFERENCE = ("hearthfire_cape", "riptide_cape", "ember_mantle", "mochi_cat", "ember_fox", "hoot_owl", "mini_wyvern")
+REFERENCE = ("hearthfire_cape", "riptide_cape", "ember_mantle", "ginger_cat", "ember_fox", "panda_cub", "baby_dragon")
 
 # By-eye review, judged on the contact sheets against the reference items. Only items with something to say are listed;
 # anything not listed passes the eye test. Update this after looking at sheet-<slot>.png.
@@ -496,9 +496,9 @@ GLOW_WORDS = re.compile(r"\b(glow\w*|neon|molten|plasma|lightning|lava|blaz\w*|l
                         r"energy|reactor|fiery|aflame|crackl\w*)\b", re.I)
 # animated items whose uneven steps are the design (a lightning strike, a blink, a glitch tear, a ghost's flicker):
 # their loops are judged by eye
-FLICKER = ("boo_ghost", "personal_raincloud", "glitch_koi_cape", "void_eye_cape", "storm_ring_aura", "stormcaller_wings")
+FLICKER = ("wandering_ghost", "personal_raincloud", "glitch_koi_cape", "void_eye_cape", "storm_ring_aura", "stormcaller_wings")
 # faces left open on purpose: the ghost's sheet is open at the hem (its tatters are cut from the sides)
-OPEN_FACES = ("boo_ghost:ghost#0.bottom",)
+OPEN_FACES = ("wandering_ghost:ghost#0.bottom",)
 # By-eye strict review: id -> (verdict, note). Every item is listed (judged on views/<id>.png next to the references).
 EYE_STRICT = {
     "ember_mantle": ("PASS", 'molten cracks and hem glow; art, padded quilted lining with bound edge and label, edges textured 1:1'),
@@ -537,7 +537,7 @@ EYE_STRICT = {
     "angel_halo": ("PASS", 'twisted gold rope in crisp bands (was a flat glowing gradient); distinct from the orbit halo'),
     "orbit_halo": ("PASS", 'banded gold with a light racing round, spins'),
     "ember_horns": ("PASS", 'ridged horns curling up, coal-bright tips'),
-    "kitty_ears": ("PASS", 'fur strokes, lit and shaded rims, pink insides (backs were plain blocks)'),
+    "cat_ears": ("PASS", 'fur strokes, lit and shaded rims, pink insides (backs were plain blocks)'),
     "toadstool_cap": ("PASS", 'spotted cap with gills under the brim'),
     "dusk_visor": ("PASS", 'glowing slit visor on carbon straps'),
     "outlaw_bandana": ("PASS", 'stitched bandana with knot and tails'),
@@ -553,12 +553,12 @@ EYE_STRICT = {
     "verdant_bloom": ("PASS", 'leaf and flower ring'),
     "void_rift": ("PASS", 'glyph ring round a glowing core'),
     "spectrum_aura": ("PASS", 'quality fine; NOTE: rainbow by its own name/description (shipped v2.7) - owner rule conflict, flagged'),
-    "mochi_cat": ("PASS", 'reference pet'),
+    "ginger_cat": ("PASS", 'reference pet'),
     "ember_fox": ("PASS", 'reference pet'),
-    "hoot_owl": ("PASS", 'reference pet'),
+    "jungle_parrot": ("PASS", 'new (replaces the owl): scarlet feathers, yellow and blue wing bands, white face patches, dark hooked beak, long blue-tipped tail'),
     "bubble_slime": ("PASS", 'jelly with core and face, see-through'),
-    "pip_wisp": ("PASS", 'glowing flame head, tail'),
-    "mini_wyvern": ("PASS", 'reference pet'),
+    "soul_wisp": ("PASS", 'glowing flame head, tail'),
+    "baby_dragon": ("PASS", 'reference pet'),
     "prism_sprite": ("PASS", 'faceted crystal fairy; NOTE: shimmers through every colour by design (shipped v2.7) - owner rule conflict, flagged'),
     "stardust_trail": ("PASS", 'sparkle arc'),
     "ember_trail": ("PASS", 'embers rising off glowing footprints'),
@@ -569,11 +569,11 @@ EYE_STRICT = {
     "victory_spiral": ("PASS", 'golden spiral of stars'),
     "confetti_cannon": ("PASS", 'confetti blast'),
     "starlight_fountain": ("PASS", 'starlight helix'),
-    "sunny_wave": ("PASS", 'wave with sparkles off the hand (new particles in game and in the picture)'),
+    "wave": ("PASS", 'wave with sparkles off the hand (new particles in game and in the picture)'),
     "drum_solo": ("PASS", 'drumsticks in both hands (new prop) and rising notes'),
-    "crisp_salute": ("PASS", 'salute with a glint at the brow (new particles)'),
+    "salute": ("PASS", 'salute with a glint at the brow (new particles)'),
     "slow_clap": ("PASS", 'clap sparkles between the hands (new particles)'),
-    "grand_bow": ("PASS", 'flourish tosses rose petals (new particles)'),
+    "bow": ("PASS", 'flourish tosses rose petals (new particles)'),
     "nightglass_blade": ("PASS", 'violet glass blade, vanilla size, glow core'),
     "emberfang_saber": ("PASS", 'molten blade with dark spine'),
     "frostbite_edge": ("PASS", 'ice blade, wrapped grip'),
@@ -589,17 +589,17 @@ EYE_STRICT = {
     "raider_helm": ("PASS", 'horns now sweep out from the helm and curl up, ridged ivory (were stacked blocks)'),
     "personal_raincloud": ("PASS", 'lit puff tops and shaded undersides, rain and flashes'),
     "aviator_goggles": ("PASS", 'the strap is now a band, not a lid over the head'),
-    "gentleman_kit": ("PASS", 'curled moustache, monocle on a chain'),
+    "monocle_mustache": ("PASS", 'curled moustache, monocle on a chain'),
     "acoustic_guitar": ("PASS", 'wood body, sound hole, strings, strap'),
     "turtle_shell": ("PASS", 'domed scutes, plastron underside'),
     "reactor_pack": ("PASS", 'steel case, swirling plasma core'),
     "candy_cane_blade": ("PASS", 'peppermint stripes, gold guard'),
     "verdant_thorn": ("PASS", 'green glass blade wrapped in a vine'),
     "plasma_edge": ("PASS", 'blade edges now carry the pulse and a hot line (were flat 1 tx/u bars)'),
-    "pebble_penguin": ("PASS", 'feather scallops on the back and sides, glossy crown (back was flat navy)'),
-    "buzz_bee": ("PASS", 'fuzzy stripes, see-through wings'),
-    "lily_frog": ("PASS", 'spotted frog with big eyes'),
-    "boo_ghost": ("PASS", 'flickering sheet, open hem on purpose'),
+    "sea_turtle": ("PASS", 'new (replaces the penguin): plated shell with seams and lit centres, rim plates, cream belly, spotted head, paddling flippers'),
+    "honey_bee": ("PASS", 'fuzzy stripes, see-through wings'),
+    "swamp_frog": ("PASS", 'spotted frog with big eyes'),
+    "wandering_ghost": ("PASS", 'flickering sheet, open hem on purpose'),
     "bubble_trail": ("PASS", 'soap bubbles'),
     "heartbreaker": ("PASS", 'heart burst'),
     "gold_rush": ("PASS", 'coin fountain'),
@@ -618,14 +618,14 @@ EYE_STRICT = {
     "origami_sakura_wings": ("PASS", 'folded paper facets printed with blossom'),
     "shadow_samurai_helm": ("PASS", 'lacquered helm, flared guard, crest'),
     "storm_ring_aura": ("PASS", 'crackling rings re-striking each frame'),
-    "baby_capybara": ("PASS", 'capybara with a yuzu on its head'),
+    "wolf_pup": ("PASS", 'new (replaces the capybara): grey pup with a dark saddle and brow, pale chest and cheeks, red collar with a gold tag, twitching ears, wagging tail'),
     "panda_cub": ("PASS", 'saddle dips down the back, fur tufts on head and body (were flat white)'),
-    "bolt_robot": ("PASS", 'back panel with vents and status light, head grille (back was plain grey)'),
-    "steampunk_shark": ("PASS", 'brass plates, rivets, cog'),
+    "cave_bat": ("PASS", 'new (replaces the robot): fluffy brown bat, pink-lined ears, fangs, scalloped membrane wings with finger bones flapping together'),
+    "axolotl_pal": ("PASS", 'new (replaces the shark): freckled pink axolotl, beady eyes and smile, fringed gill stalks fanning, dorsal ridge, curled tail fin'),
     "breakdance": ("PASS", 'handstand spin with dust'),
     "levitate": ("PASS", 'runes now circle the waist, framed (was off centre)'),
     "heart_toss": ("PASS", 'hearts tossed'),
-    "kitty_pat": ("PASS", 'kitten prop'),
+    "pet_the_cat": ("PASS", 'kitten prop'),
     "fire_ring": ("PASS", 'fire ring'),
     "disco": ("PASS", 'notes'),
     "challenge": ("PASS", 'beckoning stance'),

@@ -1,0 +1,10 @@
+{
+ "id": "wolf_pup",
+ "name": "Wolf Pup",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A fluffy grey wolf pup in a red collar with a gold tag. It sits on your shoulder, looks about, twitches its ears and wags its tail."
+}

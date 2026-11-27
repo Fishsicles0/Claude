@@ -1,0 +1,112 @@
+{
+ "id": "bow",
+ "name": "Bow",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
+ "fx": {
+  "type": "aura",
+  "shape": "toss",
+  "particle": "soft",
+  "colors": [
+   "#E0203A",
+   "#FF6A7A"
+  ],
+  "rate": 6,
+  "height": 1.2,
+  "size": 0.4,
+  "sizeEnd": 0.3,
+  "life": 1.6,
+  "fade": 0.3,
+  "gravity": 0.35,
+  "from": 0.4,
+  "to": 1.6
+ },
+ "emote": {
+  "length": 2.4,
+  "loop": false,
+  "parts": {
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     38,
+     0,
+     0
+    ],
+    [
+     1.8,
+     38,
+     0,
+     0
+    ],
+    [
+     2.4,
+     0,
+     0,
+     0
+    ]
+   ],
+   "rightArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     -55,
+     -30,
+     30
+    ],
+    [
+     1.8,
+     -55,
+     -30,
+     30
+    ],
+    [
+     2.4,
+     0,
+     0,
+     0
+    ]
+   ],
+   "leftArm": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.5,
+     25,
+     0,
+     -55
+    ],
+    [
+     1.8,
+     25,
+     0,
+     -55
+    ],
+    [
+     2.4,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

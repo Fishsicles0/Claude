@@ -863,8 +863,8 @@ item("shadow_wrap", "Shadow Wrap", "MASK", REG, 250,
 item("aviator_goggles", "Aviator Goggles", "MASK", REG, 250,
      "Brass flying goggles with amber lenses on a worn leather strap.",
      aviator_goggles(), view=HEAD_VIEW)
-item("gentleman_kit", "Gentleman's Kit", "MASK", REG, 200,
-     "A curled moustache and a gold monocle. Very distinguished.",
+item("monocle_mustache", "Monocle & Mustache", "MASK", REG, 200,
+     "A curled mustache and a gold monocle on a fine chain.",
      gentleman(), view=dict(HEAD_VIEW, yaw=20))
 
 
@@ -1078,13 +1078,13 @@ def frog():
                          Cube((4, -1, 1), (1, 1, 2), leg), Cube((8, -1, 1), (1, 1, 2), leg)])]
 
 
-item("pebble_penguin", "Pebble the Penguin", "PET", REG, 500,
+item("penguin", "Penguin", "PET", REG, 500,
      "A round little penguin with flippers out and a bright orange beak, riding on your shoulder.",
      penguin(), view=dict(PET_VIEW, glow="#7ac8ff"))
-item("buzz_bee", "Buzz the Bee", "PET", REG, 400,
+item("honey_bee", "Honey Bee", "PET", REG, 400,
      "A fuzzy striped bee with see-through wings that hovers by your shoulder.",
      bee(), view=dict(PET_VIEW, glow="#ffd23a"))
-item("lily_frog", "Lily the Frog", "PET", REG, 400,
+item("swamp_frog", "Swamp Frog", "PET", REG, 400,
      "A bright green frog with golden eyes perched on your shoulder.",
      frog(), view=dict(PET_VIEW, glow="#7ad84a"))
 
@@ -1132,10 +1132,10 @@ def flame_spirit():
                           Cube((6, -9.5, 0), (1, 2, 1), flame_spirit_body)], emissive=True)]
 
 
-item("boo_ghost", "Boo the Ghost", "PET", SPC, None,
+item("wandering_ghost", "Wandering Ghost", "PET", SPC, None,
      "A shy little ghost that flickers in and out, with glowing eyes that blink now and then.",
      ghost(), view=dict(PET_VIEW, glow="#8ad8ff"), animation=ANIM)
-item("cinder_spirit", "Cinder the Spirit", "PET", SPC, None,
+item("cinder_spirit", "Cinder Spirit", "PET", SPC, None,
      "A living flame with a happy face that flickers and burns by your shoulder.",
      flame_spirit(), view=dict(PET_VIEW, glow="#ff8a3a"), animation=ANIM)
 

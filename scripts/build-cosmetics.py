@@ -3155,7 +3155,7 @@ def pompom_px(face, cv):
     em_rgb(cv, cv.arr, (core * 0.95 + (ball & (d < 0.8) & ~core) * 0.45 + sparks * 0.9).astype(np.float32))
 
 
-item("comet_cap", "Comet Cap", "HAT", "REGULAR", 200,
+item("comet_cap", "Comet Beanie", "HAT", "REGULAR", 200,
      "A ribbed knit beanie with a turned-up cuff and a glowing pom-pom, in any colour you like.",
      [Bone("beanie", "head", cubes=[Cube((-4, -10, -4), (8, 2, 8), knit_px, inflate=0.6),
                                     Cube((-3, -11, -3), (6, 1, 6), knit_px, inflate=0.6),
@@ -3407,7 +3407,7 @@ def witch_hat():
     return [Bone("witch_hat", "head", cubes=cubes)]
 
 
-item("witch_hat", "Hollow Witch Hat", "HAT", "REGULAR", 300,
+item("witch_hat", "Witch Hat", "HAT", "REGULAR", 300,
      "A tall, crooked violet witch hat with a wide brim and a gold-buckled band.",
      witch_hat(), view=dict(HEAD_VIEW, pitch=14))
 
@@ -3475,7 +3475,7 @@ def tinsel(face, cv):
     em_from(cv, (n > 0.8) * 0.6, "#ffffff")
 
 
-item("party_cone", "Party Cone", "HAT", "REGULAR", 100,
+item("party_cone", "Party Hat", "HAT", "REGULAR", 100,
      "A striped, polka-dotted party hat worn at a jaunty angle, with a fluffy pink tuft on top.",
      [Bone("cone", "head", (0, -8, 0), (0, 0, 14), cubes=[
          Cube((-3, -10, -3), (6, 2, 6), party_paint), Cube((-2.5, -12, -2.5), (5, 2, 5), party_paint),
@@ -3636,7 +3636,7 @@ def cat_ears():
     return [r_out, r_in, mirrored_bone(r_out, "ear_l"), mirrored_bone(r_in, "ear_l_in")]
 
 
-item("kitty_ears", "Kitty Ears", "HAT", "REGULAR", 100,
+item("cat_ears", "Cat Ears", "HAT", "REGULAR", 100,
      "Soft pointed cat ears with pink insides, in any colour you like.",
      cat_ears(), colourable=True, default_color="#F2A65A", view=dict(HEAD_VIEW, yaw=22, pitch=10))
 
@@ -3996,7 +3996,7 @@ def sword_back():
             Bone("sword_strap", "body", (0, 6, 0), (0, 0, 38), strap_c)]
 
 
-item("runeblade_sheath", "Runeblade", "BACK", "REGULAR", 400,
+item("runeblade_sheath", "Runeblade Sheath", "BACK", "REGULAR", 400,
      "A broad steel sword slung across your back, its fuller carved with runes that glow cyan.",
      sword_back(), view=BACK_VIEW)
 
@@ -4649,7 +4649,7 @@ def wag(amp, speed, base=0.0, phase=0.0):
     return {"type": "wing", "side": 1, "base": base, "amp": amp, "speed": speed, "phase": phase, "fold": 0}
 
 
-# -------- Mochi the cat: a round ginger tabby sitting up, white paws and muzzle, green eyes, a curling tail
+# -------- Ginger Cat: a round ginger tabby sitting up, white paws and muzzle, green eyes, a curling tail
 
 CAT_FUR, CAT_DARK, CAT_CREAM, CAT_PINK = "#f7a54c", "#c8632a", "#fff1dc", "#ff9ab0"
 CAT = PERCH
@@ -4721,13 +4721,13 @@ def cat_pet():
     return [body, head, lids, tail]
 
 
-item("mochi_cat", "Mochi the Cat", "PET", "REGULAR", 500,
+item("ginger_cat", "Ginger Cat", "PET", "REGULAR", 500,
      "A round ginger tabby with big green eyes and white paws that sits on your shoulder, looks about, blinks and "
      "swishes its tail.",
      cat_pet(), view=dict(PET_VIEW, glow="#ffb45a"))
 
 
-# -------- Ember the fox: bright orange, white chest and cheeks, black socks, big ears and a huge bushy tail
+# -------- Ember Fox: bright orange, white chest and cheeks, black socks, big ears and a huge bushy tail
 
 FOX_FUR, FOX_DARK, FOX_WHITE, FOX_BLACK = "#ff8a34", "#d85a18", "#fff4e6", "#2a1a1a"
 FOX = (PERCH[0], PERCH[1], PERCH[2] - 0.25)
@@ -4786,88 +4786,134 @@ def fox_pet():
     return [body, head, lids, tail]
 
 
-item("ember_fox", "Ember the Fox", "PET", "REGULAR", 600,
+item("ember_fox", "Ember Fox", "PET", "REGULAR", 600,
      "A bright orange fox with a white chest, black socks and a big white-tipped tail that wags while it watches the "
      "world from your shoulder.",
      fox_pet(), view=dict(PET_VIEW, glow="#ff8a3a"))
 
 
-# -------- Hoot the owl: a round brown owl, a pale face disc with huge amber eyes, ear tufts and folded wings
+# -------- Jungle Parrot: the classic shoulder pet, scarlet with yellow and blue wings, a white face and a hooked beak
 
-OWL_FUR, OWL_DARK, OWL_FACE, OWL_CHEST = "#9a6a42", "#5a3a22", "#f4e2c2", "#ecd4aa"
-OWL = PERCH
-
-
-def owl_speckle(A):
-    A.put(((A.x + 2 * (A.y // 2)) % 4 == 1) & (A.y % 2 == 1), shade(OWL_FUR, 0.78))
+PAR_RED, PAR_RED_D, PAR_YEL, PAR_BLUE, PAR_BLUE_D = "#e8302a", "#a01818", "#ffc828", "#2a68e0", "#183c9a"
+PAR_FACE, PAR_BEAK, PAR_BEAK_D, PAR_FEET = "#f8f2e8", "#4a4450", "#26222a", "#6a666e"
+PARROT = PERCH
 
 
-def owl_head(face, A):
-    if face == "north":                        # 16 x 12
-        A.ellipse(4.5, 6, 4.4, 5.6, OWL_FACE)
-        A.ellipse(11.5, 6, 4.4, 5.6, OWL_FACE)
-        eye(A, 2, 3, 5, 4, "#ffa418")
-        eye(A, 9, 3, 5, 4, "#ffa418")
-        A.pix([(7, 1), (8, 1), (7, 2), (8, 2)], OWL_DARK)
-    else:
-        owl_speckle(A)
+def par_feathers(A, col, off=0):
+    """Small overlapping feathers: a short darker tip under each one, staggered row by row, and a light glint."""
+    k = (A.x + (A.y // 3) * 2 + off) % 4
+    A.put((A.y % 3 == 2) & ((k == 1) | (k == 2)) & (A.y > 0), shade(col, 0.84))
+    A.put((A.y % 3 == 0) & (k == 3) & (A.y > 1) & ((A.x + A.y) % 5 == 0), shade(col, 1.14))
 
 
-def owl_body(face, A):
-    if face == "north":                        # 16 x 12 chest with little chevrons
-        A.ellipse(8, 7.5, 5.5, 7, OWL_CHEST)
-        inside = ((A.x + 0.5 - 8) / 5.5) ** 2 + ((A.y + 0.5 - 7.5) / 7) ** 2 < 0.8
-        A.put(inside & (A.y % 3 == 1) & ((A.x + A.y // 3) % 3 == 0), "#b08a5a")
-    else:
-        owl_speckle(A)
+def par_body(face, A):
+    par_feathers(A, PAR_RED, 1 if face in ("east", "west") else 0)
+    if face == "north":                        # 12 x 12: a brighter breast
+        A.ellipse(6, 7, 4, 6, shade(PAR_RED, 1.1))
+        inside = ((A.x + 0.5 - 6) / 4) ** 2 + ((A.y + 0.5 - 7) / 6) ** 2 < 0.8
+        A.put(inside & (A.y % 3 == 1) & ((A.x + A.y // 3) % 3 == 0), shade(PAR_RED, 0.86))
+    elif face == "south":                      # the rump: blue where the tail starts
+        A.put(A.y >= A.h - 4, PAR_BLUE)
+        A.put((A.y >= A.h - 4) & (A.x % 3 == 1), shade(PAR_BLUE, 0.8))
 
 
-def owl_beak(face, A):
+def par_head(face, A):
+    par_feathers(A, PAR_RED, 2)
+    if face == "north":                        # 16 x 12: white face patches with fine feather lines, golden eyes
+        A.ellipse(4.5, 5.5, 3.2, 4.2, PAR_FACE)
+        A.ellipse(11.5, 5.5, 3.2, 4.2, PAR_FACE)
+        A.pix([(2, 9), (3, 10), (13, 9), (12, 10), (1, 7), (14, 7)], "#c8b8b0")
+        eye(A, 2, 3, 4, 4, "#ffd23a", dark="#1a1010", lid=PAR_FACE)
+        eye(A, 10, 3, 4, 4, "#ffd23a", dark="#1a1010", lid=PAR_FACE)
+        A.rect(7, 1, 9, 3, shade(PAR_RED, 1.18))
+    elif face in ("east", "west"):             # a white cheek on each side
+        A.ellipse(A.w / 2 + (-2 if face == "east" else 2), 6.5, 3, 3.2, PAR_FACE)
+        A.pix([(A.w // 2, 7), (A.w // 2 - 1, 8), (A.w // 2 + 1, 6)], "#c8b8b0")
+
+
+def par_beak(face, A):
+    """The big hooked beak: dark horn with a lighter ridge, curving down to a point; the lower jaw tucked behind."""
+    xs = (A.x + 0.5) / A.w
+    ys = (A.y + 0.5) / A.h
+    if face == "north":                        # 8 x 8: the hook narrows to a point at the bottom middle
+        hook = np.abs(xs - 0.5) < 0.5 - np.clip(ys - 0.4, 0, 1) * 0.9
+        A.put(~hook & (ys > 0.4), PAR_BEAK_D)
+        A.put(hook & (ys > 0.7), "#1e1a20")
+        A.put((np.abs(xs - 0.5) < 0.13) & (ys < 0.62), "#9a929e")
+        A.pix([(3, 1)], "#d8d2dc")
+        A.clip(~((ys < 0.15) & ((A.x == 0) | (A.x == A.w - 1))) & (hook | (ys < 0.9)))
+    elif face in ("east", "west"):             # 4 x 8: the curve of the upper beak over the jaw
+        zs = xs if face == "west" else 1 - xs
+        A.put((ys > 0.5) & (zs > 0.5), PAR_BEAK_D)
+        A.put((ys > 0.7) & (zs <= 0.5), "#1e1a20")
+        A.clip(~((ys > 0.85) & (zs > 0.5)))
+    elif face == "top":
+        A.put(np.abs(xs - 0.5) < 0.13, "#9a929e")
+
+
+def par_wing(face, A):
+    """A folded wing: red coverts at the shoulder, a band of yellow, then long blue flight feathers."""
+    t = (A.y + 0.5) / A.h
+    if face in ("east", "west", "north", "south"):
+        A.put(t >= 0.3, PAR_YEL)
+        A.put((t >= 0.3) & (t < 0.42) & (A.x % 2 == 0), shade(PAR_YEL, 0.84))
+        A.put(t >= 0.5, PAR_BLUE)
+        A.put((t >= 0.5) & (A.x % 2 == (0 if face != "west" else 1)), shade(PAR_BLUE, 0.78))
+        A.put(t >= 0.84, PAR_BLUE_D)
+        A.put((t < 0.3) & ((A.x + A.y) % 3 == 0), shade(PAR_RED, 0.8))
+    elif face == "top":
+        A.put((A.x + A.y) % 3 == 0, shade(PAR_RED, 0.8))
+    elif face == "bottom":
+        A.fill(PAR_BLUE_D)
+
+
+def par_tail(face, A):
+    """The long tail feathers: red, a centre quill, blue towards the tip."""
+    if face in ("top", "bottom"):
+        A.put(A.x == A.w // 2, shade(PAR_RED, 0.75))
+        A.put((A.y >= A.h * 0.55), PAR_BLUE)
+        A.put((A.y >= A.h * 0.55) & (A.x == A.w // 2), shade(PAR_BLUE, 0.7))
+        A.put((A.y >= A.h - 2) & ((A.x == 0) | (A.x == A.w - 1)), (0, 0, 0))
+        A.a[(A.y >= A.h - 2) & ((A.x == 0) | (A.x == A.w - 1)), 3] = 0
+    elif face in ("east", "west"):
+        A.put((A.x >= A.w * 0.55) if face == "east" else (A.x < A.w * 0.45), PAR_BLUE)
+    elif face == "south":
+        A.fill(PAR_BLUE_D)
+
+
+def par_foot(face, A):
+    A.put(A.y >= A.h - 1, shade(PAR_FEET, 0.8))
     if face == "north":
-        A.put(A.y >= A.h - 1, "#c07a1a")
+        A.pix([(1, A.h - 1), (2, A.h - 1)], "#3a383e")
 
 
-def owl_wing(face, A):
-    # layered feathers: each row's tips a little darker, offset row to row, the long flight feathers at the bottom
-    for yy in range(1, A.h, 3):
-        A.put((A.y == yy + 1) & ((A.x + (yy // 3) * 2) % 4 < 3), shade(OWL_FUR, 0.72))
-        A.put((A.y == yy + 1) & ((A.x + (yy // 3) * 2) % 4 == 3), shade(OWL_FUR, 1.15))
-    A.put(A.y >= A.h - 3, OWL_DARK)
-    A.put((A.y >= A.h - 3) & (A.x % 2 == 0), shade(OWL_DARK, 1.25))
+def parrot_pet():
+    a = PARROT
+    body = pet_body("parrot", a, [
+        PC(a, (-1.5, -3, -1.25), (3, 3, 3), px(PAR_RED, par_body)),
+        PC(a, (-1.25, -1, -1.5), (1, 1, 1), px(PAR_FEET, par_foot)),
+        PC(a, (0.25, -1, -1.5), (1, 1, 1), px(PAR_FEET, par_foot))])
+    head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
+        PC(a, (-2, -6, -1.75), (4, 3, 3), px(PAR_RED, par_head)),
+        PC(a, (-1, -4, -2.75), (2, 2, 1), px(PAR_BEAK, par_beak))],
+        anim={"type": "pet_head", "amp": 16}, parent="parrot")
+    lids = blink_bone("lids", "head", a, (-1.5, -5.25, -1.77), (3, 1, 0), lid_paint(PAR_FACE, [(0, 4), (8, 4)], PAR_RED_D))
+    wing = Bone("wing_r", "root", P(a, -1.5, -2, -0.75), cubes=[
+        PC(a, (-2.25, -2.25, -1), (1, 2, 3), px(PAR_RED, par_wing))],
+        anim={"type": "wing", "side": 1, "base": 0, "amp": 7, "speed": 0.6, "fold": 0}, parent="parrot")
+    tail = Bone("tail", "root", P(a, 0, -1.25, 1.5), (-22, 0, 0), cubes=[
+        PC(a, (-0.5, -1.75, 1.5), (1, 1, 4), px(PAR_RED, par_tail))],
+        anim=wag(6, 0.5), parent="parrot")
+    return [body, head, lids, tail] + pet_pair(wing, a)
 
 
-def owl_foot(face, A):
-    if face == "north":
-        A.pix([(0, A.h - 1), (2, A.h - 1)], "#c07a1a")
+item("jungle_parrot", "Jungle Parrot", "PET", "REGULAR", 500,
+     "A scarlet parrot with yellow and blue wings, a white face and a hooked beak that perches on your shoulder, "
+     "turns its head to look about, blinks and flicks its long tail.",
+     parrot_pet(), view=dict(PET_VIEW, glow="#ff6a3a"))
 
 
-def owl_pet():
-    a = OWL
-    body = pet_body("owl", a, [
-        PC(a, (-2, -3, -1.25), (4, 3, 3), px(OWL_FUR, owl_body)),
-        PC(a, (-1.25, -1, -1.5), (1, 1, 1), px("#f2b23a", owl_foot)),
-        PC(a, (0.25, -1, -1.5), (1, 1, 1), px("#f2b23a", owl_foot)),
-        PC(a, (-1, -1.5, 1.5), (2, 1, 1), px(OWL_DARK))])
-    head = Bone("head", "root", P(a, 0, -3, 0), cubes=[
-        PC(a, (-2, -6, -1.75), (4, 3, 3), px(OWL_FUR, owl_head)),
-        PC(a, (-0.5, -4.25, -2.5), (1, 1, 1), px("#f2b23a", owl_beak)),
-        PC(a, (-2, -7, -0.5), (1, 1, 0), ear_plane(OWL_DARK, apex=0.0, base=(0.0, 1.0))),
-        PC(a, (1, -7, -0.5), (1, 1, 0), ear_plane(OWL_DARK, apex=1.0, base=(0.0, 1.0)))],
-        anim={"type": "pet_head", "amp": 11}, parent="owl")
-    lids = blink_bone("lids", "head", a, (-1.5, -5.25, -1.77), (3, 1, 0), lid_paint(OWL_FACE, [(0, 5), (7, 5)], OWL_DARK))
-    wing = Bone("wing_r", "root", P(a, -2, -2.5, -0.75), cubes=[
-        PC(a, (-2.25, -2.5, -0.75), (1, 2, 3), px(shade(OWL_FUR, 0.92), owl_wing))],
-        anim={"type": "wing", "side": 1, "base": 0, "amp": 6, "speed": 0.5, "fold": 0}, parent="owl")
-    return [body, head, lids] + pet_pair(wing, a)
-
-
-item("hoot_owl", "Hoot the Owl", "PET", "REGULAR", 500,
-     "A round brown owl with huge amber eyes, ear tufts and a speckled cream chest; it perches on your shoulder, "
-     "blinks slowly and turns its head to look around.",
-     owl_pet(), view=dict(PET_VIEW, glow="#ffb020"))
-
-
-# -------- Bubble the slime: a wobbly see-through jelly cube with a glowing core, a big grin and rosy cheeks
+# -------- Bubble Slime: a wobbly see-through jelly cube with a glowing core, a big grin and rosy cheeks
 
 SLIME = (PERCH[0], PERCH[1] - 0.75, PERCH[2])     # a little higher: the whole jelly turns as it looks about
 SLIME_HI, SLIME_LO, SLIME_INK = "#b6ffcc", "#36c878", "#0e3a22"
@@ -4909,12 +4955,12 @@ def slime_pet():
     return [core, jelly, lids]
 
 
-item("bubble_slime", "Bubble the Slime", "PET", "REGULAR", 500,
-     "A wobbly see-through green slime with a glowing core, rosy cheeks and a goofy grin that bounces on your shoulder.",
+item("bubble_slime", "Bubble Slime", "PET", "REGULAR", 500,
+     "A wobbly see-through green slime with a glowing core, rosy cheeks and a wide grin that bounces on your shoulder.",
      slime_pet(), view=dict(PET_VIEW, glow="#3ad88a"))
 
 
-# -------- Pip the wisp: a little spirit of cool blue flame that floats beside you
+# -------- Soul Wisp: a little spirit of cool blue flame that floats beside you
 
 WISP = (HOVER[0] + 0.25, HOVER[1], HOVER[2])
 WISP_HI, WISP_MID, WISP_LO = "#e6fcff", "#86dcff", "#3a8ae6"
@@ -4973,13 +5019,13 @@ def wisp_pet():
     return [body, head, flame, tail, lids] + pet_pair(hand, a)
 
 
-item("pip_wisp", "Pip the Wisp", "PET", "REGULAR", 500,
-     "A tiny friendly wisp of cool blue flame with big shiny eyes that floats beside your shoulder, waving its little "
-     "hands, its flame flickering.",
+item("soul_wisp", "Soul Wisp", "PET", "REGULAR", 500,
+     "A small spirit of cool blue soul flame with big shiny eyes that floats beside your shoulder, its flame flickering "
+     "and its little hands drifting.",
      wisp_pet(), view=dict(PET_VIEW, glow="#6cf2ff"))
 
 
-# -------- Mini wyvern: a little teal dragon hovering beside you on beating violet wings
+# -------- Baby Dragon: a little teal dragon hovering beside you on beating violet wings
 
 WYV = (HOVER[0], HOVER[1], HOVER[2])
 WYV_SKIN, WYV_DARK, WYV_BELLY, WYV_HORN = "#38c8b0", "#1a7a78", "#ffe3a8", "#f6ecd0"
@@ -5093,7 +5139,7 @@ def wyvern_pet():
     return [body, head] + pet_pair(horns, a) + [lids, tail] + pet_pair(wing, a)
 
 
-item("mini_wyvern", "Mini Wyvern", "PET", "REGULAR", 800,
+item("baby_dragon", "Baby Dragon", "PET", "REGULAR", 800,
      "A little teal dragon with violet wings, golden eyes and cream horns that hovers beside your shoulder, wings "
      "beating and tail swishing.",
      wyvern_pet(), view=dict(PET_VIEW, glow="#3ad8c0"))
@@ -5272,7 +5318,7 @@ def drumsticks():
     return [r, mirrored_bone(r, "stick_l")]
 
 
-item("sunny_wave", "Sunny Wave", "EMOTE", "REGULAR", 250,
+item("wave", "Wave", "EMOTE", "REGULAR", 250,
      "A big, cheerful wave hello.",
      emote={"length": 1.6, "loop": True, "parts": {
          "rightArm": [[0, -170, 0, 15], [0.4, -170, 0, -15], [0.8, -170, 0, 15], [1.2, -170, 0, -15], [1.6, -170, 0, 15]],
@@ -5297,7 +5343,7 @@ item("drum_solo", "Drum Solo", "EMOTE", "REGULAR", 250,
            "fx_pic": lambda: [((-12, -13, -2), 3.6, GM_NOTE, "#ff8a5a"), ((11, -9, -3), 3.0, GM_NOTE, "#ffd23a"),
                               ((-10, -4, 4), 2.6, GM_NOTE, "#6ae0ff")]},
      thumb="emote")
-item("crisp_salute", "Crisp Salute", "EMOTE", "REGULAR", 250,
+item("salute", "Salute", "EMOTE", "REGULAR", 250,
      "Stand to attention and snap off a sharp salute.",
      emote={"length": 2.0, "loop": False, "parts": {
          "rightArm": [[0, 0, 0, 0], [0.25, -145, 0, 35], [1.5, -145, 0, 35], [2.0, 0, 0, 0]],
@@ -5320,7 +5366,7 @@ item("slow_clap", "Slow Clap", "EMOTE", "REGULAR", 250,
            "fx_pic": lambda: [((0.5, 4.5, -11), 3.0, GM_SPARK, None), ((-3.5, 1.5, -12), 1.8, GM_SPARK, None),
                               ((4, 2, -12), 1.6, GM_SPARK, None)]},
      thumb="emote")
-item("grand_bow", "Grand Bow", "EMOTE", "REGULAR", 250,
+item("bow", "Bow", "EMOTE", "REGULAR", 250,
      "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
      emote={"length": 2.4, "loop": False, "parts": {
          "head": [[0, 0, 0, 0], [0.5, 38, 0, 0], [1.8, 38, 0, 0], [2.4, 0, 0, 0]],
@@ -7368,7 +7414,7 @@ item("aviator_goggles", "Aviator Goggles", "MASK", "REGULAR", 250,
      aviator_goggles(), view=HEAD_VIEW)
 
 
-# ---- Gentleman's Kit: a curled moustache and a gold monocle on a chain
+# ---- Monocle & Mustache: a curled mustache and a gold monocle on a chain
 
 def gk_moustache(face, cv):
     clear(cv)
@@ -7409,8 +7455,8 @@ def gentleman():
                                         Cube((3, -4, -4.65), (0, 4, 1), gk_chain)])]
 
 
-item("gentleman_kit", "Gentleman's Kit", "MASK", "REGULAR", 250,
-     "A curled moustache and a gold monocle. Very distinguished.",
+item("monocle_mustache", "Monocle & Mustache", "MASK", "REGULAR", 250,
+     "A curled mustache and a gold monocle on a fine chain.",
      gentleman(), view=dict(HEAD_VIEW, yaw=20))
 
 
@@ -7691,93 +7737,104 @@ item("plasma_edge", "Plasma Edge", "ITEM_SKIN", "SPECIAL", None,
 # glances about, eyelids that blink, flippers, wings or arms on their own little animations; check_pet_clearance() and
 # check_pet_parts() prove none of it reaches into you or into itself.
 
-# -------- Pebble the penguin: a round navy penguin with a white front, flippers held out and a bright orange beak
+# -------- Baby Turtle: a little green sea turtle with a patterned shell riding on your shoulder, paddling its flippers
 
-PEN_DARK, PEN_DEEP, PEN_WHITE, PEN_BEAK, PEN_FEET = "#2a3248", "#161a28", "#f4f6fa", "#ffa23a", "#ff8a1a"
-PEN = PERCH
-
-
-def pen_body(face, A):
-    if face == "north":                        # 12 x 12: the white front
-        A.ellipse(6, 7.5, 4.2, 7.2, PEN_WHITE)
-        A.put((A.y >= 10) & (((A.x + 0.5 - 6) / 4.2) ** 2 < 0.7), shade(PEN_WHITE, 0.88))
-    elif face in ("east", "west"):
-        A.put((A.y >= 4) & ((A.x <= 1) if face == "west" else (A.x >= A.w - 2)), shade(PEN_WHITE, 0.9))
-        pen_feathers(A, 1)
-    elif face in ("south", "top"):
-        pen_feathers(A, 0)
-        if face == "south":                    # a glossy sheen across the shoulders
-            A.put((A.y == 2) & (A.x >= 3) & (A.x <= 8), shade(PEN_DARK, 1.32))
-            A.put((A.y == 3) & (A.x >= 4) & (A.x <= 7), shade(PEN_DARK, 1.18))
+TUR_SKIN, TUR_SKIN_D, TUR_SPOT = "#72c25a", "#3a8a3a", "#c8ee8a"
+TUR_SHELL, TUR_SHELL_D, TUR_SHELL_HI, TUR_SEAM, TUR_BELLY = "#6a9a34", "#3e6a24", "#b8d25a", "#233e16", "#f2e2a2"
+TURTLE = (PERCH[0] + 0.75, PERCH[1], PERCH[2] + 0.25)
 
 
-def pen_feathers(A, off):
-    """Rows of small feather scallops over the dark back: a darker arc under each feather, offset row by row."""
-    m = (A.y % 3 == 2) & ((A.x + (A.y // 3) * 2 + off) % 4 != 0) & (A.y > 1)
-    A.put(m & ~((A.x + (A.y // 3) * 2 + off) % 4 == 2), shade(PEN_DARK, 0.66))
-    A.put((A.y % 3 == 0) & ((A.x + (A.y // 3) * 2 + off) % 4 == 2) & (A.y > 1), shade(PEN_DARK, 1.2))
+def tur_spots(A):
+    A.put(((A.x * 5 + A.y * 3) % 7 == 0) & ((A.x + A.y) % 2 == 0), TUR_SPOT)
+    A.put(((A.x * 3 + A.y * 5) % 11 == 3), shade(TUR_SKIN, 0.84))
 
 
-def pen_head(face, A):
-    if face == "north":                        # 12 x 12: a white face mask, big eyes, rosy cheeks
-        A.ellipse(3.5, 7.5, 3.3, 5.4, PEN_WHITE)
-        A.ellipse(8.5, 7.5, 3.3, 5.4, PEN_WHITE)
-        A.rect(3, 9, 9, 12, PEN_WHITE)
-        eye(A, 2, 4, 3, 4, "#4a8ae8", dark="#0e1428", lid=PEN_WHITE)
-        eye(A, 7, 4, 3, 4, "#4a8ae8", dark="#0e1428", lid=PEN_WHITE)
-        A.rect(0, 10, 2, 11, "#ffa0b8")
-        A.rect(10, 10, 12, 11, "#ffa0b8")
-    elif face == "top":
-        A.pix([(5, 2), (6, 2), (6, 1)], shade(PEN_DARK, 1.25))
-        A.put((A.x + A.y == 9) & (A.x > 2) & (A.x < 8), shade(PEN_DARK, 1.35))      # gloss across the crown
-        A.put((A.x + A.y == 10) & (A.x > 3) & (A.x < 8), shade(PEN_DARK, 1.18))
-    elif face == "south":                      # the back of the head: a glossy crown and feathered nape
-        A.put((A.y == 2) & (A.x >= 3) & (A.x <= 8), shade(PEN_DARK, 1.3))
-        A.put((A.y == 1) & (A.x >= 5) & (A.x <= 6), shade(PEN_DARK, 1.45))
-        A.put((A.y >= 8) & (A.y % 2 == 0) & (A.x % 3 == 1), shade(PEN_DARK, 0.8))
+def tur_scutes(face, A, cells):
+    """Shell plates: each cell a warm centre fading out to a darker rim, with dark seams between the cells."""
+    best = np.full((A.h, A.w), 1e9)
+    second = np.full((A.h, A.w), 1e9)
+    for (cx, cy) in cells:
+        d = np.hypot((A.x + 0.5 - cx * A.w), (A.y + 0.5 - cy * A.h))
+        second = np.where(d < best, best, np.minimum(second, d))
+        best = np.minimum(best, d)
+    seam = (second - best) < 1.0
+    A.put(best < 2.2, TUR_SHELL_HI)
+    A.put((best >= 2.2) & (best < 3.4), shade(TUR_SHELL, 1.12))
+    A.put(best >= 4.6, TUR_SHELL_D)
+    A.put(seam, TUR_SEAM)
 
 
-def pen_beak(face, A):
-    if face == "north":
-        A.put(A.y >= A.h - 1, shade(PEN_BEAK, 0.78))
-        A.pix([(1, 0)], "#ffd08a")
+def tur_shell(face, A):
+    if face == "top":                          # 20 x 20: a ring of plates round three down the middle
+        tur_scutes(face, A, [(0.5, 0.18), (0.5, 0.5), (0.5, 0.82), (0.12, 0.3), (0.12, 0.7), (0.88, 0.3), (0.88, 0.7)])
+    elif face in ("north", "south", "east", "west"):   # the rim: small marginal plates
+        A.put(A.x % 4 == 0, TUR_SEAM)
+        A.put((A.x % 4 == 2) & (A.y == 1), TUR_SHELL_HI)
+        A.put(A.y >= A.h - 1, TUR_SHELL_D)
+    elif face == "bottom":
+        A.fill(TUR_BELLY)
 
 
-def pen_flipper(face, A):
-    A.put(A.y >= A.h - 2, PEN_DEEP)
-    if face in ("east", "west"):
-        A.put((A.x == A.w // 2) & (A.y < A.h - 2), shade(PEN_DARK, 1.2))
+def tur_dome(face, A):
+    if face == "top":                          # 12 x 12: the raised middle row of plates
+        tur_scutes(face, A, [(0.5, 0.2), (0.5, 0.52), (0.5, 0.84), (0.14, 0.5), (0.86, 0.5)])
+    else:
+        A.put(A.x % 3 == 1, TUR_SHELL_D)
+        A.put((A.x % 3 == 2) & (A.y == 0), TUR_SHELL_HI)
 
 
-def pen_feet(face, A):
-    if face == "north":
-        A.put(A.x % 2 == 1, shade(PEN_FEET, 0.8))
+def tur_belly(face, A):
+    A.put((A.x % 4 == 0) | (A.y % 4 == 0), shade(TUR_BELLY, 0.86))
 
 
-def penguin_pet():
-    a = PEN
-    body = pet_body("penguin", a, [
-        PC(a, (-1.5, -3, -1.25), (3, 3, 3), px(PEN_DARK, pen_body)),
-        PC(a, (-1.25, 0, -1.5), (1, 0, 1), px(PEN_FEET, pen_feet)),
-        PC(a, (0.25, 0, -1.5), (1, 0, 1), px(PEN_FEET, pen_feet)),
-        PC(a, (-0.5, -1, 1.75), (1, 1, 1), px(PEN_DEEP))])
-    head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
-        PC(a, (-1.5, -6, -1.5), (3, 3, 3), px(PEN_DARK, pen_head)),
-        PC(a, (-0.5, -4, -2.25), (1, 1, 1), px(PEN_BEAK, pen_beak))],
-        anim={"type": "pet_head", "amp": 12}, parent="penguin")
-    lids = blink_bone("lids", "head", a, (-1, -5, -1.52), (2, 1, 0), lid_paint(PEN_WHITE, [(0, 3), (5, 3)], PEN_DEEP))
-    flip = Bone("flipper_r", "root", P(a, -1.75, -2.25, 0.25), (0, 0, -18), cubes=[
-        PC(a, (-2.75, -2.25, -0.75), (1, 2, 2), px(PEN_DARK, pen_flipper))],
-        anim={"type": "wing", "side": 1, "base": 0, "amp": 8, "speed": 1.2, "fold": 0}, parent="penguin")
+def tur_head(face, A):
+    tur_spots(A)
+    if face == "north":                        # 12 x 12: big glossy eyes, a beaky smile, rosy cheeks
+        eye(A, 1, 4, 3, 4, "#3a2a1a", dark="#0e0a06")
+        eye(A, 8, 4, 3, 4, "#3a2a1a", dark="#0e0a06")
+        A.pix([(4, 10), (7, 10)] + [(5, 11), (6, 11)], "#1e4a1a")
+        A.pix([(5, 9), (6, 9)], shade(TUR_SKIN, 0.78))
+        A.rect(0, 9, 2, 10, "#ff9ab0")
+        A.rect(10, 9, 12, 10, "#ff9ab0")
+    elif face == "bottom":
+        A.fill(shade(TUR_BELLY, 0.95))
+
+
+def tur_flipper(face, A):
+    A.put(A.x % 3 == 1, TUR_SKIN_D)
+    A.put((A.x % 3 == 2) & (A.y == 0), TUR_SPOT)
+    if face == "top":
+        tur_spots(A)
+        A.put(A.y == 0, TUR_SKIN_D)
+
+
+def turtle_pet():
+    a = TURTLE
+    body = pet_body("turtle", a, [
+        PC(a, (-2.5, -2, -1.75), (5, 1, 5), px(TUR_SHELL, tur_shell)),
+        PC(a, (-1.5, -2.75, -0.75), (3, 1, 3), px(TUR_SHELL, tur_dome)),
+        PC(a, (-2, -1, -1.25), (4, 1, 4), px(TUR_BELLY, tur_belly)),
+        PC(a, (-3.5, -1, 2), (1, 0, 1), px(TUR_SKIN, tur_flipper)),
+        PC(a, (2.5, -1, 2), (1, 0, 1), px(TUR_SKIN, tur_flipper)),
+        PC(a, (-0.5, -1, 3.25), (1, 0, 1), px(TUR_SKIN, tur_flipper))])
+    head = Bone("head", "root", P(a, 0, -1.75, -1.5), cubes=[
+        PC(a, (-1.5, -4.5, -4), (3, 3, 3), px(TUR_SKIN, tur_head))],
+        anim={"type": "pet_head", "amp": 12}, parent="turtle")
+    lids = blink_bone("lids", "head", a, (-1.5, -3.5, -4.02), (3, 1, 0), lid_paint(TUR_SKIN, [(1, 3), (8, 3)], "#1e4a1a"))
+    lids.anim["speed"] = 0.22                      # a slow, sleepy blink
+    flip = Bone("flipper_r", "root", P(a, -2.25, -1, -0.75), (0, -20, 0), cubes=[
+        PC(a, (-4, -1, -1.25), (2, 0, 1), px(TUR_SKIN, tur_flipper))],
+        anim={"type": "wing", "side": 1, "base": 0, "amp": 14, "speed": 0.6, "fold": 0}, parent="turtle")
     return [body, head, lids] + pet_pair(flip, a)
 
 
-item("pebble_penguin", "Pebble the Penguin", "PET", "REGULAR", 600,
-     "A round little penguin with flippers out and a bright orange beak, riding on your shoulder.",
-     penguin_pet(), view=dict(PET_VIEW, glow="#7ac8ff"))
+item("sea_turtle", "Baby Turtle", "PET", "REGULAR", 600,
+     "A little green sea turtle with a patterned shell that rides on your shoulder, paddling its flippers, looking "
+     "about and blinking slowly.",
+     turtle_pet(), view=dict(PET_VIEW, glow="#5ad8a0"))
 
 
-# -------- Buzz the bee: a fuzzy striped bee hovering on see-through wings, with antennae and a little stinger
+# -------- Honey Bee: a fuzzy striped bee hovering on see-through wings, with antennae and a little stinger
 
 BEE_Y, BEE_K, BEE_FUZZ = "#ffcc2a", "#241a10", "#ffe68a"
 BEE = (HOVER[0], HOVER[1], HOVER[2] + 0.25)
@@ -7849,12 +7906,12 @@ def bee_pet():
     return [body, head, lids] + pet_pair(wing, a)
 
 
-item("buzz_bee", "Buzz the Bee", "PET", "REGULAR", 500,
+item("honey_bee", "Honey Bee", "PET", "REGULAR", 500,
      "A fuzzy striped bee with see-through wings that hovers by your shoulder.",
      bee_pet(), view=dict(PET_VIEW, glow="#ffd23a"))
 
 
-# -------- Lily the frog: a wide bright green frog with golden eyes on top of its head and a big smile
+# -------- Swamp Frog: a wide bright green frog with golden eyes on top of its head and a big smile
 
 FROG_G, FROG_D, FROG_BELLY = "#6ad84a", "#2f8a2a", "#e8f4a8"
 FROG = PERCH
@@ -7909,12 +7966,12 @@ def frog_pet():
     return [body, head, lids]
 
 
-item("lily_frog", "Lily the Frog", "PET", "REGULAR", 500,
+item("swamp_frog", "Swamp Frog", "PET", "REGULAR", 500,
      "A bright green frog with golden eyes perched on your shoulder.",
      frog_pet(), view=dict(PET_VIEW, glow="#7ad84a"))
 
 
-# -------- Boo the ghost (special): a shy little ghost that flickers in and out, its tail rippling, eyes glowing
+# -------- Wandering Ghost (special): a shy little ghost that flickers in and out, its tail rippling, eyes glowing
 
 GHOST = (HOVER[0], HOVER[1] - 0.5, HOVER[2])
 GHOST_HI, GHOST_LO, GHOST_EYE = "#ffffff", "#bcd0f0", "#6ad8ff"
@@ -7982,7 +8039,7 @@ def ghost_pet():
     return [body, head, lids] + pet_pair(arm, a)
 
 
-item("boo_ghost", "Boo the Ghost", "PET", "SPECIAL", None,
+item("wandering_ghost", "Wandering Ghost", "PET", "SPECIAL", None,
      "A shy little ghost that flickers in and out, with glowing eyes that blink now and then.",
      ghost_pet(), view=dict(PET_VIEW, glow="#8ad8ff"), animation=dict(MC_SPECIAL, frames=16, frametime=2.5, interpolate=True))
 
@@ -8098,7 +8155,7 @@ item("shrug", "Shrug", "EMOTE", "REGULAR", 250,
                               ((-11.5, -15, -2), 1.5, GM_PUFF, "matte")]},
      thumb="emote")
 item("victory_flex", "Victory Flex", "EMOTE", "REGULAR", 250,
-     "Both arms up, show the world those gains.",
+     "Both arms up and flexed: the winner's pose.",
      emote={"length": 1.6, "loop": True, "parts": {
          "rightArm": [[0, -20, 0, 100], [0.8, -20, 0, 115], [1.6, -20, 0, 100]],
          "leftArm": [[0, -20, 0, -100], [0.8, -20, 0, -115], [1.6, -20, 0, -100]],
@@ -8394,10 +8451,10 @@ def spades_outer(cv):
                     xx0 = ax + (c_ - 2.5) * k if not flip else ax - (c_ - 1.5) * k
                     m |= (X >= xx0) & (X < xx0 + k) & (Y >= yy0) & (Y < yy0 + k)
         put(cv, m, "#d81e2c")
-        pip = gm_spade(cv, ax, ay + s * 1.7, s * 0.55)
+        mark = gm_spade(cv, ax, ay + s * 1.7, s * 0.55)
         if flip:                                        # the bottom corner is the top one turned half round
-            pip = gm_spade(cv, w - ax, h - ay + s * 1.7, s * 0.55)[::-1, ::-1]
-        put(cv, pip, "#d81e2c")
+            mark = gm_spade(cv, w - ax, h - ay + s * 1.7, s * 0.55)[::-1, ::-1]
+        put(cv, mark, "#d81e2c")
     mc_crisp(cv, SPADES_PAL)
     mc_cape_trim(cv, "#2a2a34", "#464654", stitch="#d81e2c")
 
@@ -9003,83 +9060,119 @@ item("storm_ring_aura", "Storm Ring", "AURA", "SPECIAL", None,
 # about, eyelids that blink, little parts on their own animations; check_pet_clearance() and check_pet_parts() prove
 # none of it reaches into you or into itself.
 
-# -------- Baby Capybara: a calm little capybara sitting on your shoulder with a tiny citrus balanced on its head
+# -------- Wolf Pup: a fluffy grey wolf pup in a red collar, sitting on your shoulder, ears twitching and tail wagging
 
-CAPY_FUR, CAPY_DARK, CAPY_SNOUT, CAPY_NOSE = "#b67c46", "#7e5028", "#94603a", "#2a1810"
-CAPY = PERCH
-
-
-def capy_body(face, A):
-    A.put(((A.x * 5 + A.y * 3) % 11 == 0), shade(CAPY_FUR, 0.9))
-    if face == "north":
-        A.ellipse(A.w / 2, A.h * 0.75, A.w * 0.3, A.h * 0.5, shade(CAPY_FUR, 1.12))
+WOLF_FUR, WOLF_DARK, WOLF_LIGHT, WOLF_NOSE, WOLF_COLLAR = "#a6aab2", "#666a74", "#eef0f2", "#1e1e24", "#d42a2a"
+WOLF = (PERCH[0], PERCH[1], PERCH[2] - 0.25)
 
 
-def capy_head(face, A):
-    A.put(((A.x * 3 + A.y * 7) % 13 == 0), shade(CAPY_FUR, 0.9))
-    if face == "north":                        # 12 x 12, the snout covers the lower part: eyes sit high
-        eye(A, 1, 2, 2, 2, "#5a3a1a", dark="#1a100a")
-        eye(A, 9, 2, 2, 2, "#5a3a1a", dark="#1a100a")
+def wolf_fluff(A, col=WOLF_FUR):
+    A.put(((A.x * 3 + A.y * 5) % 11 == 0), shade(col, 0.88))
+    A.put(((A.x * 7 + A.y * 3) % 13 == 0), shade(col, 1.1))
+
+
+def wolf_body(face, A):
+    wolf_fluff(A)
+    if face == "north":                        # 12 x 8: a fluffy pale chest
+        A.ellipse(6, 6, 3.4, 5.5, WOLF_LIGHT)
+        A.pix([(4, 3), (7, 4), (5, 6)], shade(WOLF_LIGHT, 0.88))
+    elif face in ("top", "south"):             # a darker saddle down the back
+        A.put(np.abs(A.x + 0.5 - A.w / 2) < A.w * 0.32, WOLF_DARK)
+        A.put((np.abs(A.x + 0.5 - A.w / 2) < A.w * 0.32) & ((A.x + A.y) % 4 == 0), shade(WOLF_DARK, 1.2))
     elif face in ("east", "west"):
-        A.rect(4, 3, 6, 5, CAPY_DARK)          # a little ear hole line on the side
+        A.put(A.y < 2, WOLF_DARK)
+        A.ellipse(A.w / 2 + (2 if face == "east" else -2), A.h - 1.5, 4.5, 3.5, shade(WOLF_FUR, 0.92))   # haunch
+    elif face == "bottom":
+        A.fill(WOLF_LIGHT)
 
 
-def capy_snout(face, A):
-    if face == "north":                        # 12 x 8: nostrils on top, a little mouth
-        A.rect(3, 1, 5, 2, CAPY_NOSE)
-        A.rect(7, 1, 9, 2, CAPY_NOSE)
-        A.pix([(5, 5), (6, 5)], CAPY_NOSE)
-        A.pix([(4, 4), (7, 4)], shade(CAPY_SNOUT, 0.8))
-        A.rect(0, 6, 1, 7, "#e89a8a")
-        A.rect(11, 6, 12, 7, "#e89a8a")
+def wolf_head(face, A):
+    wolf_fluff(A)
+    if face == "north":                        # 16 x 12: a dark brow, pale cheeks and eye marks, amber eyes
+        A.put((A.y < 3) & (np.abs(A.x + 0.5 - 8) < 3), WOLF_DARK)
+        A.put((A.y >= 8) & ((A.x < 5) | (A.x >= 11)), WOLF_LIGHT)
+        A.pix([(0, 7), (15, 7), (1, 7), (14, 7)], WOLF_LIGHT)
+        A.rect(2, 3, 6, 4, WOLF_LIGHT)
+        A.rect(10, 3, 14, 4, WOLF_LIGHT)
+        eye(A, 2, 4, 4, 4, "#ffb43a", dark="#1a1208")
+        eye(A, 10, 4, 4, 4, "#ffb43a", dark="#1a1208")
+    elif face in ("east", "west"):
+        A.put(A.y >= 8, WOLF_LIGHT)
+        A.put((A.y < 2), WOLF_DARK)
     elif face == "top":
-        A.rect(0, 0, A.w, 1, shade(CAPY_SNOUT, 1.1))
+        A.put(np.abs(A.x + 0.5 - A.w / 2) < 3, WOLF_DARK)
+    elif face == "south":
+        A.put(A.y < 4, WOLF_DARK)
 
 
-def capy_foot(face, A):
+def wolf_snout(face, A):
+    if face == "north":                        # 8 x 4: a black nose and a little mouth
+        A.rect(2, 0, 6, 2, WOLF_NOSE)
+        A.pix([(2, 0), (5, 0)], WOLF_LIGHT)
+        A.pix([(3, 0)], "#6a6a74")
+        A.pix([(3, 2), (4, 2)], "#4a4a52")
+        A.pix([(2, 3), (5, 3)], "#4a4a52")
+    elif face == "top":
+        A.rect(2, A.h - 1, 6, A.h, WOLF_NOSE)
+        A.put(A.y == 0, shade(WOLF_LIGHT, 0.9))
+
+
+def wolf_leg(face, A):
+    A.put(A.y >= A.h - 2, WOLF_LIGHT)
     if face == "north":
-        A.put(A.y == A.h - 1, CAPY_DARK)
+        A.pix([(1, A.h - 1), (2, A.h - 1)], shade(WOLF_LIGHT, 0.8))
 
 
-def capy_yuzu(face, A):
-    A.put(((A.x * 2 + A.y) % 5 == 0), "#ffb43a")
-    if face == "top":
-        A.pix([(1, 1), (2, 1), (1, 2), (2, 2)], "#7ab83a")
+def wolf_collar(face, A):
+    """A red leather collar with stitching and a gold tag at the front."""
+    A.put((A.x % 3 == 1) & (A.y == 1), shade(WOLF_COLLAR, 1.25))
+    if face == "north":                        # 16 x 4
+        A.rect(7, 1, 9, 4, "#ffd23a")
+        A.pix([(7, 1)], "#fff4b0")
+        A.pix([(8, 3)], "#b8861e")
 
 
-def capy_leaf(face, A):
-    m = A.poly([(0.1, 1.0), (0.0, 0.4), (0.5, 0.0), (1.0, 0.3), (0.6, 1.0)])
-    if face == "south":
-        m = m[:, ::-1]
-    A.put(m & (A.x == A.w // 2), "#3a7a2a")
-    A.clip(m)
-    A.rim(RIM)
-    A.norim[:] = True
+def wolf_tail(face, A):
+    """A bushy tail along +z: dark along the top, pale underneath."""
+    if face in ("east", "west"):
+        A.put(A.y < 2, WOLF_DARK)
+        A.put(A.y >= A.h - 1, WOLF_LIGHT)
+    elif face == "top":
+        A.put(np.abs(A.x + 0.5 - A.w / 2) < 2, WOLF_DARK)
+    elif face == "bottom":
+        A.fill(WOLF_LIGHT)
+    wolf_fluff(A, WOLF_FUR)
 
 
-def capybara_pet():
-    a = CAPY
-    body = pet_body("capybara", a, [
-        PC(a, (-1.5, -2, -1), (3, 2, 3), px(CAPY_FUR, capy_body)),
-        PC(a, (-1.25, -1, -1.5), (1, 1, 1), px(CAPY_FUR, capy_foot)),
-        PC(a, (0.25, -1, -1.5), (1, 1, 1), px(CAPY_FUR, capy_foot))])
-    head = Bone("head", "root", P(a, 0, -2, -0.75), cubes=[
-        PC(a, (-1.5, -5, -2), (3, 3, 3), px(CAPY_FUR, capy_head)),
-        PC(a, (-1.5, -3.75, -3), (3, 2, 1), px(CAPY_SNOUT, capy_snout)),
-        PC(a, (-0.5, -6, -0.75), (1, 1, 1), px("#f07a10", capy_yuzu)),
-        PC(a, (-0.25, -7, -0.25), (1, 1, 0), px("#5aa83a", capy_leaf, rim=0))],
-        anim={"type": "pet_head", "amp": 9}, parent="capybara")
-    lids = blink_bone("lids", "head", a, (-1.5, -5, -2.02), (3, 1, 0), lid_paint(CAPY_FUR, [(1, 2), (9, 2)], CAPY_NOSE))
-    lids.anim["speed"] = 0.2                        # a slow, sleepy blink
-    ear = Bone("ear_r", "root", P(a, -1.25, -5, 0.25), cubes=[PC(a, (-1.5, -5.75, 0), (1, 1, 0), px(CAPY_DARK, rim=0.8))],
-               anim={"type": "sway", "amp": 14, "speed": 0.6}, parent="head")
-    return [body, head, lids] + pet_pair(ear, a)
+def wolf_pet():
+    a = WOLF
+    body = pet_body("wolf", a, [
+        PC(a, (-1.5, -2.5, -1), (3, 2, 3), px(WOLF_FUR, wolf_body)),
+        PC(a, (-1.25, -2, -1.5), (1, 2, 1), px(WOLF_FUR, wolf_leg)),
+        PC(a, (0.25, -2, -1.5), (1, 2, 1), px(WOLF_FUR, wolf_leg)),
+        PC(a, (-1.5, -1, 0.75), (1, 1, 1), px(WOLF_FUR, wolf_leg)),
+        PC(a, (0.5, -1, 0.75), (1, 1, 1), px(WOLF_FUR, wolf_leg)),
+        PC(a, (-2, -2.5, -1.5), (4, 1, 4), px(WOLF_COLLAR, wolf_collar))])
+    head = Bone("head", "root", P(a, 0, -2.5, -0.75), cubes=[
+        PC(a, (-2, -5.5, -2.25), (4, 3, 3), px(WOLF_FUR, wolf_head)),
+        PC(a, (-1, -3.75, -3.25), (2, 1, 1), px(WOLF_LIGHT, wolf_snout))],
+        anim={"type": "pet_head", "amp": 12}, parent="wolf")
+    lids = blink_bone("lids", "head", a, (-1.5, -4.5, -2.27), (3, 1, 0), lid_paint(WOLF_FUR, [(0, 4), (8, 4)], WOLF_NOSE))
+    ear = Bone("ear_r", "root", P(a, -1, -5.5, -0.75), (0, 0, 10), cubes=[
+        PC(a, (-2, -7.5, -0.75), (2, 2, 0), ear_plane(WOLF_FUR, "#e8b4b8", WOLF_DARK, apex=0.4))],
+        anim={"type": "sway", "amp": 7, "speed": 0.45}, parent="head")
+    ears = pet_pair(ear, a)
+    ears[1].anim["phase"] = 0.5                    # the ears twitch out together, not both the same way
+    tail = Bone("tail", "root", P(a, 0, -1.25, 2), (32, 0, 0),
+                [PC(a, (-1, -2.25, 2), (2, 2, 3), tail_tip(WOLF_FUR, WOLF_DARK, 3, 1, feat=wolf_tail))],
+                anim=wag(18, 1.1), parent="wolf")
+    return [body, head, lids] + ears + [tail]
 
 
-item("baby_capybara", "Baby Capybara", "PET", "REGULAR", 500,
-     "A calm little capybara with a tiny citrus balanced on its head. It sits on your shoulder, blinks slowly and "
-     "twitches its ears.",
-     capybara_pet(), view=dict(PET_VIEW, glow="#ffb45a"))
+item("wolf_pup", "Wolf Pup", "PET", "REGULAR", 500,
+     "A fluffy grey wolf pup in a red collar with a gold tag. It sits on your shoulder, looks about, twitches its "
+     "ears and wags its tail.",
+     wolf_pet(), view=dict(PET_VIEW, glow="#9ab8ff"))
 
 
 # -------- Panda Cub: a round panda cub sitting on your shoulder, black ears and arms, big eyes in dark patches
@@ -9155,211 +9248,229 @@ item("panda_cub", "Panda Cub", "PET", "REGULAR", 600,
      panda_pet(), view=dict(PET_VIEW, glow="#9ae07a"))
 
 
-# -------- Bolt the Robot: a little hover robot with a screen face, blinking pixel eyes, a chest light and an antenna
+# -------- Cave Bat: a little brown bat hovering by your shoulder on fluttering wings, big ears and two tiny fangs
 
-BOLT_W, BOLT_G, BOLT_D, BOLT_SCREEN, BOLT_CYAN = "#e4e8ee", "#a8b0bc", "#4a5260", "#0a1420", "#4af0ff"
-BOLT = (HOVER[0] + 0.25, HOVER[1] - 0.25, HOVER[2])
-
-
-def bolt_head(face, A):
-    if face == "north":                        # 16 x 12: a dark rounded screen with pixel eyes and a smile
-        A.rect(1, 1, 15, 11, BOLT_SCREEN)
-        for cx_, cy_ in ((1, 1), (14, 1), (1, 10), (14, 10)):
-            A.pix([(cx_, cy_)], rgbf(BOLT_W))
-        A.rect(4, 4, 6, 7, BOLT_CYAN, glow=0.9)
-        A.rect(10, 4, 12, 7, BOLT_CYAN, glow=0.9)
-        A.pix([(6, 8), (7, 9), (8, 9), (9, 8)], BOLT_CYAN, glow=0.7)
-        A.norim |= (A.x >= 1) & (A.x < 15) & (A.y >= 1) & (A.y < 11)
-    elif face in ("east", "west"):
-        A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
-    elif face == "top":
-        A.put((A.x + A.y) % 6 == 0, BOLT_G)
-    elif face == "south":                      # 16 x 12: the back of the head, a grille and two screws
-        A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
-        for yy in (3, 5, 7):
-            A.rect(4, yy, 12, yy + 1, BOLT_D)
-        A.pix([(2, 2), (13, 2)], BOLT_G)
+BAT_FUR, BAT_DARK, BAT_LIGHT, BAT_MEM, BAT_MEM_D, BAT_EAR = "#7a5640", "#4a3224", "#b08a68", "#8a5a62", "#5a3440", "#e8a0a8"
+BAT = (HOVER[0] + 1.25, HOVER[1] - 0.25, HOVER[2])
 
 
-def bolt_body(face, A):
-    A.rect(0, A.h - 2, A.w, A.h, BOLT_G)
-    if face == "south":                        # 12 x 12: a screwed-on back panel with vent slots and a status light
-        A.rect(2, 1, 10, 9, BOLT_G)
-        A.rect(3, 2, 9, 8, shade(BOLT_W, 0.94))
-        for yy in (3, 5):
-            A.rect(4, yy, 8, yy + 1, BOLT_D)
-        A.pix([(2, 1), (9, 1), (2, 8), (9, 8)], BOLT_D)
-        A.pix([(8, 7)], BOLT_CYAN, glow=1.0)
-    elif face in ("east", "west"):             # a panel seam and a rivet
-        A.rect(0, 4, A.w, 5, BOLT_G)
-        A.pix([(A.w // 2, 2)], BOLT_D)
-    if face == "north":                        # 12 x 12: a round chest light
-        A.ellipse(6, 5.5, 2.6, 2.6, BOLT_D)
-        A.ellipse(6, 5.5, 1.7, 1.7, BOLT_CYAN, glow=1.0)
-        A.pix([(5, 4)], "#ffffff", glow=1.0)
-        A.pix([(2, 9), (4, 9), (8, 9), (10, 9)], BOLT_D)
+def bat_fluff(A, col=BAT_FUR):
+    A.put(((A.x * 3 + A.y * 5) % 11 == 0), shade(col, 0.82))
+    A.put(((A.x * 5 + A.y * 2) % 13 == 0), shade(col, 1.14))
 
 
-def bolt_jet(face, A):
-    A.fill(BOLT_D)
-    if face == "bottom":
-        A.ellipse(A.w / 2, A.h / 2, A.w * 0.35, A.h * 0.35, BOLT_CYAN, glow=1.0)
-
-
-def bolt_bolt(face, A):
-    A.put((A.x == A.w // 2) | (A.y == A.h // 2), BOLT_D)
-
-
-def bolt_antenna(face, A):
-    m = (np.abs(A.x + 0.5 - A.w / 2) < 0.8) | ((A.y < 3) & (np.abs(A.x + 0.5 - A.w / 2) < 1.6))
-    A.put(A.y < 3, "#ff5a5a", glow=1.0)
-    A.clip(m)
-    A.norim[:] = True
-
-
-def bolt_arm(face, A):
-    A.put(A.y >= A.h - 2, BOLT_G)
-
-
-def bolt_pet():
-    a = BOLT
-    body = pet_body("robot", a, [
-        PC(a, (-1.5, -3, -1), (3, 3, 2), px(BOLT_W, bolt_body)),
-        PC(a, (-1, 0, -0.5), (2, 1, 1), px(BOLT_D, bolt_jet))])
-    body.anim = dict(PET_ANIM, amp=1.0, speed=1.4)
-    head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
-        PC(a, (-2, -6, -1.5), (4, 3, 3), px(BOLT_W, bolt_head)),
-        PC(a, (-2.5, -5, -0.5), (1, 1, 1), px(BOLT_G, bolt_bolt)),
-        PC(a, (1.5, -5, -0.5), (1, 1, 1), px(BOLT_G, bolt_bolt)),
-        PC(a, (-0.5, -8, 0), (1, 2, 0), px("#c8ccd4", bolt_antenna, rim=0))],
-        anim={"type": "pet_head", "amp": 14}, parent="robot")
-    lids = blink_bone("lids", "head", a, (-1.75, -5.25, -1.52), (3, 1, 0), lid_paint(BOLT_SCREEN, [(3, 2), (9, 2)], BOLT_CYAN))
-    lids.anim["speed"] = 0.35
-    arm = Bone("arm_r", "root", P(a, -1.5, -2, 0), (0, 0, 12), cubes=[PC(a, (-2.5, -2, -0.5), (1, 2, 1), px(BOLT_W, bolt_arm))],
-               anim={"type": "wing", "side": 1, "base": 0, "amp": 10, "speed": 1.0, "fold": 0}, parent="robot")
-    return [body, head, lids] + pet_pair(arm, a)
-
-
-item("bolt_robot", "Bolt the Robot", "PET", "REGULAR", 700,
-     "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna "
-     "blinks red while it floats beside your shoulder.",
-     bolt_pet(), view=dict(PET_VIEW, glow="#4af0ff"))
-
-
-# -------- Steampunk Shark: a brass-plated flying shark with goggle eyes, a toothy grin and a cog turning on its back
-
-SHARK_BRASS, SHARK_COPPER, SHARK_DARK, SHARK_BELLY, SHARK_LENS = "#c8923a", "#a8582a", "#4a2a12", "#ead2a0", "#ffb030"
-SHARK = (HOVER[0] + 0.5, HOVER[1], HOVER[2] + 0.5)
-
-
-def shark_hull(face, A):
-    # riveted brass plates over a pale belly (a shark's dark back and light underside), one copper band
-    A.put(A.y % 6 == 0, shade(SHARK_BRASS, 0.8))
-    A.put((A.y % 6 == 2) & (A.x % 3 == 1), "#ffe08a")
-    A.put((A.y >= 2) & (A.y < 3) & (face in ("east", "west")), SHARK_COPPER)
-    if face in ("east", "west"):
-        A.put(A.y >= A.h * 0.55, SHARK_BELLY)
-        A.put((A.y == int(A.h * 0.55) - 1), shade(SHARK_BRASS, 0.7))
+def bat_body(face, A):
+    bat_fluff(A)
+    if face == "north":                        # 12 x 12: a fluffy pale chest
+        A.ellipse(6, 6, 3.6, 5.5, BAT_LIGHT)
+        A.put((((A.x + 0.5 - 6) / 3.6) ** 2 + ((A.y + 0.5 - 6) / 5.5) ** 2 < 0.8) & ((A.x * 3 + A.y * 5) % 7 == 0),
+              shade(BAT_LIGHT, 0.86))
     elif face == "bottom":
-        A.fill(SHARK_BELLY)
+        A.fill(BAT_LIGHT)
 
 
-def shark_head(face, A):
-    shark_hull(face, A)
-    if face == "north":                        # 12 x 12: the snout on top, goggle eyes, a toothy grin below
-        for ex in (0, 7):
-            A.rect(ex, 4, ex + 5, 9, SHARK_DARK)
-            A.rect(ex + 1, 5, ex + 4, 8, SHARK_COPPER)
-        eye(A, 1, 5, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
-        eye(A, 8, 5, 3, 3, SHARK_LENS, dark="#3a1a06", lid=SHARK_COPPER)
-        A.rect(0, 9, 12, 12, SHARK_BELLY)
-        A.rect(1, 9, 11, 11, "#3a0a0a")
-        A.pix([(x, 9) for x in range(1, 11, 2)] + [(x, 10) for x in range(2, 11, 2)], "#fffbe8")
-    elif face in ("east", "west"):
-        A.pix([(A.w // 2 - 1, 6), (A.w // 2, 6), (A.w // 2 + 1, 6)], SHARK_DARK)      # gill slits
-        A.pix([(A.w // 2 - 1, 7), (A.w // 2 + 1, 7)], SHARK_DARK)
+def bat_head(face, A):
+    bat_fluff(A)
+    if face == "north":                        # 16 x 12: a pale face, big dark eyes, a pink nose and two fangs
+        A.ellipse(8, 7.5, 6.5, 4.8, BAT_LIGHT)
+        A.put((A.y < 3) & (np.abs(A.x + 0.5 - 8) < 2.5), BAT_DARK)
+        eye(A, 2, 3, 4, 4, "#ff9a3a", dark="#140a08")
+        eye(A, 10, 3, 4, 4, "#ff9a3a", dark="#140a08")
+        A.rect(7, 7, 9, 8, "#e07a86")
+        A.pix([(7, 8), (8, 8)], "#8a4a50")
+        A.pix([(5, 9), (10, 9)] + [(i, 10) for i in range(6, 10)], "#3a1e1e")
+        A.pix([(6, 11), (9, 11)], "#fffbf0")
+        A.rect(1, 8, 3, 9, "#ff9ab0")
+        A.rect(13, 8, 15, 9, "#ff9ab0")
+    elif face in ("top", "south"):
+        A.put((A.y < 3) & (np.abs(A.x + 0.5 - A.w / 2) < 2.5), BAT_DARK)
 
 
-def shark_nose(face, A):
-    shark_hull(face, A)
-    if face == "north":                        # 4 x 4: the snub brass nose, two nostrils
-        A.pix([(1, 2), (2, 2)], SHARK_DARK)
+def bat_ear(apex):
+    """A tall pointed ear (a 0-deep plane): dark fur, a pink inside with a ridge."""
+    def feat(face, A):
+        m = A.poly([(apex, 0.0), (1.0, 0.85), (0.75, 1.0), (0.25, 1.0), (0.0, 0.85)])
+        if face == "south":
+            m = m[:, ::-1]
+        if face == "north":
+            ax = apex * A.w
+            inner = m & (A.y >= 2) & (np.abs(A.x + 0.5 - ax - (A.y - 2) * (0.5 - apex) * 0.5) <= (A.y - 1) * 0.3)
+            A.put(inner, BAT_EAR)
+            A.put(inner & (A.y % 3 == 0), shade(BAT_EAR, 0.82))
+        A.clip(m)
+        A.rim(RIM, top_light=1.0, bottom_dark=1.0)
+        A.norim[:] = True
+    return px(BAT_FUR, feat)
 
 
-def shark_fin(face, A):
-    m = A.poly([(0.0, 1.0), (0.5, 0.25), (0.95, 0.0), (0.8, 0.35), (1.0, 1.0)])
-    if face == "west":
-        m = m[:, ::-1]
-    A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
+def bat_wing(face, A):
+    """A bat's wing (right hand: the shoulder at the right edge of the north face): a leathery membrane with a
+    scalloped trailing edge between three finger bones, and a little thumb claw at the top."""
+    m = A.poly([(1.0, 0.05), (0.62, 0.0), (0.3, 0.06), (0.02, 0.2), (0.0, 0.62), (0.16, 0.5), (0.3, 0.86),
+                (0.48, 0.66), (0.66, 0.98), (0.8, 0.74), (1.0, 0.9)])
+    xs = (A.x + 0.5) / A.w
+    if face == "south":
+        m, xs = m[:, ::-1], 1 - xs
+    ys = (A.y + 0.5) / A.h
+    A.a[..., :3] = ramp(ys, [(0, "#a8707a"), (1, BAT_MEM_D)])[..., :3]
+    A.put(((A.x * 3 + A.y * 5) % 7 == 0) & (ys > 0.2), shade(BAT_MEM, 1.12))
+    finger = np.zeros((A.h, A.w), bool)
+    for (ex, ey) in ((0.01, 0.62), (0.3, 0.86), (0.66, 0.98)):
+        d = np.abs((ey - 0.06) * (xs - 0.95) - (ex - 0.95) * (ys - 0.06)) / math.hypot(ey - 0.06, ex - 0.95)
+        finger |= (d < 0.7 / A.w) & (xs >= ex - 0.02) & (xs <= 0.97)
+    A.put(finger, BAT_DARK)
+    A.put((ys < 0.14) & (xs > 0.03), BAT_FUR)
+    A.put((ys < 0.14) & (xs < 0.12) & (xs > 0.02), "#f0e6d0")
     A.clip(m)
-    A.rim(RIM)
+    A.rim(0.6, outline="#1a0e12")
+
+
+def bat_foot(face, A):
+    A.put(A.y >= A.h - 1, "#2a1a14")
+
+
+def bat_pet():
+    a = BAT
+    body = pet_body("bat", a, [
+        PC(a, (-1.5, -3, -1.25), (3, 3, 3), px(BAT_FUR, bat_body)),
+        PC(a, (-1.25, 0, 0.25), (1, 1, 0), px(BAT_DARK, bat_foot)),
+        PC(a, (0.25, 0, 0.25), (1, 1, 0), px(BAT_DARK, bat_foot))])
+    body.anim = dict(PET_ANIM, amp=1.0, speed=1.8)
+    head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
+        PC(a, (-2, -6, -1.75), (4, 3, 3), px(BAT_FUR, bat_head)),
+        PC(a, (-2, -9, -0.5), (2, 3, 0), bat_ear(0.3)),
+        PC(a, (0, -9, -0.5), (2, 3, 0), bat_ear(0.7))],
+        anim={"type": "pet_head", "amp": 12}, parent="bat")
+    lids = blink_bone("lids", "head", a, (-1.5, -5.25, -1.77), (3, 1, 0), lid_paint(BAT_FUR, [(0, 4), (8, 4)], BAT_DARK))
+    wing = Bone("wing_r", "root", P(a, -2, -1.75, 0.25), (0, 0, 15), cubes=[
+        PC(a, (-6, -2.5, 0.25), (4, 3, 0), px(BAT_MEM, bat_wing, rim=0))],
+        anim={"type": "sway", "amp": 20, "speed": 1.9}, parent="bat")
+    wings = pet_pair(wing, a)
+    wings[1].anim["phase"] = 0.5                   # both wings beat down together
+    return [body, head, lids] + wings
+
+
+item("cave_bat", "Cave Bat", "PET", "REGULAR", 700,
+     "A little brown cave bat with big ears and two tiny fangs that hovers by your shoulder on fluttering leathery "
+     "wings, looking about and blinking.",
+     bat_pet(), view=dict(PET_VIEW, glow="#ffa04a"))
+
+
+# -------- Pocket Axolotl: a small pink axolotl swimming through the air by your shoulder, frilly gills and a curled tail
+
+AX_PINK, AX_PINK_D, AX_BELLY, AX_GILL, AX_GILL_D, AX_INK = "#ffb6ca", "#e27a9c", "#ffe4ec", "#ee4a82", "#b0285a", "#2a1422"
+AXOLOTL = (HOVER[0] + 0.25, HOVER[1], HOVER[2] + 0.25)
+
+
+def ax_freckles(A):
+    A.put(((A.x * 5 + A.y * 3) % 13 == 0), shade(AX_PINK, 0.9))
+    A.put(((A.x * 3 + A.y * 7) % 17 == 5), "#ffd4e0")
+
+
+def ax_body(face, A):
+    ax_freckles(A)
+    if face in ("east", "west"):               # a pale belly along the bottom
+        A.put(A.y >= A.h - 2, AX_BELLY)
+    elif face == "bottom":
+        A.fill(AX_BELLY)
+    elif face == "top":                        # a darker line down the spine
+        A.put(np.abs(A.x + 0.5 - A.w / 2) < 1, AX_PINK_D)
+
+
+def ax_head(face, A):
+    ax_freckles(A)
+    if face == "north":                        # 16 x 12: small beady eyes far apart, a wide smile, blush
+        eye(A, 1, 3, 3, 3, "#5a2a3a", dark=AX_INK)
+        eye(A, 12, 3, 3, 3, "#5a2a3a", dark=AX_INK)
+        A.pix([(4, 7), (11, 7)] + [(i, 8) for i in range(5, 11)], AX_INK)
+        A.pix([(7, 9), (8, 9)], AX_GILL_D)
+        A.rect(1, 7, 3, 8, "#ff7aa0")
+        A.rect(13, 7, 15, 8, "#ff7aa0")
+    elif face == "bottom":
+        A.fill(AX_BELLY)
+
+
+def ax_gills(face, A):
+    """Three feathery gill stalks fanning out from the side of the head (right hand: the head at the right edge of
+    the north face), each fringed with darker filaments."""
+    xs = (A.x + 0.5) / A.w
+    if face == "south":
+        xs = 1 - xs
+    ys = (A.y + 0.5) / A.h
+    stalk = np.zeros((A.h, A.w), bool)
+    fringe = np.zeros((A.h, A.w), bool)
+    for ty in (0.1, 0.45, 0.85):                  # each stalk runs from the root (right edge, middle) out to (0, ty)
+        cy = 0.5 + (ty - 0.5) * (1 - xs)
+        d = np.abs(ys - cy) * A.h
+        stalk |= (d < 0.9) & (xs < 0.98)
+        fringe |= (d < 1.9) & (xs < 0.85) & ((A.x + A.y) % 2 == 0)
+    m = stalk | fringe
+    A.put(fringe, AX_GILL_D)
+    A.put(stalk, AX_GILL)
+    A.put(stalk & (xs < 0.25), shade(AX_GILL, 1.18))
+    A.clip(m)
     A.norim[:] = True
 
 
-def shark_side_fin(face, A):
-    m = A.poly([(1.0, 0.0), (0.0, 0.85), (0.15, 1.0), (1.0, 1.0)])
-    A.put(A.x % 3 == 0, shade(SHARK_COPPER, 0.8))
+def ax_fin(face, A):
+    """The tail fin (a 0-wide plane along the tail): a soft pink fin that curls up into a spiral at its tip."""
+    zs = (A.x + 0.5) / A.w if face == "east" else 1 - (A.x + 0.5) / A.w
+    ys = (A.y + 0.5) / A.h
+    base = (np.abs(ys - 0.62) < 0.28 * (1 - zs * 0.55)) & (zs < 0.72)
+    cx, cy, r = 0.78, 0.4, 0.2
+    rr = np.hypot((zs - cx) * A.w, (ys - cy) * A.h) / (r * A.w)
+    ang = np.arctan2(ys - cy, zs - cx)
+    curl = (rr < 1.0) & ~((rr > 0.32) & (rr < 0.62) & (np.cos(ang - 1.2) > -0.2))
+    m = base | curl
+    A.a[..., :3] = rgbf(shade(AX_PINK, 1.04))
+    A.put((rr < 1.0) & (rr > 0.78), AX_PINK_D)
+    A.put(base & (A.x % 3 == 1), shade(AX_PINK, 0.88))
     A.clip(m)
-    A.rim(RIM)
+    A.rim(0.78)
     A.norim[:] = True
 
 
-def shark_tail(face, A):
-    m = A.poly([(0.0, 0.3), (0.35, 0.42), (0.95, 0.0), (0.6, 0.48), (0.8, 0.95), (0.3, 0.6), (0.0, 0.7)])
-    if face == "west":
-        m = m[:, ::-1]
-    A.put(A.y % 3 == 0, shade(SHARK_COPPER, 0.8))
-    A.clip(m)
-    A.rim(RIM)
-    A.norim[:] = True
+def ax_ridge(face, A):
+    A.put(A.x % 2 == 0, shade(AX_PINK, 0.9))
+    A.clip(A.y >= (A.h - 1 - ((A.x // 2) % 2)))
 
 
-def shark_gear(face, A):
-    """A flat brass cog seen from above: eight teeth, a ring and spokes."""
-    cx_, cy_ = A.w / 2, A.h / 2
-    rr = np.sqrt((A.x + 0.5 - cx_) ** 2 + (A.y + 0.5 - cy_) ** 2)
-    ang = np.arctan2(A.y + 0.5 - cy_, A.x + 0.5 - cx_)
-    teeth = (rr < A.w * 0.5) & (np.cos(ang * 8) > 0.2)
-    m = teeth | (rr < A.w * 0.4)
-    A.fill("#e0b050")
-    A.put(rr < A.w * 0.3, SHARK_DARK)
-    A.put((rr < A.w * 0.3) & ((np.abs(np.sin(ang * 2)) < 0.3)), "#e0b050")
-    A.put(rr < A.w * 0.1, "#ffe08a")
-    A.clip(m)
-    A.rim(RIM)
-    A.norim[:] = True
+def ax_leg(face, A):
+    A.put(A.y >= A.h - 1, AX_PINK_D)
+    if face == "north":
+        A.pix([(0, A.h - 1), (2, A.h - 1)], shade(AX_PINK, 1.12))
 
 
-def shark_pet():
-    """A tapered shark from nose to forked tail: a snub nose, a short head with goggles and a grin, the hull with a
-    swept dorsal fin and a cog on its back, a tail stem that narrows to a tall forked fin, two drooping side fins."""
-    a = SHARK
-    body = pet_body("shark", a, [
-        PC(a, (-1.5, -3.5, -1), (3, 3, 3), px(SHARK_BRASS, shark_hull)),
-        PC(a, (-0.5, -4, -1), (1, 1, 1), px(SHARK_DARK)),                        # the cog's axle
-        PC(a, (0, -7.5, 0), (0, 4, 3), px("#e0904a", shark_fin, rim=0))])        # the dorsal fin, swept back
-    body.anim = dict(PET_ANIM, amp=1.0, speed=1.2)
-    head = Bone("head", "root", P(a, 0, -2, -1), cubes=[
-        PC(a, (-1.5, -3.5, -3), (3, 3, 2), px(SHARK_BRASS, shark_head)),
-        PC(a, (-0.5, -3.5, -4), (1, 1, 1), px(SHARK_BRASS, shark_nose))],
-        anim={"type": "pet_head", "amp": 10}, parent="shark")
-    lids = blink_bone("lids", "head", a, (-1.5, -2.25, -3.02), (3, 1, 0), lid_paint(SHARK_COPPER, [(1, 3), (8, 3)], SHARK_DARK))
-    gear = Bone("cog", "root", P(a, 0, -4.1, -0.5), cubes=[PC(a, (-1, -4.1, -1.5), (2, 0, 2), px("#e0b050", shark_gear, rim=0))],
-                anim={"type": "spin", "speed": 120}, parent="shark")
-    tail = Bone("tail", "root", P(a, 0, -2, 2), cubes=[
-        PC(a, (-1, -3, 2), (2, 2, 2), px(SHARK_BRASS, shark_hull)),
-        PC(a, (-0.5, -2.5, 4), (1, 1, 1), px(SHARK_BRASS, shark_hull)),
-        PC(a, (0, -6, 5), (0, 7, 3), px("#e0904a", shark_tail, rim=0))],
-        anim=wag(16, 0.9), parent="shark")
-    fin = Bone("fin_r", "root", P(a, -1.5, -1, 0.5), (0, 0, -28), cubes=[PC(a, (-4.5, -1, -0.5), (3, 0, 2), px("#e0904a", shark_side_fin))],
-               anim={"type": "wing", "side": 1, "base": 0, "amp": 8, "speed": 1.2, "fold": 0}, parent="shark")
-    return [body, head, lids, gear, tail] + pet_pair(fin, a)
+def axolotl_pet():
+    a = AXOLOTL
+    body = pet_body("axolotl", a, [
+        PC(a, (-1.5, -3, -1), (3, 2, 4), px(AX_PINK, ax_body)),
+        PC(a, (-2, -1.75, -0.75), (1, 1, 1), px(AX_PINK, ax_leg)),
+        PC(a, (1, -1.75, -0.75), (1, 1, 1), px(AX_PINK, ax_leg)),
+        PC(a, (-2, -1.75, 1.75), (1, 1, 1), px(AX_PINK, ax_leg)),
+        PC(a, (1, -1.75, 1.75), (1, 1, 1), px(AX_PINK, ax_leg)),
+        PC(a, (0, -4, 0), (0, 1, 3), px(AX_PINK, ax_ridge, rim=0))])
+    body.anim = dict(PET_ANIM, amp=1.0, speed=1.1)
+    head = Bone("head", "root", P(a, 0, -2.5, -1), cubes=[
+        PC(a, (-2, -5, -3.75), (4, 3, 3), px(AX_PINK, ax_head))],
+        anim={"type": "pet_head", "amp": 12}, parent="axolotl")
+    lids = blink_bone("lids", "head", a, (-2, -4.25, -3.77), (4, 1, 0), lid_paint(AX_PINK, [(1, 3), (12, 3)], AX_INK))
+    gill = Bone("gill_r", "root", P(a, -2, -3.5, -2), cubes=[
+        PC(a, (-4, -5, -2), (2, 3, 0), px(AX_GILL, ax_gills, rim=0))],
+        anim={"type": "sway", "amp": 10, "speed": 0.8}, parent="head")
+    gills = pet_pair(gill, a)
+    gills[1].anim["phase"] = 0.5                   # the gills fan out and in together
+    tail = Bone("tail", "root", P(a, 0, -2, 3), cubes=[
+        PC(a, (-0.5, -2.5, 3), (1, 1, 2), px(AX_PINK, ax_body)),
+        PC(a, (0, -4.25, 5), (0, 3, 3), px(AX_PINK, ax_fin, rim=0))],
+        anim=wag(16, 0.8), parent="axolotl")
+    return [body, head, lids] + gills + [tail]
 
 
-item("steampunk_shark", "Steampunk Shark", "PET", "REGULAR", 700,
-     "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims "
-     "through the air beside your shoulder.",
-     shark_pet(), view=dict(PET_VIEW, glow="#ffb030", margin=1.32))
+item("axolotl_pal", "Pocket Axolotl", "PET", "REGULAR", 700,
+     "A small pink axolotl with frilly gills and a curled tail that swims through the air beside your shoulder, its "
+     "gills fanning as it looks about and blinks.",
+     axolotl_pet(), view=dict(PET_VIEW, glow="#ff8ab0", margin=1.24))
 
 
 # ---------------------------------------------------------------------------------------------- emotes
@@ -9541,7 +9652,7 @@ item("heart_toss", "Heart Toss", "EMOTE", "REGULAR", 250,
      thumb="emote")
 
 
-# ---- Kitty Pat: kneel down and pat a little white kitten, who closes its eyes and swishes its tail (the kitten is the
+# ---- Pet the Cat: kneel down and pat a little white kitten, who closes its eyes and swishes its tail (the kitten is the
 # emote's prop: it is only there while the emote plays)
 
 KIT_W, KIT_G, KIT_PINK, KIT_EYE = "#f6f4f2", "#cfc8c4", "#ffb0c0", "#4a7ad8"
@@ -9591,7 +9702,7 @@ def kitten_prop():
     return [body, head, tail]
 
 
-item("kitty_pat", "Kitty Pat", "EMOTE", "REGULAR", 250,
+item("pet_the_cat", "Pet the Cat", "EMOTE", "REGULAR", 250,
      "Kneel down and give a little white kitten a pat. It closes its eyes and swishes its tail.",
      kitten_prop(),
      emote={"length": 2.4, "loop": True, "parts": {

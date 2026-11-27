@@ -67,12 +67,12 @@ public final class EmoteExtrasTest {
         ctx.runOnClient(c -> Emotes.stop());
         check(played && after > before, "Emotes: Fire Ring spawns its particles while it plays (" + (after - before) + ")");
 
-        // the prop (Kitty Pat's kitten) loads as a model and only belongs to the emote
+        // the prop (Pet the Cat's kitten) loads as a model and only belongs to the emote
         boolean prop = ctx.computeOnClient(c -> {
-            CosmeticItem it = CosmeticsCatalog.get("kitty_pat");
+            CosmeticItem it = CosmeticsCatalog.get("pet_the_cat");
             return it != null && it.hasModel() && CosmeticAssets.model(it) != null && it.emote() != null;
         });
-        check(prop, "Emotes: Kitty Pat's kitten prop loads with the emote");
+        check(prop, "Emotes: Pet the Cat's kitten prop loads with the emote");
 
         ctx.runOnClient(c -> {
             Emotes.stop();

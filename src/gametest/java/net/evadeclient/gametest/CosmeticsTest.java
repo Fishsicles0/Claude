@@ -206,7 +206,7 @@ public final class CosmeticsTest {
             Wardrobe.equip(Slot.CAPE, "starlit_veil", -1);
             Wardrobe.equip(Slot.HAT, "circuit_crown", -1);
             Wardrobe.equip(Slot.AURA, "ember_orbit", -1);
-            Wardrobe.equip(Slot.PET, "pip_wisp", -1);
+            Wardrobe.equip(Slot.PET, "soul_wisp", -1);
             Wardrobe.equip(Slot.BACK, "lantern_pack", -1);
             PlayerCosmetics.putForTest(BOT, Wardrobe.equipped().with(Slot.WINGS, new Loadout.Worn("aurora_wings", -1)).with(Slot.CAPE, null));
             c.options.setPerspective(Perspective.THIRD_PERSON_FRONT);
@@ -263,7 +263,7 @@ public final class CosmeticsTest {
         // ---- emotes stop when you move or attack
         server.runCommand("tp @a 0 -60 0 0 0");
         ctx.waitTicks(20);
-        boolean playing = ctx.computeOnClient(c -> Emotes.play(CosmeticsCatalog.get("sunny_wave")) && Emotes.current() != null);
+        boolean playing = ctx.computeOnClient(c -> Emotes.play(CosmeticsCatalog.get("wave")) && Emotes.current() != null);
         ctx.waitTicks(5);
         boolean still = ctx.computeOnClient(c -> Emotes.current() != null);
         String early = ctx.computeOnClient(c -> Emotes.lastStop);
@@ -307,13 +307,13 @@ public final class CosmeticsTest {
         ctx.runOnClient(c -> {
             WardrobeScreen w = (WardrobeScreen) c.currentScreen;
             w.selectSlot(Slot.HAT); w.clickItem(CosmeticsCatalog.get("witch_hat"));
-            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("mini_wyvern"));
+            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("baby_dragon"));
         });
         ctx.waitTicks(5);
         ctx.takeScreenshot("cosmetic-wardrobe-tall");
         ctx.runOnClient(c -> {
             WardrobeScreen w = (WardrobeScreen) c.currentScreen;
-            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("mini_wyvern"));
+            w.selectSlot(Slot.PET); w.clickItem(CosmeticsCatalog.get("baby_dragon"));
             w.selectSlot(Slot.HAT); w.clickItem(CosmeticsCatalog.get("comet_cap"));
         });
         ctx.waitTicks(2);

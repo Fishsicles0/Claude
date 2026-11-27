@@ -668,7 +668,7 @@
   },
   {
    "id": "comet_cap",
-   "name": "Comet Cap",
+   "name": "Comet Beanie",
    "slot": "HAT",
    "rarity": "regular",
    "priceCents": 200,
@@ -679,7 +679,7 @@
    "description": "A ribbed knit beanie with a turned-up cuff and a glowing pom-pom, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "686097165757aaa7a24cd96b7f13c0131902f9ede8f750f6f516c4e432478262",
+     "item.json": "80d51e94870bdb6a72e81594abaeb36fcf77cf0c30456540599db7db082e632f",
      "model.json": "9aa0c0e42933813879969e0564d271f1b22dd9c5d3e0975c919d6dd7ec77baf6",
      "texture.png": "40c11f1399bdd04ff0b4e96ec84f2e67febab414754ef34308b0e8d0f62730f1",
      "emissive.png": "da93149fa908752bcd514400df7ea29813325b8984f10cac099b432401d5d83b",
@@ -767,7 +767,7 @@
   },
   {
    "id": "witch_hat",
-   "name": "Hollow Witch Hat",
+   "name": "Witch Hat",
    "slot": "HAT",
    "rarity": "regular",
    "priceCents": 300,
@@ -778,7 +778,7 @@
    "description": "A tall, crooked violet witch hat with a wide brim and a gold-buckled band.",
    "assets": {
     "files": {
-     "item.json": "18d1d453afe8817096c6946e2d8223c1cd488c75693ac799e32c3c1b41bbc037",
+     "item.json": "573400cb51b311af102adb07f9710d0b4b8567ba26b58228fbd02f783a443bd1",
      "model.json": "5360db8cc8c403f134878f8f0e3ced964256daf306995cb97eb9dd082935ad97",
      "texture.png": "0744438365edf7873fa5c91cffa67b8df0a61e80913d3deed5ad1d2cd3354597",
      "thumb.png": "88135dd0072b311a6f2a3ba67592eb96fd6944525df3151a1d2b2191fae135e2"
@@ -792,7 +792,7 @@
   },
   {
    "id": "party_cone",
-   "name": "Party Cone",
+   "name": "Party Hat",
    "slot": "HAT",
    "rarity": "regular",
    "priceCents": 100,
@@ -803,7 +803,7 @@
    "description": "A striped, polka-dotted party hat worn at a jaunty angle, with a fluffy pink tuft on top.",
    "assets": {
     "files": {
-     "item.json": "366eecdb56f6629c6c62558f020e3f768833169f78589747749ecf71b0f1a7de",
+     "item.json": "20ae2dc9eef217a7a76cfce5b71a97619f1322e8ff53c154156cac26d8523206",
      "model.json": "a6da9f7c6efd7013dadf857ca6c0f528aa1e798fe83a43364b85fe769cb2be92",
      "texture.png": "7477a6096626fd0c907d840eefc471737aa5585493a9867a44d5bf0b0b69d21d",
      "emissive.png": "94fd49e572e81a0377c79d9e923772b17131f3c78ae4c3bc92a6b42e4a872d21",
@@ -888,8 +888,8 @@
    }
   },
   {
-   "id": "kitty_ears",
-   "name": "Kitty Ears",
+   "id": "cat_ears",
+   "name": "Cat Ears",
    "slot": "HAT",
    "rarity": "regular",
    "priceCents": 100,
@@ -900,7 +900,7 @@
    "description": "Soft pointed cat ears with pink insides, in any colour you like.",
    "assets": {
     "files": {
-     "item.json": "96f745fe8a28559a8162390e02ad6cd48a81541e0cad54738228ebdc76e306ae",
+     "item.json": "bc707bb5628f1f48c699857c08a4a884149f711d34b95af68e1b54865f9acab7",
      "model.json": "d5369e6d3d59e296479ea9aef5075957a863c711656b431ea5e4d2cfd7ba08b3",
      "texture.png": "8a1c2707a16fef5305b1265e52f413198dfb91c3d384e736308399ff6ab54a86",
      "thumb.png": "3a166bdcc9a12127bb8cc29e99ca9cdcbe7832103f77e25a2da26b7acd452794"
@@ -1066,7 +1066,7 @@
   },
   {
    "id": "runeblade_sheath",
-   "name": "Runeblade",
+   "name": "Runeblade Sheath",
    "slot": "BACK",
    "rarity": "regular",
    "priceCents": 400,
@@ -1077,7 +1077,7 @@
    "description": "A broad steel sword slung across your back, its fuller carved with runes that glow cyan.",
    "assets": {
     "files": {
-     "item.json": "7115747ccb07623fe69492177659e2d4a22ff1647f44903cfabd46fd2b23b06e",
+     "item.json": "bec58b6e11b560d85f310080e484ed9c4d156f59e4fc5e7ea4125d6d657fc125",
      "model.json": "0aa69d3272baec6193e7f1633201b61d8dd0348135b1c585bccb4f719adafd86",
      "texture.png": "a68de66f2e9fa43dc9344da3671aef43b77af35e22ea2ec3ff461b23f6f4c9f1",
      "emissive.png": "0ba3f1acf7811a8bed8848643a067f9a7485b27d20d28698a1962255991f33d5",
@@ -1292,8 +1292,8 @@
    }
   },
   {
-   "id": "mochi_cat",
-   "name": "Mochi the Cat",
+   "id": "ginger_cat",
+   "name": "Ginger Cat",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -1304,7 +1304,7 @@
    "description": "A round ginger tabby with big green eyes and white paws that sits on your shoulder, looks about, blinks and swishes its tail.",
    "assets": {
     "files": {
-     "item.json": "f04fe587003b01ecb33a29396f933b2001b8cf19566da513c23714e66bcd5219",
+     "item.json": "507b4cae2ec7560429305c7d435d492c14bd1bd7a19523d214be2601df1caebb",
      "model.json": "2846993c1b359261a30e711b45dfa4ad9b71d1aebd4aae8ab070d73e04c4cc2a",
      "texture.png": "952300da7d0d1a7ab71d7ee7fd6ea82478dad747be330de1ef33ce2527d08ffb",
      "thumb.png": "292674bb37b7d2d1e46d4b5308077e21b34b27c893e713314c8051cf708dec57"
@@ -1318,7 +1318,7 @@
   },
   {
    "id": "ember_fox",
-   "name": "Ember the Fox",
+   "name": "Ember Fox",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 600,
@@ -1329,7 +1329,7 @@
    "description": "A bright orange fox with a white chest, black socks and a big white-tipped tail that wags while it watches the world from your shoulder.",
    "assets": {
     "files": {
-     "item.json": "150dbc1ecf0d444156477a6a70882b56758dee89de615dd0c796eb2fd9e1376f",
+     "item.json": "0d5846dec6a36e67d03dc79f80a48b5049813f578576b1d33dfc590f0559984e",
      "model.json": "21df23510b283783c20c73c30502e5e9c464c0888397774c0ff97dd281fa99dc",
      "texture.png": "d81adf3f69ad35e6dc8eea5c9bf8d6d37ac64d1559ca6a314e822d10fe05541c",
      "thumb.png": "8d88020fe58f6fda533021dba9d7551284aaf7c276fbf211ee8e603fe0f9337c"
@@ -1342,8 +1342,8 @@
    }
   },
   {
-   "id": "hoot_owl",
-   "name": "Hoot the Owl",
+   "id": "jungle_parrot",
+   "name": "Jungle Parrot",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -1351,24 +1351,24 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A round brown owl with huge amber eyes, ear tufts and a speckled cream chest; it perches on your shoulder, blinks slowly and turns its head to look around.",
+   "description": "A scarlet parrot with yellow and blue wings, a white face and a hooked beak that perches on your shoulder, turns its head to look about, blinks and flicks its long tail.",
    "assets": {
     "files": {
-     "item.json": "7040f0708b2c3b6366c24fc69e6252b9f1b1e7328fa3c9979f2a697cd8c98299",
-     "model.json": "fb3585029e7120dea426615b41ae70ca1307d255f59890b302d9a484e66b0603",
-     "texture.png": "5497443a827663fd99843af88413d38bb11cdafc2b5d3f2445919886f2ab68d9",
-     "thumb.png": "086e6b407f84d915e96fba3b22553a931a25650539daf9c02d8478d84020df79"
+     "item.json": "6bf19e255fb08b620476514d2b2e6ebfc0bae6f30d0c5cc7ee814e3f96384873",
+     "model.json": "e9b722a1127e9fc86b7c2346b3e1a2bd5bd82c546affcf7a37ced9ebe36e10b6",
+     "texture.png": "7f4e516983f03432e68192ea44c004460df9b9493d9bd0a34b6a1ced78b08d54",
+     "thumb.png": "f222f593b3ad96fd12a671319c608c4e7e1171ada7091650d51a605bd22bdd9c"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "d52c0a0b258b9686004725267062227fdebfd808d40d6d1a01ee014af1b5b019"
+    "sha256": "46ba0301cbfa4272a51d18384805784a89e12ec19bc36e27ebc7cb758df5c91e"
    }
   },
   {
    "id": "bubble_slime",
-   "name": "Bubble the Slime",
+   "name": "Bubble Slime",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -1376,10 +1376,10 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A wobbly see-through green slime with a glowing core, rosy cheeks and a goofy grin that bounces on your shoulder.",
+   "description": "A wobbly see-through green slime with a glowing core, rosy cheeks and a wide grin that bounces on your shoulder.",
    "assets": {
     "files": {
-     "item.json": "0989401d45d07405218c6a806b9aa2e7274ce894f2adf12ad9ec6a2efa6fcde6",
+     "item.json": "689e68b7f9ee100e76a5a59b7c9e330b5500610b86d8f8e7b4995cc45b5dadfa",
      "model.json": "f79979a290968aefaa67427dd9e814825c4926b3d92e3e5f0a1d7acc1eb03d95",
      "texture.png": "3b007fdb780220ce2f0fd2f8aef31e52fa1f43f37d64b9ccde823a2c03c032b8",
      "emissive.png": "4cbec7159cff1a4e229909a175119a82edbd69b6e6811d3e24e704859efc12bc",
@@ -1393,8 +1393,8 @@
    }
   },
   {
-   "id": "pip_wisp",
-   "name": "Pip the Wisp",
+   "id": "soul_wisp",
+   "name": "Soul Wisp",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -1402,10 +1402,10 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A tiny friendly wisp of cool blue flame with big shiny eyes that floats beside your shoulder, waving its little hands, its flame flickering.",
+   "description": "A small spirit of cool blue soul flame with big shiny eyes that floats beside your shoulder, its flame flickering and its little hands drifting.",
    "assets": {
     "files": {
-     "item.json": "22f2d3e269567d32f42039bc1aa2674c04e36785437a7b7b27b89e8a3d2cae1a",
+     "item.json": "3b604f03eab90aacc4e740eb95bbd72b57bfbff78a2b85c60793e416cdcbb1b8",
      "model.json": "6cc94f1914f0f857b6a8b4ee0fc092745ec027b894823778f5abd141743a44c2",
      "texture.png": "e61470ec1e1b3f7065517449223823e1db4cea353409edcffaaa2ef318583b49",
      "emissive.png": "0adf6165da8ec5c76491554f1e4cfd1bf71fe69401ab6539a518f9fc89a400f5",
@@ -1419,8 +1419,8 @@
    }
   },
   {
-   "id": "mini_wyvern",
-   "name": "Mini Wyvern",
+   "id": "baby_dragon",
+   "name": "Baby Dragon",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 800,
@@ -1431,7 +1431,7 @@
    "description": "A little teal dragon with violet wings, golden eyes and cream horns that hovers beside your shoulder, wings beating and tail swishing.",
    "assets": {
     "files": {
-     "item.json": "3988eb92094869e62b6ad433418be9f7d25e2775872b09d0e028a42f1e01121e",
+     "item.json": "c70ee37daa1beb489a8b1a6fe7752feef27d36d8c5d30768663073a95fcab9d6",
      "model.json": "5449fd695406ba885e31eabbf05b838a558298d1dc09c505fab9b9446bae4164",
      "texture.png": "f097d659d5f84983d84976ac3d80000e36ab162275d4a2758c01f532cb6c08a8",
      "thumb.png": "55d74d12eeda7122c2bc6193bd5ea32a33b6a21a0cee94c3d02571ed5a54499f"
@@ -1672,8 +1672,8 @@
    }
   },
   {
-   "id": "sunny_wave",
-   "name": "Sunny Wave",
+   "id": "wave",
+   "name": "Wave",
    "slot": "EMOTE",
    "rarity": "regular",
    "priceCents": 250,
@@ -1684,7 +1684,7 @@
    "description": "A big, cheerful wave hello.",
    "assets": {
     "files": {
-     "item.json": "6a3dd647e67bcb07832775f6fc2e538e3f1505e34ce27b586f517a313e3f671b",
+     "item.json": "a2028894a520612476542fa09f29f2bbfd51e83d95a1c82f2d453f0d0b993958",
      "thumb.png": "aad1a9d8da543c84e2a56f0930c113f6a799cd75db3e769e9c66b5ee5d12d08b"
     }
    },
@@ -1720,8 +1720,8 @@
    }
   },
   {
-   "id": "crisp_salute",
-   "name": "Crisp Salute",
+   "id": "salute",
+   "name": "Salute",
    "slot": "EMOTE",
    "rarity": "regular",
    "priceCents": 250,
@@ -1732,7 +1732,7 @@
    "description": "Stand to attention and snap off a sharp salute.",
    "assets": {
     "files": {
-     "item.json": "c4a5f460899a68a5df522c17a906c5fdc59378705a442e8efffd3b91ad3f63f1",
+     "item.json": "d42f87b959bcfac0be40afc9e0b8421ead95ce1c59f8e7ed5bfda619563d4c4b",
      "thumb.png": "04e7d5f2664713f4d870866974dae1615aa787e4f34c6bd07c72c6ab8e45f3fc"
     }
    },
@@ -1766,8 +1766,8 @@
    }
   },
   {
-   "id": "grand_bow",
-   "name": "Grand Bow",
+   "id": "bow",
+   "name": "Bow",
    "slot": "EMOTE",
    "rarity": "regular",
    "priceCents": 250,
@@ -1778,7 +1778,7 @@
    "description": "A theatrical bow with a flourish of the hand, for when you've earned the applause.",
    "assets": {
     "files": {
-     "item.json": "5d3534b08e3196f41697a71196d9ff37f90cf7eee0395773e66079ee464cf0e9",
+     "item.json": "7e2acffc9903140df913afc02e1d01e8264e6b2636e45621c1156b0648fde0be",
      "thumb.png": "5f7a470c0f67555efce667e29ee992236796f512b2df08ba47b36d13190dd0fd"
     }
    },
@@ -2155,8 +2155,8 @@
    }
   },
   {
-   "id": "gentleman_kit",
-   "name": "Gentleman's Kit",
+   "id": "monocle_mustache",
+   "name": "Monocle & Mustache",
    "slot": "MASK",
    "rarity": "regular",
    "priceCents": 250,
@@ -2164,10 +2164,10 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A curled moustache and a gold monocle. Very distinguished.",
+   "description": "A curled mustache and a gold monocle on a fine chain.",
    "assets": {
     "files": {
-     "item.json": "ddc32aa917dd7f13dc95bbf15395517ec58023146f952540ea8613216606b435",
+     "item.json": "bfa33f301eca3ce4c3d17977735beb0fd7b81ab3b4b1f3f7ffefa56f73721690",
      "model.json": "d2f73ccd66e1e2279775411ef5d8fd525883b0383c8f53c457eb5cd0db99e5cf",
      "texture.png": "fc2166b891485d57719e687b490a1582fa953226e1beb521677a701c0ccee4df",
      "thumb.png": "4a91cf2ea8a6cb49ccb88464a5d92cbbfb8bc3df011d0a1a5d0c2c0f5f8834ce"
@@ -2324,8 +2324,8 @@
    }
   },
   {
-   "id": "pebble_penguin",
-   "name": "Pebble the Penguin",
+   "id": "sea_turtle",
+   "name": "Baby Turtle",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 600,
@@ -2333,24 +2333,24 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A round little penguin with flippers out and a bright orange beak, riding on your shoulder.",
+   "description": "A little green sea turtle with a patterned shell that rides on your shoulder, paddling its flippers, looking about and blinking slowly.",
    "assets": {
     "files": {
-     "item.json": "eaf32f070da6514ddb7d96a137ed38f5076d7783a09494b662f9b38504e1b89f",
-     "model.json": "5a13705dbf3d969ec273a7a5ac5c01ecc41247bd139d0692f72677303f80585e",
-     "texture.png": "19f4d023da058a4723bceff2a7d8859f6798a9c705de9b08d15b98a8728cdefa",
-     "thumb.png": "45fdbcdb2720c8295a8a58b078924c838eb018242b80b0d0f5778563f2122bbd"
+     "item.json": "b1d561811ac669e4671eea07195b89a6ac43f1c602c517af24e0cc8a11ae1f02",
+     "model.json": "dd2aef17191a7a48e5505981d581a792f3b4395a968be30fe860519f101d87cb",
+     "texture.png": "02bd36e18e87ddc3a347477d6421446da39776c6b0feecc58aa6aef44fe002b0",
+     "thumb.png": "8de31bf60eea4f5d0bcd4fd988c075e06feca726cc3448560c201d2550d9ead9"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "bd85d63111ba46c4807736ae136a3483c02c5e8116024944a64b91e0756287a3"
+    "sha256": "94b66c33c32a79edc21384985daa91cd504a4f290d07b3cbbc4b7d29cecfdb89"
    }
   },
   {
-   "id": "buzz_bee",
-   "name": "Buzz the Bee",
+   "id": "honey_bee",
+   "name": "Honey Bee",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -2361,7 +2361,7 @@
    "description": "A fuzzy striped bee with see-through wings that hovers by your shoulder.",
    "assets": {
     "files": {
-     "item.json": "9ed607cf7a3f90ace03f8b84fb7f6a13f6cebc5d739afd9df8e6b621e2d665cc",
+     "item.json": "0abc470a192fc5991d33d54dc6329446ae83e2fd977c06f4b2f697609fac9595",
      "model.json": "fb9615538597d6a252f795aeafba236384abfd96cc39b189d84671e2f314d5d4",
      "texture.png": "094e160e76e2ad8468243ac2a0351fa8f3f19a9ffbe177f0412103702f72559d",
      "thumb.png": "f585811cb4db147d786ef35ec29c05d651c61072f8a363c619fd4ac75c506f1f"
@@ -2374,8 +2374,8 @@
    }
   },
   {
-   "id": "lily_frog",
-   "name": "Lily the Frog",
+   "id": "swamp_frog",
+   "name": "Swamp Frog",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -2386,7 +2386,7 @@
    "description": "A bright green frog with golden eyes perched on your shoulder.",
    "assets": {
     "files": {
-     "item.json": "4bbecefa98a69531151bac4b3858fefde2d4263bce1d84e774eedd3d468c187d",
+     "item.json": "6042dd2998e4a51df6fe4282670dc4eca3a6ec69e39588b1e2f8c8259e95c234",
      "model.json": "23c7c9932c8280432b39c8bdc48ed6410ddb3662d952918ab0fe4d097ad2b7ed",
      "texture.png": "38cc36240dc23797acf20b20c6c73f709f69f25e6a75e177a1d05b409fff7eac",
      "thumb.png": "d6a74d51fc7c3cdb214b148a93c9ab5850106bbf53cc1413ba41d4c4015a911e"
@@ -2399,8 +2399,8 @@
    }
   },
   {
-   "id": "boo_ghost",
-   "name": "Boo the Ghost",
+   "id": "wandering_ghost",
+   "name": "Wandering Ghost",
    "slot": "PET",
    "rarity": "special",
    "priceCents": null,
@@ -2411,7 +2411,7 @@
    "description": "A shy little ghost that flickers in and out, with glowing eyes that blink now and then.",
    "assets": {
     "files": {
-     "item.json": "72f9e1af27e8e8872fb0404e0cbdd1c3edecdb5609607a428a1f2109cda95c6b",
+     "item.json": "869a3f826941f6cecce737ad05a7d1586a820d405bc484ca99d9a9e6c1cee58f",
      "model.json": "cd27659afad8652e373b79d81386a05bb25819db95da978cb528c8eec6c09fdc",
      "texture.png": "3cb51750f26b8b16d87f09ee00419c74ce488993064dc2b3eaf8f0339cb65f68",
      "emissive.png": "7bb47680b99c15d14348fd8c4e8e0c10e75db88f58216e509bc234c6a9c6a4f1",
@@ -2544,10 +2544,10 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "Both arms up, show the world those gains.",
+   "description": "Both arms up and flexed: the winner's pose.",
    "assets": {
     "files": {
-     "item.json": "3207b17c48ba72848dfe2707138bbc71ad5a12c7ab060c1546f0473b9972b6b4",
+     "item.json": "f323c742a39b916c0ca8ea88dff73ee30532567481239af7113c730f3bb19727",
      "thumb.png": "c94d7ec28eb5e578c0be6fd3702a51d0f579b9b90642a3226ba89436a5312e01"
     }
    },
@@ -2852,8 +2852,8 @@
    }
   },
   {
-   "id": "baby_capybara",
-   "name": "Baby Capybara",
+   "id": "wolf_pup",
+   "name": "Wolf Pup",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 500,
@@ -2861,19 +2861,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A calm little capybara with a tiny citrus balanced on its head. It sits on your shoulder, blinks slowly and twitches its ears.",
+   "description": "A fluffy grey wolf pup in a red collar with a gold tag. It sits on your shoulder, looks about, twitches its ears and wags its tail.",
    "assets": {
     "files": {
-     "item.json": "5ba54a4bbfbcd8e3c9a27e347502abc88c427cf9d3a6b5e62395cd0f2b349572",
-     "model.json": "d8adebb23922591ee2c5216a9eb662c7074920990dbcd9416fd8b3b22584039c",
-     "texture.png": "23f3def8d15fa905be91460c27800997a4851cc39abb857599d22c75627c75d4",
-     "thumb.png": "b8501fb5a0babf90bdacafdb95b7b530bf04dcc251cc5780660332391b26b606"
+     "item.json": "c8e4d16691f1560d7b47c30ff8093beeea1b4034a31434a6a85f4acaa1b116ac",
+     "model.json": "7be48b220bab5453ce7e0c0c9a6be582ab1208d96c1ab48614abf63b05449235",
+     "texture.png": "6ba16347d1642c23d85295d4bd2c7bc7bef81227ce8821691668da3cc05c52c9",
+     "thumb.png": "30aaa2fad2ed80f3c533978bbcef484ce0419b46930377aab683934f73418fec"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "897ec4508df51c571bfdf35ae66e247bebabb8624f5c29159fced6be64a1232f"
+    "sha256": "bb1fdd7e7d955b53f3f5e79b72fc35d8dc1b94cac3b949729126e38dda9d9e68"
    }
   },
   {
@@ -2902,8 +2902,8 @@
    }
   },
   {
-   "id": "bolt_robot",
-   "name": "Bolt the Robot",
+   "id": "cave_bat",
+   "name": "Cave Bat",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 700,
@@ -2911,25 +2911,24 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A little hover robot with a screen for a face. Its pixel eyes blink, its chest light glows and its antenna blinks red while it floats beside your shoulder.",
+   "description": "A little brown cave bat with big ears and two tiny fangs that hovers by your shoulder on fluttering leathery wings, looking about and blinking.",
    "assets": {
     "files": {
-     "item.json": "b7da5ca9c10b3aaa4d9f5d7258935a3fbff872e089477d315c483527906364cd",
-     "model.json": "954549b463e4a534ce2807cc0a759ca5abdec894768bace2663c2ac08d5c43a7",
-     "texture.png": "efc207c161a5d2af748ae7e67cb1633cba39e27df5e19a88a7210bb5f7fbe13a",
-     "emissive.png": "9226ab292516d6bc464328dc183db0019e5e6e1dd76cebacff8f912f75106ed7",
-     "thumb.png": "62ab9afd0402a5be1ad73d205ae6dc7ab2a461b7bf20f8d2d42624fc1da9db9e"
+     "item.json": "c5530ea5e42b14d048a74115216f47dcec7ad771f17de47bd27cfbc8bae046ac",
+     "model.json": "cce20d349054f460f6bea504af745b122db3d6dc588433b76b53343f415232d2",
+     "texture.png": "182a750cbe96c3e74b33552eebe8036ca57110358f6bb2f767e88b71d68272b4",
+     "thumb.png": "85ef4979db4d5a40bc3b8c7af7aa85b8019837ebe55562064035b8143806360a"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "631a2d7fe83d026a74a4b5b8709d448a4d3e5fc998fa0441fb24b45a1ee87861"
+    "sha256": "e5991d6dc206e8bb5b38e2c5d08f9112206d4d40ce10842d85b384c2a206b306"
    }
   },
   {
-   "id": "steampunk_shark",
-   "name": "Steampunk Shark",
+   "id": "axolotl_pal",
+   "name": "Pocket Axolotl",
    "slot": "PET",
    "rarity": "regular",
    "priceCents": 700,
@@ -2937,19 +2936,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A brass-plated little flying shark with goggle eyes and a toothy grin. A cog turns on its back as it swims through the air beside your shoulder.",
+   "description": "A small pink axolotl with frilly gills and a curled tail that swims through the air beside your shoulder, its gills fanning as it looks about and blinks.",
    "assets": {
     "files": {
-     "item.json": "c8cee6f1cb260ab9406057d8e21c06c33806069be4fd0f463d1e402b89edb87b",
-     "model.json": "db852d81d54cf7e988bb48c0e7ccc854e764112ba5fdbd328494f10cf466369b",
-     "texture.png": "c3b873bc0e3a1334633a67604b6bf857f0f651f520f0c5e3c494e72b1c2f438d",
-     "thumb.png": "671380696838da5a7f82c4ef7ea343fdcbdf5488d889287103906bc2782199b7"
+     "item.json": "1f5136809d40d81ee72f1dc35a009bc4fd5fc8951c477995623e8fc0ec69f1c3",
+     "model.json": "c9c282fb05efb3b4a7779aaf901ef2a176230a7c1d9921dbef5ff285fa250d54",
+     "texture.png": "be21f37988e6143402b2b493f5def4ab3f48be2b41b7602dcd16e45071b677d0",
+     "thumb.png": "19f98d8dfbb44f9730b91ca449f6b9b8d4c2ff239279d2569d177be75116c9e4"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "1ef241555b26855bada6eef531235a123342ddf005cf323c19008ba595d59463"
+    "sha256": "4371ab1ee3225ff7c6555dae8cb5dc6718671eb935eaaaeaf6d49cc819c1fd89"
    }
   },
   {
@@ -3022,8 +3021,8 @@
    }
   },
   {
-   "id": "kitty_pat",
-   "name": "Kitty Pat",
+   "id": "pet_the_cat",
+   "name": "Pet the Cat",
    "slot": "EMOTE",
    "rarity": "regular",
    "priceCents": 250,
@@ -3034,7 +3033,7 @@
    "description": "Kneel down and give a little white kitten a pat. It closes its eyes and swishes its tail.",
    "assets": {
     "files": {
-     "item.json": "de46b31fadcf266ce9d7368e8c36798863ac5cad1c6691e747fa0b34a6e79f4f",
+     "item.json": "7e2b9d1fee8447df1cde01e769f889f032f24962f590649e17696721cbf0d18d",
      "model.json": "265b6b8b16d086375d33e88fdceee0a6da4c400bf3626b1c5d6a087da3c0d1fd",
      "texture.png": "bde5fdd250cf1a84f7f61447784bd45b0653f7c12743d6512add656b5f4c6d92",
      "thumb.png": "1cdc547887e192bece81b5f091003766a9a2a3c8e662374669e983a7f5d1e2b0"
