@@ -1,0 +1,10 @@
+{
+ "id": "baby_dragon",
+ "name": "Baby Dragon",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A little teal dragon with violet wings, golden eyes and cream horns that hovers beside your shoulder, wings beating and tail swishing."
+}

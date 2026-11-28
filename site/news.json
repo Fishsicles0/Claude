@@ -1,6 +1,18 @@
 {
- "version": "2.9.1",
+ "version": "2.9.2",
  "entries": [
+  {
+   "id": "v2.9.2",
+   "title": "v2.9.2",
+   "date": "2026-11-28",
+   "dateText": "28 Nov 2026",
+   "summary": "Cleaner cosmetic names and five new pets that fit the world.",
+   "items": [
+    "Five new pets: Jungle Parrot, Wolf Pup, Cave Bat, Baby Turtle and Pocket Axolotl, built like the other pets (they look around, blink and never clip into you).",
+    "Cleaner names: Ginger Cat, Ember Fox, Soul Wisp, Baby Dragon, Honey Bee, Swamp Frog, Wandering Ghost, Cat Ears, Pet the Cat, Wave, Salute, Bow, Monocle & Mustache, Party Hat, Comet Beanie and Witch Hat."
+   ],
+   "url": "https://evadeclient.com/changelog#v2.9.2"
+  },
   {
    "id": "v2.9.1",
    "title": "v2.9.1",
@@ -25,7 +37,7 @@
    "items": [
     "Schematics (new): load .litematic, .schem and structure .nbt files, see them as a hologram you can move, rotate and mirror, view one layer at a time, check your build (missing, wrong, extra blocks), and get a material list against your inventory. Save an area you built, and paste in singleplayer. It never places or breaks anything for you, and servers can switch it off.",
     "Technical tools (new): Tech Info HUD (light, slime chunk, moon phase and more), Tech Overlays (slime chunks, random-tick range, region borders, block grid, beacon and conduit range, structure boxes in singleplayer), Placement Lock (keeps your placements on a line, wall or layer) and Break Guard (stops you breaking spawners, budding amethyst and unripe crops by accident). Light Overlay gets a \"Tall Mobs\" option.",
-    "54 new cosmetics: new capes (all free), pets, hats, masks, back items, sword skins, effects and 12 new emotes, including animated Glitch Koi, Void Eye, Code Rain, Warp Speed and Bass Drop capes, the Storm Ring aura and the Boo ghost pet. New emotes can do handstands, float and bring props and particles.",
+    "54 new cosmetics: new capes (all free), pets, hats, masks, back items, sword skins, effects and 12 new emotes, including animated Glitch Koi, Void Eye, Code Rain, Warp Speed and Bass Drop capes, the Storm Ring aura and the Wandering Ghost pet. New emotes can do handstands, float and bring props and particles.",
     "Better cosmetics: every wing rebuilt with a real arched shape and layered feathers or membranes (none clip any more), the three crowns made clearly different, sharper hats and masks, and brighter emote and aura pictures. Every item now passes a quality test.",
     "Launcher 2.7.0, add-ons: a new Add-ons tab installs Distant Horizons, Flashback, Litematica, MiniHUD, SkyHanni and Axiom from Modrinth in one click, warns about version clashes and offers to switch off an Evade mod that does the same job.",
     "Shop: emote previews now play in full, including handstands and floating."
@@ -79,18 +91,6 @@
     "Faster: less work for the HUD every frame, quicker mod lookups, and benchmarks no longer slowed by the idle FPS cap."
    ],
    "url": "https://evadeclient.com/changelog#v2.7.0"
-  },
-  {
-   "id": "v2.6.1",
-   "title": "v2.6.1",
-   "date": "2026-11-25",
-   "dateText": "25 Nov 2026",
-   "summary": "",
-   "items": [
-    "Cosmetics: three rarities (Regular, Special for animated items, Partner), new lower prices, a Win effects category, better pictures for emotes and the pet, the item skin held in your hand in the shop preview, and capes that hang properly.",
-    "Shop on phones: the search bar no longer covers the items."
-   ],
-   "url": "https://evadeclient.com/changelog#v2.6.1"
   }
  ]
 }

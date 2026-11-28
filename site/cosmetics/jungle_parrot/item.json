@@ -1,0 +1,10 @@
+{
+ "id": "jungle_parrot",
+ "name": "Jungle Parrot",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A scarlet parrot with yellow and blue wings, a white face and a hooked beak that perches on your shoulder, turns its head to look about, blinks and flicks its long tail."
+}
