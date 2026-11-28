@@ -136,7 +136,10 @@ public final class LibraryPanel extends JPanel {
         JPanel top = row();
         JLabel title = Theme.label("Library", 26f, true, Theme.TEXT);
         top.add(title);
-        top.add(Box.createHorizontalStrut(14));
+        // In the launcher the tab already says "Library"; the clip count leads instead.
+        title.setVisible(!net.evadeclient.clips.ClipsApp.hosted);
+        if (net.evadeclient.clips.ClipsApp.hosted) { count.setFont(Theme.interBold.deriveFont(15f)); count.setForeground(Theme.TEXT); }
+        if (!net.evadeclient.clips.ClipsApp.hosted) top.add(Box.createHorizontalStrut(14));
         top.add(count);
         top.add(Box.createHorizontalGlue());
         top.add(storage);
@@ -951,7 +954,7 @@ public final class LibraryPanel extends JPanel {
             Theme.hq(g);
             int cx = getWidth() / 2;
             boolean filtered = !search.getText().isBlank() || !filter.equals("all") || game.getSelectedIndex() > 0;
-            Theme.icon(Theme.Glyph.FILM, 56, Theme.FAINT).paintIcon(this, g, cx - 28, 90);
+            if (filtered || !app.library.loaded()) Theme.icon(Theme.Glyph.FILM, 56, Theme.FAINT).paintIcon(this, g, cx - 28, 90);
             g.setFont(Theme.interBold.deriveFont(20f));
             g.setColor(Theme.TEXT);
             if (!app.library.loaded() && !filtered) {
@@ -962,15 +965,54 @@ public final class LibraryPanel extends JPanel {
                 return;
             }
             String a = filtered ? "No clips match" : "No clips yet";
-            g.drawString(a, cx - g.getFontMetrics().stringWidth(a) / 2, 190);
-            g.setFont(Theme.inter.deriveFont(14f));
-            g.setColor(Theme.DIM);
-            String b = filtered ? "Try a different search or filter." : "Press " + app.settings.hotkeySaveClip + " in game to save the last " + app.settings.replaySeconds + " seconds,";
-            g.drawString(b, cx - g.getFontMetrics().stringWidth(b) / 2, 220);
-            if (!filtered) {
-                String c = "press " + app.settings.hotkeyRecord + " to record, or drop video files here.";
-                g.drawString(c, cx - g.getFontMetrics().stringWidth(c) / 2, 242);
+            if (filtered) {
+                g.drawString(a, cx - g.getFontMetrics().stringWidth(a) / 2, 190);
+                g.setFont(Theme.inter.deriveFont(14f));
+                g.setColor(Theme.DIM);
+                String b = "Try a different search or filter.";
+                g.drawString(b, cx - g.getFontMetrics().stringWidth(b) / 2, 220);
+                return;
             }
+            // A drop zone with the two keys that make clips, drawn as keycaps.
+            int zw = Math.min(560, getWidth() - 40), zh = 300, zx = cx - zw / 2, zy = 40;
+            g.setColor(Theme.CARD);
+            g.fillRoundRect(zx, zy, zw, zh, 22, 22);
+            g.setColor(Theme.BORDER);
+            g.setStroke(new java.awt.BasicStroke(1.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND, 1, new float[]{7, 6}, 0));
+            g.drawRoundRect(zx, zy, zw - 1, zh - 1, 22, 22);
+            g.setStroke(new java.awt.BasicStroke(1f));
+            g.setColor(new Color(Theme.RED.getRed(), Theme.RED.getGreen(), Theme.RED.getBlue(), 38));
+            g.fillOval(cx - 36, zy + 30, 72, 72);
+            Theme.icon(Theme.Glyph.FILM, 34, Theme.RED_HI).paintIcon(this, g, cx - 17, zy + 49);
+            g.setFont(Theme.interBold.deriveFont(20f));
+            g.setColor(Theme.TEXT);
+            g.drawString(a, cx - g.getFontMetrics().stringWidth(a) / 2, zy + 140);
+            int y = zy + 186;
+            keyLine(g, cx, y, app.settings.hotkeySaveClip, "save the last " + app.settings.replaySeconds + " seconds");
+            keyLine(g, cx, y + 40, app.settings.hotkeyRecord, "start or stop a recording");
+            g.setFont(Theme.inter.deriveFont(13f));
+            g.setColor(Theme.FAINT);
+            String c = "or drop video files here to import them";
+            g.drawString(c, cx - g.getFontMetrics().stringWidth(c) / 2, zy + zh - 26);
+        }
+
+        /** "[key]  text", centred on {@code cx}, with the key drawn as a keycap. */
+        private void keyLine(Graphics2D g, int cx, int y, String key, String text) {
+            g.setFont(Theme.interBold.deriveFont(13f));
+            var kf = g.getFontMetrics();
+            int kw = Math.max(34, kf.stringWidth(key) + 20), kh = 28;
+            Font tf = Theme.inter.deriveFont(14f);
+            int tw = g.getFontMetrics(tf).stringWidth(text);
+            int x = cx - 130;
+            g.setColor(Theme.BORDER);
+            g.fillRoundRect(x, y - kh / 2 + 3, kw, kh, 8, 8);
+            g.setColor(Theme.CARD_HI);
+            g.fillRoundRect(x, y - kh / 2, kw, kh - 2, 8, 8);
+            g.setColor(Theme.TEXT);
+            g.drawString(key, x + (kw - kf.stringWidth(key)) / 2, y + kf.getAscent() / 2 - 2);
+            g.setFont(tf);
+            g.setColor(Theme.DIM);
+            g.drawString(text, x + kw + 12, y + g.getFontMetrics().getAscent() / 2 - 1);
         }
     }
 

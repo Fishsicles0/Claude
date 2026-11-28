@@ -87,6 +87,8 @@ public final class Screenshots {
         Thread.sleep(2500);
         shot(w[0], out.resolve("record.png"));
         app.engine.stopRecording();
+        Thread.sleep(800);
+        shotPage(w[0], out.resolve("record-full.png"));
 
         // Editor with a few edits applied.
         Clip c = footage != null ? app.library.query("1v3 clutch", "replays", null, "newest").get(0)
@@ -149,6 +151,7 @@ public final class Screenshots {
         SwingUtilities.invokeAndWait(() -> tidySettings(w[0], app, s.clipsFolder));
         Thread.sleep(300);
         shot(w[0], out.resolve("settings.png"));
+        shotPage(w[0], out.resolve("settings-full.png"));
         app.shutdown();
     }
 
@@ -269,6 +272,47 @@ public final class Screenshots {
         try (var w = Files.walk(p)) {
             for (Path f : w.sorted(java.util.Comparator.reverseOrder()).toList()) Files.delete(f);
         }
+    }
+
+    /** The whole scrolling page of the shown view, top to bottom, so the parts below the fold can be checked. */
+    private static void shotPage(MainWindow w, Path file) throws Exception {
+        BufferedImage[] img = new BufferedImage[1];
+        SwingUtilities.invokeAndWait(() -> {
+            javax.swing.JScrollPane sp = findScroll(w.getContentPane());
+            if (sp == null) return;
+            java.awt.Component view = sp.getViewport().getView();
+            int width = sp.getViewport().getWidth(), height = Math.max(view.getPreferredSize().height, 10);
+            view.setSize(width, height);
+            view.doLayout();
+            layoutTree(view);
+            img[0] = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img[0].createGraphics();
+            g.setColor(Theme.BG);
+            g.fillRect(0, 0, width, height);
+            view.paint(g);
+            g.dispose();
+            sp.revalidate();
+        });
+        if (img[0] == null) return;
+        ImageIO.write(img[0], "png", file.toFile());
+        System.out.println("wrote " + file);
+    }
+
+    private static void layoutTree(java.awt.Component c) {
+        if (c instanceof java.awt.Container k) {
+            k.doLayout();
+            for (java.awt.Component ch : k.getComponents()) layoutTree(ch);
+        }
+    }
+
+    private static javax.swing.JScrollPane findScroll(java.awt.Component c) {
+        if (!c.isShowing()) return null;
+        if (c instanceof javax.swing.JScrollPane sp) return sp;
+        if (c instanceof java.awt.Container k) for (java.awt.Component ch : k.getComponents()) {
+            javax.swing.JScrollPane r = findScroll(ch);
+            if (r != null) return r;
+        }
+        return null;
     }
 
     private static void shot(MainWindow w, Path file) throws Exception {

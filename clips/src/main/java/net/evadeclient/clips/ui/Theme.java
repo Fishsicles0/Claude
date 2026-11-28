@@ -220,7 +220,8 @@ public final class Theme {
     // ------------------------------------------------------------------ vector icons (no image assets needed)
 
     public enum Glyph { PLAY, PAUSE, RECORD, STOP, SCISSORS, TRASH, STAR, STAR_FILLED, FOLDER, IMPORT, EXPORT, GRID, CAMERA,
-        GEAR, BOOKMARK, BACK, FRAME_PREV, FRAME_NEXT, SPLIT, UNDO, REDO, VOLUME, MUTE, COPY, EDIT, CLOCK, CHECK, SEARCH, FILM }
+        GEAR, BOOKMARK, BACK, FRAME_PREV, FRAME_NEXT, SPLIT, UNDO, REDO, VOLUME, MUTE, COPY, EDIT, CLOCK, CHECK, SEARCH, FILM,
+        MIC, HEADSET, CHEVRON_RIGHT, CHEVRON_DOWN }
 
     public static Icon icon(Glyph g, int size, Color color) { return new GlyphIcon(g, size, color); }
 
@@ -288,6 +289,18 @@ public final class Theme {
                 case CLOCK -> { g.drawOval(3, 3, 18, 18); g.draw(open(12, 7, 12, 12, 16, 14)); }
                 case CHECK -> g.draw(open(4, 12, 10, 18, 20, 6));
                 case SEARCH -> { g.drawOval(4, 4, 12, 12); g.drawLine(14, 14, 20, 20); }
+                case MIC -> {
+                    g.draw(new RoundRectangle2D.Double(9, 3, 6, 11, 6, 6));
+                    g.draw(new java.awt.geom.Arc2D.Double(6, 5, 12, 12, 180, 180, java.awt.geom.Arc2D.OPEN));
+                    g.drawLine(12, 17, 12, 21); g.drawLine(9, 21, 15, 21);
+                }
+                case HEADSET -> {
+                    g.draw(new java.awt.geom.Arc2D.Double(4, 4, 16, 16, 0, 180, java.awt.geom.Arc2D.OPEN));
+                    g.fill(new RoundRectangle2D.Double(3, 12, 5, 8, 3, 3));
+                    g.fill(new RoundRectangle2D.Double(16, 12, 5, 8, 3, 3));
+                }
+                case CHEVRON_RIGHT -> g.draw(open(9, 6, 15, 12, 9, 18));
+                case CHEVRON_DOWN -> g.draw(open(6, 9, 12, 15, 18, 9));
             }
             g.dispose();
         }

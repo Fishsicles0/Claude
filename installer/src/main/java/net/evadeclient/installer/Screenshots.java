@@ -235,6 +235,7 @@ final class Screenshots {
             s.playSound = false;
             s.showToast = false;
             s.controlServer = false;
+            net.evadeclient.clips.ClipsApp.hosted = true; // as in the real launcher
             net.evadeclient.clips.ui.Theme.install();
             var app = new net.evadeclient.clips.ui.App(s);
             app.library.load();

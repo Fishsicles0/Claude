@@ -74,6 +74,8 @@ public final class SettingsPanel extends JPanel {
         JLabel title = Theme.label("Settings", 26f, true, Theme.TEXT);
         title.setAlignmentX(LEFT_ALIGNMENT);
         body.add(title);
+        // In the launcher the tab already says "Settings".
+        title.setVisible(!net.evadeclient.clips.ClipsApp.hosted);
         Settings s = app.settings;
         fit(hotkeyNote, " ", 0);
         fit(controlNote, " ", 0);
@@ -130,6 +132,9 @@ public final class SettingsPanel extends JPanel {
     /** Lays the wrapping texts out for a page {@code viewportWidth} wide (cards are at most 860 wide). */
     private void fitAll(int viewportWidth) {
         int w = Math.max(280, Math.min(860, viewportWidth - 52) - 36);
+        // The cards sit in the middle of a wide window rather than hugging the left edge.
+        int side = Math.max(26, (viewportWidth - 860) / 2);
+        Theme.pad(body, net.evadeclient.clips.ClipsApp.hosted ? 4 : 22, side, 30, side);
         if (w == innerWidth) return;
         innerWidth = w;
         for (JComponent c : fitted) applyFit(c);
@@ -1040,12 +1045,27 @@ public final class SettingsPanel extends JPanel {
         return p;
     }
 
+    /** An on/off setting: its description on the left, a switch on the right. */
     private void check(String label, boolean value, Consumer<Boolean> set) {
-        JCheckBox b = fit(new JCheckBox("", value), esc(label), 28);
-        b.setOpaque(false);
+        RecordPanel.Switch b = new RecordPanel.Switch(label);
+        b.setSelected(value);
         b.addActionListener(e -> { set.accept(b.isSelected()); app.settings.save(); });
-        Theme.pad(b, 4, 0, 4, 0);
-        place(b, 0, 0);
+        JLabel l = fit(Theme.label(" ", 13.5f, false, Theme.TEXT), esc(label), 70);
+        l.setLabelFor(b);
+        l.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) { if (b.isEnabled()) b.doClick(); }
+        });
+        JPanel r = new JPanel(new BorderLayout(16, 0)) {
+            @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
+        };
+        r.setOpaque(false);
+        r.add(l, BorderLayout.CENTER);
+        JPanel sw = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
+        sw.setOpaque(false);
+        sw.add(b);
+        r.add(sw, BorderLayout.EAST);
+        Theme.pad(r, 7, 0, 7, 0);
+        place(r, 0, 0);
     }
 
     /** Sets the share server after checking it: https only (or this computer), and a warning for anything but the default. */
