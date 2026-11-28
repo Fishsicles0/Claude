@@ -398,7 +398,7 @@ public class HudEditorScreen extends Screen {
         float dtSec = Double.isNaN(barFrameAt) ? 0f : (float) Math.max(0, Math.min(0.1, (now - barFrameAt) / 1000));
         barFrameAt = now;
         var cs = settings();
-        boolean anims = cs == null || cs.animations.get();
+        boolean anims = cs == null || cs.animations.on();
         Btn hover = popup == null ? buttonAt(mouseX, mouseY) : null;
         float target = hover != null && hover.accent() ? 1f : 0f;
         barHover = anims ? barHover + (target - barHover) * (1 - (float) Math.exp(-22 * dtSec)) : target;

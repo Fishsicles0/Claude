@@ -12,6 +12,7 @@ glyph instructions, maxSizeOfInstructions 0), so FreeType runs its autohinter on
 weights match.
 
 Fonts (same Inter build, Version 4.000;git-a52131595):
+  inter-display-bold.ttf Inter Display Bold (display and headline roles; same conversion and subset)
   inter-medium.ttf     Inter Medium    \\ CFF sources are converted to TrueType outlines (cu2qu, max error 1 unit,
   inter-semibold.ttf   Inter SemiBold  /  reversed direction, maxp 1.0) because Minecraft only accepts TrueType.
 Both are subset to UNICODES with no layout features (Minecraft does not shape text, so GSUB, GPOS, GDEF and kern
@@ -23,9 +24,13 @@ the TTFs already in the font folder in place, which is idempotent, so the JSONs 
 output is deterministic (head.modified is kept), so a re-run with the same sources is byte-identical.
 
 Roles (key, weight, pixel size at oversample 1, the vanilla matrix scale the role replaces):
+  display displaybold 28 3.1 | headline displaybold 18 2.0
   title semibold 13 1.45 | strong semibold 9 1.0 | body medium 9 1.0  | label medium 8 0.87
   small medium 7 0.78    | tiny medium 6 0.68    | caps semibold 7 0.78 | caps_sm semibold 6 0.65
-For each role and GUI scale g = 1..6 it writes ui_<role>_<g>.json (a ttf provider, then minecraft:default):
+No role is rasterised below MIN_DEVICE_PX device pixels (tiny and caps_sm become 7 px at GUI scale 1), and every
+JSON starts with a "space" provider giving the space (and no-break space) an explicit advance of Inter's 0.267 em,
+never under 3 device pixels, so words never run together at small sizes.
+For each role and GUI scale g = 1..8 it writes ui_<role>_<g>.json (a ttf provider, then minecraft:default):
   oversample = g and size = S, an integer, so size x oversample is a whole pixel size at every scale.
   shift y = Q = round((7.5 x scale - 7) x g) / g. 7.5 x scale is where matrix-scaled text puts its baseline
   today (draw y + scale x (7 + 0.5)), so existing y coordinates stay valid to within half a device pixel.
@@ -60,6 +65,8 @@ NAMESPACE = "evade"
 WEIGHTS = {
     "medium": ("Inter-Medium.otf", "inter-medium.ttf"),
     "semibold": ("Inter-SemiBold.otf", "inter-semibold.ttf"),
+    # Inter Display: the optical size for large text (display and headline roles).
+    "display_bold": ("InterDisplay-Bold.otf", "inter-display-bold.ttf"),
 }
 
 # Kept code points (inclusive ranges). Latin-1 + Latin Extended-A, Greek, Cyrillic, punctuation (dashes, quotes,
@@ -72,6 +79,8 @@ UNICODES = [
 
 # key, weight, pixel size at oversample 1, vanilla scale (exact decimal strings, parsed as fractions)
 ROLES = [
+    ("display", "display_bold", 28, "3.1"),
+    ("headline", "display_bold", 18, "2.0"),
     ("title", "semibold", 13, "1.45"),
     ("strong", "semibold", 9, "1.0"),
     ("body", "medium", 9, "1.0"),
@@ -81,7 +90,11 @@ ROLES = [
     ("caps", "semibold", 7, "0.78"),
     ("caps_sm", "semibold", 6, "0.65"),
 ]
-SCALES = range(1, 7)            # GUI scales 1..6; UiFont clamps to this range
+SCALES = range(1, 9)            # GUI scales 1..8 (8K at GUI scale 8); UiFont clamps to this range
+MIN_DEVICE_PX = 7               # no role is rasterised below 7 device px (6 px Inter at GUI scale 1 is unreadable)
+SPACE_EM = Fraction(546, 2048)  # Inter's space advance
+MIN_SPACE_DEVICE_PX = 3         # ... but never under 3 device px: at 6-7 px FreeType rounds it to 1-2 and words run
+                                # together ("QuitGame"). Written as an explicit "space" provider ahead of the TTF.
 GLYPH_TOP = 7                   # UploadableGlyph.getYMin() = 7 - ascent: the baseline sits at y + 7 + shift
 VANILLA_BASELINE = Fraction(15, 2)  # matrix-scaled text today: baseline at y + scale * (7 + 0.5)
 
@@ -253,19 +266,22 @@ def build_jsons():
         qs = []
         for g in SCALES:
             q = shift_for(scale, g)
+            size_g = size if size * g >= MIN_DEVICE_PX else Fraction(MIN_DEVICE_PX, g)
             # The two exactness rules, on exact values ...
-            assert (size * g) == int(size * g), f"{key}@{g}: size x g = {size * g} is not an integer"
+            assert (size_g * g) == int(size_g * g), f"{key}@{g}: size x g = {size_g * g} is not an integer"
             assert (q * g).denominator == 1, f"{key}@{g}: Q x g = {q * g} is not an integer"
             assert abs(GLYPH_TOP + q - VANILLA_BASELINE * scale) <= Fraction(1, 2 * g), f"{key}@{g}: baseline off"
             # ... and replayed through Minecraft's float32 maths on the numbers the JSON actually holds.
-            size_txt, g_txt, q_txt = fmt(size), fmt(g), fmt(q)
+            size_txt, g_txt, q_txt = fmt(size_g), fmt(g), fmt(q)
             px = java_round(f32(f32(float(size_txt)) * f32(float(g_txt))))
-            assert px == size * g, f"{key}@{g}: FT_Set_Pixel_Sizes gets {px}, expected {size * g}"
+            assert px == size_g * g, f"{key}@{g}: FT_Set_Pixel_Sizes gets {px}, expected {size_g * g}"
+            space = Fraction(max(math.ceil(SPACE_EM * size_g * g), MIN_SPACE_DEVICE_PX), g)
             dy = java_round(f32(f32(-f32(float(q_txt)) * f32(float(g_txt))) * 64.0))
             assert dy == -int(q * g) * 64, f"{key}@{g}: 26.6 shift {dy} is not {-int(q * g)} whole pixels"
 
             name = f"ui_{key}_{g}.json"
             text = ('{"providers":[\n'
+                    f' {{"type":"space","advances":{{" ":{fmt(space)},"\\u00a0":{fmt(space)}}}}},\n'
                     f' {{"type":"ttf","file":"{NAMESPACE}:{ttf}","size":{size_txt},"oversample":{g_txt},'
                     f'"shift":[0.0,{q_txt}]}},\n'
                     ' {"type":"reference","id":"minecraft:default"}\n'

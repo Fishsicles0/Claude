@@ -38,13 +38,17 @@ public final class CosmeticsQualityTest {
                 if (m == null) continue;                    // particle effects and emotes have no model
                 if (m.texture() == null) { b.append(i.id).append("=notexture "); continue; }
                 int perUnit = m.texture().frameW / m.texW;
-                if (perUnit < (i.slot == Slot.CAPE ? 16 : 8)) b.append(i.id).append('@').append(perUnit).append(' ');
+                // regular pets are drawn in Minecraft's own style: 1-2 texels per unit like a vanilla baby mob
+                // (the strict art QA in scripts/cosmetics-qa.py checks their style); animated pets stay 8+
+                boolean mcPet = i.slot == Slot.PET && i.rarity != Rarity.SPECIAL;
+                int min = i.slot == Slot.CAPE ? 16 : mcPet ? 1 : 8;
+                if (perUnit < min || (mcPet && perUnit > 2)) b.append(i.id).append('@').append(perUnit).append(' ');
                 n++;
             }
             return n + " " + b;
         });
         check(density.matches("\\d+ ") && Integer.parseInt(density.trim()) >= 40,
-                "Cosmetics quality: every bundled cape is 16+ texels per unit, every other modelled item 8+ (" + density.trim() + ")");
+                "Cosmetics quality: every bundled cape is 16+ texels per unit, regular pets 1-2 in Minecraft style, every other modelled item 8+ (" + density.trim() + ")");
         String thumbs = ctx.computeOnClient(c -> {
             StringBuilder b = new StringBuilder();
             int n = 0;

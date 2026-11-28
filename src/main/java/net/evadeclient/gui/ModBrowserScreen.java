@@ -226,7 +226,7 @@ public class ModBrowserScreen extends Screen {
 
     @Override
     protected void init() {
-        anims = settings().animations.get();
+        anims = settings().animations.on();
         smooth = settings().smoothFont.get();
         if (hits.isEmpty() && !loading && error == null) search(false);
         rescan(false);
@@ -518,7 +518,7 @@ public class ModBrowserScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mx, int my, float delta) {
-        anims = settings().animations.get();
+        anims = settings().animations.on();
         smooth = settings().smoothFont.get();
         super.render(ctx, mx, my, delta);
         updateScale();

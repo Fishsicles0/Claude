@@ -1,5 +1,6 @@
 package net.evadeclient.util;
 
+import net.evadeclient.render.ui.UiShape;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -64,7 +65,8 @@ public final class Theme {
         applied = key;
         int i = java.util.Arrays.asList(ACCENTS).indexOf(accent);
         RED = 0xFF000000 | ACCENT_RGB[Math.max(0, i)];
-        RED_BRIGHT = brighten(RED);
+        // Accent text and icons on dark: the ramp's 400 stop (red FF5566, 5.7:1 on cards; the old FF4051 was 4.4:1).
+        RED_BRIGHT = (RED & 0xFFFFFF) == 0xE11D2E ? Tokens.RED_RAMP[4] : Tokens.ramp(RED)[4];
         RED_DARK = lerpColor(RED, 0xFF000000, 0.46f);
         ON_ACCENT = relLum(RED) > 0.30f ? 0xFF141418 : 0xFFFFFFFF;
         square = false;
@@ -79,7 +81,13 @@ public final class Theme {
                 HUD_BG = 0xA0101010;
                 square = true;
             }
-            default -> surfaces(0xF20A0A0C, 0xFF0E0E11, 0xFF15151A, 0xFF1C1C22, 0xFF26262D, 0xFF101013, 0xFF17171C, 0xFF24242C);
+            default -> {
+                // Modern is the "Obsidian" neutral ramp (Tokens): the same depth as before, tinted slightly cool.
+                int[] n = Tokens.OBSIDIAN;
+                surfaces(0xF2000000 | (n[2] & 0xFFFFFF), n[3], n[5], n[6], n[8], n[4], lerpColor(n[5], n[6], 0.5f), lerpColor(n[7], n[8], 0.5f));
+                TEXT = n[15]; TEXT_DIM = lerpColor(n[12], n[13], 0.25f); TEXT_FAINT = n[11];
+                TEXT_SOFT = lerpColor(n[12], n[13], 0.6f); TEXT_HEADER = lerpColor(n[11], n[12], 0.4f);
+            }
         }
     }
 
@@ -230,6 +238,7 @@ public final class Theme {
         if (x2 <= x1 || y2 <= y1 || invisible(c)) return;
         r = Math.min(r, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
         if (square || r <= 0 || (corners & ALL) == 0) { ctx.fill(x1, y1, x2, y2, c); return; }
+        if (UiShape.available()) { corners(UiShape.shape(x1, y1, x2, y2), r, corners).fill(c).raw().draw(ctx); return; }
         int t = Math.min(r, 8), q = 4 * t, n = 8 * t;
         Identifier tex = DISC[t];
         // Four corners (a quarter of the disc each, or a square where the bit is clear) ...
@@ -253,6 +262,7 @@ public final class Theme {
         int c = fa(color);
         if (d <= 0 || invisible(c)) return;
         if (square) { ctx.fill(x, y, x + d, y + d, c); return; }
+        if (UiShape.available()) { UiShape.shape(x, y, x + d, y + d).radius(d / 2f).fill(c).raw().draw(ctx); return; }
         int t = Math.max(1, Math.min(8, d / 2)), n = 8 * t;
         quad(ctx, DISC[t], x, y, d, d, 0, 0, n, n, n, n, c);
     }
@@ -271,6 +281,7 @@ public final class Theme {
         if (x2 <= x1 || y2 <= y1 || invisible(c)) return;
         r = Math.min(r, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
         if (square || r < 2 || x2 - x1 < 4 || y2 - y1 < 4 || (corners & ALL) == 0) { frame(ctx, x1, y1, x2, y2, c); return; }
+        if (UiShape.available()) { corners(UiShape.shape(x1, y1, x2, y2), r, corners).borderGui(c, 1).raw().draw(ctx); return; }
         int t = Math.min(r, 8), q = 4 * t, n = 8 * t;
         Identifier tex = RING[t];
         if ((corners & TL) != 0) quad(ctx, tex, x1, y1, r, r, 0, 0, q, q, n, n, c);
@@ -285,6 +296,11 @@ public final class Theme {
         rawFill(ctx, x1 + r, y2 - 1, x2 - r, y2, c);
         rawFill(ctx, x1, y1 + r, x1 + 1, y2 - r, c);
         rawFill(ctx, x2 - 1, y1 + r, x2, y2 - r, c);
+    }
+
+    /** {@code s} rounded by {@code r} on the corners in {@code corners} only. */
+    private static UiShape.Shape corners(UiShape.Shape s, int r, int corners) {
+        return s.radii((corners & TL) != 0 ? r : 0, (corners & TR) != 0 ? r : 0, (corners & BR) != 0 ? r : 0, (corners & BL) != 0 ? r : 0);
     }
 
     /** The square 1 px frame: four fills that do not overlap. */
@@ -302,6 +318,8 @@ public final class Theme {
         if (x2 <= x1 || y2 <= y1 || invisible(c)) return;
         r = Math.min(r, Math.min((x2 - x1) / 2, (y2 - y1) / 2));
         if (square || r < 2 || x2 - x1 < 4 || y2 - y1 < 4) { frame(ctx, x1, y1, x2, y2, c); return; }
+        // The shader draws a true one-device-pixel ring at every scale (the texture is half a GUI pixel).
+        if (UiShape.available()) { UiShape.shape(x1, y1, x2, y2).radius(r).border(c, 1).raw().draw(ctx); return; }
         int t = Math.min(r, 8), q = 4 * t, n = 8 * t, w = x2 - x1 - 2 * r, h = y2 - y1 - 2 * r;
         Identifier tex = HAIR[t];
         quad(ctx, tex, x1, y1, r, r, 0, 0, q, q, n, n, c);
@@ -319,6 +337,10 @@ public final class Theme {
     /** Rounded rectangle (radius {@link #R}) with a 1 px border: the fill first, then the ring over its edge, so a
      *  translucent fill never shows through the border. */
     public static void roundBordered(DrawContext ctx, int x1, int y1, int x2, int y2, int fill, int border) {
+        if (!square && UiShape.available() && x2 - x1 >= 4 && y2 - y1 >= 4) {
+            UiShape.shape(x1, y1, x2, y2).radius(R).fill(fa(fill)).borderGui(fa(border), 1).raw().draw(ctx);
+            return;
+        }
         roundRaw(ctx, x1, y1, x2, y2, fa(fill), R, ALL);
         strokeRaw(ctx, x1, y1, x2, y2, fa(border), R, ALL);
     }
@@ -327,6 +349,7 @@ public final class Theme {
     public static void knobShadow(DrawContext ctx, int x, int y, int color) {
         int c = fa(color);
         if (invisible(c)) return;
+        if (UiShape.available()) { UiShape.shape(x, y, x + 8, y + 8).radius(4).fill(c).asShadow(1f, 0.5f, false).raw().draw(ctx); return; }
         quad(ctx, KNOB_SHADOW, x - 3, y - 3, 14, 14, 0, 0, 56, 56, 56, 56, c);
     }
 
@@ -334,6 +357,7 @@ public final class Theme {
     public static void fadeLine(DrawContext ctx, int x1, int y, int x2, int color) {
         int c = fa(color);
         if (x2 <= x1 || invisible(c)) return;
+        if (UiShape.available()) { UiShape.shape(x1, y, x2, y + 1).mirror(c, c & 0xFFFFFF, true, 0.5f).raw().draw(ctx); return; }
         quad(ctx, FADE_H, x1, y, x2 - x1, 1, 0, 0, 64, 1, 64, 1, c);
     }
 
@@ -346,6 +370,14 @@ public final class Theme {
     public static void shadow(DrawContext ctx, Shadow s, int x1, int y1, int x2, int y2, int color) {
         int c = fa(color);
         if (x2 <= x1 || y2 <= y1 || invisible(c) || (square && s.knockout())) return;
+        if (UiShape.available()) {
+            // The same profiles the textures were blurred with (scripts/draw-ui-shapes.py), as true Gaussians.
+            float sigma = s == SH_WINDOW ? 6f : s == SH_CARD ? 2f : s == SH_HUD ? 1.5f : s.pad() / 3f;
+            int r = s == SH_WINDOW ? R_WIN : R;
+            // Always knocked out: the shape drawn over it covers that area anyway, and the shader skips those pixels.
+            UiShape.shape(x1, y1, x2, y2).radius(r).fill(c).asShadow(sigma, 0, true).raw().draw(ctx);
+            return;
+        }
         int T = s.texels(), d = T / s.logical(), P = s.pad(), C = s.slice();
         int X1 = x1 - P, Y1 = y1 - P, X2 = x2 + P, Y2 = y2 + P;
         int cx = Math.min(C, P + (x2 - x1) / 2), cy = Math.min(C, P + (y2 - y1) / 2);

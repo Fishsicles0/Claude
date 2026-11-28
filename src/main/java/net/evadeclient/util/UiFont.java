@@ -30,36 +30,49 @@ import java.util.Locale;
 public final class UiFont {
     /** The text roles, largest first: the font file key and the vanilla-font scale each one stands in for. */
     public enum Role {
+        /** Hero text: the title, benchmark numbers, wizard step titles (Inter Display Bold 28). */
+        DISPLAY("display", 3.1f, 28),
+        /** Window and modal titles (Inter Display Bold 18). */
+        HEADLINE("headline", 2.0f, 18),
         /** Page titles (SemiBold 13). */
-        TITLE("title", 1.45f),
+        TITLE("title", 1.45f, 13),
         /** Module names and primary buttons (SemiBold 9). */
-        STRONG("strong", 1f),
+        STRONG("strong", 1f, 9),
         /** Regular UI text: nav labels, setting rows, control values (Medium 9). */
-        BODY("body", 1f),
+        BODY("body", 1f, 9),
         /** Secondary lines: counts, descriptions under a title, small buttons (Medium 8). */
-        LABEL("label", 0.87f),
+        LABEL("label", 0.87f, 8),
         /** Row descriptions, hints and footnotes (Medium 7). */
-        SMALL("small", 0.78f),
-        /** The smallest readable text: card descriptions and key chips (Medium 6). */
-        TINY("tiny", 0.68f),
+        SMALL("small", 0.78f, 7),
+        /** The smallest readable text: card descriptions and key chips (Medium 6; 7 at GUI scale 1). */
+        TINY("tiny", 0.68f, 6),
         /** Tracked small-caps headers (SemiBold 7). */
-        CAPS("caps", 0.78f),
-        /** Tracked tiny caps: the logo tagline and card categories (SemiBold 6). */
-        CAPS_SM("caps_sm", 0.65f);
+        CAPS("caps", 0.78f, 7),
+        /** Tracked tiny caps: the logo tagline and card categories (SemiBold 6; 7 at GUI scale 1). */
+        CAPS_SM("caps_sm", 0.65f, 6);
 
         /** The {@code ui_<key>_<g>} font file stem. */
         public final String key;
         /** Matrix scale of the vanilla font when Smooth Font is off. */
         public final float scale;
+        /** The em size in GUI pixels (Smooth Font). */
+        public final float size;
 
-        Role(String key, float scale) {
+        Role(String key, float scale, float size) {
             this.key = key;
             this.scale = scale;
+            this.size = size;
         }
+
+        /** Where the baseline sits below the y a caller draws at, in GUI pixels (both fonts: 7.5 x scale). */
+        public float baseline() { return 7.5f * scale; }
+
+        /** The height of capital letters in GUI pixels (Inter: 0.727 em; the pixel font: 7 px x scale). */
+        public float capHeight(boolean smooth) { return smooth ? 0.727f * size : 7f * scale; }
     }
 
-    /** Lowest and highest GUI scale with a font definition per role. */
-    public static final int MIN_G = 1, MAX_G = 6;
+    /** Lowest and highest GUI scale with a font definition per role (8 covers 8K at GUI scale 8). */
+    public static final int MIN_G = 1, MAX_G = 8;
 
     private static final Style[][] STYLES = new Style[Role.values().length][MAX_G + 1];
 
@@ -69,7 +82,7 @@ public final class UiFont {
         return Math.max(MIN_G, Math.min(MAX_G, g));
     }
 
-    /** The style selecting {@code r}'s Inter font rasterised for {@code g} device pixels per GUI pixel (clamped to 1..6). */
+    /** The style selecting {@code r}'s Inter font rasterised for {@code g} device pixels per GUI pixel (clamped to 1..8). */
     public static Style style(Role r, int g) {
         int k = clampG(g);
         Style[] row = STYLES[r.ordinal()];
@@ -174,6 +187,83 @@ public final class UiFont {
             n++;
         }
         return Math.round(pen + tracking * Math.max(0, n - 1));
+    }
+
+    /**
+     * The y to draw at so that {@code r}'s capital letters are optically centred on {@code centreY} (kit components
+     * centre on cap height, not on the line box), snapped to a device pixel.
+     */
+    public static float centredY(Role r, float centreY, boolean smooth) {
+        return Theme.snap(centreY + r.capHeight(smooth) / 2f - r.baseline());
+    }
+
+    /**
+     * Draw {@code s} with tabular digits: every digit sits centred in a cell as wide as the widest digit ("0"), so a
+     * changing number (FPS, counters, coordinates, timers, table columns) never jitters. Other characters keep their
+     * own advance. Returns the width drawn.
+     */
+    public static int drawTabular(DrawContext ctx, TextRenderer tr, String s, int x, int y, int color, Role r, boolean smooth) {
+        if (s == null || s.isEmpty()) return 0;
+        int c = Theme.fa(color);
+        float cell = digitCell(tr, r, smooth);
+        float pen = 0;
+        int start = 0;
+        Matrix3x2fStack m = ctx.getMatrices();
+        for (int i = 0; i <= s.length(); i++) {
+            boolean digit = i < s.length() && Character.isDigit(s.charAt(i));
+            if (i == s.length() || digit) {
+                if (i > start) { // the run of non-digits before this digit
+                    String run = s.substring(start, i);
+                    if (c >>> 24 != 0) drawAt(ctx, tr, run, x + pen, y, color, r, smooth, m);
+                    pen += width(tr, run, r, smooth);
+                }
+                if (digit) {
+                    String d = String.valueOf(s.charAt(i));
+                    float w = width(tr, d, r, smooth);
+                    if (c >>> 24 != 0) drawAt(ctx, tr, d, x + pen + (cell - w) / 2f, y, color, r, smooth, m);
+                    pen += cell;
+                }
+                start = i + 1;
+            }
+        }
+        return Math.round(pen);
+    }
+
+    /** The width {@link #drawTabular} takes for {@code s}. */
+    public static int tabularWidth(TextRenderer tr, String s, Role r, boolean smooth) {
+        if (s == null || s.isEmpty()) return 0;
+        float cell = digitCell(tr, r, smooth), pen = 0;
+        int start = 0;
+        for (int i = 0; i <= s.length(); i++) {
+            boolean digit = i < s.length() && Character.isDigit(s.charAt(i));
+            if (i == s.length() || digit) {
+                if (i > start) pen += width(tr, s.substring(start, i), r, smooth);
+                if (digit) pen += cell;
+                start = i + 1;
+            }
+        }
+        return Math.round(pen);
+    }
+
+    private static float digitCell(TextRenderer tr, Role r, boolean smooth) {
+        float w = 0;
+        for (char ch = '0'; ch <= '9'; ch++) w = Math.max(w, width(tr, String.valueOf(ch), r, smooth));
+        return w;
+    }
+
+    private static void drawAt(DrawContext ctx, TextRenderer tr, String s, float x, int y, int color, Role r, boolean smooth,
+                               Matrix3x2fStack m) {
+        float sx = Theme.snap(x);
+        int ix = (int) Math.floor(sx);
+        float frac = sx - ix;
+        if (frac == 0f) { draw(ctx, tr, s, ix, y, color, r, smooth); return; }
+        m.pushMatrix();
+        try {
+            m.translate(frac, 0);
+            draw(ctx, tr, s, ix, y, color, r, smooth);
+        } finally {
+            m.popMatrix();
+        }
     }
 
     /** The letters of {@code s} separated by single spaces: the vanilla-font stand-in for letter tracking. */

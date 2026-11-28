@@ -40,7 +40,12 @@ public final class Hud {
 
     public static void render(DrawContext ctx) {
         long t0 = System.nanoTime();
-        try { renderInner(ctx); } finally { net.evadeclient.util.FrameStats.addHudTime(System.nanoTime() - t0); }
+        // The HUD keeps the cheap texture shapes (no shader shapes, glows or grain in game).
+        net.evadeclient.render.ui.UiShape.legacyScope(true);
+        try { renderInner(ctx); } finally {
+            net.evadeclient.render.ui.UiShape.legacyScope(false);
+            net.evadeclient.util.FrameStats.addHudTime(System.nanoTime() - t0);
+        }
     }
 
     private static void renderInner(DrawContext ctx) {
@@ -158,7 +163,7 @@ public final class Hud {
             float dt = last == 0 ? 1f : Math.min(0.1f, (now - last) / 1_000_000_000f);
             last = now;
             var cs = EvadeClient.modules == null ? null : EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
-            if (cs != null && !cs.animations.get()) offset = target;
+            if (cs != null && !cs.animations.on()) offset = target;
             else offset += (target - offset) * (1f - (float) Math.exp(-dt * 14f));
             if (Math.abs(target - offset) < 0.5f) offset = target;
             return Math.round(offset);

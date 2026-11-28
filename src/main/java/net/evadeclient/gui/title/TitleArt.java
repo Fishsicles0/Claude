@@ -56,7 +56,7 @@ public final class TitleArt {
     /** Client Settings' Animations, and not the Title Screen's Reduce Motion. */
     public static boolean anims() {
         ClientSettings s = settings();
-        return (s == null || s.animations.get()) && !net.evadeclient.module.misc.TitleScreenModule.reduceMotion();
+        return (s == null || s.animations.full()) && !net.evadeclient.module.misc.TitleScreenModule.reduceMotion();
     }
 
     // ------------------------------------------------------------------ text
