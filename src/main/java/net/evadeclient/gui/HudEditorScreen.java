@@ -4,7 +4,11 @@ import net.evadeclient.EvadeClient;
 import net.evadeclient.hud.HudLayout;
 import net.evadeclient.module.HudElementModule;
 import net.evadeclient.util.Notifications;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont;
+import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -33,7 +37,7 @@ import java.util.Set;
  * Layouts offers the built-in layouts and HUD-only share codes (Ctrl+C / Ctrl+V copy and paste one).
  */
 public class HudEditorScreen extends Screen {
-    private static final int SNAP = 4, GRID = 8, UNDO_LIMIT = 100, BTN_H = 16, BTN_GAP = 4, ROW_GAP = 4;
+    private static final int SNAP = 4, GRID = 8, UNDO_LIMIT = 100, BTN_H = 16;
     /** Undo steps closer together than this on the same thing (scroll notches, held arrows) merge into one. */
     private static final long MERGE_MS = 700;
     private final Screen parent;
@@ -59,15 +63,21 @@ public class HudEditorScreen extends Screen {
     private String mergeKey;
     private long mergeAt;
 
-    /** An open drop-down (Layouts, Add widget), or null. */
-    private Popup popup;
-    /** This frame's toolbar buttons (HUD units). */
-    private final List<Btn> buttons = new ArrayList<>();
+    /** The open popover (Add widget, Layouts), the shortcut sheet, or none. */
+    private enum Pop { NONE, ADD, LAYOUTS, HELP }
+    private Pop pop = Pop.NONE;
+    /** Where the open popover is anchored (GUI px) and whether it opens above that point. */
+    private int popX, popY;
+    private boolean popAbove;
+    /** Where an Add widget picked from a right-click lands (HUD units), or -1 for the widget's own spot. */
+    private int addAtX = -1, addAtY = -1;
+    private float addScroll;
+    private long popAt, openedAt;
 
-    /** "Back to Mods" hover cross-fade (0 = rest, 1 = hovered), eased like the menu's buttons (about 100 ms). */
-    private float barHover;
-    /** Clock time of the last frame that drew the bar (NaN after the screen was shown, so no big first step). */
-    private double barFrameAt = Double.NaN;
+    /** The kit draws the editor's chrome (dock, popovers, the shortcut sheet) in GUI px, over the HUD. */
+    private final net.evadeclient.gui.kit.Kit kit = new net.evadeclient.gui.kit.Kit();
+    /** This frame's dock and popover rectangles in GUI px (the widgets under them aren't picked). */
+    private int dockX1, dockY1, dockX2, dockY2, popX1, popY1, popX2, popY2;
 
     public HudEditorScreen(Screen parent) {
         super(Text.literal("Edit HUD"));
@@ -77,12 +87,13 @@ public class HudEditorScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        barFrameAt = Double.NaN;
+        if (openedAt == 0) openedAt = System.currentTimeMillis();
     }
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ctx.fill(0, 0, width, height, 0x50000000);
+        // The live game, dimmed a quarter so the outlines and the dock read; a touch more at the bottom.
+        net.evadeclient.gui.kit.Paint.vgradient(ctx, 0, 0, width, height, 0, 0x38000000, 0x52000000);
     }
 
     // The editor works in HUD units (see Hud.scale()), so elements line up with the in-game HUD at any GUI scale.
@@ -112,6 +123,7 @@ public class HudEditorScreen extends Screen {
             ctx.getMatrices().popMatrix();
             leaveHudSpace();
         }
+        renderChrome(ctx, mouseX, mouseY);
     }
 
     // ---- undo / redo ------------------------------------------------------------------------------------
@@ -209,146 +221,28 @@ public class HudEditorScreen extends Screen {
         el.moveTo(x, y, width, height, keepCentre);
     }
 
-    // ---- the toolbar and hint strip ---------------------------------------------------------------------
+    // ---- drawing: the HUD pass (HUD units) ---------------------------------------------------------------
 
-    private record Btn(String id, String label, int x1, int y1, int x2, int y2, boolean enabled, boolean accent) {
-        boolean hit(double mx, double my) { return mx >= x1 && mx < x2 && my >= y1 && my < y2; }
-    }
-
-    private String hint1() {
-        return "Drag to move  •  Shift+click or drag a box to pick several  •  Scroll to resize  •  Right-click: settings / add widget";
-    }
-
-    private String hint2() {
-        return "Arrows nudge (Shift: 10)  •  Ctrl+Z undo, Ctrl+Y redo  •  L lock  •  Del hide  •  R reset  •  Stack groups widgets  •  G grid " + (grid() ? "on" : "off");
-    }
-
-    /** The hints, wrapped between their parts so every line fits the screen. */
-    private String[] hintLines() {
-        String sep = "  •  ";
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String part : (hint1() + sep + hint2()).split(" {2}• {2}")) {
-            String next = line.isEmpty() ? part : line + sep + part;
-            if (!line.isEmpty() && textRenderer.getWidth(next) + 16 > width) {
-                lines.add(line.toString());
-                line.setLength(0);
-                line.append(part);
-            } else {
-                line.setLength(0);
-                line.append(next);
-            }
-        }
-        if (!line.isEmpty()) lines.add(line.toString());
-        return lines.toArray(new String[0]);
-    }
-
-    private int btnW(String label) { return textRenderer.getWidth(label) + 14; }
-
-    /** Labels of the main row, in order (ids and labels). */
-    private List<String[]> mainRow() {
-        List<String[]> row = new ArrayList<>();
-        row.add(new String[]{"undo", "Undo"});
-        row.add(new String[]{"redo", "Redo"});
-        row.add(new String[]{"layouts", "Layouts"});
-        row.add(new String[]{"add", "Add Widget"});
-        row.add(new String[]{"back", "Back to Mods"});
-        if (!selection.isEmpty()) {
-            boolean allLocked = selection.stream().allMatch(e -> e.locked.get());
-            row.add(new String[]{"lock", allLocked ? "Unlock" : "Lock"});
-            row.add(new String[]{"hide", "Hide"});
-            if (selection.size() >= 2) row.add(new String[]{"stack", "Stack"});
-            if (selection.stream().anyMatch(net.evadeclient.hud.HudStacks::inStack)) row.add(new String[]{"unstack", "Unstack"});
-        }
-        return row;
-    }
-
-    private List<String[]> alignRow() {
-        List<String[]> row = new ArrayList<>();
-        if (selection.size() < 2) return row;
-        for (String a : new String[]{"Left", "Center", "Right", "Top", "Middle", "Bottom"}) row.add(new String[]{"align:" + a, a});
-        if (selection.size() >= 3) {
-            row.add(new String[]{"space:h", "Space Across"});
-            row.add(new String[]{"space:v", "Space Down"});
-        }
-        return row;
-    }
-
-    private int rowWidth(List<String[]> row) {
-        int w = 0;
-        for (String[] b : row) w += btnW(b[1]) + BTN_GAP;
-        return Math.max(0, w - BTN_GAP);
-    }
-
-    /** Height of the whole strip: hint lines, the align row (when shown) and the main row. */
-    private int stripHeight() {
-        int h = hintLines().length * 10 + 6 + BTN_H;
-        if (!alignRow().isEmpty()) h += BTN_H + ROW_GAP;
-        return h;
-    }
-
-    /**
-     * Top of the main button row. It sits above the hotbar, hearts and action-bar text (74 GUI pixels from the
-     * bottom), or at the top of the screen while the widget under the mouse is down there.
-     */
-    private int barY(double mx, double my) {
-        int bottom = Math.max(height / 2, height - Math.round(74 / k) - BTN_H);
-        HudElementModule over = dragging == null && popup == null ? at(mx, my) : null;
-        if (over != null) {
-            int stripTop = bottom + BTN_H - stripHeight();
-            if (top(over) + over.scaledHeight() > stripTop) return stripHeight() - BTN_H + 8;
-        }
-        return bottom;
-    }
-
-    /** Lays out this frame's buttons for a strip whose main row starts at {@code by}. */
-    private void layoutButtons(int by) {
-        buttons.clear();
-        List<String[]> main = mainRow();
-        int x = (width - rowWidth(main)) / 2;
-        for (String[] b : main) {
-            int w = btnW(b[1]);
-            boolean enabled = switch (b[0]) {
-                case "undo" -> !undo.isEmpty();
-                case "redo" -> !redo.isEmpty();
-                default -> true;
-            };
-            buttons.add(new Btn(b[0], b[1], x, by, x + w, by + BTN_H, enabled, b[0].equals("back")));
-            x += w + BTN_GAP;
-        }
-        List<String[]> align = alignRow();
-        if (!align.isEmpty()) {
-            int ay = by - ROW_GAP - BTN_H;
-            x = (width - rowWidth(align)) / 2;
-            for (String[] b : align) {
-                int w = btnW(b[1]);
-                buttons.add(new Btn(b[0], b[1], x, ay, x + w, ay + BTN_H, true, false));
-                x += w + BTN_GAP;
-            }
-        }
-    }
-
-    private Btn buttonAt(double mx, double my) {
-        for (Btn b : buttons) if (b.hit(mx, my)) return b;
-        return null;
-    }
-
-    // ---- drawing ----------------------------------------------------------------------------------------
+    /** What the chrome pass draws over the HUD: outlines, handles and the readout, in GUI px. */
+    private HudElementModule hoveredEl;
 
     private void renderHud(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        if (grid()) {
-            for (int gx = GRID; gx < width; gx += GRID) ctx.fill(gx, 0, gx + 1, height, gx % (GRID * 4) == 0 ? 0x14FFFFFF : 0x08FFFFFF);
-            for (int gy = GRID; gy < height; gy += GRID) ctx.fill(0, gy, width, gy + 1, gy % (GRID * 4) == 0 ? 0x14FFFFFF : 0x08FFFFFF);
+        boolean moving = dragging != null || boxing;
+        // Grid: dots every 8 while dragging (lines would fight the HUD); the centre lines always, faintly.
+        if (grid() && moving) {
+            for (int gx = GRID; gx < width; gx += GRID)
+                for (int gy = GRID; gy < height; gy += GRID)
+                    ctx.fill(gx, gy, gx + 1, gy + 1, (gx % (GRID * 4) == 0 && gy % (GRID * 4) == 0) ? 0x40FFFFFF : 0x1CFFFFFF);
+        } else if (grid()) {
+            for (int gx = GRID * 4; gx < width; gx += GRID * 4) ctx.fill(gx, 0, gx + 1, height, 0x0CFFFFFF);
+            for (int gy = GRID * 4; gy < height; gy += GRID * 4) ctx.fill(0, gy, width, gy + 1, 0x0CFFFFFF);
         }
-        ctx.fill(width / 2, 0, width / 2 + 1, height, 0x18FFFFFF);
-        ctx.fill(0, height / 2, width, height / 2 + 1, 0x18FFFFFF);
+        ctx.fill(width / 2, 0, width / 2 + 1, height, 0x14FFFFFF);
+        ctx.fill(0, height / 2, width, height / 2 + 1, 0x14FFFFFF);
 
-        int by = barY(mouseX, mouseY);
-        layoutButtons(by);
-        boolean overUi = popup != null || (dragging == null && !boxing && buttonAt(mouseX, mouseY) != null);
-
-        HudElementModule hovered = null;
+        boolean overUi = pop != Pop.NONE || (!moving && overChrome(mouseX * k, mouseY * k));
+        hoveredEl = null;
         if (client.player != null) {
             pruneSelection();
             net.evadeclient.hud.HudStacks.apply(width, height, true);
@@ -356,180 +250,477 @@ public class HudEditorScreen extends Screen {
                 if (!el.isEnabled()) continue;
                 el.renderScaled(ctx, width, height, true);
             }
-            drawStacks(ctx);
-            hovered = dragging != null ? dragging : overUi || boxing ? null : at(mouseX, mouseY);
-            for (HudElementModule el : EvadeClient.modules.hudElements()) {
-                if (!el.isEnabled()) continue;
-                int x = left(el), y = top(el), w = el.scaledWidth(), h = el.scaledHeight();
-                boolean sel = selection.contains(el) || (boxing && inBox(el));
-                int color = el == hovered ? Theme.RED_BRIGHT : sel ? Theme.RED : 0x50FFFFFF;
-                ctx.drawStrokedRectangle(x - 1, y - 1, w + 2, h + 2, color);
-                if (el.locked.get()) lockGlyph(ctx, x + w - 6, y - 1, sel || el == hovered ? Theme.RED_BRIGHT : 0xC0FFFFFF);
-            }
-            if (hovered != null) {
-                int x = left(hovered), y = top(hovered), h = hovered.scaledHeight();
-                String label = hovered.getName() + "  " + Math.round(hovered.scale.get() * 100) + "%"
-                        + (hovered.locked.get() ? "  (locked)" : "")
-                        + (selection.size() > 1 && selection.contains(hovered) ? "  +" + (selection.size() - 1) : "");
-                int lw = textRenderer.getWidth(label) + 6;
-                int lx = Math.max(0, Math.min(x - 1, width - lw));
-                int ly = y > 12 ? y - 11 : Math.min(height - 11, y + h + 2);
-                Theme.shadow(ctx, Theme.SH_HUD, lx, ly - 1, lx + lw, ly + 10, Theme.alpha(0xFF000000, 0.5f));
-                Theme.round(ctx, lx, ly - 1, lx + lw, ly + 10, 0xE0000000, Theme.R_HUD);
-                ctx.drawText(textRenderer, label, lx + 3, ly + 1, Theme.RED_BRIGHT, false);
-            }
+            hoveredEl = dragging != null ? dragging : overUi || boxing ? null : at(mouseX, mouseY);
         }
-        if (guideX != null) ctx.fill(guideX, 0, guideX + 1, height, Theme.RED);
-        if (guideY != null) ctx.fill(0, guideY, width, guideY + 1, Theme.RED);
-        if (boxing) {
-            int x1 = (int) Math.min(boxX0, boxX1), y1 = (int) Math.min(boxY0, boxY1);
-            int x2 = (int) Math.max(boxX0, boxX1), y2 = (int) Math.max(boxY0, boxY1);
-            ctx.fill(x1, y1, x2, y2, Theme.alpha(Theme.RED, 0.12f));
-            ctx.drawStrokedRectangle(x1, y1, x2 - x1, y2 - y1, Theme.RED);
-        }
-
-        // The strip (hint and toolbar) gets out of the way while dragging.
-        if (dragging == null && !boxing) renderStrip(ctx, mouseX, mouseY, by);
-        if (popup != null) popup.render(ctx, mouseX, mouseY);
     }
 
-    private void renderStrip(DrawContext ctx, int mouseX, int mouseY, int by) {
-        double now = EvadeMenu.clock.getAsDouble();
-        float dtSec = Double.isNaN(barFrameAt) ? 0f : (float) Math.max(0, Math.min(0.1, (now - barFrameAt) / 1000));
-        barFrameAt = now;
-        var cs = settings();
-        boolean anims = cs == null || cs.animations.on();
-        Btn hover = popup == null ? buttonAt(mouseX, mouseY) : null;
-        float target = hover != null && hover.accent() ? 1f : 0f;
-        barHover = anims ? barHover + (target - barHover) * (1 - (float) Math.exp(-22 * dtSec)) : target;
-        for (Btn b : buttons) {
-            boolean hv = b == hover && b.enabled();
-            if (b.accent()) {
-                Theme.round(ctx, b.x1(), b.y1(), b.x2(), b.y2(), Theme.lerpColor(Theme.RED, Theme.RED_BRIGHT, barHover));
+    private boolean overChrome(double gx, double gy) {
+        return (gx >= dockX1 && gx < dockX2 && gy >= dockY1 && gy < dockY2)
+                || (pop != Pop.NONE && gx >= popX1 && gx < popX2 && gy >= popY1 && gy < popY2);
+    }
+
+    // ---- drawing: the chrome pass (GUI px) ---------------------------------------------------------------
+
+    private void renderChrome(DrawContext ctx, int mx, int my) {
+        kit.begin(ctx, mx, my);
+        float f = Theme.fade;
+        float in = Motion.level() == Motion.Level.OFF ? 1f : Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) Motion.DUR_BASE);
+        Theme.fade = f * in;
+        try {
+            if (client.player != null) {
+                drawStacks(ctx);
+                drawOutlines(ctx);
+            }
+            float kk = k;
+            if (guideX != null) guide(ctx, guideX * kk, true);
+            if (guideY != null) guide(ctx, guideY * kk, false);
+            if (boxing) {
+                float x1 = (float) Math.min(boxX0, boxX1) * kk, y1 = (float) Math.min(boxY0, boxY1) * kk;
+                float x2 = (float) Math.max(boxX0, boxX1) * kk, y2 = (float) Math.max(boxY0, boxY1) * kk;
+                net.evadeclient.gui.kit.Paint.rect(ctx, x1, y1, x2, y2, 2, Theme.alpha(Tokens.A500, 0.10f));
+                net.evadeclient.gui.kit.Paint.ring(ctx, x1, y1, x2, y2, 2, Theme.alpha(Tokens.A400, 0.9f), 1);
+            }
+            // The dock gets out of the way while dragging.
+            if (dragging == null && !boxing) drawDock(ctx, mx, my);
+            else dockX1 = dockY1 = dockX2 = dockY2 = 0;
+            drawPopover(ctx, mx, my);
+            kit.end();
+        } finally {
+            Theme.fade = f;
+        }
+    }
+
+    /** A snapping guide: a 1 device px accent line across the screen at {@code at} GUI px. */
+    private void guide(DrawContext ctx, float at, boolean vertical) {
+        float t = 1f / Theme.deviceScale(ctx);
+        int c = Theme.alpha(Tokens.A400, 0.9f);
+        if (vertical) net.evadeclient.gui.kit.Paint.rect(ctx, at, 0, at + t, realOr(height, true), 0, c);
+        else net.evadeclient.gui.kit.Paint.rect(ctx, 0, at, realOr(width, false), at + t, 0, c);
+    }
+
+    private float realOr(int v, boolean h) { return h ? this.height : this.width; }
+
+    /** Outlines for every widget (faint), the hovered one (white) and the picked ones (accent, with handles), the
+     *  lock glyph, and a readout chip over the hovered or dragged widget. */
+    private void drawOutlines(DrawContext ctx) {
+        float kk = k;
+        int sw = this.width, sh = this.height;
+        int hudW = Math.round(sw / kk), hudH = Math.round(sh / kk);
+        HudElementModule readout = hoveredEl != null ? hoveredEl : selection.size() == 1 ? selection.iterator().next() : null;
+        for (HudElementModule el : EvadeClient.modules.hudElements()) {
+            if (!el.isEnabled()) continue;
+            float x1 = el.resolveX(hudW) * kk, y1 = el.resolveY(hudH) * kk;
+            float x2 = x1 + el.scaledWidth() * kk, y2 = y1 + el.scaledHeight() * kk;
+            boolean sel = selection.contains(el) || (boxing && inBoxGui(el, hudW, hudH));
+            boolean hov = el == hoveredEl;
+            float o = 1.5f;
+            if (sel) {
+                net.evadeclient.gui.kit.Paint.ring(ctx, x1 - o, y1 - o, x2 + o, y2 + o, 1.5f, Tokens.A400, 1);
+                handles(ctx, x1 - o, y1 - o, x2 + o, y2 + o);
+            } else if (hov) {
+                net.evadeclient.gui.kit.Paint.ring(ctx, x1 - o, y1 - o, x2 + o, y2 + o, 1.5f, Theme.alpha(0xFFFFFFFF, 0.75f), 1);
             } else {
-                Theme.roundBordered(ctx, b.x1(), b.y1(), b.x2(), b.y2(), hv ? Theme.CONTROL_HOVER : 0xE017171C,
-                        hv ? Theme.BORDER_HOVER : Theme.BORDER);
+                net.evadeclient.gui.kit.Paint.ring(ctx, x1 - o, y1 - o, x2 + o, y2 + o, 1.5f, Theme.alpha(0xFFFFFFFF, 0.16f), 1);
             }
-            int tc = b.accent() ? Theme.ON_ACCENT : !b.enabled() ? Theme.TEXT_FAINT : hv ? Theme.TEXT : Theme.TEXT_SOFT;
-            ctx.drawText(textRenderer, b.label(), b.x1() + (b.x2() - b.x1() - textRenderer.getWidth(b.label())) / 2, b.y1() + 4, tc, false);
+            if (el.locked.get()) {
+                float lx = x2 - 4, ly = y1 - 6;
+                net.evadeclient.gui.kit.Paint.circle(ctx, lx, ly, 11, Tokens.N300);
+                PanelGlyphs.draw(ctx, "lock", lx - 4, ly - 4, 8, sel || hov ? Tokens.A400 : Tokens.N900);
+            }
         }
-        String[] lines = hintLines();
-        int hw = 0;
-        for (String l : lines) hw = Math.max(hw, textRenderer.getWidth(l));
-        int rowsTop = alignRow().isEmpty() ? by : by - ROW_GAP - BTN_H;
-        int hy = rowsTop - 6 - lines.length * 10;
-        int hx = (width - hw) / 2;
-        Theme.round(ctx, hx - 6, hy - 3, hx + hw + 6, hy + lines.length * 10 + 1, 0xC0101014);
-        for (int i = 0; i < lines.length; i++)
-            ctx.drawText(textRenderer, lines[i], (width - textRenderer.getWidth(lines[i])) / 2, hy + i * 10, Theme.TEXT_SOFT, false);
+        if (readout != null && readout.isEnabled()) readoutChip(ctx, readout, hudW, hudH);
     }
 
-    /** A faint frame around each stack, so grouped widgets read as one. */
+    private boolean inBoxGui(HudElementModule el, int hudW, int hudH) {
+        double x1 = Math.min(boxX0, boxX1), x2 = Math.max(boxX0, boxX1), y1 = Math.min(boxY0, boxY1), y2 = Math.max(boxY0, boxY1);
+        int l = el.resolveX(hudW), t = el.resolveY(hudH);
+        return l < x2 && l + el.scaledWidth() > x1 && t < y2 && t + el.scaledHeight() > y1;
+    }
+
+    /** Four white corner handles with a soft contact shadow. */
+    private void handles(DrawContext ctx, float x1, float y1, float x2, float y2) {
+        float s = 5;
+        float[][] c = {{x1, y1}, {x2, y1}, {x1, y2}, {x2, y2}};
+        for (float[] p : c) {
+            if (net.evadeclient.gui.kit.Paint.gpu())
+                net.evadeclient.render.ui.UiShape.shape(p[0] - s / 2, p[1] - s / 2, p[0] + s / 2, p[1] + s / 2).radius(1.2f)
+                        .fill(Theme.alpha(0xFF000000, 0.5f)).asShadow(1.2f, 0.6f, false).draw(ctx);
+            net.evadeclient.gui.kit.Paint.rect(ctx, p[0] - s / 2, p[1] - s / 2, p[0] + s / 2, p[1] + s / 2, 1.2f, 0xFFFFFFFF);
+            net.evadeclient.gui.kit.Paint.ring(ctx, p[0] - s / 2, p[1] - s / 2, p[0] + s / 2, p[1] + s / 2, 1.2f, Tokens.A500, 1);
+        }
+    }
+
+    /** "FPS · 92×18 · x 8 y 6 · 100%" over the widget (under it when there's no room above). */
+    private void readoutChip(DrawContext ctx, HudElementModule el, int hudW, int hudH) {
+        int x = el.resolveX(hudW), y = el.resolveY(hudH), w = el.scaledWidth(), h = el.scaledHeight();
+        String more = selection.size() > 1 && selection.contains(el) ? "  ·  +" + (selection.size() - 1) : "";
+        String text = el.getName() + "  ·  " + w + "×" + h + "  ·  x " + x + "  y " + y + "  ·  " + Math.round(el.scale.get() * 100) + "%"
+                + (el.locked.get() ? "  ·  locked" : "") + more;
+        int tw = UiFont.tabularWidth(textRenderer, text, Role.TINY, kit.smooth) + 16;
+        float kk = k;
+        float cx1 = Math.max(4, Math.min(x * kk, this.width - tw - 4));
+        float cy1 = y * kk > 26 ? y * kk - 22 : (y + h) * kk + 6;
+        cy1 = Math.min(cy1, this.height - 22);
+        net.evadeclient.gui.kit.Paint.surface(ctx, cx1, cy1, cx1 + tw, cy1 + 16, 8, Tokens.E4, 0, Float.NaN);
+        net.evadeclient.gui.kit.Paint.circle(ctx, cx1 + 8, cy1 + 8, 5, el.locked.get() ? Tokens.N600 : Tokens.A500);
+        UiFont.drawTabular(ctx, textRenderer, text, Math.round(cx1 + 14), Math.round(UiFont.centredY(Role.TINY, cy1 + 8, kit.smooth)),
+                Tokens.N950, Role.TINY, kit.smooth);
+    }
+
+    // ---- the dock ----------------------------------------------------------------------------------------
+
+    private static final int DOCK_H = 36, BTN = 26;
+
+    /** One dock entry: an icon button, a labelled button, a divider or the primary Done. */
+    private record DockItem(String id, String glyph, String label, String tip, boolean enabled, boolean on, Runnable run) {}
+
+    private List<DockItem> dockItems() {
+        List<DockItem> out = new ArrayList<>();
+        out.add(new DockItem("undo", "undo", null, "Undo (Ctrl+Z)", !undo.isEmpty(), false, this::undo));
+        out.add(new DockItem("redo", "redo", null, "Redo (Ctrl+Y)", !redo.isEmpty(), false, this::redo));
+        out.add(null);
+        out.add(new DockItem("add", "plus", "Add widget", null, true, pop == Pop.ADD, () -> togglePop(Pop.ADD, -1, -1)));
+        out.add(new DockItem("layouts", "hud", "Layouts", null, true, pop == Pop.LAYOUTS, () -> togglePop(Pop.LAYOUTS, -1, -1)));
+        pruneSelection();
+        if (selection.size() >= 2) {
+            out.add(null);
+            String[][] al = {{"Left", "align_left"}, {"Center", "align_hcenter"}, {"Right", "align_right"},
+                    {"Top", "align_top"}, {"Middle", "align_vcenter"}, {"Bottom", "align_bottom"}};
+            for (String[] a : al) out.add(new DockItem("align:" + a[0], a[1], null, "Align " + a[0].toLowerCase(java.util.Locale.ROOT), true, false, () -> align(a[0])));
+            if (selection.size() >= 3) {
+                out.add(new DockItem("space:h", "dist_h", null, "Space evenly across", true, false, () -> distribute(true)));
+                out.add(new DockItem("space:v", "dist_v", null, "Space evenly down", true, false, () -> distribute(false)));
+            }
+        }
+        if (!selection.isEmpty()) {
+            out.add(null);
+            boolean allLocked = selection.stream().allMatch(e -> e.locked.get());
+            out.add(new DockItem("lock", allLocked ? "lock" : "unlock", null, allLocked ? "Unlock (L)" : "Lock in place (L)", true, allLocked,
+                    () -> toggleLock(new ArrayList<>(selection))));
+            out.add(new DockItem("hide", "eye_off", null, "Hide (Delete)", true, false, () -> hide(new ArrayList<>(selection))));
+            if (selection.stream().anyMatch(net.evadeclient.hud.HudStacks::inStack))
+                out.add(new DockItem("unstack", "layers", null, "Unstack: move them on their own again", true, true, this::unstackSelection));
+            else if (selection.size() >= 2)
+                out.add(new DockItem("stack", "layers", null, "Stack: they move together, one under another", true, false, this::stackSelection));
+        }
+        out.add(null);
+        out.add(new DockItem("grid", "grid", null, grid() ? "Grid on (G)" : "Snap to a grid (G)", true, grid(), () -> settings().hudGrid.set(!grid())));
+        out.add(new DockItem("help", "help", null, "Shortcuts (?)", true, pop == Pop.HELP, () -> togglePop(Pop.HELP, -1, -1)));
+        return out;
+    }
+
+    private int itemWidth(DockItem d) {
+        if (d == null) return 9;
+        if (d.label() != null) return net.evadeclient.gui.kit.Button.width(kit, d.label(), net.evadeclient.gui.kit.Button.Size.SM, null, false) + 14;
+        return BTN;
+    }
+
+    private void drawDock(DrawContext ctx, int mx, int my) {
+        List<DockItem> items = dockItems();
+        int doneW = net.evadeclient.gui.kit.Button.width(kit, "Done", net.evadeclient.gui.kit.Button.Size.MD, null, false);
+        int w = 10 + doneW;
+        for (DockItem d : items) w += itemWidth(d) + 2;
+        w += 6;
+        int sw = this.width, sh = this.height;
+        // Above the hotbar, hearts and action-bar text; at the top while the widget under the mouse is down there.
+        int bottomY = sh - 74 - DOCK_H;
+        int y = Math.max(sh / 2, bottomY);
+        HudElementModule over = hoveredEl;
+        if (over != null) {
+            int hudH = Math.round(sh / k);
+            float ob = (over.resolveY(hudH) + over.scaledHeight()) * k;
+            if (ob > y - 6) y = 10;
+        }
+        float wa = kit.anim("dock#w", w, Motion.SMOOTH);
+        float ya = kit.anim("dock#y", y, Motion.SMOOTH);
+        int x1 = Math.round((sw - wa) / 2f), y1 = Math.round(ya);
+        int x2 = x1 + Math.round(wa), y2 = y1 + DOCK_H;
+        dockX1 = x1; dockY1 = y1; dockX2 = x2; dockY2 = y2;
+        net.evadeclient.gui.kit.Paint.surface(ctx, x1, y1, x2, y2, 12, Tokens.E4, 0, mx - x1);
+        kit.barrier("dock", x1, y1, x2, y2, null);
+        int x = x1 + 6, cy = y1 + DOCK_H / 2;
+        var m = ctx.getMatrices();
+        ctx.enableScissor(x1, y1, x2, y2);
+        try {
+            for (DockItem d : items) {
+                if (d == null) {
+                    net.evadeclient.gui.kit.Paint.rect(ctx, x + 4, cy - 9, x + 5, cy + 9, 0, Theme.alpha(0xFFFFFFFF, 0.08f));
+                    x += 9 + 2;
+                    continue;
+                }
+                if (d.label() != null) {
+                    int bw = itemWidth(d);
+                    dockLabelButton(ctx, d, x, cy - 13, bw, 26);
+                    x += bw + 2;
+                } else {
+                    PanelGlyphs.button(kit, "dock:" + d.id(), x, cy - BTN / 2, BTN, d.glyph(), d.tip(), d.enabled(), d.on(), b -> { if (b == 0) d.run().run(); });
+                    x += BTN + 2;
+                }
+            }
+            int dx = x2 - 6 - doneW;
+            net.evadeclient.gui.kit.Button.draw(kit, "dock:done", dx, cy - 12, doneW, net.evadeclient.gui.kit.Button.Size.MD,
+                    net.evadeclient.gui.kit.Button.Variant.PRIMARY, "Done", null, true, this::close);
+        } finally {
+            ctx.disableScissor();
+        }
+        // A one-time hint for the shortcuts, fading after a few seconds.
+        long age = System.currentTimeMillis() - openedAt;
+        if (age < 7000 && pop == Pop.NONE) {
+            float a = age < 5500 ? 1f : 1f - (age - 5500) / 1500f;
+            float fd = Theme.fade;
+            Theme.fade = fd * a;
+            String hint = "Press ? for every shortcut";
+            int hw = kit.width(hint, Role.SMALL) + 18;
+            int hx = (sw - hw) / 2, hy = y1 < sh / 2 ? y2 + 6 : y1 - 22;
+            net.evadeclient.gui.kit.Paint.pill(ctx, hx, hy, hx + hw, hy + 16, Theme.alpha(Tokens.N300, 0.92f));
+            kit.textCentredY(hint, hx + 9, hy + 8, Tokens.N900, Role.SMALL);
+            Theme.fade = fd;
+        }
+    }
+
+    /** A ghost button with a glyph and a label (Add widget, Layouts), lit while its popover is open. */
+    private void dockLabelButton(DrawContext ctx, DockItem d, int x, int y, int w, int h) {
+        String id = "dock:" + d.id();
+        int st = kit.state(id, x, y, x + w, y + h, true);
+        float hov = kit.anim(id + "#h", (st & net.evadeclient.gui.kit.Kit.HOVER) != 0 ? 1f : 0f);
+        if (d.on()) net.evadeclient.gui.kit.Paint.rect(ctx, x, y, x + w, y + h, Tokens.R_SM, Tokens.ACCENT_SURFACE);
+        else if (hov > 0.01f) net.evadeclient.gui.kit.Paint.rect(ctx, x, y, x + w, y + h, Tokens.R_SM, Theme.alpha(Tokens.N250, 0.8f * hov));
+        int col = d.on() ? Tokens.N950 : Theme.lerpColor(Tokens.N800, Tokens.N950, hov);
+        PanelGlyphs.draw(ctx, d.glyph(), x + 8, y + h / 2f - 6, 12, d.on() ? Tokens.A400 : col);
+        kit.textCentredY(d.label(), x + 25, y + h / 2f, col, Role.LABEL);
+        if ((st & net.evadeclient.gui.kit.Kit.FOCUSED) != 0)
+            net.evadeclient.gui.kit.Paint.focusRing(kit, x, y, x + w, y + h, Tokens.R_SM, Tokens.FOCUS_RING);
+        kit.hit(id, x, y, x + w, y + h, d.run());
+    }
+
+    // ---- popovers ----------------------------------------------------------------------------------------
+
+    /** Open {@code p} (or close it when it is open). From a right-click, (hx, hy) is where a new widget goes. */
+    private void togglePop(Pop p, int hx, int hy) {
+        if (pop == p && hx < 0) { pop = Pop.NONE; return; }
+        pop = p;
+        popAt = System.currentTimeMillis();
+        addScroll = 0;
+        addAtX = hx;
+        addAtY = hy;
+        net.evadeclient.gui.kit.SearchField.set(kit, "add#q", "");
+        if (p == Pop.ADD) kit.focus("add#q", false);
+        if (hx >= 0) { popX = Math.round(hx * k); popY = Math.round(hy * k); popAbove = false; }
+        else {
+            // Over the dock entry that opened it.
+            popX = (dockX1 + dockX2) / 2;
+            popY = dockY1 < this.height / 2 ? dockY2 + 6 : dockY1 - 6;
+            popAbove = dockY1 >= this.height / 2;
+        }
+    }
+
+    private void closePop() {
+        pop = Pop.NONE;
+        if (kit.isFocused("add#q")) kit.focus(null, false);
+    }
+
+    private void drawPopover(DrawContext ctx, int mx, int my) {
+        if (pop == Pop.NONE) { popX1 = popY1 = popX2 = popY2 = 0; return; }
+        float t = Motion.level() == Motion.Level.OFF ? 1f : Motion.standard(Motion.clamp01((System.currentTimeMillis() - popAt) / (float) Motion.DUR_QUICK));
+        float fd = Theme.fade;
+        Theme.fade = fd * t;
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        try {
+            if (Motion.decorative()) m.translate(0, (1 - t) * (popAbove ? 4 : -4));
+            switch (pop) {
+                case ADD -> drawAdd(ctx, mx, my);
+                case LAYOUTS -> drawLayouts(ctx, mx, my);
+                case HELP -> drawHelp(ctx);
+                default -> { }
+            }
+        } finally {
+            m.popMatrix();
+            Theme.fade = fd;
+        }
+    }
+
+    /** Places a w x h popover at the anchor, kept on screen; registers the outside-click barrier. */
+    private int[] placePop(int w, int h, boolean centred) {
+        int sw = this.width, sh = this.height;
+        kit.barrier("pop#outside", 0, 0, sw, sh, this::closePop);
+        int x = centred ? popX - w / 2 : popX;
+        int y = popAbove ? popY - h : popY;
+        x = Math.max(6, Math.min(sw - w - 6, x));
+        y = Math.max(6, Math.min(sh - h - 6, y));
+        popX1 = x; popY1 = y; popX2 = x + w; popY2 = y + h;
+        net.evadeclient.gui.kit.Paint.surface(kit.ctx, x, y, x + w, y + h, Tokens.R_MD, Tokens.E4, 0, Float.NaN);
+        kit.barrier("pop#body", x, y, x + w, y + h, null);
+        return new int[]{x, y};
+    }
+
+    private List<HudElementModule> addable() {
+        String q = net.evadeclient.gui.kit.SearchField.text(kit, "add#q").strip().toLowerCase(java.util.Locale.ROOT);
+        List<HudElementModule> off = new ArrayList<>();
+        for (HudElementModule el : EvadeClient.modules.hudElements())
+            if (!el.isEnabled() && HudLayout.ownsVisibility(el)
+                    && (q.isEmpty() || el.getName().toLowerCase(java.util.Locale.ROOT).contains(q)
+                    || el.getDescription().toLowerCase(java.util.Locale.ROOT).contains(q))) off.add(el);
+        off.sort(Comparator.comparing(HudElementModule::getName, String.CASE_INSENSITIVE_ORDER));
+        return off;
+    }
+
+    private static final int ADD_W = 300, ADD_ROW = 30, ADD_ROWS = 9;
+
+    private void drawAdd(DrawContext ctx, int mx, int my) {
+        List<HudElementModule> list = addable();
+        int listH = ADD_ROWS * ADD_ROW;
+        int h = 12 + 16 + 8 + net.evadeclient.gui.kit.SearchField.H + 8 + listH + 10;
+        int[] p = placePop(ADD_W, h, addAtX < 0);
+        int x = p[0] + 10, y = p[1] + 12, w = ADD_W - 20;
+        kit.text("Add widget", x, y, Tokens.N950, Role.STRONG);
+        String n = list.size() + (list.size() == 1 ? " off" : " off");
+        kit.text(n, x + w - kit.width(n, Role.SMALL), y + 1, Tokens.N600, Role.SMALL);
+        y += 16 + 4;
+        net.evadeclient.gui.kit.SearchField.draw(kit, "add#q", x, y, w, "Search widgets", null, true);
+        y += net.evadeclient.gui.kit.SearchField.H + 8;
+        int max = Math.max(0, list.size() * ADD_ROW - listH);
+        addScroll = Math.max(0, Math.min(max, addScroll));
+        float sc = kit.anim("add#scroll", addScroll, Motion.SMOOTH);
+        ctx.enableScissor(x - 4, y, x + w + 4, y + listH);
+        kit.clipHits(x - 4, y, x + w + 4, y + listH);
+        try {
+            if (list.isEmpty()) {
+                String msg = net.evadeclient.gui.kit.SearchField.text(kit, "add#q").isBlank() ? "Every widget is already on" : "Nothing matches";
+                Icons.draw(ctx, "check", x + w / 2 - 6, y + 30, 12, Tokens.N600);
+                kit.textCentredY(msg, x + (w - kit.width(msg, Role.SMALL)) / 2, y + 52, Tokens.N700, Role.SMALL);
+            }
+            for (int i = 0; i < list.size(); i++) {
+                int ry = y + i * ADD_ROW - Math.round(sc);
+                if (ry + ADD_ROW < y || ry > y + listH) continue;
+                HudElementModule el = list.get(i);
+                String id = "add:" + el.getName();
+                int st = kit.state(id, x, ry, x + w, ry + ADD_ROW - 2, true);
+                float hov = kit.anim(id + "#h", (st & net.evadeclient.gui.kit.Kit.HOVER) != 0 ? 1f : 0f);
+                if (hov > 0.01f) net.evadeclient.gui.kit.Paint.rect(ctx, x, ry, x + w, ry + ADD_ROW - 2, Tokens.R_SM, Theme.alpha(Tokens.N350, hov));
+                net.evadeclient.gui.kit.Paint.rect(ctx, x + 4, ry + 4, x + 24, ry + 24, Tokens.R_XS, Tokens.N250);
+                Icons.draw(ctx, "hud", x + 8, ry + 8, 12, Theme.lerpColor(Tokens.N800, Tokens.A400, hov));
+                kit.textCentredY(kit.ellipsize(el.getName(), Role.STRONG, w - 60), x + 32, ry + 9, Tokens.N950, Role.STRONG);
+                kit.textCentredY(kit.ellipsize(el.getDescription(), Role.SMALL, w - 40), x + 32, ry + 20, Tokens.N700, Role.SMALL);
+                if (hov > 0.01f) PanelGlyphs.draw(ctx, "plus", x + w - 18, ry + 8, 12, Tokens.N900);
+                if ((st & net.evadeclient.gui.kit.Kit.FOCUSED) != 0)
+                    net.evadeclient.gui.kit.Paint.focusRing(kit, x, ry, x + w, ry + ADD_ROW - 2, Tokens.R_SM, Tokens.FOCUS_RING);
+                int ax = addAtX, ay = addAtY;
+                kit.hit(id, x, ry, x + w, ry + ADD_ROW - 2, () -> { closePop(); addWidget(el, ax, ay); });
+            }
+        } finally {
+            kit.unclipHits();
+            ctx.disableScissor();
+        }
+        if (max > 0) net.evadeclient.gui.kit.Scrollbar.draw(kit, "add#bar", x + w + 8, y, y + listH, sc, max, v -> { addScroll = v; kit.snapAnim("add#scroll", v); });
+    }
+
+    private void drawLayouts(DrawContext ctx, int mx, int my) {
+        List<String[]> rows = new ArrayList<>();
+        for (String p : HudLayout.PRESETS) rows.add(new String[]{"preset", p});
+        rows.add(null);
+        rows.add(new String[]{"copy", "Copy HUD code", "copy", "Ctrl C"});
+        rows.add(new String[]{"paste", "Paste HUD code", "list", "Ctrl V"});
+        rows.add(null);
+        rows.add(new String[]{"reset", "Reset all positions", "reset", null});
+        int w = 236, h = 12 + 18 + 4;
+        for (String[] r : rows) h += r == null ? 9 : 24;
+        h += 8;
+        int[] p = placePop(w, h, true);
+        int x = p[0] + 6, y = p[1] + 10;
+        kit.text("Layouts", x + 6, y, Tokens.N950, Role.STRONG);
+        y += 22;
+        for (String[] r : rows) {
+            if (r == null) {
+                net.evadeclient.gui.kit.Paint.rect(ctx, x + 6, y + 4, x + w - 18, y + 5, 0, Theme.alpha(0xFFFFFFFF, 0.06f));
+                y += 9;
+                continue;
+            }
+            String id = "lay:" + r[1];
+            int st = kit.state(id, x, y, x + w - 12, y + 22, true);
+            float hov = kit.anim(id + "#h", (st & net.evadeclient.gui.kit.Kit.HOVER) != 0 ? 1f : 0f);
+            boolean danger = r[0].equals("reset");
+            if (hov > 0.01f) net.evadeclient.gui.kit.Paint.rect(ctx, x, y, x + w - 12, y + 22, Tokens.R_SM,
+                    danger ? Theme.alpha(Tokens.DANGER, 0.14f * hov) : Theme.alpha(Tokens.N350, hov));
+            String glyph = r[0].equals("preset") ? "hud" : r[2];
+            int col = danger ? Tokens.DANGER : Theme.lerpColor(Tokens.N800, Tokens.N950, hov);
+            PanelGlyphs.draw(ctx, glyph, x + 8, y + 5, 12, danger ? Tokens.DANGER : Tokens.N700);
+            kit.textCentredY(r[1], x + 28, y + 11, col, Role.BODY);
+            if (r.length > 3 && r[3] != null) {
+                String chip = r[3];
+                int cw = kit.width(chip, Role.TINY) + 10;
+                net.evadeclient.gui.kit.Paint.rect(ctx, x + w - 18 - cw, y + 4, x + w - 18, y + 18, Tokens.R_XS, Tokens.N150);
+                kit.textCentredY(chip, x + w - 18 - cw + 5, y + 11, Tokens.N700, Role.TINY);
+            }
+            if ((st & net.evadeclient.gui.kit.Kit.FOCUSED) != 0)
+                net.evadeclient.gui.kit.Paint.focusRing(kit, x, y, x + w - 12, y + 22, Tokens.R_SM, Tokens.FOCUS_RING);
+            kit.hit(id, x, y, x + w - 12, y + 22, () -> {
+                closePop();
+                switch (r[0]) {
+                    case "preset" -> applyPreset(r[1]);
+                    case "copy" -> copyCode();
+                    case "paste" -> pasteCode();
+                    default -> change(() -> {
+                        for (HudElementModule el : EvadeClient.modules.hudElements()) { el.resetPosition(); el.scale.reset(); }
+                    });
+                }
+            });
+            y += 24;
+        }
+    }
+
+    /** The shortcut sheet: a modal with the editor's keys in two columns of key chips. */
+    private void drawHelp(DrawContext ctx) {
+        int sw = this.width, sh = this.height;
+        kit.barrier("help#scrim", 0, 0, sw, sh, this::closePop);
+        Theme.fill(ctx, 0, 0, sw, sh, Theme.alpha(Tokens.N0, 0.55f));
+        String[][] keys = {
+                {"Drag", "Move (snaps to edges and other widgets)"}, {"Shift Click", "Pick several"},
+                {"Drag on empty", "Box-pick widgets"}, {"Ctrl A", "Pick every widget"},
+                {"Scroll", "Resize"}, {"Arrows", "Nudge 1 (Shift: 10)"},
+                {"Right-click", "Widget settings, or add one on empty space"}, {"L", "Lock in place"},
+                {"Delete", "Hide"}, {"R", "Reset position"},
+                {"G", "Snap to a grid"}, {"Ctrl Z", "Undo (Ctrl Y redo)"},
+                {"Ctrl C", "Copy the HUD as a code"}, {"Ctrl V", "Paste a HUD code"},
+        };
+        int colW = 250, rowH = 26, cols = sw >= 2 * colW + 80 ? 2 : 1;
+        int rowsN = (keys.length + cols - 1) / cols;
+        int w = cols * colW + 40 + (cols - 1) * 16, h = 20 + 30 + rowsN * rowH + 16 + 24 + 20;
+        int x = (sw - w) / 2, y = (sh - h) / 2;
+        popX1 = x; popY1 = y; popX2 = x + w; popY2 = y + h;
+        net.evadeclient.gui.kit.Paint.surface(ctx, x, y, x + w, y + h, Tokens.R_LG, Tokens.E5, 0, Float.NaN);
+        kit.barrier("help#body", x, y, x + w, y + h, null);
+        kit.text("HUD editor shortcuts", x + 20, y + 18, Tokens.N950, Role.HEADLINE);
+        int ty = y + 50;
+        for (int i = 0; i < keys.length; i++) {
+            int c = cols == 2 ? i % 2 : 0, r = cols == 2 ? i / 2 : i;
+            int cx0 = x + 20 + c * (colW + 16), cy0 = ty + r * rowH;
+            int kw = net.evadeclient.gui.kit.KeyChip.draw(kit, "help:" + i, cx0, cy0, net.evadeclient.gui.kit.KeyChip.Mode.BOUND, keys[i][0], null, () -> {});
+            kit.textCentredY(kit.ellipsize(keys[i][1], Role.SMALL, colW - Math.max(kw, 96) - 12), cx0 + Math.max(kw, 96) + 10,
+                    cy0 + net.evadeclient.gui.kit.KeyChip.H / 2f, Tokens.N800, Role.SMALL);
+        }
+        int bw = net.evadeclient.gui.kit.Button.width(kit, "Got it", net.evadeclient.gui.kit.Button.Size.MD, null, false);
+        net.evadeclient.gui.kit.Button.draw(kit, "help#ok", x + w - 20 - bw, y + h - 20 - 24, bw, net.evadeclient.gui.kit.Button.Size.MD,
+                net.evadeclient.gui.kit.Button.Variant.SECONDARY, "Got it", null, true, this::closePop);
+    }
+
+    /** A faint frame around each stack, so grouped widgets read as one (GUI px, a slanted edge light on the left). */
     private void drawStacks(DrawContext ctx) {
+        float kk = k;
+        int hudW = Math.round(this.width / kk), hudH = Math.round(this.height / kk);
         for (List<HudElementModule> stack : net.evadeclient.hud.HudStacks.stacks().values()) {
             int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = Integer.MIN_VALUE, y2 = Integer.MIN_VALUE, n = 0;
             for (HudElementModule el : stack) {
                 if (!el.isEnabled()) continue;
                 n++;
-                x1 = Math.min(x1, left(el)); y1 = Math.min(y1, top(el));
-                x2 = Math.max(x2, left(el) + el.scaledWidth()); y2 = Math.max(y2, top(el) + el.scaledHeight());
+                x1 = Math.min(x1, el.resolveX(hudW)); y1 = Math.min(y1, el.resolveY(hudH));
+                x2 = Math.max(x2, el.resolveX(hudW) + el.scaledWidth()); y2 = Math.max(y2, el.resolveY(hudH) + el.scaledHeight());
             }
             if (n < 2) continue;
-            ctx.drawStrokedRectangle(x1 - 3, y1 - 3, x2 - x1 + 6, y2 - y1 + 6, Theme.alpha(Theme.RED, 0.45f));
-            ctx.fill(x1 - 3, y1 - 3, x1 - 1, y2 + 3, Theme.alpha(Theme.RED, 0.45f));
+            float gx1 = x1 * kk - 4, gy1 = y1 * kk - 4, gx2 = x2 * kk + 4, gy2 = y2 * kk + 4;
+            net.evadeclient.gui.kit.Paint.ring(ctx, gx1, gy1, gx2, gy2, 4, Theme.alpha(Tokens.A500, 0.4f), 1);
+            net.evadeclient.gui.kit.Paint.slant(ctx, gx1 - 1, gy1 + 4, gx1 + 1, gy2 - 4, Theme.alpha(Tokens.A500, 0.8f));
         }
-    }
-
-    /** A tiny padlock with its top-left at (x, y). */
-    private static void lockGlyph(DrawContext ctx, int x, int y, int color) {
-        ctx.fill(x + 1, y - 3, x + 2, y, color);
-        ctx.fill(x + 4, y - 3, x + 5, y, color);
-        ctx.fill(x + 1, y - 4, x + 5, y - 3, color);
-        ctx.fill(x, y, x + 6, y + 4, color);
-    }
-
-    // ---- drop-downs -------------------------------------------------------------------------------------
-
-    private record Item(String label, Runnable action) {}
-
-    /** A small list of choices; scrolls with the wheel when it doesn't fit. */
-    private final class Popup {
-        static final int ROW = 13, MAX_ROWS = 14;
-        final String title;
-        final List<Item> items;
-        int x, y, w, scroll;
-
-        Popup(String title, List<Item> items, double ax, double ay, boolean above) {
-            this.title = title;
-            this.items = items;
-            int tw = textRenderer.getWidth(title) + 12;
-            for (Item it : items) tw = Math.max(tw, textRenderer.getWidth(it.label()) + 16);
-            w = tw;
-            int h = height();
-            x = (int) Math.max(4, Math.min(width - w - 4, ax));
-            y = (int) (above ? ay - h - 4 : ay);
-            y = Math.max(4, Math.min(height - h - 4, y));
-        }
-
-        int visible() { return Math.min(MAX_ROWS, items.size()); }
-        int height() { return 14 + visible() * ROW + 4; }
-
-        boolean contains(double mx, double my) { return mx >= x && mx < x + w && my >= y && my < y + height(); }
-
-        int indexAt(double mx, double my) {
-            if (!contains(mx, my) || my < y + 14) return -1;
-            int i = (int) ((my - y - 14) / ROW) + scroll;
-            return i >= 0 && i < items.size() && i < scroll + visible() ? i : -1;
-        }
-
-        void render(DrawContext ctx, int mx, int my) {
-            int h = height();
-            Theme.shadow(ctx, Theme.SH_CARD, x, y, x + w, y + h, Theme.alpha(0xFF000000, 0.6f));
-            Theme.roundBordered(ctx, x, y, x + w, y + h, Theme.BG | 0xFF000000, Theme.BORDER);
-            ctx.drawText(textRenderer, title, x + 6, y + 4, Theme.TEXT_DIM, false);
-            int hi = indexAt(mx, my);
-            for (int r = 0; r < visible(); r++) {
-                int i = r + scroll;
-                Item it = items.get(i);
-                int ry = y + 14 + r * ROW;
-                boolean on = it.action() != null;
-                if (i == hi && on) Theme.round(ctx, x + 2, ry, x + w - 2, ry + ROW, Theme.CONTROL_HOVER, Theme.R_XS);
-                ctx.drawText(textRenderer, it.label(), x + 8, ry + 3, !on ? Theme.TEXT_FAINT : i == hi ? Theme.TEXT : Theme.TEXT_SOFT, false);
-            }
-            if (items.size() > visible()) {
-                int track = visible() * ROW;
-                int th = Math.max(8, track * visible() / items.size());
-                int ty = y + 14 + (track - th) * scroll / Math.max(1, items.size() - visible());
-                ctx.fill(x + w - 3, ty, x + w - 2, ty + th, Theme.TEXT_FAINT);
-            }
-        }
-
-        void scroll(double v) {
-            scroll = Math.max(0, Math.min(items.size() - visible(), scroll - (int) Math.signum(v)));
-        }
-    }
-
-    private void openLayouts(double ax, double ay) {
-        List<Item> items = new ArrayList<>();
-        for (String p : HudLayout.PRESETS) items.add(new Item(p, () -> applyPreset(p)));
-        items.add(new Item("Copy HUD Code", this::copyCode));
-        items.add(new Item("Paste HUD Code", this::pasteCode));
-        items.add(new Item("Reset All Positions", () -> change(() -> {
-            for (HudElementModule el : EvadeClient.modules.hudElements()) { el.resetPosition(); el.scale.reset(); }
-        })));
-        popup = new Popup("Layouts", items, ax, ay, true);
-    }
-
-    private void openAddWidget(double ax, double ay, boolean above) {
-        List<Item> items = new ArrayList<>();
-        List<HudElementModule> off = new ArrayList<>();
-        for (HudElementModule el : EvadeClient.modules.hudElements())
-            if (!el.isEnabled() && HudLayout.ownsVisibility(el)) off.add(el);
-        off.sort(Comparator.comparing(HudElementModule::getName, String.CASE_INSENSITIVE_ORDER));
-        int px = (int) ax, py = (int) ay;
-        for (HudElementModule el : off) items.add(new Item(el.getName(), () -> addWidget(el, above ? -1 : px, above ? -1 : py)));
-        if (items.isEmpty()) items.add(new Item("Every widget is already on", null));
-        popup = new Popup("Add widget", items, ax, ay, above);
     }
 
     /** Turn {@code el} on; with (x, y) >= 0, put it there (else at its default spot). Selects it. */
@@ -661,28 +852,13 @@ public class HudEditorScreen extends Screen {
         return out;
     }
 
-    private void runButton(Btn b) {
-        if (!b.enabled()) return;
-        switch (b.id()) {
-            case "undo" -> undo();
-            case "redo" -> redo();
-            case "layouts" -> openLayouts(b.x1(), b.y1());
-            case "add" -> openAddWidget(b.x1(), b.y1(), true);
-            case "back" -> close();
-            case "lock" -> toggleLock(new ArrayList<>(selection));
-            case "hide" -> hide(new ArrayList<>(selection));
-            case "stack" -> stackSelection();
-            case "unstack" -> unstackSelection();
-            case "space:h" -> distribute(true);
-            case "space:v" -> distribute(false);
-            default -> { if (b.id().startsWith("align:")) align(b.id().substring(6)); }
-        }
-    }
-
     // ---- mouse ------------------------------------------------------------------------------------------
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        // The chrome (dock, popovers, sheet) first, in GUI px; then the HUD, in HUD units.
+        if (kit.mouseClicked(click.x(), click.y(), click.button())) return true;
+        if (pop != Pop.NONE) { closePop(); return true; }
         enterHudSpace();
         try { return clicked(hud(click), doubled); } finally { leaveHudSpace(); }
     }
@@ -690,22 +866,6 @@ public class HudEditorScreen extends Screen {
     private boolean clicked(Click click, boolean doubled) {
         double mx = click.x(), my = click.y();
         int button = click.button();
-        if (popup != null) {
-            Popup p = popup;
-            int i = p.indexAt(mx, my);
-            if (p.contains(mx, my)) {
-                if (i >= 0 && p.items.get(i).action() != null) {
-                    popup = null;
-                    p.items.get(i).action().run();
-                }
-                return true;
-            }
-            popup = null;
-            return true;
-        }
-        layoutButtons(barY(mx, my));
-        Btn b = buttonAt(mx, my);
-        if (b != null && button == 0) { runButton(b); return true; }
         boolean shift = (click.buttonInfo().modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || client.isShiftPressed();
         HudElementModule el = at(mx, my);
         if (el != null) {
@@ -735,7 +895,7 @@ public class HudEditorScreen extends Screen {
             for (HudElementModule s : selection) dragFrom.put(s, new int[]{left(s), top(s)});
             return true;
         }
-        if (button == 1) { openAddWidget(mx, my, false); return true; }
+        if (button == 1) { togglePop(Pop.ADD, (int) Math.round(mx), (int) Math.round(my)); return true; }
         if (button == 0) {
             boxing = true;
             boxX0 = boxX1 = mx;
@@ -755,6 +915,7 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double dx, double dy) {
+        if (kit.mouseDragged(click.x(), click.y(), click.button())) return true;
         enterHudSpace();
         try { return dragged(hud(click)); } finally { leaveHudSpace(); }
     }
@@ -851,6 +1012,7 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseReleased(Click click) {
+        kit.mouseReleased(click.x(), click.y(), click.button());
         if (boxing) {
             boxing = false;
             enterHudSpace();
@@ -877,7 +1039,10 @@ public class HudEditorScreen extends Screen {
     }
 
     private boolean scrolled(double mx, double my, double v) {
-        if (popup != null) { if (popup.contains(mx, my)) popup.scroll(v); return true; }
+        if (pop != Pop.NONE) {
+            if (pop == Pop.ADD && overChrome(mx * k, my * k)) addScroll -= (float) v * ADD_ROW;
+            return true;
+        }
         HudElementModule el = at(mx, my);
         if (el == null) return false;
         List<HudElementModule> els = selection.contains(el) ? new ArrayList<>(selection) : List.of(el);
@@ -893,10 +1058,15 @@ public class HudEditorScreen extends Screen {
     public boolean keyPressed(KeyInput input) {
         int key = input.key();
         if (key == GLFW.GLFW_KEY_ESCAPE) {
-            if (popup != null) { popup = null; return true; }
+            if (pop != Pop.NONE) { closePop(); return true; }
             close();
             return true;
         }
+        // The Add widget search takes typing while it has the keyboard.
+        if (pop == Pop.ADD && kit.isFocused("add#q") && kit.keyPressed(key, input.modifiers())) return true;
+        if (pop != Pop.NONE && (key == GLFW.GLFW_KEY_TAB || key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER)
+                && kit.keyPressed(key, input.modifiers())) return true;
+        if (key == GLFW.GLFW_KEY_SLASH || key == GLFW.GLFW_KEY_F1) { togglePop(Pop.HELP, -1, -1); return true; }
         if (dragging != null || boxing) return true;
         enterHudSpace();
         try {
@@ -950,6 +1120,12 @@ public class HudEditorScreen extends Screen {
                 el.moveTo(left(el) + dx, top(el) + dy, width, height, keepCentre);
             }
         });
+    }
+
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharInput input) {
+        if (pop == Pop.ADD && kit.charTyped(input.codepoint())) return true;
+        return super.charTyped(input);
     }
 
     @Override

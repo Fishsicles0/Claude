@@ -32,6 +32,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
@@ -73,13 +74,13 @@ public final class LauncherView extends JPanel {
     /** Where Play is: updating the instance, opening the Minecraft Launcher, waiting for the player there, or stuck. */
     enum Play { IDLE, UPDATING, LAUNCHING, LAUNCHED, NO_LAUNCHER, ERROR }
 
-    // palette
-    static final Color BG = new Color(0x0B0B0E), CARD = new Color(0x121216), CARD_2 = new Color(0x18181D),
-            BORDER = new Color(0x232329), RED = new Color(0xE11D2E), RED_HI = new Color(0xFF4153),
-            TEXT = new Color(0xF4F4F6), DIM = new Color(0x9A9AA5), FAINT = new Color(0x7C7C88) /* 4.5:1 on cards */, OK = new Color(0x3DDC84),
-            AMBER = new Color(0xF5A524), FIELD = new Color(0x0E0E12),
+    // palette: the Obsidian tokens (see Obsidian; mirrors the in-game client's util/Tokens)
+    static final Color BG = Obsidian.N50, CARD = Obsidian.N200, CARD_2 = Obsidian.N250,
+            BORDER = Obsidian.N350, RED = Obsidian.RED600, RED_HI = Obsidian.RED400,
+            TEXT = Obsidian.N950, DIM = Obsidian.N800, FAINT = Obsidian.N700 /* 5.7:1 on cards */, OK = Obsidian.OK,
+            AMBER = Obsidian.WARN, FIELD = Obsidian.N150,
             /** the rail's panel, page hairlines, and panels raised over the page */
-            RAIL_BG = new Color(0x0E0E11), HAIRLINE = new Color(255, 255, 255, 14), RAISED = new Color(0x18181D);
+            RAIL_BG = Obsidian.N25, HAIRLINE = new Color(255, 255, 255, 13), RAISED = Obsidian.N300;
 
     /** What the launcher does when the player clicks; {@link LauncherApp} implements these. */
     interface Actions {
@@ -245,7 +246,6 @@ public final class LauncherView extends JPanel {
 
     // input
     final LinkedHashMap<String, Rectangle> hitMap = new LinkedHashMap<>();
-    private final Map<String, Float> hover = new HashMap<>();
     final Map<String, float[]> scroll = new HashMap<>(); // id -> {target, shown}
     private final Map<String, int[]> scrollAreas = new LinkedHashMap<>(); // id -> {x, y, w, h, contentH}
     Rectangle clip;
@@ -362,9 +362,10 @@ public final class LauncherView extends JPanel {
             @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
             @Override public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
+                if (e.getButton() == MouseEvent.BUTTON1) { pressed = hit(logical(e)); repaint(); }
                 if (logical(e).y < 44 && hit(logical(e)) == null) dragFrom = e.getPoint();
             }
-            @Override public void mouseReleased(MouseEvent e) { dragFrom = null; }
+            @Override public void mouseReleased(MouseEvent e) { dragFrom = null; if (pressed != null) { pressed = null; repaint(); } }
             @Override public void mouseDragged(MouseEvent e) {
                 if (dragFrom == null) return;
                 Window w = SwingUtilities.getWindowAncestor(LauncherView.this);
@@ -833,6 +834,7 @@ public final class LauncherView extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         if (uiScale != 1f) g.scale(uiScale, uiScale);
+        nextFrame();
         hitMap.clear();
         scrollAreas.clear();
         animating = false;
@@ -933,21 +935,33 @@ public final class LauncherView extends JPanel {
             Graphics2D b = LauncherTheme.wrap(bgLayer.createGraphics());
             b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             b.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            b.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
             b.scale(bgLayer.getWidth() / (double) W, bgLayer.getHeight() / (double) H);
             Shape win = roundCorners ? new RoundRectangle2D.Double(0, 0, W, H, RADIUS * 2, RADIUS * 2) : new Rectangle(0, 0, W, H);
-            b.setColor(BG);
-            b.fill(win);
-            b.setPaint(new RadialGradientPaint(W * 0.42f, -80, 560, new float[]{0f, 1f}, new Color[]{new Color(225, 29, 46, 26), new Color(225, 29, 46, 0)}));
+            // grad.window: n100 at the top to n50 at the bottom (a few L*, dithered so it never bands)
+            b.setPaint(Obsidian.linear(0, 0, 0, H, Obsidian.N100, BG));
             b.fill(win);
             Shape was = b.getClip();
             b.clip(win);
-            b.setColor(RAIL_BG);
+            // the key light: one faint emissive red wash from the top, and a cooler one low on the right
+            Obsidian.glow(b, W * 0.46, -40, 620, 360, RED, 0.13f);
+            Obsidian.glow(b, W * 0.98, H * 1.05, 520, 300, new Color(0x3A4A78), 0.10f);
+            // the rail: a darker, recessed panel (n25) with a fade line on its edge
+            b.setPaint(Obsidian.linear(0, 0, RAIL, 0, Obsidian.N25, new Color(0x090A0D)));
             b.fillRect(0, 0, RAIL, H);
-            b.setColor(HAIRLINE);
-            b.fillRect(RAIL, 0, 1, H);
+            b.setPaint(Obsidian.linear(0, 0, 0, H, new float[]{0f, .5f, 1f}, new Color(255, 255, 255, 6), new Color(255, 255, 255, 16), new Color(255, 255, 255, 6)));
+            b.fill(new Rectangle2D.Double(RAIL, 0, Obsidian.px(b), H));
             b.setClip(was);
-            b.setColor(new Color(255, 255, 255, 16));
-            b.draw(new RoundRectangle2D.Double(0.5, 0.5, W - 1, H - 1, RADIUS * 2 - 1, RADIUS * 2 - 1));
+            // film grain at device resolution: breaks up the large flat fills
+            if (!LauncherTheme.light()) {
+                Graphics2D gr = (Graphics2D) bgLayer.createGraphics();
+                Shape dev = AffineTransform.getScaleInstance(bgLayer.getWidth() / (double) W, bgLayer.getHeight() / (double) H).createTransformedShape(win);
+                Obsidian.grain(gr, dev, 0.55f);
+                gr.dispose();
+            }
+            // the window's edge: a hairline all round and a specular rim along the top
+            Obsidian.border(b, 0, 0, W, H, roundCorners ? RADIUS : 0, new Color(255, 255, 255, 18));
+            Obsidian.rim(b, win, 0.12f);
             b.dispose();
             bgScale = scale;
             bgRound = roundCorners;
@@ -961,51 +975,18 @@ public final class LauncherView extends JPanel {
 
     /** A soft drop shadow under something raised above the page (menus, dialogs, toasts). */
     void shadow(Graphics2D g, int x, int y, int w, int h) {
-        double scale = g.getTransform().getScaleX();
-        String key = w + "x" + h + "@" + scale;
-        BufferedImage img = shadows.get(key);
-        int pad = SHADOW_PAD;
-        if (img == null) {
-            img = deviceImage(w + 2 * pad, h + 2 * pad, scale);
-            Graphics2D s = img.createGraphics();
-            s.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            s.scale(img.getWidth() / (double) (w + 2 * pad), img.getHeight() / (double) (h + 2 * pad));
-            s.setColor(Color.BLACK);
-            s.fill(new RoundRectangle2D.Double(pad, pad, w, h, 18, 18));
-            s.dispose();
-            int r = Math.max(1, (int) Math.round(SHADOW_BLUR * scale));
-            float[] k = new float[2 * r + 1];
-            Arrays.fill(k, 1f / k.length);
-            ConvolveOp across = new ConvolveOp(new Kernel(k.length, 1, k), ConvolveOp.EDGE_NO_OP, null);
-            ConvolveOp down = new ConvolveOp(new Kernel(1, k.length, k), ConvolveOp.EDGE_NO_OP, null);
-            BufferedImage tmp = new BufferedImage(img.getWidth(), img.getHeight(), img.getType());
-            try {
-                for (int i = 0; i < 3; i++) { across.filter(img, tmp); down.filter(tmp, img); }
-            } catch (RuntimeException ignored) { }
-            if (shadows.size() > 40) shadows.clear();
-            shadows.put(key, img);
-        }
-        Composite was = g.getComposite();
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
-        g.drawImage(img, x - pad, y + SHADOW_DY - pad, w + 2 * pad, h + 2 * pad, null);
-        g.setComposite(was);
+        Obsidian.elevate(g, x, y, w, h, Obsidian.R_MD, Obsidian.E4, 0);
     }
 
     /** A flat card on the page: a slightly lighter surface with a hairline edge, 16px corners. */
     void card(Graphics2D g, int x, int y, int w, int h, boolean accent) {
-        g.setColor(CARD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 16 * 2, 16 * 2));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 16 * 2, 16 * 2));
+        if (accent) Obsidian.surface(g, x, y, w, h, Obsidian.R_LG, Obsidian.E5, Obsidian.N300, Obsidian.N250, 0);
+        else Obsidian.surface(g, x, y, w, h, Obsidian.R_MD + 2, Obsidian.E2, new Color(0x16181E), CARD, 0);
     }
 
     /** A raised panel (menus, dialogs, cards that open over the page): elevated surface and a soft shadow. */
     void raised(Graphics2D g, int x, int y, int w, int h) {
-        shadow(g, x, y, w, h);
-        g.setColor(RAISED);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
-        g.setColor(new Color(255, 255, 255, 18));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 32, 32));
+        Obsidian.surface(g, x, y, w, h, Obsidian.R_MD + 2, Obsidian.E4, Obsidian.N300, new Color(0x1D2028), 0);
     }
 
     // ------------------------------------------------------------------ rail and top bar
@@ -1028,7 +1009,7 @@ public final class LauncherView extends JPanel {
                 boolean rec = st.recording(), live = st.state() == net.evadeclient.clips.core.CaptureEngine.State.LIVE;
                 if (rec || live || clipsBlocked) {
                     int dx = (RAIL - 52) / 2 + 52 - 10, dy = y + 6;
-                    g.setColor(page == p ? RED : RAIL_BG);
+                    g.setColor(RAIL_BG);
                     g.fill(new Ellipse2D.Double(dx - 2, dy - 2, 12, 12));
                     g.setColor(clipsBlocked ? AMBER : rec ? RED_HI : OK);
                     g.fill(new Ellipse2D.Double(dx, dy, 8, 8));
@@ -1048,14 +1029,16 @@ public final class LauncherView extends JPanel {
         int s = 52, x = (RAIL - s) / 2;
         float t = anim(id, id.equals(hovered));
         float a = anim(id + "-on", on);
-        Color fill = mix(mix(new Color(0x141418), new Color(0x1E1E24), t), RED, a);
-        g.setColor(fill);
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 32, 32));
-        if (a > 0.01f) {
-            g.setColor(new Color(255, 65, 83, Math.round(255 * a)));
-            g.fill(new RoundRectangle2D.Double(-4, y + 12, 8, s - 24, 8, 8));
+        float p = press(id);
+        double dy = p;
+        if (t > 0.01f && a < 0.99f) {
+            g.setColor(Obsidian.alpha(Obsidian.N250, 0.75f * t * (1 - a)));
+            g.fill(Obsidian.rr(x, y + dy, s, s, Obsidian.R_MD));
+            Obsidian.rim(g, Obsidian.rr(x, y + dy, s, s, Obsidian.R_MD), 0.06f * t * (1 - a));
         }
-        icon(g, iconKind, x + s / 2, y + s / 2, 20, mix(mix(DIM, TEXT, t), Color.WHITE, a));
+        // selected: light entering from the left over a red-tinted surface, a slanted edge light, the icon lit
+        Obsidian.selected(g, x, y + dy, s, s, Obsidian.R_MD, a, 4);
+        icon(g, iconKind, x + s / 2, (int) Math.round(y + s / 2 + dy), 20, mix(mix(Obsidian.N700, TEXT, t), RED_HI, a));
         hit(id, new Rectangle(x, y, s, s));
         return id.equals(hovered);
     }
@@ -1068,12 +1051,9 @@ public final class LauncherView extends JPanel {
         String tip = sideTip;
         if (tip == null) return;
         g.setFont(interBold.deriveFont(12f));
-        int tw = g.getFontMetrics().stringWidth(tip) + 20;
-        int tx = RAIL + 6, ty = sideTipY - 15;
-        g.setColor(new Color(0x1E1E24));
-        g.fill(new RoundRectangle2D.Double(tx, ty, tw, 30, 16, 16));
-        g.setColor(new Color(255, 255, 255, 22));
-        g.draw(new RoundRectangle2D.Double(tx + .5, ty + .5, tw - 1, 29, 16, 16));
+        int tw = g.getFontMetrics().stringWidth(tip) + 22;
+        int tx = RAIL + 8, ty = sideTipY - 15;
+        Obsidian.surface(g, tx, ty, tw, 30, Obsidian.R_SM, Obsidian.E5.noAmbient(), Obsidian.N350, Obsidian.N300, 0);
         g.setColor(TEXT);
         center(g, tip, tx, ty, tw, 30);
     }
@@ -1082,23 +1062,27 @@ public final class LauncherView extends JPanel {
     private void topButton(Graphics2D g, String id, int x, String iconKind, boolean danger) {
         int y = 22, s = 40;
         float t = anim(id, id.equals(hovered) || id.equals(overlay));
-        int was = danger ? ThemedGraphics.danger(g) : -1;
-        g.setColor(mix(new Color(0x141418), danger ? RED : new Color(0x202026), t));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
-        if (was >= 0) ThemedGraphics.mode(g, was);
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 24, 24));
-        Color c = mix(DIM, TEXT, t);
+        float p = press(id);
+        Obsidian.surface(g, x, y + p, s, s, Obsidian.R_SM + 2, Obsidian.E2.noAmbient(),
+                mix(new Color(0x14161B), Obsidian.N300, t), mix(new Color(0x111318), Obsidian.N250, t), t);
+        if (danger && t > 0.01f) {
+            int was = ThemedGraphics.danger(g);
+            g.setPaint(Obsidian.linear(0, y, 0, y + s, Obsidian.alpha(new Color(0xF0213A), t), Obsidian.alpha(Obsidian.RED700, t)));
+            g.fill(Obsidian.rr(x, y + p, s, s, Obsidian.R_SM + 2));
+            ThemedGraphics.mode(g, was);
+            Obsidian.rim(g, Obsidian.rr(x, y + p, s, s, Obsidian.R_SM + 2), 0.2f * t);
+        }
+        Color c = danger ? mix(DIM, Color.WHITE, t) : mix(DIM, TEXT, t);
         if (iconKind.equals("min") || iconKind.equals("close")) {
             g.setColor(c);
             g.setStroke(new BasicStroke(1.75f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            double cx = x + s / 2.0, cy = y + s / 2.0;
+            double cx = x + s / 2.0, cy = y + s / 2.0 + p;
             if (iconKind.equals("close")) {
                 g.draw(new Line2D.Double(cx - 5.5, cy - 5.5, cx + 5.5, cy + 5.5));
                 g.draw(new Line2D.Double(cx + 5.5, cy - 5.5, cx - 5.5, cy + 5.5));
             } else g.draw(new Line2D.Double(cx - 6, cy, cx + 6, cy));
             g.setStroke(new BasicStroke(1f));
-        } else icon(g, iconKind, x + s / 2, y + s / 2, 18, c);
+        } else icon(g, iconKind, x + s / 2, (int) Math.round(y + s / 2 + p), 18, c);
         hitMap.put(id, new Rectangle(x, y, s, s));
     }
 
@@ -1135,11 +1119,9 @@ public final class LauncherView extends JPanel {
         g.setFont(inter.deriveFont(12.5f));
         int pw = g.getFontMetrics().stringWidth(text) + 40, px = bx - 12 - pw;
         float t = anim("status-pill", "status-pill".equals(hovered));
-        g.setColor(mix(new Color(0x141418), new Color(0x1C1C22), t));
-        g.fill(new RoundRectangle2D.Double(px, 22, pw, 40, 40, 40));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(px + .5, 22.5, pw - 1, 39, 40, 40));
+        Obsidian.surface(g, px, 22, pw, 40, 20, Obsidian.E2.noAmbient(), mix(new Color(0x14161B), Obsidian.N300, t), mix(new Color(0x111318), Obsidian.N250, t), t);
         float pulse = dot == OK || dot == RED_HI ? (float) (0.65 + 0.35 * Math.sin(System.currentTimeMillis() / 320.0)) : 1f;
+        if (dot != FAINT) Obsidian.glow(g, px + 20, 42, 10, 10, dot, 0.35f * pulse);
         g.setColor(new Color(dot.getRed(), dot.getGreen(), dot.getBlue(), Math.round(255 * pulse)));
         g.fill(new Ellipse2D.Double(px + 16, 38, 8, 8));
         g.setColor(mix(DIM, TEXT, t));
@@ -1185,17 +1167,14 @@ public final class LauncherView extends JPanel {
         if (!TIKTOK.isBlank()) links.add(new String[]{"link-tiktok", "music", "TikTok"});
         int x = CX, y = 22, h = 40;
         int w = links.size() * 36 + 8;
-        g.setColor(new Color(0x141418));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 24, 24));
+        bar(g, x, y, w, h);
         for (int i = 0; i < links.size(); i++) {
             String id = links.get(i)[0];
             int bx = x + 4 + i * 36;
             float t = anim(id, id.equals(hovered));
             if (t > 0) {
-                g.setColor(new Color(255, 255, 255, Math.round(14 * t)));
-                g.fill(new RoundRectangle2D.Double(bx, y + 4, 32, 32, 18, 18));
+                g.setColor(new Color(255, 255, 255, Math.round(16 * t)));
+                g.fill(Obsidian.rr(bx, y + 4 + press(id), 32, 32, Obsidian.R_SM));
             }
             icon(g, links.get(i)[1], bx + 16, y + 20, 16, mix(DIM, TEXT, t));
             hit(id, new Rectangle(bx, y + 4, 32, 32));
@@ -1211,10 +1190,7 @@ public final class LauncherView extends JPanel {
         int fit = Math.max(1, (maxW - 8 - 90) / 36);
         slots = Math.min(slots, fit);
         int w = 8 + 92 + slots * 36;
-        g.setColor(new Color(0x141418));
-        g.fill(new RoundRectangle2D.Double(x, y, w, 40, 24, 24));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, 39, 24, 24));
+        bar(g, x, y, w, 40);
         g.setFont(interBold.deriveFont(11f));
         g.setColor(FAINT);
         g.drawString("SERVERS", x + 16, y + 24);
@@ -1237,14 +1213,14 @@ public final class LauncherView extends JPanel {
                 } else tile(g, bx + 2, by + 2, 28, sv.name());
                 g.setClip(was);
                 if (t > 0.01f) {
-                    g.setColor(new Color(255, 65, 83, Math.round(220 * t)));
+                    g.setColor(new Color(255, 85, 102, Math.round(220 * t)));
                     g.setStroke(new BasicStroke(1.75f));
                     g.draw(new RoundRectangle2D.Double(bx + 1, by + 1, 30, 30, 16, 16));
                     g.setStroke(new BasicStroke(1f));
                 }
                 Color dc = serverStatus.containsKey(k) ? OK : serverDown.contains(k) ? LauncherTheme.DANGER : null;
                 if (dc != null) {
-                    g.setColor(new Color(0x141418));
+                    g.setColor(new Color(0x121419));
                     g.fill(new Ellipse2D.Double(bx + 22, by + 22, 11, 11));
                     g.setColor(dc);
                     g.fill(new Ellipse2D.Double(bx + 24, by + 24, 7, 7));
@@ -1265,6 +1241,11 @@ public final class LauncherView extends JPanel {
     /** Where the first server icon sits (the server card opens under it). */
     private int serversPillX = CX + 200;
 
+    /** A top-bar group: a quiet e2 surface (no ambient shadow), lit along its top edge. */
+    void bar(Graphics2D g, int x, int y, int w, int h) {
+        Obsidian.surface(g, x, y, w, h, Obsidian.R_SM + 2, Obsidian.E2.noAmbient(), new Color(0x14161B), new Color(0x111318), 0);
+    }
+
     /** Draws {@code img} filling the box (cropped, not stretched), aligned by {@code ax} (0 left … 1 right). */
     private static void cover(Graphics2D g, Image img, int x, int y, int w, int h, double ax) {
         int iw = img.getWidth(null), ih = img.getHeight(null);
@@ -1282,39 +1263,16 @@ public final class LauncherView extends JPanel {
     }
 
     private void paintHeroCard(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
-        Shape box = new RoundRectangle2D.Double(x, y, w, h, 40, 40);
-        g.setColor(CARD);
-        g.fill(box);
-        Shape was = g.getClip();
-        g.clip(box);
-        // the artwork, cross-fading from the previous picture
+        int r = Obsidian.R_LG;
+        // e1: the hero floats over the page (wide ambient shadow, tight contact one)
+        Obsidian.elevate(g, x, y, w, h, r, Obsidian.E1, 0);
+        // the graded artwork, cross-fading from the previous picture (each picture's graded layer is cached; the
+        // grade is the same for both, so fading the layers equals grading the fade)
         long age = System.currentTimeMillis() - slideAt;
         float fade = slideFrom >= 0 ? Math.min(1f, age / 700f) : 1f;
-        if (slideFrom >= 0 && fade < 1f) {
-            Image from = heroImages.get(BACKDROPS[slideFrom % BACKDROPS.length]);
-            if (from != null) cover(g, from, x, y, w, h, 0.8);
-        }
-        Image img = heroImages.get(BACKDROPS[slide % BACKDROPS.length]);
-        if (img != null) {
-            Composite c0 = g.getComposite();
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fade));
-            cover(g, img, x, y, w, h, 0.8);
-            g.setComposite(c0);
-        }
-        // dim it, then a scrim on the left for the text
-        g.setColor(new Color(10, 10, 12, 120));
-        g.fill(box);
-        g.setPaint(new GradientPaint(x, 0, new Color(10, 10, 12, 245), x + w * 0.75f, 0, new Color(10, 10, 12, 0)));
-        g.fill(box);
-        g.setPaint(new GradientPaint(0, y + h * 0.55f, new Color(10, 10, 12, 0), 0, y + h, new Color(10, 10, 12, 200)));
-        g.fill(box);
-        if (play != Play.IDLE) {
-            g.setColor(new Color(10, 10, 12, 190));
-            g.fill(box);
-        }
-        g.setClip(was);
-        g.setColor(new Color(255, 255, 255, 18));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 40, 40));
+        fade = fade * fade * (3 - 2 * fade);
+        if (slideFrom >= 0 && fade < 1f) drawHeroLayer(g, slideFrom, x, y, w, h, 1f);
+        drawHeroLayer(g, slide, x, y, w, h, fade);
 
         switch (play) {
             case UPDATING, LAUNCHING -> paintHeroProgress(g, x + 40, y + 8, w - 80, h - 16);
@@ -1325,23 +1283,92 @@ public final class LauncherView extends JPanel {
         }
     }
 
+    /** Graded hero pictures at device resolution: key -> image. */
+    private final Map<String, BufferedImage> heroLayers = new LinkedHashMap<>(8, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, BufferedImage> e) { return size() > 6; }
+    };
+
+    private void drawHeroLayer(Graphics2D g, int index, int x, int y, int w, int h, float alpha) {
+        AffineTransform t = g.getTransform();
+        double sx = t.getScaleX(), sy = t.getScaleY();
+        String name = BACKDROPS[Math.floorMod(index, BACKDROPS.length)];
+        Image img = heroImages.get(name);
+        boolean idle = play == Play.IDLE;
+        int dx = (int) Math.round(x * sx + t.getTranslateX()), dy = (int) Math.round(y * sy + t.getTranslateY());
+        int dw = (int) Math.round((x + w) * sx + t.getTranslateX()) - dx, dh = (int) Math.round((y + h) * sy + t.getTranslateY()) - dy;
+        if (dw <= 0 || dh <= 0) return;
+        String key = name + "|" + (img != null) + "|" + idle + "|" + dw + "x" + dh + "|" + sx + "|" + LauncherTheme.generation() + "|" + roundCorners;
+        BufferedImage layer = heroLayers.get(key);
+        if (layer == null) {
+            layer = new BufferedImage(dw, dh, BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D b = (Graphics2D) layer.createGraphics();
+            b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            b.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            b.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            b.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+            b.scale(dw / (double) w, dh / (double) h);
+            if (g instanceof ThemedGraphics) {
+                Graphics2D tb = new ThemedGraphics(b);
+                ThemedGraphics.island(tb);
+                b = tb;
+            }
+            paintHeroArt(b, img, w, h, idle);
+            b.dispose();
+            heroLayers.put(key, layer);
+        }
+        Graphics2D q = (Graphics2D) g.create();
+        q.setTransform(new AffineTransform());
+        if (alpha < 1f) q.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, alpha)));
+        q.drawImage(layer, dx, dy, null);
+        q.dispose();
+    }
+
+    /** One hero picture graded into the Obsidian range, at 0,0 (cached by {@link #drawHeroLayer}). */
+    private void paintHeroArt(Graphics2D g, Image img, int w, int h, boolean idle) {
+        int r = Obsidian.R_LG;
+        Shape box = Obsidian.rr(0, 0, w, h, r);
+        g.setColor(CARD);
+        g.fill(box);
+        Shape was = g.getClip();
+        g.clip(box);
+        if (img != null) cover(g, img, 0, 0, w, h, 0.8);
+        // a cool dim, then dithered scrims (left for the text, bottom for Play)
+        Color ink = Obsidian.N50;
+        g.setColor(Obsidian.alpha(ink, idle ? 0.42f : 0.80f));
+        g.fill(box);
+        g.setPaint(Obsidian.linear(0, 0, w * 0.78, 0, new float[]{0f, .38f, .7f, 1f},
+                Obsidian.alpha(ink, .97f), Obsidian.alpha(ink, .82f), Obsidian.alpha(ink, .30f), Obsidian.alpha(ink, 0)));
+        g.fill(box);
+        g.setPaint(Obsidian.linear(0, h * 0.45, 0, h, new float[]{0f, .6f, 1f}, Obsidian.alpha(ink, 0), Obsidian.alpha(ink, .55f), Obsidian.alpha(ink, .85f)));
+        g.fill(box);
+        // the key light: an emissive red wash rising behind Play, and a cool sheen along the top
+        Obsidian.glow(g, 150, h + 60, 460, 220, RED, idle ? 0.11f : 0.07f);
+        g.setPaint(Obsidian.linear(0, 0, 0, 90, Obsidian.white(.045f), Obsidian.white(0)));
+        g.fill(box);
+        g.setClip(was);
+        Obsidian.rim(g, box, 0.16f);
+        Obsidian.border(g, 0, 0, w, h, r, Obsidian.white(.07f));
+    }
+
     private void paintHeroIdle(Graphics2D g, Launcher.Instance sel, int x, int y, int w, int h) {
         // tag
         String tag = "EVADE CLIENT" + (sel != null && sel.installed != null ? "  v" + sel.installed.evadeVersion() : "");
-        g.setFont(interBold.deriveFont(10.5f));
-        int tw = (int) (g.getFontMetrics().stringWidth(tag) + tag.length() * 1.2f) + 24;
-        g.setColor(new Color(225, 29, 46, 46));
-        g.fill(new RoundRectangle2D.Double(x, y + 44, tw, 26, 26, 26));
-        g.setColor(RED_HI);
-        spaced(g, tag, x + 12, y + 61, 1.2f);
-        // the instance, big
-        g.setFont(interBold.deriveFont(48f));
+        g.setFont(interBold.deriveFont(10f));
+        int tw = (int) (g.getFontMetrics().stringWidth(tag) + tag.length() * 1.3f) + 34;
+        g.setColor(Obsidian.alpha(Obsidian.RED900, .55f));
+        g.fill(Obsidian.rr(x, y + 44, tw, 24, 12));
+        Obsidian.border(g, x, y + 44, tw, 24, 12, Obsidian.alpha(Obsidian.RED500, .35f));
+        Obsidian.slantEdge(g, x + 11, y + 50, 12, RED_HI);
+        g.setColor(Obsidian.RED300);
+        spaced(g, tag, x + 22, y + 60, 1.3f);
+        // the instance, big (display role: bold, tight tracking)
+        g.setFont(display(50f));
         g.setColor(TEXT);
         String name = ellipsizeEnd(g, sel != null ? sel.name : "—", w - 40);
         g.drawString(name, x - 2, y + 128);
         // what it is
         g.setFont(inter.deriveFont(14.5f));
-        g.setColor(new Color(0xC6C6CE));
+        g.setColor(Obsidian.N900);
         String meta = "Minecraft " + InstallerCore.MC_VERSION;
         if (sel != null && sel.installed != null) meta += "  ·  Fabric " + sel.installed.loaderVersion();
         if (sel != null) meta += "  ·  " + sel.memoryGb + " GB" + (sel.installed != null ? "  ·  " + sel.modCount + " mods" : "");
@@ -1398,51 +1425,42 @@ public final class LauncherView extends JPanel {
     /** The big red Play button: a bold label and a small line under it. */
     private void launchButton(Graphics2D g, String id, int x, int y, int w, int h, String label, String sub, boolean enabled) {
         float t = enabled ? anim(id, id.equals(hovered)) : 0;
-        if (enabled) {
-            shadowGlow(g, x, y, w, h, t);
-            g.setColor(mix(RED, RED_HI, t));
-        } else g.setColor(new Color(0x2A1418));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
-        if (enabled) {
-            g.setColor(new Color(255, 255, 255, 40));
-            g.fill(new RoundRectangle2D.Double(x + 12, y + 1, w - 24, 1.2, 1, 1));
-        }
-        Color fg = enabled ? Color.WHITE : FAINT;
+        float p = enabled ? press(id) : 0;
+        double dy = Obsidian.cta(g, x, y, w, h, Obsidian.R_MD, t, p, enabled);
+        Color fg = enabled ? Color.WHITE : Obsidian.N600;
         g.setFont(interBold.deriveFont(19f));
         FontMetrics fm = g.getFontMetrics();
         int iw = 14, gap = 12;
         int lw = (int) (fm.stringWidth(label) + label.length() * 0.6f);
         int tx = x + (w - lw - iw - gap) / 2;
-        icon(g, "play", tx + iw / 2, y + 26, iw, fg);
+        int ly = (int) Math.round(y + dy);
+        icon(g, "play", tx + iw / 2, ly + 26, iw, fg);
         g.setColor(fg);
-        spaced(g, label, tx + iw + gap, y + 33, 0.6f);
+        spaced(g, label, tx + iw + gap, ly + 33, 0.6f);
         g.setFont(interBold.deriveFont(9.5f));
-        g.setColor(enabled ? new Color(255, 255, 255, 190) : FAINT);
+        g.setColor(enabled ? new Color(255, 225, 228, 200) : Obsidian.N600);
         int sw = (int) (g.getFontMetrics().stringWidth(sub) + sub.length() * 1.4f);
-        spaced(g, sub, x + (w - sw) / 2, y + 51, 1.4f);
+        spaced(g, sub, x + (w - sw) / 2, ly + 51, 1.4f);
         hit(id, new Rectangle(x, y, w, h));
     }
 
     /** A soft red light under the Play button (no box edges). */
     private void shadowGlow(Graphics2D g, int x, int y, int w, int h, float t) {
-        Graphics2D q = (Graphics2D) g.create();
-        float rx = w * 0.6f, ry = h * 0.7f;
-        q.translate(x + w / 2f, y + h * 0.8f);
-        q.scale(1, ry / rx);
-        q.setPaint(new RadialGradientPaint(0, 0, rx, new float[]{0f, 1f},
-                new Color[]{new Color(225, 29, 46, Math.round(70 + 50 * t)), new Color(225, 29, 46, 0)}));
-        q.fill(new Ellipse2D.Float(-rx, -rx, 2 * rx, 2 * rx));
-        q.dispose();
+        Obsidian.glow(g, x + w / 2.0, y + h * 0.8, w * 0.62, h * 0.75, RED, (70 + 50 * t) / 255f);
     }
 
     /** A square icon button (glass tile) beside the Play button. */
     void squareButton(Graphics2D g, String id, int x, int y, int s, String iconKind, String tipText) {
         float t = anim(id, id.equals(hovered));
-        g.setColor(mix(new Color(255, 255, 255, 18), new Color(255, 255, 255, 34), t));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 28, 28));
-        g.setColor(new Color(255, 255, 255, 26));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, s - 1, s - 1, 28, 28));
-        icon(g, iconKind, x + s / 2, y + s / 2, 20, mix(new Color(0xD6D6DC), Color.WHITE, t));
+        float p = press(id);
+        // glass over the artwork: translucent fill, a rim catching the light, a contact shadow
+        Obsidian.shadow(g, x, y, s, s, Obsidian.R_MD, 3, 5, .35f);
+        Shape box = Obsidian.rr(x, y + p, s, s, Obsidian.R_MD);
+        g.setPaint(Obsidian.linear(0, y, 0, y + s, Obsidian.white(.11f + .07f * t), Obsidian.white(.05f + .05f * t)));
+        g.fill(box);
+        Obsidian.rim(g, box, .22f + .1f * t);
+        Obsidian.border(g, x, y + p, s, s, Obsidian.R_MD, Obsidian.white(.10f + .06f * t));
+        icon(g, iconKind, x + s / 2, (int) Math.round(y + s / 2 + p), 20, mix(Obsidian.N900, Color.WHITE, t));
         hit(id, new Rectangle(x, y, s, s));
     }
 
@@ -1453,9 +1471,9 @@ public final class LauncherView extends JPanel {
         // the skin, standing on the card
         int bh = 176, bw = Math.round(bh * 0.5f);
         int bx = x + (w - bw) / 2, byBottom = cy + 92;
-        g.setPaint(new RadialGradientPaint(x + w / 2f, byBottom - 20, 110, new float[]{0f, 1f},
-                new Color[]{new Color(225, 29, 46, 46), new Color(225, 29, 46, 0)}));
-        g.fill(new Ellipse2D.Double(x + w / 2.0 - 110, byBottom - 130, 220, 220));
+        // a stage for the figure: a soft emissive backlight and a floor shadow (no hard bar)
+        Obsidian.glow(g, x + w / 2.0, byBottom - 70, 130, 120, RED, 0.16f);
+        Obsidian.glow(g, x + w / 2.0, byBottom + 2, 64, 9, Color.BLACK, 0.55f);
         if (playerBody != null) {
             int iw = playerBody.getWidth(null), ih = playerBody.getHeight(null);
             double s = bh / (double) Math.max(1, ih);
@@ -1465,10 +1483,11 @@ public final class LauncherView extends JPanel {
             g.drawImage(playerBody, x + (w - dw) / 2, byBottom - bh, dw, bh, null);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
         } else defaultBody(g, bx, byBottom - bh, bw, bh);
-        g.setColor(RED);
-        g.fill(new RoundRectangle2D.Double(x + w / 2.0 - 60, byBottom + 2, 120, 4, 4, 4));
+        g.setPaint(Obsidian.linear(x + w / 2.0 - 70, 0, x + w / 2.0 + 70, 0, new float[]{0f, .5f, 1f},
+                Obsidian.alpha(Obsidian.RED500, 0), Obsidian.alpha(Obsidian.RED500, .9f), Obsidian.alpha(Obsidian.RED500, 0)));
+        g.fill(new Rectangle2D.Double(x + w / 2.0 - 70, byBottom + 4, 140, 1.5));
         // name
-        g.setFont(interBold.deriveFont(22f));
+        g.setFont(display(22f));
         g.setColor(TEXT);
         center(g, ellipsizeEnd(g, playerName != null ? playerName : "Not signed in", w - 40), x, byBottom + 18, w, 30);
         g.setFont(inter.deriveFont(12f));
@@ -1488,13 +1507,13 @@ public final class LauncherView extends JPanel {
     /** No skin yet: a plain standing figure in the launcher's colours (simple shapes, no game art). */
     private void defaultBody(Graphics2D g, int x, int y, int w, int h) {
         double u = h / 32.0;
-        Color skin = new Color(0x34343C), shirt = new Color(0x2A2A31), legs = new Color(0x1F1F25);
+        Color skin = new Color(0x31353E), shirt = new Color(0x272B34), legs = new Color(0x1D2027);
         double cx = x + w / 2.0;
         g.setColor(skin);
         g.fill(new RoundRectangle2D.Double(cx - 4 * u, y, 8 * u, 8 * u, 2 * u, 2 * u));
         g.setColor(shirt);
         g.fill(new RoundRectangle2D.Double(cx - 4 * u, y + 8 * u, 8 * u, 12 * u, u, u));
-        g.setColor(new Color(0x26262C));
+        g.setColor(new Color(0x23262F));
         g.fill(new RoundRectangle2D.Double(cx - 8 * u, y + 8 * u, 4 * u, 12 * u, u, u));
         g.fill(new RoundRectangle2D.Double(cx + 4 * u, y + 8 * u, 4 * u, 12 * u, u, u));
         g.setColor(legs);
@@ -1508,19 +1527,29 @@ public final class LauncherView extends JPanel {
     /** A tinted red button (secondary action on dark cards). */
     void accentButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
         float t = anim(id, id.equals(hovered));
-        g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 80), t));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
+        float p = press(id);
+        tinted(g, x, y, w, h, t, p);
         g.setFont(interBold.deriveFont(13.5f));
-        g.setColor(mix(new Color(0xFF6B78), Color.WHITE, t));
-        center(g, ellipsizeEnd(g, label, w - 20), x, y, w, h);
+        g.setColor(mix(Obsidian.RED300, Color.WHITE, t));
+        center(g, ellipsizeEnd(g, label, w - 20), x, (int) Math.round(y + p), w, h);
         hit(id, new Rectangle(x, y, w, h));
+    }
+
+    /** An accent-tinted secondary surface (red-900 glass, a red hairline, brighter on hover). */
+    private void tinted(Graphics2D g, int x, int y, int w, int h, float t, float p) {
+        Obsidian.shadow(g, x, y, w, h, Obsidian.R_SM, 1.5, 2, .35f);
+        Shape box = Obsidian.rr(x, y + p, w, h, Obsidian.R_SM);
+        g.setPaint(Obsidian.linear(0, y, 0, y + h, mix(new Color(0x3A0F18), new Color(0x5A1421), t), mix(new Color(0x2A0B12), new Color(0x46101A), t)));
+        g.fill(box);
+        Obsidian.rim(g, box, .10f + .08f * t);
+        Obsidian.border(g, x, y + p, w, h, Obsidian.R_SM, Obsidian.alpha(Obsidian.RED500, .28f + .22f * t));
     }
 
     private void squareSmall(Graphics2D g, String id, int x, int y, int s, String iconKind) {
         float t = anim(id, id.equals(hovered));
-        g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 80), t));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
-        icon(g, iconKind, x + s / 2, y + s / 2, 18, mix(new Color(0xFF6B78), Color.WHITE, t));
+        float p = press(id);
+        tinted(g, x, y, s, s, t, p);
+        icon(g, iconKind, x + s / 2, (int) Math.round(y + s / 2 + p), 18, mix(Obsidian.RED300, Color.WHITE, t));
         hit(id, new Rectangle(x, y, s, s));
     }
 
@@ -1544,7 +1573,7 @@ public final class LauncherView extends JPanel {
             String id = "news:" + i;
             float t = anim(id, id.equals(hovered));
             Shape box = new RoundRectangle2D.Double(cx, top, cw, ch, 24, 24);
-            g.setColor(mix(new Color(0x18181D), new Color(0x1D1D23), t));
+            g.setColor(mix(new Color(0x16181F), new Color(0x1B1E25), t));
             g.fill(box);
             int ih = ch - 64;
             Image img = e.image() != null ? newsImages.get(e.image()) : null;
@@ -1553,7 +1582,7 @@ public final class LauncherView extends JPanel {
             g.clip(box);
             g.clipRect(cx, top, cw, ih);
             if (img != null) cover(g, img, cx, top, cw, ih, 0.5);
-            g.setColor(new Color(10, 10, 12, Math.round(70 - 40 * t)));
+            g.setColor(new Color(9, 10, 13, Math.round(70 - 40 * t)));
             g.fillRect(cx, top, cw, ih);
             g.setClip(was);
             if (i == 0) {
@@ -1575,13 +1604,13 @@ public final class LauncherView extends JPanel {
             int sb = 36, sx = cx + cw - sb - 12, sy = top + ih + 14;
             g.setColor(mix(new Color(225, 29, 46, 40), RED, t));
             g.fill(new RoundRectangle2D.Double(sx, sy, sb, sb, 20, 20));
-            icon(g, "external", sx + sb / 2, sy + sb / 2, 15, mix(new Color(0xFF6B78), Color.WHITE, t));
+            icon(g, "external", sx + sb / 2, sy + sb / 2, 15, mix(new Color(0xFF5566), Color.WHITE, t));
             hit(id, new Rectangle(cx, top, cw, ch));
         }
         // all news
         int ax = x + w - pad - allW;
         float t = anim("news-all", "news-all".equals(hovered));
-        g.setColor(mix(new Color(0x18181D), new Color(0x1F1F25), t));
+        g.setColor(mix(new Color(0x16181F), new Color(0x1D2027), t));
         g.fill(new RoundRectangle2D.Double(ax, top, allW, ch, 24, 24));
         icon(g, "arrow-right", ax + allW / 2, top + ch / 2 - 12, 18, mix(DIM, TEXT, t));
         g.setFont(interBold.deriveFont(12f));
@@ -1666,7 +1695,7 @@ public final class LauncherView extends JPanel {
             Notice n = notices.get(i);
             g.setColor(new Color(255, 255, 255, 6));
             g.fill(new RoundRectangle2D.Double(x + 10, ry, w - 20, 54, 20, 20));
-            g.setColor(n.error() ? new Color(245, 165, 36, 40) : new Color(225, 29, 46, 36));
+            g.setColor(n.error() ? new Color(251, 191, 36, 40) : new Color(225, 29, 46, 36));
             g.fill(new RoundRectangle2D.Double(x + 20, ry + 11, 32, 32, 16, 16));
             icon(g, n.error() ? "alert" : "bell", x + 36, ry + 27, 14, n.error() ? AMBER : RED_HI);
             g.setFont(interBold.deriveFont(13f));
@@ -1741,11 +1770,11 @@ public final class LauncherView extends JPanel {
      */
     private void clipsBanner(Graphics2D g, int x, int y, int w) {
         int h = 76;
-        g.setColor(new Color(245, 165, 36, 22));
+        g.setColor(new Color(251, 191, 36, 22));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
-        g.setColor(new Color(245, 165, 36, 70));
+        g.setColor(new Color(251, 191, 36, 70));
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 28, 28));
-        g.setColor(new Color(245, 165, 36, 40));
+        g.setColor(new Color(251, 191, 36, 40));
         g.fill(new RoundRectangle2D.Double(x + 18, y + 18, 40, 40, 20, 20));
         icon(g, "alert", x + 38, y + 38, 18, AMBER);
         g.setFont(interBold.deriveFont(14f));
@@ -1756,7 +1785,7 @@ public final class LauncherView extends JPanel {
         g.setColor(DIM);
         g.drawString(ellipsizeEnd(g, clipsBusy ? "Closing it and starting Clips…" : "Clips is built into the launcher now. Close the old app to use it here.", w - 110 - bw), x + 72, y + 53);
         if (clipsBusy) {
-            g.setColor(new Color(0x2A2A31));
+            g.setColor(new Color(0x272B34));
             g.fill(new RoundRectangle2D.Double(x + w - 18 - bw, y + 18, bw, 40, 24, 24));
             g.setFont(interBold.deriveFont(13f));
             g.setColor(DIM);
@@ -1779,7 +1808,7 @@ public final class LauncherView extends JPanel {
             widths[i] = g.getFontMetrics().stringWidth(tabs[i][1]) + 32 + (count >= 0 ? g.getFontMetrics().stringWidth(String.valueOf(count)) + 16 : 0);
             total += widths[i];
         }
-        g.setColor(new Color(0x141418));
+        g.setColor(new Color(0x121419));
         g.fill(new RoundRectangle2D.Double(segX, ty, total, 44, 26, 26));
         g.setColor(HAIRLINE);
         g.draw(new RoundRectangle2D.Double(segX + .5, ty + .5, total - 1, 43, 26, 26));
@@ -1857,7 +1886,7 @@ public final class LauncherView extends JPanel {
         g.setColor(TEXT);
         g.drawString(launching ? "Opening the Minecraft Launcher…" : Math.round(shownProgress * 100) + "%", x - 1, y + 82);
         int by = y + 108;
-        g.setColor(new Color(0x24242B));
+        g.setColor(new Color(0x21252D));
         g.fill(new RoundRectangle2D.Double(x, by, w, 6, 6, 6));
         double f = launching ? 1 : shownProgress;
         int bw = (int) Math.max(6, w * f);
@@ -1877,7 +1906,7 @@ public final class LauncherView extends JPanel {
     private void paintHeroLaunched(Graphics2D g, int x, int y, int w, int h) {
         // check badge
         int cx = x + 26, cy = y + 60;
-        g.setColor(new Color(61, 220, 132, 34));
+        g.setColor(new Color(52, 211, 153, 34));
         g.fill(new Ellipse2D.Double(cx - 26, cy - 26, 52, 52));
         g.setColor(OK);
         g.fill(new Ellipse2D.Double(cx - 18, cy - 18, 36, 36));
@@ -1969,10 +1998,11 @@ public final class LauncherView extends JPanel {
 
     void badge(Graphics2D g, int cx, int cy, String s) {
         int was = ThemedGraphics.danger(g); // "!" means a problem: red whatever the accent
-        g.setColor(new Color(225, 29, 46, 40));
-        g.fill(new Ellipse2D.Double(cx - 26, cy - 26, 52, 52));
-        g.setColor(RED);
-        g.fill(new Ellipse2D.Double(cx - 18, cy - 18, 36, 36));
+        Obsidian.glow(g, cx, cy, 40, 40, RED, 0.35f);
+        g.setPaint(Obsidian.linear(0, cy - 18, 0, cy + 18, Obsidian.RED500, Obsidian.RED700));
+        Shape c = new Ellipse2D.Double(cx - 18, cy - 18, 36, 36);
+        g.fill(c);
+        Obsidian.rim(g, c, .3f);
         g.setFont(interBold.deriveFont(20f));
         g.setColor(Color.WHITE);
         center(g, s, cx - 18, cy - 18, 36, 36);
@@ -1982,17 +2012,16 @@ public final class LauncherView extends JPanel {
     /** A solid red button with a play icon (the hero's other states: try again, get the launcher). */
     private void playButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
         float t = enabled ? anim(id, id.equals(hovered)) : 0;
-        if (enabled) shadowGlow(g, x, y, w, h, t);
-        g.setColor(enabled ? mix(RED, RED_HI, t) : new Color(0x2A1418));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 28, 28));
+        float p = enabled ? press(id) : 0;
+        double dy = Obsidian.cta(g, x, y, w, h, Obsidian.R_MD, t, p, enabled);
         g.setFont(interBold.deriveFont(label.length() > 12 ? 15f : 17f));
         FontMetrics fm = g.getFontMetrics();
         int tw = fm.stringWidth(label), iw = 13, gap = 10;
         int tx = x + (w - tw - iw - gap) / 2;
-        Color fg = enabled ? Color.WHITE : FAINT;
-        icon(g, "play", tx + iw / 2, y + h / 2, iw, fg);
+        Color fg = enabled ? Color.WHITE : Obsidian.N600;
+        icon(g, "play", tx + iw / 2, (int) Math.round(y + h / 2 + dy), iw, fg);
         g.setColor(fg);
-        g.drawString(label, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        g.drawString(label, tx + iw + gap, (float) (y + dy + (h - fm.getHeight()) / 2f + fm.getAscent()));
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label);
     }
@@ -2017,7 +2046,7 @@ public final class LauncherView extends JPanel {
         if (img != null && img.getWidth(null) > 1) {
             Shape was = g.getClip();
             RoundRectangle2D r = new RoundRectangle2D.Double(x, y, s, s, s * 0.45, s * 0.45);
-            g.setColor(new Color(0x1C1C22));
+            g.setColor(new Color(0x1A1D23));
             g.fill(r);
             g.clip(r);
             Object hint = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
@@ -2033,11 +2062,13 @@ public final class LauncherView extends JPanel {
 
     /** A neutral rounded tile with the first letter of a name (when there's no picture). */
     void tile(Graphics2D g, int x, int y, int s, String name) {
-        g.setColor(new Color(0x24242B));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, s * 0.6, s * 0.6));
+        Shape box = Obsidian.rr(x, y, s, s, s * 0.28);
+        g.setPaint(Obsidian.linear(0, y, 0, y + s, Obsidian.N300, Obsidian.N250));
+        g.fill(box);
+        Obsidian.rim(g, box, .08f);
         String letter = name == null || name.isBlank() ? "?" : name.strip().substring(0, 1).toUpperCase();
         g.setFont(interBold.deriveFont(s * 0.42f));
-        g.setColor(new Color(0xB4B4BE));
+        g.setColor(Obsidian.N800);
         center(g, letter, x, y, s, s);
     }
 
@@ -2168,7 +2199,7 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(46f));
         g.setColor(TEXT);
         g.drawString(Math.round(shownProgress * 100) + "%", x - 2, y + 96);
-        g.setColor(new Color(0x24242B));
+        g.setColor(new Color(0x21252D));
         g.fill(new RoundRectangle2D.Double(x, y + 114, w, 6, 6, 6));
         int bw = (int) Math.max(6, w * shownProgress);
         g.setPaint(new GradientPaint(x, 0, new Color(0x9B0D1A), x + bw, 0, RED_HI));
@@ -2269,7 +2300,7 @@ public final class LauncherView extends JPanel {
             g.setFont(interBold.deriveFont(12f));
             String s2 = "Play starts this one";
             int sw = g.getFontMetrics().stringWidth(s2) + 36;
-            g.setColor(new Color(61, 220, 132, 26));
+            g.setColor(new Color(52, 211, 153, 26));
             g.fill(new RoundRectangle2D.Double(ix + iw - sw, y + 32, sw, 32, 32, 32));
             g.setColor(OK);
             g.fill(new Ellipse2D.Double(ix + iw - sw + 14, y + 45, 7, 7));
@@ -2337,7 +2368,7 @@ public final class LauncherView extends JPanel {
         int pw = Math.min(220, g.getFontMetrics().stringWidth(nm) + 74);
         int px = CX + CW - pw;
         float t = anim("mods-instance", "mods-instance".equals(hovered));
-        g.setColor(mix(CARD_2, new Color(0x202028), t));
+        g.setColor(mix(CARD_2, new Color(0x1E2129), t));
         g.fill(new RoundRectangle2D.Double(px, 96, pw, 40, 24, 24));
         icon(g, "layers", px + 22, 116, 15, DIM);
         g.setColor(TEXT);
@@ -2529,7 +2560,7 @@ public final class LauncherView extends JPanel {
                     g.setColor(TEXT);
                     center(g, "Installing…", bx, ry + 18, 130, 32);
                 } else if ("installed".equals(st) || installedProjects.contains(hh.projectId())) {
-                    g.setColor(new Color(61, 220, 132, 22));
+                    g.setColor(new Color(52, 211, 153, 22));
                     g.fill(new RoundRectangle2D.Double(bx, ry + 18, 130, 32, 10, 10));
                     icon(g, "check", bx + 34, ry + 34, 10, OK);
                     g.setFont(interBold.deriveFont(12f));
@@ -2731,38 +2762,35 @@ public final class LauncherView extends JPanel {
         if (toast == null) return;
         long age = System.currentTimeMillis() - toastAt;
         if (age > 3600) { toast = null; return; }
-        float a = LauncherTheme.reduceMotion() ? 1f : age < 200 ? age / 200f : age > 3200 ? (3600 - age) / 400f : 1f;
+        // enter: dur.base on ease.standard; exit: faster, accelerating away
+        float in = Math.min(1f, age / 220f), out = age > 3200 ? Math.min(1f, (age - 3200) / 400f) : 0f;
+        in = 1 - (1 - in) * (1 - in) * (1 - in);
+        out = out * out;
+        float a = LauncherTheme.reduceMotion() ? (age > 3200 ? 1 - out : 1f) : in * (1 - out);
         g.setFont(interBold.deriveFont(12.5f));
-        int tw = g.getFontMetrics().stringWidth(toast) + 48;
-        int x = CX + (CW - tw) / 2, y = H - 64 + Math.round((1 - a) * 10);
+        int tw = g.getFontMetrics().stringWidth(toast) + 50;
+        int x = CX + (CW - tw) / 2, y = H - 64 + (LauncherTheme.reduceMotion() ? 0 : Math.round((1 - in) * 12 + out * 6));
         Composite was = g.getComposite();
         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, Math.min(1, a))));
-        shadow(g, x, y, tw, 38);
-        g.setColor(RAISED);
-        g.fill(new RoundRectangle2D.Double(x, y, tw, 38, 38, 38));
-        g.setColor(new Color(255, 255, 255, 24));
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, tw - 1, 37, 37, 37));
+        Obsidian.surface(g, x, y, tw, 38, 19, Obsidian.E4, Obsidian.N350, Obsidian.N300, 0);
+        Obsidian.glow(g, x + 19, y + 19, 10, 10, RED, .5f);
         g.setColor(RED_HI);
         g.fill(new Ellipse2D.Double(x + 16, y + 16, 6, 6));
         g.setColor(TEXT);
-        g.drawString(toast, x + 30, y + 24);
+        g.drawString(toast, x + 32, y + 24);
         g.setComposite(was);
     }
 
     private void paintPopup(Graphics2D g) {
         Popup p = popup;
         int h = p.items().size() * 38 + 12;
-        shadow(g, p.x(), p.y(), p.w(), h);
-        g.setColor(RAISED);
-        g.fill(new RoundRectangle2D.Double(p.x(), p.y(), p.w(), h, 24, 24));
-        g.setColor(new Color(0x2E2E38));
-        g.draw(new RoundRectangle2D.Double(p.x() + .5, p.y() + .5, p.w() - 1, h - 1, 14, 14));
+        Obsidian.surface(g, p.x(), p.y(), p.w(), h, Obsidian.R_MD, Obsidian.E4, Obsidian.N300, new Color(0x1D2028), 0);
         int y = p.y() + 6;
         for (String[] it : p.items()) {
             float t = anim(it[0], it[0].equals(hovered));
             if (t > 0) {
-                g.setColor(new Color(255, 255, 255, (int) (14 * t)));
-                g.fill(new RoundRectangle2D.Double(p.x() + 6, y, p.w() - 12, 38, 9, 9));
+                g.setColor(Obsidian.alpha(Obsidian.N400, .55f * t));
+                g.fill(Obsidian.rr(p.x() + 6, y, p.w() - 12, 38, Obsidian.R_SM - 2));
             }
             g.setFont(inter.deriveFont(13f));
             g.setColor(TEXT);
@@ -2775,9 +2803,7 @@ public final class LauncherView extends JPanel {
 
     private Rectangle paintModal(Graphics2D g) {
         Modal m = modal;
-        g.setColor(new Color(4, 4, 6, 170));
-        if (roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
-        else g.fillRect(0, 0, W, H);
+        scrim(g);
         boolean server = m.kind().equals("server");
         boolean text = m.kind().equals("create") || m.kind().equals("rename") || m.kind().equals("group") || server || m.kind().startsWith("c:text");
         boolean create = m.kind().equals("create");
@@ -2818,10 +2844,7 @@ public final class LauncherView extends JPanel {
                 if ("vanilla".equals(modalCopyFrom)) from = "Minecraft (your normal game)";
                 for (Launcher.Instance i : instances) if (i.id.equals(modalCopyFrom)) from = i.name;
                 float t = anim("modal-copy", "modal-copy".equals(hovered));
-                g.setColor(mix(FIELD, new Color(0x15151A), t));
-                g.fill(new RoundRectangle2D.Double(ix, fy + 94, iw, 40, 10, 10));
-                g.setColor(BORDER);
-                g.draw(new RoundRectangle2D.Double(ix + .5, fy + 94.5, iw - 1, 39, 10, 10));
+                Obsidian.secondary(g, ix, fy + 94, iw, 40, Obsidian.R_SM, t, press("modal-copy"));
                 g.setFont(inter.deriveFont(13f));
                 g.setColor(TEXT);
                 g.drawString(from, ix + 13, fy + 119);
@@ -2838,6 +2861,15 @@ public final class LauncherView extends JPanel {
         return field;
     }
 
+    /** grad.scrim: the page pushed back behind a dialog (n0, darker at the edges, a faint accent at the bottom; dithered). */
+    void scrim(Graphics2D g) {
+        Shape all = roundCorners ? new RoundRectangle2D.Double(0, 0, W, H, RADIUS * 2, RADIUS * 2) : new Rectangle(0, 0, W, H);
+        g.setPaint(Obsidian.radial(W / 2.0, H / 2.0, W * 0.75, H * 0.85, new float[]{0f, 1f}, Obsidian.alpha(Obsidian.N0, .58f), Obsidian.alpha(Obsidian.N0, .82f)));
+        g.fill(all);
+        g.setPaint(Obsidian.linear(0, H * 0.6, 0, H, Obsidian.alpha(RED, 0), Obsidian.alpha(RED, .05f)));
+        g.fill(all);
+    }
+
     // ------------------------------------------------------------------ widgets
 
     void hit(String id, Rectangle r) {
@@ -2852,39 +2884,47 @@ public final class LauncherView extends JPanel {
         if (s[0] > max) s[0] = max;
         if (s[1] > max) s[1] = max;
         if (contentH <= area.height) return;
+        // overlay scrollbar: 4 wide (6 under the cursor), never red
+        Point m = getMousePosition();
+        boolean over = m != null && area.contains(m.x / uiScale, m.y / uiScale);
+        float t = anim("sb:" + id, over);
         int th = Math.max(30, area.height * area.height / contentH);
         int ty = area.y + Math.round((area.height - th) * (s[1] / max));
-        g.setColor(new Color(255, 255, 255, 30));
-        g.fill(new RoundRectangle2D.Double(area.x + area.width - 7, ty, 4, th, 4, 4));
+        double bw = 4 + 2 * t;
+        g.setColor(Obsidian.white(.16f + .14f * t));
+        g.fill(Obsidian.rr(area.x + area.width - 4 - bw, ty, bw, th, bw / 2));
         // soft fade at the bottom edge so cut-off rows don't end abruptly
         if (s[1] < max - 1) {
-            g.setPaint(new GradientPaint(0, area.y + area.height - 24, new Color(17, 17, 21, 0), 0, area.y + area.height, new Color(17, 17, 21, 230)));
-            g.fillRect(area.x, area.y + area.height - 24, area.width - 10, 24);
+            g.setPaint(Obsidian.linear(0, area.y + area.height - 28, 0, area.y + area.height, Obsidian.alpha(CARD, 0), Obsidian.alpha(CARD, .92f)));
+            g.fillRect(area.x, area.y + area.height - 28, area.width - 12, 28);
         }
     }
 
     void memoryChips(Graphics2D g, int x, int y, int w, int value) {
         int[] opts = memoryChoices;
-        // one segmented control: a dark track, the chosen size filled red
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, 36, 22, 22));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, 35, 22, 22));
+        // a segmented control: a sunken pill track and a raised thumb that glides to the chosen size (never red)
+        Obsidian.sunken(g, x, y, w, 36, 18, FIELD, 0);
         int sw = (w - 8) / Math.max(1, opts.length);
+        int chosen = -1;
+        for (int i = 0; i < opts.length; i++) if (value == opts[i]) chosen = i;
+        if (chosen >= 0) {
+            float at = spring("mem-thumb@" + x + "," + y, chosen, 20f);
+            double tx = x + 4 + at * sw;
+            Obsidian.surface(g, tx, y + 4, sw, 28, 14, Obsidian.E3.noAmbient(), Obsidian.N350, Obsidian.N300, 0);
+            g.setColor(RED_HI);
+            g.fill(new Rectangle2D.Double(tx + sw / 2.0 - 8, y + 30, 16, 1.5));
+        }
         for (int i = 0; i < opts.length; i++) {
             int sx = x + 4 + i * sw;
             String id = "mem:" + opts[i];
             boolean on = value == opts[i];
             float t = anim(id, id.equals(hovered));
-            if (on) {
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, 28, 16, 16));
-            } else if (t > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(12 * t)));
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, 28, 16, 16));
+            if (!on && t > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(10 * t)));
+                g.fill(Obsidian.rr(sx, y + 4, sw, 28, 14));
             }
             g.setFont(interBold.deriveFont(12.5f));
-            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(on ? TEXT : mix(FAINT, TEXT, t));
             center(g, opts[i] + " GB", sx, y + 4, sw, 28);
             hit(id, new Rectangle(sx, y + 4, sw, 28));
         }
@@ -2909,23 +2949,28 @@ public final class LauncherView extends JPanel {
 
     void toggle(Graphics2D g, String id, int tx, int ry, boolean value, boolean enabled) {
         float on = anim(id + "-on", value);
+        double kx = tx + 3 + on * 18;
         if (enabled) {
-            Color off = new Color(0x2A2A31);
-            g.setPaint(new GradientPaint(0, ry, mix(off, RED_HI, on), 0, ry + 20, mix(off, RED, on)));
-            g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
-            double kx = tx + 3 + on * 18;
-            g.setColor(new Color(0, 0, 0, 50));
-            g.fill(new Ellipse2D.Double(kx - 0.5, ry + 3.5, 15, 15));
-            g.setColor(Color.WHITE);
+            // off: a sunken well with a grey knob; on: red-600 with a red-300 rim, a white knob and a soft halo
+            Obsidian.sunken(g, tx, ry, 38, 20, 10, FIELD, 0);
+            if (on > 0.01f) {
+                Shape track = Obsidian.rr(tx, ry, 38, 20, 10);
+                Composite c0 = g.getComposite();
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, on));
+                g.setPaint(Obsidian.linear(0, ry, 0, ry + 20, Obsidian.RED500, Obsidian.RED600));
+                g.fill(track);
+                g.setComposite(c0);
+                Obsidian.rim(g, track, .28f * on);
+                Obsidian.glow(g, kx + 7, ry + 10, 16, 14, RED, .32f * on);
+            }
+            Obsidian.shadow(g, kx, ry + 3, 14, 14, 7, 1, 1.2, .45f);
+            g.setColor(mix(Obsidian.N800, Color.WHITE, on));
             g.fill(new Ellipse2D.Double(kx, ry + 3, 14, 14));
             if (id.startsWith("mod-toggle:")) hit(id, new Rectangle(tx - 4, ry - 4, 46, 28));
         } else {
-            g.setColor(new Color(0x1C1C22));
-            g.fill(new RoundRectangle2D.Double(tx, ry, 38, 20, 20, 20));
-            g.setColor(BORDER);
-            g.draw(new RoundRectangle2D.Double(tx + .5, ry + .5, 37, 19, 19, 19));
-            g.setColor(new Color(0x3A3A44));
-            g.fill(new Ellipse2D.Double(tx + 3 + on * 18, ry + 3, 14, 14));
+            Obsidian.sunken(g, tx, ry, 38, 20, 10, new Color(0x111318), 0);
+            g.setColor(on > .5f ? Obsidian.alpha(Obsidian.RED700, .5f) : Obsidian.N400);
+            g.fill(new Ellipse2D.Double(kx, ry + 3, 14, 14));
         }
     }
 
@@ -2950,39 +2995,32 @@ public final class LauncherView extends JPanel {
 
     void bigButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean enabled) {
         float t = enabled ? anim(id, id.equals(hovered)) : 0;
-        if (enabled) shadowGlow(g, x, y, w, h, t);
-        g.setColor(enabled ? mix(RED, RED_HI, t) : new Color(0x2A1418));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 24, 24));
+        float p = enabled ? press(id) : 0;
+        double dy = Obsidian.cta(g, x, y, w, h, Obsidian.R_SM + 2, t, p, enabled);
         g.setFont(interBold.deriveFont(15f));
-        g.setColor(enabled ? Color.WHITE : FAINT);
-        center(g, label, x, y, w, h);
+        g.setColor(enabled ? Color.WHITE : Obsidian.N600);
+        center(g, label, x, (int) Math.round(y + dy), w, h);
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label + (enabled ? "" : ", not available"));
     }
 
     /** A soft red glow: an elliptical radial gradient that fades to nothing before its edges (no visible box). */
     private static void glow(Graphics2D g, float cx, float cy, float rx, float ry, int alpha) {
-        Graphics2D q = (Graphics2D) g.create();
-        q.translate(cx, cy);
-        q.scale(1, ry / rx);
-        q.setPaint(new RadialGradientPaint(0, 0, rx, new float[]{0f, 1f},
-                new Color[]{new Color(225, 29, 46, Math.min(255, alpha)), new Color(225, 29, 46, 0)}));
-        q.fill(new Ellipse2D.Float(-rx, -rx, 2 * rx, 2 * rx));
-        q.dispose();
+        Obsidian.glow(g, cx, cy, rx, ry, RED, Math.min(255, alpha) / 255f);
     }
 
     /** A compact red button, optionally with an icon before the label. */
     void smallPrimary(Graphics2D g, String id, int x, int y, int w, int h, String label, String iconKind) {
         float t = anim(id, id.equals(hovered));
-        g.setColor(mix(RED, RED_HI, t));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 24), Math.min(h, 24)));
+        float p = press(id);
+        double dy = Obsidian.cta(g, x, y, w, h, Math.min(h / 2.0, Obsidian.R_SM), t, p, true);
         g.setFont(interBold.deriveFont(13f));
         FontMetrics fm = g.getFontMetrics();
         int tw = fm.stringWidth(label), iw = iconKind != null ? 12 : 0, gap = iconKind != null ? 8 : 0;
         int tx = x + (w - tw - iw - gap) / 2;
-        if (iconKind != null) icon(g, iconKind, tx + iw / 2, y + h / 2, iw, Color.WHITE);
+        if (iconKind != null) icon(g, iconKind, tx + iw / 2, (int) Math.round(y + h / 2 + dy), iw, Color.WHITE);
         g.setColor(Color.WHITE);
-        g.drawString(label, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        g.drawString(label, tx + iw + gap, (float) (y + dy + (h - fm.getHeight()) / 2f + fm.getAscent()));
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label);
     }
@@ -2997,15 +3035,19 @@ public final class LauncherView extends JPanel {
 
     void ghostButton(Graphics2D g, String id, int x, int y, int w, int h, String label, boolean danger, String iconKind, boolean solid) {
         float t = anim(id, id.equals(hovered));
+        float p = press(id);
         int was = danger ? ThemedGraphics.danger(g) : -1; // Delete stays red whatever the accent
-        Color base = solid ? new Color(0x3A1218) : new Color(0x1C1C22);
-        int r = Math.min(h, 24);
-        g.setColor(danger ? mix(base, new Color(0x4A141B), t) : mix(base, new Color(0x26262D), t));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, r, r));
+        double r = Math.min(h / 2.0, Obsidian.R_SM);
         if (danger) {
-            g.setColor(mix(new Color(225, 29, 46, 50), RED, t));
-            g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, r, r));
-        }
+            // danger: a quiet surface with danger text; tinted on hover, filled when it's the dialog's confirm
+            Obsidian.shadow(g, x, y, w, h, r, 1.5, 2, .3f);
+            Shape box = Obsidian.rr(x, y + p, w, h, r);
+            Color d = Obsidian.DANGER;
+            g.setColor(solid ? mix(Obsidian.alpha(d, .20f), Obsidian.alpha(d, .30f), t) : mix(Obsidian.N250, mix(Obsidian.N250, d, .16f), t));
+            g.fill(box);
+            Obsidian.rim(g, box, .07f + .05f * t);
+            Obsidian.border(g, x, y + p, w, h, r, Obsidian.alpha(d, (solid ? .45f : .22f) + .3f * t));
+        } else Obsidian.secondary(g, x, y, w, h, r, t, p);
         g.setFont(interBold.deriveFont(13f));
         int room = w - 16 - (iconKind != null ? 20 : 0);
         if (g.getFontMetrics().stringWidth(label) > room) g.setFont(interBold.deriveFont(11.5f));
@@ -3013,10 +3055,10 @@ public final class LauncherView extends JPanel {
         String s = ellipsizeEnd(g, label, room);
         int tw = fm.stringWidth(s), iw = iconKind != null ? 14 : 0, gap = iconKind != null ? 8 : 0;
         int tx = x + (w - tw - iw - gap) / 2;
-        Color fg = danger ? mix(new Color(0xFF7A86), Color.WHITE, t) : mix(new Color(0xD6D6DC), TEXT, t);
-        if (iconKind != null) icon(g, iconKind, tx + iw / 2, y + h / 2, iw, danger ? fg : mix(DIM, TEXT, t));
+        Color fg = danger ? mix(new Color(0xFF7A90), Color.WHITE, solid ? .6f + .4f * t : t * .6f) : mix(Obsidian.N900, TEXT, t);
+        if (iconKind != null) icon(g, iconKind, tx + iw / 2, (int) Math.round(y + h / 2 + p), iw, danger ? fg : mix(Obsidian.N700, TEXT, t));
         g.setColor(fg);
-        g.drawString(s, tx + iw + gap, y + (h - fm.getHeight()) / 2f + fm.getAscent());
+        g.drawString(s, tx + iw + gap, (float) (y + p + (h - fm.getHeight()) / 2f + fm.getAscent()));
         if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label);
@@ -3024,21 +3066,24 @@ public final class LauncherView extends JPanel {
 
     void smallButton(Graphics2D g, String id, int x, int y, int w, int h, String label) {
         float hc = anim(id, id.equals(hovered));
-        g.setColor(mix(new Color(0x24242B), new Color(0x2E2E36), hc));
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, Math.min(h, 20), Math.min(h, 20)));
+        float p = press(id);
+        Obsidian.secondary(g, x, y, w, h, Math.min(h / 2.0, Obsidian.R_SM), hc, p);
         g.setFont(interBold.deriveFont(12f));
         g.setColor(TEXT);
-        center(g, label, x, y, w, h);
+        center(g, label, x, (int) Math.round(y + p), w, h);
         hit(id, new Rectangle(x, y, w, h));
         game.name(id, label);
     }
 
     void iconButton(Graphics2D g, String id, int x, int y, int s, String kind, boolean danger) {
         float t = anim(id, id.equals(hovered));
+        float p = press(id);
         int was = danger ? ThemedGraphics.danger(g) : -1;
-        g.setColor(mix(new Color(255, 255, 255, 0), danger ? new Color(225, 29, 46, 60) : new Color(255, 255, 255, 24), t));
-        g.fill(new RoundRectangle2D.Double(x, y, s, s, 9, 9));
-        icon(g, kind, x + s / 2, y + s / 2, 14, mix(FAINT, danger ? RED_HI : TEXT, t));
+        if (t > 0.005f) {
+            g.setColor(danger ? Obsidian.alpha(Obsidian.DANGER, .16f * t) : Obsidian.alpha(Obsidian.N400, .6f * t));
+            g.fill(Obsidian.rr(x, y + p, s, s, Obsidian.R_SM - 1));
+        }
+        icon(g, kind, x + s / 2, (int) Math.round(y + s / 2 + p), 14, mix(FAINT, danger ? Obsidian.DANGER : TEXT, t));
         if (was >= 0) ThemedGraphics.mode(g, was);
         hit(id, new Rectangle(x, y, s, s));
     }
@@ -3107,16 +3152,13 @@ public final class LauncherView extends JPanel {
     }
 
     void box(Graphics2D g, int x, int y, int w, int h) {
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 20, 20));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 20, 20));
+        Obsidian.sunken(g, x, y, w, h, Obsidian.R_SM, FIELD, 0);
     }
 
     void label(Graphics2D g, String s, int x, int y) {
         g.setFont(interBold.deriveFont(10f));
         g.setColor(FAINT);
-        spaced(g, s, x, y, 1.4f);
+        spaced(g, s, x, y, 1.1f);
     }
 
     /** Line icons, drawn with shapes (fonts don't reliably have these glyphs). */
@@ -3408,14 +3450,57 @@ public final class LauncherView extends JPanel {
 
     // ------------------------------------------------------------------ misc
 
+    /**
+     * Hover/selection state of {@code id} easing toward on (1) or off (0): a critically damped spring (Obsidian's
+     * spring.snappy), frame-rate independent, instant under reduced motion.
+     */
     float anim(String id, boolean target) {
-        float to = target ? 1f : 0f;
-        float v = hover.getOrDefault(id, to);
-        v += (to - v) * (LauncherTheme.reduceMotion() ? 1f : 0.22f);
-        if (Math.abs(to - v) < 0.002f) v = to;
-        else animating = true;
-        hover.put(id, v);
-        return v;
+        return Math.max(0f, Math.min(1f, spring(id, target ? 1f : 0f, 26f)));
+    }
+
+    /** How far {@code id} is pressed in (0..1): fast in, eased out (the press dip). */
+    float press(String id) {
+        return Math.max(0f, Math.min(1f, spring(id + "#press", id != null && id.equals(pressed) && id.equals(hovered) ? 1f : 0f, 48f)));
+    }
+
+    /** A value gliding toward {@code to} on a critically damped spring of angular frequency {@code omega}. */
+    float spring(String id, float to, float omega) {
+        float[] s = springs.get(id);
+        if (s == null) { springs.put(id, new float[]{to, 0, frameNo}); return to; }
+        if (s[2] != frameNo) {
+            s[2] = frameNo;
+            if (LauncherTheme.reduceMotion()) { s[0] = to; s[1] = 0; }
+            else {
+                float left = frameDt;
+                while (left > 0) {
+                    float h = Math.min(left, 1f / 240f);
+                    float a = omega * omega * (to - s[0]) - 2f * omega * s[1];
+                    s[1] += a * h;
+                    s[0] += s[1] * h;
+                    left -= h;
+                }
+                if (Math.abs(to - s[0]) < 0.002f * Math.max(1f, Math.abs(to)) && Math.abs(s[1]) < 0.02f * Math.max(1f, Math.abs(to))) { s[0] = to; s[1] = 0; }
+            }
+        }
+        if (s[0] != to) animating = true;
+        return s[0];
+    }
+
+    /** id -> {value, velocity, frame it was last stepped}. */
+    private final Map<String, float[]> springs = new HashMap<>();
+    /** Seconds since the last painted frame (fixed while rendering screenshots), and the frame's number. */
+    private float frameDt = 1f / 60f;
+    private int frameNo;
+    private long lastFrameNanos;
+    private boolean snapshotting;
+    /** The control under a held mouse button (drawn pressed in). */
+    String pressed;
+
+    private void nextFrame() {
+        long now = System.nanoTime();
+        frameDt = snapshotting ? 1f / 30f : lastFrameNanos == 0 ? 1f / 60f : Math.max(1f / 500f, Math.min(1f / 12f, (now - lastFrameNanos) / 1e9f));
+        lastFrameNanos = now;
+        frameNo++;
     }
 
     static Color mix(Color a, Color b, float t) {
@@ -3425,6 +3510,11 @@ public final class LauncherView extends JPanel {
                 Math.round(a.getGreen() + (b.getGreen() - a.getGreen()) * t),
                 Math.round(a.getBlue() + (b.getBlue() - a.getBlue()) * t),
                 Math.round(a.getAlpha() + (b.getAlpha() - a.getAlpha()) * t));
+    }
+
+    /** The display role: Inter Bold with slightly tightened tracking (big titles). */
+    Font display(float size) {
+        return interBold.deriveFont(Map.of(java.awt.font.TextAttribute.SIZE, size, java.awt.font.TextAttribute.TRACKING, -0.012f));
     }
 
     private static Font font(String path) {
@@ -3515,6 +3605,7 @@ public final class LauncherView extends JPanel {
         for (float[] s : scroll.values()) s[1] = s[0];
         boolean was = roundCorners;
         roundCorners = true;
+        snapshotting = true;
         // Lay the text fields out first (they're positioned while painting), then paint everything with them.
         paintComponent(img.createGraphics());
         if (clipsHost != null && clipsHost.isVisible()) {
@@ -3524,6 +3615,7 @@ public final class LauncherView extends JPanel {
             clampViewports(clipsHost);
         }
         paint(g);
+        snapshotting = false;
         roundCorners = was;
         g.dispose();
         return img;

@@ -276,4 +276,51 @@ public final class GuiKitTest {
         ctx.waitTicks(4);
         return best;
     }
+
+    // ------------------------------------------------------------------ memory soak (dev: -Devade.kitleak=true)
+
+    /** VmRSS of this process in MB (Linux), or -1. */
+    static long rssMb() {
+        try {
+            for (String l : java.nio.file.Files.readAllLines(java.nio.file.Path.of("/proc/self/status")))
+                if (l.startsWith("VmRSS:")) return Long.parseLong(l.replaceAll("[^0-9]", "")) / 1024;
+        } catch (Exception ignored) {
+            // not Linux
+        }
+        return -1;
+    }
+
+    private static void soakLog(ClientGameTestContext ctx, String phase, int tick) {
+        long[] m = ctx.computeOnClient(c -> {
+            Runtime r = Runtime.getRuntime();
+            return new long[]{rssMb(), (r.totalMemory() - r.freeMemory()) >> 20, UiShape.submitted};
+        });
+        EvadeClient.LOG.info("[gametest] SOAK {} tick {} rss {} MB heap {} MB shapes {}", phase, tick, m[0], m[1], m[2]);
+    }
+
+    /**
+     * A memory soak: the kit gallery and the Evade menu for thousands of frames each, with the shader and with the
+     * texture fallback, logging the process RSS. Before any world exists, so it is quick; ends on the title screen.
+     */
+    static void soak(ClientGameTestContext ctx) {
+        int frames = Integer.getInteger("evade.kitleak.ticks", 1500);
+        String only = System.getProperty("evade.kitleak.only", "");
+        soakLog(ctx, "start", 0);
+        for (boolean fallback : new boolean[]{false, true}) {
+            if (only.equals("shader") && fallback || only.equals("fallback") && !fallback) continue;
+            ctx.runOnClient(c -> UiShape.forceFallback(fallback));
+            String tag = fallback ? "fallback" : "shader";
+            for (String screen : new String[]{"gallery", "menu"}) {
+                ctx.setScreen(() -> screen.equals("gallery") ? new KitGalleryScreen(null) : new EvadeMenu());
+                for (int t = 0; t < frames; t += 250) {
+                    ctx.waitTicks(250);
+                    soakLog(ctx, tag + "-" + screen, t + 250);
+                }
+            }
+        }
+        ctx.runOnClient(c -> UiShape.forceFallback(false));
+        ctx.setScreen(() -> null);
+        ctx.waitTicks(5);
+        soakLog(ctx, "end", 0);
+    }
 }

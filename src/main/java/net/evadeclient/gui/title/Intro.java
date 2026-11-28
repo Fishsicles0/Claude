@@ -16,6 +16,8 @@ public final class Intro {
     private double start = -1;
     private boolean full;
     private boolean enabled = true;
+    /** Reduced motion: every element simply fades in together over at most 120 ms, nothing slides. */
+    private boolean reduced;
     /** Skipped: everything shows as arrived until the next begin/restart. */
     private boolean skipped;
 
@@ -27,6 +29,7 @@ public final class Intro {
     /** Starts the timeline (once per showing of the menu). */
     public void begin(boolean animations) {
         enabled = animations;
+        reduced = animations && Motion.level() != Motion.Level.FULL;
         full = !played;
         played = true;
         skipped = false;
@@ -36,12 +39,16 @@ public final class Intro {
     /** Called when the menu is shown again (returning to it): replays the short fade. */
     public void restart(boolean animations) {
         enabled = animations;
+        reduced = animations && Motion.level() != Motion.Level.FULL;
         full = false;
         skipped = false;
         start = now();
     }
 
-    public boolean full() { return full && enabled; }
+    public boolean full() { return full && enabled && !reduced; }
+
+    /** Whether elements may slide and stagger (Full motion); otherwise they only fade. */
+    public boolean moves() { return enabled && !reduced; }
 
     /** Jumps to the end of the entrance (a click or key while it plays). Returns whether there was anything to skip. */
     public boolean skip() {
@@ -65,12 +72,13 @@ public final class Intro {
         if (!enabled || skipped) return 1f;
         if (start < 0) return 0f; // not started yet (the loading screen is still up)
         double t = elapsed();
+        if (reduced) return Motion.clamp01((float) (t / Motion.DUR_REDUCED_MAX));
         if (!full) return Motion.cubicOut((float) (t / 180.0));
         return Motion.cubicOut((float) ((t - delayMs) / durMs));
     }
 
     /** Whether everything has arrived. */
     public boolean done() {
-        return !enabled || elapsed() > (full ? 2200 : 200);
+        return !enabled || elapsed() > (reduced ? Motion.DUR_REDUCED_MAX : full ? 2200 : 200);
     }
 }

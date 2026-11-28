@@ -368,7 +368,7 @@ final class ContentPage {
             g.setFont((tab == t ? v.interBold : v.inter).deriveFont(13.5f));
             int w = g.getFontMetrics().stringWidth(t.label) + (count >= 0 ? g.getFontMetrics().stringWidth(String.valueOf(count)) + 28 : 0);
             if (t == Tab.INSTALLED && ups > 0) {
-                chip(g, ups + (ups == 1 ? " update" : " updates"), x + w + 8, ty + 9, AMBER, new Color(245, 165, 36, 34));
+                chip(g, ups + (ups == 1 ? " update" : " updates"), x + w + 8, ty + 9, AMBER, new Color(251, 191, 36, 34));
                 w += 80;
             }
             x += w + 44;
@@ -394,7 +394,7 @@ final class ContentPage {
         int pw = Math.min(220, g.getFontMetrics().stringWidth(nm) + 74);
         int px = CX + CW - pw;
         float t = v.anim("mods-instance", "mods-instance".equals(v.hovered));
-        g.setColor(mix(CARD_2, new Color(0x202028), t));
+        g.setColor(mix(CARD_2, new Color(0x1E2129), t));
         g.fill(new RoundRectangle2D.Double(px, 96, pw, 40, 24, 24));
         icon(g, "layers", px + 22, 116, 15, DIM);
         g.setColor(TEXT);
@@ -421,7 +421,7 @@ final class ContentPage {
         float t = v.anim(id, id.equals(v.hovered));
         g.setFont(v.interBold.deriveFont(11.5f));
         int w = g.getFontMetrics().stringWidth(s) + 24, h = 28;
-        g.setColor(on ? new Color(225, 29, 46, 46) : mix(new Color(0x1C1C22), new Color(0x26262D), t));
+        g.setColor(on ? new Color(225, 29, 46, 46) : mix(new Color(0x1A1D23), new Color(0x23272F), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, h, h));
         if (on) {
             g.setColor(new Color(225, 29, 46, 120));
@@ -435,10 +435,10 @@ final class ContentPage {
 
     private void checkbox(Graphics2D g, String id, int x, int y, boolean on) {
         float t = v.anim(id, id.equals(v.hovered));
-        g.setColor(on ? RED : mix(new Color(0x1C1C22), new Color(0x2A2A32), t));
+        g.setColor(on ? RED : mix(new Color(0x1A1D23), new Color(0x272B34), t));
         g.fill(new RoundRectangle2D.Double(x, y, 18, 18, 7, 7));
         if (!on) {
-            g.setColor(mix(BORDER, new Color(0x4A4A55), t));
+            g.setColor(mix(BORDER, new Color(0x464B57), t));
             g.draw(new RoundRectangle2D.Double(x + .5, y + .5, 17, 17, 7, 7));
         } else {
             g.setColor(Color.WHITE);
@@ -500,7 +500,7 @@ final class ContentPage {
     /** A dropdown-looking button. */
     private void dropdown(Graphics2D g, String id, int x, int y, int w, String text) {
         float t = v.anim(id, id.equals(v.hovered));
-        g.setColor(mix(CARD_2, new Color(0x202028), t));
+        g.setColor(mix(CARD_2, new Color(0x1E2129), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, 40, 24, 24));
         g.setFont(v.interBold.deriveFont(12f));
         g.setColor(TEXT);
@@ -540,9 +540,9 @@ final class ContentPage {
 
     /** A thin banner (warnings, troubleshooting): amber or neutral, text on the left, buttons placed by the caller. */
     private void banner(Graphics2D g, int x, int y, int w, int h, boolean warn, String title, String sub) {
-        g.setColor(warn ? new Color(245, 165, 36, 20) : new Color(255, 255, 255, 8));
+        g.setColor(warn ? new Color(251, 191, 36, 20) : new Color(255, 255, 255, 8));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 16, 16));
-        g.setColor(warn ? new Color(245, 165, 36, 70) : HAIRLINE);
+        g.setColor(warn ? new Color(251, 191, 36, 70) : HAIRLINE);
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 16, 16));
         icon(g, "alert", x + 24, y + h / 2, 15, warn ? AMBER : DIM);
         g.setFont(v.interBold.deriveFont(12.5f));
@@ -616,7 +616,7 @@ final class ContentPage {
         int undoW = versions.rollback.isEmpty() || bulk != null ? 0 : 150;
         if (bulk != null) progressPill(g, bx, y, bw, 40, bulkProgress, bulk);
         else if (checking) {
-            g.setColor(new Color(0x1C1C22));
+            g.setColor(new Color(0x1A1D23));
             g.fill(new RoundRectangle2D.Double(bx, y, bw, 40, 24, 24));
             spinner(g, bx + 24, y + 20, 7);
             g.setFont(v.interBold.deriveFont(12.5f));
@@ -713,8 +713,8 @@ final class ContentPage {
                 }
                 String src = sourceOf(e);
                 cx += chip(g, src, cx, ry + 12, src.equals("Evade") ? RED_HI : src.equals("Modrinth") ? new Color(0x5BE49B) : DIM,
-                        src.equals("Evade") ? new Color(225, 29, 46, 30) : src.equals("Modrinth") ? new Color(61, 220, 132, 22) : new Color(255, 255, 255, 12)) + 6;
-                if (problemFiles.contains(e.file().toString())) cx += chip(g, "Problem", cx, ry + 12, AMBER, new Color(245, 165, 36, 30)) + 6;
+                        src.equals("Evade") ? new Color(225, 29, 46, 30) : src.equals("Modrinth") ? new Color(52, 211, 153, 22) : new Color(255, 255, 255, 12)) + 6;
+                if (problemFiles.contains(e.file().toString())) cx += chip(g, "Problem", cx, ry + 12, AMBER, new Color(251, 191, 36, 30)) + 6;
                 Updates.Known k = known.get(e.file());
                 Double up = updating.get(e.file());
                 if (up != null) progressPill(g, cx, ry + 10, 110, 22, up, "Updating…");
@@ -790,7 +790,7 @@ final class ContentPage {
         float t = v.anim(id, id.equals(v.hovered));
         g.setFont(v.interBold.deriveFont(10.5f));
         int w = g.getFontMetrics().stringWidth(s) + 30;
-        g.setColor(mix(new Color(245, 165, 36, 36), new Color(245, 165, 36, 80), t));
+        g.setColor(mix(new Color(251, 191, 36, 36), new Color(251, 191, 36, 80), t));
         g.fill(new RoundRectangle2D.Double(x, y, w, 20, 20, 20));
         icon(g, "download", x + 12, y + 10, 9, AMBER);
         g.setColor(mix(AMBER, Color.WHITE, t));
@@ -837,9 +837,9 @@ final class ContentPage {
                 g.drawString(name, tx, ry + 25);
                 int cx = tx + g.getFontMetrics().stringWidth(name) + 10;
                 String src = k != null || p.projectId() != null ? "Modrinth" : "Manual";
-                cx += chip(g, src, cx, ry + 12, src.equals("Modrinth") ? new Color(0x5BE49B) : DIM, src.equals("Modrinth") ? new Color(61, 220, 132, 22) : new Color(255, 255, 255, 12)) + 6;
+                cx += chip(g, src, cx, ry + 12, src.equals("Modrinth") ? new Color(0x5BE49B) : DIM, src.equals("Modrinth") ? new Color(52, 211, 153, 22) : new Color(255, 255, 255, 12)) + 6;
                 boolean on = installedType == Content.Type.SHADER ? p.fileName().equals(active) : enabledRp.contains("file/" + p.fileName());
-                if (on) cx += chip(g, installedType == Content.Type.SHADER ? "In use" : "On", cx, ry + 12, OK, new Color(61, 220, 132, 22)) + 6;
+                if (on) cx += chip(g, installedType == Content.Type.SHADER ? "In use" : "On", cx, ry + 12, OK, new Color(52, 211, 153, 22)) + 6;
                 Double up = updating.get(p.file());
                 if (up != null) progressPill(g, cx, ry + 10, 110, 22, up, "Updating…");
                 else if (k != null && k.hasUpdate()) chipButtonSmall(g, "c-pupd:" + idx, "Update · " + k.latest().number(), cx, ry + 11);
@@ -994,7 +994,7 @@ final class ContentPage {
                 } else if ("installing".equals(st)) {
                     progressPill(g, bx, ry + 18, 130, 32, hitProgress, browseType == Content.Type.MODPACK ? "Importing…" : "Installing…");
                 } else if ("installed".equals(st) || installed.contains(hh.projectId())) {
-                    g.setColor(new Color(61, 220, 132, 22));
+                    g.setColor(new Color(52, 211, 153, 22));
                     g.fill(new RoundRectangle2D.Double(bx, ry + 18, 130, 32, 10, 10));
                     icon(g, "check", bx + 30, ry + 34, 10, OK);
                     g.setFont(v.interBold.deriveFont(12f));
@@ -1211,7 +1211,7 @@ final class ContentPage {
                 int cx = tx + g.getFontMetrics().stringWidth(name) + 10;
                 cx += chip(g, wo.mode(), cx, ry + 15, wo.hardcore() ? RED_HI : DIM, wo.hardcore() ? new Color(225, 29, 46, 30) : new Color(255, 255, 255, 12)) + 6;
                 if (wo.cheats()) cx += chip(g, "Cheats", cx, ry + 15, DIM, new Color(255, 255, 255, 12)) + 6;
-                if (wo.locked()) chip(g, "Open in game", cx, ry + 15, AMBER, new Color(245, 165, 36, 30));
+                if (wo.locked()) chip(g, "Open in game", cx, ry + 15, AMBER, new Color(251, 191, 36, 30));
                 g.setFont(v.inter.deriveFont(12f));
                 g.setColor(DIM);
                 List<Worlds.Backup> bs = backups.getOrDefault(wo.folder(), List.of());
@@ -1347,7 +1347,7 @@ final class ContentPage {
         // Everything under the sheet is out of reach while it's open.
         v.hitMap.clear();
         v.hitMap.put("c-dismiss", new Rectangle(0, 0, W, H));
-        g.setColor(new Color(4, 4, 6, 150));
+        g.setColor(new Color(4, 5, 7, 150));
         g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         int w = 620, h = 520, x = (W - w) / 2, y = (H - h) / 2;
         v.raised(g, x, y, w, h);
@@ -1407,7 +1407,7 @@ final class ContentPage {
         g.drawString(ellipsizeEnd(g, sub, iw - 90), ix + 68, y + 70);
         int ty = y + 104;
         if (k != null && k.hasUpdate()) {
-            g.setColor(new Color(245, 165, 36, 18));
+            g.setColor(new Color(251, 191, 36, 18));
             g.fill(new RoundRectangle2D.Double(ix, ty, iw, 44, 14, 14));
             icon(g, "download", ix + 20, ty + 22, 12, AMBER);
             g.setFont(v.interBold.deriveFont(12.5f));

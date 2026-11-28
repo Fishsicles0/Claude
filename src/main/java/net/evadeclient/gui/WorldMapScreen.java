@@ -16,6 +16,7 @@ import net.evadeclient.module.visuals.WorldMap;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.ServerRules;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.MinecraftClient;
@@ -163,7 +164,7 @@ public final class WorldMapScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ctx.fill(0, 0, width, height, BG);
+        ctx.fill(0, 0, width, height, Tokens.N25 | 0xFF000000);
     }
 
     @Override
@@ -194,8 +195,10 @@ public final class WorldMapScreen extends Screen {
             String a = ceiling && client.world.getRegistryKey() == World.NETHER ? "No map in the Nether" : ceiling ? "No map in this dimension" : "Nothing mapped here yet";
             String b = ceiling ? "Its ground is under a solid roof: mapping below it would show caves, so Evade doesn't."
                     : "Walk around: the ground you load is mapped as you go.";
-            centred(ctx, a, height / 2 - 12, Theme.TEXT, Role.TITLE);
-            centred(ctx, b, height / 2 + 8, Theme.TEXT_DIM, Role.BODY);
+            net.evadeclient.gui.kit.Paint.circle(ctx, width / 2f, height / 2f - 44, 56, Tokens.N200);
+            net.evadeclient.util.Icons.draw(ctx, "map", width / 2 - 14, height / 2 - 58, 28, Tokens.N600);
+            centred(ctx, a, height / 2 - 4, Tokens.N900, Role.TITLE);
+            centred(ctx, b, height / 2 + 16, Tokens.N700, Role.BODY);
         }
 
         ctx.createNewRootLayer();
@@ -253,7 +256,7 @@ public final class WorldMapScreen extends Screen {
             int tw = UiFont.width(textRenderer, name, Role.SMALL, smooth);
             int tx = Math.round(cx - tw / 2f), ty = iy + d + 3;
             Theme.round(ctx, tx - 3, ty - 2, tx + tw + 3, ty + 8, 0xA0000000, 2);
-            UiFont.draw(ctx, textRenderer, name, tx, ty, Theme.TEXT, Role.SMALL, smooth);
+            UiFont.draw(ctx, textRenderer, name, tx, ty, Tokens.N950, Role.SMALL, smooth);
         }
     }
 
@@ -283,15 +286,20 @@ public final class WorldMapScreen extends Screen {
     }
 
     private void drawBar(DrawContext ctx, int mx, int my, boolean ceiling) {
-        ctx.fillGradient(0, 0, width, BAR_H + 8, 0xE0000000, 0x00000000);
-        text(ctx, "World Map", 10, 8, Theme.TEXT, Role.TITLE);
+        // A dithered scrim under the chrome (no hard band), then the title and the actions.
+        net.evadeclient.gui.kit.Paint.vgradient(ctx, 0, 0, width, BAR_H + 22, 0, Theme.alpha(Tokens.N0, 0.78f), Theme.alpha(Tokens.N0, 0f));
+        net.evadeclient.gui.kit.Paint.rect(ctx, 10, 5, 30, 25, Tokens.R_SM, Theme.alpha(Tokens.N250, 0.9f));
+        net.evadeclient.util.Icons.draw(ctx, "map", 13, 8, 14, Tokens.N900);
+        float ty = UiFont.centredY(Role.TITLE, 15, smooth);
+        text(ctx, "World Map", 38, Math.round(ty), Tokens.N950, Role.TITLE);
         String dim = Waypoints.dimensionName(client.world.getRegistryKey().getValue().toString());
-        text(ctx, dim + " · explored ground only", 10 + UiFont.width(textRenderer, "World Map", Role.TITLE, smooth) + 8, 12, Theme.TEXT_DIM, Role.SMALL);
-        int x = button(ctx, "Close", width - 8, 6, mx, my, b -> close());
-        x = button(ctx, "Waypoints", x - 6, 6, mx, my, b -> client.setScreen(new WaypointManagerScreen(this)));
+        text(ctx, dim + " · explored ground only", 38 + UiFont.width(textRenderer, "World Map", Role.TITLE, smooth) + 10,
+                Math.round(UiFont.centredY(Role.SMALL, 15.5f, smooth)), Tokens.N800, Role.SMALL);
+        int x = iconButton(ctx, "close", width - 8, 5, mx, my, b -> close());
+        x = button(ctx, "Waypoints", x - 6, 6, mx, my, false, b -> client.setScreen(new WaypointManagerScreen(this)));
         if (!ceiling) {
-            x = button(ctx, followPlayer ? "Following" : "Follow", x - 6, 6, mx, my, b -> followPlayer = !followPlayer);
-            button(ctx, "Centre", x - 6, 6, mx, my, b -> { followPlayer = false; centre(); });
+            x = button(ctx, followPlayer ? "Following" : "Follow", x - 6, 6, mx, my, followPlayer, b -> followPlayer = !followPlayer);
+            button(ctx, "Centre", x - 6, 6, mx, my, false, b -> { followPlayer = false; centre(); });
         }
     }
 
@@ -303,12 +311,14 @@ public final class WorldMapScreen extends Screen {
         int w = 0;
         for (String s : lines) w = Math.max(w, UiFont.width(textRenderer, s, Role.LABEL, smooth));
         if (!lines.isEmpty()) {
-            Theme.round(ctx, 6, y - 5, 6 + w + 12, height - 6, 0xB00A0A0C, Theme.R);
-            for (String s : lines) { text(ctx, s, 12, y, Theme.TEXT, Role.LABEL); y += 11; }
+            net.evadeclient.gui.kit.Paint.surface(ctx, 6, y - 6, 6 + w + 14, height - 6, Tokens.R_MD,
+                    Tokens.E4.withFill(Theme.alpha(Tokens.N300, 0.9f)), 0, Float.NaN);
+            for (String s : lines) { net.evadeclient.util.UiFont.drawTabular(ctx, textRenderer, s, 13, y, Tokens.N950, Role.LABEL, smooth); y += 11; }
         }
         String hint = "Drag to move · Scroll to zoom · Click: add waypoint · Right-click a waypoint: edit";
         int hw = UiFont.width(textRenderer, hint, Role.SMALL, smooth);
-        text(ctx, hint, width - hw - 10, height - 12, Theme.TEXT_FAINT, Role.SMALL);
+        net.evadeclient.gui.kit.Paint.pill(ctx, width - hw - 18, height - 18, width - 6, height - 4, Theme.alpha(Tokens.N0, 0.55f));
+        text(ctx, hint, width - hw - 12, Math.round(UiFont.centredY(Role.SMALL, height - 11, smooth)), Tokens.N800, Role.SMALL);
     }
 
     /**
@@ -354,15 +364,15 @@ public final class WorldMapScreen extends Screen {
         mw = Math.max(mw, UiFont.width(textRenderer, menuPoint.name(), Role.SMALL, smooth)) + 20;
         int x1 = Math.min(menuX, width - mw - 4), y1 = Math.min(menuY, height - 18 - items.length * 16);
         int y2 = y1 + 16 + items.length * 16;
-        Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x1 + mw, y2, 0x90000000);
-        Theme.roundBordered(ctx, x1, y1, x1 + mw, y2, Theme.CARD, Theme.BORDER);
-        text(ctx, menuPoint.name(), x1 + 8, y1 + 5, Theme.TEXT_DIM, Role.SMALL);
+        net.evadeclient.gui.kit.Paint.surface(ctx, x1, y1, x1 + mw, y2, Tokens.R_MD, Tokens.E4, 0, Float.NaN);
+        text(ctx, menuPoint.name(), x1 + 8, y1 + 5, Tokens.N700, Role.SMALL);
         Point pt = menuPoint;
         for (int i = 0; i < items.length; i++) {
             int iy = y1 + 15 + i * 16;
             boolean hv = mx >= x1 && mx < x1 + mw && my >= iy && my < iy + 16;
-            if (hv) Theme.fill(ctx, x1 + 2, iy, x1 + mw - 2, iy + 16, Theme.CONTROL_HOVER);
-            text(ctx, items[i], x1 + 8, iy + 4, i == 2 ? Theme.DANGER : Theme.TEXT, Role.LABEL);
+            if (hv) net.evadeclient.gui.kit.Paint.rect(ctx, x1 + 3, iy, x1 + mw - 3, iy + 16, Tokens.R_SM,
+                    i == 2 ? Theme.alpha(Tokens.DANGER, 0.14f) : Tokens.N350);
+            text(ctx, items[i], x1 + 8, iy + 4, i == 2 ? Tokens.DANGER : Tokens.N950, Role.LABEL);
             int idx = i;
             hits.add(new Hit(x1, iy, x1 + mw, iy + 16, b -> menuAction(pt, idx)));
         }
@@ -518,13 +528,26 @@ public final class WorldMapScreen extends Screen {
         text(ctx, s, (width - w) / 2, y, color, r);
     }
 
-    private int button(DrawContext ctx, String label, int right, int y, int mx, int my, IntConsumer action) {
-        int w = UiFont.width(textRenderer, label, Role.LABEL, smooth) + 14;
-        int x1 = right - w;
-        boolean hv = mx >= x1 && mx < right && my >= y && my < y + 16;
-        Theme.roundBordered(ctx, x1, y, right, y + 16, hv ? Theme.CONTROL_HOVER : Theme.CONTROL, hv ? Theme.RED : Theme.BORDER);
-        text(ctx, label, x1 + 7, y + 4, hv ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
-        hits.add(new Hit(x1, y, right, y + 16, action));
+    /** A kit-style secondary button (18 tall) ending at {@code right}; {@code on}: switched on (accent surface). */
+    private int button(DrawContext ctx, String label, int right, int y, int mx, int my, boolean on, IntConsumer action) {
+        int w = UiFont.width(textRenderer, label, Role.LABEL, smooth) + 20;
+        int x1 = right - w, h = 18;
+        boolean hv = mx >= x1 && mx < right && my >= y && my < y + h;
+        int fill = on ? Tokens.ACCENT_SURFACE : hv ? Tokens.N300 : Tokens.N250;
+        net.evadeclient.gui.kit.Paint.surface(ctx, x1, y, right, y + h, Tokens.R_SM, Tokens.E3.noAmbient().withFill(fill), hv ? 1f : 0f, mx - x1);
+        if (on) net.evadeclient.gui.kit.Paint.ring(ctx, x1, y, right, y + h, Tokens.R_SM, Theme.alpha(Tokens.A500, 0.55f), 1);
+        text(ctx, label, x1 + 10, Math.round(UiFont.centredY(Role.LABEL, y + h / 2f, smooth)), hv || on ? Tokens.N950 : Tokens.N900, Role.LABEL);
+        hits.add(new Hit(x1, y, right, y + h, action));
+        return x1;
+    }
+
+    /** A 20 px ghost icon button ending at {@code right}. */
+    private int iconButton(DrawContext ctx, String icon, int right, int y, int mx, int my, IntConsumer action) {
+        int s = 20, x1 = right - s;
+        boolean hv = mx >= x1 && mx < right && my >= y && my < y + s;
+        if (hv) net.evadeclient.gui.kit.Paint.rect(ctx, x1, y, right, y + s, Tokens.R_SM, Theme.alpha(Tokens.N250, 0.85f));
+        net.evadeclient.util.Icons.draw(ctx, icon, x1 + 4, y + 4, 12, hv ? Tokens.N950 : Tokens.N800);
+        hits.add(new Hit(x1, y, right, y + s, action));
         return x1;
     }
 }

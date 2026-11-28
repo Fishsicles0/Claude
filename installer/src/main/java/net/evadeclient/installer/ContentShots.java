@@ -194,7 +194,7 @@ final class ContentShots {
     private static void save(LauncherView v, Path dir, String name) throws Exception {
         BufferedImage[] img = new BufferedImage[1];
         for (int i = 0; i < 40; i++) javax.swing.SwingUtilities.invokeAndWait(() -> v.snapshot(1f));
-        javax.swing.SwingUtilities.invokeAndWait(() -> img[0] = v.snapshot(2f));
+        javax.swing.SwingUtilities.invokeAndWait(() -> img[0] = v.snapshot(Screenshots.SCALE));
         ImageIO.write(img[0], "png", dir.resolve(name + ".png").toFile());
     }
 

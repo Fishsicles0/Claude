@@ -47,6 +47,29 @@ public final class SplashScene {
 
         /** Draws text {@code id} with its top-left at (x, y). */
         void text(int id, int x, int y, int argb);
+
+        /**
+         * Emissive light: an elliptical glow of radii (rx, ry) at (x, y), {@code alpha} its peak. The game draws it
+         * additively and dithered (no banding); the default is the glow texture.
+         */
+        default void softGlow(float x, float y, float rx, float ry, int rgb, float alpha) {
+            if (alpha <= 0.002f) return;
+            blit(GLOW, Math.round(x - rx), Math.round(y - ry), Math.round(rx * 2), Math.round(ry * 2), 0, 0, 1, 1, argb(rgb, alpha));
+        }
+
+        /** The vignette over the whole surface at {@code alpha}. The game draws it as a dithered radial falloff. */
+        default void vignette(int w, int h, float alpha) {
+            blit(VIGNETTE, 0, 0, w, h, 0, 0, 1, 1, argb(0x000000, alpha));
+        }
+
+        /** Whether {@link #titleLogo} can draw the menu's own logo lockup (for the shared-element hand-over). */
+        default boolean hasTitleLogo() { return false; }
+
+        /** The width of the menu's lockup with a mark {@code markSize} device px tall. */
+        default float titleLockupWidth(float markSize) { return markSize * 3.4f; }
+
+        /** The menu's logo lockup (mark and wordmark) with its mark at (x, y), {@code markSize} square, at {@code alpha}. */
+        default void titleLogo(float x, float y, float markSize, float alpha) {}
     }
 
     /** Texture ids (see scripts/draw-splash.py). */
@@ -97,6 +120,14 @@ public final class SplashScene {
         public float motion = 1f;
         /** Device pixels. */
         public int width, height;
+        /** The menu's logo slot behind this screen, device px (mark x, y and size); NaN when there is none. */
+        public float slotX = Float.NaN, slotY, slotSize;
+        /** Hand-over to the menu: 0..1 while this screen fades out over it (the logo flies to its slot); -1 none. */
+        public float handoff = -1f;
+        /** Hand-over from the menu at a reload's start: 0..1 as this screen fades in (the logo flies from its slot). */
+        public float handin = -1f;
+        /** Skip the logo's own entrance: it arrived from the menu already formed. */
+        public boolean formed;
     }
 
     public static final float CALM = 0.35f;
@@ -162,18 +193,18 @@ public final class SplashScene {
                 u * 2.8f, u * 2.2f, mono ? 0x5A5A64 : 0x5E0A16, a * (mono ? 0.10f : 0.34f));
         glow(c, cx, h * 1.02f, w * 1.5f, h * 0.55f, mono ? 0x6A6A74 : 0xA01020, a * (mono ? 0.06f : 0.22f));
 
-        grid(c, w, h, u, at, a * (mono ? 0.035f : 0.045f));
+        grid(c, w, h, u, at, a * (mono ? 0.021f : 0.027f));
         streaks(c, w, h, u, at, mono ? 0xE8E8EE : 0xFF5B69, a * (mono ? 0.05f : 0.085f));
         embers(c, w, h, u, at, mono, a);
 
-        c.blit(VIGNETTE, 0, 0, w, h, 0, 0, 1, 1, argb(0x000000, a * 0.82f));
+        c.vignette(w, h, a * 0.82f);
 
         logo(c, f, w, h, u, cx, cy, calm, a);
     }
 
     private static void glow(Canvas c, float x, float y, float gw, float gh, int rgb, float alpha) {
         if (alpha <= 0.002f) return;
-        c.blit(GLOW, Math.round(x - gw / 2), Math.round(y - gh / 2), Math.round(gw), Math.round(gh), 0, 0, 1, 1, argb(rgb, alpha));
+        c.softGlow(x, y, gw / 2, gh / 2, rgb, alpha);
     }
 
     /** A faint grid that drifts one cell diagonally every 14 s; each line fades out toward its ends. */
@@ -259,6 +290,33 @@ public final class SplashScene {
         float reveal = easeOutCubic(clamp01((t - 0.95f) / 0.90f));
         float scale = calm > 0 ? 0.70f + 0.30f * markIn : 1f;
         if (calm == 0) slide = reveal = smooth(clamp01((t - 0.2f) / 0.8f));
+        if (f.formed) { markIn = markAlpha = slide = reveal = scale = 1f; }
+
+        // Shared element: the menu's own lockup flies between its slot and the middle of this screen. On the way
+        // out (hand-over) it is drawn at full strength while everything else fades; on the way in (a reload starting
+        // over the menu) it flies from the menu into the middle, where this screen's logo takes over.
+        boolean slot = !Float.isNaN(f.slotX) && c.hasTitleLogo() && (f.handoff >= 0f || f.handin >= 0f);
+        float own = 1f; // this screen's own logo strength
+        if (slot) {
+            float tw = c.titleLockupWidth(f.slotSize);
+            float s0 = total / Math.max(1f, tw);
+            float m0 = f.slotSize * s0, x0 = cx - total / 2, y0 = cy - m0 / 2;
+            float p, xf;
+            if (f.handoff >= 0f) {
+                p = easeInOutCubic(clamp01(f.handoff / 0.62f));
+                xf = smooth(clamp01(f.handoff / 0.14f));
+            } else {
+                p = 1f - easeInOutCubic(clamp01(f.handin));
+                xf = 1f - smooth(clamp01((f.handin - 0.78f) / 0.22f));
+            }
+            own = 1f - xf;
+            float lx = x0 + (f.slotX - x0) * p, ly = y0 + (f.slotY - y0) * p, lm = m0 + (f.slotSize - m0) * p;
+            c.titleLogo(lx, ly, lm, xf);
+            if (own <= 0.002f) return;
+        } else if (f.handin >= 0f) {
+            own = f.handin * f.handin * f.handin; // no double exposure over the menu's own logo
+        }
+        a *= own;
 
         float markCx = cx + (markCxFinal - cx) * slide;
         float markCy = cy;
@@ -290,8 +348,8 @@ public final class SplashScene {
         c.blit(markTex, Math.round(-markW / 2), Math.round(-markH / 2), Math.round(markW), Math.round(markH), 0, 0, 1, 1, markCol);
         c.pop();
 
-        // The light sweep: first once the logo has formed, then every 5 s.
-        if (calm > 0 && t > 2.0f) {
+        // The light sweep: first once the logo has formed, then every 5 s (not while handing over).
+        if (calm > 0 && t > 2.0f && !slot) {
             float p = (t - 2.0f) % 5.0f;
             float dur = 1.15f;
             if (p < dur) {

@@ -1,11 +1,19 @@
 package net.evadeclient.replay;
 
+import net.evadeclient.gui.EvadePanelScreen;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.Toggle;
+import net.evadeclient.util.Icons;
+import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont.Role;
+
 import net.evadeclient.EvadeClient;
 import net.evadeclient.module.HudElementModule;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -16,14 +24,11 @@ import java.util.List;
  * list...), each one click to hide or show. Saved with the replay's project; applies while watching it and in its
  * videos (when the video's HUD is on). Your normal HUD isn't changed.
  */
-public final class ReplayHudScreen extends Screen {
-    private final Screen parent;
+public final class ReplayHudScreen extends EvadePanelScreen {
     private final ReplayProject project;
-    private int page;
 
     public ReplayHudScreen(Screen parent, ReplayProject project) {
-        super(Text.literal("HUD mods in this replay"));
-        this.parent = parent;
+        super("HUD mods in this replay", parent);
         this.project = project;
     }
 
@@ -34,45 +39,62 @@ public final class ReplayHudScreen extends Screen {
         return out;
     }
 
+    @Override protected int prefWidth() { return 600; }
+    @Override protected int prefHeight() { return 420; }
+    @Override protected String headerIcon() { return "hud"; }
+
     @Override
-    protected void init() {
+    protected String subtitle() {
+        return "Switch one off to hide it while watching and in videos · your normal HUD stays as it is";
+    }
+
+    @Override
+    protected int renderContent(DrawContext ctx, int top, int mx, int my) {
         List<HudElementModule> all = widgets();
-        int cols = width >= 420 ? 2 : 1, colW = 180, rowH = 22, top = 44;
-        int rows = Math.max(1, (height - top - 60) / rowH), perPage = rows * cols;
-        int pages = Math.max(1, (all.size() + perPage - 1) / perPage);
-        page = Math.min(page, pages - 1);
-        int left = width / 2 - (cols * colW + (cols - 1) * 8) / 2;
-        for (int i = 0; i < perPage && page * perPage + i < all.size(); i++) {
-            HudElementModule m = all.get(page * perPage + i);
-            int c = i / rows, r = i % rows;
-            addDrawableChild(ButtonWidget.builder(label(m), b -> {
-                if (!project.scene.hiddenHud.remove(m.getName())) project.scene.hiddenHud.add(m.getName());
-                b.setMessage(label(m));
-            }).dimensions(left + c * (colW + 8), top + r * rowH, colW, 20).build());
+        if (all.isEmpty()) {
+            return EmptyState.draw(kit, "empty", cx + cw / 2, top + 30, "hud", "No HUD mods on", "Switch some on in the menu and they show up here.", null, null) + 50;
         }
-        int by = height - 30;
-        if (pages > 1) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("<"), b -> { page = (page + pages - 1) % pages; clearAndInit(); })
-                    .dimensions(width / 2 - 154, by, 30, 20).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal(">"), b -> { page = (page + 1) % pages; clearAndInit(); })
-                    .dimensions(width / 2 + 124, by, 30, 20).build());
+        int cols = cw >= 420 ? 2 : 1, gap = Tokens.S3, rowH = 34;
+        int colW = (cw - (cols - 1) * gap) / cols;
+        int shown = 0;
+        for (HudElementModule m : all) if (!project.scene.hiddenHud.contains(m.getName())) shown++;
+        int y = section("SHOWN IN THIS REPLAY", shown + " of " + all.size(), cx, top);
+        for (int i = 0; i < all.size(); i++) {
+            HudElementModule m = all.get(i);
+            int c = i % cols, r = i / cols;
+            int x = cx + c * (colW + gap), yy = y + r * rowH;
+            if (!inView(yy, rowH)) continue;
+            float a = enter(i), fd = Theme.fade;
+            Theme.fade = fd * a;
+            try {
+                boolean on = !project.scene.hiddenHud.contains(m.getName());
+                int y2 = yy + rowH - 4;
+                boolean hv = mouseIn(mx, my, x, yy, x + colW, y2);
+                rowSurface(x, yy, x + colW, y2, hover("w:" + m.getName(), hv), false);
+                float mid = (yy + y2) / 2f;
+                Paint.rect(ctx, x + 6, mid - 10, x + 26, mid + 10, Tokens.R_XS, Tokens.N250);
+                Icons.draw(ctx, "hud", x + 10, Math.round(mid - 6), 12, on ? Tokens.A400 : Tokens.N600);
+                kit.textCentredY(ellipsize(m.getName(), Role.STRONG, colW - 80), x + 34, mid, on ? Tokens.N950 : Tokens.N700, Role.STRONG);
+                Runnable flip = () -> { if (!project.scene.hiddenHud.remove(m.getName())) project.scene.hiddenHud.add(m.getName()); };
+                contentHit("w:" + m.getName(), x, yy, x + colW, y2, b -> { if (b == 0) flip.run(); });
+                Toggle.draw(kit, "t:" + m.getName(), x + colW - 8 - Toggle.MD_W, Math.round(mid - Toggle.MD_H / 2f), false, on, true, flip);
+            } finally {
+                Theme.fade = fd;
+            }
         }
-        addDrawableChild(ButtonWidget.builder(Text.literal("Show all"), b -> { project.scene.hiddenHud.clear(); clearAndInit(); })
-                .dimensions(width / 2 - 118, by, 116, 20).tooltip(Tooltip.of(Text.literal("Show every HUD mod again"))).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close()).dimensions(width / 2 + 2, by, 116, 20).build());
+        int rows = (all.size() + cols - 1) / cols;
+        return y - top + rows * rowH + 6;
     }
 
-    private Text label(HudElementModule m) {
-        boolean hidden = project.scene.hiddenHud.contains(m.getName());
-        return Text.literal((hidden ? "§8✗ " : "§a✔ ") + m.getName() + (hidden ? " §8(hidden)" : ""));
-    }
+    @Override protected int footerHeight() { return 44; }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
-        ctx.drawCenteredTextWithShadow(textRenderer, "HUD mods in this replay", width / 2, 14, 0xFFFFFFFF);
-        ctx.drawCenteredTextWithShadow(textRenderer, widgets().isEmpty() ? "You have no HUD mods on." : "Click one to hide it while watching and in videos. Your normal HUD stays as it is.",
-                width / 2, 27, 0xFF9A9AA6);
+    protected void renderFooter(DrawContext ctx, int x1, int y, int x2, int mx, int my) {
+        int by = y + 10;
+        int sw = Button.width(kit, "Show all", Button.Size.MD, null, false);
+        drawButton("all", "Show all", null, x1 - 6, by, sw, Button.Size.MD, GHOST, !project.scene.hiddenHud.isEmpty(), b -> project.scene.hiddenHud.clear());
+        int dw = Button.width(kit, "Done", Button.Size.MD, null, false);
+        drawButton("done", "Done", null, x2 - dw, by, dw, Button.Size.MD, PRIMARY, true, b -> close());
     }
 
     @Override

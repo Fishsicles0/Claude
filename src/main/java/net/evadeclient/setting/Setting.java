@@ -42,6 +42,35 @@ public abstract class Setting<T> {
     /** What the setting does, or "" when it has no description (see {@link #describe}). */
     public String getDescription() { return description; }
 
+    private String group;
+    private Setting<Boolean> parent;
+
+    /**
+     * Optional: the section the menu lists this setting under ("Zoom", "Feel"). Settings without one are grouped by
+     * the menu itself. Use as {@code add(new NumberSetting("Max Zoom", ...).group("Zoom"))}.
+     */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S group(String name) {
+        this.group = name == null || name.isBlank() ? null : name.strip();
+        return (S) this;
+    }
+
+    /** The section set with {@link #group}, or null. */
+    public String getGroup() { return group; }
+
+    /**
+     * Optional: this setting only matters while {@code toggle} is on. The menu indents it under that switch and dims
+     * it while the switch is off. Use as {@code add(new NumberSetting("Scroll Step %", ...).dependsOn(scroll))}.
+     */
+    @SuppressWarnings("unchecked")
+    public <S extends Setting<T>> S dependsOn(Setting<Boolean> toggle) {
+        this.parent = toggle == this ? null : toggle;
+        return (S) this;
+    }
+
+    /** The switch set with {@link #dependsOn}, or null. */
+    public Setting<Boolean> getDependsOn() { return parent; }
+
     /** Put the setting back to the value it was created with. */
     public void reset() { set(defaultValue); }
 

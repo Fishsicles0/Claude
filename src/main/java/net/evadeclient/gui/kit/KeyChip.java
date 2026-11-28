@@ -6,7 +6,7 @@ import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont.Role;
 
 /**
- * A keybind chip (spec 6.9): at least 44 x 18, sunken, TINY SemiBold n900 text with the modifiers spelled out
+ * A keybind chip (spec 6.9): at least 44 x 18, sunken, LABEL n900 text (readable at every scale) with the modifiers spelled out
  * (see {@link #label}). "None" recedes as a dashed n500 outline with an n600 dash. While listening it pulses
  * an accent ring (1 Hz) and reads "Press a key…". A conflict gets a warning outline and icon, and its tooltip lists
  * the clashes.
@@ -28,7 +28,7 @@ public final class KeyChip {
     /** The chip's width for {@code text}. */
     public static int width(Kit k, Mode mode, String text) {
         String t = mode == Mode.NONE ? "—" : mode == Mode.LISTENING ? "Press a key…" : text;
-        return Math.max(MIN_W, k.width(t, Role.TINY) + 14 + (mode == Mode.CONFLICT ? 12 : 0));
+        return Math.max(MIN_W, k.width(t, Role.LABEL) + 14 + (mode == Mode.CONFLICT ? 12 : 0));
     }
 
     /** Draws the chip at (x, y) and returns its width. {@code tip}: the tooltip (conflicts). */
@@ -42,7 +42,7 @@ public final class KeyChip {
                 if (hov > 0.01f) Paint.rect(k.ctx, x, y, x + w, y + H, Tokens.R_XS, Theme.alpha(Tokens.N150, hov));
                 Paint.dashed(k.ctx, x, y, x + w, y + H, Theme.lerpColor(Tokens.N500, Tokens.N600, hov));
                 String t = "—";
-                k.textCentredY(t, x + (w - k.width(t, Role.TINY)) / 2, cy, Tokens.N600, Role.TINY);
+                k.textCentredY(t, x + (w - k.width(t, Role.LABEL)) / 2, cy, Tokens.N600, Role.LABEL);
             }
             case LISTENING -> {
                 Paint.sunken(k.ctx, x, y, x + w, y + H, Tokens.R_XS);
@@ -50,7 +50,7 @@ public final class KeyChip {
                 if (net.evadeclient.gui.Motion.level() != net.evadeclient.gui.Motion.Level.FULL) pulse = 1f;
                 Paint.ring(k.ctx, x, y, x + w, y + H, Tokens.R_XS, Theme.alpha(Tokens.A400, pulse), 2);
                 String t = "Press a key…";
-                k.textCentredY(t, x + (w - k.width(t, Role.TINY)) / 2, cy, Tokens.N950, Role.TINY);
+                k.textCentredY(t, x + (w - k.width(t, Role.LABEL)) / 2, cy, Tokens.N950, Role.LABEL);
             }
             default -> {
                 Paint.surface(k.ctx, x, y, x + w, y + H, Tokens.R_XS, Tokens.SUNKEN.withFill(Theme.lerpColor(Tokens.N150, Tokens.N250, hov)), 0, Float.NaN);
@@ -60,8 +60,8 @@ public final class KeyChip {
                     Icons.draw(k.ctx, "warn", tx - 1, Math.round(cy - 5), 10, Tokens.WARN);
                     tx += 12;
                 }
-                int tw = k.width(text, Role.TINY);
-                k.textCentredY(text, mode == Mode.CONFLICT ? tx : x + (w - tw) / 2, cy, Tokens.N900, Role.TINY);
+                int tw = k.width(text, Role.LABEL);
+                k.textCentredY(text, mode == Mode.CONFLICT ? tx : x + (w - tw) / 2, cy, Tokens.N900, Role.LABEL);
             }
         }
         if ((st & Kit.FOCUSED) != 0) Paint.focusRing(k, x, y, x + w, y + H, Tokens.R_XS, Tokens.FOCUS_RING);

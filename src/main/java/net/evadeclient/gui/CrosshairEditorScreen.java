@@ -6,6 +6,7 @@ import net.evadeclient.module.mods.Crosshair;
 import net.evadeclient.module.mods.CrosshairPattern;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
@@ -27,12 +28,14 @@ import java.util.List;
  */
 public class CrosshairEditorScreen extends Screen {
     private static final int N = CrosshairPattern.SIZE, C = CrosshairPattern.CENTER;
-    private static final int PAD = 12, TITLE_H = 30, BODY_GAP = 10, FOOT_H = 32, COL_W = 148;
-    private static final int HEADER = 13, PREVIEW_H = 40, SECTION_GAP = 10, BTN_H = 16, GAP = 4, UNDO_LIMIT = 100;
+    private static final int PAD = 12, TITLE_H = 40, BODY_GAP = 12, FOOT_H = 40, COL_W = 164;
+    private static final int HEADER = 16, PREVIEW_H = 44, SECTION_GAP = 12, BTN_H = 20, GAP = 4, UNDO_LIMIT = 100;
     /** Preview backdrops: open sky and a dark cave, so both bright and dark crosshairs can be judged. */
     private static final int SKY = 0xFF8FB3DE, CAVE = 0xFF1E1F24;
 
     private final Screen parent;
+    private final net.evadeclient.gui.kit.Kit kit = new net.evadeclient.gui.kit.Kit();
+    private long openedAt;
     private final Crosshair crosshair;
     private final CrosshairPattern work;
     private final Deque<String> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
@@ -116,12 +119,14 @@ public class CrosshairEditorScreen extends Screen {
         buttons.add(new Button("mirror", colX, y, colX + bw, y + BTN_H));
         buttons.add(new Button("undo", colX + COL_W - bw, y, colX + COL_W, y + BTN_H));
         int fy = footTop() + (FOOT_H - 18) / 2 + 1, right = wx + ww - PAD;
-        int doneW = 52, pasteW = 66, copyW = 64;
-        buttons.add(new Button("done", right - doneW, fy, right, fy + 18));
+        if (openedAt == 0) openedAt = System.currentTimeMillis();
+        int doneW = 64, pasteW = 92, copyW = 88;
+        fy = footTop() + (FOOT_H - 24) / 2 + 1;
+        buttons.add(new Button("done", right - doneW, fy, right, fy + 24));
         right -= doneW + 6;
-        buttons.add(new Button("paste", right - pasteW, fy, right, fy + 18));
-        right -= pasteW + 6;
-        buttons.add(new Button("copy", right - copyW, fy, right, fy + 18));
+        buttons.add(new Button("paste", right - pasteW, fy, right, fy + 24));
+        right -= pasteW + 4;
+        buttons.add(new Button("copy", right - copyW, fy, right, fy + 24));
     }
 
     private static int columnHeight(int tb, int ph) {
@@ -154,61 +159,72 @@ public class CrosshairEditorScreen extends Screen {
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ClientSettings s = settings();
         if (s != null && s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0x90000000, 0xB0000000);
+        net.evadeclient.gui.kit.Paint.scrim(ctx, width, height, fade());
+    }
+
+    private float fade() {
+        Motion.Level l = Motion.level();
+        if (l == Motion.Level.OFF) return 1f;
+        return Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) (l == Motion.Level.REDUCED ? Motion.DUR_REDUCED_MAX : Motion.DUR_QUICK));
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         boolean sm = smooth();
-        // window: the shadow's middle is filled too, so the slightly see-through body shows no frame where its
-        // edge slices end (as the menu does)
-        Theme.Shadow sh = Theme.SH_WINDOW;
-        Theme.shadow(ctx, sh, wx, wy, wx + ww, wy + wh, 0x90000000);
-        int in = sh.slice() - sh.pad();
-        Theme.fill(ctx, wx + in, wy + in, wx + ww - in, wy + wh - in, 0x90000000);
-        Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
-        UiFont.draw(ctx, textRenderer, "Crosshair Editor", wx + PAD, wy + 10, Theme.TEXT, Role.TITLE, sm);
-        // Top right: the pixel count, or why the game still shows another crosshair.
-        int n = work.count();
-        boolean off = !crosshair.isEnabled();
-        String status = off ? "Crosshair is off" : n + (n == 1 ? " pixel" : " pixels");
-        UiFont.draw(ctx, textRenderer, status, wx + ww - PAD - UiFont.width(textRenderer, status, Role.LABEL, sm), wy + 13,
-                off ? Theme.WARN : Theme.TEXT_DIM, Role.LABEL, sm);
+        kit.begin(ctx, mouseX, mouseY);
+        float base = Theme.fade;
+        Theme.fade = base * fade();
+        try {
+            net.evadeclient.gui.kit.Surface.window(kit, wx, wy, wx + ww, wy + wh);
+            // Title, with a tile, and on the right the pixel count or why the game still shows another crosshair.
+            float tcy = wy + TITLE_H / 2f + 2;
+            net.evadeclient.gui.kit.Paint.rect(ctx, wx + PAD, tcy - 12, wx + PAD + 24, tcy + 12, Tokens.R_SM, Tokens.N250);
+            net.evadeclient.util.Icons.draw(ctx, "controls", wx + PAD + 5, Math.round(tcy - 7), 14, Tokens.N900);
+            kit.textCentredY("Crosshair Editor", wx + PAD + 32, tcy, Tokens.N950, Role.HEADLINE);
+            int n = work.count();
+            boolean off = !crosshair.isEnabled();
+            String status = off ? "Crosshair is off" : n + (n == 1 ? " pixel" : " pixels");
+            var tone = off ? net.evadeclient.gui.kit.Badge.Tone.WARN : net.evadeclient.gui.kit.Badge.Tone.NEUTRAL;
+            net.evadeclient.gui.kit.Badge.draw(kit, wx + ww - PAD - net.evadeclient.gui.kit.Badge.width(kit, status), Math.round(tcy - 7), status, tone);
+            net.evadeclient.gui.kit.Paint.fadeLine(ctx, wx + 10, wy + TITLE_H - 4, wx + ww - 10, Theme.alpha(0xFFFFFFFF, 0.06f));
 
-        renderGrid(ctx, mouseX, mouseY);
-        renderColumn(ctx, mouseX, mouseY, sm);
-        renderFooter(ctx, mouseX, mouseY, sm);
+            renderGrid(ctx, mouseX, mouseY);
+            renderColumn(ctx, mouseX, mouseY, sm);
+            renderFooter(ctx, mouseX, mouseY, sm);
+            kit.end();
+        } finally {
+            Theme.fade = base;
+        }
     }
 
     private void renderGrid(DrawContext ctx, int mx, int my) {
         // Cells leave a 1 px line on their right and bottom (from 6 px up), so the frame is one pixel short there.
         int line = cell >= 6 ? 1 : 0, end = cell * N - line;
-        Theme.round(ctx, gx - 3, gy - 3, gx + end + 3, gy + end + 3, Theme.INPUT, Theme.R);
-        Theme.stroke(ctx, gx - 3, gy - 3, gx + end + 3, gy + end + 3, Theme.BORDER, Theme.R);
+        net.evadeclient.gui.kit.Paint.surface(ctx, gx - 4, gy - 4, gx + end + 4, gy + end + 4, Tokens.R_SM, Tokens.SUNKEN.withFill(Tokens.N50), 0, Float.NaN);
         int on = paintColor();
         for (int y = 0; y < N; y++) {
             for (int x = 0; x < N; x++) {
                 int x1 = gx + x * cell, y1 = gy + y * cell;
                 int c;
                 if (work.get(x, y)) c = on;
-                else if (x == C && y == C) c = 0xFF2A2A33;
-                else if (x == C || y == C) c = 0xFF1D1D24;
-                else c = (x + y) % 2 == 0 ? 0xFF17171C : 0xFF141418;
+                else if (x == C && y == C) c = Tokens.N300;
+                else if (x == C || y == C) c = Tokens.N200;
+                else c = (x + y) % 2 == 0 ? Tokens.N150 : Tokens.N100;
                 ctx.fill(x1, y1, x1 + cell - line, y1 + cell - line, c);
             }
         }
         // The middle of the screen: a small accent mark on the centre cell.
         if (!work.get(C, C)) {
             int m = Math.max(1, cell / 4), x1 = gx + C * cell + (cell - line - m) / 2, y1 = gy + C * cell + (cell - line - m) / 2;
-            ctx.fill(x1, y1, x1 + m, y1 + m, Theme.alpha(Theme.RED, 0.8f));
+            ctx.fill(x1, y1, x1 + m, y1 + m, Theme.fa(Theme.alpha(Tokens.A500, 0.8f)));
         }
         // Where the next click lands (and its mirror images).
         int[] h = strokeButton < 0 ? cellAt(mx, my) : null;
         if (h != null) {
             for (int[] p : targets(h[0], h[1])) {
-                ctx.drawStrokedRectangle(gx + p[0] * cell - 1, gy + p[1] * cell - 1, cell + 1, cell + 1, Theme.RED_BRIGHT);
+                net.evadeclient.gui.kit.Paint.ring(ctx, gx + p[0] * cell - 1, gy + p[1] * cell - 1, gx + p[0] * cell + cell, gy + p[1] * cell + cell,
+                        Math.min(2, cell / 4f), Tokens.A400, 2);
             }
         }
     }
@@ -225,8 +241,10 @@ public class CrosshairEditorScreen extends Screen {
         int py = previewY(), half = (COL_W - GAP) / 2;
         Crosshair.Shape shape = previewShape();
         int color = crosshair.color();
-        Theme.round(ctx, colX, py, colX + half, py + ph, SKY, Theme.R);
-        Theme.round(ctx, colX + COL_W - half, py, colX + COL_W, py + ph, CAVE, Theme.R);
+        net.evadeclient.gui.kit.Paint.vgradient(ctx, colX, py, colX + half, py + ph, Tokens.R_SM, 0xFF9CC1EA, SKY);
+        net.evadeclient.gui.kit.Paint.vgradient(ctx, colX + COL_W - half, py, colX + COL_W, py + ph, Tokens.R_SM, 0xFF26282F, CAVE);
+        net.evadeclient.gui.kit.Paint.ring(ctx, colX, py, colX + half, py + ph, Tokens.R_SM, Theme.alpha(0xFFFFFFFF, 0.08f), 1);
+        net.evadeclient.gui.kit.Paint.ring(ctx, colX + COL_W - half, py, colX + COL_W, py + ph, Tokens.R_SM, Theme.alpha(0xFFFFFFFF, 0.08f), 1);
         shape.draw(ctx, colX + half / 2, py + ph / 2, color);
         shape.draw(ctx, colX + COL_W - half + half / 2, py + ph / 2, color);
 
@@ -236,18 +254,19 @@ public class CrosshairEditorScreen extends Screen {
         caps(ctx, "Presets", colX, sy - HEADER + 2, sm);
         if (hover >= 0) {
             String name = CrosshairPattern.PRESETS.get(hover).name();
-            UiFont.draw(ctx, textRenderer, name, colX + COL_W - UiFont.width(textRenderer, name, Role.SMALL, sm), sy - HEADER + 2, Theme.TEXT_SOFT, Role.SMALL, sm);
+            UiFont.draw(ctx, textRenderer, name, colX + COL_W - UiFont.width(textRenderer, name, Role.SMALL, sm), sy - HEADER + 2, Tokens.N800, Role.SMALL, sm);
         }
         for (int i = 0; i < CrosshairPattern.PRESETS.size(); i++) {
             int x = colX + (i % 4) * (tb + GAP), y = sy + (i / 4) * (tb + GAP);
             boolean current = CrosshairPattern.PRESETS.get(i).pattern().equals(work);
-            Theme.round(ctx, x, y, x + tb, y + tb, i == hover ? Theme.CONTROL_HOVER : Theme.CONTROL, Theme.R);
-            Theme.stroke(ctx, x, y, x + tb, y + tb, current ? Theme.RED : i == hover ? Theme.BORDER_HOVER : Theme.BORDER, Theme.R);
+            net.evadeclient.gui.kit.Paint.surface(ctx, x, y, x + tb, y + tb, Tokens.R_SM,
+                    Tokens.E3.noAmbient().withFill(current ? Tokens.ACCENT_SURFACE : i == hover ? Tokens.N300 : Tokens.N250), i == hover ? 1f : 0f, Float.NaN);
+            if (current) net.evadeclient.gui.kit.Paint.ring(ctx, x, y, x + tb, y + tb, Tokens.R_SM, Theme.alpha(Tokens.A500, 0.8f), 1);
             int ox = x + (tb - N * ts) / 2, oy = y + (tb - N * ts) / 2;
             int[] r = PRESET_RECTS[i];
-            int c = current || i == hover ? Theme.TEXT : Theme.TEXT_SOFT;
+            int c = current ? Tokens.A300 : i == hover ? Tokens.N950 : Tokens.N800;
             for (int k = 0; k < r.length; k += 4)
-                ctx.fill(ox + r[k] * ts, oy + r[k + 1] * ts, ox + r[k + 2] * ts, oy + r[k + 3] * ts, c);
+                ctx.fill(ox + r[k] * ts, oy + r[k + 1] * ts, ox + r[k + 2] * ts, oy + r[k + 3] * ts, Theme.fa(c));
         }
 
         // tools
@@ -265,12 +284,12 @@ public class CrosshairEditorScreen extends Screen {
 
     private void renderFooter(DrawContext ctx, int mx, int my, boolean sm) {
         int fy = footTop();
-        Theme.fill(ctx, wx + 1, fy, wx + ww - 1, fy + 1, Theme.DIVIDER);
+        net.evadeclient.gui.kit.Paint.fadeLine(ctx, wx + 10, fy, wx + ww - 10, Theme.alpha(0xFFFFFFFF, 0.06f));
         int left = wx + PAD, limit = Integer.MAX_VALUE;
         for (Button b : buttons) {
             switch (b.id()) {
-                case "copy" -> { button(ctx, b, "Copy Code", false, true, mx, my, sm); limit = Math.min(limit, b.x1()); }
-                case "paste" -> { button(ctx, b, "Paste Code", false, true, mx, my, sm); limit = Math.min(limit, b.x1()); }
+                case "copy" -> { button(ctx, b, "Copy code", false, true, mx, my, sm); limit = Math.min(limit, b.x1()); }
+                case "paste" -> { button(ctx, b, "Paste code", false, true, mx, my, sm); limit = Math.min(limit, b.x1()); }
                 case "done" -> primary(ctx, b, "Done", mx, my, sm);
                 default -> { }
             }
@@ -278,33 +297,39 @@ public class CrosshairEditorScreen extends Screen {
         // Controls, when they fit beside the buttons.
         for (String hint : new String[]{"Left-click draws, right-click erases  •  Ctrl+Z undo", "Left draws, right erases"}) {
             if (left + UiFont.width(textRenderer, hint, Role.SMALL, sm) <= limit - 8) {
-                UiFont.draw(ctx, textRenderer, hint, left, fy + (FOOT_H - 6) / 2 + 1, Theme.TEXT_FAINT, Role.SMALL, sm);
+                kit.textCentredY(hint, left, fy + FOOT_H / 2f + 1, Tokens.N700, Role.SMALL);
                 break;
             }
         }
     }
 
     private void caps(DrawContext ctx, String s, int x, int y, boolean sm) {
-        UiFont.caps(ctx, textRenderer, s, x, y, Theme.TEXT_HEADER, Role.CAPS, 1f, sm);
+        UiFont.caps(ctx, textRenderer, s, x, y, Tokens.N700, Role.CAPS, 0.9f, sm);
     }
 
-    /** A secondary button; {@code on} lights it in the accent (a toggle that is on), a disabled one is dimmed. */
+    /** A kit secondary button; {@code on} is a switched-on toggle (accent surface and edge), a disabled one dims.
+     *  Clicks are handled by {@link #mouseClicked} from the same rectangles. */
     private void button(DrawContext ctx, Button b, String label, boolean on, boolean enabled, int mx, int my, boolean sm) {
-        boolean hv = enabled && b.contains(mx, my);
-        int bg = on ? Theme.alpha(Theme.RED, hv ? 0.32f : 0.22f) : hv ? Theme.CONTROL_HOVER : Theme.CONTROL;
-        int border = on || hv ? Theme.RED : Theme.BORDER;
-        Theme.roundBordered(ctx, b.x1(), b.y1(), b.x2(), b.y2(), bg, border);
-        int tc = !enabled ? Theme.TEXT_FAINT : on ? Theme.RED_BRIGHT : hv ? Theme.TEXT : Theme.TEXT_SOFT;
-        int w = UiFont.width(textRenderer, label, Role.LABEL, sm);
-        UiFont.draw(ctx, textRenderer, label, b.x1() + (b.x2() - b.x1() - w) / 2, b.y1() + (b.y2() - b.y1() - 7) / 2, tc, Role.LABEL, sm);
+        int w = b.x2() - b.x1();
+        if (on) {
+            float hv = kit.anim(b.id() + "#h", b.contains(mx, my) ? 1f : 0f);
+            net.evadeclient.gui.kit.Paint.surface(ctx, b.x1(), b.y1(), b.x2(), b.y2(), Tokens.R_SM,
+                    Tokens.E3.noAmbient().withFill(Theme.lerpColor(Tokens.ACCENT_SURFACE, Tokens.N300, 0.3f * hv)), hv, Float.NaN);
+            net.evadeclient.gui.kit.Paint.ring(ctx, b.x1(), b.y1(), b.x2(), b.y2(), Tokens.R_SM, Theme.alpha(Tokens.A500, 0.6f), 1);
+            int lw = kit.width(label, Role.LABEL);
+            net.evadeclient.util.Icons.draw(ctx, "check", b.x1() + (w - lw - 14) / 2, Math.round((b.y1() + b.y2()) / 2f - 5), 10, Tokens.A400);
+            kit.textCentredY(label, b.x1() + (w - lw - 14) / 2 + 14, (b.y1() + b.y2()) / 2f, Tokens.N950, Role.LABEL);
+            kit.hit(b.id(), b.x1(), b.y1(), b.x2(), b.y2(), null, false);
+            return;
+        }
+        var size = b.y2() - b.y1() >= 24 ? net.evadeclient.gui.kit.Button.Size.MD : net.evadeclient.gui.kit.Button.Size.SM;
+        net.evadeclient.gui.kit.Button.draw(kit, b.id(), b.x1(), b.y1(), w, size, net.evadeclient.gui.kit.Button.Variant.SECONDARY, label, null, enabled, () -> {});
     }
 
-    /** The solid accent button (Done). */
+    /** The primary button (Done). */
     private void primary(DrawContext ctx, Button b, String label, int mx, int my, boolean sm) {
-        int bg = b.contains(mx, my) ? Theme.RED_BRIGHT : Theme.RED;
-        Theme.roundBordered(ctx, b.x1(), b.y1(), b.x2(), b.y2(), bg, bg);
-        int w = UiFont.width(textRenderer, label, Role.STRONG, sm);
-        UiFont.draw(ctx, textRenderer, label, b.x1() + (b.x2() - b.x1() - w) / 2, b.y1() + 5, Theme.ON_ACCENT, Role.STRONG, sm);
+        net.evadeclient.gui.kit.Button.draw(kit, b.id(), b.x1(), b.y1(), b.x2() - b.x1(), net.evadeclient.gui.kit.Button.Size.MD,
+                net.evadeclient.gui.kit.Button.Variant.PRIMARY, label, null, true, () -> {});
     }
 
     private Crosshair.Shape previewShape() {

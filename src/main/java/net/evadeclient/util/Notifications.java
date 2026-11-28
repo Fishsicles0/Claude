@@ -44,6 +44,9 @@ public final class Notifications {
     public static final long MAX_LIFE = 15_000;
     private static final int W = 260, MAX_W = 320, H = 44, GAP = 6, VISIBLE = 3, KEEP = 8;
     private static long lastFrame;
+    /** A screen whose own chrome sits in the top-right corner (the Evade menu's close button) sets the GUI y the toasts
+     *  start below while it is open, and puts it back to -1 when it closes. */
+    public static int screenTopInset = -1;
 
     private Notifications() {}
 
@@ -110,6 +113,7 @@ public final class Notifications {
         boolean menu = mc.currentScreen != null;
         // Below a screen's header close button when one is open (Evade screens put it in the top-right corner).
         int top = menu ? (mc.currentScreen.getClass().getName().startsWith("net.evadeclient.") ? 8 + 36 : 8) : sh / 2 - 40;
+        if (menu && screenTopInset >= 0) top = Math.max(top, Math.round(screenTopInset / k));
         double mx = mc.mouse.getX() * ctx.getScaledWindowWidth() / Math.max(1, mc.getWindow().getWidth()) / k;
         double my = mc.mouse.getY() * ctx.getScaledWindowHeight() / Math.max(1, mc.getWindow().getHeight()) / k;
         var m = ctx.getMatrices();

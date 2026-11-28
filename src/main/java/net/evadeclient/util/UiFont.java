@@ -78,6 +78,15 @@ public final class UiFont {
 
     private UiFont() {}
 
+    /**
+     * Device px per GUI px the smooth fonts are picked for while a screen draws in design units at another scale
+     * (the Evade menu at GUI 3 draws 2 device px per design px): 0 = the GUI scale. Set around the screen's drawing
+     * and put back to 0 after it.
+     */
+    public static int designG;
+
+    private static int g() { return designG > 0 ? designG : Theme.gs(); }
+
     private static int clampG(int g) {
         return Math.max(MIN_G, Math.min(MAX_G, g));
     }
@@ -104,7 +113,7 @@ public final class UiFont {
     /** {@code s} as a Text in {@code r}'s Inter font for the current GUI scale, or plain (vanilla font) when not smooth. */
     public static MutableText text(String s, Role r, boolean smooth) {
         MutableText t = Text.literal(s);
-        return smooth ? t.setStyle(style(r, Theme.gs())) : t;
+        return smooth ? t.setStyle(style(r, g())) : t;
     }
 
     /**
@@ -152,7 +161,7 @@ public final class UiFont {
         }
         int c = Theme.fa(color);
         if (c >>> 24 == 0) return;
-        Style st = style(r, Theme.gs());
+        Style st = style(r, g());
         Matrix3x2fStack m = ctx.getMatrices();
         float pen = 0;
         for (int i = 0; i < up.length(); ) {
@@ -177,7 +186,7 @@ public final class UiFont {
         if (s == null || s.isEmpty()) return 0;
         String up = s.toUpperCase(Locale.ROOT);
         if (!smooth) return width(tr, spaced(up), r, false);
-        Style st = style(r, Theme.gs());
+        Style st = style(r, g());
         float pen = 0;
         int n = 0;
         for (int i = 0; i < up.length(); ) {

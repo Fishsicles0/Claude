@@ -1,108 +1,99 @@
 package net.evadeclient.gui;
 
-import net.evadeclient.EvadeClient;
-import net.evadeclient.module.client.ClientSettings;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.Paint;
 import net.evadeclient.util.BenchmarkScene;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
 
 import java.util.Locale;
 
 /**
- * The benchmark scene's result card: average FPS with the 1% and 0.1% lows, what it ran on (graphics, processor,
- * FPS Mode, render scale, resolution, render distance) and a share code that holds all of it.
+ * The benchmark scene's result card: average FPS with the 1% and 0.1% lows as DISPLAY tabular numbers (neutral: a
+ * number is not good or bad by colour), a verdict badge (Smooth / Playable / Struggling, icon and word), what it ran
+ * on (graphics, processor, FPS Mode, render scale, resolution, render distance) and a share code that holds it all.
  */
-public final class BenchmarkResultScreen extends Screen {
-    private final Screen parent;
+public final class BenchmarkResultScreen extends EvadeDialog {
     private final BenchmarkScene.Result r;
-    private int px, py, pw, ph;
 
     public BenchmarkResultScreen(Screen parent, BenchmarkScene.Result result) {
-        super(Text.literal("Benchmark Result"));
-        this.parent = parent;
+        super("Benchmark Result", parent);
         this.r = result;
     }
 
     public BenchmarkScene.Result result() { return r; }
 
+    @Override protected int prefWidth() { return 440; }
+    @Override protected int prefHeight() { return 318; }
+    @Override protected String titleIcon() { return "gauge"; }
+    @Override protected String heading() { return "Benchmark Scene"; }
+
     @Override
     protected void init() {
-        pw = Math.min(360, width - 20);
-        ph = 200;
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        int bw = (pw - 28 - 2 * 4) / 3, by = py + ph - 30;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Copy code"), b -> {
-            if (client != null) client.keyboard.setClipboard(r.shareCode());
-            Notifications.push("Benchmark", "Share code copied", true);
-        }).dimensions(px + 14, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Run again"), b -> {
+        frame();
+        action("Run again", Button.Variant.GHOST, () -> {
             close();
             BenchmarkScene.start(BenchmarkScene.DEFAULT_SECONDS);
-        }).dimensions(px + 14 + bw + 4, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close()).dimensions(px + 14 + (bw + 4) * 2, by, bw, 20).build());
+        }).icon("reset").left();
+        action("Copy code", Button.Variant.SECONDARY, () -> {
+            if (client != null) client.keyboard.setClipboard(r.shareCode());
+            Notifications.push("Benchmark", "Share code copied", true);
+        });
+        action("Done", Button.Variant.PRIMARY, this::close);
     }
 
     @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0000000);
-        Theme.shadow(ctx, Theme.SH_WINDOW, px, py, px + pw, py + ph, 0x90000000);
-        Theme.round(ctx, px, py, px + pw, py + ph, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, px, py, px + pw, py + ph, Theme.BORDER, Theme.R_WIN);
+    protected void renderBody(DrawContext ctx, int mx, int my) {
+        int x = bx, y = by - 4;
+        kit.text(String.format(Locale.ROOT, "%.0f s camera flight · %d frames", r.seconds(), r.frames()), x, y, Tokens.N700, Role.SMALL);
+        // Verdict, top-right of the body: icon plus word, from the 1% low (what you feel).
+        Badge.Tone tone = r.low1() >= 60 ? Badge.Tone.OK : r.low1() >= 30 ? Badge.Tone.WARN : Badge.Tone.DANGER;
+        String verdict = tone == Badge.Tone.OK ? "Smooth" : tone == Badge.Tone.WARN ? "Playable" : "Struggling";
+        int vw = Badge.width(kit, verdict) + 14;
+        int vx = bx + bw - vw;
+        Paint.pill(ctx, vx, y - 3, vx + vw, y + 11, Theme.alpha(Badge.color(tone), 0.14f));
+        PanelGlyphs.draw(ctx, tone == Badge.Tone.OK ? "check" : tone == Badge.Tone.WARN ? "warn" : "error", vx + 4, y - 1, 10, Badge.color(tone));
+        kit.textCentredY(verdict, vx + 17, y + 4, Badge.color(tone), Role.TINY);
+
+        // Three hero numbers in a sunken strip.
+        int sy = y + 18, sh = 64;
+        Paint.surface(ctx, bx, sy, bx + bw, sy + sh, Tokens.R_MD, Tokens.SUNKEN.withFill(Tokens.N150), 0, Float.NaN);
+        int colW = bw / 3;
+        stat(ctx, bx, sy, colW, r.avgFps(), "average FPS", true);
+        Paint.rect(ctx, bx + colW, sy + 12, bx + colW + 1, sy + sh - 12, 0, Theme.alpha(0xFFFFFFFF, 0.06f));
+        stat(ctx, bx + colW, sy, colW, r.low1(), "1% low", false);
+        Paint.rect(ctx, bx + 2 * colW, sy + 12, bx + 2 * colW + 1, sy + sh - 12, 0, Theme.alpha(0xFFFFFFFF, 0.06f));
+        stat(ctx, bx + colW * 2, sy, colW, r.low01(), "0.1% low", false);
+
+        int ly = sy + sh + 12;
+        row(x, ly, "Graphics", r.gpu().isEmpty() ? "Unknown" : r.gpu());
+        row(x, ly + 14, "Processor", r.cpu().isEmpty() ? "Unknown" : r.cpu());
+        row(x, ly + 28, "Settings", r.mode() + " · Render Scale " + r.renderScale() + " · render distance " + r.renderDistance());
+        row(x, ly + 42, "Window", r.resolution() + " · Evade " + r.version());
+        // The share code, in a chip.
+        int cy0 = ly + 60;
+        Paint.rect(ctx, bx, cy0, bx + bw, cy0 + 18, Tokens.R_XS, Tokens.N150);
+        kit.textCentredY(kit.ellipsize(r.shareCode(), Role.SMALL, bw - 12), bx + 6, cy0 + 9, Tokens.N700, Role.SMALL);
     }
 
-    @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        boolean smooth = s == null || s.smoothFont.get();
-        int x = px + 14, y = py + 12;
-        UiFont.draw(ctx, textRenderer, "Benchmark Scene", x, y, Theme.TEXT, Role.TITLE, smooth);
-        UiFont.draw(ctx, textRenderer, String.format(Locale.ROOT, "%.0f s camera flight, %d frames", r.seconds(), r.frames()),
-                x, y + 16, Theme.TEXT_DIM, Role.SMALL, smooth);
-
-        // Three big numbers.
-        int colW = (pw - 28) / 3, ny = y + 36;
-        stat(ctx, x, ny, colW, r.avgFps(), "average FPS", Theme.RED_BRIGHT, smooth);
-        stat(ctx, x + colW, ny, colW, r.low1(), "1% low", Theme.TEXT, smooth);
-        stat(ctx, x + colW * 2, ny, colW, r.low01(), "0.1% low", Theme.TEXT, smooth);
-
-        int ly = ny + 40;
-        line(ctx, x, ly, "Graphics", r.gpu().isEmpty() ? "Unknown" : r.gpu(), smooth);
-        line(ctx, x, ly + 12, "Processor", r.cpu().isEmpty() ? "Unknown" : r.cpu(), smooth);
-        line(ctx, x, ly + 24, "Settings", r.mode() + ", Render Scale " + r.renderScale() + ", render distance " + r.renderDistance(), smooth);
-        line(ctx, x, ly + 36, "Window", r.resolution() + ", Evade " + r.version(), smooth);
-        String code = r.shareCode();
-        if (textRenderer.getWidth(code) > pw - 28) code = textRenderer.trimToWidth(code, pw - 28 - textRenderer.getWidth("...")) + "...";
-        ctx.drawText(textRenderer, code, x, ly + 52, Theme.TEXT_FAINT, false);
-    }
-
-    private void stat(DrawContext ctx, int x, int y, int w, double value, String label, int color, boolean smooth) {
+    private void stat(DrawContext ctx, int x, int y, int w, double value, String label, boolean hero) {
         String v = String.format(Locale.ROOT, "%.0f", value);
-        var m = ctx.getMatrices();
-        m.pushMatrix();
-        m.translate(x, y);
-        m.scale(2f, 2f);
-        ctx.drawText(textRenderer, v, 0, 0, color, false);
-        m.popMatrix();
-        UiFont.draw(ctx, textRenderer, label, x, y + 20, Theme.TEXT_DIM, Role.SMALL, smooth);
+        Role role = hero ? Role.DISPLAY : Role.HEADLINE;
+        int vw = UiFont.tabularWidth(textRenderer, v, role, smooth);
+        int top = y + (hero ? 8 : 14);
+        UiFont.drawTabular(ctx, textRenderer, v, x + (w - vw) / 2, top, hero ? Tokens.N950 : Tokens.N900, role, smooth);
+        kit.text(label, x + (w - kit.width(label, Role.SMALL)) / 2, y + 46, Tokens.N700, Role.SMALL);
     }
 
-    private void line(DrawContext ctx, int x, int y, String label, String value, boolean smooth) {
-        UiFont.draw(ctx, textRenderer, label, x, y, Theme.TEXT_FAINT, Role.SMALL, smooth);
-        int vx = x + 62, room = px + pw - 14 - vx;
-        String v = textRenderer.getWidth(value) > room ? textRenderer.trimToWidth(value, room - textRenderer.getWidth("...")) + "..." : value;
-        UiFont.draw(ctx, textRenderer, v, vx, y, Theme.TEXT, Role.SMALL, smooth);
+    private void row(int x, int y, String label, String value) {
+        kit.text(label, x, y, Tokens.N700, Role.SMALL);
+        int vx = x + 70;
+        kit.text(kit.ellipsize(value, Role.SMALL, bx + bw - vx), vx, y, Tokens.N900, Role.SMALL);
     }
-
-    @Override public boolean shouldPause() { return false; }
-
-    @Override public void close() { if (client != null) client.setScreen(parent); }
 }

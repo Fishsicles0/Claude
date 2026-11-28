@@ -25,7 +25,7 @@ final class LauncherTheme {
     static final int[] ACCENTS = {0xE11D2E, 0xF97316, 0x22C55E, 0x14B8A6, 0x3D8BFF, 0x8B5CF6, 0xEC4899};
 
     /** A red that means a problem (a server offline): never turned into the accent colour. */
-    static final Color DANGER = new Color(0xFF4155);
+    static final Color DANGER = new Color(0xF43F5E); // Obsidian "danger": pink-shifted, distinct from the brand red
     /*
      * Danger and error colours (Delete buttons, failed installs, crash cards) are painted in danger mode
      * (ThemedGraphics.danger): the light theme still applies, so they read on white, but the accent never turns

@@ -4,7 +4,10 @@ import net.evadeclient.EvadeClient;
 import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.util.LauncherBridge;
 import net.evadeclient.util.Notifications;
-import net.evadeclient.util.Theme;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.util.Icons;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.DrawContext;
@@ -12,7 +15,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerWarningScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
@@ -23,30 +25,27 @@ import net.minecraft.text.Text;
  * moment ago: "Join X? (requested from the launcher)" with Cancel and Join. Nothing connects until the player clicks
  * Join here (never automatically); Cancel or Escape goes back to the title screen.
  */
-public final class LauncherJoinScreen extends Screen {
-    private final Screen parent;
+public final class LauncherJoinScreen extends EvadeDialog {
     private final LauncherBridge.Request request;
     private boolean done;
-    private int px, py, pw, ph;
 
     public LauncherJoinScreen(Screen parent, LauncherBridge.Request request) {
-        super(Text.literal((request.world() ? "Open " : "Join ") + request.name()));
-        this.parent = parent;
+        super((request.world() ? "Open " : "Join ") + request.name(), parent);
         this.request = request;
     }
+
+    @Override protected int prefWidth() { return 400; }
+    @Override protected int prefHeight() { return 172; }
+    @Override protected String titleIcon() { return request.world() ? "map" : "server"; }
+    @Override protected String heading() { return (request.world() ? "Open " : "Join ") + request.name() + "?"; }
 
     public LauncherBridge.Request request() { return request; }
 
     @Override
     protected void init() {
-        pw = Math.min(320, width - 20);
-        ph = 104;
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        int bw = (pw - 28 - 6) / 2, by = py + ph - 30;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), b -> close()).dimensions(px + 14, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal(request.world() ? "Open world" : "Join server"), b -> go())
-                .dimensions(px + 14 + bw + 6, by, bw, 20).build());
+        frame();
+        action("Cancel", Button.Variant.GHOST, this::close);
+        action(request.world() ? "Open world" : "Join server", Button.Variant.PRIMARY, this::go);
     }
 
     private void go() {
@@ -83,29 +82,18 @@ public final class LauncherJoinScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        if (s == null || s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0000000);
-        Theme.shadow(ctx, Theme.SH_WINDOW, px, py, px + pw, py + ph, 0x90000000);
-        Theme.round(ctx, px, py, px + pw, py + ph, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, px, py, px + pw, py + ph, Theme.BORDER, Theme.R_WIN);
+    protected void renderBody(DrawContext ctx, int mx, int my) {
+        int y = by;
+        kit.text("Requested from the Evade Launcher", bx, y, Tokens.N800, Role.BODY);
+        y += 16;
+        if (!request.world()) {
+            Paint.rect(ctx, bx, y, bx + bw, y + 22, Tokens.R_XS, Tokens.N150);
+            Icons.draw(ctx, "server", bx + 6, y + 5, 12, Tokens.N700);
+            kit.textCentredY(kit.ellipsize(request.target(), Role.BODY, bw - 30), bx + 24, y + 11, Tokens.N950, Role.BODY);
+            y += 30;
+        }
+        note("info", Tokens.N600, "Nothing happens until you click " + (request.world() ? "Open world." : "Join server."), y);
     }
-
-    @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        boolean smooth = s == null || s.smoothFont.get();
-        String head = (request.world() ? "Open " : "Join ") + request.name() + "?";
-        UiFont.draw(ctx, textRenderer, head, px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
-        UiFont.draw(ctx, textRenderer, "Requested from the Evade Launcher" + (request.world() ? "" : "  ·  " + request.target()),
-                px + 14, py + 30, Theme.TEXT_DIM, Role.SMALL, smooth);
-        UiFont.draw(ctx, textRenderer, "Nothing happens until you click " + (request.world() ? "Open world." : "Join server."),
-                px + 14, py + 44, Theme.TEXT_FAINT, Role.SMALL, smooth);
-    }
-
-    @Override public boolean shouldPause() { return false; }
 
     @Override public void close() {
         done = true;

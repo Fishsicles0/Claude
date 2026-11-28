@@ -5,13 +5,18 @@ import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.mods.ModrinthApi;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.ShaderSwitch;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
@@ -25,44 +30,37 @@ import java.util.Optional;
  * Pick one and Apply to turn shaders on with it, or choose Off. Get More opens the Mod Browser on Shaders. All
  * switching goes through {@link ShaderSwitch}, so nothing here needs Iris' own screens.
  */
-public final class ShaderPackScreen extends Screen {
-    private static final int ROW = 20;
+public final class ShaderPackScreen extends EvadePanelScreen {
+    private static final int ROW = 34;
 
-    private final Screen parent;
     private List<String> packs = List.of();
     /** The row picked (null = Off). */
     private String picked;
-    private int px, py, pw, ph, listY, listH;
-    private int scroll;
+    private String lastClick = "";
+    private long lastClickAt;
 
     public ShaderPackScreen(Screen parent) {
-        super(Text.literal("Shader Packs"));
-        this.parent = parent;
+        super("Shader Packs", parent);
     }
 
     /** Test hook: the packs listed. */
     public List<String> packsForTest() { return packs; }
 
+    @Override protected int prefWidth() { return 560; }
+    @Override protected int prefHeight() { return 400; }
+    @Override protected String headerIcon() { return "visuals"; }
+
+    @Override
+    protected String subtitle() {
+        if (!ShaderSwitch.irisLoaded()) return "Shaders need Iris: run the Evade installer with Shaders on";
+        return "Now: " + (ShaderSwitch.enabled() ? ShaderSwitch.selectedPack().map(ShaderSwitch::displayName).orElse("Off") : "Off")
+                + " · pick a pack, then Apply (or double-click)";
+    }
+
     @Override
     protected void init() {
+        super.init();
         reload();
-        pw = Math.min(340, width - 20);
-        ph = Math.min(260, height - 20);
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        listY = py + 46;
-        listH = ph - 46 - 36;
-        int bw = (pw - 28 - 3 * 4) / 4, by = py + ph - 28;
-        boolean iris = ShaderSwitch.irisLoaded();
-        ButtonWidget apply = ButtonWidget.builder(Text.literal("Apply"), b -> apply()).dimensions(px + 14, by, bw, 20).build();
-        apply.active = iris;
-        addDrawableChild(apply);
-        addDrawableChild(ButtonWidget.builder(Text.literal("Open Folder"), b -> openFolder()).dimensions(px + 14 + (bw + 4), by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Get More"), b -> {
-            ModBrowserScreen.setContentTypeForTest(ModrinthApi.ContentType.SHADER);
-            if (client != null) client.setScreen(new ModBrowserScreen(this));
-        }).dimensions(px + 14 + (bw + 4) * 2, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close()).dimensions(px + 14 + (bw + 4) * 3, by, bw, 20).build());
     }
 
     private void reload() {
@@ -86,6 +84,11 @@ public final class ShaderPackScreen extends Screen {
         }
     }
 
+    private void getMore() {
+        ModBrowserScreen.setContentTypeForTest(ModrinthApi.ContentType.SHADER);
+        if (client != null) client.setScreen(new ModBrowserScreen(this));
+    }
+
     /** Rows: "Off" first, then every pack. */
     private List<String> rows() {
         List<String> r = new ArrayList<>();
@@ -95,75 +98,71 @@ public final class ShaderPackScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
-        if (click.button() == 0 && click.x() >= px + 14 && click.x() < px + pw - 14 && click.y() >= listY && click.y() < listY + listH) {
-            int i = (int) ((click.y() - listY + scroll) / ROW);
-            List<String> r = rows();
-            if (i >= 0 && i < r.size()) {
-                picked = r.get(i);
-                if (doubled && ShaderSwitch.irisLoaded()) apply();
-                return true;
-            }
-        }
-        return super.mouseClicked(click, doubled);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
-        int max = Math.max(0, rows().size() * ROW - listH);
-        scroll = (int) Math.max(0, Math.min(max, scroll - v * ROW));
-        return true;
-    }
-
-    @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        if (s == null || s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0000000);
-        Theme.shadow(ctx, Theme.SH_WINDOW, px, py, px + pw, py + ph, 0x90000000);
-        Theme.round(ctx, px, py, px + pw, py + ph, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, px, py, px + pw, py + ph, Theme.BORDER, Theme.R_WIN);
-    }
-
-    @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        boolean smooth = s == null || s.smoothFont.get();
-        UiFont.draw(ctx, textRenderer, "Shader Packs", px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
-        String sub = !ShaderSwitch.irisLoaded() ? "Shaders need Iris: run the Evade installer with Shaders on."
-                : packs.isEmpty() ? "No packs yet. Get More finds them on Modrinth."
-                : "Now: " + (ShaderSwitch.enabled() ? ShaderSwitch.selectedPack().map(ShaderSwitch::displayName).orElse("Off") : "Off")
-                        + ". Pick a pack, then Apply (or double-click).";
-        UiFont.draw(ctx, textRenderer, sub, px + 14, py + 30, ShaderSwitch.irisLoaded() ? Theme.TEXT_DIM : Theme.WARN, Role.SMALL, smooth);
-
+    protected int renderContent(DrawContext ctx, int top, int mx, int my) {
         List<String> r = rows();
-        int max = Math.max(0, r.size() * ROW - listH);
-        scroll = Math.max(0, Math.min(max, scroll));
-        int x1 = px + 14, x2 = px + pw - 14;
-        ctx.enableScissor(x1, listY, x2, listY + listH);
         Optional<String> current = ShaderSwitch.enabled() ? ShaderSwitch.selectedPack() : Optional.empty();
-        for (int i = 0; i < r.size(); i++) {
-            int y = listY + i * ROW - scroll;
-            if (y + ROW < listY || y > listY + listH) continue;
-            String pack = r.get(i);
-            boolean on = pack == null ? picked == null : pack.equals(picked);
-            boolean hv = mx >= x1 && mx < x2 && my >= Math.max(y, listY) && my < Math.min(y + ROW, listY + listH);
-            Theme.round(ctx, x1, y + 1, x2, y + ROW - 1, on ? Theme.tint(0.18f) : hv ? Theme.ROW_HOVER : Theme.ROW, Theme.R);
-            if (on) Theme.round(ctx, x1, y + 5, x1 + 2, y + ROW - 5, Theme.RED, 1);
-            String label = pack == null ? "Off (no shaders)" : ShaderSwitch.displayName(pack);
-            UiFont.draw(ctx, textRenderer, label, x1 + 8, y + 6, on ? Theme.TEXT : Theme.TEXT_SOFT, Role.BODY, smooth);
-            boolean live = pack == null ? current.isEmpty() : current.isPresent() && current.get().equals(pack);
-            if (live) {
-                String tag = "IN USE";
-                int tw = UiFont.width(textRenderer, tag, Role.CAPS, smooth);
-                UiFont.draw(ctx, textRenderer, tag, x2 - 8 - tw, y + 7, Theme.OK, Role.CAPS, smooth);
-            }
+        boolean iris = ShaderSwitch.irisLoaded();
+        int y = top;
+        if (!iris) {
+            Paint.surface(ctx, cx, y, cx + cw, y + 34, Tokens.R_SM, Tokens.SUNKEN.withFill(Theme.alpha(Tokens.WARN, 0.08f)), 0, Float.NaN);
+            Icons.draw(ctx, "warn", cx + 10, y + 11, 12, Tokens.WARN);
+            kit.textCentredY("Shaders need Iris. Run the Evade installer again with Shaders switched on.", cx + 30, y + 17, Tokens.N950, Role.BODY);
+            y += 44;
         }
-        ctx.disableScissor();
+        for (int i = 0; i < r.size(); i++) {
+            String pack = r.get(i);
+            String key = pack == null ? "#off" : pack;
+            if (inView(y, ROW)) {
+                float a = enter(i), fd = Theme.fade;
+                Theme.fade = fd * a;
+                int yy = y + Math.round((1 - a) * 6), y2 = yy + ROW - 3;
+                try {
+                    boolean on = pack == null ? picked == null : pack.equals(picked);
+                    boolean hv = mouseIn(mx, my, cx, yy, cx + cw, y2);
+                    rowSurface(cx, yy, cx + cw, y2, hover("row:" + key, hv), on);
+                    float mid = (yy + y2) / 2f;
+                    Paint.rect(ctx, cx + 8, mid - 11, cx + 30, mid + 11, Tokens.R_XS, on ? Theme.alpha(Tokens.A900, 0.7f) : Tokens.N250);
+                    Icons.draw(ctx, pack == null ? "close" : "visuals", cx + 12, Math.round(mid - 7), 14, on ? Tokens.A400 : Tokens.N800);
+                    String label = pack == null ? "Off" : ShaderSwitch.displayName(pack);
+                    kit.textCentredY(ellipsize(label, Role.STRONG, cw - 160), cx + 40, mid - (pack == null ? 6 : 0), Tokens.N950, Role.STRONG);
+                    if (pack == null) kit.textCentredY("No shaders: the game's own look", cx + 40, mid + 7, Tokens.N700, Role.SMALL);
+                    boolean live = pack == null ? current.isEmpty() : current.isPresent() && current.get().equals(pack);
+                    int rx = cx + cw - 10;
+                    if (live) rx -= Badge.draw(kit, rx - Badge.width(kit, "In use"), Math.round(mid - Badge.H / 2f), "In use", Badge.Tone.OK) + Tokens.S3;
+                    if (on) Icons.draw(ctx, "check", rx - 12, Math.round(mid - 6), 12, Tokens.A400);
+                    contentHit("row:" + key, cx, yy, cx + cw, y2, b -> {
+                        if (b != 0) return;
+                        long now = System.currentTimeMillis();
+                        boolean dbl = key.equals(lastClick) && now - lastClickAt < 400;
+                        lastClick = key;
+                        lastClickAt = now;
+                        picked = pack;
+                        if (dbl && ShaderSwitch.irisLoaded()) apply();
+                    });
+                } finally {
+                    Theme.fade = fd;
+                }
+            }
+            y += ROW;
+        }
+        if (packs.isEmpty()) {
+            y += 8;
+            y += EmptyState.draw(kit, "empty", cx + cw / 2, y, "visuals", "No packs yet", "Get more finds shader packs on Modrinth, or drop .zip packs in the folder.",
+                    "Get more", this::getMore);
+        }
+        return y - top + 6;
     }
 
-    @Override public boolean shouldPause() { return false; }
+    @Override protected int footerHeight() { return 44; }
 
-    @Override public void close() { if (client != null) client.setScreen(parent); }
+    @Override
+    protected void renderFooter(DrawContext ctx, int x1, int y, int x2, int mx, int my) {
+        int by = y + 10;
+        int gw = Button.width(kit, "Get more", Button.Size.MD, "plus", false);
+        drawButton("more", "Get more", "plus", x1 - 6, by, gw, Button.Size.MD, GHOST, true, b -> getMore());
+        int aw = Button.width(kit, "Apply", Button.Size.MD, null, false);
+        drawButton("apply", "Apply", null, x2 - aw, by, aw, Button.Size.MD, PRIMARY, ShaderSwitch.irisLoaded(), b -> apply());
+        int fw = Button.width(kit, "Open folder", Button.Size.MD, "folder", false);
+        drawButton("folder", "Open folder", "folder", x2 - aw - Tokens.S3 - fw, by, fw, Button.Size.MD, SECONDARY, true, b -> openFolder());
+    }
 }
