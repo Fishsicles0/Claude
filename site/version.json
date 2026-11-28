@@ -6,14 +6,14 @@
   "size": "12340 KB",
   "sha256": "8187a129ab0de0dbd4cbcd88302b50606b65faa42cee498f5b65d3c64f57db8e",
   "installer": {
-    "version": "2.7.2",
-    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7856 KB", "sha256": "9fc948b769b4b1eabed89fc1a788ac5611f6fe4822b6e22dbf3e9ef942d02e8a" },
-    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7744 KB", "sha256": "ac3e0d08d2be7776da3d047d0eccaad3f08ca3e72799baa9d537bfa8c517730f" }
+    "version": "2.7.3",
+    "windows": { "file": "downloads/Evade-Installer.exe", "size": "7889 KB", "sha256": "35740b4a4210ed344fa95ded72fa1bf7fb7f9a70d60b4509b824044487f28e55" },
+    "jar": { "file": "downloads/EvadeInstaller.jar", "size": "7777 KB", "sha256": "a51422d6c4ce5570df9511b6d1da559a2062579f0433cda57974e12b4415020a" }
   },
   "clips": {
-    "version": "1.2.1",
-    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4244 KB", "sha256": "22928a4714afeb3c99592101552822a553bd2a7cf668af9a2933de115305282a" },
-    "jar": { "file": "downloads/EvadeClips.jar", "size": "4132 KB", "sha256": "9241cafcf2f170bb3a494277784f007070a023f7c6b27d841140bbf36541690d" },
+    "version": "1.2.2",
+    "windows": { "file": "downloads/Evade-Clips.exe", "size": "4278 KB", "sha256": "6d5a96dc5bc1ac7e96f5bcb8998b60e654b971284d84416ab3a38621c44097ea" },
+    "jar": { "file": "downloads/EvadeClips.jar", "size": "4166 KB", "sha256": "68d54d30b0bbb07ef556bf46bafde465933597560a4563656cad7741a8021e92" },
     "ffmpeg": { "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip", "sha256": "04861d3339c5ebe38b56c19a15cf2c0cc97f5de4fa8910e4d47e5e6404e4a2d4" }
   },
   "serverApi": { "file": "downloads/EvadeServerAPI.jar", "size": "38 KB", "sha256": "7d5dd7444188205ae2a7e0679d2c5a3f198ca04300ef5135195639a47c28532a" },
