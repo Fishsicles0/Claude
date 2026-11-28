@@ -1355,15 +1355,15 @@
    "assets": {
     "files": {
      "item.json": "6bf19e255fb08b620476514d2b2e6ebfc0bae6f30d0c5cc7ee814e3f96384873",
-     "model.json": "e9b722a1127e9fc86b7c2346b3e1a2bd5bd82c546affcf7a37ced9ebe36e10b6",
-     "texture.png": "7f4e516983f03432e68192ea44c004460df9b9493d9bd0a34b6a1ced78b08d54",
-     "thumb.png": "f222f593b3ad96fd12a671319c608c4e7e1171ada7091650d51a605bd22bdd9c"
+     "model.json": "e1de563d25b36e64e3c9b94afb4ed6e687337d0a21840b53ad67618ae3f3e84b",
+     "texture.png": "cd9a8c21d65b4e2fb60d039214cf1bd6d908a2bf1719ecd7476254cfc70feef6",
+     "thumb.png": "97fb4f275d84c87a86c425f0f73d0d50498d38411aa31e5d4f47f9b5060c6061"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "46ba0301cbfa4272a51d18384805784a89e12ec19bc36e27ebc7cb758df5c91e"
+    "sha256": "c034bb1d9cda7dc61266985488e32364c04c53024e7823a7dd83a1fe30389c5c"
    }
   },
   {
