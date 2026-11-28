@@ -459,24 +459,26 @@ final class ContentPage {
         int[] ws = new int[items.length];
         int total = 8;
         for (int i = 0; i < items.length; i++) { ws[i] = g.getFontMetrics().stringWidth(items[i][1]) + 28; total += ws[i]; }
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(x, y, total, 40, 24, 24));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, total - 1, 39, 24, 24));
+        Obsidian.segTrack(g, x, y, total, 40);
+        // the raised thumb glides to the chosen segment (never red)
+        int ox = x + 4, selX = -1, selW = 0;
+        for (int i = 0; i < items.length; i++) { if (items[i][0].equals(on)) { selX = ox; selW = ws[i]; } ox += ws[i]; }
+        if (selX >= 0) {
+            String key = "seg@" + items[0][0];
+            float gx = v.spring(key + "-x", selX, 20f), gw = v.spring(key + "-w", selW, 20f);
+            Obsidian.segThumb(g, gx, y + 4, gw, 32);
+        }
         int sx = x + 4;
         for (int i = 0; i < items.length; i++) {
             String id = items[i][0];
             boolean sel = id.equals(on);
             float t = v.anim(id, id.equals(v.hovered));
-            if (sel) {
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, ws[i], 32, 18, 18));
-            } else if (t > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(12 * t)));
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, ws[i], 32, 18, 18));
+            if (!sel && t > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(10 * t)));
+                g.fill(Obsidian.rr(sx, y + 4, ws[i], 32, 16));
             }
             g.setFont(v.interBold.deriveFont(12f));
-            g.setColor(sel ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(sel ? TEXT : mix(FAINT, TEXT, t));
             center(g, items[i][1], sx, y + 4, ws[i], 32);
             v.hit(id, new Rectangle(sx, y + 4, ws[i], 32));
             sx += ws[i];
@@ -736,9 +738,8 @@ final class ContentPage {
                     boolean ev = e.option().equals("Evade");
                     g.setFont(v.interBold.deriveFont(10f));
                     int tw = g.getFontMetrics().stringWidth(tag) + 18;
-                    g.setColor(ev ? new Color(225, 29, 46, 36) : new Color(255, 255, 255, 12));
-                    g.fill(new RoundRectangle2D.Double(rx - tw, ry + 17, tw, 22, 22, 22));
-                    g.setColor(ev ? RED_HI : DIM);
+                    Obsidian.tag(g, rx - tw, ry + 17, tw, 22, false);
+                    g.setColor(ev ? Obsidian.N900 : DIM);
                     center(g, tag, rx - tw, ry + 17, tw, 22);
                     g.setFont(v.inter.deriveFont(10.5f));
                     g.setColor(FAINT);

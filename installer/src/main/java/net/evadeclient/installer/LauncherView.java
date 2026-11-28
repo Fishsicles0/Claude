@@ -23,7 +23,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
-import java.awt.RadialGradientPaint;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -40,8 +39,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ConvolveOp;
-import java.awt.image.Kernel;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -269,7 +266,7 @@ public final class LauncherView extends JPanel {
         uiScale = s;
         setPreferredSize(new java.awt.Dimension(Math.round(W * s), Math.round(H * s)));
         for (JTextField f : new JTextField[]{searchField, modalField, modalField2, javaField}) f.setFont(inter.deriveFont(13f * s));
-        bgLayer = null;
+        bgLayers.clear();
         revalidate();
         repaint();
     }
@@ -291,11 +288,8 @@ public final class LauncherView extends JPanel {
     private boolean syncingFields;
 
     // cached layers
-    private BufferedImage bgLayer;
-    private double bgScale;
-    private boolean bgRound;
-    private final Map<String, BufferedImage> shadows = new HashMap<>();
-    private static final int SHADOW_BLUR = 5, SHADOW_PAD = 3 * SHADOW_BLUR + 2, SHADOW_DY = 10;
+    /** The window's background at each device scale it was painted at ("scale|round" -> layer). */
+    private final Map<String, BufferedImage> bgLayers = new HashMap<>();
 
     public LauncherView() {
         inter = font("/evade/inter-medium.ttf");
@@ -358,8 +352,8 @@ public final class LauncherView extends JPanel {
         tools = new LauncherTools(this);
 
         MouseAdapter ma = new MouseAdapter() {
-            @Override public void mouseMoved(MouseEvent e) { updateHover(logical(e)); }
-            @Override public void mouseExited(MouseEvent e) { hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
+            @Override public void mouseMoved(MouseEvent e) { mouse = logical(e); updateHover(mouse); }
+            @Override public void mouseExited(MouseEvent e) { mouse = null; hovered = null; setCursor(Cursor.getDefaultCursor()); repaint(); }
             @Override public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
                 if (e.getButton() == MouseEvent.BUTTON1) { pressed = hit(logical(e)); repaint(); }
@@ -814,7 +808,7 @@ public final class LauncherView extends JPanel {
 
     /** The theme, accent or text size changed: redraw cached layers. */
     void themeChanged() {
-        bgLayer = null;
+        bgLayers.clear();
         themeGen = LauncherTheme.generation();
         repaint();
     }
@@ -825,7 +819,7 @@ public final class LauncherView extends JPanel {
         Rectangle dirty = g0.getClipBounds();
         if (dirty != null && page == Page.CLIPS && clipsHost != null && clipsHost.isVisible() && clipsHost.isOpaque() && !hitMap.isEmpty()
                 && modal == null && overlay == null && popup == null && clipsBoxShown != null && toScreen(clipsBoxShown).contains(dirty)) return;
-        if (themeGen != LauncherTheme.generation()) { themeGen = LauncherTheme.generation(); bgLayer = null; }
+        if (themeGen != LauncherTheme.generation()) { themeGen = LauncherTheme.generation(); bgLayers.clear(); }
         Graphics2D g = ThemedGraphics.withText((Graphics2D) g0.create());
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -930,7 +924,10 @@ public final class LauncherView extends JPanel {
     /** A calm near-black surface: one faint red glow, the rail's panel, and a hairline round the window. */
     private void paintBackground(Graphics2D g) {
         double scale = g.getTransform().getScaleX();
-        if (bgLayer == null || bgScale != scale || bgRound != roundCorners) {
+        String key = scale + "|" + roundCorners;
+        BufferedImage bgLayer = bgLayers.get(key);
+        if (bgLayer == null) {
+            if (bgLayers.size() > 3) bgLayers.clear();
             bgLayer = deviceImage(W, H, scale);
             Graphics2D b = LauncherTheme.wrap(bgLayer.createGraphics());
             b.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -963,8 +960,7 @@ public final class LauncherView extends JPanel {
             Obsidian.border(b, 0, 0, W, H, roundCorners ? RADIUS : 0, new Color(255, 255, 255, 18));
             Obsidian.rim(b, win, 0.12f);
             b.dispose();
-            bgScale = scale;
-            bgRound = roundCorners;
+            bgLayers.put(key, bgLayer);
         }
         g.drawImage(bgLayer, 0, 0, W, H, null);
     }
@@ -1135,7 +1131,7 @@ public final class LauncherView extends JPanel {
 
     /** A page title in the top bar, with an optional line under it. */
     void pageTitle(Graphics2D g, String title, String sub) {
-        g.setFont(interBold.deriveFont(26f));
+        g.setFont(display(27f));
         g.setColor(TEXT);
         g.drawString(title, CX, 52);
         if (sub != null) {
@@ -1808,10 +1804,16 @@ public final class LauncherView extends JPanel {
             widths[i] = g.getFontMetrics().stringWidth(tabs[i][1]) + 32 + (count >= 0 ? g.getFontMetrics().stringWidth(String.valueOf(count)) + 16 : 0);
             total += widths[i];
         }
-        g.setColor(new Color(0x121419));
-        g.fill(new RoundRectangle2D.Double(segX, ty, total, 44, 26, 26));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(segX + .5, ty + .5, total - 1, 43, 26, 26));
+        Obsidian.segTrack(g, segX, ty, total, 44);
+        {
+            int ox = tx;
+            for (int i = 0; i < tabs.length; i++) {
+                if (clips != null && clipsPage.equals(tabs[i][0])) {
+                    Obsidian.segThumb(g, spring("ctab-thumb-x", ox, 20f), ty + 4, spring("ctab-thumb-w", widths[i], 20f), 36);
+                }
+                ox += widths[i];
+            }
+        }
         for (int i = 0; i < tabs.length; i++) {
             String[] t = tabs[i];
             boolean en = clips != null && (!t[0].equals("editor") || clipsEditorOpen());
@@ -1819,15 +1821,12 @@ public final class LauncherView extends JPanel {
             String id = "ctab:" + t[0];
             float a = en ? anim(id, id.equals(hovered)) : 0;
             float s = anim(id + "-on", on);
-            if (s > 0.01f) {
-                g.setColor(new Color(225, 29, 46, Math.round(255 * s)));
-                g.fill(new RoundRectangle2D.Double(tx, ty + 4, widths[i], 36, 20, 20));
-            } else if (a > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(12 * a)));
-                g.fill(new RoundRectangle2D.Double(tx, ty + 4, widths[i], 36, 20, 20));
+            if (s < 0.99f && a > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(10 * a * (1 - s))));
+                g.fill(Obsidian.rr(tx, ty + 4, widths[i], 36, 18));
             }
             g.setFont(interBold.deriveFont(13f));
-            g.setColor(on ? Color.WHITE : en ? mix(DIM, TEXT, a) : FAINT);
+            g.setColor(on ? TEXT : en ? mix(FAINT, TEXT, a) : Obsidian.N600);
             g.drawString(t[1], tx + 16, ty + 27);
             if (t[0].equals("library") && clips != null) {
                 String c = String.valueOf(clips.library.all().size());
@@ -1886,15 +1885,7 @@ public final class LauncherView extends JPanel {
         g.setColor(TEXT);
         g.drawString(launching ? "Opening the Minecraft Launcher…" : Math.round(shownProgress * 100) + "%", x - 1, y + 82);
         int by = y + 108;
-        g.setColor(new Color(0x21252D));
-        g.fill(new RoundRectangle2D.Double(x, by, w, 6, 6, 6));
-        double f = launching ? 1 : shownProgress;
-        int bw = (int) Math.max(6, w * f);
-        g.setPaint(new GradientPaint(x, 0, new Color(0x9B0D1A), x + bw, 0, RED_HI));
-        g.fill(new RoundRectangle2D.Double(x, by, bw, 6, 6, 6));
-        float s = ((System.currentTimeMillis() - start) % 1400) / 1400f;
-        g.setPaint(new GradientPaint(x + bw * s - 30, 0, new Color(255, 255, 255, 0), x + bw * s, 0, new Color(255, 255, 255, 90), true));
-        g.fill(new RoundRectangle2D.Double(x, by, bw, 6, 6, 6));
+        progressBar(g, x, by, w, 6, launching ? 1 : shownProgress);
         g.setFont(inter.deriveFont(13f));
         g.setColor(DIM);
         g.drawString(ellipsizeEnd(g, launching ? "Making “" + playName + "” the profile it selects" : status, w), x, by + 34);
@@ -2079,11 +2070,11 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(10f));
         g.setColor(RED_HI);
         spaced(g, "WELCOME", x, 84, 2.4f);
-        g.setFont(interBold.deriveFont(34f));
+        g.setFont(display(36f));
         g.setColor(TEXT);
         g.drawString("Let's get Evade", x - 1, 132);
-        g.setColor(RED);
-        g.drawString("ready to play.", x - 1, 172);
+        g.setPaint(Obsidian.linear(x, 0, x + 260, 0, RED_HI, Obsidian.RED500));
+        g.drawString("ready to play.", x - 1, 173);
         g.setFont(inter.deriveFont(13.5f));
         g.setColor(DIM);
         String ver = release != null ? "v" + release.evadeVersion() : "the latest version";
@@ -2094,12 +2085,11 @@ public final class LauncherView extends JPanel {
                 {"Right Shift", "Opens the Evade menu in game"}};
         int sy = 296;
         for (int i = 0; i < steps.length; i++) {
-            g.setColor(new Color(255, 255, 255, 8));
-            g.fill(new RoundRectangle2D.Double(x, sy, 340, 50, 12, 12));
-            g.setColor(BORDER);
-            g.draw(new RoundRectangle2D.Double(x + .5, sy + .5, 339, 49, 12, 12));
-            g.setColor(new Color(225, 29, 46, 36));
-            g.fill(new Ellipse2D.Double(x + 12, sy + 11, 28, 28));
+            Obsidian.surface(g, x, sy, 340, 50, Obsidian.R_SM + 2, Obsidian.E2.noAmbient(), Obsidian.N200, new Color(0x13151A), 0);
+            Shape dot = new Ellipse2D.Double(x + 12, sy + 11, 28, 28);
+            g.setColor(Obsidian.alpha(Obsidian.RED900, .6f));
+            g.fill(dot);
+            Obsidian.border(g, x + 12, sy + 11, 28, 28, 14, Obsidian.alpha(Obsidian.RED500, .35f));
             g.setFont(interBold.deriveFont(12f));
             g.setColor(RED_HI);
             center(g, String.valueOf(i + 1), x + 12, sy + 11, 28, 28);
@@ -2129,6 +2119,7 @@ public final class LauncherView extends JPanel {
         }
 
         int cardX = CX + CW - 340, cardY = 56, cw = 340, ch = H - 56 - 30;
+        speedLines(g, x + 360, 90, cardX - 24 - (x + 360), 520);
         card(g, cardX, cardY, cw, ch, true);
         int ix = cardX + 24, iw = cw - 48;
         switch (play) {
@@ -2199,14 +2190,7 @@ public final class LauncherView extends JPanel {
         g.setFont(interBold.deriveFont(46f));
         g.setColor(TEXT);
         g.drawString(Math.round(shownProgress * 100) + "%", x - 2, y + 96);
-        g.setColor(new Color(0x21252D));
-        g.fill(new RoundRectangle2D.Double(x, y + 114, w, 6, 6, 6));
-        int bw = (int) Math.max(6, w * shownProgress);
-        g.setPaint(new GradientPaint(x, 0, new Color(0x9B0D1A), x + bw, 0, RED_HI));
-        g.fill(new RoundRectangle2D.Double(x, y + 114, bw, 6, 6, 6));
-        float s = ((System.currentTimeMillis() - start) % 1400) / 1400f;
-        g.setPaint(new GradientPaint(x + bw * s - 30, 0, new Color(255, 255, 255, 0), x + bw * s, 0, new Color(255, 255, 255, 90), true));
-        g.fill(new RoundRectangle2D.Double(x, y + 114, bw, 6, 6, 6));
+        progressBar(g, x, y + 114, w, 6, shownProgress);
         g.setFont(inter.deriveFont(12.5f));
         g.setColor(DIM);
         g.drawString(ellipsizeEnd(g, status, w), x, y + 146);
@@ -2279,8 +2263,11 @@ public final class LauncherView extends JPanel {
             g.drawString(ellipsizeEnd(g, sub, subW), x, ty + 19);
         }
         if (!last) {
-            g.setColor(HAIRLINE);
-            g.fillRect(x, y + h, w, 1);
+            // a 1 device-pixel divider that fades out at both ends
+            double py = Obsidian.snapY(g, y + h);
+            g.setPaint(Obsidian.linear(x, 0, x + w, 0, new float[]{0f, .06f, .94f, 1f},
+                    Obsidian.white(0), Obsidian.white(.075f), Obsidian.white(.075f), Obsidian.white(0)));
+            g.fill(new Rectangle2D.Double(x, py, w, Obsidian.px(g)));
         }
     }
 
@@ -2398,16 +2385,12 @@ public final class LauncherView extends JPanel {
             g.setFont(interBold.deriveFont(10.5f));
             String c = String.valueOf(count);
             int cw = g.getFontMetrics().stringWidth(c) + 12;
-            g.setColor(on ? new Color(225, 29, 46, 50) : new Color(255, 255, 255, 14));
-            g.fill(new RoundRectangle2D.Double(x + w + 8, y + 9, cw, 17, 17, 17));
-            g.setColor(on ? RED_HI : DIM);
+            Obsidian.tag(g, x + w + 8, y + 9, cw, 17, false);
+            g.setColor(on ? Obsidian.N900 : FAINT);
             center(g, c, x + w + 8, y + 9, cw, 17);
             w += cw + 8;
         }
-        if (on) {
-            g.setColor(RED);
-            g.fill(new RoundRectangle2D.Double(x, y + 34, w, 3, 3, 3));
-        }
+        Obsidian.tabIndicator(g, x, y + 34, w, anim(id + "-on", on));
         hit(id, new Rectangle(x - 6, y, w + 12, 36));
         game.name(id, label + " tab" + (count >= 0 ? ", " + count : "") + (on ? ", selected" : ""));
     }
@@ -2861,6 +2844,79 @@ public final class LauncherView extends JPanel {
         return field;
     }
 
+    /**
+     * Obsidian progress: a sunken pill track, a red-700 to red-500 fill (dithered), an emissive head at the leading
+     * edge and a slow sheen sweeping along it.
+     */
+    void progressBar(Graphics2D g, int x, int y, int w, int h, double f) {
+        Obsidian.sunken(g, x, y, w, h, h / 2.0, Obsidian.N150, 0);
+        double bw = Math.max(h, w * Math.max(0, Math.min(1, f)));
+        Shape fill = Obsidian.rr(x, y, bw, h, h / 2.0);
+        g.setPaint(Obsidian.linear(x, 0, x + Math.max(bw, 40), 0, Obsidian.RED700, Obsidian.RED500));
+        g.fill(fill);
+        Obsidian.rim(g, fill, .3f);
+        if (!LauncherTheme.reduceMotion()) {
+            float s = ((System.currentTimeMillis() - start) % 1600) / 1600f;
+            s = s * s * (3 - 2 * s);
+            Shape clip = g.getClip();
+            g.clip(fill);
+            double sx = x - 60 + (bw + 60) * s;
+            g.setPaint(Obsidian.linear(sx, 0, sx + 60, 0, new float[]{0f, .5f, 1f}, Obsidian.white(0), Obsidian.white(.32f), Obsidian.white(0)));
+            g.fill(new Rectangle2D.Double(sx, y, 60, h));
+            g.setClip(clip);
+            animating = true;
+        }
+        Obsidian.glow(g, x + bw - h / 2.0, y + h / 2.0, 14, 9, Obsidian.RED500, .55f);
+        g.setColor(Obsidian.RED200);
+        g.fill(new Ellipse2D.Double(x + bw - h / 2.0 - 1.5, y + h / 2.0 - 1.5, 3, 3));
+    }
+
+    /**
+     * The welcome page's art: Evade's motif drawn in light, no picture needed. Speed lines leaning 12° (the slant of
+     * the E) streak in from the left, brightening into an emissive core, with a few embers. Static, so it costs nothing at rest.
+     */
+    private void speedLines(Graphics2D g, int x, int y, int w, int h) {
+        if (w < 120) return;
+        double cx = x + w * 0.6, cy = y + h * 0.46;
+        Obsidian.glow(g, cx, cy, w * 0.62, h * 0.55, RED, 0.15f);
+        Obsidian.glow(g, cx + 20, cy - 10, w * 0.32, h * 0.2, Obsidian.RED500, 0.12f);
+        Shape clip0 = g.getClip();
+        g.clipRect(x, y - 40, w, h + 80);
+        double[][] lines = {{-120, 0.92, 7}, {-74, 0.66, 4}, {-34, 1.0, 10}, {6, 0.78, 5}, {44, 0.56, 3}, {82, 0.84, 6}, {122, 0.48, 3}};
+        for (int i = 0; i < lines.length; i++) {
+            double ly = cy + lines[i][0], len = w * lines[i][1], th = lines[i][2];
+            double x1 = x + w - 16 - ((i * 37) % 60), x0 = Math.max(x + 8, x1 - len * 0.9);
+            double lean = th * Obsidian.SLANT * 2;
+            Path2D p = new Path2D.Double();
+            p.moveTo(x0 + lean, ly);
+            p.lineTo(x1 + lean, ly);
+            p.lineTo(x1, ly + th);
+            p.lineTo(x0, ly + th);
+            p.closePath();
+            float a = (float) (0.30 + 0.5 * lines[i][1]);
+            g.setPaint(Obsidian.linear(x0, 0, x1, 0, new float[]{0f, .7f, 1f}, Obsidian.alpha(Obsidian.RED700, 0),
+                    Obsidian.alpha(Obsidian.RED500, a * .75f), Obsidian.alpha(Obsidian.RED300, a)));
+            g.fill(p);
+            Obsidian.rim(g, p, .10f * a);
+            // a light-catch near the head of every line (static: the page stays calm at rest)
+            double sx = x0 + len * 0.78;
+            Shape clip = g.getClip();
+            g.clip(p);
+            g.setPaint(Obsidian.linear(sx - 50, 0, sx + 50, 0, new float[]{0f, .5f, 1f}, Obsidian.white(0), Obsidian.white(.22f * a), Obsidian.white(0)));
+            g.fill(new Rectangle2D.Double(sx - 50, ly - 1, 100, th + 2));
+            g.setClip(clip);
+        }
+        // embers
+        int[][] em = {{-90, -150, 3}, {80, -120, 2}, {120, 60, 3}, {-40, 150, 2}, {30, 190, 2}, {140, -40, 2}};
+        for (int[] e : em) {
+            double ex = cx + e[0], ey = cy + e[1];
+            Obsidian.glow(g, ex, ey, e[2] * 4, e[2] * 4, Obsidian.RED500, .45f);
+            g.setColor(Obsidian.alpha(Obsidian.RED200, .85f));
+            g.fill(new Ellipse2D.Double(ex - e[2] / 2.0, ey - e[2] / 2.0, e[2], e[2]));
+        }
+        g.setClip(clip0);
+    }
+
     /** grad.scrim: the page pushed back behind a dialog (n0, darker at the edges, a faint accent at the bottom; dithered). */
     void scrim(Graphics2D g) {
         Shape all = roundCorners ? new RoundRectangle2D.Double(0, 0, W, H, RADIUS * 2, RADIUS * 2) : new Rectangle(0, 0, W, H);
@@ -2885,8 +2941,8 @@ public final class LauncherView extends JPanel {
         if (s[1] > max) s[1] = max;
         if (contentH <= area.height) return;
         // overlay scrollbar: 4 wide (6 under the cursor), never red
-        Point m = getMousePosition();
-        boolean over = m != null && area.contains(m.x / uiScale, m.y / uiScale);
+        Point m = mouse;
+        boolean over = m != null && area.contains(m);
         float t = anim("sb:" + id, over);
         int th = Math.max(30, area.height * area.height / contentH);
         int ty = area.y + Math.round((area.height - th) * (s[1] / max));
@@ -2953,6 +3009,7 @@ public final class LauncherView extends JPanel {
         if (enabled) {
             // off: a sunken well with a grey knob; on: red-600 with a red-300 rim, a white knob and a soft halo
             Obsidian.sunken(g, tx, ry, 38, 20, 10, FIELD, 0);
+            Obsidian.border(g, tx, ry, 38, 20, 10, Obsidian.white(.06f * (1 - on)));
             if (on > 0.01f) {
                 Shape track = Obsidian.rr(tx, ry, 38, 20, 10);
                 Composite c0 = g.getComposite();
@@ -2964,7 +3021,7 @@ public final class LauncherView extends JPanel {
                 Obsidian.glow(g, kx + 7, ry + 10, 16, 14, RED, .32f * on);
             }
             Obsidian.shadow(g, kx, ry + 3, 14, 14, 7, 1, 1.2, .45f);
-            g.setColor(mix(Obsidian.N800, Color.WHITE, on));
+            g.setColor(Obsidian.lightPainting(g) ? Color.WHITE : mix(Obsidian.N800, Color.WHITE, on));
             g.fill(new Ellipse2D.Double(kx, ry + 3, 14, 14));
             if (id.startsWith("mod-toggle:")) hit(id, new Rectangle(tx - 4, ry - 4, 46, 28));
         } else {
@@ -3493,6 +3550,8 @@ public final class LauncherView extends JPanel {
     private int frameNo;
     private long lastFrameNanos;
     private boolean snapshotting;
+    /** The pointer in design coordinates (null when it's outside the window). */
+    Point mouse;
     /** The control under a held mouse button (drawn pressed in). */
     String pressed;
 
@@ -3500,7 +3559,7 @@ public final class LauncherView extends JPanel {
         long now = System.nanoTime();
         frameDt = snapshotting ? 1f / 30f : lastFrameNanos == 0 ? 1f / 60f : Math.max(1f / 500f, Math.min(1f / 12f, (now - lastFrameNanos) / 1e9f));
         lastFrameNanos = now;
-        frameNo++;
+        frameNo = (frameNo + 1) & 0xFFFFF; // kept small: springs store it in a float
     }
 
     static Color mix(Color a, Color b, float t) {

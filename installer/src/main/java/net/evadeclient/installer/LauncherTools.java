@@ -410,10 +410,7 @@ final class LauncherTools {
         g.setColor(TEXT);
         g.drawString(ellipsizeEnd(g, importBusy != null ? importBusy : importTitle, iw), ix, y + 22);
         if (importBusy != null) {
-            g.setColor(new Color(0x21252D));
-            g.fill(new RoundRectangle2D.Double(ix, y + 40, iw, 4, 4, 4));
-            g.setColor(RED);
-            g.fill(new RoundRectangle2D.Double(ix, y + 40, iw * Math.max(0.03, Math.min(1, importProgress)), 4, 4, 4));
+            v.progressBar(g, ix, y + 40, iw, 4, Math.max(0.03, Math.min(1, importProgress)));
             v.animating = true;
             return;
         }

@@ -78,7 +78,17 @@ public final class SetupWizardScreen extends EvadePanelScreen {
     @Override
     protected void renderHeaderRight(DrawContext ctx, int right, int y, int mx, int my) {
         // ●━━━━○────○ with labels under: the fill glides to the current step and leans with the Evade slant.
-        int w = 300, x1 = right - w, cyy = y + 4;
+        int avail = right - (wx + Surface.PAD + 34 + width(title.getString(), Role.HEADLINE)) - 24;
+        if (avail < 220) {
+            // Narrow: a compact chip instead of the full stepper.
+            String t = "Step " + (step + 1) + " of " + STEPS.length + " · " + STEPS[step];
+            int cw0 = width(t, Role.SMALL) + 16;
+            Paint.pill(ctx, right - cw0, y + 3, right, y + 17, Tokens.N250);
+            kit.textCentredY(t, right - cw0 + 8, y + 10, Tokens.N900, Role.SMALL);
+            headerReach(right - cw0);
+            return;
+        }
+        int w = Math.min(300, avail), x1 = right - w, cyy = y + 4;
         int seg = (w - 40) / (STEPS.length - 1);
         float prog = kit.anim("wiz#step", step, Motion.SMOOTH);
         int sx = x1 + 20;
@@ -186,7 +196,7 @@ public final class SetupWizardScreen extends EvadePanelScreen {
         int y = hero("How do you play?", "Pick one to switch on a set of mods. You can change anything later.", top);
         int n = FirstRun.STYLES.size();
         int cols = cw >= 640 ? n : cw >= 420 ? 3 : 2, gap = 10;
-        int cardW = (cw - gap * (cols - 1)) / cols, cardH = 176;
+        int cardW = (cw - gap * (cols - 1)) / cols, cardH = 156;
         int i = 0;
         for (FirstRun.Style s : FirstRun.STYLES) {
             int x = cx + (i % cols) * (cardW + gap), cy0 = y + (i / cols) * (cardH + gap);
@@ -196,9 +206,10 @@ public final class SetupWizardScreen extends EvadePanelScreen {
             boolean sel = s == chosen;
             String id = "style:" + s.name();
             try {
-                Surface.card(kit, id, x, yy, x + cardW, yy + cardH, sel, true, () -> chosen = (chosen == s ? null : s));
+                Surface.card(kit, id, x, yy, x + cardW, yy + cardH, false, true, () -> chosen = (chosen == s ? null : s));
+                picked(x, yy, x + cardW, yy + cardH, kit.anim(id + "#pick", sel ? 1f : 0f, Motion.SMOOTH));
                 // Icon in a circle, lit from below by the accent when picked.
-                float icx = x + 30, icy = yy + 34;
+                float icx = x + 36, icy = yy + 36;
                 float lit = kit.anim(id + "#sel", sel ? 1f : 0f, Motion.SMOOTH);
                 if (lit > 0.01f) Paint.glow(kit, icx - 22, icy - 22, icx + 22, icy + 22, 22, 9, Theme.alpha(Tokens.A600, 0.32f * lit));
                 Paint.circle(ctx, icx, icy, 44, Theme.lerpColor(Tokens.N250, Tokens.A900, lit));
@@ -243,7 +254,8 @@ public final class SetupWizardScreen extends EvadePanelScreen {
             boolean sel = name.equals(mode);
             String id = "mode:" + name;
             try {
-                Surface.card(kit, id, x, yy, x + cardW, yy + cardH, sel, true, () -> pickMode(p, name));
+                Surface.card(kit, id, x, yy, x + cardW, yy + cardH, false, true, () -> pickMode(p, name));
+                picked(x, yy, x + cardW, yy + cardH, kit.anim(id + "#pick", sel ? 1f : 0f, Motion.SMOOTH));
                 gauge(ctx, x + cardW / 2f, yy + 44, 26, Float.parseFloat(MODES[i][2]), sel);
                 kit.text(name, x + 14, yy + 78, Tokens.N950, Role.TITLE);
                 if (name.equals(pick)) Badge(x + 14 + width(name, Role.TITLE) + Tokens.S3, yy + 79);
@@ -282,6 +294,19 @@ public final class SetupWizardScreen extends EvadePanelScreen {
             kit.text(sl.get(l), Math.round(rcx - width(sl.get(l), Role.SMALL) / 2f), y + 104 + l * 11, Tokens.N700, Role.SMALL);
         y += cardH + Tokens.S6;
         return y - top + renderChanges(ctx, y, mx, my, p);
+    }
+
+    /**
+     * The picked look for a tall card (fades with {@code a}): the accent surface entering from the left and a short
+     * lit edge with a soft glow (a full-height slant would lean out of a tall card).
+     */
+    private void picked(int x1, int y1, int x2, int y2, float a) {
+        if (a < 0.01f) return;
+        Paint.hgradient(kit.ctx, x1, y1, x2, y2, Tokens.R_MD, Theme.alpha(Tokens.A900, 0.5f * a), Theme.alpha(Tokens.A900, 0f));
+        Paint.ring(kit.ctx, x1, y1, x2, y2, Tokens.R_MD, Theme.alpha(Tokens.A500, 0.45f * a), 1);
+        int m = (y1 + y2) / 2;
+        Paint.pill(kit.ctx, x1 + 1, m - 22, x1 + 3, m + 22, Theme.alpha(Tokens.A500, a));
+        Paint.glow(kit, x1 + 1, m - 22, x1 + 3, m + 22, 1, 5, Theme.alpha(Tokens.A600, 0.4f * a));
     }
 
     private void Badge(int x, int y) {

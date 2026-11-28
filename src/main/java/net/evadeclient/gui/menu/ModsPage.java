@@ -54,10 +54,13 @@ public final class ModsPage {
     private int contentH;
     private final Map<String, int[]> rects = new HashMap<>();
     private final Map<String, List<String>> wraps = new HashMap<>();
+    private final int[] totals = initTotals();
+
+    private static int[] initTotals() { int[] t = new int[MenuPage.values().length]; java.util.Arrays.fill(t, -1); return t; }
     private Module pendingFocus;
     private boolean pendingVisible;
 
-    static final int HEADER_H = 24, CARD_H = 88, CARD_GAP = 8, COMPACT_H = 24, COMPACT_GAP = 4, ROW_GAP = 2;
+    static final int HEADER_H = 24, CARD_H = 96, CARD_GAP = 8, COMPACT_H = 24, COMPACT_GAP = 4, ROW_GAP = 2;
 
     public ModsPage(MenuHost host) { this.host = host; }
 
@@ -68,7 +71,16 @@ public final class ModsPage {
     // ------------------------------------------------------------------ layout
 
     /** Lay the list out: sections (pinned first, then categories in their curated order) and the rows or cards. */
+    private String laidOut;
+
     private void layout(int x, int y0, int w) {
+        // Laid out again only when something it depends on changed (search, filter, sort, view, pins, size).
+        int pins = 0, on = 0;
+        for (Module m : EvadeClient.modules.all()) { if (MenuState.isPinned(m)) pins = pins * 31 + m.hashCode(); if (host.enabledOnly() && m.isEnabled()) on = on * 31 + m.hashCode(); }
+        String sig = host.page() + "|" + host.search() + "|" + host.enabledOnly() + "|" + host.sortAz() + "|" + style() + "|" + x + "," + y0 + "," + w
+                + "|" + ListRow.height() + "|" + pins + "|" + on;
+        if (sig.equals(laidOut)) return;
+        laidOut = sig;
         items.clear();
         List<Module> mods = host.visibleModules();
         MenuPage p = host.page();
@@ -141,7 +153,7 @@ public final class ModsPage {
                 if (it.kind == K_HEADER && it.y - si <= cy) sticky = it;
                 if (y + it.h < cy || y > cy + ch) continue;
                 if (it.kind == K_HEADER) header(k, it.title, it.count, it.x, y);
-                else if (st.equals("Cards")) card(k, it.mod, it.x, y, it.w, it.h, mixed);
+                else if (st.equals("Cards")) card(k, it.mod, it.x, y, it.w, it.h, mixed && (host.page() == MenuPage.PINNED || MenuState.isPinned(it.mod) || !host.search().isBlank()));
                 else if (st.equals("Compact")) compact(k, it.mod, it.x, y, it.w, it.h);
                 else row(k, it.mod, it.x, y, it.w, it.h);
             }
@@ -172,7 +184,9 @@ public final class ModsPage {
         MenuPage p = host.page();
         String title = searching ? "Search" : p.label;
         k.textCentredY(title, cx, top + 16, Tokens.N950, Role.HEADLINE);
-        int total = host.modulesFor(searching ? MenuPage.ALL : p, "").size();
+        MenuPage tp = searching ? MenuPage.ALL : p;
+        if (totals[tp.ordinal()] < 0 || tp == MenuPage.PINNED) totals[tp.ordinal()] = host.modulesFor(tp, "").size();
+        int total = totals[tp.ordinal()];
         int shown = 0;
         for (Item it : items) if (it.kind == K_MOD) shown++;
         String count = searching || host.enabledOnly() ? shown + " of " + total : String.valueOf(total);

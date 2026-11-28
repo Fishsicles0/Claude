@@ -48,7 +48,7 @@ public final class MenuSidebar {
                 new Tool("keys", "Keybinds", "keyboard", net.evadeclient.gui.KeybindsScreen::openFromCurrent),
                 new Tool("map", "World map", "map", net.evadeclient.gui.WorldMapScreen::openFromMenu),
                 new Tool("schem", "Schematics", "schematic", net.evadeclient.gui.SchematicBrowserScreen::openFromMenu),
-                new Tool("browse", "Mod browser", "mods", net.evadeclient.gui.ModBrowserScreen::open),
+                new Tool("browse", "Mod browser", "search", net.evadeclient.gui.ModBrowserScreen::open),
                 new Tool("play", "Quick play", "server", net.evadeclient.module.misc.QuickPlay::open),
                 new Tool("shots", "Screenshots", "camera", net.evadeclient.gui.ScreenshotGalleryScreen::openFromCurrent),
                 new Tool("wardrobe", "Wardrobe", "wardrobe", net.evadeclient.cosmetics.WardrobeScreen::openFromCurrent));

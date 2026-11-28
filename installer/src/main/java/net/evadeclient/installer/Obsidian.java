@@ -361,6 +361,8 @@ final class Obsidian {
         }
         Graphics2D q = (Graphics2D) g.create();
         q.setTransform(new AffineTransform());
+        // pieces are drawn 1:1 or stretched along a constant edge: nearest neighbour is exact (and a fast scaled blit)
+        q.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         int X0 = bx0 - dpad, Y0 = by0 - dpad, X1 = bx1 + dpad, Y1 = by1 + dpad;
         if (!sliced) q.drawImage(img, X0, Y0, null);
         else {
@@ -613,6 +615,42 @@ final class Obsidian {
     static Shape secondary(Graphics2D g, double x, double y, double w, double h, double r, float hover, float press) {
         Color top = mix(mix(N250, N300, hover), N250, press), bottom = mix(mix(new Color(0x181A21), N250, hover), N200, press);
         return surface(g, x, y + press, w, h, r, E2.noAmbient().rim(.08f), top, bottom, hover);
+    }
+
+    // ------------------------------------------------------------------ segmented control
+
+    /** A segmented control's track: a sunken pill. */
+    static void segTrack(Graphics2D g, double x, double y, double w, double h) {
+        sunken(g, x, y, w, h, h / 2, N150, 0);
+    }
+
+    /** The chosen segment: a raised e3 thumb (never red) with a short accent tick under the label. */
+    static void segThumb(Graphics2D g, double x, double y, double w, double h) {
+        surface(g, x, y, w, h, h / 2, E3.noAmbient(), N350, N300, 0);
+        g.setColor(RED400);
+        g.fill(new Rectangle2D.Double(x + w / 2 - 8, y + h - 3, 16, 1.5));
+    }
+
+    /** The tab indicator: a 3px red-500 bar leaning 12° at its ends (the Evade slant), with a faint glow. */
+    static void tabIndicator(Graphics2D g, double x, double y, double w, float a) {
+        if (a <= 0.003f) return;
+        double h = 3, lean = h * SLANT * 2.2;
+        Path2D p = new Path2D.Double();
+        p.moveTo(x + lean, y);
+        p.lineTo(x + w, y);
+        p.lineTo(x + w - lean, y + h);
+        p.lineTo(x, y + h);
+        p.closePath();
+        glow(g, x + w / 2, y + h / 2, w / 2 + 8, 8, RED600, .30f * a);
+        g.setColor(alpha(RED500, a));
+        g.fill(p);
+    }
+
+    /** A small pill tag: neutral (n800 on n250) or accent (red-300 on red-900). */
+    static void tag(Graphics2D g, double x, double y, double w, double h, boolean accent) {
+        g.setColor(accent ? alpha(RED900, .55f) : white(.07f));
+        g.fill(rr(x, y, w, h, h / 2));
+        border(g, x, y, w, h, h / 2, accent ? alpha(RED500, .28f) : white(.06f));
     }
 
     // ------------------------------------------------------------------ focus

@@ -219,7 +219,7 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
 
     private void renderEditor(DrawContext ctx, Waypoints w, Point p, int y, int mx, int my) {
         Paint.surface(ctx, cx + 12, y - 1, cx + cw, y + EDIT_H - 6, Tokens.R_MD, Tokens.SUNKEN.withFill(Tokens.N150), 0, Float.NaN);
-        Paint.slant(ctx, cx + 4, y + 6, cx + 6, y + EDIT_H - 13, Theme.alpha(Tokens.A500, 0.5f));
+        Paint.pill(ctx, cx + 4, y + 6, cx + 6, y + EDIT_H - 13, Theme.alpha(Tokens.A500, 0.5f));
         int lx = cx + 26, vx = cx + 104;
         int row = y + 8;
 

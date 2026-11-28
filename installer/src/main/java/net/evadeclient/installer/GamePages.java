@@ -585,20 +585,17 @@ final class GamePages {
         }
         String[] filters = {"All", "Warnings", "Errors"};
         int fx = x + sw + 12, fw = 252;
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(fx, y + 2, fw, 36, 22, 22));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(fx + .5, y + 2.5, fw - 1, 35, 22, 22));
+        Obsidian.segTrack(g, fx, y + 2, fw, 36);
         int segW = (fw - 8) / 3;
         for (int k = 0; k < 3; k++) {
             String id = "gp-filter:" + k;
             boolean on = logFilter == k;
             float t = v.anim(id, id.equals(v.hovered));
             int sx = fx + 4 + k * segW;
-            if (on) { g.setColor(RED); g.fill(new RoundRectangle2D.Double(sx, y + 6, segW, 28, 16, 16)); }
-            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(12 * t))); g.fill(new RoundRectangle2D.Double(sx, y + 6, segW, 28, 16, 16)); }
+            if (on) Obsidian.segThumb(g, sx, y + 6, segW, 28);
+            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(10 * t))); g.fill(Obsidian.rr(sx, y + 6, segW, 28, 14)); }
             g.setFont(v.interBold.deriveFont(12.5f));
-            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(on ? TEXT : mix(FAINT, TEXT, t));
             LauncherView.center(g, filters[k], sx, y + 6, segW, 28);
             v.hit(id, new Rectangle(sx, y + 6, segW, 28));
             name(id, "Show " + filters[k].toLowerCase() + (on ? ", selected" : ""));
@@ -735,20 +732,17 @@ final class GamePages {
         v.rowLabel(g, ix, ry, rh, "Garbage collector", xt.zgc ? "ZGC: very short pauses, uses a little more memory"
                 : roomy ? "G1 is Evade's tuned default; ZGC trades memory for shorter pauses" : "G1 suits this PC's memory best", false, iw, iw - ctl - 20);
         String[] gcs = {"G1 (Evade default)", "Generational ZGC"};
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(cx, ry + 14, ctl, 36, 22, 22));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(cx + .5, ry + 14.5, ctl - 1, 35, 22, 22));
+        Obsidian.segTrack(g, cx, ry + 14, ctl, 36);
         int gw = (ctl - 8) / 2;
         for (int k = 0; k < 2; k++) {
             String id = "gp-gc:" + k;
             boolean on = (k == 1) == xt.zgc;
             float t = v.anim(id, id.equals(v.hovered));
             int sx = cx + 4 + k * gw;
-            if (on) { g.setColor(RED); g.fill(new RoundRectangle2D.Double(sx, ry + 18, gw, 28, 16, 16)); }
-            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(12 * t))); g.fill(new RoundRectangle2D.Double(sx, ry + 18, gw, 28, 16, 16)); }
+            if (on) Obsidian.segThumb(g, sx, ry + 18, gw, 28);
+            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(10 * t))); g.fill(Obsidian.rr(sx, ry + 18, gw, 28, 14)); }
             g.setFont(v.interBold.deriveFont(12.5f));
-            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(on ? TEXT : mix(FAINT, TEXT, t));
             LauncherView.center(g, gcs[k], sx, ry + 18, gw, 28);
             v.hit(id, new Rectangle(sx, ry + 18, gw, 28));
             name(id, "Garbage collector " + gcs[k] + (on ? ", selected" : ""));
@@ -758,21 +752,18 @@ final class GamePages {
         v.rowLabel(g, ix, ry, rh, "Game window", "Its size when the game opens", false, iw);
         int sel = 0;
         for (int k = 0; k < InstanceExtras.SIZES.length; k++) if (InstanceExtras.SIZES[k][0] == xt.width && InstanceExtras.SIZES[k][1] == xt.height) sel = k;
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(cx, ry + 14, ctl, 36, 22, 22));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(cx + .5, ry + 14.5, ctl - 1, 35, 22, 22));
+        Obsidian.segTrack(g, cx, ry + 14, ctl, 36);
         int segW = (ctl - 8) / InstanceExtras.SIZES.length;
         for (int k = 0; k < InstanceExtras.SIZES.length; k++) {
             String id = "gp-size:" + k;
             boolean on = sel == k;
             float t = v.anim(id, id.equals(v.hovered));
             int sx = cx + 4 + k * segW;
-            if (on) { g.setColor(RED); g.fill(new RoundRectangle2D.Double(sx, ry + 18, segW, 28, 16, 16)); }
-            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(12 * t))); g.fill(new RoundRectangle2D.Double(sx, ry + 18, segW, 28, 16, 16)); }
+            if (on) Obsidian.segThumb(g, sx, ry + 18, segW, 28);
+            else if (t > 0.01f) { g.setColor(new Color(255, 255, 255, Math.round(10 * t))); g.fill(Obsidian.rr(sx, ry + 18, segW, 28, 14)); }
             String lbl = k == 0 ? "Default" : InstanceExtras.SIZES[k][0] + "×" + InstanceExtras.SIZES[k][1];
             g.setFont(v.interBold.deriveFont(12.5f));
-            g.setColor(on ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(on ? TEXT : mix(FAINT, TEXT, t));
             LauncherView.center(g, lbl, sx, ry + 18, segW, 28);
             v.hit(id, new Rectangle(sx, ry + 18, segW, 28));
             name(id, "Window " + lbl + (on ? ", selected" : ""));

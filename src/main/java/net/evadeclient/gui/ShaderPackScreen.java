@@ -148,7 +148,7 @@ public final class ShaderPackScreen extends EvadePanelScreen {
         if (packs.isEmpty()) {
             y += 8;
             y += EmptyState.draw(kit, "empty", cx + cw / 2, y, "visuals", "No packs yet", "Get more finds shader packs on Modrinth, or drop .zip packs in the folder.",
-                    "Get more", this::getMore);
+                    null, null);
         }
         return y - top + 6;
     }

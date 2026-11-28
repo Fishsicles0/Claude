@@ -266,23 +266,18 @@ final class ViewExtras {
 
     /** A segmented control: a dark track with the chosen part filled with the accent. */
     void segmented(Graphics2D g, String[] ids, String[] labels, int on, int x, int y, int w, int h) {
-        g.setColor(FIELD);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, 20, 20));
-        g.setColor(HAIRLINE);
-        g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 20, 20));
+        Obsidian.segTrack(g, x, y, w, h);
         int sw = (w - 8) / ids.length;
+        if (on >= 0 && on < ids.length) Obsidian.segThumb(g, x + 4 + v.spring("seg@" + ids[0], on, 20f) * sw, y + 4, sw, h - 8);
         for (int i = 0; i < ids.length; i++) {
             int sx = x + 4 + i * sw;
             float t = v.anim(ids[i], ids[i].equals(v.hovered));
-            if (i == on) {
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, h - 8, 14, 14));
-            } else if (t > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(12 * t)));
-                g.fill(new RoundRectangle2D.Double(sx, y + 4, sw, h - 8, 14, 14));
+            if (i != on && t > 0.01f) {
+                g.setColor(new Color(255, 255, 255, Math.round(10 * t)));
+                g.fill(Obsidian.rr(sx, y + 4, sw, h - 8, (h - 8) / 2.0));
             }
             g.setFont(v.interBold.deriveFont(12.5f));
-            g.setColor(i == on ? Color.WHITE : mix(DIM, TEXT, t));
+            g.setColor(i == on ? TEXT : mix(FAINT, TEXT, t));
             center(g, labels[i], sx, y + 4, sw, h - 8);
             v.hit(ids[i], new Rectangle(sx, y + 4, sw, h - 8));
         }
@@ -414,10 +409,7 @@ final class ViewExtras {
             g.setFont(v.inter.deriveFont(11.5f));
             g.setColor(DIM);
             g.drawString(LauncherView.ellipsizeEnd(g, busy, lw - 40), lx + 20, by + 2);
-            g.setColor(new Color(0x21252D));
-            g.fill(new RoundRectangle2D.Double(lx + 20, by + 8, lw - 40, 3, 3, 3));
-            g.setColor(RED);
-            g.fill(new RoundRectangle2D.Double(lx + 20, by + 8, (lw - 40) * Math.max(0.03, Math.min(1, busyProgress)), 3, 3, 3));
+            v.progressBar(g, lx + 20, by + 8, lw - 40, 4, Math.max(0.03, Math.min(1, busyProgress)));
             v.animating = true;
         }
     }

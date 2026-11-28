@@ -30,7 +30,7 @@ public final class BenchmarkResultScreen extends EvadeDialog {
     public BenchmarkScene.Result result() { return r; }
 
     @Override protected int prefWidth() { return 440; }
-    @Override protected int prefHeight() { return 318; }
+    @Override protected int prefHeight() { return 300; }
     @Override protected String titleIcon() { return "gauge"; }
     @Override protected String heading() { return "Benchmark Scene"; }
 

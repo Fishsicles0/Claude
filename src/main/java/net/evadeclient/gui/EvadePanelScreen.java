@@ -439,7 +439,7 @@ public abstract class EvadePanelScreen extends Screen {
                 Tokens.E2.noAmbient().withFill(Theme.lerpColor(Tokens.N200, Tokens.N250, hover)), hover, kit.mx - x1);
         if (on) {
             Paint.hgradient(kit.ctx, x1, y1, x2, y2, Tokens.R_SM, Theme.alpha(Tokens.A900, 0.5f), Theme.alpha(Tokens.A900, 0f));
-            Paint.slant(kit.ctx, x1 + 1, y1 + 5, x1 + 3, y2 - 5, Tokens.A500);
+            Paint.slant(kit.ctx, x1 + 2, y1 + 8, x1 + 4, y2 - 8, Tokens.A500);
         }
     }
 

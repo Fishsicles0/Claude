@@ -117,7 +117,7 @@ public final class ProfilesPage {
         Paint.surface(k.ctx, x, y, x + w, y + ROW_H, Tokens.R_MD, Tokens.E2.noAmbient().withFill(Theme.lerpColor(Tokens.N200, Tokens.N250, hov)), hov, k.mx - x);
         if (act > 0.01f) {
             Paint.hgradient(k.ctx, x, y, x + w, y + ROW_H, Tokens.R_MD, Theme.alpha(Tokens.A900, 0.45f * act), Theme.alpha(Tokens.A900, 0f));
-            Paint.slant(k.ctx, x + 1, y + 10, x + 3, y + ROW_H - 10, Theme.alpha(Tokens.A500, act));
+            Paint.slant(k.ctx, x + 5, y + 12, x + 7, y + ROW_H - 12, Theme.alpha(Tokens.A500, act));
         }
         k.hit(id, x, y, x + w, y + ROW_H, (b, mx, my) -> { }, false);
         float cy = y + ROW_H / 2f;

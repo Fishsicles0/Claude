@@ -40,6 +40,8 @@ public final class EmoteWheelScreen extends Screen {
     private long last = System.nanoTime();
     private Emotes.Playing preview;
     private CosmeticItem previewOf;
+    /** Opened by holding the wheel key: letting go over an emote plays it. */
+    private final boolean heldAtOpen;
 
     private EmoteWheelScreen() {
         super(Text.literal("Emotes"));
@@ -47,6 +49,9 @@ public final class EmoteWheelScreen extends Screen {
             if (Wardrobe.owns(i.id) && emotes.size() < SLOTS) { emotes.add(i); CosmeticAssets.request(i); }
         }
         for (int i = 0; i < SLOTS; i++) springs[i] = new Motion.Spring(0f);
+        Cosmetics m = Cosmetics.get();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        heldAtOpen = m != null && m.emoteKey.get() > 0 && mc.getWindow() != null && InputUtil.isKeyPressed(mc.getWindow(), m.emoteKey.get());
     }
 
     public static void open() {
@@ -147,8 +152,8 @@ public final class EmoteWheelScreen extends Screen {
                     float nr = r + d / 2 + 9;
                     float nx = cx + (float) Math.cos(ang) * nr, ny = cy + (float) Math.sin(ang) * nr;
                     String num = String.valueOf(i + 1);
-                    UiFont.draw(ctx, tr, num, Math.round(nx - UiFont.width(tr, num, Role.TINY, smooth()) / 2f), Math.round(UiFont.centredY(Role.TINY, ny, smooth())),
-                            i == hovered ? Tokens.A400 : Tokens.N600, Role.TINY, smooth());
+                    UiFont.draw(ctx, tr, num, Math.round(nx - UiFont.width(tr, num, Role.LABEL, smooth()) / 2f), Math.round(UiFont.centredY(Role.LABEL, ny, smooth())),
+                            i == hovered ? Tokens.A400 : Tokens.N800, Role.LABEL, smooth());
                 } finally {
                     Theme.fade = fa;
                 }
@@ -157,13 +162,13 @@ public final class EmoteWheelScreen extends Screen {
             CosmeticItem sel = hovered >= 0 ? emotes.get(hovered) : null;
             if (sel != previewOf) { previewOf = sel; preview = sel == null ? null : Emotes.preview(sel, Emotes.clock()); }
             if (sel != null && client != null && client.player != null) {
-                int bw = Math.round(hub * 0.9f), bh = Math.round(hub * 1.05f);
-                WardrobePreview.draw(ctx, Wardrobe.renderLoadout(), preview, 180, -4, (System.nanoTime() - opened) / 1e9f,
-                        Math.round(cx - bw / 2f), Math.round(cy - hub * 0.86f), Math.round(cx + bw / 2f), Math.round(cy - hub * 0.86f) + bh);
+                int bw = Math.round(hub * 1.1f), bh = Math.round(hub * 1.32f);
+                WardrobePreview.draw(ctx, Wardrobe.renderLoadout(), preview, 20, -4, (System.nanoTime() - opened) / 1e9f,
+                        Math.round(cx - bw / 2f), Math.round(cy - hub * 0.9f), Math.round(cx + bw / 2f), Math.round(cy - hub * 0.9f) + bh);
             }
             String name = sel != null ? sel.name : "Pick an emote";
             int nw = UiFont.width(tr, name, Role.STRONG, smooth());
-            float ny = sel != null ? cy + hub * 0.52f : cy - 4;
+            float ny = sel != null ? cy + hub * 0.6f : cy - 4;
             UiFont.draw(ctx, tr, name, Math.round(cx - nw / 2f), Math.round(UiFont.centredY(Role.STRONG, ny, smooth())), Tokens.N950, Role.STRONG, smooth());
             String hint = sel != null ? "Click or let go to play" : "Point, then click · 1–" + emotes.size();
             int hw = UiFont.width(tr, hint, Role.SMALL, smooth());
@@ -178,7 +183,7 @@ public final class EmoteWheelScreen extends Screen {
         Cosmetics m = Cosmetics.get();
         if (m == null || client == null) return;
         int key = m.emoteKey.get();
-        if (key > 0 && !InputUtil.isKeyPressed(client.getWindow(), key) && (System.nanoTime() - opened) > 2.5e8 && hovered >= 0) pick(hovered);
+        if (heldAtOpen && key > 0 && !InputUtil.isKeyPressed(client.getWindow(), key) && (System.nanoTime() - opened) > 2.5e8 && hovered >= 0) pick(hovered);
     }
 
     @Override
