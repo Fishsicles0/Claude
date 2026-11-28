@@ -64,7 +64,7 @@ public abstract class EvadePanelScreen extends Screen {
     protected void init() {
         ClientSettings s = settings();
         smooth = s == null || s.smoothFont.get();
-        anims = s == null || s.animations.get();
+        anims = s == null || s.animations.on();
         if (openedAt == 0) openedAt = System.currentTimeMillis();
     }
 

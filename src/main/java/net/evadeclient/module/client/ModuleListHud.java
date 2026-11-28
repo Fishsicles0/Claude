@@ -304,7 +304,7 @@ public class ModuleListHud extends HudElementModule {
     private boolean animating() {
         if (animation.is("Off")) return false;
         var cs = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        return cs == null || cs.animations.get();
+        return cs == null || cs.animations.on();
     }
 
     /**

@@ -1,0 +1,5 @@
+{"providers":[
+ {"type":"space","advances":{" ":1.875,"\u00a0":1.875}},
+ {"type":"ttf","file":"evade:inter-medium.ttf","size":7.0,"oversample":8.0,"shift":[0.0,-1.125]},
+ {"type":"reference","id":"minecraft:default"}
+]}

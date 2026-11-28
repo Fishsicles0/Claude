@@ -1,0 +1,5 @@
+{"providers":[
+ {"type":"space","advances":{" ":3.571429,"\u00a0":3.571429}},
+ {"type":"ttf","file":"evade:inter-semibold.ttf","size":13.0,"oversample":7.0,"shift":[0.0,3.857143]},
+ {"type":"reference","id":"minecraft:default"}
+]}

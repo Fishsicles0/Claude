@@ -43,8 +43,16 @@ public class ClientSettings extends Module {
             .describe("Shows a grid in the HUD editor to line widgets up. Press G there to switch it."));
     public final BooleanSetting blur = add(new BooleanSetting("Blur Background", true)
             .describe("Blurs the game behind the Evade menu."));
-    public final BooleanSetting animations = add(new BooleanSetting("Animations", true)
-            .describe("Smooth fades and slides in the menu and HUD. Off makes everything change instantly."));
+    public final AnimationsSetting animations = add(new AnimationsSetting("Animations")
+            .describe("Motion in the menus and HUD. Reduced keeps only short fades (no parallax, tilt or sliding); Off makes everything change instantly."));
+    public final net.evadeclient.setting.ModeSetting density = add(new net.evadeclient.setting.ModeSetting("Density", "Dense", "Dense", "Comfortable")
+            .describe("How tall list rows are in Evade's redesigned screens: Dense fits more, Comfortable gives bigger targets."));
+    public final net.evadeclient.setting.NumberSetting uiScale = add(new net.evadeclient.setting.NumberSetting("UI Scale", 100, 90, 130, 5)
+            .describe("Makes Evade's redesigned screens a little smaller or bigger than your GUI Scale, in percent."));
+    public final BooleanSetting reduceTransparency = add(new BooleanSetting("Reduce Transparency", false)
+            .describe("Solid panels instead of see-through glass, and no glow effects."));
+    public final BooleanSetting highContrast = add(new BooleanSetting("High Contrast", false)
+            .describe("Stronger borders and no glow, so every control stands out clearly."));
     public final BooleanSetting toggleMessages = add(new BooleanSetting("Keybind Messages", true)
             .describe("Shows a small pop-up when you turn a mod on or off with its key."));
 
@@ -61,4 +69,15 @@ public class ClientSettings extends Module {
 
     @Override
     public void onTick() { applyTheme(); }
+
+    /** {@code .kitgallery}: every GUI kit component in every state on one screen (for designers and screenshots). */
+    @Override
+    public java.util.List<String> commandAliases() { return java.util.List.of("kitgallery"); }
+
+    @Override
+    public void command(String[] args) {
+        // After the chat screen has closed, or it would close the gallery straight away.
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        mc.send(() -> mc.setScreen(new net.evadeclient.gui.kit.KitGalleryScreen(null)));
+    }
 }

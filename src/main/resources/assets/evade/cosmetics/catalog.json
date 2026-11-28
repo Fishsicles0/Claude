@@ -1301,19 +1301,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A round ginger tabby with big green eyes and white paws that sits on your shoulder, looks about, blinks and swishes its tail.",
+   "description": "A ginger tabby with green eyes, a cream chest and white paws that stands on your shoulder, looks about, blinks and swishes its long striped tail.",
    "assets": {
     "files": {
-     "item.json": "507b4cae2ec7560429305c7d435d492c14bd1bd7a19523d214be2601df1caebb",
-     "model.json": "2846993c1b359261a30e711b45dfa4ad9b71d1aebd4aae8ab070d73e04c4cc2a",
-     "texture.png": "952300da7d0d1a7ab71d7ee7fd6ea82478dad747be330de1ef33ce2527d08ffb",
-     "thumb.png": "292674bb37b7d2d1e46d4b5308077e21b34b27c893e713314c8051cf708dec57"
+     "item.json": "034132d7fa39eac0323ba2c5c5f9b4369a4d055bb9fb7a92a2d35b39ecf5c7c5",
+     "model.json": "a65346bf747906564c10b1d838435c1bd00886fa91e889de97b47a3bdd63bfa5",
+     "texture.png": "dfc379dab36d4a63f03164a712692859a2271d07a3f5199a52eb989b68c3d73e",
+     "thumb.png": "5a8d2f9ee3bb0e8d6c13c38e76bddebada1eb8765c5cb1aad2903ac3dfcbb601"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "5ac131186a6e66ec965d55564ed0f77668611252f6443ecc708acecbd68d38f2"
+    "sha256": "0eb878eab4ba7ebef45597c4914e21c7eccd0d16e5dcacbbfee377a61af285b4"
    }
   },
   {
@@ -1326,19 +1326,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A bright orange fox with a white chest, black socks and a big white-tipped tail that wags while it watches the world from your shoulder.",
+   "description": "A red fox with a white chest, dark socks and a big white-tipped tail that wags while it watches the world from your shoulder.",
    "assets": {
     "files": {
-     "item.json": "0d5846dec6a36e67d03dc79f80a48b5049813f578576b1d33dfc590f0559984e",
-     "model.json": "21df23510b283783c20c73c30502e5e9c464c0888397774c0ff97dd281fa99dc",
-     "texture.png": "d81adf3f69ad35e6dc8eea5c9bf8d6d37ac64d1559ca6a314e822d10fe05541c",
-     "thumb.png": "8d88020fe58f6fda533021dba9d7551284aaf7c276fbf211ee8e603fe0f9337c"
+     "item.json": "ce1acfbc2aebcf82499c733bf2bc02fbc6ed83696a2f8563f8c7acd8e54812d2",
+     "model.json": "aabaca718fe5eba9ee92495f93ba5d6b83362611e33a71d8f16fa901b99b6918",
+     "texture.png": "d28d4c3d2391c650be4d1561e04faa211b426093a2ba8726620245af0cd51ed6",
+     "thumb.png": "dbc314c852e39343f0f64d46e364ba4e351db16d23cd0695fc488b259ace8b3a"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "4aa6623cfd9684f987687d7e133946bb25b0f2c497d7caa2e4182ab755049c59"
+    "sha256": "2d403c6f2576cec6ef2d7043f9771a306956badf912a6e6af5d91aa22f433fc8"
    }
   },
   {
@@ -1351,19 +1351,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A scarlet parrot with yellow and blue wings, a white face and a hooked beak that perches on your shoulder, turns its head to look about, blinks and flicks its long tail.",
+   "description": "A scarlet parrot with yellow and blue wings, a pale face and a hooked beak that perches on your shoulder, turns its head to look about, blinks and flicks its long blue tail.",
    "assets": {
     "files": {
-     "item.json": "6bf19e255fb08b620476514d2b2e6ebfc0bae6f30d0c5cc7ee814e3f96384873",
-     "model.json": "e1de563d25b36e64e3c9b94afb4ed6e687337d0a21840b53ad67618ae3f3e84b",
-     "texture.png": "cd9a8c21d65b4e2fb60d039214cf1bd6d908a2bf1719ecd7476254cfc70feef6",
-     "thumb.png": "97fb4f275d84c87a86c425f0f73d0d50498d38411aa31e5d4f47f9b5060c6061"
+     "item.json": "be28f77761465ad174fcd6bb571d1fe4921ab2427bd7fb833c7ec6356153c92a",
+     "model.json": "72003d22824f0fa967c681048691f2c4280f0efbaf7a5f5bb0b12fce47f6b7bd",
+     "texture.png": "eb9661719c1d0e0dec5b09fbc03d31d4560235af7afa6f52d36907435422d886",
+     "thumb.png": "d562293e517e47ad90e21899254892ebc9fccca12030d04e62bd9e89ad603eb3"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "c034bb1d9cda7dc61266985488e32364c04c53024e7823a7dd83a1fe30389c5c"
+    "sha256": "8e49e1e715efb7d8ad36e296a1b6f68a74a53e38cf57bd9681338ea0f734d8f9"
    }
   },
   {
@@ -1376,20 +1376,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A wobbly see-through green slime with a glowing core, rosy cheeks and a wide grin that bounces on your shoulder.",
+   "description": "A wobbly see-through green slime that bounces on your shoulder, its little dark core looking about inside it.",
    "assets": {
     "files": {
-     "item.json": "689e68b7f9ee100e76a5a59b7c9e330b5500610b86d8f8e7b4995cc45b5dadfa",
-     "model.json": "f79979a290968aefaa67427dd9e814825c4926b3d92e3e5f0a1d7acc1eb03d95",
-     "texture.png": "3b007fdb780220ce2f0fd2f8aef31e52fa1f43f37d64b9ccde823a2c03c032b8",
-     "emissive.png": "4cbec7159cff1a4e229909a175119a82edbd69b6e6811d3e24e704859efc12bc",
-     "thumb.png": "b12583a225bbd83d44684314e5399e8e3183b6402e382c0395a0fc2a18c89e2a"
+     "item.json": "d6e189a8bbd49c48be77242b733c1dba7706651eb45f5ffdd8530f1f6c6b0925",
+     "model.json": "c57e467c5ec56b0a876905355db225b44334a38565528734876bdd7a2d908de8",
+     "texture.png": "9de6295464052999b7dab1b578742a73266006e15e00ea7444512c601c664457",
+     "thumb.png": "f219837ee417c2ce811c336101bee0b4171f00d3765594920b671b33896bdc10"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "5c4e1d15aa0f722adda6a53313a7669a3fb62e0d88773c18f1cde7d5758fa21b"
+    "sha256": "188a2c29ed2d8879b654c14c40ff59f63db2ba4f35f9d8c8ffec45d62a921cb8"
    }
   },
   {
@@ -1402,20 +1401,20 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A small spirit of cool blue soul flame with big shiny eyes that floats beside your shoulder, its flame flickering and its little hands drifting.",
+   "description": "A little living flame of cool blue soul fire that floats beside your shoulder, flickering, looking about and drifting its tiny hands.",
    "assets": {
     "files": {
-     "item.json": "3b604f03eab90aacc4e740eb95bbd72b57bfbff78a2b85c60793e416cdcbb1b8",
-     "model.json": "6cc94f1914f0f857b6a8b4ee0fc092745ec027b894823778f5abd141743a44c2",
-     "texture.png": "e61470ec1e1b3f7065517449223823e1db4cea353409edcffaaa2ef318583b49",
-     "emissive.png": "0adf6165da8ec5c76491554f1e4cfd1bf71fe69401ab6539a518f9fc89a400f5",
-     "thumb.png": "89c2bf48300191050b244d055d46c4c1b25aa86e6ed4a41e33b7dfff696dde26"
+     "item.json": "cec3c0d55ab1feab6f4d820101f2bb0047ccdb1a0c0326164895f800e5df9bb1",
+     "model.json": "edb27e7b9dbbba1cf3a34d0dcebeb8710b4f756505de79f05374218351f141ea",
+     "texture.png": "e116893775c9f270503f264d57343b520cccf433b67da1ee1861ec4a471d8308",
+     "emissive.png": "0738a48240a3e2ef6b2f9dbae7ec92a1d076a32bff160a9ffc7b04dc9239c3a0",
+     "thumb.png": "b0caf51ceed47d9880babd5a75c639961603e5d5c02a151be5991532e59f4b0c"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "0653f1b2502d8749e8913d3c37b5bdb03db3db2beff75d533c972bf20522cd24"
+    "sha256": "762a7ee16462752f5b17aa5203dafe86eb614b3a3fe72f549136dc1234f08da9"
    }
   },
   {
@@ -1432,15 +1431,15 @@
    "assets": {
     "files": {
      "item.json": "c70ee37daa1beb489a8b1a6fe7752feef27d36d8c5d30768663073a95fcab9d6",
-     "model.json": "5449fd695406ba885e31eabbf05b838a558298d1dc09c505fab9b9446bae4164",
-     "texture.png": "f097d659d5f84983d84976ac3d80000e36ab162275d4a2758c01f532cb6c08a8",
-     "thumb.png": "55d74d12eeda7122c2bc6193bd5ea32a33b6a21a0cee94c3d02571ed5a54499f"
+     "model.json": "d6a83a3b6cb9dc651d9796d07cc969829615c7e996b001d6d4c496dd848984ba",
+     "texture.png": "45873c26e991f68c14bd2e0d1c159eee4c32c834af470d30a9c2a70a8fc557fc",
+     "thumb.png": "4e582c1635870e9b180ee59f577da417dd5014035c19c87e0c36274a133bee08"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "afbcd37ff95e9dfe070d4ee7643d8bfdf4443805ed1bc090068be01e3cc6356c"
+    "sha256": "2655492c204f1ead21fcaa295497f26b6bedb7e504c8693bfbbdbdbfb212632a"
    }
   },
   {
@@ -1457,10 +1456,10 @@
    "assets": {
     "files": {
      "item.json": "40fc1a120ca09d3e9d671cf37795caa2794f122e920bf96a3f045feb9e960d41",
-     "model.json": "11466261144fbca3e9295bbc38042514d325a3751589f117709edda6b718286b",
-     "texture.png": "1fec544fc95ec11fc266a72250324a102a1c6623b9232213f4a4983b0188a966",
-     "emissive.png": "62dcf3ba71a99a1df1b64c307d1481c86b742c02cf52b9ad46a43b43cacc0567",
-     "thumb.png": "a2e333def85e6fcf9fa55be9c04088ed080450c2dfa37a90dfc17c6b31febbc9"
+     "model.json": "b6c63c890ddf44d27b2f8a5ad40dd24ebc2d59b50e3b9302f2970ba07fb901c4",
+     "texture.png": "077ccf104febeb595c0445f22a5140914008d4fdb0af676462e045cbac97f53d",
+     "emissive.png": "cd95bc53525f922f30b8fb458034aee563da9021f109550d684d51211ad22a11",
+     "thumb.png": "e844803fd84106c9f337c3c059ade94d061dc936da80084f251a25e56ca46674"
     }
    }
   },
@@ -2333,19 +2332,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A little green sea turtle with a patterned shell that rides on your shoulder, paddling its flippers, looking about and blinking slowly.",
+   "description": "A little green sea turtle with a plated shell that rides on your shoulder, paddling its flippers, looking about and blinking slowly.",
    "assets": {
     "files": {
-     "item.json": "b1d561811ac669e4671eea07195b89a6ac43f1c602c517af24e0cc8a11ae1f02",
-     "model.json": "dd2aef17191a7a48e5505981d581a792f3b4395a968be30fe860519f101d87cb",
-     "texture.png": "02bd36e18e87ddc3a347477d6421446da39776c6b0feecc58aa6aef44fe002b0",
-     "thumb.png": "8de31bf60eea4f5d0bcd4fd988c075e06feca726cc3448560c201d2550d9ead9"
+     "item.json": "8ebd2d864a4e85105400b7fec8257045c2851542b1c06628151aedbdc467210d",
+     "model.json": "063fab7a984b714d837945af600f6c8149caa250b484a374ae0e27da5aac583f",
+     "texture.png": "b466d20c754d83737e13eec8c50539a5ed7267eecd556798837a3ad708f3d71e",
+     "thumb.png": "7920947f66281dcc47b202613ded806881b3cf04a14cb4508cfdfde318f17d8e"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "94b66c33c32a79edc21384985daa91cd504a4f290d07b3cbbc4b7d29cecfdb89"
+    "sha256": "e741c36b7b28bec31a158389303616b0d9cae56366babc9481691cb1ed70ccc6"
    }
   },
   {
@@ -2362,15 +2361,15 @@
    "assets": {
     "files": {
      "item.json": "0abc470a192fc5991d33d54dc6329446ae83e2fd977c06f4b2f697609fac9595",
-     "model.json": "fb9615538597d6a252f795aeafba236384abfd96cc39b189d84671e2f314d5d4",
-     "texture.png": "094e160e76e2ad8468243ac2a0351fa8f3f19a9ffbe177f0412103702f72559d",
-     "thumb.png": "f585811cb4db147d786ef35ec29c05d651c61072f8a363c619fd4ac75c506f1f"
+     "model.json": "3cf797f5c58d27fbb0adb9b4fa27bbe2b3d1fddecc396088b5cc96020e4857f6",
+     "texture.png": "42098689d1a3222eb1bf4f4d39f41e088f09dd59ce0c3e7f3b9155229afbfe2a",
+     "thumb.png": "7dadf5929647a050a52471c7de49cb2c0cad0a0f6c498a32b2b2a6f6a5fcc9af"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "679ca994517e2cefc576aa913622c90ba347536bd2ae9a2d54863be3fec8c35d"
+    "sha256": "feb5ca1b9d130e5ac9d6a256f67d0319304891754151dce46baf8b46d8c231ca"
    }
   },
   {
@@ -2383,19 +2382,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A bright green frog with golden eyes perched on your shoulder.",
+   "description": "A squat moss-green frog with golden eyes that crouches on your shoulder, looking about and blinking.",
    "assets": {
     "files": {
-     "item.json": "6042dd2998e4a51df6fe4282670dc4eca3a6ec69e39588b1e2f8c8259e95c234",
-     "model.json": "23c7c9932c8280432b39c8bdc48ed6410ddb3662d952918ab0fe4d097ad2b7ed",
-     "texture.png": "38cc36240dc23797acf20b20c6c73f709f69f25e6a75e177a1d05b409fff7eac",
-     "thumb.png": "d6a74d51fc7c3cdb214b148a93c9ab5850106bbf53cc1413ba41d4c4015a911e"
+     "item.json": "ee67a99a26fb1a79278c97346ce39601c782d7e9d87b1f182e9da6f856786453",
+     "model.json": "e52b50a78743b8d6028471dcbe31869fe5d46af781cfeb08c959ad5025751313",
+     "texture.png": "11f1d8d03b4e6f3124cb94b3d8a4969dee8472763fff35bf5b8097e41c902db2",
+     "thumb.png": "7b89b025c26e3c264768a773a779750ef9b858989a4d90845508897c587a1e36"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "79c099ab3bdc93bb0e447a35a59e899afcd4a7246082c3b4f4172b2b44a96851"
+    "sha256": "f9162c712ba0bffe057ef43c2eec0f41b386cb2620a74ff49766be599759d999"
    }
   },
   {
@@ -2408,14 +2407,14 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A shy little ghost that flickers in and out, with glowing eyes that blink now and then.",
+   "description": "A shy little sheet ghost that flickers in and out, its ragged hem rippling, with glowing eyes that blink now and then.",
    "assets": {
     "files": {
-     "item.json": "869a3f826941f6cecce737ad05a7d1586a820d405bc484ca99d9a9e6c1cee58f",
-     "model.json": "cd27659afad8652e373b79d81386a05bb25819db95da978cb528c8eec6c09fdc",
-     "texture.png": "3cb51750f26b8b16d87f09ee00419c74ce488993064dc2b3eaf8f0339cb65f68",
-     "emissive.png": "7bb47680b99c15d14348fd8c4e8e0c10e75db88f58216e509bc234c6a9c6a4f1",
-     "thumb.png": "77a0363d0f416cd0a38c24667372f03f27afcec54af0d467a82f2a74f5bb8c95"
+     "item.json": "aae4a6de9e7e96cb40f3596102d05dfd42a17738b8aa8eb1161edbc8289d2dc2",
+     "model.json": "0e310f25538911cae124e9051e19915a685181491328a4cd499ddc3c63eeae4c",
+     "texture.png": "5d8c95dc18a73f07145ca8c5972ef862ab47e292bdb00f4d0e1213e7af9b8781",
+     "emissive.png": "a9b3eda6b9aa6ffeff1184796da8114da9c3809fbd7c851f438bda14724f3368",
+     "thumb.png": "708388bc149b8eb90504dd0ba2ce4ef9dae52c73c0e9b599be4595698425b080"
     }
    }
   },
@@ -2861,19 +2860,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A fluffy grey wolf pup in a red collar with a gold tag. It sits on your shoulder, looks about, twitches its ears and wags its tail.",
+   "description": "A grey wolf pup in a red collar with a gold tag. It stands on your shoulder, looks about, twitches its ears and wags its tail.",
    "assets": {
     "files": {
-     "item.json": "c8e4d16691f1560d7b47c30ff8093beeea1b4034a31434a6a85f4acaa1b116ac",
-     "model.json": "7be48b220bab5453ce7e0c0c9a6be582ab1208d96c1ab48614abf63b05449235",
-     "texture.png": "6ba16347d1642c23d85295d4bd2c7bc7bef81227ce8821691668da3cc05c52c9",
-     "thumb.png": "30aaa2fad2ed80f3c533978bbcef484ce0419b46930377aab683934f73418fec"
+     "item.json": "c3b5d7f481f25f6e6306632dd9d92695bf230088a328c47e591fe2cee0d2bea2",
+     "model.json": "2c1e273958d080eb2be24d6165730c2ed192da259a3c73930fcde2b80881d320",
+     "texture.png": "927ebc16cfd4160004d574cddf128e69bf6393a86686ff245b4c331427f91d42",
+     "thumb.png": "4c360c19047821602534ad30e32aecd13f04c77f80a82f757f0e2bc427a25ce7"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "bb1fdd7e7d955b53f3f5e79b72fc35d8dc1b94cac3b949729126e38dda9d9e68"
+    "sha256": "0de96dc93ae7882c153fb5085257068cf2b0bca5598d613fb3b72a665ad7ddbc"
    }
   },
   {
@@ -2886,19 +2885,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A round panda cub with big eyes in dark patches that sits on your shoulder, looks about and blinks.",
+   "description": "A stocky panda cub with dark eye patches and black legs that sits on your shoulder, looks about and blinks.",
    "assets": {
     "files": {
-     "item.json": "8d185edae1ba1a933d0f0e3c16e7dcf4d53c59f092bc4940913a42bb2013fc29",
-     "model.json": "c4ccf43bcc724c2e8d446c966d0f166c90307c256b11415393acdfa321eb6e25",
-     "texture.png": "8d04607272e4536ad711dcd7c19bed914530df79220fb970049e903ca804f53d",
-     "thumb.png": "ba321c855232a646bffd676611fdbc734ed7464291fe644c083bd31f06f2774d"
+     "item.json": "6ad333c097efb9643f104c48a8881cff6e1a43d100ce82d22f431cf832538585",
+     "model.json": "b9c7779aae791f914c080b3c1c63e2295399f1607461502fa7ae2f8386270ab6",
+     "texture.png": "0fa0c69f86ad453d734549eb789b7a46c7f848ca80706925f6b0e501d53280c5",
+     "thumb.png": "4de3dddf457da0d8a97bff707f4d71a82ada430fa03d25aa48b5d7730f3f2c20"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "910425b38a4c2d54a7613267db7aacc76566617e8b4ed4364ac5f8cb28c4de6d"
+    "sha256": "23c7048832f65149ca377cc00f8f4c84c658b1c07e88c517db40d8fc115483e9"
    }
   },
   {
@@ -2911,19 +2910,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A little brown cave bat with big ears and two tiny fangs that hovers by your shoulder on fluttering leathery wings, looking about and blinking.",
+   "description": "A little brown cave bat with pointed ears that hovers by your shoulder on fluttering leathery wings, looking about and blinking.",
    "assets": {
     "files": {
-     "item.json": "c5530ea5e42b14d048a74115216f47dcec7ad771f17de47bd27cfbc8bae046ac",
-     "model.json": "cce20d349054f460f6bea504af745b122db3d6dc588433b76b53343f415232d2",
-     "texture.png": "182a750cbe96c3e74b33552eebe8036ca57110358f6bb2f767e88b71d68272b4",
-     "thumb.png": "85ef4979db4d5a40bc3b8c7af7aa85b8019837ebe55562064035b8143806360a"
+     "item.json": "fe5fc81e5d4a407c0349e4cb5c46de44aa2b25ff6e8c50741936d2369c51256e",
+     "model.json": "1585139343c8de7ab2deddd7e9fd5b8269379374e4c72b96d8868c0ef4c9a1c4",
+     "texture.png": "19e90ce488b27de910d6d95366eca731b720951ca71d3940337380258ea5a6f7",
+     "thumb.png": "711fae33849d9d918fb280ae330d2e089e05bb1e39cef149219de26a3ab92f7b"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "e5991d6dc206e8bb5b38e2c5d08f9112206d4d40ce10842d85b384c2a206b306"
+    "sha256": "e6dc97c82ec15cdfa40338bf4b15ca5b8fd7c6c498b67b7db873c8e461bdbab3"
    }
   },
   {
@@ -2936,19 +2935,19 @@
    "partner": null,
    "colourable": false,
    "defaultColor": null,
-   "description": "A small pink axolotl with frilly gills and a curled tail that swims through the air beside your shoulder, its gills fanning as it looks about and blinks.",
+   "description": "A small pink axolotl with frilly gills and a tail fin that swims through the air beside your shoulder, its gills fanning as it looks about and blinks.",
    "assets": {
     "files": {
-     "item.json": "1f5136809d40d81ee72f1dc35a009bc4fd5fc8951c477995623e8fc0ec69f1c3",
-     "model.json": "c9c282fb05efb3b4a7779aaf901ef2a176230a7c1d9921dbef5ff285fa250d54",
-     "texture.png": "be21f37988e6143402b2b493f5def4ab3f48be2b41b7602dcd16e45071b677d0",
-     "thumb.png": "19f98d8dfbb44f9730b91ca449f6b9b8d4c2ff239279d2569d177be75116c9e4"
+     "item.json": "a6b43ff6dccf7cad8b9110d4b3e4b9c97f2e8fa6700e3f589ee84c6b89ef4508",
+     "model.json": "42c57bc8d02c4e63568d753e75fd57c09f98622bb092e2405efff709f566da94",
+     "texture.png": "02d5387b5d8c0c7a7a7b0b36ae6f13fe7dd1aa9263873f7bc015698a5f415b5b",
+     "thumb.png": "f4773adf6399a39330a33e772442fdd3e7992f3c90c6bbf652fbd889ac8e5d5c"
     }
    },
    "thumbHd": {
     "file": "thumb-hd.png",
     "size": 512,
-    "sha256": "4371ab1ee3225ff7c6555dae8cb5dc6718671eb935eaaaeaf6d49cc819c1fd89"
+    "sha256": "ba3bc8b63237145b2a6d6d8689aa95b53988d866645db4d6d0df17a1a7bb5f1e"
    }
   },
   {

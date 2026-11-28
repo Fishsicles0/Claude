@@ -20,7 +20,10 @@ or less, where the 8-tooth outline gear turns to mush.
 logo_mips() derives logo_mark_64/32 and logo_word_160x48/80x24 from the existing logo_mark.png and logo_word.png
 (it does not redraw them). Re-run this script whenever either logo source changes.
 
-Usage: python3 scripts/draw-nav-icons.py   (needs Pillow)
+Since GUI 3.0 there is a fourth level, nav/<name>_192.png, for 24 px icons at GUI scale 6 and up (4K / 8K), and
+the kit icons check, warn, info, error and plus.
+
+Usage: python3 scripts/draw-nav-icons.py [--icons-only]   (needs Pillow; --icons-only skips the logo mips)
 """
 import json
 import math
@@ -32,8 +35,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageStat
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "src/main/resources/assets/evade/textures/gui"
 OUT = ROOT / "nav"
 S, W = 96, 8          # authoring grid and stroke width, in icon units
-K = 4                 # supersampling: icons render on an S*K = 384 px canvas
-LEVELS = ((96, "_96"), (48, "_48"), (24, ""))
+K = 8                 # supersampling: icons render on an S*K = 768 px canvas (4x the 192 px level)
+LEVELS = ((192, "_192"), (96, "_96"), (48, "_48"), (24, ""))  # 192: a 24 px icon at GUI scale 6+ (4K / 8K)
 WHITE = (255, 255, 255, 255)
 CLEAR = (0, 0, 0, 0)
 META = json.dumps({"texture": {"blur": True, "clamp": True}})
@@ -276,8 +279,54 @@ def camera():  # screenshots: camera body, lens and a small bump for the shutter
     save(im, "camera")
 
 
+def check():  # tick: selected options, success toasts
+    chevron("check", [(20, 50), (40, 70), (78, 28)])
+
+
+def warn():  # triangle with an exclamation mark
+    im, d = canvas()
+    pts = [(48, 12), (88, 82), (8, 82)]
+    d.line(pts + [pts[0]], fill=WHITE, width=W, joint="curve")
+    for x, y in pts:
+        round_cap(d, x, y)
+    d.line((48, 38, 48, 58), fill=WHITE, width=W)
+    round_cap(d, 48, 38)
+    round_cap(d, 48, 58)
+    round_cap(d, 48, 71, W + 1)
+    save(im, "warn")
+
+
+def info():  # circled i
+    im, d = canvas()
+    d.ellipse((10, 10, 86, 86), outline=WHITE, width=W)
+    d.line((48, 44, 48, 68), fill=WHITE, width=W)
+    round_cap(d, 48, 44)
+    round_cap(d, 48, 68)
+    round_cap(d, 48, 29, W + 1)
+    save(im, "info")
+
+
+def error():  # circled x
+    im, d = canvas()
+    d.ellipse((10, 10, 86, 86), outline=WHITE, width=W)
+    for a, b in (((34, 34), (62, 62)), ((62, 34), (34, 62))):
+        d.line(a + b, fill=WHITE, width=W)
+        round_cap(d, *a)
+        round_cap(d, *b)
+    save(im, "error")
+
+
+def plus():
+    im, d = canvas()
+    for a, b in (((48, 20), (48, 76)), ((20, 48), (76, 48))):
+        d.line(a + b, fill=WHITE, width=W)
+        round_cap(d, *a)
+        round_cap(d, *b)
+    save(im, "plus")
+
+
 ICONS = (all_mods, controls, server, misc, hud, visuals, edit_hud, profiles, friends, settings, settings_sm, search, close,
-         reset, chevron_l, chevron_r, camera)
+         reset, chevron_l, chevron_r, camera, check, warn, info, error, plus)
 
 
 # ------------------------------------------------------------------ logo
@@ -309,7 +358,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for f in ICONS:
         f()
-    logo_mips()
+    if "--icons-only" not in sys.argv:  # --icons-only leaves the logo mips alone
+        logo_mips()
     pngs = [p for p in written if p.suffix == ".png"]
     size = sum(p.stat().st_size for p in written)
     print(f"wrote {len(pngs)} PNGs + {len(written) - len(pngs)} .mcmeta ({size / 1024:.1f} KB): "

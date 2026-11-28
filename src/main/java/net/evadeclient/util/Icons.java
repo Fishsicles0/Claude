@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The white line icons in textures/gui/nav, tinted by colour. Each icon ships as a 24, 48 and 96 px mip chain with
+ * The white line icons in textures/gui/nav, tinted by colour. Each icon ships as a 24, 48, 96 and 192 px mip chain with
  * LINEAR sampling; the smallest source that is at least as large as the icon on screen is used, so icons stay
  * crisp at every GUI scale without being minified past one level.
  */
@@ -27,7 +27,7 @@ public final class Icons {
         // The regular gear's thin teeth break up below 11 px; a bolder six-tooth gear reads better there.
         if (size <= 10 && name.equals("settings")) name = "settings_sm";
         float px = size * Theme.deviceScale(ctx);
-        int src = px <= 24 ? 24 : px <= 48 ? 48 : 96;
+        int src = px <= 24 ? 24 : px <= 48 ? 48 : px <= 96 ? 96 : 192;
         Identifier id = id(name, src);
         if (src != 24 && !present(name, src, id)) { src = 24; id = id(name, 24); }
         ctx.drawTexture(RenderPipelines.GUI_TEXTURED, id, x, y, 0, 0, size, size, src, src, src, src, c);

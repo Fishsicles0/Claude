@@ -264,7 +264,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     protected void init() {
-        anims = settings().animations.get();
+        anims = settings().animations.on();
         smooth = settings().smoothFont.get();
     }
 
@@ -275,7 +275,7 @@ public class EvadeMenu extends Screen {
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         settings().applyTheme();
-        anims = settings().animations.get(); // this runs before render, which reads it again
+        anims = settings().animations.on(); // this runs before render, which reads it again
         if (settings().blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
         // The tint fades in and out with the window (the vanilla blur can't fade: it is on or off).
         float a = windowState(clock.getAsDouble()).alpha();
@@ -338,7 +338,7 @@ public class EvadeMenu extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        anims = settings().animations.get();
+        anims = settings().animations.on();
         smooth = settings().smoothFont.get();
         super.render(ctx, mouseX, mouseY, delta);
         updateScale();

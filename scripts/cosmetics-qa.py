@@ -29,6 +29,16 @@ grey, stretched or tiled faces, one texel density per item), the item alone from
 three-quarter views (views/<id>.png, views-NN.png), the thumbnail at 64 px, glow on glowing items, smooth seamless loops,
 centred thumbnails, and EYE_STRICT (the by-eye verdict on the view sheets). --no-strict skips it.
 
+Minecraft style (pets, strict tier; see mc_style()): the pets must sit naturally next to the game's own mobs:
+  density   texels per model unit on the texture's own art grid: 1-2 (16-32 per block; a pet is a half-size mob and keeps
+            the 16 per block of a full-size one, as the game's baby animals do). Finer than that reads as a cartoon
+            sticker, not a mob
+  head      the head's share of the pet's solid volume (a small head on a proper body, not a chibi head on a bean)
+  outline   no drawn outline: faces whose every side is darker than the texels just inside it (the game shades by light
+            and a darker bottom edge, never a rim)
+Pets are also judged for flat colour at the size of their texels (views shrunk to about two pixels a texel), so a
+crisp 16-per-block texel isn't counted as a flat patch.
+
 Output (default scratchpad/qa, --out): report.md, sheet-all.png, sheet-<slot>.png, items/<id>.png (thumbnail | item
 alone | wing poses). --compare DIR adds before-after.png from an older copy of the built cosmetics.
 
@@ -416,7 +426,7 @@ def score(it, files_dir, m, wing, clear, texinfo):
     if slot in ("HAT", "MASK", "BACK", "ITEM_SKIN", "PET") and m["frags"] > 6:
         weak.append(f"silhouette in {m['frags']} separate pieces")
     sc = texinfo.get("scale")
-    if sc is not None and slot not in ("AURA",):
+    if sc is not None and slot not in ("AURA", "PET"):          # pets: their density is the Minecraft-style check
         if sc < 4:
             weak.append(f"{sc} texels per unit (blocky)")
         if texinfo.get("tpp", 0) > 3.5:
@@ -553,13 +563,13 @@ EYE_STRICT = {
     "verdant_bloom": ("PASS", 'leaf and flower ring'),
     "void_rift": ("PASS", 'glyph ring round a glowing core'),
     "spectrum_aura": ("PASS", 'quality fine; NOTE: rainbow by its own name/description (shipped v2.7) - owner rule conflict, flagged'),
-    "ginger_cat": ("PASS", 'reference pet'),
-    "ember_fox": ("PASS", 'reference pet'),
-    "jungle_parrot": ("PASS", 'new (replaces the owl): scarlet feathers, yellow and blue wing bands, white face patches, dark hooked beak, long blue-tipped tail'),
-    "bubble_slime": ("PASS", 'jelly with core and face, see-through'),
-    "soul_wisp": ("PASS", 'glowing flame head, tail'),
-    "baby_dragon": ("PASS", 'reference pet'),
-    "prism_sprite": ("PASS", 'faceted crystal fairy; NOTE: shimmers through every colour by design (shipped v2.7) - owner rule conflict, flagged'),
+    "ginger_cat": ("PASS", "Minecraft style (v3): ginger tabby standing on real cat proportions, striped back and tail, cream chest and paws, green 2-texel eyes, no outline"),
+    "ember_fox": ("PASS", "Minecraft style: red fox body, white chest and cheeks, dark socks, black-tipped ears, long snout with a black nose, bushy white-tipped tail"),
+    "jungle_parrot": ("PASS", "Minecraft style: upright scarlet parrot, side eyes in pale patches, hooked horn beak, folded yellow and blue wing planes, long blue tail"),
+    "bubble_slime": ("PASS", "Minecraft style: see-through jelly cube, the dark core with its eyes looks about inside (no grin or cheeks)"),
+    "soul_wisp": ("PASS", "Minecraft style: a soul-flame column (wide foot, face, flickering glowing tip), small eyes, drifting hands; no cheeks"),
+    "baby_dragon": ("PASS", "Minecraft style: lizard body on four legs, long snout with nostrils, swept-back horn planes, scalloped membrane wings, spade tail"),
+    "prism_sprite": ("PASS", "Minecraft style: crystal fairy on the pets' texel grid, faceted rainbow hues rolling (kept as the owner asked), glass wings; NOTE: shimmers through every colour by design (shipped v2.7) - owner rule conflict, flagged"),
     "stardust_trail": ("PASS", 'sparkle arc'),
     "ember_trail": ("PASS", 'embers rising off glowing footprints'),
     "petal_trail": ("PASS", 'drifting petals'),
@@ -596,10 +606,10 @@ EYE_STRICT = {
     "candy_cane_blade": ("PASS", 'peppermint stripes, gold guard'),
     "verdant_thorn": ("PASS", 'green glass blade wrapped in a vine'),
     "plasma_edge": ("PASS", 'blade edges now carry the pulse and a hot line (were flat 1 tx/u bars)'),
-    "sea_turtle": ("PASS", 'new (replaces the penguin): plated shell with seams and lit centres, rim plates, cream belly, spotted head, paddling flippers'),
-    "honey_bee": ("PASS", 'fuzzy stripes, see-through wings'),
-    "swamp_frog": ("PASS", 'spotted frog with big eyes'),
-    "wandering_ghost": ("PASS", 'flickering sheet, open hem on purpose'),
+    "sea_turtle": ("PASS", "Minecraft style: plated shell rim with seams, raised centre plates, side eyes, cream plastron, paddling flipper planes"),
+    "honey_bee": ("PASS", "Minecraft style: dark head with compound eyes, fuzzy thorax, striped abdomen, stinger, antennae, see-through wings"),
+    "swamp_frog": ("PASS", "Minecraft style: squat moss-green frog, eye bumps with golden irises, pale throat, folded hind legs (no smile or cheeks)"),
+    "wandering_ghost": ("PASS", "Minecraft style: sheet ghost, glowing eye holes, ragged hem rippling round it, flickers in and out (uneven steps are the flicker)"),
     "bubble_trail": ("PASS", 'soap bubbles'),
     "heartbreaker": ("PASS", 'heart burst'),
     "gold_rush": ("PASS", 'coin fountain'),
@@ -618,10 +628,10 @@ EYE_STRICT = {
     "origami_sakura_wings": ("PASS", 'folded paper facets printed with blossom'),
     "shadow_samurai_helm": ("PASS", 'lacquered helm, flared guard, crest'),
     "storm_ring_aura": ("PASS", 'crackling rings re-striking each frame'),
-    "wolf_pup": ("PASS", 'new (replaces the capybara): grey pup with a dark saddle and brow, pale chest and cheeks, red collar with a gold tag, twitching ears, wagging tail'),
-    "panda_cub": ("PASS", 'saddle dips down the back, fur tufts on head and body (were flat white)'),
-    "cave_bat": ("PASS", 'new (replaces the robot): fluffy brown bat, pink-lined ears, fangs, scalloped membrane wings with finger bones flapping together'),
-    "axolotl_pal": ("PASS", 'new (replaces the shark): freckled pink axolotl, beady eyes and smile, fringed gill stalks fanning, dorsal ridge, curled tail fin'),
+    "wolf_pup": ("PASS", "Minecraft style: wolf proportions, dark saddle and brow, pale chest and legs, snout with a black nose, red collar with a gold tag, twitching ears, wagging tail"),
+    "panda_cub": ("PASS", "Minecraft style: stocky panda, black shoulder band and legs, tilted eye patches each with a light eye texel, black ears and nose"),
+    "cave_bat": ("PASS", "Minecraft style: furry brown body with a pale chest, small head with pointed ears, scalloped membrane wings with finger bones (no fangs or cheeks)"),
+    "axolotl_pal": ("PASS", "Minecraft style: flat pink axolotl with a wide head, beady eyes, fanning gill fronds, splayed legs, tail fin"),
     "breakdance": ("PASS", 'handstand spin with dust'),
     "levitate": ("PASS", 'runes now circle the waist, framed (was off centre)'),
     "heart_toss": ("PASS", 'hearts tossed'),
@@ -774,6 +784,76 @@ def face_stats(bc, it, model, tex):
     return rows, fails, weak
 
 
+MC_DENSITY = (1.0, 2.0)          # texels per model unit for a Minecraft-style pet (16-32 per block)
+MC_HEAD = (0.42, 0.5)            # the head's share of the solid volume: weak above, fail above
+MC_OUTLINE = (0.12, 0.25)        # the share of a pet's faces with a dark rim all round: weak above, fail above
+# whole-body pets: the creature has no head apart from its body (none at present; the slime's head is its core)
+MC_HEADLESS = ()
+
+
+def mc_style(bc, model, tex, item_id=""):
+    """The Minecraft-style check for a pet: (fails, weak, info) on texel density, head size and outline darkness."""
+    fails, weak = [], []
+    scale = model["textureScale"]
+    effs, areas, outlined, judged = [], [], 0, 0
+    seen = set()
+    vol_head = vol_all = 0.0
+    for b in model["bones"]:
+        is_head = (b.get("anim") or {}).get("type") == "pet_head"
+        for c in b["cubes"]:
+            w, h, d = c["size"]
+            if min(w, h, d) > 0:
+                v = w * h * d
+                vol_all += v
+                vol_head += v if is_head else 0
+            for face, (x0, y0, x1, y1), (gw, gh), _ in face_rects(bc, c, scale):
+                if gw == 0 or gh == 0 or (x0, y0, x1, y1) in seen:
+                    continue
+                seen.add((x0, y0, x1, y1))
+                t = tex[max(0, y0):y1, max(0, x0):x1]
+                if t.size == 0 or (t[..., 3] > 0.5).mean() < 0.9:
+                    continue
+                k = block_size(t, scale)
+                effs.append(scale / k)
+                areas.append(gw * gh)
+                # outline: a rim all round, every side of the art grid darker than the texels just inside it (a pale
+                # patch in the middle of a face touches an edge somewhere; a drawn outline doesn't)
+                g = t[::k, ::k]
+                if min(g.shape[:2]) >= 3 and min(w, h, d) > 0:
+                    L = lum(g[..., :3])
+                    sides = ((L[0, 1:-1], L[1, 1:-1]), (L[-1, 1:-1], L[-2, 1:-1]),
+                             (L[1:-1, 0], L[1:-1, 1]), (L[1:-1, -1], L[1:-1, -2]))
+                    judged += 1
+                    if min(float((e < i * 0.82).mean()) for e, i in sides) >= 0.6:
+                        outlined += 1
+    info = {}
+    if effs:
+        order = np.argsort(effs)
+        cum = np.cumsum(np.asarray(areas, float)[order])
+        dens = float(np.asarray(effs)[order][np.searchsorted(cum, cum[-1] / 2)])
+        info["density"] = dens
+        if dens > MC_DENSITY[1] * 1.25 or dens < MC_DENSITY[0] * 0.8:
+            fails.append(f"Minecraft style: {dens:g} texels per unit ({dens * 16:g} per block; a pet wants "
+                         f"{MC_DENSITY[0] * 16:g}-{MC_DENSITY[1] * 16:g})")
+        elif dens > MC_DENSITY[1] or dens < MC_DENSITY[0]:
+            weak.append(f"Minecraft style: {dens:g} texels per unit ({dens * 16:g} per block)")
+    if vol_all and item_id not in MC_HEADLESS:
+        r = vol_head / vol_all
+        info["head"] = r
+        if r > MC_HEAD[1]:
+            fails.append(f"Minecraft style: oversized head ({r:.0%} of the pet's volume)")
+        elif r > MC_HEAD[0]:
+            weak.append(f"Minecraft style: big head ({r:.0%} of the pet's volume)")
+    if judged:
+        o = outlined / judged
+        info["outline"] = o
+        if o > MC_OUTLINE[1]:
+            fails.append(f"Minecraft style: drawn outlines ({outlined} of {judged} faces have a dark rim all round)")
+        elif o > MC_OUTLINE[0]:
+            weak.append(f"Minecraft style: some drawn outlines ({outlined} of {judged} faces)")
+    return fails, weak, info
+
+
 def alone_scene_view(bc, it, d, yaw, pitch, size=192):
     """The item alone (the emote figure with its prop) from any angle, framed to fit."""
     if it["emote"]:
@@ -867,16 +947,19 @@ def strict_checks(bc, it, d, thumb, alone, views, catalog_item):
         tex = load_tex(d / "texture.png", tw, th, sc)
         rows, f, w = face_stats(bc, it, model, tex)
         info["faces"] = len(rows)
-        # pets are drawn in their own soft style (rim-lit art at 4 art px per unit): their faces are judged by eye
         fails += f
         weak += w
+        if slot == "PET":
+            f, w, mc = mc_style(bc, model, tex, it["id"])
+            info["mc"] = mc
+            fails += f
+            weak += w
     # views
     tinted = it["colourable"]
     for name, vs in views.items():
         if vs is None:
             continue
         info[f"view:{name}"] = vs
-        # pets are drawn in big art pixels (4 per unit, like the reference pets: 30-40% of a view is flat there)
         fl_weak, fl_fail = (0.45, 0.6) if slot == "PET" else (0.40, 0.55)
         if vs["flat"] > fl_fail:
             fails.append(f"{name} view: {vs['flat']:.0%} flat colour")
@@ -1059,7 +1142,10 @@ def main():
                         print(f"  view {name} of {iid}: {ex}", file=sys.stderr)
                     vims.append((name, im))
                     if im is not None and not it["emote"]:
-                        vstats[name] = view_stats(im, it["colourable"])
+                        # pets: judged at the size of their texels (a 192 px view of a pet is about 8 px a texel)
+                        vim = im.convert("RGBa").resize((im.width // 4, im.height // 4), Image.BOX).convert("RGBA") \
+                            if it["slot"] == "PET" else im
+                        vstats[name] = view_stats(vim, it["colourable"])
             view_sheet(out / "views" / f"{iid}.png", iid, vims)
             sfails, sweak, sinfo = strict_checks(bc, it, d, thumb, alone, vstats, None)
         else:
