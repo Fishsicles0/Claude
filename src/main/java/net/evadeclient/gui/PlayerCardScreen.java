@@ -8,13 +8,20 @@ import net.evadeclient.social.SocialClient;
 import net.evadeclient.social.SocialPresence;
 import net.evadeclient.social.SocialState;
 import net.evadeclient.util.Notifications;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Kit;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.SearchField;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
 
 import java.util.List;
 import java.util.Locale;
@@ -26,9 +33,8 @@ import java.util.Locale;
  * there's no way to pick a player in the world.
  */
 public final class PlayerCardScreen extends EvadeDialog {
-    private static final int COLS = 3, ROWS = 7;
+    private static final int COLS = 3, ROWS = 6;
     private PlayerCards.Player player;
-    private TextFieldWidget search;
     private int page;
 
     private PlayerCardScreen(Screen parent, PlayerCards.Player player) {
@@ -49,9 +55,13 @@ public final class PlayerCardScreen extends EvadeDialog {
         return true;
     }
 
-    @Override protected int prefWidth() { return player == null ? 380 : 300; }
+    @Override protected int prefWidth() { return player == null ? 440 : 380; }
 
-    @Override protected int prefHeight() { return player == null ? 76 + ROWS * 22 + 30 : 96 + rows() * 22 + 30; }
+    @Override protected int prefHeight() { return player == null ? 150 + ROWS * 30 + 30 : 150 + rows() * 30 + 30; }
+
+    @Override protected String titleIcon() { return player == null ? "friends" : null; }
+
+    @Override protected String heading() { return player == null ? "Players" : ""; }
 
     private int rows() {
         if (player == null) return 0;
@@ -59,7 +69,7 @@ public final class PlayerCardScreen extends EvadeDialog {
     }
 
     private int actions() {
-        int n = 3; // copy, hide, back is in the footer
+        int n = 2; // copy, hide
         SocialState s = SocialClient.state();
         if (socialOn() && !s.isFriend(player.uuid())) n++;
         if (socialOn() && s.isFriend(player.uuid())) n++;
@@ -73,106 +83,156 @@ public final class PlayerCardScreen extends EvadeDialog {
         return f != null && f.isEnabled() && f.activated() && SocialClient.ready();
     }
 
+    /** The card's actions: label, icon, what it does. */
+    private record CardAction(String label, String icon, Runnable run) {}
+
+    private final List<CardAction> cardActions = new java.util.ArrayList<>();
+
     @Override
     protected void init() {
         frame();
-        if (player == null) initList(); else initCard();
+        cardActions.clear();
+        if (player == null) {
+            action("Done", Button.Variant.PRIMARY, this::close);
+            kit.focus(SEARCH, false);
+        } else initCard();
     }
 
-    private void initList() {
-        String q = search == null ? "" : search.getText();
-        search = new TextFieldWidget(textRenderer, px + 14, py + 32, pw - 28, 18, Text.literal("Search"));
-        search.setText(q);
-        search.setPlaceholder(Text.literal("Search players").formatted(net.minecraft.util.Formatting.DARK_GRAY));
-        search.setChangedListener(s -> { page = 0; clearAndInit(); search.setFocused(true); setFocused(search); });
-        addDrawableChild(search);
+    private static final String SEARCH = "search";
+
+    private List<PlayerCards.Player> filtered() {
         List<PlayerCards.Player> all = PlayerCards.tabList();
-        String needle = q.strip().toLowerCase(Locale.ROOT);
+        String needle = SearchField.text(kit, SEARCH).strip().toLowerCase(Locale.ROOT);
         if (!needle.isEmpty()) all = all.stream().filter(p -> p.name().toLowerCase(Locale.ROOT).contains(needle)).toList();
-        int per = COLS * ROWS, pages = Math.max(1, (all.size() + per - 1) / per);
-        page = Math.min(page, pages - 1);
-        int cw = (pw - 28 - (COLS - 1) * 4) / COLS;
-        for (int i = page * per; i < Math.min(all.size(), (page + 1) * per); i++) {
-            int k = i - page * per;
-            PlayerCards.Player p = all.get(i);
-            String label = (PlayerCards.isHidden(p.uuid()) ? "§8" : SocialClient.state().isFriend(p.uuid()) ? "§a" : "") + p.name();
-            button(label, px + 14 + (k % COLS) * (cw + 4), py + 56 + (k / COLS) * 22, cw, b -> {
-                player = p;
-                clearAndInit();
-            });
-        }
-        int by = py + ph - 30, bw = (pw - 28 - 8) / 3;
-        ButtonWidget prev = button("< Page", px + 14, by, bw, b -> { page--; clearAndInit(); });
-        prev.active = page > 0;
-        ButtonWidget next = button("Page >", px + 14 + bw + 4, by, bw, b -> { page++; clearAndInit(); });
-        next.active = page < pages - 1;
-        button("Done", px + 14 + (bw + 4) * 2, by, bw, b -> close());
+        return all;
     }
 
     private void initCard() {
         SocialState s = SocialClient.state();
         java.util.UUID u = player.uuid();
         String name = player.name();
-        int bw = (pw - 28 - 4) / 2;
-        int[] slot = {0};
-        java.util.function.BiConsumer<String, ButtonWidget.PressAction> add = (label, action) -> {
-            int i = slot[0]++;
-            button(label, px + 14 + (i % 2) * (bw + 4), py + 90 + (i / 2) * 22, bw, action);
-        };
-        if (socialOn() && !s.isFriend(u)) add.accept("Add friend", b -> Friends.run(Friends.addFriend(name), "Friends", null,
-                r -> Notifications.push("Friends", SocialState.bool(r, "accepted") ? "You're now friends with " + name : "Friend request sent to " + name, true)));
+        if (socialOn() && !s.isFriend(u)) cardActions.add(new CardAction("Add friend", "plus", () -> Friends.run(Friends.addFriend(name), "Friends", null,
+                r -> Notifications.push("Friends", SocialState.bool(r, "accepted") ? "You're now friends with " + name : "Friend request sent to " + name, true))));
         if (socialOn() && s.isFriend(u)) {
             boolean online = s.friends().stream().anyMatch(p -> p.uuid().equals(u) && p.online());
             boolean inParty = s.party() != null && s.party().has(u);
-            add.accept(inParty ? "In your party" : "Invite to party", b -> {
+            cardActions.add(new CardAction(inParty ? "In your party" : "Invite to party", "friends", () -> {
                 if (inParty) return;
                 if (online) Friends.run(Friends.withUuid("party.invite", u), "Party", "Invited " + name, null);
                 else Notifications.push("Party", name + " isn't online on Evade right now", false);
-            });
+            }));
         }
-        add.accept("Copy name", b -> {
+        cardActions.add(new CardAction("Copy name", "copy", () -> {
             if (client != null) client.keyboard.setClipboard(name);
             Notifications.push("Player card", "Copied " + name, true);
-        });
+        }));
         boolean hidden = PlayerCards.isHidden(u);
-        add.accept(hidden ? "Show this player" : "Hide this player", b -> {
+        cardActions.add(new CardAction(hidden ? "Show this player" : "Hide this player", hidden ? "visuals" : "eye_off", () -> {
             if (hidden) PlayerCards.show(u); else PlayerCards.hide(u);
             Notifications.push("Player card", hidden ? name + " is shown again" : name + " is hidden on your screen until you close the game", true);
             clearAndInit();
-        });
-        if (VoiceChat.installed()) add.accept("Voice volume...", b -> {
+        }));
+        if (VoiceChat.installed()) cardActions.add(new CardAction("Voice volume…", "settings", () -> {
             close();
             Notifications.push("Voice chat", "Adjust volumes: set " + name + " to 0 to mute them", false);
             VoiceChat.openMenu();
-        });
-        for (ApiInteractions.Entry e : ApiInteractions.entries()) add.accept(e.label(), b -> {
+        }));
+        for (ApiInteractions.Entry e : ApiInteractions.entries()) cardActions.add(new CardAction(e.label(), "server", () -> {
             if (ApiInteractions.run(e, name)) close();
-        });
-        int by = py + ph - 30;
-        button("All players", px + 14, by, bw, b -> { player = null; clearAndInit(); });
-        button("Done", px + 14 + bw + 4, by, bw, b -> close());
+        }));
+        action("All players", Button.Variant.GHOST, () -> { player = null; clearAndInit(); }).icon("chevron_l");
+        action("Done", Button.Variant.PRIMARY, this::close);
+    }
+
+    /** The player's face (from the tab list's skin), 8x8 plus the hat layer, in a rounded tile. */
+    private void head(DrawContext ctx, java.util.UUID u, int x, int y, int size) {
+        Paint.rect(ctx, x - 1, y - 1, x + size + 1, y + size + 1, Tokens.R_XS + 1, Tokens.N250);
+        var nh = client == null ? null : client.getNetworkHandler();
+        var e = nh == null ? null : nh.getPlayerListEntry(u);
+        if (e != null) PlayerSkinDrawer.draw(ctx, e.getSkinTextures(), x, y, size, Theme.fa(0xFFFFFFFF));
+        else Icons.draw(ctx, "profiles", x + size / 6, y + size / 6, size * 2 / 3, Tokens.N700);
     }
 
     @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        if (player == null) {
-            title(ctx, "Players");
-            int n = PlayerCards.tabList().size();
-            String hid = PlayerCards.hiddenCount() > 0 ? "  ·  " + PlayerCards.hiddenCount() + " hidden" : "";
-            line(ctx, n == 0 ? "Nobody else is in the tab list." : n + (n == 1 ? " player" : " players") + " in the tab list" + hid,
-                    px + 14, py + ph - 42, Theme.TEXT_FAINT);
-            return;
-        }
-        title(ctx, player.name());
+    protected void renderBody(DrawContext ctx, int mx, int my) {
+        if (player == null) { renderList(ctx, mx, my); return; }
         SocialState s = SocialClient.state();
-        String rel = s.isFriend(player.uuid()) ? "Evade friend" : s.party() != null && s.party().has(player.uuid()) ? "In your party" : "Player on this server";
-        line(ctx, rel, px + 14, py + 32, s.isFriend(player.uuid()) ? Theme.OK : Theme.TEXT_DIM);
-        var friend = s.friends().stream().filter(p -> p.uuid().equals(player.uuid())).findFirst().orElse(null);
-        String sub = friend == null ? null : SocialPresence.describe(friend);
-        if (sub != null) line(ctx, sub, px + 14, py + 45, Theme.TEXT_DIM);
-        if (PlayerCards.isHidden(player.uuid())) line(ctx, "Hidden on your screen (this session)", px + 14, py + 58, Theme.WARN);
-        if (!socialOn()) line(ctx, "Turn on Friends to add friends and invite to your party.", px + 14, py + 72, Theme.TEXT_FAINT);
-        else if (!ApiInteractions.entries().isEmpty()) line(ctx, "Server entries run the server's own command.", px + 14, py + 72, Theme.TEXT_FAINT);
+        java.util.UUID u = player.uuid();
+        // Identity: a big head, the name and how you know them.
+        int hy = py + PAD - 4;
+        head(ctx, u, bx, hy, 40);
+        kit.text(player.name(), bx + 52, hy + 2, Tokens.N950, Role.HEADLINE);
+        boolean friend = s.isFriend(u), party = s.party() != null && s.party().has(u);
+        int bxx = bx + 52;
+        if (friend) bxx += Badge.draw(kit, bxx, hy + 26, "Evade friend", Badge.Tone.OK) + Tokens.S2;
+        if (party) bxx += Badge.draw(kit, bxx, hy + 26, "Party", Badge.Tone.NEUTRAL) + Tokens.S2;
+        if (!friend && !party) bxx += Badge.draw(kit, bxx, hy + 26, "On this server", Badge.Tone.NEUTRAL) + Tokens.S2;
+        if (PlayerCards.isHidden(u)) Badge.draw(kit, bxx, hy + 26, "Hidden", Badge.Tone.WARN);
+        var fr = s.friends().stream().filter(p -> p.uuid().equals(u)).findFirst().orElse(null);
+        String sub = fr == null ? null : SocialPresence.describe(fr);
+        int y = hy + 52;
+        if (sub != null) { kit.text(kit.ellipsize(sub, Role.SMALL, bw), bx, y, Tokens.N700, Role.SMALL); y += 14; }
+        y += 4;
+        int colW = (bw - Tokens.S3) / 2;
+        for (int i = 0; i < cardActions.size(); i++) {
+            CardAction a = cardActions.get(i);
+            int x = bx + (i % 2) * (colW + Tokens.S3), yy = y + (i / 2) * 30;
+            Button.draw(kit, "ca" + i, x, yy, colW, Button.Size.MD, Button.Variant.SECONDARY, a.label(),
+                    PanelGlyphs.has(a.icon()) ? null : a.icon(), true, a.run());
+        }
+        y += ((cardActions.size() + 1) / 2) * 30 + 4;
+        if (!socialOn()) note("info", Tokens.N600, "Turn on Friends to add friends and invite to your party.", y);
+        else if (!ApiInteractions.entries().isEmpty()) note("server", Tokens.N600, "Server entries run the server's own command.", y);
+    }
+
+    private void renderList(DrawContext ctx, int mx, int my) {
+        int y = by;
+        String before = SearchField.text(kit, SEARCH);
+        SearchField.draw(kit, SEARCH, bx, y, bw, "Search players", null, true);
+        if (!before.equals(SearchField.text(kit, SEARCH))) page = 0;
+        y += SearchField.H + Tokens.S4;
+        List<PlayerCards.Player> all = filtered();
+        int per = COLS * ROWS, pages = Math.max(1, (all.size() + per - 1) / per);
+        page = Math.max(0, Math.min(page, pages - 1));
+        if (all.isEmpty()) {
+            boolean none = PlayerCards.tabList().isEmpty();
+            EmptyState.draw(kit, "empty", bx + bw / 2, y + 6, none ? "friends" : "search", none ? "Nobody else here" : "Nothing matches",
+                    none ? "Players in the tab list show up here." : "Try another name.", null, null);
+        }
+        int cwid = (bw - (COLS - 1) * Tokens.S2) / COLS;
+        for (int i = page * per; i < Math.min(all.size(), (page + 1) * per); i++) {
+            int k = i - page * per;
+            PlayerCards.Player p = all.get(i);
+            int x = bx + (k % COLS) * (cwid + Tokens.S2), yy = y + (k / COLS) * 30;
+            String id = "pl:" + p.uuid();
+            int st = kit.state(id, x, yy, x + cwid, yy + 26, true);
+            float h = kit.anim(id + "#h", (st & Kit.HOVER) != 0 ? 1f : 0f);
+            Paint.surface(ctx, x, yy, x + cwid, yy + 26, Tokens.R_SM, Tokens.E2.noAmbient().withFill(Theme.lerpColor(Tokens.N200, Tokens.N250, h)), h, mx - x);
+            boolean hidden = PlayerCards.isHidden(p.uuid()), friend = SocialClient.state().isFriend(p.uuid());
+            float f0 = Theme.fade;
+            if (hidden) Theme.fade = f0 * 0.5f;
+            head(ctx, p.uuid(), x + 5, yy + 5, 16);
+            Theme.fade = f0;
+            kit.textCentredY(kit.ellipsize(p.name(), Role.STRONG, cwid - 40), x + 28, yy + 13, hidden ? Tokens.N600 : Tokens.N950, Role.STRONG);
+            if (friend) Paint.circle(ctx, x + cwid - 10, yy + 13, 6, Tokens.OK);
+            if ((st & Kit.FOCUSED) != 0) Paint.focusRing(kit, x, yy, x + cwid, yy + 26, Tokens.R_SM, Tokens.FOCUS_RING);
+            kit.hit(id, x, yy, x + cwid, yy + 26, () -> { player = p; clearAndInit(); });
+            if (friend || hidden) kit.tooltip(id, friend ? "Evade friend" : "Hidden on your screen", null, x, yy, x + cwid, yy + 26);
+        }
+        // Footer line: the count and the pager.
+        int fy = py + ph - PAD - Button.Size.MD.h;
+        int n = PlayerCards.tabList().size();
+        String hid = PlayerCards.hiddenCount() > 0 ? "  ·  " + PlayerCards.hiddenCount() + " hidden" : "";
+        String count = n == 0 ? "Nobody else is in the tab list" : n + (n == 1 ? " player" : " players") + " in the tab list" + hid;
+        int px0 = bx;
+        if (pages > 1) {
+            Button.icon(kit, "prev", px0, fy, 24, "chevron_l", "Previous page", page > 0, () -> page--);
+            String pg = (page + 1) + " / " + pages;
+            kit.textCentredY(pg, px0 + 28, fy + 12, Tokens.N800, Role.SMALL);
+            int pw2 = kit.width(pg, Role.SMALL);
+            Button.icon(kit, "next", px0 + 32 + pw2, fy, 24, "chevron_r", "Next page", page < pages - 1, () -> page++);
+            px0 += 32 + pw2 + 24 + Tokens.S4;
+        }
+        kit.textCentredY(kit.ellipsize(count, Role.SMALL, bx + bw - 80 - px0), px0, fy + 12, Tokens.N700, Role.SMALL);
     }
 }

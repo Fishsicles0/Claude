@@ -5,7 +5,16 @@ import net.evadeclient.module.misc.ScreenshotTools;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Screenshots;
 import net.evadeclient.util.Screenshots.Shot;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.Progress;
+import net.evadeclient.gui.kit.SearchField;
+import net.evadeclient.gui.kit.Surface;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
@@ -288,46 +297,68 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
 
     // ------------------------------------------------------------------ grid
 
+    @Override protected String headerIcon() { return "camera"; }
+    @Override protected String searchHint() { return "Search by name or date"; }
+
     @Override
     protected void renderHeaderRight(DrawContext ctx, int right, int y, int mx, int my) {
-        int x = button(ctx, "folder", "Open Folder", right, y, mx, my, 0, b -> openFolder(null));
-        button(ctx, "refresh", "Refresh", x - 6, y, mx, my, 0, b -> reload(null));
+        int x = button("folder", "Open folder", null, right, y, SECONDARY, b -> openFolder(null)) - Tokens.S2;
+        button("refresh", "Refresh", "reset", x, y, GHOST, b -> reload(null));
     }
 
     @Override
     protected int renderContent(DrawContext ctx, int top, int mx, int my) {
         List<Shot> list = filtered();
         if (list.isEmpty()) {
-            String msg = !loaded ? "Loading screenshots..." : shots.isEmpty() ? "Your screenshots will show up here." : "No screenshot matches \"" + search + "\".";
-            text(ctx, msg, cx + (cw - width(msg, Role.BODY)) / 2, top + 40, Theme.TEXT_DIM, Role.BODY);
-            return 80;
+            if (!loaded) {
+                Progress.circle(kit, cx + cw / 2f, top + 60, 14, Float.NaN);
+                String msg = "Loading screenshots";
+                kit.textCentredY(msg, cx + (cw - width(msg, Role.SMALL)) / 2, top + 90, Tokens.N700, Role.SMALL);
+                return 120;
+            }
+            boolean none = shots.isEmpty();
+            return EmptyState.draw(kit, "empty", cx + cw / 2, top + 26, none ? "camera" : "search",
+                    none ? "No screenshots yet" : "Nothing matches",
+                    none ? "Press " + screenshotKey() + " in game and your shots show up here." : "Try part of a file name.",
+                    none ? "Open folder" : null, () -> openFolder(null)) + 40;
         }
         int cols = Math.max(1, (cw + GAP) / (MIN_CARD + GAP));
         int cardW = (cw - GAP * (cols - 1)) / cols;
-        int thumbH = (cardW - 6) * 9 / 16;
-        int cardH = thumbH + 32;
+        int thumbH = (cardW - 8) * 9 / 16;
+        int cardH = thumbH + 36;
         boolean overlay = viewing >= 0;
         for (int i = 0; i < list.size(); i++) {
             int col = i % cols, row = i / cols;
             int x = cx + col * (cardW + GAP), y = top + row * (cardH + GAP);
             if (!inView(y, cardH)) continue;
             Shot s = list.get(i);
-            boolean hv = !overlay && mouseIn(mx, my, x, y, x + cardW, y + cardH);
-            float h = hover("card:" + s.file(), hv);
-            Theme.roundBordered(ctx, x, y, x + cardW, y + cardH, Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h),
-                    Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.7f));
-            Theme.round(ctx, x + 3, y + 3, x + cardW - 3, y + 3 + thumbH, 0xFF000000, Theme.R_XS);
-            Tex t = thumb(s);
-            if (t != null) drawFitted(ctx, t, x + 3, y + 3, cardW - 6, thumbH);
-            else {
-                Tex pending = thumbs.get(s.file());
-                String state = pending != null && pending.failed ? "Can't read this image" : "...";
-                text(ctx, state, x + (cardW - width(state, Role.SMALL)) / 2, y + 3 + thumbH / 2 - 4, Theme.TEXT_FAINT, Role.SMALL);
-            }
-            text(ctx, ellipsize(s.name(), Role.LABEL, cardW - 12), x + 6, y + thumbH + 8, Theme.TEXT, Role.LABEL);
-            text(ctx, ellipsize(when(s) + "  ·  " + size(s.size()), Role.SMALL, cardW - 12), x + 6, y + thumbH + 19, Theme.TEXT_DIM, Role.SMALL);
+            float a = enter(i), f = Theme.fade;
+            Theme.fade = f * a;
+            y += Math.round((1 - a) * 8);
             int index = i;
-            if (!overlay) contentHit(x, y, x + cardW, y + cardH, b -> { if (b == 0) openView(index); });
+            try {
+                Surface.card(kit, "card:" + s.file(), x, y, x + cardW, y + cardH, false, !overlay && Motion.decorative(),
+                        overlay ? null : () -> openView(index));
+                Paint.rect(ctx, x + 4, y + 4, x + cardW - 4, y + 4 + thumbH, Tokens.R_SM, 0xFF000000);
+                Tex t = thumb(s);
+                if (t != null) drawFitted(ctx, t, x + 4, y + 4, cardW - 8, thumbH);
+                else {
+                    Tex pending = thumbs.get(s.file());
+                    if (pending != null && pending.failed) {
+                        String state = "Can't read this image";
+                        kit.textCentredY(state, x + (cardW - width(state, Role.SMALL)) / 2, y + 4 + thumbH / 2f, Tokens.N600, Role.SMALL);
+                    } else {
+                        Progress.circle(kit, x + cardW / 2f, y + 4 + thumbH / 2f, 7, Float.NaN);
+                    }
+                }
+                // A hairline inside the thumbnail edge, so bright shots still read as framed.
+                Paint.ring(ctx, x + 4, y + 4, x + cardW - 4, y + 4 + thumbH, Tokens.R_SM, Theme.alpha(0xFFFFFFFF, 0.06f), 1);
+                kit.textCentredY(ellipsize(s.name(), Role.STRONG, cardW - 16), x + 8, y + thumbH + 16, Tokens.N950, Role.STRONG);
+                kit.textCentredY(ellipsize(when(s) + "  ·  " + size(s.size()), Role.SMALL, cardW - 16), x + 8, y + thumbH + 28, Tokens.N700, Role.SMALL);
+            } finally {
+                Surface.endCard(kit);
+                Theme.fade = f;
+            }
         }
         int rows = (list.size() + cols - 1) / cols;
         return rows * (cardH + GAP);
@@ -341,7 +372,7 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
         viewing = index;
         viewingPath = f.get(index).file();
         renaming = null;
-        searchFocused = false;
+        if (searchFocused()) kit.focus(null, false);
     }
 
     private void closeView() {
@@ -364,62 +395,115 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
         return viewing >= 0 && viewing < f.size() ? f.get(viewing) : null;
     }
 
+    /** The last mouse position and when it last moved: the full view's chrome fades out after 2 s of stillness. */
+    private int lastMx = -1, lastMy = -1;
+    private long movedAt;
+
     @Override
     protected void renderOverlay(DrawContext ctx, int mx, int my) {
-        renderUndo(ctx, mx, my);
         Shot s = current();
         if (s == null) {
             if (viewing >= 0) closeView();
+            renderUndo(ctx, mx, my);
             return;
         }
-        ctx.fill(0, 0, width, height, Theme.fa(0xF0060608));
-        hits.add(new Hit(0, 0, width, height, b -> { })); // nothing under the full view can be clicked
-        int top = 34, bottom = height - 34;
-        Tex t = fullImage(s);
-        if (t != null) drawFitted(ctx, t, 16, top, width - 32, bottom - top);
-        else {
-            String msg = full != null && full.failed ? "Can't read this image" : "Loading...";
-            text(ctx, msg, (width - width(msg, Role.BODY)) / 2, (top + bottom) / 2 - 4, Theme.TEXT_DIM, Role.BODY);
-        }
-        int n = filtered().size();
-        String head = (viewing + 1) + " / " + n + "   " + s.name();
-        text(ctx, ellipsize(head, Role.LABEL, width - 220), 16, 12, Theme.TEXT, Role.LABEL);
-        text(ctx, when(s) + "  ·  " + size(s.size()), 16, 23, Theme.TEXT_DIM, Role.SMALL);
-        button(ctx, "v:close", "Close", width - 16, 10, mx, my, 0, b -> closeView());
+        long now = System.currentTimeMillis();
+        if (mx != lastMx || my != lastMy || renaming != null) { lastMx = mx; lastMy = my; movedAt = now; }
+        // The full view sits outside the window's entrance transform: the whole screen.
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        m.identity();
+        float f0 = Theme.fade;
+        Theme.fade = 1f;
+        try {
+            Theme.fill(ctx, 0, 0, width, height, Theme.alpha(Tokens.N0, 0.96f));
+            barrier("v#scrim", 0, 0, width, height); // nothing under the full view can be clicked
+            int top = 8, bottom = height - 8;
+            Tex t = fullImage(s);
+            if (t != null) drawFitted(ctx, t, 12, top, width - 24, bottom - top);
+            else if (full != null && full.failed) {
+                String msg = "Can't read this image";
+                kit.textCentredY(msg, (width - width(msg, Role.BODY)) / 2, height / 2f, Tokens.N700, Role.BODY);
+            } else {
+                Progress.circle(kit, width / 2f, height / 2f, 14, Float.NaN);
+            }
+            // Chrome over scrims at the top and bottom; it fades away while the mouse rests (not while renaming).
+            float idle = now - movedAt > 2000 ? 0f : 1f;
+            float chrome = kit.anim("v#chrome", idle, Motion.SMOOTH);
+            if (Motion.level() == Motion.Level.OFF) chrome = idle;
+            Theme.fade = Math.max(0.0f, chrome);
+            Paint.vgradient(ctx, 0, 0, width, 64, 0, Theme.alpha(Tokens.N0, 0.72f), Theme.alpha(Tokens.N0, 0f));
+            Paint.vgradient(ctx, 0, height - 72, width, height, 0, Theme.alpha(Tokens.N0, 0f), Theme.alpha(Tokens.N0, 0.78f));
+            int n = filtered().size();
+            String count = (viewing + 1) + " / " + n;
+            int cwid = UiFont.tabularWidth(textRenderer, count, Role.STRONG, smooth);
+            Paint.pill(ctx, 14, 14, 14 + cwid + 16, 32, Theme.alpha(Tokens.N300, 0.85f));
+            UiFont.drawTabular(ctx, textRenderer, count, 22, Math.round(UiFont.centredY(Role.STRONG, 23, smooth)), Tokens.N950, Role.STRONG, smooth);
+            int nx = 14 + cwid + 16 + Tokens.S4;
+            kit.textCentredY(ellipsize(s.name(), Role.STRONG, width - nx - 60), nx, 18, Tokens.N950, Role.STRONG);
+            kit.textCentredY(when(s) + "  ·  " + size(s.size()), nx, 30, Tokens.N800, Role.SMALL);
+            Button.icon(kit, "v:close", width - 14 - 28, 10, 28, "close", "Close (Esc)", true, this::closeView);
 
-        int by = height - 26;
-        if (renaming != null) {
-            renderRename(ctx, by, mx, my);
-            return;
+            int by = height - 14 - Button.Size.MD.h;
+            if (renaming != null) {
+                renderRename(ctx, by, mx, my);
+            } else {
+                Button.icon(kit, "v:prev", 14, by - 2, 28, "chevron_l", "Previous (Left)", n > 1, () -> step(-1));
+                Button.icon(kit, "v:next", 14 + 28 + Tokens.S2, by - 2, 28, "chevron_r", "Next (Right)", n > 1, () -> step(1));
+                int x = width - 14;
+                x -= drawButton("v:delete", "Delete", null, x - Button.width(kit, "Delete", Button.Size.MD, null, false), by, 0, Button.Size.MD, DANGER, true, b -> delete(s)) + Tokens.S3;
+                x -= drawButton("v:rename", "Rename", "edit", x - Button.width(kit, "Rename", Button.Size.MD, "edit", false), by, 0, Button.Size.MD, GHOST, true, b -> startRename(s)) + Tokens.S2;
+                x -= drawButton("v:folder", "Show in folder", null, x - Button.width(kit, "Show in folder", Button.Size.MD, null, false), by, 0, Button.Size.MD, SECONDARY, true, b -> openFolder(s)) + Tokens.S3;
+                drawButton("v:copy", "Copy image", null, x - Button.width(kit, "Copy image", Button.Size.MD, null, false), by, 0, Button.Size.MD, PRIMARY, true,
+                        b -> ScreenshotTools.copy(s.file().toFile()));
+            }
+            Theme.fade = 1f;
+            renderUndo(ctx, mx, my);
+        } finally {
+            Theme.fade = f0;
+            m.popMatrix();
         }
-        int x = width - 16;
-        x = button(ctx, "v:delete", "Delete", x, by, mx, my, 2, b -> delete(s)) - 6;
-        x = button(ctx, "v:rename", "Rename", x, by, mx, my, 0, b -> startRename(s)) - 6;
-        x = button(ctx, "v:folder", "Show In Folder", x, by, mx, my, 0, b -> openFolder(s)) - 6;
-        button(ctx, "v:copy", "Copy Image", x, by, mx, my, 1, b -> ScreenshotTools.copy(s.file().toFile()));
-        int prevW = width("‹ Previous", Role.LABEL) + 14, nextW = width("Next ›", Role.LABEL) + 14;
-        button(ctx, "v:prev", "‹ Previous", 16 + prevW, by, mx, my, 0, b -> step(-1));
-        button(ctx, "v:next", "Next ›", 16 + prevW + 6 + nextW, by, mx, my, 0, b -> step(1));
     }
 
+    private static final String RENAME = "v#rename";
+
     private void renderRename(DrawContext ctx, int by, int mx, int my) {
-        int x1 = 16, x2 = width - 200;
-        Theme.roundBordered(ctx, x1, by, x2, by + 16, Theme.INPUT, Theme.alpha(Theme.RED, 0.8f));
-        String shown = renaming + ((System.currentTimeMillis() / 500) % 2 == 0 ? "_" : "");
-        text(ctx, ellipsize(shown, Role.BODY, x2 - x1 - 12), x1 + 6, by + 4, Theme.TEXT, Role.BODY);
-        int x = button(ctx, "r:cancel", "Cancel", width - 16, by, mx, my, 0, b -> renaming = null) - 6;
-        button(ctx, "r:save", "Save Name", x, by, mx, my, 1, b -> finishRename());
+        int x1 = 14;
+        int sw = Button.width(kit, "Save name", Button.Size.MD, null, false), cwid = Button.width(kit, "Cancel", Button.Size.MD, null, false);
+        int x2 = Math.min(x1 + 420, width - 14 - sw - cwid - 2 * Tokens.S3 - 12);
+        kit.textCentredY("Rename", x1, by - 10, Tokens.N800, Role.LABEL);
+        String typed = SearchField.draw(kit, RENAME, x1, by, x2 - x1, "File name", ".png", false);
+        renaming = typed;
+        int x = width - 14 - sw;
+        drawButton("r:save", "Save name", null, x, by, sw, Button.Size.MD, PRIMARY, true, b -> finishRename());
+        drawButton("r:cancel", "Cancel", null, x - Tokens.S3 - cwid, by, cwid, Button.Size.MD, GHOST, true, b -> cancelRename());
+    }
+
+    private void cancelRename() {
+        renaming = null;
+        kit.focus(null, false);
     }
 
     private void renderUndo(DrawContext ctx, int mx, int my) {
         if (lastDeleted == null) return;
-        if (System.currentTimeMillis() - deletedAt > UNDO_MS) { lastDeleted = null; return; }
+        long now = System.currentTimeMillis();
+        if (now - deletedAt > UNDO_MS) { lastDeleted = null; return; }
         String msg = "Moved " + lastDeleted.original().getFileName() + " to the trash";
-        int w = width(msg, Role.LABEL) + 90;
-        int x = (width - w) / 2, y = height - (viewing >= 0 ? 58 : 30);
-        Theme.roundBordered(ctx, x, y, x + w, y + 22, Theme.CARD, Theme.BORDER);
-        text(ctx, msg, x + 8, y + 7, Theme.TEXT_SOFT, Role.LABEL);
-        button(ctx, "undo", "Undo", x + w - 6, y + 3, mx, my, 1, b -> undo());
+        int w = width(msg, Role.BODY) + Button.width(kit, "Undo", Button.Size.SM, "reset", false) + 40;
+        float in = Motion.decorative() ? Motion.standard(Motion.clamp01((now - deletedAt) / (float) Motion.DUR_BASE)) : 1f;
+        int x = (width - w) / 2, y = height - (viewing >= 0 ? 80 : 44) + Math.round((1 - in) * 8);
+        float f = Theme.fade;
+        Theme.fade = f * Math.min(1f, in * 1.5f);
+        try {
+            Paint.surface(ctx, x, y, x + w, y + 28, Tokens.R_MD, Tokens.E4, 0, Float.NaN);
+            Icons.draw(ctx, "check", x + 10, y + 8, 12, Tokens.OK);
+            kit.textCentredY(msg, x + 28, y + 14, Tokens.N950, Role.BODY);
+            button("undo", "Undo", "reset", x + w - 4, y + 4, SECONDARY, b -> undo());
+            float left = 1f - (now - deletedAt) / (float) UNDO_MS;
+            Paint.rect(ctx, x + 8, y + 26, x + 8 + (w - 16) * left, y + 27, 0.5f, Theme.alpha(Tokens.OK, 0.6f));
+        } finally {
+            Theme.fade = f;
+        }
     }
 
     // ------------------------------------------------------------------ actions
@@ -481,17 +565,20 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
     private void startRename(Shot s) {
         String n = s.name();
         renaming = n.toLowerCase(Locale.ROOT).endsWith(".png") ? n.substring(0, n.length() - 4) : n;
+        SearchField.set(kit, RENAME, renaming);
+        kit.focus(RENAME, false);
     }
 
     private void finishRename() {
         Shot s = current();
-        String name = renaming;
+        String name = renaming == null ? null : SearchField.text(kit, RENAME);
         if (s == null || name == null) { renaming = null; return; }
         if (Screenshots.cleanName(name) == null) {
             Notifications.push("Rename", "Use a plain file name (no / \\ : * ? \" < > |)", false);
             return;
         }
         renaming = null;
+        kit.focus(null, false);
         LOADER.execute(() -> {
             try {
                 Path p = Screenshots.rename(s.file(), name);
@@ -513,12 +600,12 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
         boolean ctrl = (input.modifiers() & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0;
         if (renaming != null) {
             switch (key) {
-                case GLFW.GLFW_KEY_ESCAPE -> renaming = null;
+                case GLFW.GLFW_KEY_ESCAPE -> cancelRename();
                 case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> finishRename();
-                case GLFW.GLFW_KEY_BACKSPACE -> {
-                    if (!renaming.isEmpty()) renaming = ctrl ? "" : renaming.substring(0, renaming.offsetByCodePoints(renaming.length(), -1));
+                default -> {
+                    if (!kit.isFocused(RENAME)) kit.focus(RENAME, false);
+                    kit.keyPressed(key, input.modifiers());
                 }
-                default -> { }
             }
             return true;
         }
@@ -544,7 +631,10 @@ public final class ScreenshotGalleryScreen extends EvadePanelScreen {
         if (renaming != null) {
             if (input.isValidChar()) {
                 String s = input.asString();
-                if (renaming.length() + s.length() <= 100 && !s.isEmpty() && "/\\:*?\"<>|".indexOf(s.charAt(0)) < 0) renaming += s;
+                if (SearchField.text(kit, RENAME).length() + s.length() <= 100 && !s.isEmpty() && "/\\:*?\"<>|".indexOf(s.charAt(0)) < 0) {
+                    if (!kit.isFocused(RENAME)) kit.focus(RENAME, false);
+                    kit.charTyped(input.codepoint());
+                }
             }
             return true;
         }

@@ -1,7 +1,11 @@
 package net.evadeclient.gui;
 
 import net.evadeclient.setting.ItemListSetting;
+import net.evadeclient.gui.kit.Paint;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont;
+import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
@@ -23,25 +27,31 @@ public final class ItemListRow {
     public static int draw(DrawContext ctx, ItemListSetting setting, int right, int midY, boolean hover) {
         List<Item> items = setting.items();
         MinecraftClient mc = MinecraftClient.getInstance();
+        var cs = net.evadeclient.EvadeClient.modules == null ? null
+                : net.evadeclient.EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class);
+        boolean smooth = (cs == null || cs.smoothFont.get()) && !Theme.square;
         int shown = Math.min(MAX_ICONS, items.size());
-        String more = items.size() > shown ? "+" + (items.size() - shown) : items.isEmpty() ? "none" : "";
-        int moreW = more.isEmpty() ? 0 : mc.textRenderer.getWidth(more) + 4;
-        int w = Math.max(36, shown * (ICON + 1) + moreW + 10);
+        String more = items.size() > shown ? "+" + (items.size() - shown) : items.isEmpty() ? "None" : "";
+        int moreW = more.isEmpty() ? 0 : UiFont.width(mc.textRenderer, more, Role.SMALL, smooth) + 4;
+        int w = Math.max(44, shown * (ICON + 2) + moreW + 12);
         int x1 = right - w;
-        Theme.roundBordered(ctx, x1, midY - 7, right, midY + 7, hover ? Theme.CONTROL_HOVER : Theme.CONTROL,
-                hover ? Theme.BORDER_HOVER : Theme.BORDER);
-        int x = x1 + 5;
+        int h = 18;
+        // A kit dropdown-like trigger: raised e3 surface, brighter while hovered.
+        Paint.surface(ctx, x1, midY - h / 2f, right, midY + h / 2f, Tokens.R_SM,
+                Tokens.E3.noAmbient().withFill(hover ? Tokens.N300 : Tokens.N250), hover ? 1f : 0f, Float.NaN);
+        int x = x1 + 6;
         for (int i = 0; i < shown; i++) {
             ctx.getMatrices().pushMatrix();
             ctx.getMatrices().translate(x, midY - ICON / 2f);
             ctx.getMatrices().scale(ICON / 16f, ICON / 16f);
             ctx.drawItem(new ItemStack(items.get(i)), 0, 0);
             ctx.getMatrices().popMatrix();
-            x += ICON + 1;
+            x += ICON + 2;
         }
         if (!more.isEmpty()) {
-            int tx = items.isEmpty() ? x1 + (w - mc.textRenderer.getWidth(more)) / 2 : x + 2;
-            ctx.drawText(mc.textRenderer, more, tx, midY - 4, items.isEmpty() ? Theme.TEXT_FAINT : Theme.TEXT_DIM, false);
+            int tx = items.isEmpty() ? x1 + (w - UiFont.width(mc.textRenderer, more, Role.SMALL, smooth)) / 2 : x + 2;
+            float ty = UiFont.centredY(Role.SMALL, midY, smooth);
+            UiFont.draw(ctx, mc.textRenderer, more, tx, Math.round(ty), items.isEmpty() ? Tokens.N600 : Tokens.N800, Role.SMALL, smooth);
         }
         return w;
     }

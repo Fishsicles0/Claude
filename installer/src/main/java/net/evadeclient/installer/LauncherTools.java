@@ -214,7 +214,7 @@ final class LauncherTools {
             boolean on = t == template;
             float a = v.anim(id, id.equals(v.hovered));
             int cx = x + k * (cw + gap);
-            g.setColor(on ? new Color(225, 29, 46, 40) : mix(FIELD, new Color(0x1A1A20), a));
+            g.setColor(on ? new Color(225, 29, 46, 40) : mix(FIELD, new Color(0x181B21), a));
             g.fill(new RoundRectangle2D.Double(cx, cy, cw, ch, 14, 14));
             g.setColor(on ? RED : LauncherView.BORDER);
             g.draw(new RoundRectangle2D.Double(cx + .5, cy + .5, cw - 1, ch - 1, 14, 14));
@@ -277,7 +277,7 @@ final class LauncherTools {
     }
 
     private void veil(Graphics2D g) {
-        g.setColor(new Color(4, 4, 6, 150));
+        g.setColor(new Color(4, 5, 7, 150));
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
     }
@@ -312,7 +312,7 @@ final class LauncherTools {
             if (gr.experimental()) {
                 g.setFont(v.interBold.deriveFont(9.5f));
                 int bw = g.getFontMetrics().stringWidth("EXPERIMENTAL") + 14;
-                g.setColor(new Color(245, 165, 36, 36));
+                g.setColor(new Color(251, 191, 36, 36));
                 g.fill(new RoundRectangle2D.Double(tx, ry + 12, bw, 16, 16, 16));
                 g.setColor(AMBER);
                 center(g, "EXPERIMENTAL", tx, ry + 12, bw, 16);
@@ -410,7 +410,7 @@ final class LauncherTools {
         g.setColor(TEXT);
         g.drawString(ellipsizeEnd(g, importBusy != null ? importBusy : importTitle, iw), ix, y + 22);
         if (importBusy != null) {
-            g.setColor(new Color(0x24242B));
+            g.setColor(new Color(0x21252D));
             g.fill(new RoundRectangle2D.Double(ix, y + 40, iw, 4, 4, 4));
             g.setColor(RED);
             g.fill(new RoundRectangle2D.Double(ix, y + 40, iw * Math.max(0.03, Math.min(1, importProgress)), 4, 4, 4));
@@ -495,7 +495,7 @@ final class LauncherTools {
     /** While a file is dragged over the window: a veil saying where it'll go. */
     void paintDrag(Graphics2D g) {
         if (!dragging && dropBusy == null) return;
-        g.setColor(new Color(4, 4, 6, 170));
+        g.setColor(new Color(4, 5, 7, 170));
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
         int w = 520, h = 190, x = (W - w) / 2, y = (H - h) / 2;

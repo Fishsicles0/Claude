@@ -42,7 +42,19 @@ public final class TitleScene {
             mx.set(tx);
             my.set(ty);
         }
+        ox = mx.x;
+        oy = my.x;
     }
+
+    private static float ox, oy;
+
+    /**
+     * The parallax shift of a depth plane, in design px: {@code depth} px at the screen's edge, against the cursor
+     * (nearer planes move more; a negative depth floats with it). 0 while the scene is still.
+     */
+    public static float planeX(float depth) { return -ox * depth; }
+
+    public static float planeY(float depth) { return -oy * depth * 0.6f; }
 
     /** The parallax offset, -1..1. */
     public float offX() { return mx.x; }

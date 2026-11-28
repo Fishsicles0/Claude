@@ -35,8 +35,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext ctx) {
         if (Boolean.getBoolean("evade.footage")) { Footage.film(ctx); return; } // scripts/film-footage.sh
         if (Boolean.getBoolean("evade.menushot")) { menuShots(ctx); return; }      // ./gradlew runClientGameTest -PmenuShot
+        if (Boolean.getBoolean("evade.titleshots")) { TitleScreenTest.shots(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.titleshots=true
+        if (Boolean.getBoolean("evade.kitleak")) { GuiKitTest.soak(ctx); return; } // WP1-TEMP leak soak, remove
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         if (Boolean.getBoolean("evade.shadershots")) { EvadeShadersTest.film(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.shadershots=true
+        if (Boolean.getBoolean("evade.wp4shots")) { Wp4Shots.run(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.wp4shots=true (GUI panel screenshots)
 
         if (!Boolean.getBoolean("evade.fpsonly")) testStartScreens(ctx); // the FPS pass profile skips the timing-sensitive start screens
 
@@ -67,6 +70,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             // JAVA_TOOL_OPTIONS=-Devade.perfonly=true: only the v2.5 performance checks (quick run for that area)
             if (Boolean.getBoolean("evade.perfonly")) { PerfV25Test.run(ctx, sp); return; }
             if (Boolean.getBoolean("evade.fpsonly")) { FpsPassTest.profile(ctx, sp); return; } // FPS pass profiling
+            MenuV3Test.run(ctx, sp); // the Evade hub, GUI 3.0 (-Devade.menuv3only=true: only this)
             testCore(ctx, sp);
             testQualityOfLife(ctx, sp);
             testQolHud(ctx, sp);
@@ -2977,14 +2981,14 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         check(found.contains("Zoom") && found.size() < full && cleared == full && stillOpen,
                 "Menu search finds Zoom (" + found.size() + " of " + full + " mods) and Escape clears it (" + cleared + ")");
         // A search on another page looks through every category: on the HUD page, "zoom" still finds Zoom.
-        ctx.getInput().setCursorPos(140 * 2, 262 * 2);
+        ctx.getInput().setCursorPos(132 * 2, 246 * 2); // sidebar: HUD
         ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(3);
         ctx.getInput().typeChars("zoom");
         ctx.waitTicks(3);
         List<String> hudSearch = visibleNames(ctx);
         ctx.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
-        ctx.getInput().setCursorPos(140 * 2, 106 * 2);
+        ctx.getInput().setCursorPos(132 * 2, 82 * 2); // sidebar: All mods
         ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(3);
         check(hudSearch.contains("Zoom"), "Menu search on the HUD page searches every category (" + hudSearch + ")");
@@ -3037,14 +3041,14 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         ctx.runOnClient(c -> setMode(cs, "GUI Style", "List"));
         ctx.setScreen(EvadeMenu::new);
         ctx.waitTicks(6);
-        // Enabled toggle sits in the header's right half (seg at x ~702..852, y ~86..108 GUI).
+        // The All / Enabled filter sits under the page title (x ~246..330, y ~66..88 GUI).
         int enBefore = visibleRowCount(ctx);
-        ctx.getInput().setCursorPos(810 * 2, 97 * 2);
+        ctx.getInput().setCursorPos(300 * 2, 77 * 2);
         ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
         int enAfter = visibleRowCount(ctx);
         check(enAfter < enBefore && enAfter > 0, "All/Enabled filter narrows the list (" + enBefore + " -> " + enAfter + ")");
-        ctx.getInput().setCursorPos(740 * 2, 97 * 2); // back to All
+        ctx.getInput().setCursorPos(260 * 2, 77 * 2); // back to All
         ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
         ctx.waitTicks(3);
 
@@ -3352,11 +3356,11 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 14; i++) frame.run();
             // Sidebar: the highlight glides down to HUD while the list fades and rises in, then back up to All Mods.
-            in.setCursorPos(280, 524);
+            in.setCursorPos(264, 492);
             for (int i = 0; i < 4; i++) frame.run();
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 14; i++) frame.run();
-            in.setCursorPos(280, 212);
+            in.setCursorPos(264, 164);
             for (int i = 0; i < 4; i++) frame.run();
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 14; i++) frame.run();
@@ -3364,14 +3368,14 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             in.setCursorPos(800, 280);
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
             for (int i = 0; i < 16; i++) frame.run();
-            in.setCursorPos(572, 120);
+            in.setCursorPos(504, 76);
             for (int i = 0; i < 4; i++) frame.run();
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 16; i++) frame.run();
             check(ctx.computeOnClient(c -> c.currentScreen instanceof EvadeMenu),
                     "Sidebar clicks and a mod page's Back keep the menu open (page fade-through, sliding highlight)");
             // Settings page: hover and press the Menu Key box (it dips and rebounds), let it pulse, then Escape.
-            in.setCursorPos(280, 788);
+            in.setCursorPos(264, 712);
             for (int i = 0; i < 4; i++) frame.run();
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 6; i++) frame.run();
@@ -3382,7 +3386,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
             in.pressKey(GLFW.GLFW_KEY_ESCAPE);
             for (int i = 0; i < 10; i++) frame.run();
             // Back to All Mods so the theme/accent steps run where they did.
-            in.setCursorPos(280, 212);
+            in.setCursorPos(264, 164);
             for (int i = 0; i < 4; i++) frame.run();
             in.pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             for (int i = 0; i < 10; i++) frame.run();

@@ -6,14 +6,23 @@ import net.evadeclient.module.visuals.Waypoints;
 import net.evadeclient.module.visuals.Waypoints.Point;
 import net.evadeclient.setting.ColorSetting;
 import net.evadeclient.util.Notifications;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.Dropdown;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.SearchField;
+import net.evadeclient.gui.kit.Segmented;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.evadeclient.util.WaypointIcons;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import org.lwjgl.glfw.GLFW;
 
@@ -29,7 +38,7 @@ import java.util.Locale;
  * as plain text to send yourself. Nothing here teleports or sends anything.
  */
 public final class WaypointManagerScreen extends EvadePanelScreen {
-    private static final int ROW_H = 30, EDIT_H = 112;
+    private static final int ROW_H = 36, EDIT_H = 124;
     private static final String[] SORTS = {"Distance", "Name", "Newest"};
     private static final int[] RANGES = {0, 64, 128, 256, 512, 1000, 2000, 5000, 10000};
     private static final long UNDO_MS = 8000;
@@ -62,9 +71,11 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
 
     private static Waypoints wp() { return EvadeClient.modules == null ? null : EvadeClient.modules.get(Waypoints.class); }
 
-    @Override protected int prefWidth() { return 660; }
-    @Override protected int prefHeight() { return 420; }
+    @Override protected int prefWidth() { return 700; }
+    @Override protected int prefHeight() { return 440; }
     @Override protected boolean hasSearch() { return true; }
+    @Override protected String searchHint() { return "Search points, dimensions, icons"; }
+    @Override protected String headerIcon() { return "waypoint"; }
 
     @Override
     protected String subtitle() {
@@ -82,8 +93,21 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
 
     @Override
     protected void renderHeaderRight(DrawContext ctx, int right, int y, int mx, int my) {
-        int x = button(ctx, "sort", "Sort: " + SORTS[sort], right - 24, y, mx, my, 0, b -> sort = (sort + (b == 1 ? SORTS.length - 1 : 1)) % SORTS.length);
-        button(ctx, "add", "+ Add here", x - 6, y, mx, my, 1, b -> addHere());
+        boolean can = client != null && client.player != null;
+        int w = Button.width(kit, "Add here", Button.Size.SM, "plus", false);
+        drawButton("add", "Add here", "plus", right - w, y, w, Button.Size.SM, PRIMARY, can, b -> addHere());
+        headerReach(right - w);
+    }
+
+    @Override
+    protected void renderToolbar(DrawContext ctx, int x, int y, int right, int mx, int my) {
+        int dw = 132;
+        String lbl = "Sort";
+        int lw = width(lbl, Role.LABEL);
+        kit.textCentredY(lbl, right - dw - lw - Tokens.S3, y + 12, Tokens.N700, Role.LABEL);
+        Dropdown.draw(kit, "sort", right - dw, y, dw, List.of(SORTS), SORTS[sort], true, o -> {
+            for (int i = 0; i < SORTS.length; i++) if (SORTS[i].equals(o)) sort = i;
+        });
     }
 
     private void addHere() {
@@ -119,20 +143,24 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
     protected int renderContent(DrawContext ctx, int top, int mx, int my) {
         Waypoints w = wp();
         if (w == null || client.world == null) {
-            String msg = "Join a world to manage its waypoints";
-            text(ctx, msg, cx + (cw - width(msg, Role.BODY)) / 2, top + 30, Theme.TEXT_DIM, Role.BODY);
-            return 60;
+            return EmptyState.draw(kit, "empty", cx + cw / 2, top + 30, "waypoint", "No world", "Join a world to manage its waypoints.", null, null) + 50;
         }
         List<Point> list = points();
         if (list.isEmpty()) {
-            String msg = search.isBlank() ? "No waypoints yet. Add one here, or type .wp add <name>" : "No waypoints match \"" + search.strip() + "\"";
-            text(ctx, msg, cx + (cw - width(msg, Role.BODY)) / 2, top + 30, Theme.TEXT_DIM, Role.BODY);
-            return 60;
+            boolean none = search.isBlank();
+            return EmptyState.draw(kit, "empty", cx + cw / 2, top + 30, none ? "waypoint" : "search",
+                    none ? "No waypoints yet" : "Nothing matches", none ? "Add one where you stand, or type .wp add <name> in chat." : "Try another name or a dimension.",
+                    null, null) + 50;
         }
         boolean hideCoords = w.coordsHidden();
-        int y = top;
+        int y = top, i = 0;
         for (Point p : list) {
-            if (inView(y, ROW_H)) renderRow(ctx, w, p, y, mx, my, hideCoords);
+            if (inView(y, ROW_H)) {
+                float a = enter(i), f = Theme.fade;
+                Theme.fade = f * a;
+                try { renderRow(ctx, w, p, y + Math.round((1 - a) * 6), mx, my, hideCoords); } finally { Theme.fade = f; }
+            }
+            i++;
             y += ROW_H;
             if (p.equals(editing)) {
                 if (inView(y, EDIT_H)) renderEditor(ctx, w, p, y, mx, my);
@@ -144,66 +172,75 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
 
     private void renderRow(DrawContext ctx, Waypoints w, Point p, int y, int mx, int my, boolean hideCoords) {
         boolean open = p.equals(editing);
-        boolean hv = mouseIn(mx, my, cx, y, cx + cw, y + ROW_H - 3);
+        int y2 = y + ROW_H - 3;
+        boolean hv = mouseIn(mx, my, cx, y, cx + cw, y2);
         float h = hover("row:" + p.name() + p.dim(), hv);
-        int fill = open ? Theme.tint(0.08f) : Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, h);
-        Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, fill);
+        rowSurface(cx, y, cx + cw, y2, h, open);
+        float mid = (y + y2) / 2f;
         int color = Waypoints.color(p);
-        Theme.round(ctx, cx, y + 5, cx + 2, y + ROW_H - 8, color, 1);
-        if (WaypointIcons.has(p.icon())) WaypointIcons.draw(ctx, p.icon(), cx + 10, y + 5, 2, color);
-        else Theme.disc(ctx, cx + 15, y + 9, 9, color);
+        // The point's colour and icon in a tile, lit by its own colour.
+        int tx1 = cx + 8, ty1 = Math.round(mid - 12);
+        Paint.rect(ctx, tx1, ty1, tx1 + 24, ty1 + 24, Tokens.R_XS, Theme.lerpColor(Tokens.N250, color | 0xFF000000, p.hidden() ? 0.04f : 0.14f));
+        Paint.ring(ctx, tx1, ty1, tx1 + 24, ty1 + 24, Tokens.R_XS, Theme.alpha(color | 0xFF000000, p.hidden() ? 0.15f : 0.35f), 1);
+        if (WaypointIcons.has(p.icon())) WaypointIcons.draw(ctx, p.icon(), tx1 + 4, ty1 + 4, 2, color);
+        else Paint.circle(ctx, tx1 + 12, ty1 + 12, 8, color | 0xFF000000);
 
-        int tx = cx + 34;
-        int nameColor = p.hidden() ? Theme.TEXT_FAINT : Theme.TEXT;
-        text(ctx, ellipsize(p.name(), Role.STRONG, cw / 2 - 40), tx, y + 5, nameColor, Role.STRONG);
+        int tx = cx + 42;
+        int nameColor = p.hidden() ? Tokens.N600 : Tokens.N950;
+        String name = ellipsize(p.name(), Role.STRONG, cw / 2 - 60);
+        kit.textCentredY(name, tx, mid - 6, nameColor, Role.STRONG);
+        int bx = tx + width(name, Role.STRONG) + Tokens.S3;
+        if (p.equals(w.target())) bx += Badge.draw(kit, bx, Math.round(mid - 6 - Badge.H / 2f), "Target", Badge.Tone.ACCENT) + Tokens.S2;
+        if (p.hidden()) Badge.draw(kit, bx, Math.round(mid - 6 - Badge.H / 2f), "Hidden", Badge.Tone.NEUTRAL);
         double d = w.distanceTo(p);
         StringBuilder sub = new StringBuilder(Waypoints.dimensionName(p.dim()));
         if (!hideCoords) sub.append("  ·  ").append(p.x()).append(", ").append(p.y()).append(", ").append(p.z());
-        sub.append("  ·  ").append(d < 0 ? "other dimension" : Math.round(d) + "m");
-        if (p.hidden()) sub.append("  ·  hidden");
-        if (p.equals(w.target())) sub.append("  ·  target");
-        if (p.range() > 0) sub.append("  ·  shows within ").append(p.range()).append("m");
-        text(ctx, ellipsize(sub.toString(), Role.SMALL, cw - 34 - 300), tx, y + 17, Theme.TEXT_DIM, Role.SMALL);
+        if (p.range() > 0) sub.append("  ·  shows within ").append(p.range()).append(" m");
+        kit.textCentredY(ellipsize(sub.toString(), Role.SMALL, cw - 42 - 330), tx, mid + 7, Tokens.N700, Role.SMALL);
 
-        // Clicking the row itself opens or closes its editor (the buttons, registered after, are checked first).
-        contentHit(cx, y, cx + cw, y + ROW_H - 3, b -> { if (p.equals(editing)) closeEditor(); else openEditor(p); });
-        int right = cx + cw - 6, by = y + 5;
-        right = button(ctx, "del:" + key(p), "Delete", right, by, mx, my, 2, b -> delete(p)) - 4;
-        right = button(ctx, "share:" + key(p), "Share", right, by, mx, my, 0, b -> share(p)) - 4;
-        right = button(ctx, "hide:" + key(p), p.hidden() ? "Show" : "Hide", right, by, mx, my, 0,
-                b -> w.replacePoint(p, p.withHidden(!p.hidden()))) - 4;
-        button(ctx, "edit:" + key(p), open ? "Done" : "Edit", right, by, mx, my, open ? 1 : 0, b -> {
+        // Clicking the row itself opens or closes its editor (the buttons, registered after, are on top).
+        contentHit("row:" + key(p), cx, y, cx + cw, y2, b -> { if (p.equals(editing)) closeEditor(); else openEditor(p); });
+        int right = cx + cw - 8, by = Math.round(mid - 10);
+        right = button("del:" + key(p), "Delete", null, right, by, DANGER, b -> delete(p)) - 2;
+        right = button("share:" + key(p), "Share", null, right, by, GHOST, b -> share(p)) - 2;
+        right = button("hide:" + key(p), p.hidden() ? "Show" : "Hide", null, right, by, GHOST,
+                b -> w.replacePoint(p, p.withHidden(!p.hidden()))) - Tokens.S3;
+        right = button("edit:" + key(p), open ? "Done" : "Edit", open ? "check" : "edit", right, by, open ? SELECTED : SECONDARY, b -> {
             if (open) closeEditor(); else openEditor(p);
-        });
+        }) - Tokens.S5;
+        // Distance: the row's number, tabular so the column doesn't jitter.
+        String dist = d < 0 ? "other dim." : Math.round(d) + " m";
+        int dw = d < 0 ? width(dist, Role.SMALL) : UiFont.tabularWidth(textRenderer, dist, Role.STRONG, smooth);
+        if (d < 0) kit.textCentredY(dist, right - dw, mid, Tokens.N600, Role.SMALL);
+        else UiFont.drawTabular(ctx, textRenderer, dist, right - dw, Math.round(UiFont.centredY(Role.STRONG, mid, smooth)), Tokens.N900, Role.STRONG, smooth);
     }
 
     private static String key(Point p) { return p.name() + "@" + p.dim(); }
 
     private void renderEditor(DrawContext ctx, Waypoints w, Point p, int y, int mx, int my) {
-        Theme.roundBordered(ctx, cx + 8, y - 2, cx + cw, y + EDIT_H - 6, Theme.CARD, Theme.BORDER);
-        int lx = cx + 20, vx = cx + 96;
-        int row = y + 6;
+        Paint.surface(ctx, cx + 12, y - 1, cx + cw, y + EDIT_H - 6, Tokens.R_MD, Tokens.SUNKEN.withFill(Tokens.N150), 0, Float.NaN);
+        Paint.slant(ctx, cx + 4, y + 6, cx + 6, y + EDIT_H - 13, Theme.alpha(Tokens.A500, 0.5f));
+        int lx = cx + 26, vx = cx + 104;
+        int row = y + 8;
 
         // Name
-        text(ctx, "Name", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
-        int fx2 = Math.min(cx + cw - 12, vx + 220);
-        boolean fh = mouseIn(mx, my, vx, row, fx2, row + 16);
-        Theme.roundBordered(ctx, vx, row, fx2, row + 16, Theme.INPUT, nameFocused ? Theme.RED : fh ? Theme.BORDER_HOVER : Theme.BORDER);
-        String shown = nameFocused ? nameBuffer : p.name();
-        text(ctx, ellipsize(shown, Role.BODY, fx2 - vx - 12), vx + 6, row + 4, Theme.TEXT, Role.BODY);
-        if (nameFocused && (System.currentTimeMillis() / 500) % 2 == 0) {
-            int cxp = vx + 6 + Math.min(width(shown, Role.BODY), fx2 - vx - 12);
-            Theme.fill(ctx, cxp + 1, row + 3, cxp + 2, row + 13, Theme.TEXT);
-        }
-        nameRect = new int[]{vx, row, fx2, row + 16};
-        contentHit(vx, row, fx2, row + 16, b -> { nameFocused = true; if (nameBuffer == null) nameBuffer = p.name(); });
+        label("Name", lx, row + 12);
+        int fx2 = Math.min(cx + cw - 140, vx + 240);
+        if (nameFocused && !kit.isFocused(NAME)) commitName(); // focus moved away (Tab): keep what was typed
+        if (!kit.isFocused(NAME)) SearchField.set(kit, NAME, p.name());
+        String typed = SearchField.draw(kit, NAME, vx, row, fx2 - vx, "Point name", null, false);
+        if (typed.length() > 32) SearchField.set(kit, NAME, typed.substring(0, 32));
+        nameFocused = kit.isFocused(NAME);
+        if (nameFocused) nameBuffer = SearchField.text(kit, NAME);
+        nameRect = new int[]{vx, row, fx2, row + 24};
         boolean isTarget = p.equals(w.target());
-        button(ctx, "target:" + key(p), isTarget ? "Clear target" : "Set as target", cx + cw - 12, row, mx, my, isTarget ? 1 : 0,
-                b -> { w.setTarget(isTarget ? null : p); });
-        row += 22;
+        int tw = Button.width(kit, isTarget ? "Clear target" : "Set as target", Button.Size.SM, "waypoint", false);
+        drawButton("target:" + key(p), isTarget ? "Clear target" : "Set as target", isTarget ? null : "waypoint", cx + cw - 12 - tw, row + 2, tw,
+                Button.Size.SM, isTarget ? SELECTED : SECONDARY, true, b -> w.setTarget(isTarget ? null : p));
+        row += 30;
 
-        // Colour
-        text(ctx, "Colour", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
+        // Colour: "A" is the automatic colour
+        label("Colour", lx, row + 8);
         int sx = vx;
         int[] colors = new int[ColorSetting.PALETTE.length + 1];
         colors[0] = 0;
@@ -211,71 +248,61 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         for (int c : colors) {
             boolean sel = (p.color() & 0xFFFFFF) == (c & 0xFFFFFF) && (p.color() == 0) == (c == 0);
             int shownC = c == 0 ? Waypoints.color(new Point(p.name(), p.dim(), 0, 0, 0)) : c;
-            if (sel) Theme.round(ctx, sx - 2, row - 1, sx + 15, row + 16, Theme.RED, 2);
-            Theme.round(ctx, sx, row + 1, sx + 13, row + 14, shownC | 0xFF000000, 2);
-            if (c == 0) text(ctx, "A", sx + 4, row + 4, 0xFF000000, Role.SMALL);
+            boolean sh = mouseIn(mx, my, sx - 1, row, sx + 15, row + 16);
+            if (sel) Paint.ring(ctx, sx - 2.5f, row - 0.5f, sx + 16.5f, row + 16.5f, 4.5f, Tokens.N950, 2);
+            else if (sh) Paint.ring(ctx, sx - 2.5f, row - 0.5f, sx + 16.5f, row + 16.5f, 4.5f, Theme.alpha(Tokens.N950, 0.35f), 1);
+            Paint.rect(ctx, sx, row + 2, sx + 14, row + 14, Tokens.R_XS, shownC | 0xFF000000);
+            if (c == 0) kit.textCentredY("A", sx + 7 - width("A", Role.TINY) / 2, row + 8, 0xCC000000, Role.TINY);
             final int pick = c;
-            contentHit(sx - 1, row, sx + 14, row + 15, b -> w.replacePoint(p, p.withColor(pick)));
-            sx += 17;
+            contentHit("col:" + c, sx - 1, row, sx + 15, row + 16, b -> w.replacePoint(p, p.withColor(pick)));
+            sx += 19;
         }
-        row += 22;
+        row += 24;
 
         // Icon
-        text(ctx, "Icon", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
+        label("Icon", lx, row + 9);
         int ix = vx;
         for (String icon : WaypointIcons.NAMES) {
             boolean none = icon.equals("None");
             boolean sel = none ? !WaypointIcons.has(p.icon()) : icon.equals(p.icon());
-            boolean ih = mouseIn(mx, my, ix, row - 1, ix + 20, row + 17);
-            Theme.roundBordered(ctx, ix, row - 1, ix + 20, row + 17, sel ? Theme.tint(0.22f) : ih ? Theme.CONTROL_HOVER : Theme.CONTROL,
-                    sel ? Theme.RED : Theme.BORDER);
-            if (none) text(ctx, "–", ix + 7, row + 4, Theme.TEXT_DIM, Role.BODY);
-            else WaypointIcons.draw(ctx, icon, ix + 1, row, 2, Waypoints.color(p));
+            boolean ih = mouseIn(mx, my, ix, row - 1, ix + 20, row + 19);
+            int fill = sel ? Tokens.ACCENT_SURFACE : ih ? Tokens.N300 : Tokens.N250;
+            Paint.rect(ctx, ix, row - 1, ix + 20, row + 19, Tokens.R_XS, fill);
+            if (sel) Paint.ring(ctx, ix, row - 1, ix + 20, row + 19, Tokens.R_XS, Theme.alpha(Tokens.A500, 0.7f), 1);
+            if (none) kit.textCentredY("–", ix + 10 - width("–", Role.BODY) / 2, row + 9, Tokens.N700, Role.BODY);
+            else WaypointIcons.draw(ctx, icon, ix + 1, row + 1, 2, Waypoints.color(p));
             final String pick = none ? null : icon;
-            contentHit(ix, row - 1, ix + 20, row + 17, b -> w.replacePoint(p, p.withIcon(pick)));
+            contentHit("icon:" + icon, ix, row - 1, ix + 20, row + 19, b -> w.replacePoint(p, p.withIcon(pick)));
             ix += 23;
         }
-        row += 24;
+        row += 26;
 
         // Beam and range
-        text(ctx, "Beam", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
-        String[] beams = {"Default", "Always", "Never"};
-        int bx = vx;
-        for (int i = 0; i < beams.length; i++) {
-            final int mode = i;
-            boolean sel = p.beam() == i;
-            int bw = width(beams[i], Role.LABEL) + 14;
-            boolean bh = mouseIn(mx, my, bx, row, bx + bw, row + 16);
-            Theme.roundBordered(ctx, bx, row, bx + bw, row + 16, sel ? Theme.tint(0.22f) : bh ? Theme.CONTROL_HOVER : Theme.CONTROL,
-                    sel ? Theme.RED : Theme.BORDER);
-            text(ctx, beams[i], bx + 7, row + 4, sel ? Theme.TEXT : Theme.TEXT_SOFT, Role.LABEL);
-            contentHit(bx, row, bx + bw, row + 16, b -> w.replacePoint(p, p.withBeam(mode)));
-            bx += bw + 4;
-        }
-        int rx = bx + 24;
-        text(ctx, "Show within", rx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
-        rx += width("Show within", Role.LABEL) + 8;
-        String rv = p.range() == 0 ? "Any distance" : p.range() + " m";
-        int rw = Math.max(90, width(rv, Role.LABEL) + 30);
-        boolean rh = mouseIn(mx, my, rx, row, rx + rw, row + 16);
-        Theme.roundBordered(ctx, rx, row, rx + rw, row + 16, rh ? Theme.CONTROL_HOVER : Theme.CONTROL, Theme.BORDER);
-        text(ctx, "‹", rx + 5, row + 4, Theme.TEXT_DIM, Role.LABEL);
-        text(ctx, "›", rx + rw - 9, row + 4, Theme.TEXT_DIM, Role.LABEL);
-        text(ctx, rv, rx + (rw - width(rv, Role.LABEL)) / 2, row + 4, Theme.TEXT, Role.LABEL);
-        final int rxf = rx, rwf = rw;
-        contentHit(rx, row, rx + rw, row + 16, b -> {
-            double mxNow = client.mouse.getScaledX(client.getWindow());
-            boolean forward = b == 0 && mxNow >= rxf + rwf / 2.0;
-            w.replacePoint(p, p.withRange(stepRange(p.range(), forward)));
+        label("Beam", lx, row + 11);
+        List<String> beams = List.of("Default", "Always", "Never");
+        int sw = Segmented.draw(kit, "beam", vx, row, beams, beams.get(Math.max(0, Math.min(2, p.beam()))), true,
+                o -> w.replacePoint(p, p.withBeam(beams.indexOf(o))));
+        int rx = vx + sw + 24;
+        label("Show within", rx, row + 11);
+        rx += width("Show within", Role.LABEL) + 10;
+        List<String> ranges = new ArrayList<>();
+        for (int r : RANGES) ranges.add(rangeLabel(r));
+        Dropdown.draw(kit, "range", rx, row - 1, 120, ranges, rangeLabel(snapRange(p.range())), true, o -> {
+            int idx = ranges.indexOf(o);
+            if (idx >= 0) w.replacePoint(p, p.withRange(RANGES[idx]));
         });
     }
 
-    private static int stepRange(int current, boolean up) {
+    private static final String NAME = "wp#name";
+
+    private void label(String s, int x, int centreY) { kit.textCentredY(s, x, centreY, Tokens.N800, Role.LABEL); }
+
+    private static String rangeLabel(int r) { return r == 0 ? "Any distance" : r + " m"; }
+
+    private static int snapRange(int current) {
         int i = 0;
         while (i < RANGES.length - 1 && RANGES[i] < current) i++;
-        if (RANGES[i] != current) return RANGES[i]; // an odd value snaps to the nearest step
-        int n = RANGES.length;
-        return RANGES[((up ? i + 1 : i - 1) % n + n) % n];
+        return RANGES[i];
     }
 
     /** Re-find the point being edited after a change (points are values: a change makes a new one). */
@@ -302,6 +329,7 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         editing = p;
         nameBuffer = p.name();
         nameFocused = false;
+        SearchField.set(kit, NAME, p.name());
     }
 
     private void closeEditor() {
@@ -312,6 +340,7 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
 
     private void commitName() {
         Waypoints w = wp();
+        if (kit.isFocused(NAME)) { nameBuffer = SearchField.text(kit, NAME); kit.focus(null, false); nameFocused = true; }
         if (!nameFocused || editing == null || w == null || nameBuffer == null) { nameFocused = false; return; }
         nameFocused = false;
         String n = nameBuffer.strip();
@@ -353,20 +382,38 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         MinecraftClient.getInstance().setScreen(new ChatScreen(Waypoints.shareText(p), false));
     }
 
+    @Override protected int footerHeight() { return 30; }
+
+    @Override
+    protected void renderFooter(DrawContext ctx, int x1, int y, int x2, int mx, int my) {
+        Icons.draw(ctx, "info", x1, y + 9, 12, Tokens.N600);
+        kit.textCentredY("Click a point to edit it · Share types its coordinates into chat for you to send", x1 + 18, y + 15, Tokens.N700, Role.SMALL);
+    }
+
     @Override
     protected void renderOverlay(DrawContext ctx, int mx, int my) {
         long now = System.currentTimeMillis();
         if (undoPoint != null && now - undoAt < UNDO_MS) {
+            // A snackbar over the footer: e4, the message and Undo.
             String msg = "Deleted " + undoPoint.name();
-            int bw = width(msg, Role.LABEL) + width("Undo", Role.LABEL) + 44;
-            int x1 = wx + (ww - bw) / 2, y1 = wy + wh - 30;
-            Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x1 + bw, y1 + 22, 0x90000000);
-            Theme.roundBordered(ctx, x1, y1, x1 + bw, y1 + 22, Theme.CARD, Theme.BORDER);
-            text(ctx, msg, x1 + 10, y1 + 7, Theme.TEXT, Role.LABEL);
-            button(ctx, "undo", "Undo", x1 + bw - 6, y1 + 3, mx, my, 1, b -> undo());
+            int bw = width(msg, Role.BODY) + Button.width(kit, "Undo", Button.Size.SM, "reset", false) + 40;
+            float in = Motion.decorative() ? Motion.standard(Motion.clamp01((now - undoAt) / (float) Motion.DUR_BASE)) : 1f;
+            int x1 = wx + (ww - bw) / 2, y1 = wy + wh - 36 + Math.round((1 - in) * 8);
+            float f = Theme.fade;
+            Theme.fade = f * Math.min(1f, in * 1.5f);
+            try {
+                Paint.surface(ctx, x1, y1, x1 + bw, y1 + 28, Tokens.R_MD, Tokens.E4, 0, Float.NaN);
+                Icons.draw(ctx, "check", x1 + 10, y1 + 8, 12, Tokens.OK);
+                kit.textCentredY(msg, x1 + 28, y1 + 14, Tokens.N950, Role.BODY);
+                button("undo", "Undo", "reset", x1 + bw - 4, y1 + 4, SECONDARY, b -> undo());
+                // Time left, as a hairline along the bottom.
+                float left = 1f - (now - undoAt) / (float) UNDO_MS;
+                Paint.rect(ctx, x1 + 8, y1 + 26, x1 + 8 + (bw - 16) * left, y1 + 27, 0.5f, Theme.alpha(Tokens.OK, 0.6f));
+            } finally {
+                Theme.fade = f;
+            }
         } else {
             undoPoint = null;
-            text(ctx, "Click a point to edit it · Share types its coordinates into chat for you to send", cx, wy + wh - 10, Theme.TEXT_FAINT, Role.SMALL);
         }
     }
 
@@ -381,17 +428,21 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
     @Override
     public boolean keyPressed(KeyInput input) {
         int key = input.key();
-        if (nameFocused) {
+        if (kit.isFocused(NAME)) {
             switch (key) {
-                case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> commitName();
-                case GLFW.GLFW_KEY_ESCAPE -> { nameFocused = false; nameBuffer = editing == null ? null : editing.name(); }
-                case GLFW.GLFW_KEY_BACKSPACE -> { if (nameBuffer != null && !nameBuffer.isEmpty()) nameBuffer = nameBuffer.substring(0, nameBuffer.length() - 1); }
-                default -> {}
+                case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> { commitName(); return true; }
+                case GLFW.GLFW_KEY_ESCAPE -> {
+                    kit.focus(null, false);
+                    nameFocused = false;
+                    nameBuffer = editing == null ? null : editing.name();
+                    if (editing != null) SearchField.set(kit, NAME, editing.name());
+                    return true;
+                }
+                default -> { return super.keyPressed(input); }
             }
-            return true;
         }
         if (key == GLFW.GLFW_KEY_Z && (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0 && undoPoint != null) { undo(); return true; }
-        if (key == GLFW.GLFW_KEY_ESCAPE && !searchFocused) {
+        if (key == GLFW.GLFW_KEY_ESCAPE && !searchFocused() && kit.popup() == null) {
             if (editing != null) { closeEditor(); return true; }
             close();
             return true;
@@ -399,20 +450,12 @@ public final class WaypointManagerScreen extends EvadePanelScreen {
         return super.keyPressed(input);
     }
 
-    @Override
-    public boolean charTyped(CharInput input) {
-        if (nameFocused) {
-            if (input.isValidChar() && nameBuffer != null && nameBuffer.length() < 32) nameBuffer += input.asString();
-            return true;
-        }
-        return super.charTyped(input);
-    }
 
     @Override
     public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean doubled) {
         // A click outside the name field applies what was typed first.
         boolean inName = click.x() >= nameRect[0] && click.x() < nameRect[2] && click.y() >= nameRect[1] && click.y() < nameRect[3];
-        if (nameFocused && !inName) commitName();
+        if (kit.isFocused(NAME) && !inName) commitName();
         return super.mouseClicked(click, doubled);
     }
 

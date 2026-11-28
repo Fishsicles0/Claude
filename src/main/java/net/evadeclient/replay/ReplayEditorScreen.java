@@ -4,8 +4,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -61,13 +59,9 @@ public final class ReplayEditorScreen extends Screen {
         if (hudBefore == null) { hudBefore = mc.options.hudHidden; mc.options.hudHidden = true; }
         int px = panelX(), y = 8;
         // tabs
-        String[] tabs = {"Camera", "Scene", "Render"};
-        for (int i = 0; i < tabs.length; i++) {
-            String t = tabs[i];
-            ButtonWidget b = addDrawableChild(ButtonWidget.builder(Text.literal(t), x -> { tab = t; clearAndInit(); }).dimensions(px + i * 63, y, 60, 18).build());
-            b.active = !tab.equals(t);
-        }
-        y += 26;
+        buttons.clear();
+        // (the tabs are kit Tabs, drawn in render)
+        y += 30;
         switch (tab) {
             case "Scene" -> sceneTab(px, y);
             case "Render" -> renderTab(px, y);
@@ -75,28 +69,63 @@ public final class ReplayEditorScreen extends Screen {
         }
         // transport
         int ty = height - 54, tx = 8;
-        addDrawableChild(ButtonWidget.builder(Text.literal("⏮"), b -> player.seek(player.startTick())).dimensions(tx, ty, 20, 18).tooltip(Tooltip.of(Text.literal("To the start"))).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("-5s"), b -> player.seek(player.tick() - 100)).dimensions(tx + 22, ty, 28, 18).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal(player.playing() ? "❚❚" : "▶"), b -> { player.togglePlay(); b.setMessage(Text.literal(player.playing() ? "❚❚" : "▶")); })
-                .dimensions(tx + 52, ty, 26, 18).tooltip(Tooltip.of(Text.literal("Play / pause (P)"))).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("+5s"), b -> player.seek(player.tick() + 100)).dimensions(tx + 80, ty, 28, 18).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("−"), b -> player.setSpeed(player.speed() / 2)).dimensions(tx + 116, ty, 18, 18).tooltip(Tooltip.of(Text.literal("Slower"))).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("+"), b -> player.setSpeed(player.speed() * 2)).dimensions(tx + 136, ty, 18, 18).tooltip(Tooltip.of(Text.literal("Faster"))).build());
+        buttons.add(new KB(tx, ty, 22, () -> "", () -> player.seek(player.startTick()), "To the start").glyph("skip_start"));
+        buttons.add(new KB(tx + 24, ty, 30, () -> "−5s", () -> player.seek(player.tick() - 100), "Back 5 seconds"));
+        buttons.add(new KB(tx + 56, ty, 26, () -> "", player::togglePlay, "Play / pause (P)").glyph(() -> player.playing() ? "pause" : "play"));
+        buttons.add(new KB(tx + 84, ty, 30, () -> "+5s", () -> player.seek(player.tick() + 100), "On 5 seconds"));
+        buttons.add(new KB(tx + 120, ty, 20, () -> "−", () -> player.setSpeed(player.speed() / 2), "Slower"));
+        buttons.add(new KB(tx + 142, ty, 20, () -> "+", () -> player.setSpeed(player.speed() * 2), "Faster"));
         if (!player.meta.markers.isEmpty())
-            addDrawableChild(ButtonWidget.builder(Text.literal("Next marker"), b -> nextMarker()).dimensions(tx + 160, ty, 70, 18).build());
+            buttons.add(new KB(tx + 168, ty, 80, () -> "Next marker", this::nextMarker, null));
+    }
+
+    // ------------------------------------------------------------------ kit buttons
+
+    private final net.evadeclient.gui.kit.Kit kit = new net.evadeclient.gui.kit.Kit();
+    private final List<KB> buttons = new java.util.ArrayList<>();
+
+    /** A kit button laid out by the tabs' code: its label is re-read every frame. */
+    private static final class KB {
+        final int x, y, w;
+        final Supplier<String> label;
+        final Runnable run;
+        final String tip;
+        Supplier<String> glyph;
+
+        KB(int x, int y, int w, Supplier<String> label, Runnable run, String tip) {
+            this.x = x; this.y = y; this.w = w; this.label = label; this.run = run; this.tip = tip;
+        }
+
+        KB glyph(String g) { glyph = () -> g; return this; }
+        KB glyph(Supplier<String> g) { glyph = g; return this; }
+    }
+
+    private void drawButtons() {
+        for (int i = 0; i < buttons.size(); i++) {
+            KB b = buttons.get(i);
+            String id = "b" + i;
+            int y = b.y - 1;
+            if (b.glyph != null) {
+                net.evadeclient.gui.PanelGlyphs.button(kit, id, b.x, y, Math.max(20, b.w), b.glyph.get(), b.tip, true, false, btn -> { if (btn == 0) b.run.run(); });
+                continue;
+            }
+            net.evadeclient.gui.kit.Button.draw(kit, id, b.x, y, b.w, net.evadeclient.gui.kit.Button.Size.SM,
+                    net.evadeclient.gui.kit.Button.Variant.SECONDARY, kit.ellipsize(b.label.get(), net.evadeclient.util.UiFont.Role.LABEL, b.w - 8), null, true, b.run);
+            if (b.tip != null) kit.tooltip(id, b.tip, null, b.x, y, b.x + b.w, y + 20);
+        }
     }
 
     /** A button whose label is recomputed after each click. */
-    private ButtonWidget toggle(int x, int y, int w, Supplier<String> label, Runnable action, String tip) {
-        ButtonWidget.Builder b = ButtonWidget.builder(Text.literal(label.get()), btn -> { action.run(); btn.setMessage(Text.literal(label.get())); save(); });
-        if (tip != null) b.tooltip(Tooltip.of(Text.literal(tip)));
-        return addDrawableChild(b.dimensions(x, y, w, 18).build());
+    private KB toggle(int x, int y, int w, Supplier<String> label, Runnable action, String tip) {
+        KB b = new KB(x, y + 1, w, label, () -> { action.run(); save(); }, tip);
+        buttons.add(b);
+        return b;
     }
 
-    private ButtonWidget action(int x, int y, int w, String label, Runnable action, String tip) {
-        ButtonWidget.Builder b = ButtonWidget.builder(Text.literal(label), btn -> { action.run(); save(); clearAndInit(); });
-        if (tip != null) b.tooltip(Tooltip.of(Text.literal(tip)));
-        return addDrawableChild(b.dimensions(x, y, w, 18).build());
+    private KB action(int x, int y, int w, String label, Runnable action, String tip) {
+        KB b = new KB(x, y + 1, w, () -> label, () -> { action.run(); save(); clearAndInit(); }, tip);
+        buttons.add(b);
+        return b;
     }
 
     private void cameraTab(int x, int y) {
@@ -324,6 +353,7 @@ public final class ReplayEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        if (kit.mouseClicked(click.x(), click.y(), click.button())) return true;
         if (super.mouseClicked(click, doubled)) return true;
         int by = barY();
         if (click.x() < panelX() - 4 && click.y() >= by - 6 && click.y() <= by + 22) {
@@ -386,30 +416,38 @@ public final class ReplayEditorScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // panel
-        ctx.fill(panelX() - 6, 0, width, height, 0xC00C0C10);
-        ctx.fill(0, height - 72, panelX() - 6, height, 0xD00C0C10);
+        kit.begin(ctx, mouseX, mouseY);
+        // The side panel and the timeline bar: glass over the world (no blur: the world is the point).
+        net.evadeclient.gui.kit.Paint.surface(ctx, panelX() - 8, 4, width - 4, height - 4, net.evadeclient.util.Tokens.R_LG,
+                net.evadeclient.util.Tokens.E1.withFill(net.evadeclient.util.Theme.alpha(net.evadeclient.util.Tokens.N100, 0.86f)), 0, Float.NaN);
+        net.evadeclient.gui.kit.Paint.surface(ctx, 4, height - 74, panelX() - 14, height - 4, net.evadeclient.util.Tokens.R_LG,
+                net.evadeclient.util.Tokens.E1.withFill(net.evadeclient.util.Theme.alpha(net.evadeclient.util.Tokens.N100, 0.86f)), 0, Float.NaN);
         super.render(ctx, mouseX, mouseY, delta);
+        net.evadeclient.gui.kit.Tabs.draw(kit, "tabs", panelX(), 10, 188, List.of("Camera", "Scene", "Render"), tab, t -> {
+            if (!t.equals(tab)) { tab = t; clearAndInit(); }
+        });
+        drawButtons();
         int by = barY(), x0 = 10, x1 = panelX() - 10;
         // header: time
         double now = player.seconds(player.tick()), total = player.seconds(player.endTick());
         String head = (player.seeking() ? "Loading... " : player.playing() ? "Playing " : "Paused ") + Replays.time(now) + " / " + Replays.time(total)
                 + "   " + Replays.trim(player.speed()) + "x";
-        ctx.drawTextWithShadow(textRenderer, head, 10, height - 66, 0xFFFFFFFF);
+        kit.text(head, 12, height - 68, net.evadeclient.util.Tokens.N950, net.evadeclient.util.UiFont.Role.STRONG);
         // ruler
-        ctx.fill(x0, by + 2, x1, by + 6, 0xFF3A3A44);
+        net.evadeclient.gui.kit.Paint.sunken(ctx, x0, by + 2, x1, by + 6, 2);
         int span = Math.max(1, player.endTick() - player.startTick());
         int stepSecs = span / 20 > 300 ? 60 : span / 20 > 60 ? 10 : 5;
         for (int s = 0; s * 20 <= span; s += stepSecs) {
             int tx = (int) xAt(player.startTick() + s * 20);
             ctx.fill(tx, by - 2, tx + 1, by + 2, 0xFF6A6A76);
-            if (s % (stepSecs * 2) == 0) ctx.drawText(textRenderer, Replays.time(s), tx + 2, by - 10, 0xFF6A6A76, false);
+            if (s % (stepSecs * 2) == 0) kit.text(Replays.time(s), tx + 2, by - 11, net.evadeclient.util.Tokens.N600, net.evadeclient.util.UiFont.Role.TINY);
         }
         // render range
         ReplayProject.Render r = project().render;
         if (r.from >= 0) ctx.fill((int) xAt(r.from), by + 2, (int) xAt(r.to), by + 6, 0x8834C759);
         // played part
-        ctx.fill(x0, by + 2, (int) xAt(player.tick()), by + 6, 0xFFE5484D);
+        float playedTo = (float) xAt(player.tick());
+        if (playedTo > x0 + 1) net.evadeclient.gui.kit.Paint.hgradient(ctx, x0, by + 2, playedTo, by + 6, 2, net.evadeclient.util.Tokens.A700, net.evadeclient.util.Tokens.A500);
         // markers
         for (var m : player.meta.markers) {
             int mx = (int) xAt(m.tick());
@@ -432,17 +470,21 @@ public final class ReplayEditorScreen extends Screen {
         }
         // playhead (or where a drag will land)
         int ph = (int) xAt(dragTick >= 0 ? dragTick : player.tick());
-        ctx.fill(ph - 1, by - 6, ph + 1, by + 24, 0xFFFFFFFF);
+        net.evadeclient.gui.kit.Paint.rect(ctx, ph - 1, by - 6, ph + 1, by + 24, 1, 0xFFFFFFFF);
+        net.evadeclient.gui.kit.Paint.circle(ctx, ph, by + 4, 8, 0xFFFFFFFF);
         // help
         String help = keys.isEmpty() ? "Close (E), fly to a spot, press K; move on in time, fly somewhere else, K again. That's a camera path."
                 : keys.size() + " camera keyframes · click one to select it · Delete removes it · E closes to fly";
-        int hw = Math.min(textRenderer.getWidth(help), panelX() - 24);
-        ctx.fill(6, 4, 14 + hw, 16, 0xB00C0C10);
-        ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(help, panelX() - 24), 10, 6, 0xFFB0B0BA);
+        String shown = kit.ellipsize(help, net.evadeclient.util.UiFont.Role.SMALL, panelX() - 40);
+        int hw = kit.width(shown, net.evadeclient.util.UiFont.Role.SMALL);
+        net.evadeclient.gui.kit.Paint.pill(ctx, 6, 6, 26 + hw, 22, net.evadeclient.util.Theme.alpha(net.evadeclient.util.Tokens.N300, 0.88f));
+        kit.textCentredY(shown, 16, 14, net.evadeclient.util.Tokens.N900, net.evadeclient.util.UiFont.Role.SMALL);
         ReplayRender rr = ReplayRender.current();
         if (ReplayRender.lastResult != null && tab.equals("Render"))
-            ctx.drawTextWithShadow(textRenderer, textRenderer.trimToWidth("Last render: " + ReplayRender.lastResult.getFileName(), 188), panelX(), height - 14, 0xFF34C759);
-        if (rr != null) ctx.drawTextWithShadow(textRenderer, String.format(Locale.ROOT, "Rendering %d%%", Math.round(rr.progress() * 100)), panelX(), height - 26, 0xFFFFFFFF);
+            kit.text(kit.ellipsize("Last render: " + ReplayRender.lastResult.getFileName(), net.evadeclient.util.UiFont.Role.SMALL, 188), panelX(), height - 18,
+                    net.evadeclient.util.Tokens.N800, net.evadeclient.util.UiFont.Role.SMALL);
+        if (rr != null) net.evadeclient.gui.kit.Progress.linear(kit, panelX(), height - 44, 186, (float) rr.progress(), "Rendering");
+        kit.end();
     }
 
     @Override public boolean shouldPause() { return false; }

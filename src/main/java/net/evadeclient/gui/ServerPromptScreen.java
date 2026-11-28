@@ -1,12 +1,12 @@
 package net.evadeclient.gui;
 
 import net.evadeclient.api.ApiPrompts;
-import net.evadeclient.util.Theme;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.SearchField;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -15,8 +15,8 @@ import org.lwjgl.glfw.GLFW;
  * transfer only connects on Join.
  */
 public final class ServerPromptScreen extends EvadeDialog {
+    private static final String FIELD = "answer";
     private final ApiPrompts.Prompt prompt;
-    private TextFieldWidget field;
     private boolean answered;
 
     public ServerPromptScreen(ApiPrompts.Prompt prompt) {
@@ -24,25 +24,26 @@ public final class ServerPromptScreen extends EvadeDialog {
         this.prompt = prompt;
     }
 
-    @Override protected int prefHeight() { return 150; }
+    @Override protected int prefWidth() { return 420; }
+    @Override protected int prefHeight() { return prompt.transfer() ? 200 : 196; }
+    @Override protected String titleIcon() { return "server"; }
+
+    @Override
+    protected String heading() {
+        if (prompt.transfer()) return prompt.title().isEmpty() ? "Switch servers?" : "Switch to " + prompt.title() + "?";
+        return prompt.title().isEmpty() ? "The server asks" : prompt.title();
+    }
 
     @Override
     protected void init() {
         frame();
-        int by = py + ph - 30, bw = (pw - 28 - 4) / 2;
         if (prompt.transfer()) {
-            button("Join", px + 14, by, bw, b -> answer(null, true));
-            button("Stay here", px + 14 + bw + 4, by, bw, b -> answer(null, false));
+            action("Stay here", Button.Variant.GHOST, () -> answer(null, false));
+            action("Join", Button.Variant.PRIMARY, () -> answer(null, true));
         } else {
-            String text = field == null ? "" : field.getText();
-            field = new TextFieldWidget(textRenderer, px + 14, py + 78, pw - 28, 18, Text.literal(prompt.title()));
-            field.setMaxLength(prompt.max());
-            field.setText(text);
-            if (!prompt.placeholder().isEmpty()) field.setPlaceholder(Text.literal(prompt.placeholder()).formatted(Formatting.DARK_GRAY));
-            addDrawableChild(field);
-            setInitialFocus(field);
-            button("Send", px + 14, by, bw, b -> answer(field.getText(), true));
-            button("Cancel", px + 14 + bw + 4, by, bw, b -> answer(null, false));
+            action("Cancel", Button.Variant.GHOST, () -> answer(null, false));
+            action("Send", Button.Variant.PRIMARY, () -> answer(SearchField.text(kit, FIELD), true));
+            kit.focus(FIELD, false);
         }
     }
 
@@ -56,7 +57,7 @@ public final class ServerPromptScreen extends EvadeDialog {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (!prompt.transfer() && (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER)) {
-            answer(field.getText(), true);
+            answer(SearchField.text(kit, FIELD), true);
             return true;
         }
         return super.keyPressed(input);
@@ -75,17 +76,23 @@ public final class ServerPromptScreen extends EvadeDialog {
     }
 
     @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
+    protected void renderBody(DrawContext ctx, int mx, int my) {
+        int y = by;
         if (prompt.transfer()) {
-            title(ctx, prompt.title().isEmpty() ? "Switch servers?" : "Switch to " + prompt.title() + "?");
-            int y = para(ctx, "This server wants to send you to " + prompt.address() + ".", py + 34, Theme.TEXT);
-            if (!prompt.text().isEmpty()) y = para(ctx, prompt.text(), y + 4, Theme.TEXT_DIM);
-            para(ctx, "You'll leave this server. Nothing happens unless you click Join.", y + 4, Theme.TEXT_FAINT);
+            y = para("This server wants to send you to " + prompt.address() + ".", bx, y, bw, Tokens.N950, Role.BODY);
+            if (!prompt.text().isEmpty()) y = para(prompt.text(), bx, y + 4, bw, Tokens.N800, Role.BODY);
+            note("info", Tokens.INFO, "You'll leave this server. Nothing happens unless you click Join.", y + 8);
         } else {
-            title(ctx, prompt.title().isEmpty() ? "The server asks" : prompt.title());
-            int y = para(ctx, prompt.text().isEmpty() ? "Type your answer." : prompt.text(), py + 34, Theme.TEXT_DIM);
-            line(ctx, "Sent only to this server. Cancel to skip.", px + 14, Math.max(y + 2, py + 100), Theme.TEXT_FAINT);
+            y = para(prompt.text().isEmpty() ? "Type your answer." : prompt.text(), bx, y, bw, Tokens.N800, Role.BODY);
+            y += 8;
+            String placeholder = prompt.placeholder().isEmpty() ? "Your answer" : prompt.placeholder();
+            String v = field(FIELD, bx, y, bw, placeholder, false, Math.max(1, prompt.max()));
+            String count = v.length() + " / " + prompt.max();
+            y += SearchField.H + 6;
+            kit.text(count, bx + bw - width(count), y, Tokens.N600, Role.SMALL);
+            note("server", Tokens.N600, "Sent only to this server. Cancel to skip.", y);
         }
     }
+
+    private int width(String s) { return kit.width(s, Role.SMALL); }
 }

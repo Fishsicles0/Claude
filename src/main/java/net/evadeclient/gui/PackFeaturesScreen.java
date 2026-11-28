@@ -5,13 +5,19 @@ import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.module.misc.PackFeatures;
 import net.evadeclient.module.misc.PackFeatures.Feature;
 import net.evadeclient.module.misc.PackFeatures.Report;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.Progress;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
@@ -25,145 +31,108 @@ import java.util.concurrent.CompletableFuture;
  * reads each one is installed, and how to get it. Packs that make stone see-through get an x-ray warning (a warning
  * only). The scan runs off the render thread.
  */
-public final class PackFeaturesScreen extends Screen {
+public final class PackFeaturesScreen extends EvadePanelScreen {
     static final String HOW_TO = "Turn on \"Resource pack features\" for this instance in the Evade Launcher (Instances), then press Play. "
             + "It adds Continuity, CIT Resewn, Entity Texture and Model Features and Skyboxify from Modrinth.";
 
-    private final Screen parent;
     private List<Report> reports;
-    private int px, py, pw, ph, listY, listH;
-    private int scroll, contentH;
 
     public PackFeaturesScreen(Screen parent) {
-        super(Text.literal("Pack Features"));
-        this.parent = parent;
+        super("What your packs need", parent);
     }
 
     /** Test hook: the scan, or null while it runs. */
     public List<Report> reportsForTest() { return reports; }
 
+    @Override protected int prefWidth() { return 600; }
+    @Override protected int prefHeight() { return 420; }
+    @Override protected String headerIcon() { return "mods"; }
+    @Override protected String subtitle() { return "Extra formats each resource pack uses, and whether the mod that reads it is installed"; }
+
     @Override
     protected void init() {
-        pw = Math.min(420, width - 20);
-        ph = Math.min(300, height - 20);
-        px = (width - pw) / 2;
-        py = (height - ph) / 2;
-        listY = py + 46;
-        listH = ph - 46 - 34;
+        super.init();
         if (reports == null) {
             var dir = MinecraftClient.getInstance().getResourcePackDir();
             CompletableFuture.supplyAsync(() -> PackFeatures.scanAll(dir), Util.getIoWorkerExecutor())
-                    .thenAccept(r -> MinecraftClient.getInstance().execute(() -> reports = r));
+                    .thenAccept(r -> MinecraftClient.getInstance().execute(() -> { reports = r; restartEntrance(); }));
         }
-        int bw = (pw - 28 - 4) / 2, by = py + ph - 28;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Open Pack Folder"), b -> Util.getOperatingSystem().open(MinecraftClient.getInstance().getResourcePackDir()))
-                .dimensions(px + 14, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close()).dimensions(px + 14 + bw + 4, by, bw, 20).build());
+    }
+
+    @Override protected int footerHeight() { return 44; }
+
+    @Override
+    protected void renderFooter(DrawContext ctx, int x1, int y, int x2, int mx, int my) {
+        int fw = Button.width(kit, "Open pack folder", Button.Size.MD, "folder", false);
+        drawButton("folder", "Open pack folder", "folder", x2 - fw, y + 10, fw, Button.Size.MD, SECONDARY, true,
+                b -> Util.getOperatingSystem().open(MinecraftClient.getInstance().getResourcePackDir()));
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
-        scroll = (int) Math.max(0, Math.min(Math.max(0, contentH - listH), scroll - v * 16));
-        return true;
-    }
-
-    @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        if (s == null || s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0000000);
-        Theme.shadow(ctx, Theme.SH_WINDOW, px, py, px + pw, py + ph, 0x90000000);
-        Theme.round(ctx, px, py, px + pw, py + ph, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, px, py, px + pw, py + ph, Theme.BORDER, Theme.R_WIN);
-    }
-
-    @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        boolean smooth = s == null || s.smoothFont.get();
-        UiFont.draw(ctx, textRenderer, "What your packs need", px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
-        UiFont.draw(ctx, textRenderer, "Extra formats each resource pack uses, and whether the mod that reads it is installed.",
-                px + 14, py + 30, Theme.TEXT_DIM, Role.SMALL, smooth);
-        int x1 = px + 14, x2 = px + pw - 14, w = x2 - x1;
+    protected int renderContent(DrawContext ctx, int top, int mx, int my) {
         if (reports == null) {
-            UiFont.draw(ctx, textRenderer, "Reading your packs...", x1, listY + 6, Theme.TEXT_DIM, Role.BODY, smooth);
-            return;
+            Progress.circle(kit, cx + cw / 2f, top + 50, 14, Float.NaN);
+            String m = "Reading your packs";
+            kit.textCentredY(m, cx + (cw - width(m, Role.SMALL)) / 2, top + 80, Tokens.N700, Role.SMALL);
+            return 110;
         }
-        List<String[]> lines = layout(w, smooth);
-        contentH = 0;
-        for (String[] l : lines) contentH += lineH(l);
-        scroll = Math.max(0, Math.min(Math.max(0, contentH - listH), scroll));
-        ctx.enableScissor(x1, listY, x2, listY + listH);
-        int y = listY - scroll;
-        for (String[] l : lines) {
-            int h = lineH(l);
-            if (y + h >= listY && y <= listY + listH) {
-                switch (l[0]) {
-                    case "pack" -> {
-                        Theme.fill(ctx, x1, y + 1, x2, y + 2, Theme.DIVIDER);
-                        UiFont.draw(ctx, textRenderer, l[1], x1, y + 6, Theme.TEXT, Role.STRONG, smooth);
+        if (reports.isEmpty()) {
+            return EmptyState.draw(kit, "empty", cx + cw / 2, top + 20, "mods", "No resource packs", "Put packs in your resourcepacks folder and they show up here.", null, null) + 40;
+        }
+        int y = top;
+        boolean anyFixable = false;
+        int i = 0;
+        for (Report r : reports) {
+            // One card per pack: the name, then a line per feature with a status icon.
+            int lines = Math.max(1, r.features().size()) + (r.xray() ? 1 : 0);
+            int h = 30 + lines * 16 + 6;
+            if (inView(y, h)) {
+                float a = enter(i), fd = Theme.fade;
+                Theme.fade = fd * a;
+                int yy = y + Math.round((1 - a) * 6);
+                try {
+                    Paint.surface(ctx, cx, yy, cx + cw, yy + h, Tokens.R_MD, Tokens.E2.noAmbient(), 0, Float.NaN);
+                    Paint.rect(ctx, cx + 10, yy + 7, cx + 28, yy + 25, Tokens.R_XS, Tokens.N250);
+                    Icons.draw(ctx, "mods", cx + 13, yy + 10, 12, Tokens.N800);
+                    kit.textCentredY(ellipsize(r.name(), Role.STRONG, cw - 140), cx + 36, yy + 16, Tokens.N950, Role.STRONG);
+                    int ly = yy + 30;
+                    if (r.features().isEmpty() && !r.xray()) {
+                        line(ctx, "check", Tokens.N600, "Plain resource pack: works as it is.", ly);
+                        ly += 16;
                     }
-                    case "ok" -> UiFont.draw(ctx, textRenderer, l[1], x1 + 8, y + 2, Theme.OK, Role.LABEL, smooth);
-                    case "miss" -> UiFont.draw(ctx, textRenderer, l[1], x1 + 8, y + 2, Theme.WARN, Role.LABEL, smooth);
-                    case "warn" -> UiFont.draw(ctx, textRenderer, l[1], x1 + 8, y + 2, Theme.DANGER, Role.LABEL, smooth);
-                    default -> UiFont.draw(ctx, textRenderer, l[1], x1 + 8, y + 2, Theme.TEXT_DIM, Role.LABEL, smooth);
+                    for (Feature f : r.features()) {
+                        if (f.supported()) line(ctx, "check", Tokens.OK, f.label + " · works (" + f.modName + ")", ly);
+                        else if (f.modId != null) line(ctx, "warn", Tokens.WARN, f.label + " · needs " + f.modName, ly);
+                        else line(ctx, "info", Tokens.N600, f.label + " · no mod reads this yet; the rest of the pack works", ly);
+                        ly += 16;
+                    }
+                    if (r.xray()) line(ctx, "error", Tokens.DANGER, "X-ray warning: it makes stone and ground see-through. Most servers ban this.", ly);
+                    int need = 0;
+                    for (Feature f : r.features()) if (!f.supported() && f.modId != null) need++;
+                    String tag = r.xray() ? "X-ray" : need > 0 ? need + " missing" : "Ready";
+                    Badge.Tone tone = r.xray() ? Badge.Tone.DANGER : need > 0 ? Badge.Tone.WARN : Badge.Tone.OK;
+                    Badge.draw(kit, cx + cw - 10 - Badge.width(kit, tag), yy + 9, tag, tone);
+                } finally {
+                    Theme.fade = fd;
                 }
             }
-            y += h;
-        }
-        ctx.disableScissor();
-    }
-
-    private static int lineH(String[] l) { return l[0].equals("pack") ? 18 : 11; }
-
-    /** The list as typed lines: a pack heading, then one line per feature, warning or hint. */
-    private List<String[]> layout(int w, boolean smooth) {
-        List<String[]> out = new ArrayList<>();
-        boolean anyFixable = false;
-        if (reports.isEmpty()) out.add(new String[]{"dim", "No resource packs in your resourcepacks folder."});
-        for (Report r : reports) {
-            out.add(new String[]{"pack", ellipsize(r.name(), w, Role.STRONG, smooth)});
-            if (r.features().isEmpty() && !r.xray()) out.add(new String[]{"dim", "Plain resource pack: works as it is."});
-            for (Feature f : r.features()) {
-                if (f.supported()) out.add(new String[]{"ok", f.label + ": works (" + f.modName + ")"});
-                else if (f.modId != null) {
-                    out.add(new String[]{"miss", f.label + ": needs " + f.modName});
-                    anyFixable = true;
-                } else out.add(new String[]{"dim", f.label + ": no mod reads this format yet; the pack's other parts still work"});
-            }
-            if (r.xray()) out.add(new String[]{"warn", "X-ray warning: it makes stone and ground see-through. Most servers ban this."});
+            for (Feature f : r.features()) if (!f.supported() && f.modId != null) anyFixable = true;
+            y += h + Tokens.S3;
+            i++;
         }
         if (anyFixable) {
-            out.add(new String[]{"pack", "Getting the missing mods"});
-            for (String line : wrap(HOW_TO, w - 8, smooth)) out.add(new String[]{"dim", line});
-        }
-        return out;
-    }
-
-    private String ellipsize(String s, int max, Role r, boolean smooth) {
-        if (UiFont.width(textRenderer, s, r, smooth) <= max) return s;
-        while (s.length() > 1 && UiFont.width(textRenderer, s + "...", r, smooth) > max) s = s.substring(0, s.length() - 1);
-        return s + "...";
-    }
-
-    private List<String> wrap(String s, int max, boolean smooth) {
-        List<String> out = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : s.split(" ")) {
-            String next = line.isEmpty() ? word : line + " " + word;
-            if (UiFont.width(textRenderer, next, Role.LABEL, smooth) > max && !line.isEmpty()) {
-                out.add(line.toString());
-                line = new StringBuilder(word);
-            } else {
-                line = new StringBuilder(next);
+            y += Tokens.S3;
+            y = section("GETTING THE MISSING MODS", null, cx, y);
+            for (String l : kit.wrap(HOW_TO, Role.BODY, cw, 6)) {
+                if (inView(y, 12)) kit.text(l, cx, y, Tokens.N800, Role.BODY);
+                y += 12;
             }
         }
-        if (!line.isEmpty()) out.add(line.toString());
-        return out;
+        return y - top + 8;
     }
 
-    @Override public boolean shouldPause() { return false; }
-
-    @Override public void close() { if (client != null) client.setScreen(parent); }
+    private void line(DrawContext ctx, String icon, int color, String text, int y) {
+        Icons.draw(ctx, icon, cx + 14, y + 1, 10, color);
+        kit.text(ellipsize(text, Role.LABEL, cw - 44), cx + 30, y, Tokens.N900, Role.LABEL);
+    }
 }

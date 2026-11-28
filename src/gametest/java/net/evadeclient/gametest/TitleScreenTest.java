@@ -77,6 +77,90 @@ public final class TitleScreenTest {
         ctx.waitTicks(2);
     }
 
+    // ------------------------------------------------------------------ focused look (JAVA_TOOL_OPTIONS=-Devade.titleshots=true)
+
+    /**
+     * Screenshots of the title and loading screens only (no checks): 1920x1080 at GUI 1/2/3, 3840x2160 at GUI 4,
+     * 854x480, Animations Reduced, the Classic theme, the loading screen's hand-over to the menu, then the frame
+     * cost. For iterating on the look without the full suite. Shots: wp2-*.
+     */
+    public static void shots(ClientGameTestContext ctx) {
+        var cs = ctx.computeOnClient(c -> EvadeClient.modules.get(net.evadeclient.module.client.ClientSettings.class));
+        ctx.runOnClient(c -> { var t = EvadeClient.modules.get(TitleScreenModule.class); t.setEnabled(true); t.effects.set("Full"); });
+        ctx.getInput().setCursorPos(2, 2);
+        int[][] sizes = {{1920, 1080, 1}, {1920, 1080, 2}, {1920, 1080, 3}, {3840, 2160, 4}, {3840, 2160, 2}, {854, 480, 1}, {854, 480, 2}};
+        for (int[] sz : sizes) {
+            ctx.getInput().resizeWindow(sz[0], sz[1]);
+            ctx.runOnClient(c -> { c.options.getGuiScale().setValue(sz[2]); c.onResolutionChanged(); c.setScreen(new TitleScreen()); });
+            ctx.waitTicks(50);
+            ctx.runOnClient(c -> c.getToastManager().clear());
+            String problem = ctx.computeOnClient(c -> c.currentScreen instanceof EvadeTitleScreen t ? overlaps(t) : "not the Evade menu");
+            EvadeClient.LOG.info("[wp2] {}x{} gui{} overlaps: {}", sz[0], sz[1], sz[2], problem.isEmpty() ? "none" : problem);
+            ctx.takeScreenshot("wp2-title-" + sz[0] + "x" + sz[1] + "-gui" + sz[2]);
+        }
+        ctx.getInput().resizeWindow(1920, 1080);
+        ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(40);
+        // Hover the primary, then keyboard focus with its tooltip.
+        ctx.getInput().setCursorPos(960, 1080 * 0.47);
+        ctx.waitTicks(30);
+        ctx.takeScreenshot("wp2-title-hover");
+        ctx.getInput().setCursorPos(1920 * 0.8, 1080 * 0.25);
+        ctx.waitTicks(30);
+        ctx.takeScreenshot("wp2-title-parallax");
+        ctx.getInput().setCursorPos(2, 2);
+        ctx.getInput().pressKey(GLFW.GLFW_KEY_TAB);
+        ctx.getInput().pressKey(GLFW.GLFW_KEY_DOWN);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("wp2-title-keyboard");
+        ctx.runOnClient(c -> { SocialClient.setLoopback(true); c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(30);
+        ctx.takeScreenshot("wp2-title-friends");
+        ctx.runOnClient(c -> { SocialClient.setLoopback(false); cs.animations.set("Reduced"); c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("wp2-title-reduced");
+        ctx.runOnClient(c -> { cs.animations.reset(); cs.theme.set("Classic"); cs.applyTheme(); c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("wp2-title-classic");
+        ctx.runOnClient(c -> { cs.theme.reset(); cs.applyTheme(); EvadeClient.modules.get(TitleScreenModule.class).effects.set("Light");
+            c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(20);
+        ctx.takeScreenshot("wp2-title-light");
+        ctx.runOnClient(c -> { EvadeClient.modules.get(TitleScreenModule.class).effects.set("Full"); c.setScreen(new TitleScreen()); });
+        ctx.waitTicks(10);
+
+        // The loading screen: a reload over the menu (logo flies in), mid-load, and the hand-over back (flies out).
+        ctx.runOnClient(MinecraftClient::reloadResources);
+        for (int i = 0; i < 3; i++) { ctx.waitTicks(3); ctx.takeScreenshot("wp2-reload-in-" + i); }
+        ctx.waitFor(c -> c.getOverlay() == null || net.evadeclient.gui.EvadeSplash.handingOver(), 20 * 60);
+        for (int i = 0; i < 6; i++) { ctx.takeScreenshot("wp2-handoff-" + i); ctx.waitTicks(3); }
+        ctx.waitFor(c -> c.getOverlay() == null, 20 * 30);
+        ctx.waitTicks(10);
+        ctx.takeScreenshot("wp2-after-handoff");
+        float[] now = {0f};
+        ctx.setScreen(() -> new Screen(Text.literal("splash")) {
+            @Override public void render(net.minecraft.client.gui.DrawContext g, int mx, int my, float d) {
+                net.evadeclient.gui.EvadeSplash.renderAt(g, now[0], 0.62f, false);
+            }
+        });
+        for (float t : new float[]{0.5f, 1.2f, 2.45f, 5.0f}) {
+            now[0] = t;
+            ctx.waitTicks(2);
+            ctx.takeScreenshot("wp2-splash-" + String.format(Locale.ROOT, "%.2f", t).replace('.', '_'));
+        }
+        ctx.getInput().resizeWindow(3840, 2160);
+        ctx.runOnClient(c -> { c.options.getGuiScale().setValue(4); c.onResolutionChanged(); });
+        ctx.waitTicks(4);
+        ctx.takeScreenshot("wp2-splash-3840x2160");
+        ctx.getInput().resizeWindow(1920, 1080);
+        ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });
+        ctx.setScreen(() -> null);
+        cost(ctx);
+        ctx.runOnClient(c -> EvadeClient.modules.get(TitleScreenModule.class).setEnabled(false));
+        ctx.runOnClient(c -> c.setScreen(new TitleScreen()));
+        ctx.waitTicks(2);
+    }
+
     // ------------------------------------------------------------------ (1) every path shows the Evade menu
 
     private static void replacement(ClientGameTestContext ctx) {
@@ -352,7 +436,7 @@ public final class TitleScreenTest {
      * default (Menu Effects Auto, which is Light on this software renderer) must stay within 1.5x vanilla's frame
      * time. The Full effects and each layer left out are measured and logged, to show where the time goes.
      */
-    private static void cost(ClientGameTestContext ctx) {
+    static void cost(ClientGameTestContext ctx) {
         ctx.getInput().resizeWindow(1920, 1080);
         ctx.runOnClient(c -> { c.options.getGuiScale().setValue(2); c.onResolutionChanged(); });
         // Vanilla and the Evade default in turn, three times each (the test machine is shared, so one sample can be

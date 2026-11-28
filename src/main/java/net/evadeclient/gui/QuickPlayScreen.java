@@ -1,12 +1,21 @@
 package net.evadeclient.gui;
 
 import net.evadeclient.EvadeClient;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.Kit;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.Scrollbar;
+import net.evadeclient.gui.kit.Sidebar;
+import net.evadeclient.gui.kit.Surface;
 import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.module.misc.QuickPlay;
 import net.evadeclient.module.misc.QuickPlay.Game;
 import net.evadeclient.module.misc.QuickPlay.Mode;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
@@ -16,37 +25,23 @@ import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * The Quick Play picker, drawn in the menu's style: games down the left, the selected game's modes as cards on the
- * right, with rows of pinned favourites and recently played modes above them. Left click a card or chip to play it
- * (one command per click), right click (or click its star) to pin or unpin it. Off Hypixel the cards are dimmed and
- * clicking one only says so.
+ * The Quick Play picker on the kit: games in a sidebar (the selection glides), the selected game's modes as cards on
+ * the right, with rows of pinned favourites and recently played modes above them. Left click a card or chip to play
+ * it (one command per click), right click (or click its star) to pin or unpin it. Off Hypixel the cards are dimmed
+ * and clicking one only says so.
  */
 public final class QuickPlayScreen extends Screen {
-    private static final int SIDE = 132, NAV_H = 22, CARD_H = 38, CARD_MIN_W = 118, GAP = 6, CHIP_H = 18;
-    private static final long OPEN_MS = 160;
+    private static final int SIDE = 156, CARD_H = 52, CARD_MIN_W = 132, GAP = 8;
 
     private final Screen parent;
+    private final Kit kit = new Kit();
     private Game game;
-    private boolean smooth = true, anims = true;
     private long openedAt;
     private float scroll, scrollTarget;
     private int contentHeight, viewHeight;
-    private long lastFrame = System.nanoTime();
-    private final Map<String, Motion.Spring> hover = new HashMap<>();
-    private final Motion.Spring navSpring = new Motion.Spring();
-
-    /** What the mouse can hit this frame, rebuilt by every render (rectangles in screen coordinates). */
-    private record Hit(int x1, int y1, int x2, int y2, Mode mode, Game game, boolean star) {
-        boolean contains(double x, double y) { return x >= x1 && x < x2 && y >= y1 && y < y2; }
-    }
-
-    private final List<Hit> hits = new ArrayList<>();
 
     // Window rect, set each frame.
     private int wx, wy, ww, wh;
@@ -64,9 +59,6 @@ public final class QuickPlayScreen extends Screen {
 
     @Override
     protected void init() {
-        ClientSettings s = settings();
-        smooth = s == null || s.smoothFont.get();
-        anims = s == null || s.animations.on();
         if (openedAt == 0) openedAt = System.currentTimeMillis();
     }
 
@@ -76,252 +68,225 @@ public final class QuickPlayScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
+    private float fade() {
+        Motion.Level l = Motion.level();
+        if (l == Motion.Level.OFF) return 1f;
+        return Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) (l == Motion.Level.REDUCED ? Motion.DUR_REDUCED_MAX : Motion.DUR_QUICK));
+    }
+
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ClientSettings s = settings();
         if (s != null) s.applyTheme();
         if (s == null || s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        float a = openAlpha();
-        ctx.fillGradient(0, 0, width, height, Theme.alpha(0xB0000000, a),
-                Theme.alpha(0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF), a));
-    }
-
-    private float openAlpha() {
-        if (!anims) return 1f;
-        return Motion.cubicOut((System.currentTimeMillis() - openedAt) / (float) OPEN_MS);
+        Paint.scrim(ctx, width, height, fade());
     }
 
     @Override
     public void render(DrawContext ctx, int mx, int my, float delta) {
         super.render(ctx, mx, my, delta);
-        long now = System.nanoTime();
-        float dt = Math.min(0.1f, (now - lastFrame) / 1e9f);
-        lastFrame = now;
-        hits.clear();
-
-        ww = Math.min(620, width - 20);
-        wh = Math.min(380, height - 20);
+        kit.begin(ctx, mx, my);
+        ww = Math.min(680, width - 20);
+        wh = Math.min(420, height - 20);
         wx = (width - ww) / 2;
-        float a = openAlpha();
-        int rise = anims ? Math.round((1f - a) * 8f) : 0;
-        wy = (height - wh) / 2 + rise;
-
+        wy = (height - wh) / 2;
+        float rise = Motion.decorative() ? Motion.standard(Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) Motion.DUR_SLOW)) : 1f;
         float base = Theme.fade;
-        Theme.fade = base * a;
+        Theme.fade = base * fade();
+        var m = ctx.getMatrices();
+        m.pushMatrix();
         try {
-            Theme.shadow(ctx, Theme.SH_WINDOW, wx, wy, wx + ww, wy + wh, 0x90000000);
-            Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
-            Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
-            Theme.round(ctx, wx + 1, wy + 1, wx + SIDE, wy + wh - 1, Theme.SIDEBAR, Theme.R_WIN - 1, Theme.TL | Theme.BL);
-            Theme.fill(ctx, wx + SIDE, wy + 1, wx + SIDE + 1, wy + wh - 1, Theme.BORDER);
-            renderSidebar(ctx, mx, my, dt);
-            renderContent(ctx, mx, my, dt);
+            if (rise < 1f) {
+                float sc = 0.97f + 0.03f * rise;
+                m.translate(width / 2f, height / 2f);
+                m.scale(sc, sc);
+                m.translate(-width / 2f, -height / 2f + Theme.snap(ctx, (1f - rise) * 10f));
+            }
+            // Anything outside the window closes the picker.
+            kit.barrier("outside", 0, 0, width, height, this::close);
+            kit.barrier("window", wx, wy, wx + ww, wy + wh, null);
+            Surface.window(kit, wx, wy, wx + ww, wy + wh);
+            // The sidebar: a darker inset panel along the left.
+            Paint.rect(ctx, wx + 6, wy + 6, wx + SIDE, wy + wh - 6, Tokens.R_MD, Theme.alpha(Tokens.N50, 0.7f));
+            renderSidebar(ctx);
+            renderContent(ctx, mx, my);
+            kit.end();
         } finally {
+            m.popMatrix();
             Theme.fade = base;
         }
     }
 
-    private void renderSidebar(DrawContext ctx, int mx, int my, float dt) {
-        UiFont.draw(ctx, textRenderer, "Quick Play", wx + 14, wy + 12, Theme.TEXT, Role.TITLE, smooth);
-        UiFont.draw(ctx, textRenderer, "Hypixel games", wx + 14, wy + 28, Theme.TEXT_DIM, Role.SMALL, smooth);
-        Theme.fill(ctx, wx + 12, wy + 42, wx + SIDE - 12, wy + 43, Theme.DIVIDER);
-
-        int y = wy + 50;
-        int selY = y;
+    private void renderSidebar(DrawContext ctx) {
+        int x = wx + 12, w = SIDE - 18;
+        kit.text("Quick Play", x + 4, wy + 16, Tokens.N950, Role.HEADLINE);
+        kit.text("Hypixel games", x + 4, wy + 38, Tokens.N700, Role.SMALL);
+        int y = wy + 58;
+        Sidebar.highlight(kit, "games", x, w);
         for (Game g : QuickPlay.GAMES) {
-            if (y + NAV_H > wy + wh - 6) break;
-            if (g == game) selY = y;
-            y += NAV_H;
-        }
-        // The selection highlight glides between games.
-        float hy = anims ? navSpring.step(selY, 26f, 1f, dt) : selY;
-        if (!anims) navSpring.set(selY);
-        int hyI = Math.round(hy);
-        Theme.roundBordered(ctx, wx + 8, hyI, wx + SIDE - 8, hyI + NAV_H - 2, Theme.tint(0.11f), Theme.alpha(Theme.RED, 0.35f));
-
-        y = wy + 50;
-        for (Game g : QuickPlay.GAMES) {
-            if (y + NAV_H > wy + wh - 6) break;
-            boolean hv = mx >= wx + 8 && mx < wx + SIDE - 8 && my >= y && my < y + NAV_H - 2;
-            float h = spring("nav:" + g.name(), hv && g != game ? 1 : 0, dt);
-            if (h > 0.01f) Theme.round(ctx, wx + 8, y, wx + SIDE - 8, y + NAV_H - 2, Theme.alpha(Theme.ROW_HOVER, h));
-            Theme.disc(ctx, wx + 16, y + 6, 8, g.color());
-            int c = g == game ? Theme.TEXT : Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, h);
-            UiFont.draw(ctx, textRenderer, g.name(), wx + 30, y + 6, c, Role.BODY, smooth);
-            hits.add(new Hit(wx + 8, y, wx + SIDE - 8, y + NAV_H - 2, null, g, false));
-            y += NAV_H;
+            if (y + Sidebar.ITEM_H > wy + wh - 8) break;
+            Game gg = g;
+            Sidebar.item(kit, "games", "g:" + g.name(), x, y, w, null, g.name(), String.valueOf(g.modes().size()), g == game, false, () -> pick(gg));
+            // The game's colour as a lit dot where the icon goes.
+            Paint.circle(ctx, x + 18, y + Sidebar.ITEM_H / 2f, g == game ? 9 : 7, g.color() | 0xFF000000);
+            if (g == game) Paint.glow(kit, x + 13, y + 9, x + 23, y + 19, 5, 4, Theme.alpha(g.color() | 0xFF000000, 0.35f));
+            y += Sidebar.ITEM_H;
         }
     }
 
-    private void renderContent(DrawContext ctx, int mx, int my, float dt) {
+    private void pick(Game g) {
+        if (g == game) return;
+        game = g;
+        scrollTarget = 0;
+        QuickPlay qp = QuickPlay.instance();
+        if (qp != null) qp.setLastGame(game.name());
+    }
+
+    private void renderContent(DrawContext ctx, int mx, int my) {
         QuickPlay qp = QuickPlay.instance();
         boolean on = QuickPlay.available();
-        int cx = wx + SIDE + 16, cw = ww - SIDE - 32;
-        int top = wy + 12;
+        int cx = wx + SIDE + 18, cw = ww - SIDE - 36;
+        int top = wy + 16;
 
-        // Status pill, top right.
-        String status = on ? "Connected to Hypixel" : "Not on Hypixel";
-        int sw = UiFont.width(textRenderer, status, Role.SMALL, smooth) + 18;
-        int sx = wx + ww - 14 - sw;
-        Theme.roundBordered(ctx, sx, top, sx + sw, top + 14, Theme.CONTROL, Theme.BORDER);
-        Theme.disc(ctx, sx + 6, top + 5, 4, on ? Theme.OK : Theme.DANGER);
-        UiFont.draw(ctx, textRenderer, status, sx + 13, top + 4, on ? Theme.TEXT_SOFT : Theme.DANGER, Role.SMALL, smooth);
+        // Status, top right: icon plus words (never colour alone).
+        String status = on ? "On Hypixel" : "Not on Hypixel";
+        int sw = Badge.width(kit, status) + 14;
+        int sx = wx + ww - 18 - sw;
+        Paint.pill(ctx, sx, top + 2, sx + sw, top + 16, Theme.alpha(on ? Tokens.OK : Tokens.WARN, 0.14f));
+        Icons.draw(ctx, on ? "check" : "warn", sx + 4, top + 4, 10, on ? Tokens.OK : Tokens.WARN);
+        kit.textCentredY(status, sx + 17, top + 9, on ? Tokens.OK : Tokens.WARN, Role.TINY);
 
-        UiFont.draw(ctx, textRenderer, game.name(), cx, top + 1, Theme.TEXT, Role.TITLE, smooth);
-        String sub = on ? "Click to play. Right click to pin." : "Join Hypixel to play. You can still pin modes.";
-        UiFont.draw(ctx, textRenderer, sub, cx, top + 17, Theme.TEXT_DIM, Role.SMALL, smooth);
+        // Game header: a colour tile, the name and the hint.
+        Paint.rect(ctx, cx, top, cx + 30, top + 30, Tokens.R_SM, Theme.lerpColor(Tokens.N250, game.color() | 0xFF000000, 0.25f));
+        Paint.ring(ctx, cx, top, cx + 30, top + 30, Tokens.R_SM, Theme.alpha(game.color() | 0xFF000000, 0.5f), 1);
+        String tag = game.tag() == null || game.tag().isEmpty() ? game.name().substring(0, 1) : game.tag();
+        kit.textCentredY(tag, cx + 15 - kit.width(tag, Role.STRONG) / 2, top + 15, Tokens.N950, Role.STRONG);
+        kit.text(game.name(), cx + 40, top + 1, Tokens.N950, Role.TITLE);
+        kit.text(on ? "Click to play · right-click or the star to pin" : "Join Hypixel to play · you can still pin modes", cx + 40, top + 18, Tokens.N700, Role.SMALL);
+        Paint.fadeLine(ctx, cx - 4, top + 40, cx + cw + 4, Theme.alpha(0xFFFFFFFF, 0.06f));
 
-        int viewTop = wy + 46, viewBottom = wy + wh - 10;
+        int viewTop = top + 48, viewBottom = wy + wh - 12;
         viewHeight = viewBottom - viewTop;
-        scroll = anims ? stepScroll(dt) : scrollTarget;
+        float target = Math.max(0, Math.min(maxScroll(), scrollTarget));
+        scroll = kit.anim("scroll", target, Motion.SMOOTH);
         int y = viewTop - Math.round(scroll);
-        ctx.enableScissor(cx - 4, viewTop, cx + cw + 4, viewBottom);
+        ctx.enableScissor(cx - 6, viewTop, cx + cw + 6, viewBottom);
+        kit.clipHits(cx - 6, viewTop, cx + cw + 6, viewBottom);
         try {
             List<Mode> favs = qp == null ? List.of() : qp.favourites();
-            if (!favs.isEmpty()) y = chipRow(ctx, "Favourites", favs, cx, cw, y, mx, my, dt, on, viewTop, viewBottom);
+            if (!favs.isEmpty()) y = chipRow(ctx, "FAVOURITES", favs, cx, cw, y, on);
             List<Mode> recent = qp == null || !qp.showRecent() ? List.of() : qp.recent();
-            if (!recent.isEmpty()) y = chipRow(ctx, "Recent", recent, cx, cw, y, mx, my, dt, on, viewTop, viewBottom);
+            if (!recent.isEmpty()) y = chipRow(ctx, "RECENT", recent, cx, cw, y, on);
 
-            UiFont.caps(ctx, textRenderer, "Modes", cx, y + 2, Theme.TEXT_HEADER, Role.CAPS, 1f, smooth);
-            y += 14;
+            y = Surface.section(kit, "MODES", String.valueOf(game.modes().size()), cx, y);
             int cols = Math.max(1, (cw + GAP) / (CARD_MIN_W + GAP));
             int cardW = (cw - GAP * (cols - 1)) / cols;
             List<Mode> modes = game.modes();
             for (int i = 0; i < modes.size(); i++) {
                 int col = i % cols, row = i / cols;
                 int x1 = cx + col * (cardW + GAP), y1 = y + row * (CARD_H + GAP);
-                card(ctx, modes.get(i), x1, y1, cardW, mx, my, dt, on, qp, viewTop, viewBottom);
+                if (y1 + CARD_H > viewTop && y1 < viewBottom) card(ctx, modes.get(i), x1, y1, cardW, on, qp, i);
             }
             int rows = (modes.size() + cols - 1) / cols;
             y += rows * (CARD_H + GAP);
             contentHeight = y + Math.round(scroll) - viewTop;
         } finally {
+            kit.unclipHits();
             ctx.disableScissor();
         }
-        // Scroll hint: a thin bar when the content is taller than the view.
         int max = maxScroll();
         if (max > 0) {
-            int barH = Math.max(16, viewHeight * viewHeight / Math.max(1, contentHeight));
-            int barY = viewTop + Math.round((viewHeight - barH) * (scroll / max));
-            Theme.round(ctx, wx + ww - 6, barY, wx + ww - 4, barY + barH, Theme.alpha(Theme.TEXT_FAINT, 0.7f), 1);
+            Scrollbar.edgeFades(kit, cx - 6, viewTop, cx + cw + 6, viewBottom, Theme.alpha(Tokens.N100, 0.85f), scroll > 1, scroll < max - 1);
+            Scrollbar.draw(kit, "bar", wx + ww - 4, viewTop, viewBottom, scroll, max, v -> { scrollTarget = v; kit.snapAnim("scroll", v); });
         }
     }
 
-    private int chipRow(DrawContext ctx, String title, List<Mode> modes, int cx, int cw, int y, int mx, int my,
-                        float dt, boolean on, int viewTop, int viewBottom) {
-        UiFont.caps(ctx, textRenderer, title, cx, y + 2, Theme.TEXT_HEADER, Role.CAPS, 1f, smooth);
-        y += 14;
+    private int chipRow(DrawContext ctx, String title, List<Mode> modes, int cx, int cw, int y, boolean on) {
+        y = Surface.section(kit, title, null, cx, y);
         int x = cx;
         for (Mode m : modes) {
             String label = m.fullName();
-            int w = UiFont.width(textRenderer, label, Role.LABEL, smooth) + 22;
-            if (x + w > cx + cw && x > cx) { x = cx; y += CHIP_H + 4; }
-            boolean visible = y + CHIP_H > viewTop && y < viewBottom;
-            boolean hv = visible && on && mx >= x && mx < x + w && my >= y && my < y + CHIP_H && my >= viewTop && my < viewBottom;
-            float h = spring("chip:" + title + ":" + m.command(), hv ? 1 : 0, dt);
-            Theme.roundBordered(ctx, x, y, x + w, y + CHIP_H,
-                    Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, h), Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, h));
-            Theme.disc(ctx, x + 7, y + 7, 5, colorOf(m));
-            UiFont.draw(ctx, textRenderer, label, x + 16, y + 5, on ? Theme.TEXT : Theme.TEXT_DIM, Role.LABEL, smooth);
-            if (visible) hits.add(new Hit(x, Math.max(y, viewTop), x + w, Math.min(y + CHIP_H, viewBottom), m, null, false));
+            int w = Button.width(kit, label, Button.Size.SM, null, false) + 10;
+            if (x + w > cx + cw && x > cx) { x = cx; y += Button.Size.SM.h + 4; }
+            String id = "chip:" + title + ":" + m.command();
+            Button.draw(kit, id, x, y, w, Button.Size.SM, Button.Variant.SECONDARY, "  " + label, null, true, () -> {});
+            Paint.circle(ctx, x + 10, y + 10, 6, colorOf(m) | 0xFF000000);
+            kit.hit(id, x, y, x + w, y + Button.Size.SM.h, (b, px, py) -> clickMode(m, b, false), true);
             x += w + 4;
         }
-        return y + CHIP_H + 10;
+        return y + Button.Size.SM.h + Tokens.S5;
     }
 
-    private void card(DrawContext ctx, Mode m, int x, int y, int w, int mx, int my, float dt, boolean on,
-                      QuickPlay qp, int viewTop, int viewBottom) {
-        boolean visible = y + CARD_H > viewTop && y < viewBottom;
-        if (!visible) return;
-        boolean inView = my >= viewTop && my < viewBottom;
-        boolean hv = inView && mx >= x && mx < x + w && my >= y && my < y + CARD_H;
-        float h = spring("card:" + m.command(), hv ? 1 : 0, dt);
-        if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x, y, x + w, y + CARD_H, Theme.alpha(0xFF000000, 0.35f * h));
-        int fill = Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h);
-        int border = Theme.lerpColor(Theme.BORDER, on ? Theme.alpha(Theme.RED, 0.8f) : Theme.BORDER_HOVER, h);
-        Theme.roundBordered(ctx, x, y, x + w, y + CARD_H, fill, border);
-        // Accent edge in the game's colour.
-        Theme.round(ctx, x, y + 4, x + 2, y + CARD_H - 4, Theme.alpha(game.color(), on ? 1f : 0.45f), 1);
-
-        UiFont.draw(ctx, textRenderer, m.label(), x + 10, y + 8, on ? Theme.TEXT : Theme.TEXT_DIM, Role.STRONG, smooth);
-        UiFont.draw(ctx, textRenderer, "/" + m.command(), x + 10, y + 23, Theme.TEXT_FAINT, Role.TINY, smooth);
-
-        // Pin star in the top right corner (pixel font: the smooth font has no star glyph).
+    private void card(DrawContext ctx, Mode m, int x, int y, int w, boolean on, QuickPlay qp, int index) {
+        String id = "card:" + m.command();
+        float fd = Theme.fade;
+        if (!on) Theme.fade = fd * 0.6f;
+        try {
+            Surface.card(kit, id, x, y, x + w, y + CARD_H, false, on, null);
+            // The game's colour as an edge light, leaning with the Evade slant.
+            Paint.slant(ctx, x + 1, y + 10, x + 3, y + CARD_H - 10, game.color() | 0xFF000000);
+            kit.text(kit.ellipsize(m.label(), Role.STRONG, w - 36), x + 12, y + 12, Tokens.N950, Role.STRONG);
+            kit.text("/" + m.command(), x + 12, y + 30, Tokens.N600, Role.SMALL);
+            if (on && kit.hovered(id)) Icons.draw(ctx, "chevron_r", x + w - 16, y + CARD_H - 18, 8, Tokens.N800);
+        } finally {
+            Surface.endCard(kit);
+            Theme.fade = fd;
+        }
+        kit.hit(id, x, y, x + w, y + CARD_H, (b, px, py) -> clickMode(m, b, false), true);
+        // Pin star, top right.
         boolean fav = qp != null && qp.isFavourite(m);
-        int starX = x + w - 14, starY = y + 5;
-        boolean starHv = hv && mx >= starX - 3 && mx < starX + 11 && my >= starY - 3 && my < starY + 11;
-        int starC = fav ? Theme.WARN : starHv ? Theme.TEXT_SOFT : Theme.alpha(Theme.TEXT_FAINT, 0.4f + 0.6f * h);
-        ctx.drawText(textRenderer, Text.literal(fav ? "★" : "☆"), starX, starY, Theme.fa(starC), false);
+        String sid = id + "#star";
+        int sx = x + w - 22, sy = y + 6;
+        boolean hot = kit.hovered(sid);
+        if (hot) Paint.rect(ctx, sx, sy, sx + 16, sy + 16, Tokens.R_XS, Theme.alpha(Tokens.N300, 0.8f));
+        Icons.draw(ctx, "star", sx + 2, sy + 2, 12, fav ? Tokens.WARN : hot ? Tokens.N900 : Tokens.N600);
+        kit.hit(sid, sx, sy, sx + 16, sy + 16, (b, px, py) -> clickMode(m, b, true), false);
+        kit.tooltip(sid, fav ? "Unpin" : "Pin to favourites", null, sx, sy, sx + 16, sy + 16);
+    }
 
-        int y1 = Math.max(y, viewTop), y2 = Math.min(y + CARD_H, viewBottom);
-        hits.add(new Hit(starX - 3, Math.max(starY - 3, viewTop), starX + 11, Math.min(starY + 11, viewBottom), m, null, true));
-        hits.add(new Hit(x, y1, x + w, y2, m, null, false));
+    private void clickMode(Mode m, int button, boolean star) {
+        QuickPlay qp = QuickPlay.instance();
+        if (qp == null) return;
+        if (button == 1 || star) {
+            boolean now = qp.toggleFavourite(m);
+            Notifications.push("Quick Play", (now ? "Pinned " : "Unpinned ") + m.fullName(), now);
+            return;
+        }
+        if (button != 0) return;
+        if (!QuickPlay.available()) {
+            Notifications.push("Quick Play", "Only works on Hypixel", false);
+            return;
+        }
+        if (qp.play(m) && qp.closeOnPick() && client != null) client.setScreen(null);
     }
 
     private int colorOf(Mode m) {
         for (Game g : QuickPlay.GAMES) if (g.name().equals(m.game())) return g.color();
-        return Theme.TEXT_DIM;
-    }
-
-    private float spring(String key, float target, float dt) {
-        if (!anims) return target;
-        return Motion.clamp01(hover.computeIfAbsent(key, k -> new Motion.Spring(target)).step(target, 22f, 1f, dt));
+        return Tokens.N700;
     }
 
     private int maxScroll() { return Math.max(0, contentHeight - viewHeight); }
-
-    private final Motion.Spring scrollSpring = new Motion.Spring(0);
-
-    private float stepScroll(float dt) {
-        return scrollSpring.step(scrollTarget, 20f, 1f, dt);
-    }
 
     // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        if (super.mouseClicked(click, doubled)) return true;
-        double x = click.x(), y = click.y();
-        int button = click.button();
-        QuickPlay qp = QuickPlay.instance();
-        for (Hit h : hits) {
-            if (!h.contains(x, y)) continue;
-            if (h.game() != null) {
-                if (button == 0 && h.game() != game) {
-                    game = h.game();
-                    scrollTarget = 0;
-                    if (qp != null) qp.setLastGame(game.name());
-                }
-                return true;
-            }
-            if (qp == null || h.mode() == null) return true;
-            if (button == 1 || h.star()) {
-                boolean now = qp.toggleFavourite(h.mode());
-                Notifications.push("Quick Play", (now ? "Pinned " : "Unpinned ") + h.mode().fullName(), now);
-                return true;
-            }
-            if (button == 0) {
-                if (!QuickPlay.available()) {
-                    Notifications.push("Quick Play", "Only works on Hypixel", false);
-                    return true;
-                }
-                if (qp.play(h.mode()) && qp.closeOnPick() && client != null) client.setScreen(null);
-                return true;
-            }
-            return true;
-        }
-        // A click outside the window closes the picker.
-        if (button == 0 && (x < wx || x >= wx + ww || y < wy || y >= wy + wh)) {
-            close();
-            return true;
-        }
-        return false;
+        return kit.mouseClicked(click.x(), click.y(), click.button()) || super.mouseClicked(click, doubled);
+    }
+
+    @Override
+    public boolean mouseReleased(Click click) {
+        return kit.mouseReleased(click.x(), click.y(), click.button()) || super.mouseReleased(click);
+    }
+
+    @Override
+    public boolean mouseDragged(Click click, double dx, double dy) {
+        return kit.mouseDragged(click.x(), click.y(), click.button()) || super.mouseDragged(click, dx, dy);
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double h, double v) {
-        scrollTarget = Math.max(0, Math.min(maxScroll(), scrollTarget - (float) v * 24f));
-        if (!anims) scroll = scrollTarget;
+        scrollTarget = Math.max(0, Math.min(maxScroll(), scrollTarget - (float) v * 28f));
         return true;
     }
 
@@ -331,12 +296,10 @@ public final class QuickPlayScreen extends Screen {
         if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) {
             int i = QuickPlay.GAMES.indexOf(game) + (key == GLFW.GLFW_KEY_DOWN ? 1 : -1);
             int n = QuickPlay.GAMES.size();
-            game = QuickPlay.GAMES.get((i % n + n) % n);
-            scrollTarget = 0;
-            QuickPlay qp = QuickPlay.instance();
-            if (qp != null) qp.setLastGame(game.name());
+            pick(QuickPlay.GAMES.get((i % n + n) % n));
             return true;
         }
+        if (key != GLFW.GLFW_KEY_ESCAPE && kit.keyPressed(key, input.modifiers())) return true;
         return super.keyPressed(input);
     }
 }

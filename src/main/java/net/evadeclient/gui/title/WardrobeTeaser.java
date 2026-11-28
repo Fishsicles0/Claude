@@ -49,7 +49,37 @@ public final class WardrobeTeaser {
     }
 
     /**
-     * The turning figure in (x1, y1)-(x2, y2), with a soft accent floor glow under its feet. {@code turn} false holds
+     * The stand the figure turns on, under (x1, y1)-(x2, y2) in the card (design px): a lit floor disc (an
+     * elliptical contact shadow, a faint additive red pool and a thin ring catching the light), so the figure stands
+     * on something instead of floating over a red smear.
+     */
+    public static void floor(DrawContext ctx, int x1, int y1, int x2, int y2, float alpha) {
+        if (alpha <= 0.01f || x2 - x1 < 8) return;
+        float cx = (x1 + x2) / 2f, fy = y2 - 1.5f, rx = (x2 - x1) * 0.50f, ry = Math.max(3f, rx * 0.15f);
+        if (!net.evadeclient.render.ui.UiShape.available()) {
+            TitleArt.glow(ctx, Math.round(cx), Math.round(fy), Math.round(rx * 2.4f), Math.round(ry * 3), Theme.alpha(Theme.RED, 0.30f * alpha));
+            return;
+        }
+        var m = ctx.getMatrices();
+        m.pushMatrix();
+        try {
+            m.translate(cx, fy);
+            m.scale(1f, ry / rx);
+            net.evadeclient.render.ui.UiShape.shape(-rx * 0.7f, -rx * 0.7f, rx * 0.7f, rx * 0.7f).radius(rx * 0.7f)
+                    .fill(Theme.alpha(0xFF000000, 0.55f)).asShadow(rx * 0.18f, 0, false).draw(ctx);
+            net.evadeclient.render.ui.UiShape.shape(-rx, -rx, rx, rx).radius(rx)
+                    .radial(Theme.alpha(net.evadeclient.util.Tokens.A700, 0.10f), 0x00000000, rx, rx, rx).draw(ctx);
+        } finally {
+            m.popMatrix();
+        }
+        // The rim of the disc: a 1 device px ring, brightest at the front.
+        net.evadeclient.render.ui.UiShape.shape(cx - rx, fy - ry, cx + rx, fy + ry).pill()
+                .border(Theme.alpha(0xFFFFFFFF, 0.10f), 1).draw(ctx);
+        TitleArt.softGlow(ctx, cx, fy, rx * 0.9f, ry * 1.6f, Theme.alpha(net.evadeclient.util.Tokens.A600, 0.12f));
+    }
+
+    /**
+     * The turning figure in (x1, y1)-(x2, y2) (GUI px: the special element ignores the matrix). {@code turn} false holds
      * it at a three-quarter view (Reduce Motion).
      */
     public static void figure(DrawContext ctx, net.minecraft.entity.player.SkinTextures skin, int x1, int y1, int x2, int y2,
@@ -63,9 +93,6 @@ public final class WardrobeTeaser {
                 EvadeClient.LOG.warn("Title Screen: couldn't preload cosmetics", e);
             }
         }
-        int cx = (x1 + x2) / 2;
-        TitleArt.glow(ctx, cx, y2 - 2, (x2 - x1) * 2, Math.max(10, (y2 - y1) / 5), Theme.alpha(Theme.RED, 0.45f * alpha));
-        TitleArt.glow(ctx, cx, (y1 + y2) / 2, (x2 - x1) * 2, (y2 - y1), Theme.alpha(Theme.RED, 0.10f * alpha));
         if (alpha < 0.99f) return; // the model can't fade or slide: it appears once the card has arrived
         // Still (Light effects, Reduce Motion): one fixed moment, so the picture is rendered once and kept.
         float time = turn ? (float) (Intro.now() / 1000.0) : 2f;

@@ -115,6 +115,7 @@ public final class Kit {
         tipId = null;
         glows = 0;
         force = 0;
+        clipping = false;
     }
 
     /** End the frame: draw the deferred overlays (popovers, dropdown menus) and the tooltip, on top of everything. */
@@ -138,17 +139,40 @@ public final class Kit {
 
     /** Register a clickable, focusable region. Later registrations are on top. */
     public void hit(String id, int x1, int y1, int x2, int y2, Runnable onClick) {
-        hits.add(new Hit(id, x1, y1, x2, y2, onClick == null ? null : (b, x, y) -> { if (b == 0) onClick.run(); }, true));
+        add(new Hit(id, x1, y1, x2, y2, onClick == null ? null : (b, x, y) -> { if (b == 0) onClick.run(); }, true));
     }
 
     /** Register a region with a full click handler (any button, the click position). */
     public void hit(String id, int x1, int y1, int x2, int y2, ClickAction action, boolean focusable) {
-        hits.add(new Hit(id, x1, y1, x2, y2, action, focusable));
+        add(new Hit(id, x1, y1, x2, y2, action, focusable));
     }
 
     /** A region that swallows clicks and hover beneath it (a modal's scrim, an open popover's backdrop). */
     public void barrier(String id, int x1, int y1, int x2, int y2, Runnable onClick) {
-        hits.add(new Hit(id, x1, y1, x2, y2, (b, x, y) -> { if (onClick != null) onClick.run(); }, false));
+        add(new Hit(id, x1, y1, x2, y2, (b, x, y) -> { if (onClick != null) onClick.run(); }, false));
+    }
+
+    // Hits registered between clipHits and unclipHits are cut to the clip (a scrolling region's view), and dropped
+    // when nothing of them is inside it: a control scrolled out of sight is never clicked through the header.
+    private boolean clipping;
+    private int clipX1, clipY1, clipX2, clipY2;
+
+    /** Clip the hits registered from now on to (x1, y1)-(x2, y2) (a scrolling view), until {@link #unclipHits}. */
+    public void clipHits(int x1, int y1, int x2, int y2) {
+        clipping = true;
+        clipX1 = x1; clipY1 = y1; clipX2 = x2; clipY2 = y2;
+    }
+
+    /** Stop clipping hits (see {@link #clipHits}). */
+    public void unclipHits() { clipping = false; }
+
+    private void add(Hit h) {
+        if (clipping) {
+            int x1 = Math.max(h.x1(), clipX1), y1 = Math.max(h.y1(), clipY1), x2 = Math.min(h.x2(), clipX2), y2 = Math.min(h.y2(), clipY2);
+            if (x2 <= x1 || y2 <= y1) return;
+            if (x1 != h.x1() || y1 != h.y1() || x2 != h.x2() || y2 != h.y2()) h = new Hit(h.id(), x1, y1, x2, y2, h.action(), h.focusable());
+        }
+        hits.add(h);
     }
 
     /** Follow the mouse while {@code id} is pressed (registered with {@link #hit}). */

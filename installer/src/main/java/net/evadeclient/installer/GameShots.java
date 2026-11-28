@@ -179,6 +179,6 @@ final class GameShots {
 
     private static void save(LauncherView v, Path dir, String name) throws Exception {
         for (int i = 0; i < 40; i++) v.snapshot(1f);
-        ImageIO.write(v.snapshot(2f), "png", dir.resolve(name + ".png").toFile());
+        ImageIO.write(v.snapshot(Screenshots.SCALE), "png", dir.resolve(name + ".png").toFile());
     }
 }

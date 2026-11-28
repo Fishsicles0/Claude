@@ -323,7 +323,7 @@ final class ViewExtras {
         // toolbar
         int tw = lw - 24 - 36 - 8;
         float st = v.anim("inst-sort", "inst-sort".equals(v.hovered));
-        g.setColor(mix(CARD_2, new Color(0x202028), st));
+        g.setColor(mix(CARD_2, new Color(0x1E2129), st));
         g.fill(new RoundRectangle2D.Double(lx + 12, ly + 12, tw, 36, 22, 22));
         LauncherView.icon(g, "list", lx + 32, ly + 30, 14, DIM);
         g.setFont(v.inter.deriveFont(12.5f));
@@ -375,15 +375,12 @@ final class ViewExtras {
             String id = "inst:" + i.id;
             boolean on = i == foc;
             float t = v.anim(id, id.equals(v.hovered));
-            if (on) {
-                g.setColor(new Color(225, 29, 46, 34));
-                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
-                g.setColor(RED);
-                g.fill(new RoundRectangle2D.Double(lx + 12, y + 18, 3, 28, 3, 3));
-            } else if (t > 0.01f) {
-                g.setColor(new Color(255, 255, 255, Math.round(8 * t)));
-                g.fill(new RoundRectangle2D.Double(lx + 12, y, lw - 24, 64, 24, 24));
+            float sel = v.anim(id + "-sel", on);
+            if (t > 0.01f && sel < 0.99f) {
+                g.setColor(Obsidian.alpha(Obsidian.N250, .8f * t * (1 - sel)));
+                g.fill(Obsidian.rr(lx + 12, y, lw - 24, 64, Obsidian.R_SM + 2));
             }
+            Obsidian.selected(g, lx + 12, y, lw - 24, 64, Obsidian.R_SM + 2, sel);
             v.instanceTile(g, lx + 28, y + 12, 40, i);
             g.setFont(v.interBold.deriveFont(14f));
             g.setColor(TEXT);
@@ -417,7 +414,7 @@ final class ViewExtras {
             g.setFont(v.inter.deriveFont(11.5f));
             g.setColor(DIM);
             g.drawString(LauncherView.ellipsizeEnd(g, busy, lw - 40), lx + 20, by + 2);
-            g.setColor(new Color(0x24242B));
+            g.setColor(new Color(0x21252D));
             g.fill(new RoundRectangle2D.Double(lx + 20, by + 8, lw - 40, 3, 3, 3));
             g.setColor(RED);
             g.fill(new RoundRectangle2D.Double(lx + 20, by + 8, (lw - 40) * Math.max(0.03, Math.min(1, busyProgress)), 3, 3, 3));
@@ -434,7 +431,7 @@ final class ViewExtras {
         boolean pinned = prefs.pinned.contains(i.id);
         iconTile(g, "inst-group", right - 40, y, 40, "folder", prefs.groups.containsKey(i.id));
         float t = v.anim("inst-pin", "inst-pin".equals(v.hovered));
-        g.setColor(mix(new Color(0x1C1C22), new Color(0x26262D), t));
+        g.setColor(mix(new Color(0x1A1D23), new Color(0x23272F), t));
         g.fill(new RoundRectangle2D.Double(right - 88, y, 40, 40, 24, 24));
         star(g, right - 68, y + 20, 15, pinned ? AMBER : mix(DIM, TEXT, t), pinned);
         v.hit("inst-pin", new Rectangle(right - 88, y, 40, 40));
@@ -449,7 +446,7 @@ final class ViewExtras {
 
     private void iconTile(Graphics2D g, String id, int x, int y, int s, String icon, boolean on) {
         float t = v.anim(id, id.equals(v.hovered));
-        g.setColor(on ? new Color(225, 29, 46, 44) : mix(new Color(0x1C1C22), new Color(0x26262D), t));
+        g.setColor(on ? new Color(225, 29, 46, 44) : mix(new Color(0x1A1D23), new Color(0x23272F), t));
         g.fill(new RoundRectangle2D.Double(x, y, s, s, 24, 24));
         LauncherView.icon(g, icon, x + s / 2, y + s / 2, 15, on ? RED_HI : mix(DIM, TEXT, t));
         v.hit(id, new Rectangle(x, y, s, s));
@@ -537,7 +534,7 @@ final class ViewExtras {
         for (String[] s : SHORTCUTS) {
             g.setFont(v.interBold.deriveFont(12f));
             int kw = g.getFontMetrics().stringWidth(s[0]) + 18;
-            g.setColor(new Color(0x24242B));
+            g.setColor(new Color(0x21252D));
             g.fill(new RoundRectangle2D.Double(ix, ry + 4, kw, 24, 10, 10));
             g.setColor(TEXT);
             center(g, s[0], ix, ry + 4, kw, 24);
@@ -551,7 +548,7 @@ final class ViewExtras {
     }
 
     private void veil(Graphics2D g) {
-        g.setColor(new Color(4, 4, 6, 150));
+        g.setColor(new Color(4, 5, 7, 150));
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
     }

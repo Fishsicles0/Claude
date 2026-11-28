@@ -263,7 +263,7 @@ final class GamePages {
         String nm = i != null ? i.name : "—";
         int pw = Math.min(220, g.getFontMetrics().stringWidth(nm) + 74), px = v.CX + v.CW - pw;
         float t = v.anim("mods-instance", "mods-instance".equals(v.hovered));
-        g.setColor(mix(LauncherView.CARD_2, new Color(0x202028), t));
+        g.setColor(mix(LauncherView.CARD_2, new Color(0x1E2129), t));
         g.fill(new RoundRectangle2D.Double(px, 96, pw, 40, 24, 24));
         LauncherView.icon(g, "layers", px + 22, 116, 15, DIM);
         g.setColor(TEXT);
@@ -405,7 +405,7 @@ final class GamePages {
         }
         if (oldJars != null && !oldJars.isEmpty()) {
             int oy = by + 110;
-            g.setColor(new Color(245, 165, 36, 22));
+            g.setColor(new Color(251, 191, 36, 22));
             g.fill(new RoundRectangle2D.Double(ix, oy, iw, 64, 24, 24));
             g.setFont(v.interBold.deriveFont(12.5f));
             g.setColor(TEXT);
@@ -615,7 +615,7 @@ final class GamePages {
         int pw = Math.max(120, bx - 8 - (fx + fw + 12));
         int px = fx + fw + 12;
         float t = v.anim("gp-file", "gp-file".equals(v.hovered));
-        g.setColor(mix(LauncherView.CARD_2, new Color(0x202028), t));
+        g.setColor(mix(LauncherView.CARD_2, new Color(0x1E2129), t));
         g.fill(new RoundRectangle2D.Double(px, y, pw, 40, 24, 24));
         LauncherView.icon(g, "list", px + 20, y + 20, 13, DIM);
         g.setFont(v.interBold.deriveFont(12.5f));
@@ -661,8 +661,8 @@ final class GamePages {
             int ry = top + 4 + n * rowH - Math.round(off);
             int dm = l.level() == LogTools.Level.ERROR ? ThemedGraphics.danger(g) : -1; // error lines stay red
             if (l.level() == LogTools.Level.ERROR) { g.setColor(new Color(225, 29, 46, 22)); g.fillRect(x + 10, ry, w - 30, rowH); }
-            else if (l.level() == LogTools.Level.WARN) { g.setColor(new Color(245, 165, 36, 14)); g.fillRect(x + 10, ry, w - 30, rowH); }
-            g.setColor(l.level() == LogTools.Level.ERROR ? new Color(0xFF7A86) : l.level() == LogTools.Level.WARN ? AMBER : new Color(0xC6C6CE));
+            else if (l.level() == LogTools.Level.WARN) { g.setColor(new Color(251, 191, 36, 14)); g.fillRect(x + 10, ry, w - 30, rowH); }
+            g.setColor(l.level() == LogTools.Level.ERROR ? new Color(0xFF8F9A) : l.level() == LogTools.Level.WARN ? AMBER : new Color(0xC4C7CF));
             g.drawString(LauncherView.ellipsizeEnd(g, LogTools.mask(l.text().replace('\t', ' '), player), w - 50), x + 18, ry + 13);
             if (dm >= 0) ThemedGraphics.mode(g, dm);
         }
@@ -853,7 +853,7 @@ final class GamePages {
         g.setColor(new Color(255, 255, 255, 26));
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, 63, 28, 28));
         g.setFont(v.interBold.deriveFont(13f));
-        g.setColor(mix(new Color(0xD6D6DC), Color.WHITE, t));
+        g.setColor(mix(new Color(0xD4D7DD), Color.WHITE, t));
         v.spaced(g, top, x + 20, y + 29, 0.8f);
         g.setFont(v.inter.deriveFont(11.5f));
         g.setColor(new Color(255, 255, 255, 150));
@@ -882,12 +882,12 @@ final class GamePages {
     /** "Minecraft started a different profile": which one to pick, Retry, and switching off an old one-file Evade. */
     private void paintWrongProfile(Graphics2D g, int x, int y, int w, int h) {
         v.card(g, x, y, w, h, false);
-        g.setColor(new Color(245, 165, 36, 16));
+        g.setColor(new Color(251, 191, 36, 16));
         g.fill(new RoundRectangle2D.Double(x, y, w, h, 32, 32));
-        g.setColor(new Color(245, 165, 36, 70));
+        g.setColor(new Color(251, 191, 36, 70));
         g.draw(new RoundRectangle2D.Double(x + .5, y + .5, w - 1, h - 1, 32, 32));
         int ix = x + 24, iw = w - 48;
-        g.setColor(new Color(245, 165, 36, 40));
+        g.setColor(new Color(251, 191, 36, 40));
         g.fill(new RoundRectangle2D.Double(ix, y + 20, 40, 40, 20, 20));
         LauncherView.icon(g, "alert", ix + 20, y + 40, 18, AMBER);
         g.setFont(v.interBold.deriveFont(10f));
@@ -962,7 +962,7 @@ final class GamePages {
             v.hitMap.clear();
             if (close != null) v.hitMap.put("close", close);
             if (min != null) v.hitMap.put("min", min);
-            g.setColor(new Color(4, 4, 6, 170));
+            g.setColor(new Color(4, 5, 7, 170));
             if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
             else g.fillRect(0, 0, W, H);
             int w = 440, h = 210, x = (W - w) / 2, y = (H - h) / 2;
@@ -999,7 +999,7 @@ final class GamePages {
                 int ux = x + tw - 74;
                 g.setColor(mix(new Color(225, 29, 46, 44), new Color(225, 29, 46, 90), t));
                 g.fill(new RoundRectangle2D.Double(ux, y + 6, 66, 32, 32, 32));
-                g.setColor(mix(new Color(0xFF6B78), Color.WHITE, t));
+                g.setColor(mix(new Color(0xFF5566), Color.WHITE, t));
                 LauncherView.center(g, "Undo", ux, y + 6, 66, 32);
                 double f = 1 - age / (double) InstanceTrash.UNDO_MS;
                 g.setColor(new Color(225, 29, 46, 160));
@@ -1012,10 +1012,9 @@ final class GamePages {
         if (keyNav && focusId != null && (v.isFocusOwner() || v.extras.alwaysShowFocus)) {
             Rectangle r = v.hitMap.get(focusId);
             if (r != null) {
-                g.setColor(new Color(255, 65, 83, 220));
-                g.setStroke(new BasicStroke(2f));
-                g.draw(new RoundRectangle2D.Double(r.x - 3, r.y - 3, r.width + 6, r.height + 6, 18, 18));
-                g.setStroke(new BasicStroke(1f));
+                // Obsidian focus ring: moves instantly, its glow eases in
+                float glow = v.anim("focus-ring:" + focusId, true);
+                Obsidian.focusRing(g, r, Obsidian.radiusFor(r), 0.35f + 0.65f * glow);
             }
         }
     }
@@ -1135,7 +1134,7 @@ final class GamePages {
 
     private void iconTile(Graphics2D g, String id, int x, int y, String icon, String name) {
         float t = v.anim(id, id.equals(v.hovered));
-        g.setColor(mix(new Color(0x1C1C22), new Color(0x26262D), t));
+        g.setColor(mix(new Color(0x1A1D23), new Color(0x23272F), t));
         g.fill(new RoundRectangle2D.Double(x, y, 40, 40, 24, 24));
         LauncherView.icon(g, icon, x + 20, y + 20, 15, mix(DIM, TEXT, t));
         v.hit(id, new Rectangle(x, y, 40, 40));

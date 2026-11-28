@@ -6,12 +6,15 @@ import net.evadeclient.EvadeClient;
 import net.evadeclient.module.client.ClientSettings;
 import net.evadeclient.util.Notifications;
 import net.evadeclient.util.SafeStart;
-import net.evadeclient.util.Theme;
+import net.evadeclient.gui.kit.Badge;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.util.Icons;
+import net.evadeclient.util.Tokens;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -23,20 +26,22 @@ import java.util.List;
  * back on one at a time (play a little after each to find the one that breaks), or all at once. "Keep them off"
  * closes the list and leaves the rest off; nothing is turned on without a click here.
  */
-public final class SafeStartScreen extends Screen {
-    private static final int ROW = 22, MAX_ROWS = 7;
+public final class SafeStartScreen extends EvadeDialog {
+    private static final int ROW = 30, MAX_ROWS = 7;
 
-    private final Screen parent;
     private List<String> waiting = new ArrayList<>();
     private String reason = "", suspect = null;
     private List<String> suspects = List.of();
     private int scroll;
-    private int px, py, pw, ph, listY;
 
     public SafeStartScreen(Screen parent) {
-        super(Text.literal("Safe Start"));
-        this.parent = parent;
+        super("Safe Start", parent);
     }
+
+    @Override protected int prefWidth() { return 440; }
+    @Override protected int prefHeight() { return 196 + Math.min(MAX_ROWS, Math.max(1, waiting.size())) * ROW; }
+    @Override protected String titleIcon() { return "warn"; }
+    @Override protected String heading() { return "Evade's modules are off"; }
 
     @Override
     protected void init() {
@@ -55,82 +60,61 @@ public final class SafeStartScreen extends Screen {
             }
             suspects = sm;
         }
-        int rows = Math.min(MAX_ROWS, Math.max(1, waiting.size()));
-        pw = Math.min(360, width - 20);
-        ph = 96 + rows * ROW + 34;
-        px = (width - pw) / 2;
-        py = Math.max(6, (height - ph) / 2);
-        listY = py + 84;
+        frame();
         scroll = Math.max(0, Math.min(scroll, waiting.size() - MAX_ROWS));
-        for (int i = 0; i < rows && i + scroll < waiting.size(); i++) {
-            String name = waiting.get(i + scroll);
-            addDrawableChild(ButtonWidget.builder(Text.literal("Turn on"), b -> {
-                SafeStart.restore(name);
-                Notifications.push(name, "Turned back on", true);
-                if (SafeStart.waitingModules().isEmpty()) close(); else clearAndInit();
-            }).dimensions(px + pw - 14 - 70, listY + i * ROW + 1, 70, 18).build());
-        }
-        int bw = (pw - 28 - 6) / 2, by = py + ph - 30;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Keep them off"), b -> {
+        action("Keep them off", Button.Variant.GHOST, () -> {
             SafeStart.finish();
             close();
-        }).dimensions(px + 14, by, bw, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Turn all back on"), b -> {
+        });
+        action("Turn all back on", Button.Variant.PRIMARY, () -> {
             int n = waiting.size();
             SafeStart.restoreAll();
             Notifications.push("Safe Start", n + (n == 1 ? " module" : " modules") + " turned back on", true);
             close();
-        }).dimensions(px + 14 + bw + 6, by, bw, 20).build());
+        });
     }
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
         if (waiting.size() <= MAX_ROWS) return false;
-        int next = Math.max(0, Math.min(waiting.size() - MAX_ROWS, scroll - (int) Math.signum(v)));
-        if (next != scroll) { scroll = next; clearAndInit(); }
+        scroll = Math.max(0, Math.min(waiting.size() - MAX_ROWS, scroll - (int) Math.signum(v)));
         return true;
     }
 
     @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        if (s == null || s.blur.get()) super.renderBackground(ctx, mouseX, mouseY, delta);
-        ctx.fillGradient(0, 0, width, height, 0xB0000000, 0xD0000000);
-        Theme.shadow(ctx, Theme.SH_WINDOW, px, py, px + pw, py + ph, 0x90000000);
-        Theme.round(ctx, px, py, px + pw, py + ph, Theme.BG, Theme.R_WIN);
-        Theme.stroke(ctx, px, py, px + pw, py + ph, Theme.BORDER, Theme.R_WIN);
-    }
-
-    @Override
-    public void render(DrawContext ctx, int mx, int my, float delta) {
-        super.render(ctx, mx, my, delta);
-        ClientSettings s = EvadeClient.modules == null ? null : EvadeClient.modules.get(ClientSettings.class);
-        boolean smooth = s == null || s.smoothFont.get();
-        UiFont.draw(ctx, textRenderer, "Safe Start: Evade's modules are off", px + 14, py + 12, Theme.TEXT, Role.TITLE, smooth);
-        UiFont.draw(ctx, textRenderer, reason, px + 14, py + 30, Theme.TEXT_DIM, Role.SMALL, smooth);
+    protected void renderBody(DrawContext ctx, int mx, int my) {
+        int y = by;
+        kit.text(reason, bx, y, Tokens.N800, Role.BODY);
+        y += 16;
+        boolean named = suspect != null || !suspects.isEmpty();
         String sus = suspect != null ? "Suspect: " + suspect + (suspects.isEmpty() ? "" : " (" + String.join(", ", suspects) + ")")
                 : !suspects.isEmpty() ? "Suspect: " + String.join(", ", suspects) : "The crash report didn't name an Evade module.";
-        UiFont.draw(ctx, textRenderer, sus, px + 14, py + 44, suspect != null || !suspects.isEmpty() ? Theme.WARN : Theme.TEXT_FAINT, Role.SMALL, smooth);
-        UiFont.draw(ctx, textRenderer, "Turn them back on one at a time to find the one that breaks.", px + 14, py + 62,
-                Theme.TEXT_FAINT, Role.SMALL, smooth);
+        y = note(named ? "warn" : "info", named ? Tokens.WARN : Tokens.N600, sus, y) + 2;
+        y = note("info", Tokens.N600, "Turn them back on one at a time and play a little after each to find the one that breaks.", y) + 8;
         int rows = Math.min(MAX_ROWS, waiting.size());
+        if (waiting.isEmpty()) {
+            note("check", Tokens.OK, "Every module is back on.", y + 4);
+            return;
+        }
         for (int i = 0; i < rows && i + scroll < waiting.size(); i++) {
             String name = waiting.get(i + scroll);
-            int y = listY + i * ROW;
-            Theme.round(ctx, px + 10, y - 1, px + pw - 10, y + ROW - 3, Theme.ROW, Theme.R);
+            int ry = y + i * ROW;
             boolean sus2 = suspects.contains(name);
-            UiFont.draw(ctx, textRenderer, name + (sus2 ? "  (suspect)" : ""), px + 18, y + 5, sus2 ? Theme.WARN : Theme.TEXT, Role.BODY, smooth);
+            Paint.surface(ctx, bx, ry, bx + bw, ry + ROW - 2, Tokens.R_SM, Tokens.E2.noAmbient(), 0, Float.NaN);
+            float mid = ry + (ROW - 2) / 2f;
+            int tx = bx + 10;
+            if (sus2) { Icons.draw(ctx, "warn", tx, Math.round(mid - 6), 12, Tokens.WARN); tx += 18; }
+            kit.textCentredY(name, tx, mid, Tokens.N950, Role.STRONG);
+            if (sus2) Badge.draw(kit, tx + kit.width(name, Role.STRONG) + Tokens.S3, Math.round(mid - Badge.H / 2f), "Suspect", Badge.Tone.WARN);
+            int w = Button.width(kit, "Turn on", Button.Size.SM, null, false);
+            Button.draw(kit, "on:" + name, bx + bw - 6 - w, Math.round(mid - 10), w, Button.Size.SM, Button.Variant.SECONDARY, "Turn on", null, true, () -> {
+                SafeStart.restore(name);
+                Notifications.push(name, "Turned back on", true);
+                if (SafeStart.waitingModules().isEmpty()) close(); else clearAndInit();
+            });
         }
-        if (waiting.isEmpty())
-            UiFont.draw(ctx, textRenderer, "Every module is back on.", px + 18, listY + 5, Theme.TEXT_DIM, Role.BODY, smooth);
-        else if (waiting.size() > MAX_ROWS)
-            UiFont.draw(ctx, textRenderer, (scroll + 1) + "-" + Math.min(waiting.size(), scroll + MAX_ROWS) + " of " + waiting.size() + " (scroll)",
-                    px + 14, listY + rows * ROW + 2, Theme.TEXT_FAINT, Role.SMALL, smooth);
-    }
-
-    @Override public boolean shouldPause() { return false; }
-
-    @Override public void close() {
-        if (client != null) client.setScreen(parent);
+        if (waiting.size() > MAX_ROWS)
+            kit.text((scroll + 1) + "–" + Math.min(waiting.size(), scroll + MAX_ROWS) + " of " + waiting.size() + " · scroll for more",
+                    bx, y + rows * ROW + 2, Tokens.N600, Role.SMALL);
     }
 }

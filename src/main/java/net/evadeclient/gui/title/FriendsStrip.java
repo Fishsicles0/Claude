@@ -33,7 +33,7 @@ import java.util.function.Supplier;
  * then "+N"). It reads Friends' snapshot each frame, so it follows friends coming and going. Clicking it (or Enter)
  * opens the Friends page of the Evade menu. Shown only while Friends is on and you have friends.
  */
-public class FriendsStrip extends PressableWidget {
+public class FriendsStrip extends PressableWidget implements TitleTip {
     static final int HEAD = 12;
     private static final Map<UUID, Supplier<SkinTextures>> SKINS = new HashMap<>();
     private static final Map<UUID, Boolean> FETCHED = new HashMap<>();
@@ -43,6 +43,16 @@ public class FriendsStrip extends PressableWidget {
     private final double delayMs;
     private final Motion.Spring hover = new Motion.Spring(0f);
     private long lastFrame = System.nanoTime();
+    private String tip;
+    private float plane;
+
+    /** The tooltip (drawn by the screen; narrated as a hint). */
+    public FriendsStrip tip(String t) { this.tip = t; return this; }
+
+    @Override public String tip() { return tip; }
+
+    /** Moves with parallax plane {@code depth} (see {@link TitleScene#planeX}). */
+    public FriendsStrip plane(float depth) { this.plane = depth; return this; }
 
     public FriendsStrip(int x, int y, int w, int h, Runnable open, Intro intro, double delayMs) {
         super(x, y, w, h, Text.literal("Friends"));
@@ -67,6 +77,11 @@ public class FriendsStrip extends PressableWidget {
         for (SocialState.Person p : s.friends()) if (p.online()) out.add(p);
         out.sort(SocialState.ORDER);
         return out;
+    }
+
+    /** How many friends are online now (0 when Friends is off or not loaded). */
+    public static int onlineCount() {
+        return available() ? online().size() : 0;
     }
 
     /** "3 friends online", "1 friend online", "No friends online". */
@@ -98,23 +113,30 @@ public class FriendsStrip extends PressableWidget {
         MinecraftClient mc = MinecraftClient.getInstance();
         boolean keyboardFocus = isFocused() && mc.getNavigationType().isKeyboard();
         boolean hot = isHovered() || keyboardFocus;
-        float h = TitleArt.anims() ? hover.step(hot ? 1f : 0f, 30f, 1f, dt) : (hot ? 1f : 0f);
-        h = Math.max(0f, Math.min(1f, h));
+        float h = Math.max(0f, Math.min(1f, Motion.spring(hover, hot ? 1f : 0f, Motion.SNAPPY, dt)));
 
         float base = Theme.fade;
+        var mm = ctx.getMatrices();
+        mm.pushMatrix();
         try {
             Theme.fade = base * in;
+            if (plane != 0) mm.translate(Theme.snap(ctx, TitleScene.planeX(plane)), Theme.snap(ctx, TitleScene.planeY(plane)));
             int x1 = getX(), y1 = getY(), x2 = x1 + getWidth(), y2 = y1 + getHeight();
-            if (h > 0.01f) Theme.round(ctx, x1, y1, x2, y2, Theme.alpha(0xFF1B1B22, 0.9f * h), 4);
-            if (keyboardFocus) Theme.stroke(ctx, x1 - 1, y1 - 1, x2 + 1, y2 + 1, 0xE6FFFFFF, 5);
+            if (h > 0.01f) {
+                if (net.evadeclient.render.ui.UiShape.available())
+                    net.evadeclient.render.ui.UiShape.shape(x1, y1, x2, y2).radius(net.evadeclient.util.Tokens.R_SM)
+                            .fill(Theme.alpha(net.evadeclient.util.Tokens.N250, 0.75f * h)).rim(0.08f * h).draw(ctx);
+                else Theme.round(ctx, x1, y1, x2, y2, Theme.alpha(0xFF1B1B22, 0.9f * h), 4);
+            }
+            if (keyboardFocus) TitleButton.focusRing(ctx, x1, y1, x2, y2, net.evadeclient.util.Tokens.R_SM, false);
 
             List<SocialState.Person> on = online();
             int cy = (y1 + y2) / 2;
             int tx = x1 + 6;
-            Theme.disc(ctx, tx, cy - 2, 4, on.isEmpty() ? Theme.TEXT_FAINT : Theme.OK);
-            tx += 7;
+            TitleButton.dot(ctx, tx + 2, cy, 4, on.isEmpty() ? net.evadeclient.util.Tokens.N600 : net.evadeclient.util.Tokens.OK);
+            tx += 8;
             String label = summary(on.size());
-            TitleArt.text(ctx, label, tx, cy - 3, on.isEmpty() ? Theme.TEXT_DIM : Theme.TEXT_SOFT, Role.SMALL);
+            TitleArt.textMid(ctx, label, tx, cy, on.isEmpty() ? net.evadeclient.util.Tokens.N700 : net.evadeclient.util.Tokens.N800, Role.SMALL);
 
             // Faces from the right edge, overlapping a little; "+N" when they don't all fit.
             int right = x2 - 6 - (h > 0.01f ? Math.round(10 * h) : 0);
@@ -130,7 +152,7 @@ public class FriendsStrip extends PressableWidget {
             int x = right - HEAD;
             if (more != null) {
                 int mw = TitleArt.width(more, Role.SMALL);
-                TitleArt.text(ctx, more, right - mw, cy - 3, Theme.TEXT_DIM, Role.SMALL);
+                TitleArt.textMid(ctx, more, right - mw, cy, net.evadeclient.util.Tokens.N700, Role.SMALL);
                 x = right - mw - 4 - HEAD;
             }
             for (int i = 0; i < shown; i++) {
@@ -147,6 +169,7 @@ public class FriendsStrip extends PressableWidget {
             }
         } finally {
             Theme.fade = base;
+            mm.popMatrix();
         }
     }
 

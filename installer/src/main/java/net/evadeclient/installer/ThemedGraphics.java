@@ -96,6 +96,16 @@ final class ThemedGraphics extends Graphics2D {
         return was;
     }
 
+    /** True when {@code g} paints the light theme (not a dark island or raw colours): rims and dark shadows soften. */
+    static boolean lightPainting(Graphics2D g) {
+        return g instanceof ThemedGraphics t && LauncherTheme.light() && (t.mode == 0 || t.mode == 3);
+    }
+
+    /** {@code c} as {@code g} would paint it (for colours baked into cached images, such as coloured glows). */
+    static Color mapped(Graphics2D g, Color c) {
+        return g instanceof ThemedGraphics t ? t.m(c) : c;
+    }
+
     private Color m(Color c) {
         return mode == 2 ? c : mode == 1 ? LauncherTheme.mapDark(c) : mode == 3 ? LauncherTheme.mapDanger(c) : LauncherTheme.map(c);
     }
@@ -103,6 +113,7 @@ final class ThemedGraphics extends Graphics2D {
     private Paint m(Paint p) {
         if (mode == 2 || p == null) return p;
         if (p instanceof Color c) return m(c);
+        if (p instanceof Obsidian.Smooth sp) return sp.map(this::m);
         if (p instanceof GradientPaint gp)
             return new GradientPaint(gp.getPoint1(), m(gp.getColor1()), gp.getPoint2(), m(gp.getColor2()), gp.isCyclic());
         if (p instanceof RadialGradientPaint rp)

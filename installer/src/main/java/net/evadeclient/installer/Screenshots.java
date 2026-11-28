@@ -12,6 +12,9 @@ import java.util.Map;
 final class Screenshots {
     private Screenshots() {}
 
+    /** Device pixels per design pixel in the PNGs (-Devade.shots.scale=1, 1.25, 1.5 or 2; default 2). */
+    static final float SCALE = Float.parseFloat(System.getProperty("evade.shots.scale", "2"));
+
     static void render(Path out) throws Exception {
         if ("content".equals(System.getProperty("evade.shots.only"))) { ContentShots.render(out); return; }
         if ("look".equals(System.getProperty("evade.shots.only"))) { LookShots.render(out); return; }
@@ -275,7 +278,7 @@ final class Screenshots {
             Thread.sleep(250);
         }
         java.awt.image.BufferedImage[] img = new java.awt.image.BufferedImage[1];
-        javax.swing.SwingUtilities.invokeAndWait(() -> { v.snapshot(2f); img[0] = v.snapshot(2f); });
+        javax.swing.SwingUtilities.invokeAndWait(() -> { v.snapshot(Screenshots.SCALE); img[0] = v.snapshot(Screenshots.SCALE); });
         ImageIO.write(img[0], "png", dir.resolve(name + ".png").toFile());
     }
 
@@ -333,6 +336,6 @@ final class Screenshots {
 
     static void save(LauncherView v, Path dir, String name) throws Exception {
         for (int i = 0; i < 40; i++) v.snapshot(1f);
-        ImageIO.write(v.snapshot(2f), "png", dir.resolve(name + ".png").toFile());
+        ImageIO.write(v.snapshot(Screenshots.SCALE), "png", dir.resolve(name + ".png").toFile());
     }
 }

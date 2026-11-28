@@ -151,7 +151,7 @@ final class ContentAddons {
             g.setColor(TEXT);
             center(g, "Installing…", bx, ry + 27, 130, 32);
         } else if (installed) {
-            g.setColor(new Color(61, 220, 132, 22));
+            g.setColor(new Color(52, 211, 153, 22));
             g.fill(new RoundRectangle2D.Double(bx, ry + 27, 130, 32, 10, 10));
             icon(g, "check", bx + 30, ry + 43, 10, OK);
             g.setFont(v.interBold.deriveFont(12f));

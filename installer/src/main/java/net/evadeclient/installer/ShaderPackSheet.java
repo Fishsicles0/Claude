@@ -96,7 +96,7 @@ final class ShaderPackSheet {
         }
         int ry = y + 114;
         if (hintShared) {
-            strip(g, ix, ry, iw, new Color(245, 165, 36, 26), AMBER, "Built-in graphics: Evade Shaders and Reimagined run best here.",
+            strip(g, ix, ry, iw, new Color(251, 191, 36, 26), AMBER, "Built-in graphics: Evade Shaders and Reimagined run best here.",
                     "ov-sp-light", "Use those two");
             ry += 50;
         }
@@ -159,7 +159,7 @@ final class ShaderPackSheet {
         if (p == null) { details = null; return; }
         // Only the details panel answers clicks and Tab while it's open; clicking beside it goes back to the list.
         v.hitMap.keySet().removeIf(k -> k.startsWith("ov-") || k.equals("dismiss"));
-        g.setColor(new Color(4, 4, 6, 110));
+        g.setColor(new Color(4, 5, 7, 110));
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
         v.hitMap.put("ov-sp-veil", new Rectangle(0, 0, W, H));
@@ -215,7 +215,7 @@ final class ShaderPackSheet {
     }
 
     private void veil(Graphics2D g) {
-        g.setColor(new Color(4, 4, 6, 150));
+        g.setColor(new Color(4, 5, 7, 150));
         if (v.roundCorners) g.fill(new RoundRectangle2D.Double(0, 0, W, H, 22, 22));
         else g.fillRect(0, 0, W, H);
     }
@@ -238,7 +238,7 @@ final class ShaderPackSheet {
         g.setFont(v.interBold.deriveFont(9.5f));
         String s = text.toUpperCase(java.util.Locale.ROOT);
         int cw = g.getFontMetrics().stringWidth(s) + 14;
-        g.setColor(light ? new Color(61, 220, 132, 30) : new Color(255, 255, 255, 16));
+        g.setColor(light ? new Color(52, 211, 153, 30) : new Color(255, 255, 255, 16));
         g.fill(new RoundRectangle2D.Double(x, y, cw, 16, 16, 16));
         g.setColor(light ? LauncherView.OK : DIM);
         center(g, s, x, y, cw, 16);
@@ -247,10 +247,10 @@ final class ShaderPackSheet {
 
     private void checkbox(Graphics2D g, int x, int y, boolean on, boolean enabled, float t) {
         if (!enabled) on = false;
-        g.setColor(on ? RED : mix(new Color(0x1C1C22), new Color(0x2A2A32), t));
+        g.setColor(on ? RED : mix(new Color(0x1A1D23), new Color(0x272B34), t));
         g.fill(new RoundRectangle2D.Double(x, y, 20, 20, 7, 7));
         if (!on) {
-            g.setColor(enabled ? mix(new Color(0x34343C), new Color(0x4A4A55), t) : new Color(0x26262C));
+            g.setColor(enabled ? mix(new Color(0x31353E), new Color(0x464B57), t) : new Color(0x23262F));
             g.draw(new RoundRectangle2D.Double(x + .5, y + .5, 19, 19, 7, 7));
         } else {
             g.setColor(Color.WHITE);

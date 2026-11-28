@@ -172,7 +172,7 @@ final class ContentVersions {
         String id = "c-ver:" + n;
         float t = v.anim(id, id.equals(v.hovered));
         if (installed || t > 0.01f) {
-            g.setColor(installed ? new Color(61, 220, 132, 16) : new Color(255, 255, 255, Math.round(8 * t)));
+            g.setColor(installed ? new Color(52, 211, 153, 16) : new Color(255, 255, 255, Math.round(8 * t)));
             g.fill(new RoundRectangle2D.Double(x, y + 3, w, h - 6, 18, 18));
         }
         g.setFont(v.interBold.deriveFont(13.5f));

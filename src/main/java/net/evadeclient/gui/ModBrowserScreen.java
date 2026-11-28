@@ -18,6 +18,7 @@ import net.evadeclient.util.Notifications;
 import net.evadeclient.util.Theme;
 import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
+import net.evadeclient.util.Tokens;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -493,10 +494,9 @@ public class ModBrowserScreen extends Screen {
     @Override
     public void renderBackground(DrawContext ctx, int mx, int my, float delta) {
         settings().applyTheme();
+        net.evadeclient.util.Tokens.refresh();
         if (settings().blur.get()) super.renderBackground(ctx, mx, my, delta);
-        float a = intro();
-        ctx.fillGradient(0, 0, width, height, Theme.alpha(0xB0000000, a),
-                Theme.alpha(0xD0000000 | (Theme.lerpColor(0xFF000000, Theme.RED, 0.09f) & 0xFFFFFF), a));
+        net.evadeclient.gui.kit.Paint.scrim(ctx, width, height, intro());
     }
 
     private float intro() {
@@ -566,12 +566,8 @@ public class ModBrowserScreen extends Screen {
             m.translate(width / 2f, height / 2f + Theme.snap(ctx, (1f - p) * 10f));
             m.scale(sc, sc);
             m.translate(-width / 2f, -height / 2f);
-            Theme.fade = base * a * a;
-            windowShadow(ctx, wx, wy + 6, wx + ww, wy + wh + 6, Theme.alpha(0xFF000000, 0.6f));
-            windowShadow(ctx, wx, wy, wx + ww, wy + wh, Theme.alpha(Theme.RED, 0.2f));
             Theme.fade = base * a;
-            Theme.round(ctx, wx, wy, wx + ww, wy + wh, Theme.BG, Theme.R_WIN);
-            Theme.stroke(ctx, wx, wy, wx + ww, wy + wh, Theme.BORDER, Theme.R_WIN);
+            net.evadeclient.gui.kit.Paint.surface(ctx, wx, wy, wx + ww, wy + wh, Tokens.R_LG, Tokens.E1, 0, Math.max(0, Math.min(ww, mouseX - wx)));
 
             renderTop(ctx);
             int top = wy + 50;
@@ -587,8 +583,9 @@ public class ModBrowserScreen extends Screen {
             else renderInstalled(ctx);
 
             // footer: the safety note
-            Theme.fill(ctx, wx + 16, wy + wh - 22, wx + ww - 16, wy + wh - 21, Theme.DIVIDER);
-            text(ctx, ellipsize(Role.SMALL, WARNING, ww - 32), wx + 16, wy + wh - 15, Theme.alpha(Theme.WARN, 0.85f), Role.SMALL);
+            net.evadeclient.gui.kit.Paint.fadeLine(ctx, wx + 16, wy + wh - 22, wx + ww - 16, Theme.alpha(0xFFFFFFFF, 0.06f));
+            Icons.draw(ctx, "info", wx + 16, wy + wh - 16, 9, Tokens.N600);
+            text(ctx, ellipsize(Role.SMALL, WARNING, ww - 46), wx + 30, wy + wh - 15, Tokens.N700, Role.SMALL);
             drawTip(ctx);
         } finally {
             Theme.fade = base;
@@ -609,8 +606,8 @@ public class ModBrowserScreen extends Screen {
         // back
         int bx = wx + 14;
         boolean hb = hover(bx, y, bx + 22, y + 22);
-        float h = button(ctx, "back", bx, y, bx + 22, y + 22, hb, Theme.CONTROL, Theme.CONTROL_HOVER, Theme.BORDER, Theme.RED);
-        Icons.draw(ctx, "chevron_l", bx + 5, y + 5, 12, Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, h));
+        float h = button(ctx, "back", bx, y, bx + 22, y + 22, hb, 0, Theme.alpha(Tokens.N250, 0.7f), 0, Theme.alpha(Tokens.N250, 0.7f));
+        Icons.draw(ctx, "chevron_l", bx + 5, y + 5, 12, Theme.lerpColor(Tokens.N800, Tokens.N950, h));
         hot(bx, y, bx + 22, y + 22, this::close);
         if (hb) setTip(returnTo != null ? "Back" : "Close");
 
@@ -621,22 +618,19 @@ public class ModBrowserScreen extends Screen {
         // close
         int cxb = wx + ww - 24, cyb = wy + 12;
         boolean hc = hover(cxb, cyb, cxb + 14, cyb + 14);
-        float hcv = button(ctx, "close", cxb, cyb, cxb + 14, cyb + 14, hc, Theme.CONTROL, Theme.RED, Theme.CONTROL, Theme.RED);
-        Icons.draw(ctx, "close", cxb + 2, cyb + 2, 10, Theme.lerpColor(Theme.TEXT_SOFT, Theme.ON_ACCENT, hcv));
+        float hcv = button(ctx, "close", cxb - 5, cyb - 5, cxb + 19, cyb + 19, hc, 0, Theme.alpha(Tokens.N250, 0.7f), 0, Theme.alpha(Tokens.N250, 0.7f));
+        Icons.draw(ctx, "close", cxb + 1, cyb + 1, 12, Theme.lerpColor(Tokens.N800, Tokens.N950, hcv));
         hot(cxb, cyb, cxb + 14, cyb + 14, () -> { if (client != null) client.setScreen(null); });
 
         // tabs: Browse | Installed (n)
         int segW = 190, half = segW / 2, sx = cxb - 12 - segW, sy = y;
         String inst = "Installed" + (installed.isEmpty() ? "" : " (" + installed.size() + ")");
-        Theme.roundBordered(ctx, sx, sy, sx + segW, sy + 22, Theme.INPUT, Theme.BORDER);
+        net.evadeclient.gui.kit.Paint.sunken(ctx, sx, sy, sx + segW, sy + 22, 11);
         float sel = animate("tab", tab == Tab.INSTALLED ? 1 : 0, 18);
-        var km = ctx.getMatrices();
-        km.pushMatrix();
-        km.translate(Theme.snap(ctx, (half - 2) * sel), 0);
-        Theme.round(ctx, sx + 2, sy + 2, sx + half, sy + 20, Theme.alpha(Theme.RED, 0.9f), Theme.R_XS);
-        km.popMatrix();
-        centered(ctx, "Browse", sx, sx + half, sy + 7, Theme.lerpColor(Theme.ON_ACCENT, Theme.TEXT_DIM, sel), Role.BODY);
-        centered(ctx, inst, sx + half, sx + segW, sy + 7, Theme.lerpColor(Theme.TEXT_DIM, Theme.ON_ACCENT, sel), Role.BODY);
+        float kx = sx + 2 + (half - 2) * sel;
+        net.evadeclient.gui.kit.Paint.surface(ctx, kx, sy + 2, kx + half - 2, sy + 20, 9, Tokens.E3.noAmbient(), 0, Float.NaN);
+        centered(ctx, "Browse", sx, sx + half, sy + 7, Theme.lerpColor(Tokens.N950, Tokens.N700, sel), Role.BODY);
+        centered(ctx, inst, sx + half, sx + segW, sy + 7, Theme.lerpColor(Tokens.N700, Tokens.N950, sel), Role.BODY);
         hot(sx, sy, sx + half, sy + 22, () -> tab = Tab.BROWSE);
         hot(sx + half, sy, sx + segW, sy + 22, () -> { tab = Tab.INSTALLED; rescan(false); });
 
@@ -646,15 +640,17 @@ public class ModBrowserScreen extends Screen {
             int tx = sx - 10;
             for (int i = TYPES.length - 1; i >= 0; i--) tx -= width(Role.LABEL, typeLabel(TYPES[i])) + 16;
             if (tx >= subX) {
-                Theme.roundBordered(ctx, tx - 2, sy, sx - 8, sy + 22, Theme.INPUT, Theme.BORDER);
                 int x = tx;
                 for (ContentType t : TYPES) {
                     String label = typeLabel(t);
                     int w = width(Role.LABEL, label) + 16;
                     boolean on = t == type, hv = hover(x, sy, x + w, sy + 22);
                     float onA = animate("type:" + t, on ? 1 : 0, 18), hvA = animate("typeH:" + t, hv ? 1 : 0, 22);
-                    if (onA > 0.01f) Theme.round(ctx, x, sy + 2, x + w - 2, sy + 20, Theme.alpha(Theme.RED, 0.9f * onA), Theme.R_XS);
-                    centered(ctx, label, x, x + w - 2, sy + 8, Theme.lerpColor(Theme.lerpColor(Theme.TEXT_DIM, Theme.TEXT, hvA), Theme.ON_ACCENT, onA), Role.LABEL);
+                    if (onA > 0.01f) {
+                        float lw2 = width(Role.LABEL, label), lx = x + (w - 2 - lw2) / 2f;
+                        net.evadeclient.gui.kit.Paint.slant(ctx, lx, sy + 19, lx + lw2, sy + 21, Theme.alpha(Tokens.A500, onA));
+                    }
+                    centered(ctx, label, x, x + w - 2, sy + 8, Theme.lerpColor(Theme.lerpColor(Tokens.N700, Tokens.N900, hvA), Tokens.N950, onA), on ? Role.STRONG : Role.LABEL);
                     hot(x, sy, x + w, sy + 22, () -> switchType(t));
                     x += w;
                 }
@@ -662,12 +658,13 @@ public class ModBrowserScreen extends Screen {
             }
         }
         if (sub != null) text(ctx, ellipsize(Role.LABEL, sub, sx - 10 - subX), subX, y + 8, Theme.TEXT_DIM, Role.LABEL);
-        Theme.fill(ctx, wx + 16, wy + 44, wx + ww - 16, wy + 45, Theme.DIVIDER);
+        net.evadeclient.gui.kit.Paint.fadeLine(ctx, wx + 8, wy + 44, wx + ww - 8, Theme.alpha(0xFFFFFFFF, 0.06f));
     }
 
     private void renderRestartBanner(DrawContext ctx, int x1, int y, int x2) {
-        Theme.roundBordered(ctx, x1, y, x2, y + 22, Theme.tint(0.16f), Theme.RED);
-        Icons.draw(ctx, "reset", x1 + 8, y + 5, 12, Theme.RED_BRIGHT);
+        net.evadeclient.gui.kit.Paint.surface(ctx, x1, y, x2, y + 22, Tokens.R_SM, Tokens.E2.noAmbient().withFill(Tokens.ACCENT_SURFACE), 0, Float.NaN);
+        net.evadeclient.gui.kit.Paint.slant(ctx, x1 + 1, y + 5, x1 + 3, y + 17, Tokens.A500);
+        Icons.draw(ctx, "reset", x1 + 8, y + 5, 12, Tokens.A400);
         text(ctx, "Restart Minecraft to load new mods", x1 + 26, y + 7, Theme.TEXT, Role.STRONG);
         String more = "Changes in the mods folder only take effect on the next start";
         int lx = x1 + 26 + width(Role.STRONG, "Restart Minecraft to load new mods") + 12;
@@ -682,27 +679,23 @@ public class ModBrowserScreen extends Screen {
         int inW = sx - 10 - cx;
         boolean hs = hover(cx, cy, cx + inW, cy + 24);
         float focus = animate("focus", searchFocused ? 1 : 0, 16);
-        if (focus > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, cx, cy, cx + inW, cy + 24, Theme.alpha(Theme.RED, 0.28f * focus));
         float ih = animate("ih", hs ? 1 : 0, 22);
-        Theme.roundBordered(ctx, cx, cy, cx + inW, cy + 24, Theme.INPUT,
-                Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, ih), Theme.RED, focus));
-        Icons.draw(ctx, "search", cx + 7, cy + 7, 10, Theme.lerpColor(Theme.TEXT_DIM, Theme.RED_BRIGHT, focus));
+        net.evadeclient.gui.kit.Paint.surface(ctx, cx, cy, cx + inW, cy + 24, Tokens.R_SM, Tokens.SUNKEN.withFill(Theme.lerpColor(Tokens.N150, Tokens.N200, 0.5f * ih)), 0, Float.NaN);
+        if (focus > 0.01f) net.evadeclient.gui.kit.Paint.ring(ctx, cx, cy, cx + inW, cy + 24, Tokens.R_SM, Theme.alpha(Tokens.A400, focus), 1);
+        Icons.draw(ctx, "search", cx + 7, cy + 6, 12, Tokens.N600);
         boolean caret = searchFocused && Math.floorMod((long) (now() / 500), 2L) == 0;
-        if (query.isEmpty() && !searchFocused) text(ctx, "Search Modrinth " + noun(type), cx + 22, cy + 8, Theme.TEXT_FAINT, Role.BODY);
-        else text(ctx, trimStart(query, inW - 34) + (caret ? "_" : ""), cx + 22, cy + 8, Theme.TEXT, Role.BODY);
+        if (query.isEmpty() && !searchFocused) text(ctx, "Search Modrinth " + noun(type), cx + 24, cy + 8, Tokens.N600, Role.BODY);
+        else text(ctx, trimStart(query, inW - 34) + (caret ? "_" : ""), cx + 24, cy + 8, Tokens.N950, Role.BODY);
         hot(cx, cy, cx + inW, cy + 24, () -> searchFocused = true);
 
-        Theme.roundBordered(ctx, sx, cy, sx + sortW, cy + 24, Theme.INPUT, Theme.BORDER);
+        net.evadeclient.gui.kit.Paint.sunken(ctx, sx, cy, sx + sortW, cy + 24, 12);
         float sp = animate("sort", sort.ordinal(), 18);
-        var km = ctx.getMatrices();
-        km.pushMatrix();
-        km.translate(Theme.snap(ctx, third * sp), 0);
-        Theme.round(ctx, sx + 2, cy + 2, sx + third, cy + 22, Theme.alpha(Theme.RED, 0.9f), Theme.R_XS);
-        km.popMatrix();
+        float tx0 = sx + 2 + third * sp;
+        net.evadeclient.gui.kit.Paint.surface(ctx, tx0, cy + 2, tx0 + third - 2, cy + 22, 10, Tokens.E3.noAmbient(), 0, Float.NaN);
         for (Sort s : Sort.values()) {
             int x1 = sx + 2 + third * s.ordinal(), x2 = x1 + third - 2;
             float on = Math.max(0f, 1f - Math.abs(sp - s.ordinal()));
-            centered(ctx, s.label, x1, x2, cy + 8, Theme.lerpColor(Theme.TEXT_DIM, Theme.ON_ACCENT, on), Role.LABEL);
+            centered(ctx, s.label, x1, x2, cy + 8, Theme.lerpColor(Tokens.N700, Tokens.N950, on), Role.LABEL);
             hot(x1, cy, x2, cy + 24, () -> { if (sort != s) { sort = s; search(false); } });
         }
 
@@ -722,14 +715,10 @@ public class ModBrowserScreen extends Screen {
             boolean hv = hover(x, chipY, x + w, chipY + chipH);
             float hvA = animate("chip:" + c[0], hv ? 1 : 0, 22);
             float onA = animate("chipOn:" + c[0], on ? 1 : 0, 18);
-            int fill = mix(Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, hvA), Theme.tint(0.2f), onA);
-            int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, hvA), Theme.RED, onA);
-            if (Theme.square) Theme.roundBordered(ctx, x, chipY, x + w, chipY + chipH, fill, border);
-            else {
-                Theme.pill(ctx, x, chipY, x + w, chipY + chipH, border);
-                Theme.pill(ctx, x + 1, chipY + 1, x + w - 1, chipY + chipH - 1, fill);
-            }
-            text(ctx, c[0], x + 9, chipY + 5, Theme.lerpColor(Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, hvA), Theme.RED_BRIGHT, onA), Role.LABEL);
+            int fill = mix(Theme.lerpColor(Tokens.N200, Tokens.N250, hvA), Tokens.ACCENT_SURFACE, onA);
+            net.evadeclient.gui.kit.Paint.surface(ctx, x, chipY, x + w, chipY + chipH, chipH / 2f, Tokens.E2.noAmbient().withFill(fill), hvA, Float.NaN);
+            if (onA > 0.01f) net.evadeclient.gui.kit.Paint.ring(ctx, x, chipY, x + w, chipY + chipH, chipH / 2f, Theme.alpha(Tokens.A500, 0.7f * onA), 1);
+            text(ctx, c[0], x + 9, chipY + 5, Theme.lerpColor(Theme.lerpColor(Tokens.N800, Tokens.N950, hvA), Tokens.N950, onA), Role.LABEL);
             String slug = c[1];
             hot(x, chipY, x + w, chipY + chipH, () -> {
                 if (slug == null ? category != null : !slug.equals(category)) { category = slug; search(false); }
@@ -739,9 +728,9 @@ public class ModBrowserScreen extends Screen {
         popClip(ctx);
         if (maxChip > 0) {
             // soft edge where more chips continue
-            int solid = Theme.BG | 0xFF000000, clear = Theme.BG & 0xFFFFFF;
-            if (chipScroll < maxChip) fadeH(ctx, cx + cw - 20, chipY - 1, cx + cw, chipY + chipH + 1, clear, solid);
-            if (chipScroll > 0) fadeH(ctx, cx, chipY - 1, cx + 20, chipY + chipH + 1, solid, clear);
+            int solid = Tokens.N100, clear = Tokens.N100 & 0xFFFFFF;
+            if (chipScroll < maxChip) net.evadeclient.gui.kit.Paint.hgradient(ctx, cx + cw - 24, chipY - 1, cx + cw, chipY + chipH + 1, 0, clear, solid);
+            if (chipScroll > 0) net.evadeclient.gui.kit.Paint.hgradient(ctx, cx, chipY - 1, cx + 24, chipY + chipH + 1, 0, solid, clear);
         }
 
         // results and detail
@@ -801,33 +790,35 @@ public class ModBrowserScreen extends Screen {
         boolean hv = hover(x, y, x + w, y + ROW);
         float h = animate("hit:" + hit.projectId(), hv ? 1 : 0, 14);
         float on = animate("hitSel:" + hit.projectId(), sel ? 1 : 0, 16);
-        if (h > 0.01f) Theme.shadow(ctx, Theme.SH_CARD, x, y, x + w, y + ROW, Theme.alpha(Theme.RED, 0.22f * h));
-        int fill = mix(Theme.lerpColor(Theme.CARD, Theme.CARD_HOVER, h), Theme.tint(0.09f), on);
-        int border = Theme.lerpColor(Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.6f), Theme.RED, on);
-        Theme.roundBordered(ctx, x, y, x + w, y + ROW, fill, border);
-        if (on > 0.01f) Theme.round(ctx, x + 1, y + 7, x + 3, y + ROW - 7, Theme.alpha(Theme.RED, on), 1);
+        net.evadeclient.gui.kit.Paint.surface(ctx, x, y, x + w, y + ROW, Tokens.R_MD, Tokens.E2.noAmbient().withFill(Theme.lerpColor(Tokens.N200, Tokens.N250, h)), h, mouseX - x);
+        if (on > 0.01f) {
+            net.evadeclient.gui.kit.Paint.hgradient(ctx, x, y, x + w, y + ROW, Tokens.R_MD, Theme.alpha(Tokens.A900, 0.45f * on), Theme.alpha(Tokens.A900, 0f));
+            net.evadeclient.gui.kit.Paint.slant(ctx, x + 1, y + 9, x + 3, y + ROW - 9, Theme.alpha(Tokens.A500, on));
+        }
 
         drawIcon(ctx, "hit:" + hit.projectId(), hit.iconUrl(), hit.projectId(), null, hit.title(), x + 9, y + 8, 32);
         int tx = x + 50, right = x + w - 10;
         // right column: downloads, and Installed / Installing
         String dl = compact(hit.downloads()) + " downloads";
         int dlw = width(Role.SMALL, dl);
-        text(ctx, dl, right - dlw, y + 11, Theme.TEXT_DIM, Role.SMALL);
+        Icons.draw(ctx, "mods", right - dlw - 12, y + 10, 9, Tokens.N600);
+        text(ctx, dl, right - dlw, y + 11, Tokens.N700, Role.SMALL);
         String status = installing.containsKey(hit.projectId()) ? "Installing" : isInstalled(hit.projectId()) ? "Installed" : null;
         int rightCol = dlw;
         if (status != null) {
             int sw = width(Role.CAPS, status.toUpperCase(Locale.ROOT)) + 10;
             int sy = y + 26;
-            Theme.pill(ctx, right - sw, sy, right, sy + 12, Theme.alpha(status.equals("Installed") ? Theme.OK : Theme.RED, 0.22f));
-            text(ctx, status.toUpperCase(Locale.ROOT), right - sw + 5, sy + 3, status.equals("Installed") ? Theme.OK : Theme.RED_BRIGHT, Role.CAPS);
+            int sc = status.equals("Installed") ? Tokens.OK : Tokens.INFO;
+            net.evadeclient.gui.kit.Paint.pill(ctx, right - sw, sy, right, sy + 12, Theme.alpha(sc, 0.14f));
+            text(ctx, status.toUpperCase(Locale.ROOT), right - sw + 5, sy + 3, sc, Role.CAPS);
             rightCol = Math.max(rightCol, sw);
         }
         int textW = right - rightCol - 10 - tx;
         String title = ellipsize(Role.STRONG, hit.title(), textW);
-        text(ctx, title, tx, y + 9, Theme.TEXT, Role.STRONG);
+        text(ctx, title, tx, y + 9, Tokens.N950, Role.STRONG);
         int ax = tx + width(Role.STRONG, title) + 6;
-        if (ax < tx + textW - 20) text(ctx, ellipsize(Role.LABEL, "by " + hit.author(), tx + textW - ax), ax, y + 10, Theme.TEXT_DIM, Role.LABEL);
-        text(ctx, ellipsize(Role.SMALL, hit.description(), textW), tx, y + 27, Theme.TEXT_DIM, Role.SMALL);
+        if (ax < tx + textW - 20) text(ctx, ellipsize(Role.LABEL, "by " + hit.author(), tx + textW - ax), ax, y + 10, Tokens.N700, Role.LABEL);
+        text(ctx, ellipsize(Role.SMALL, hit.description(), textW), tx, y + 27, Tokens.N800, Role.SMALL);
         hot(x, y, x + w, y + ROW, () -> select(hit));
     }
 
@@ -1255,7 +1246,7 @@ public class ModBrowserScreen extends Screen {
             IconCache.draw(ctx, id, x, y, size);
             return;
         }
-        Theme.round(ctx, x, y, x + size, y + size, Theme.lerpColor(Theme.CONTROL, Theme.RED, 0.18f), Theme.R);
+        net.evadeclient.gui.kit.Paint.rect(ctx, x, y, x + size, y + size, Tokens.R_SM, Tokens.N250);
         String letter = title == null || title.isBlank() ? "?" : title.substring(0, 1).toUpperCase(Locale.ROOT);
         Role r = size >= 36 ? Role.TITLE : Role.STRONG;
         centered(ctx, letter, x, x + size, y + (size - (r == Role.TITLE ? 13 : 9)) / 2, Theme.RED_BRIGHT, r);
@@ -1296,9 +1287,9 @@ public class ModBrowserScreen extends Screen {
 
     private void edgeFades(DrawContext ctx, Scroll s, int x1, int x2, int top, int bottom) {
         float topA = (float) Math.min(1, s.pos / 24), botA = (float) Math.min(1, (s.max - s.pos) / 24);
-        int solid = Theme.BG | 0xFF000000, clear = Theme.BG & 0xFFFFFF;
-        if (topA > 0.004f) ctx.fillGradient(x1, top, x2, top + 12, Theme.fa(Theme.alpha(solid, topA)), Theme.fa(clear));
-        if (botA > 0.004f) ctx.fillGradient(x1, bottom - 12, x2, bottom, Theme.fa(clear), Theme.fa(Theme.alpha(solid, botA)));
+        int solid = Tokens.N100, clear = Tokens.N100 & 0xFFFFFF;
+        if (topA > 0.004f) net.evadeclient.gui.kit.Paint.vgradient(ctx, x1, top, x2, top + 16, 0, Theme.alpha(solid, topA), clear);
+        if (botA > 0.004f) net.evadeclient.gui.kit.Paint.vgradient(ctx, x1, bottom - 16, x2, bottom, 0, clear, Theme.alpha(solid, botA));
     }
 
     private void scrollbar(DrawContext ctx, Scroll s, int right, int top, int viewH, int contentH) {
@@ -1310,7 +1301,7 @@ public class ModBrowserScreen extends Screen {
         var m = ctx.getMatrices();
         m.pushMatrix();
         m.translate(0, Theme.snap(ctx, fy - iy));
-        Theme.pill(ctx, right - 2, iy, right, iy + th, Theme.alpha(Theme.RED, 0.6f));
+        net.evadeclient.gui.kit.Paint.pill(ctx, right - 4, iy, right, iy + th, Theme.alpha(0xFFFFFFFF, 0.18f));
         m.popMatrix();
     }
 
@@ -1460,11 +1451,23 @@ public class ModBrowserScreen extends Screen {
         float h = animate("bh:" + id, hover ? 1 : 0, 22);
         boolean down = now() - pressedAt < 120 && pressX >= x1 && pressX < x2 && pressY >= y1 && pressY < y2;
         float p = animate("bp:" + id, down ? 1 : 0, 40);
+        if (fill == Theme.RED) { // the primary: the kit's red gradient with its sheen
+            float dy = p > 0.5f ? 0.5f / Theme.deviceScale(ctx) : 0f;
+            net.evadeclient.gui.kit.Paint.vgradient(ctx, x1, y1 + dy, x2, y2 + dy, Tokens.R_SM, Theme.lerpColor(Tokens.A500, 0xFFFFFFFF, 0.08f * h), Theme.lerpColor(Tokens.A700, Tokens.A600, h));
+            if (net.evadeclient.gui.kit.Paint.gpu()) net.evadeclient.render.ui.UiShape.shape(x1, y1 + dy, x2, y2 + dy).radius(Tokens.R_SM)
+                    .linear(Theme.alpha(0xFFFFFFFF, 0.16f), 0x00FFFFFF, 0, y2 - y1, 0.45f).rim(0.18f).draw(ctx);
+            return h;
+        }
+        if (fill == Theme.CONTROL || fill == Theme.INPUT) {
+            net.evadeclient.gui.kit.Paint.surface(ctx, x1, y1, x2, y2, Tokens.R_SM, Tokens.E3.noAmbient().withFill(Theme.lerpColor(Tokens.N250, Tokens.N300, h)), h, mouseX - x1);
+            return h;
+        }
         int f = mix(fill, fillHover, h);
         f = Theme.lerpColor(f, f & 0xFF000000, 0.12f * p);
+        if ((f >>> 24) == 0 && (border >>> 24) == 0) return h;
         boolean ring = border != fill || borderHover != fillHover;
-        if (ring) Theme.roundBordered(ctx, x1, y1, x2, y2, f, mix(border, borderHover, h));
-        else Theme.round(ctx, x1, y1, x2, y2, f);
+        if (ring) net.evadeclient.gui.kit.Paint.surface(ctx, x1, y1, x2, y2, Tokens.R_SM, Tokens.E2.noAmbient().withFill(f), h, Float.NaN);
+        else net.evadeclient.gui.kit.Paint.rect(ctx, x1, y1, x2, y2, Tokens.R_SM, f);
         return h;
     }
 
@@ -1506,9 +1509,9 @@ public class ModBrowserScreen extends Screen {
         if (y + bh > wy + wh - 4) y = tipY - 6 - bh;
         x = Math.max(wx + 4, x);
         y = Math.max(wy + 4, y);
-        Theme.roundBordered(ctx, x, y, x + bw, y + bh, Theme.CARD, Theme.BORDER_HOVER);
+        net.evadeclient.gui.kit.Paint.surface(ctx, x, y, x + bw, y + bh, Tokens.R_SM, Tokens.E5.noAmbient(), 0, Float.NaN);
         int ty = y + 5;
-        for (String l : lines) { text(ctx, l, x + 6, ty, Theme.TEXT_SOFT, r); ty += lh; }
+        for (String l : lines) { text(ctx, l, x + 6, ty, Tokens.N950, r); ty += lh; }
     }
 
     // ---- text (the menu's UiFont roles) ------------------------------------

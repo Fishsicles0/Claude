@@ -72,6 +72,7 @@ tasks.register('screenshots', JavaExec) {
     args '--screenshots', (project.findProperty('out') ?: "${buildDir}/screenshots")
     systemProperty 'java.awt.headless', 'true'
     if (project.hasProperty('only')) systemProperty 'evade.shots.only', project.property('only')
+    if (project.hasProperty('shotScale')) systemProperty 'evade.shots.scale', project.property('shotScale')
 }
 
 // Windows .exe wrapper around the jar. It looks for Java in the places the Minecraft Launcher installs

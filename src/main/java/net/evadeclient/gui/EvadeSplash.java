@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
 import net.evadeclient.EvadeClient;
+import net.evadeclient.render.ui.UiShape;
 import net.evadeclient.util.UiFont;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
@@ -54,6 +55,10 @@ public final class EvadeSplash {
     private static boolean loaded, failed, iconDone;
     private static Object overlay;
     private static long startMs;
+    /** The last frame's fade, completion and reload state (the menu under it asks about the hand-over). */
+    private static float lastAlpha = 1f;
+    private static boolean lastComplete, formed;
+    private static final float[] SLOT = new float[5];
 
     static {
         for (int i = 0; i < IDS.length; i++) IDS[i] = Identifier.of("evade", "splash/" + SplashScene.TEXTURES[i]);
@@ -75,8 +80,47 @@ public final class EvadeSplash {
         load(mc);
         prepare(mc, owner, reloading, complete, progress);
         FRAME.alpha = alpha;
+        lastAlpha = alpha;
+        lastComplete = complete;
+        boolean slot = flies() && slot(mc);
+        FRAME.slotX = slot ? SLOT[0] : Float.NaN;
+        FRAME.slotY = SLOT[1];
+        FRAME.slotSize = SLOT[2];
+        FRAME.handoff = slot && complete && alpha < 1f ? 1f - alpha : -1f;
+        FRAME.handin = reloading && !complete && alpha < 1f ? alpha : -1f;
+        if (FRAME.handin >= 0f && slot && FRAME.time < 0.6f) formed = true;
+        FRAME.formed = formed;
         if (failed) return;
         draw(ctx, mc, false);
+    }
+
+    // ----- the hand-over to the main menu ----------------------------------------------------------------------
+
+    /** The Evade menu's logo slot (device px) into {@link #SLOT}; false when the menu isn't the screen below. */
+    private static boolean slot(MinecraftClient mc) {
+        return mc.currentScreen instanceof EvadeTitleScreen t && t.logoSlot(SLOT);
+    }
+
+    /** Whether the logo flies between this screen and the menu (Full motion, the menu is below). */
+    public static boolean flies() {
+        try {
+            return Motion.decorative() && slot(MinecraftClient.getInstance());
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** Whether the loading screen is over the menu now and draws the menu's logo itself (the menu leaves its own out). */
+    public static boolean flying() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        return mc.getOverlay() instanceof net.minecraft.client.gui.screen.SplashOverlay && overlay == mc.getOverlay() && flies();
+    }
+
+    /** Whether the loading screen has finished and is fading out over the screen below (the menu starts its entrance). */
+    public static boolean handingOver() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        return mc.getOverlay() instanceof net.minecraft.client.gui.screen.SplashOverlay && overlay == mc.getOverlay()
+                && lastComplete && lastAlpha < 1f;
     }
 
     /** The progress bar and text, in place of the game's bar; {@code opacity} is the game's fade of the bar. */
@@ -100,6 +144,9 @@ public final class EvadeSplash {
             SCENE.reset(0);
         }
         fill(mc, seconds, true, complete, progress);
+        FRAME.slotX = Float.NaN;
+        FRAME.handoff = FRAME.handin = -1f;
+        FRAME.formed = false;
         FRAME.alpha = 1f;
         FRAME.uiAlpha = 1f;
         ctx.fill(0, 0, ctx.getScaledWindowWidth(), ctx.getScaledWindowHeight(), background());
@@ -112,6 +159,9 @@ public final class EvadeSplash {
         if (owner != overlay) {
             overlay = owner;
             startMs = now;
+            formed = false;
+            lastComplete = false;
+            lastAlpha = 1f;
             SCENE.reset(now / 1000L);
             FRAME.alpha = FRAME.uiAlpha = 1f;
         }
@@ -186,6 +236,74 @@ public final class EvadeSplash {
             if (!loaded || w <= 0 || h <= 0 || argb >>> 24 == 0) return;
             int rw = Math.max(1, Math.round((u1 - u0) * R)), rh = Math.max(1, Math.round((v1 - v0) * R));
             ctx.drawTexture(RenderPipelines.GUI_TEXTURED, IDS[texture], x, y, u0 * R, v0 * R, w, h, rw, rh, R, R, argb);
+        }
+
+        @Override
+        public void softGlow(float x, float y, float rx, float ry, int rgb, float alpha) {
+            if (alpha <= 0.002f) return;
+            if (!UiShape.available()) { SplashScene.Canvas.super.softGlow(x, y, rx, ry, rgb, alpha); return; }
+            // Additive light, dithered: an elliptical Gaussian (a small core under a wide sigma).
+            // Strength folded into an opaque colour: additive light needs only colour x strength, and the shader's
+            // dither then runs at full amplitude over the whole falloff (no rings in the 8-bit output).
+            float k = Math.min(1f, alpha * 1.55f);
+            int col = 0xFF000000 | Math.round((rgb >> 16 & 255) * k) << 16 | Math.round((rgb >> 8 & 255) * k) << 8 | Math.round((rgb & 255) * k);
+            Matrix3x2fStack m = ctx.getMatrices();
+            m.pushMatrix();
+            try {
+                m.translate(x, y);
+                if (ry != rx) m.scale(1f, ry / rx);
+                float core = rx * 0.06f;
+                UiShape.shape(-core, -core, core, core).radius(core).fill(col).raw().asGlow(rx * 0.31f, false).draw(ctx);
+            } finally {
+                m.popMatrix();
+            }
+        }
+
+        @Override
+        public void vignette(int w, int h, float alpha) {
+            if (!UiShape.available()) { SplashScene.Canvas.super.vignette(w, h, alpha); return; }
+            float aspect = w / (float) Math.max(1, h) * 0.95f, r = h * 0.80f;
+            Matrix3x2fStack m = ctx.getMatrices();
+            m.pushMatrix();
+            try {
+                m.translate(w / 2f, h * 0.46f);
+                m.scale(aspect, 1f);
+                float x1 = -(w / 2f) / aspect, x2 = (w / 2f) / aspect, y1 = -h * 0.46f, y2 = h * 0.54f;
+                UiShape.shape(x1, y1, x2, y2).raw()
+                        .radial(SplashScene.argb(0x000000, alpha * 0.06f), SplashScene.argb(0x000000, alpha), -x1, -y1, r).draw(ctx);
+            } finally {
+                m.popMatrix();
+            }
+        }
+
+        @Override
+        public boolean hasTitleLogo() {
+            return SLOT[4] > 0;
+        }
+
+        @Override
+        public float titleLockupWidth(float markSize) {
+            float design = SLOT[4];
+            return design <= 0 ? markSize * 3.4f : net.evadeclient.gui.title.TitleArt.lockupWidth(Math.round(design)) * (markSize / design);
+        }
+
+        @Override
+        public void titleLogo(float x, float y, float markSize, float alpha) {
+            int design = Math.round(SLOT[4]);
+            if (design <= 0 || alpha <= 0.002f) return;
+            Matrix3x2fStack m = ctx.getMatrices();
+            float base = net.evadeclient.util.Theme.fade;
+            m.pushMatrix();
+            try {
+                m.translate(x, y);
+                // At rest (the end of the flight) this is exactly the menu's own scale, so the hand-off is seamless.
+                m.scale(markSize / design, markSize / design);
+                net.evadeclient.util.Theme.fade = Math.min(1f, alpha);
+                net.evadeclient.gui.title.TitleArt.lockup(ctx, 0, 0, design, net.evadeclient.util.Logo.markTint(), 0xFFF2F2F5);
+            } finally {
+                net.evadeclient.util.Theme.fade = base;
+                m.popMatrix();
+            }
         }
 
         @Override

@@ -6,7 +6,15 @@ import net.evadeclient.module.misc.TextHotkeys.Hotkey;
 import net.evadeclient.setting.KeySetting;
 import net.evadeclient.util.Keybinds;
 import net.evadeclient.util.Notifications;
+import net.evadeclient.gui.kit.Button;
+import net.evadeclient.gui.kit.EmptyState;
+import net.evadeclient.gui.kit.KeyChip;
+import net.evadeclient.gui.kit.Paint;
+import net.evadeclient.gui.kit.Toggle;
+import net.evadeclient.util.Icons;
 import net.evadeclient.util.Theme;
+import net.evadeclient.util.Tokens;
+import net.evadeclient.util.UiFont;
 import net.evadeclient.util.UiFont.Role;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -25,7 +33,7 @@ import java.util.List;
  * button. Keys shared with something else are flagged. Test puts the text in the chat box without sending it.
  */
 public final class TextHotkeysScreen extends EvadePanelScreen {
-    private static final int ROW_H = 32, EDIT_H = 132, PRESET_H = 30;
+    private static final int ROW_H = 36, EDIT_H = 158, PRESET_H = 36;
     private static final long UNDO_MS = 8000;
 
     /** Which text box has the keyboard. */
@@ -50,8 +58,9 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
 
     private List<Hotkey> list() { TextHotkeys t = mod(); return t == null ? List.of() : t.hotkeys(); }
 
-    @Override protected int prefWidth() { return 680; }
-    @Override protected int prefHeight() { return 440; }
+    @Override protected int prefWidth() { return 720; }
+    @Override protected int prefHeight() { return 460; }
+    @Override protected String headerIcon() { return "keyboard"; }
 
     @Override
     protected String subtitle() {
@@ -70,8 +79,11 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
     @Override
     protected void renderHeaderRight(DrawContext ctx, int right, int y, int mx, int my) {
         boolean full = list().size() >= TextHotkeys.MAX_HOTKEYS;
-        int x = button(ctx, "new", full ? "List full" : "+ New", right, y, mx, my, full ? 0 : 1, b -> addNew());
-        button(ctx, "presets", presetsOpen ? "Hide presets" : "Presets", x - 6, y, mx, my, presetsOpen ? 1 : 0, b -> presetsOpen = !presetsOpen);
+        String nl = full ? "List full" : "New hotkey";
+        int nw = Button.width(kit, nl, Button.Size.SM, full ? null : "plus", false);
+        drawButton("new", nl, full ? null : "plus", right - nw, y, nw, Button.Size.SM, PRIMARY, !full, b -> addNew());
+        headerReach(right - nw);
+        button("presets", "Presets", "list", right - nw - Tokens.S3, y, presetsOpen ? SELECTED : SECONDARY, b -> presetsOpen = !presetsOpen);
     }
 
     // ------------------------------------------------------------------ list actions
@@ -164,13 +176,16 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
             y += PRESET_H + 4;
         }
         if (list.isEmpty()) {
-            String msg = "No hotkeys yet. Click + New, or a preset above to start from.";
-            text(ctx, msg, cx + (cw - width(msg, Role.BODY)) / 2, y + 24, Theme.TEXT_DIM, Role.BODY);
-            return y - top + 60;
+            return y - top + EmptyState.draw(kit, "empty", cx + cw / 2, y + 16, "keyboard", "No hotkeys yet",
+                    "Make one with New hotkey, or start from a preset above.", null, null) + 40;
         }
         for (int i = 0; i < list.size(); i++) {
             Hotkey h = list.get(i);
-            if (inView(y, ROW_H)) renderRow(ctx, t, h, i, list.size(), y, mx, my);
+            if (inView(y, ROW_H)) {
+                float a = enter(i), fd = Theme.fade;
+                Theme.fade = fd * a;
+                try { renderRow(ctx, t, h, i, list.size(), y + Math.round((1 - a) * 6), mx, my); } finally { Theme.fade = fd; }
+            }
             y += ROW_H;
             if (h == editing) {
                 if (inView(y, EDIT_H)) renderEditor(ctx, t, h, y, mx, my);
@@ -181,21 +196,17 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
     }
 
     private void renderPresets(DrawContext ctx, int y, int mx, int my) {
-        Theme.roundBordered(ctx, cx, y, cx + cw, y + PRESET_H - 2, Theme.CARD, Theme.BORDER);
-        text(ctx, "Add a preset", cx + 10, y + 10, Theme.TEXT_SOFT, Role.LABEL);
-        int x = cx + 18 + width("Add a preset", Role.LABEL);
+        Paint.surface(ctx, cx, y, cx + cw, y + PRESET_H - 4, Tokens.R_MD, Tokens.SUNKEN.withFill(Tokens.N150), 0, Float.NaN);
+        PanelGlyphs.draw(ctx, "sparkle", cx + 10, y + (PRESET_H - 4) / 2f - 6, 12, Tokens.N600);
+        kit.textCentredY("Start from", cx + 28, y + (PRESET_H - 4) / 2f, Tokens.N700, Role.LABEL);
+        int x = cx + 36 + width("Start from", Role.LABEL);
         for (int i = 0; i < TextHotkeys.PRESETS.size(); i++) {
             String label = TextHotkeys.PRESETS.get(i)[1].strip();
-            int w = width(label, Role.LABEL) + 14;
+            int w = Button.width(kit, label, Button.Size.SM, null, false);
             if (x + w > cx + cw - 6) break;
-            boolean hv = mouseIn(mx, my, x, y + 6, x + w, y + 22);
-            float h = hover("preset:" + i, hv);
-            Theme.roundBordered(ctx, x, y + 6, x + w, y + 22, Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, h),
-                    Theme.lerpColor(Theme.BORDER, Theme.RED, h * 0.8f));
-            text(ctx, label, x + 7, y + 10, Theme.lerpColor(Theme.TEXT_SOFT, Theme.TEXT, h), Role.LABEL);
             final int pick = i;
-            contentHit(x, y + 6, x + w, y + 22, b -> addPreset(pick));
-            x += w + 5;
+            drawButton("preset:" + i, label, null, x, y + (PRESET_H - 4 - 20) / 2, w, Button.Size.SM, SECONDARY, true, b -> addPreset(pick));
+            x += w + Tokens.S2;
         }
     }
 
@@ -210,37 +221,40 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
 
     private void renderRow(DrawContext ctx, TextHotkeys t, Hotkey h, int index, int count, int y, int mx, int my) {
         boolean open = h == editing;
-        boolean hv = mouseIn(mx, my, cx, y, cx + cw, y + ROW_H - 3);
+        int y2 = y + ROW_H - 3;
+        boolean hv = mouseIn(mx, my, cx, y, cx + cw, y2);
         float hf = hover("row:" + id(h), hv);
-        Theme.round(ctx, cx, y, cx + cw, y + ROW_H - 3, open ? Theme.tint(0.08f) : Theme.lerpColor(Theme.ROW, Theme.ROW_HOVER, hf));
+        rowSurface(cx, y, cx + cw, y2, hf, open);
+        float mid = (y + y2) / 2f;
         List<String> clash = clashOf(t, h);
-        if (!clash.isEmpty()) Theme.round(ctx, cx, y + 5, cx + 2, y + ROW_H - 8, Theme.DANGER, 1);
-        contentHit(cx, y, cx + cw, y + ROW_H - 3, b -> { if (open) closeEditor(); else openEditor(h); });
+        contentHit("row:" + id(h), cx, y, cx + cw, y2, b -> { if (open) closeEditor(); else openEditor(h); });
 
         // On/off
-        float on = hover("on:" + id(h), h.enabled);
-        Theme.toggle(ctx, cx + 8, y + 10, on);
-        contentHit(cx + 4, y + 4, cx + 32, y + ROW_H - 7, b -> { h.enabled = !h.enabled; t.save(); });
+        Toggle.draw(kit, "on:" + id(h), cx + 10, Math.round(mid - Toggle.MD_H / 2f), false, h.enabled, true, () -> { h.enabled = !h.enabled; t.save(); });
 
-        // Buttons on the right, then the key box
-        int right = cx + cw - 6, by = y + 6;
-        right = button(ctx, "del:" + id(h), "Delete", right, by, mx, my, 2, b -> delete(h)) - 4;
-        right = index < count - 1 ? button(ctx, "down:" + id(h), "▼", right, by, mx, my, 0, b -> move(h, 1)) - 3 : right - 22;
-        right = index > 0 ? button(ctx, "up:" + id(h), "▲", right, by, mx, my, 0, b -> move(h, -1)) - 4 : right - 22;
-        right = button(ctx, "edit:" + id(h), open ? "Done" : "Edit", right, by, mx, my, open ? 1 : 0,
-                b -> { if (open) closeEditor(); else openEditor(h); }) - 8;
-        int keyRight = right;
-        int keyLeft = renderKeyBox(ctx, h, !clash.isEmpty(), keyRight, by, mx, my);
+        // Actions on the right (quiet), then the key chip
+        int right = cx + cw - 8, by = Math.round(mid - 10);
+        right = button("del:" + id(h), "Delete", null, right, by, DANGER, b -> delete(h)) - Tokens.S2;
+        right -= 20;
+        glyphButton("down:" + id(h), right, by, 20, "chev_down", "Move down", index < count - 1, false, b -> move(h, 1));
+        right -= 20;
+        glyphButton("up:" + id(h), right, by, 20, "chev_up", "Move up", index > 0, false, b -> move(h, -1));
+        right -= Tokens.S2;
+        right = button("edit:" + id(h), open ? "Done" : "Edit", open ? "check" : "edit", right, by, open ? SELECTED : SECONDARY,
+                b -> { if (open) closeEditor(); else openEditor(h); }) - Tokens.S4;
+        int keyLeft = renderKeyBox(ctx, h, !clash.isEmpty(), right, Math.round(mid - KeyChip.H / 2f), mx, my);
 
         // Title and details
-        int tx = cx + 38;
+        int tx = cx + 10 + Toggle.MD_W + Tokens.S5;
         int maxW = keyLeft - 10 - tx;
-        text(ctx, ellipsize(h.title(), Role.STRONG, maxW), tx, y + 5, h.enabled ? Theme.TEXT : Theme.TEXT_FAINT, Role.STRONG);
+        kit.textCentredY(ellipsize(h.title(), Role.STRONG, maxW), tx, mid - 6, h.enabled ? Tokens.N950 : Tokens.N600, Role.STRONG);
         String sub;
-        int subColor = Theme.TEXT_DIM;
+        String icon = null;
+        int iconColor = 0;
         if (!clash.isEmpty()) {
             sub = "Shares " + h.keyText() + " with " + String.join(", ", clash);
-            subColor = Theme.DANGER;
+            icon = "warn";
+            iconColor = Tokens.WARN;
         } else {
             StringBuilder b = new StringBuilder();
             if (!h.label.isBlank()) b.append(h.text.isBlank() ? "no text yet" : h.text.strip());
@@ -248,87 +262,108 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
             else b.append(h.text.strip().startsWith("/") ? "command" : "chat message");
             b.append("  ·  ").append(h.servers.isBlank() ? "every server" : "only on " + h.servers.strip().replace("|", ", "));
             if (!h.enabled) b.append("  ·  off");
-            if (h.text.contains(TextHotkeys.NAME_SLOT)) { b.append("  ·  replace ").append(TextHotkeys.NAME_SLOT); subColor = Theme.WARN; }
+            if (h.text.contains(TextHotkeys.NAME_SLOT)) { b.append("  ·  replace ").append(TextHotkeys.NAME_SLOT); icon = "warn"; iconColor = Tokens.WARN; }
             sub = b.toString();
         }
-        text(ctx, ellipsize(sub, Role.SMALL, maxW), tx, y + 17, subColor, Role.SMALL);
+        int sx = tx;
+        if (icon != null) { Icons.draw(ctx, icon, sx, Math.round(mid + 7 - 5), 10, iconColor); sx += 14; }
+        kit.textCentredY(ellipsize(sub, Role.SMALL, maxW - (sx - tx)), sx, mid + 7, Tokens.N700, Role.SMALL);
     }
 
-    /** The key box ending at {@code right}; returns its left edge. Click to set, right-click to clear. */
+    /** The key chip ending at {@code right} (top at y); returns its left edge. Click to set, right-click to clear. */
     private int renderKeyBox(DrawContext ctx, Hotkey h, boolean conflict, int right, int y, int mx, int my) {
         boolean l = h == listening;
-        String label = l ? (pendingModifier >= 0 ? Keybinds.modsPrefix(Keybinds.modifierOf(pendingModifier)) + "..." : "Press a key...")
-                : h.keyText();
-        int bw = Math.max(84, width(label, Role.LABEL) + 16);
-        int x1 = right - bw;
-        boolean hv = mouseIn(mx, my, x1, y, right, y + 16);
-        float bh = hover("key:" + id(h), hv);
-        int border = l ? Theme.RED : conflict ? Theme.DANGER : Theme.lerpColor(Theme.BORDER, Theme.BORDER_HOVER, bh);
-        Theme.roundBordered(ctx, x1, y, right, y + 16, Theme.lerpColor(Theme.CONTROL, Theme.CONTROL_HOVER, bh), border);
-        int tc = l ? Theme.RED_BRIGHT : conflict ? Theme.DANGER : h.bound() ? Theme.TEXT : Theme.TEXT_FAINT;
-        text(ctx, label, x1 + (bw - width(label, Role.LABEL)) / 2, y + 4, tc, Role.LABEL);
-        contentHit(x1, y, right, y + 16, b -> clickKey(h, b));
+        KeyChip.Mode mode = l ? KeyChip.Mode.LISTENING : conflict ? KeyChip.Mode.CONFLICT : h.bound() ? KeyChip.Mode.BOUND : KeyChip.Mode.NONE;
+        String label = KeyChip.label(h.keyText());
+        int slot = Math.max(76, KeyChip.width(kit, mode, label));
+        int x1 = right - slot;
+        String id = "key:" + id(h);
+        if (l && pendingModifier >= 0) {
+            String p = Keybinds.modsPrefix(Keybinds.modifierOf(pendingModifier)) + "…";
+            Paint.sunken(ctx, x1, y, right, y + KeyChip.H, Tokens.R_XS);
+            Paint.ring(ctx, x1, y, right, y + KeyChip.H, Tokens.R_XS, Tokens.A400, 2);
+            kit.textCentredY(p, x1 + (slot - width(p, Role.TINY)) / 2, y + KeyChip.H / 2f, Tokens.N950, Role.TINY);
+        } else {
+            int w = KeyChip.width(kit, mode, label);
+            KeyChip.draw(kit, id, right - w, y, mode, label, conflict ? "Also on this key: " + String.join(", ", clashes.getOrDefault(h, List.of())) : null, () -> {});
+        }
+        contentHit(id, x1, y, right, y + KeyChip.H, b -> clickKey(h, b));
         return x1;
     }
 
     private void renderEditor(DrawContext ctx, TextHotkeys t, Hotkey h, int y, int mx, int my) {
-        Theme.roundBordered(ctx, cx + 8, y - 2, cx + cw, y + EDIT_H - 6, Theme.CARD, Theme.BORDER);
-        int lx = cx + 20, vx = cx + 96, fx2 = cx + cw - 12;
-        int row = y + 6;
+        Paint.surface(ctx, cx + 12, y - 1, cx + cw, y + EDIT_H - 6, Tokens.R_MD, Tokens.SUNKEN.withFill(Tokens.N150), 0, Float.NaN);
+        Paint.slant(ctx, cx + 4, y + 6, cx + 6, y + EDIT_H - 13, Theme.alpha(Tokens.A500, 0.5f));
+        int lx = cx + 26, vx = cx + 100, fx2 = cx + cw - 12;
+        int row = y + 8;
 
         // Text, with its live counter
-        text(ctx, "Text", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
+        label("Text", lx, row + 11);
         int len = h.text.codePointCount(0, h.text.length());
         String count = len + " / " + TextHotkeys.MAX_CHARS;
-        int countW = width(count, Role.SMALL);
-        int countColor = len >= TextHotkeys.MAX_CHARS ? Theme.DANGER : len >= TextHotkeys.MAX_CHARS - 20 ? Theme.WARN : Theme.TEXT_DIM;
+        int countW = UiFont.tabularWidth(textRenderer, count, Role.SMALL, smooth);
+        int countColor = len >= TextHotkeys.MAX_CHARS ? Tokens.DANGER : len >= TextHotkeys.MAX_CHARS - 20 ? Tokens.WARN : Tokens.N700;
         field(ctx, Field.TEXT, h.text, "a chat message, or a command starting with /", vx, row, fx2 - countW - 10, mx, my);
-        text(ctx, count, fx2 - countW, row + 5, countColor, Role.SMALL);
-        row += 19;
+        UiFont.drawTabular(ctx, textRenderer, count, fx2 - countW, Math.round(UiFont.centredY(Role.SMALL, row + 11, smooth)), countColor, Role.SMALL, smooth);
+        row += 26;
         String note = "Starts with / for a command.  {server} and {time} are filled in when sent.";
-        if (h.text.contains(TextHotkeys.NAME_SLOT)) note = "Replace " + TextHotkeys.NAME_SLOT + " with the player's name: it is never filled in for you.";
+        boolean warnNote = h.text.contains(TextHotkeys.NAME_SLOT);
+        if (warnNote) note = "Replace " + TextHotkeys.NAME_SLOT + " with the player's name: it is never filled in for you.";
         else if (h.text.indexOf('{') >= 0) {
             String shown = t.expand(h.text.strip());
             note = (shown.length() > TextHotkeys.MAX_CHARS ? "Too long once filled in: " : "Sends: ") + shown;
         }
-        text(ctx, ellipsize(note, Role.SMALL, fx2 - vx), vx, row, h.text.contains(TextHotkeys.NAME_SLOT) ? Theme.WARN : Theme.TEXT_FAINT, Role.SMALL);
+        int nx = vx;
+        if (warnNote) { Icons.draw(ctx, "warn", nx, row, 10, Tokens.WARN); nx += 14; }
+        kit.text(ellipsize(note, Role.SMALL, fx2 - nx), nx, row, Tokens.N700, Role.SMALL);
         row += 14;
 
         // Label
-        text(ctx, "Label", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
-        field(ctx, Field.LABEL, h.label, "optional, shown when it sends (e.g. Lobby)", vx, row, Math.min(fx2, vx + 240), mx, my);
-        row += 22;
+        label("Label", lx, row + 11);
+        field(ctx, Field.LABEL, h.label, "optional, shown when it sends (e.g. Lobby)", vx, row, Math.min(fx2, vx + 260), mx, my);
+        row += 28;
 
         // Servers
-        text(ctx, "Servers", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
+        label("Servers", lx, row + 11);
         field(ctx, Field.SERVERS, h.servers, "every server  (or e.g. hypixel.net | mc.example.org)", vx, row, fx2, mx, my);
-        row += 19;
+        row += 26;
         String where = h.servers.isBlank() ? "Works everywhere. Only on servers whose address contains one of these, separated by |."
                 : TextHotkeys.worksOn(h, t.serverAddress()) ? "Works on the server you're on." : "Doesn't work where you are now.";
-        text(ctx, ellipsize(where, Role.SMALL, fx2 - vx), vx, row, Theme.TEXT_FAINT, Role.SMALL);
-        row += 15;
+        kit.text(ellipsize(where, Role.SMALL, fx2 - vx), vx, row, Tokens.N700, Role.SMALL);
+        row += 16;
 
         // Key and actions
-        text(ctx, "Key", lx, row + 4, Theme.TEXT_SOFT, Role.LABEL);
+        label("Key", lx, row + 10);
         List<String> clash = clashOf(t, h);
-        int kx2 = vx + Math.max(84, width(h.keyText(), Role.LABEL) + 16);
-        renderKeyBox(ctx, h, !clash.isEmpty(), kx2, row, mx, my);
+        int kx2 = vx + Math.max(76, KeyChip.width(kit, h == listening ? KeyChip.Mode.LISTENING : KeyChip.Mode.BOUND, KeyChip.label(h.keyText())));
+        renderKeyBox(ctx, h, !clash.isEmpty(), kx2, row + 1, mx, my);
         String keyNote = h == listening ? "Hold Ctrl / Shift / Alt with it for a combo  ·  side mouse buttons work  ·  Esc cancels  ·  Delete clears"
                 : !clash.isEmpty() ? "Also on this key: " + String.join(", ", clash) : "Click to set, right-click to clear";
-        int bx = button(ctx, "test:" + id(h), "Test in chat", fx2, row, mx, my, 0, b -> test(h));
-        text(ctx, ellipsize(keyNote, Role.SMALL, bx - kx2 - 16), kx2 + 8, row + 5, !clash.isEmpty() && h != listening ? Theme.DANGER : Theme.TEXT_FAINT, Role.SMALL);
+        int bx = button("test:" + id(h), "Test in chat", "keyboard", fx2, row, SECONDARY, b -> test(h));
+        kit.textCentredY(ellipsize(keyNote, Role.SMALL, bx - kx2 - 16), kx2 + 8, row + 10, Tokens.N700, Role.SMALL);
     }
 
-    /** A one-line text box. Typing changes the hotkey right away. */
+    private void label(String s, int x, float centreY) { kit.textCentredY(s, x, centreY, Tokens.N800, Role.LABEL); }
+
+    /** A one-line text box in the kit's input style (sunken, accent ring and caret when focused). Typing changes the
+     *  hotkey right away. */
     private void field(DrawContext ctx, Field f, String value, String placeholder, int x1, int y, int x2, int mx, int my) {
         boolean focused = focus == f;
-        boolean hv = mouseIn(mx, my, x1, y, x2, y + 16);
-        Theme.roundBordered(ctx, x1, y, x2, y + 16, Theme.INPUT, focused ? Theme.RED : hv ? Theme.BORDER_HOVER : Theme.BORDER);
-        int inner = x2 - x1 - 12;
+        String id = "field:" + f;
+        boolean hv = mouseIn(mx, my, x1, y, x2, y + 22);
+        float hov = hover(id, hv), foc = kit.anim(id + "#f", focused ? 1f : 0f);
+        int h = 22;
+        Paint.surface(ctx, x1, y, x2, y + h, Tokens.R_SM, Tokens.SUNKEN.withFill(Theme.lerpColor(Tokens.N100, Tokens.N200, 0.5f * hov)), 0, Float.NaN);
+        if (foc > 0.01f) {
+            Paint.glow(kit, x1, y, x2, y + h, Tokens.R_SM, 2, Theme.alpha(Tokens.A600, 0.3f * foc));
+            Paint.ring(ctx, x1, y, x2, y + h, Tokens.R_SM, Theme.alpha(Tokens.A400, foc), 1);
+        }
+        int inner = x2 - x1 - 16;
+        float cyy = y + h / 2f;
         if (value.isEmpty() && !focused) {
-            text(ctx, ellipsize(placeholder, Role.BODY, inner), x1 + 6, y + 4, Theme.TEXT_FAINT, Role.BODY);
+            kit.textCentredY(ellipsize(placeholder, Role.BODY, inner), x1 + 8, cyy, Tokens.N600, Role.BODY);
         } else if (!focused) {
-            text(ctx, ellipsize(value, Role.BODY, inner), x1 + 6, y + 4, Theme.TEXT, Role.BODY);
+            kit.textCentredY(ellipsize(value, Role.BODY, inner), x1 + 8, cyy, Tokens.N950, Role.BODY);
         } else {
             // Scroll so the cursor stays in view.
             int c = Math.min(cursor, value.length());
@@ -336,13 +371,23 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
             while (start < c && width(value.substring(start, c), Role.BODY) > inner) start++;
             String shown = value.substring(start);
             while (!shown.isEmpty() && width(shown, Role.BODY) > inner) shown = shown.substring(0, shown.length() - 1);
-            text(ctx, shown, x1 + 6, y + 4, Theme.TEXT, Role.BODY);
-            if ((System.currentTimeMillis() / 500) % 2 == 0) {
-                int cxp = x1 + 6 + width(value.substring(start, c), Role.BODY);
-                Theme.fill(ctx, cxp, y + 3, cxp + 1, y + 13, Theme.TEXT);
+            kit.textCentredY(shown, x1 + 8, cyy, Tokens.N950, Role.BODY);
+            if ((System.currentTimeMillis() / 530) % 2 == 0 || Motion.level() == Motion.Level.OFF) {
+                int cxp = x1 + 8 + width(value.substring(start, c), Role.BODY);
+                Theme.fill(ctx, cxp, Math.round(cyy - 5), cxp + 1, Math.round(cyy + 5), Tokens.A400);
             }
         }
-        contentHit(x1, y, x2, y + 16, b -> focusField(f));
+        contentHit(id, x1, y, x2, y + h, b -> focusField(f));
+    }
+
+    @Override protected int footerHeight() { return 30; }
+
+    @Override
+    protected void renderFooter(DrawContext ctx, int x1, int y, int x2, int mx, int my) {
+        String hint = listening != null ? "Press a key · hold Ctrl, Shift or Alt with it for a combo · Esc cancels · Delete clears"
+                : "Each press sends its text once · nothing sends while a menu or chat is open · .hotkeys opens this";
+        Icons.draw(ctx, listening != null ? "keyboard" : "info", x1, y + 9, 12, listening != null ? Tokens.A400 : Tokens.N600);
+        kit.textCentredY(ellipsize(hint, Role.SMALL, x2 - x1 - 18), x1 + 18, y + 15, Tokens.N700, Role.SMALL);
     }
 
     @Override
@@ -350,17 +395,23 @@ public final class TextHotkeysScreen extends EvadePanelScreen {
         long now = System.currentTimeMillis();
         if (undoKey != null && now - undoAt < UNDO_MS) {
             String msg = "Deleted " + undoKey.title();
-            int bw = Math.min(cw, width(msg, Role.LABEL) + width("Undo", Role.LABEL) + 44);
-            int x1 = wx + (ww - bw) / 2, y1 = wy + wh - 30;
-            Theme.shadow(ctx, Theme.SH_CARD, x1, y1, x1 + bw, y1 + 22, 0x90000000);
-            Theme.roundBordered(ctx, x1, y1, x1 + bw, y1 + 22, Theme.CARD, Theme.BORDER);
-            text(ctx, ellipsize(msg, Role.LABEL, bw - 60), x1 + 10, y1 + 7, Theme.TEXT, Role.LABEL);
-            button(ctx, "undo", "Undo", x1 + bw - 6, y1 + 3, mx, my, 1, b -> undo());
+            int bw = Math.min(cw, width(msg, Role.BODY) + Button.width(kit, "Undo", Button.Size.SM, "reset", false) + 40);
+            float in = Motion.decorative() ? Motion.standard(Motion.clamp01((now - undoAt) / (float) Motion.DUR_BASE)) : 1f;
+            int x1 = wx + (ww - bw) / 2, y1 = wy + wh - 36 + Math.round((1 - in) * 8);
+            float f = Theme.fade;
+            Theme.fade = f * Math.min(1f, in * 1.5f);
+            try {
+                Paint.surface(ctx, x1, y1, x1 + bw, y1 + 28, Tokens.R_MD, Tokens.E4, 0, Float.NaN);
+                Icons.draw(ctx, "check", x1 + 10, y1 + 8, 12, Tokens.OK);
+                kit.textCentredY(ellipsize(msg, Role.BODY, bw - 100), x1 + 28, y1 + 14, Tokens.N950, Role.BODY);
+                button("undo", "Undo", "reset", x1 + bw - 4, y1 + 4, SECONDARY, b -> undo());
+                float left = 1f - (now - undoAt) / (float) UNDO_MS;
+                Paint.rect(ctx, x1 + 8, y1 + 26, x1 + 8 + (bw - 16) * left, y1 + 27, 0.5f, Theme.alpha(Tokens.OK, 0.6f));
+            } finally {
+                Theme.fade = f;
+            }
         } else {
             undoKey = null;
-            String hint = listening != null ? "Press a key (hold Ctrl / Shift / Alt with it for a combo)  ·  Esc cancels  ·  Delete clears"
-                    : "Each press sends its text once  ·  nothing sends while a menu or chat is open  ·  .hotkeys opens this";
-            text(ctx, ellipsize(hint, Role.SMALL, cw), cx, wy + wh - 10, Theme.TEXT_FAINT, Role.SMALL);
         }
     }
 
