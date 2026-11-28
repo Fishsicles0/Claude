@@ -29,7 +29,7 @@ import java.util.List;
 public class CrosshairEditorScreen extends Screen {
     private static final int N = CrosshairPattern.SIZE, C = CrosshairPattern.CENTER;
     private static final int PAD = 12, TITLE_H = 40, BODY_GAP = 12, FOOT_H = 40, COL_W = 164;
-    private static final int HEADER = 16, PREVIEW_H = 44, SECTION_GAP = 12, BTN_H = 20, GAP = 4, UNDO_LIMIT = 100;
+    private static final int HEADER = 16, PREVIEW_H = 44, SECTION_GAP = 20, BTN_H = 20, GAP = 4, UNDO_LIMIT = 100;
     /** Preview backdrops: open sky and a dark cave, so both bright and dark crosshairs can be judged. */
     private static final int SKY = 0xFF8FB3DE, CAVE = 0xFF1E1F24;
 

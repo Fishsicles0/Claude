@@ -345,10 +345,22 @@ public final class TitleArt {
         for (String l : lines) w = Math.max(w, width(l, Role.BODY));
         int padX = 8, padY = 6, lh = 11;
         int bw = w + padX * 2, bh = lines.size() * lh - 2 + padY * 2;
-        int x = Math.max(4, Math.min(sw - 4 - bw, (tx1 + tx2) / 2 - bw / 2));
-        int y = ty1 - 6 - bh;
-        boolean below = y < 4;
-        if (below) y = ty2 + 6;
+        int x, y;
+        boolean below = false;
+        int cy = (ty1 + ty2) / 2 - bh / 2;
+        if (tx2 - tx1 >= 120 && tx2 + 8 + bw <= sw - 4) {
+            // Wide controls (the centre stack): beside them, so the tip never covers the controls above or below.
+            x = tx2 + 8;
+            y = Math.max(4, Math.min(sh - 4 - bh, cy));
+        } else if (tx2 - tx1 >= 120 && tx1 - 8 - bw >= 4) {
+            x = tx1 - 8 - bw;
+            y = Math.max(4, Math.min(sh - 4 - bh, cy));
+        } else {
+            x = Math.max(4, Math.min(sw - 4 - bw, (tx1 + tx2) / 2 - bw / 2));
+            y = ty1 - 6 - bh;
+            below = y < 4;
+            if (below) y = ty2 + 6;
+        }
         float base = Theme.fade;
         var m = ctx.getMatrices();
         m.pushMatrix();

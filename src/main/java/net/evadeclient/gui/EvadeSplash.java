@@ -282,12 +282,6 @@ public final class EvadeSplash {
         }
 
         @Override
-        public float titleLockupWidth(float markSize) {
-            float design = SLOT[4];
-            return design <= 0 ? markSize * 3.4f : net.evadeclient.gui.title.TitleArt.lockupWidth(Math.round(design)) * (markSize / design);
-        }
-
-        @Override
         public void titleLogo(float x, float y, float markSize, float alpha) {
             int design = Math.round(SLOT[4]);
             if (design <= 0 || alpha <= 0.002f) return;

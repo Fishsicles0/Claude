@@ -186,6 +186,10 @@ public final class ColorPicker {
         Tokens.refresh();
         layout(screenW, screenH);
         ctx.createNewRootLayer();
+        float a0 = Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) Math.max(1, Motion.duration(Motion.DUR_QUICK)));
+        if (Motion.level() == Motion.Level.OFF) a0 = 1f;
+        // A soft dim behind the popover keeps the eye on it.
+        Paint.rect(ctx, 0, 0, screenW, screenH, 0, Theme.alpha(Tokens.N0, 0.30f * a0));
         float a = Motion.standard(Motion.clamp01((System.currentTimeMillis() - openedAt) / (float) Math.max(1, Motion.duration(Motion.DUR_QUICK))));
         if (Motion.level() == Motion.Level.OFF) a = 1f;
         var m = ctx.getMatrices();

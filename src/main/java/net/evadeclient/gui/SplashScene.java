@@ -65,9 +65,6 @@ public final class SplashScene {
         /** Whether {@link #titleLogo} can draw the menu's own logo lockup (for the shared-element hand-over). */
         default boolean hasTitleLogo() { return false; }
 
-        /** The width of the menu's lockup with a mark {@code markSize} device px tall. */
-        default float titleLockupWidth(float markSize) { return markSize * 3.4f; }
-
         /** The menu's logo lockup (mark and wordmark) with its mark at (x, y), {@code markSize} square, at {@code alpha}. */
         default void titleLogo(float x, float y, float markSize, float alpha) {}
     }
@@ -298,13 +295,14 @@ public final class SplashScene {
         boolean slot = !Float.isNaN(f.slotX) && c.hasTitleLogo() && (f.handoff >= 0f || f.handin >= 0f);
         float own = 1f; // this screen's own logo strength
         if (slot) {
-            float tw = c.titleLockupWidth(f.slotSize);
-            float s0 = total / Math.max(1f, tw);
-            float m0 = f.slotSize * s0, x0 = cx - total / 2, y0 = cy - m0 / 2;
+            // Start exactly over this screen's own mark (the same artwork: match the E's bounding box), so only the
+            // wordmark changes in the brief crossfade.
+            float m0 = markH * (264f / 288f) / (352f / 512f);
+            float x0 = markCxFinal - markW / 2 + markW * (55f / 432f) - m0 * (9f / 512f), y0 = cy - m0 / 2;
             float p, xf;
             if (f.handoff >= 0f) {
                 p = easeInOutCubic(clamp01(f.handoff / 0.62f));
-                xf = smooth(clamp01(f.handoff / 0.14f));
+                xf = smooth(clamp01(f.handoff / 0.09f));
             } else {
                 p = 1f - easeInOutCubic(clamp01(f.handin));
                 xf = 1f - smooth(clamp01((f.handin - 0.78f) / 0.22f));

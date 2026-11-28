@@ -55,7 +55,7 @@ public final class WardrobeTeaser {
      */
     public static void floor(DrawContext ctx, int x1, int y1, int x2, int y2, float alpha) {
         if (alpha <= 0.01f || x2 - x1 < 8) return;
-        float cx = (x1 + x2) / 2f, fy = y2 - 1.5f, rx = (x2 - x1) * 0.50f, ry = Math.max(3f, rx * 0.15f);
+        float cx = (x1 + x2) / 2f, fy = y2 - 1.5f, rx = (x2 - x1) * 0.40f, ry = Math.max(3f, rx * 0.17f);
         if (!net.evadeclient.render.ui.UiShape.available()) {
             TitleArt.glow(ctx, Math.round(cx), Math.round(fy), Math.round(rx * 2.4f), Math.round(ry * 3), Theme.alpha(Theme.RED, 0.30f * alpha));
             return;

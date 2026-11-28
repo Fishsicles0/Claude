@@ -40,6 +40,7 @@ public class EvadeClientGameTest implements FabricClientGameTest {
         if (Boolean.getBoolean("evade.replaytest")) { ReplayTest.run(ctx); return; } // ./gradlew runClientGameTest -PreplayTest
         if (Boolean.getBoolean("evade.shadershots")) { EvadeShadersTest.film(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.shadershots=true
         if (Boolean.getBoolean("evade.wp4shots")) { Wp4Shots.run(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.wp4shots=true (GUI panel screenshots)
+        if (Boolean.getBoolean("evade.wp4tests")) { Wp4Shots.tests(ctx); return; } // JAVA_TOOL_OPTIONS=-Devade.wp4tests=true (the suites that drive the GUI panels)
 
         if (!Boolean.getBoolean("evade.fpsonly")) testStartScreens(ctx); // the FPS pass profile skips the timing-sensitive start screens
 

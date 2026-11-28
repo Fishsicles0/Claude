@@ -683,7 +683,7 @@ public class HudEditorScreen extends Screen {
                 {"G", "Snap to a grid"}, {"Ctrl Z", "Undo (Ctrl Y redo)"},
                 {"Ctrl C", "Copy the HUD as a code"}, {"Ctrl V", "Paste a HUD code"},
         };
-        int colW = 250, rowH = 26, cols = sw >= 2 * colW + 80 ? 2 : 1;
+        int colW = 300, keyW = 104, rowH = 26, cols = sw >= 2 * colW + 80 ? 2 : 1;
         int rowsN = (keys.length + cols - 1) / cols;
         int w = cols * colW + 40 + (cols - 1) * 16, h = 20 + 30 + rowsN * rowH + 16 + 24 + 20;
         int x = (sw - w) / 2, y = (sh - h) / 2;
@@ -696,7 +696,7 @@ public class HudEditorScreen extends Screen {
             int c = cols == 2 ? i % 2 : 0, r = cols == 2 ? i / 2 : i;
             int cx0 = x + 20 + c * (colW + 16), cy0 = ty + r * rowH;
             int kw = net.evadeclient.gui.kit.KeyChip.draw(kit, "help:" + i, cx0, cy0, net.evadeclient.gui.kit.KeyChip.Mode.BOUND, keys[i][0], null, () -> {});
-            kit.textCentredY(kit.ellipsize(keys[i][1], Role.SMALL, colW - Math.max(kw, 96) - 12), cx0 + Math.max(kw, 96) + 10,
+            kit.textCentredY(kit.ellipsize(keys[i][1], Role.SMALL, colW - Math.max(kw, keyW) - 12), cx0 + Math.max(kw, keyW) + 10,
                     cy0 + net.evadeclient.gui.kit.KeyChip.H / 2f, Tokens.N800, Role.SMALL);
         }
         int bw = net.evadeclient.gui.kit.Button.width(kit, "Got it", net.evadeclient.gui.kit.Button.Size.MD, null, false);
@@ -719,7 +719,7 @@ public class HudEditorScreen extends Screen {
             if (n < 2) continue;
             float gx1 = x1 * kk - 4, gy1 = y1 * kk - 4, gx2 = x2 * kk + 4, gy2 = y2 * kk + 4;
             net.evadeclient.gui.kit.Paint.ring(ctx, gx1, gy1, gx2, gy2, 4, Theme.alpha(Tokens.A500, 0.4f), 1);
-            net.evadeclient.gui.kit.Paint.slant(ctx, gx1 - 1, gy1 + 4, gx1 + 1, gy2 - 4, Theme.alpha(Tokens.A500, 0.8f));
+            net.evadeclient.gui.kit.Paint.pill(ctx, gx1 - 1, gy1 + 4, gx1 + 1, gy2 - 4, Theme.alpha(Tokens.A500, 0.8f));
         }
     }
 

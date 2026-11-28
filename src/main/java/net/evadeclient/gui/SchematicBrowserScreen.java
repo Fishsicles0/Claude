@@ -123,7 +123,8 @@ public final class SchematicBrowserScreen extends EvadePanelScreen {
         int x1 = cx, x2 = cx + cw, y2 = y + CARD_H;
         Paint.surface(ctx, x1, y, x2, y2, Tokens.R_MD, Tokens.E3, 0, kit.mx - x1);
         Paint.hgradient(ctx, x1, y, x1 + cw * 0.45f, y2, Tokens.R_MD, Theme.alpha(Tokens.A900, 0.42f), Theme.alpha(Tokens.A900, 0f));
-        Paint.slant(ctx, x1 + 1, y + 8, x1 + 3, y2 - 8, Tokens.A500);
+        Paint.pill(ctx, x1 + 1, y + 10, x1 + 3, y2 - 10, Tokens.A500);
+        Paint.glow(kit, x1 + 1, y + 10, x1 + 3, y2 - 10, 1, 4, Theme.alpha(Tokens.A600, 0.35f));
         var o = p.origin();
         // Line 1: icon tile, name, facts, Unload.
         int tx = x1 + 14;
@@ -135,28 +136,30 @@ public final class SchematicBrowserScreen extends EvadePanelScreen {
         kit.textCentredY(name, tx, l1 - 6, Tokens.N950, Role.STRONG);
         String facts = p.schematic.format + "  ·  " + p.sizeX() + " × " + p.sizeY() + " × " + p.sizeZ() + "  ·  at " + o.getX() + ", " + o.getY() + ", " + o.getZ()
                 + "  ·  " + p.rotation() * 90 + "°" + (p.mirror() != Placement.MIRROR_NONE ? "  ·  mirrored " + Placement.mirrorName(p.mirror()) : "");
-        kit.textCentredY(ellipsize(facts, Role.SMALL, cw - 150), tx, l1 + 7, Tokens.N700, Role.SMALL);
-        button("unload", "Unload", "close", x2 - 10, Math.round(l1 - 10), DANGER, b -> m.unload());
+        kit.textCentredY(ellipsize(facts, Role.SMALL, cw - (cw < 600 ? 250 : 150)), tx, l1 + 7, Tokens.N700, Role.SMALL);
+        int ux = button("unload", "Unload", "close", x2 - 10, Math.round(l1 - 10), DANGER, b -> m.unload());
+        boolean narrow = cw < 600;
+        if (narrow) button("mats", "Materials", "list", ux - Tokens.S2, Math.round(l1 - 10), SECONDARY, b -> MaterialListScreen.open(this));
 
         // Line 2: PLACE · ROTATE · MIRROR | VIEW (layers, verifier) | Materials and the build's progress.
         int ly = y + 44, by = ly + 14;
         Paint.fadeLine(ctx, x1 + 12, ly - 4, x2 - 12, Theme.alpha(0xFFFFFFFF, 0.05f));
         int gx = x1 + 14;
-        gx = cluster("PLACE", gx, ly);
+        int lw = cluster("PLACE", gx, ly) - gx;
         int pw = Button.width(kit, "Place here", Button.Size.SM, null, false);
-        drawButton("here", "Place here", null, gx - pw, by, pw, Button.Size.SM, PRIMARY, client != null && client.player != null, b -> {
+        drawButton("here", "Place here", null, gx, by, pw, Button.Size.SM, PRIMARY, client != null && client.player != null, b -> {
             if (client != null && client.player != null) m.moveTo(client.player.getBlockPos());
         });
-        gx += Tokens.S6;
-        int rx = cluster("ROTATE", gx, ly);
-        glyphButton("rot-ccw", rx - 48, by - 2, 24, "rotate_ccw", "Turn left (anticlockwise)", true, false, b -> m.rotate(false));
-        glyphButton("rot-cw", rx - 24, by - 2, 24, "rotate_cw", "Turn right (clockwise)", true, false, b -> m.rotate(true));
-        gx = Math.max(rx, gx + 48) + Tokens.S6;
-        int mxp = cluster("MIRROR", gx, ly);
-        glyphButton("mirror", mxp - 24, by - 2, 24, "mirror", "Mirror: " + Placement.mirrorName(p.mirror()) + " (click for the next)",
+        gx += Math.max(lw, pw) + Tokens.S6;
+        lw = cluster("ROTATE", gx, ly) - gx;
+        glyphButton("rot-ccw", gx - 2, by - 2, 24, "rotate_ccw", "Turn left (anticlockwise)", true, false, b -> m.rotate(false));
+        glyphButton("rot-cw", gx + 24, by - 2, 24, "rotate_cw", "Turn right (clockwise)", true, false, b -> m.rotate(true));
+        gx += Math.max(lw, 48) + Tokens.S6;
+        lw = cluster("MIRROR", gx, ly) - gx;
+        glyphButton("mirror", gx - 2, by - 2, 24, "mirror", "Mirror: " + Placement.mirrorName(p.mirror()) + " (click for the next)",
                 true, p.mirror() != Placement.MIRROR_NONE, b -> m.setMirror((p.mirror() + (b == 1 ? 2 : 1)) % 3));
-        gx = Math.max(mxp, gx + 24) + Tokens.S5;
-        // divider
+        gx += Math.max(lw, 24) + Tokens.S5;
+        // divider between the transform tools and the view tools
         Paint.rect(ctx, gx, ly + 2, gx + 1, y2 - 10, 0, Theme.alpha(0xFFFFFFFF, 0.06f));
         gx += Tokens.S5;
         cluster("LAYERS", gx, ly);
@@ -166,9 +169,10 @@ public final class SchematicBrowserScreen extends EvadePanelScreen {
             Dropdown.draw(kit, "layers", gx, by - 2, dw, layers.modes(), layers.value(), true, layers.set());
         }
         gx += dw + Tokens.S5;
-        cluster("VERIFIER", gx, ly);
+        lw = cluster("VERIFIER", gx, ly) - gx;
         Toggle.draw(kit, "verify", gx, by + 3, false, setting(m, "Verifier"), true, () -> toggle(m, "Verifier"));
-        gx += Toggle.MD_W + Tokens.S6;
+        gx += Math.max(lw, Toggle.MD_W) + Tokens.S6;
+        if (narrow) return;
         // Materials and progress, on the right.
         int matW = Button.width(kit, "Materials", Button.Size.SM, "list", false);
         int mx2 = x2 - 12;

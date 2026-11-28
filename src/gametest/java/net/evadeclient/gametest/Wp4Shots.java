@@ -57,6 +57,48 @@ final class Wp4Shots {
             });
             try { Files.deleteIfExists(dir.resolve(FILE)); } catch (Exception ignored) {}
         }
+        ctx.setScreen(net.minecraft.client.gui.screen.TitleScreen::new);
+    }
+
+    /**
+     * The suites that drive WP4's screens, one after another in one world, each guarded so one failure doesn't hide
+     * the rest ({@code JAVA_TOOL_OPTIONS=-Devade.wp4tests=true}). The checks are the suites' own, unchanged.
+     */
+    static void tests(ClientGameTestContext ctx) {
+        guard("TitleScreenTest", () -> TitleScreenTest.run(ctx));
+        try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
+            sp.getClientWorld().waitForChunksRender();
+            sp.getServer().runCommand("time set day");
+            sp.getServer().runCommand("gamemode survival @a");
+            sp.getServer().runCommand("tp @a 0 -60 0 0 0");
+            ctx.waitTicks(20);
+            guard("GuiKitTest", () -> GuiKitTest.run(ctx, sp));
+            guard("SchematicsTest", () -> SchematicsTest.run(ctx, sp));
+            guard("TechQolTest", () -> TechQolTest.run(ctx, sp));
+            guard("ReviewFixesV27Test", () -> ReviewFixesV27Test.run(ctx, sp));
+            guard("GraphicsUpgradesTest", () -> GraphicsUpgradesTest.run(ctx, sp));
+            guard("MenuUpgradesTest", () -> MenuUpgradesTest.run(ctx, sp));
+            guard("HudUpgradesTest", () -> HudUpgradesTest.run(ctx, sp));
+            guard("MapsTest", () -> MapsTest.run(ctx, sp));
+            guard("AddonAndShotsTest", () -> AddonAndShotsTest.run(ctx, sp));
+            guard("SocialV25Test", () -> SocialV25Test.run(ctx, sp));
+            guard("FeaturesV25Test", () -> FeaturesV25Test.run(ctx, sp));
+            guard("PerfV25Test", () -> PerfV25Test.run(ctx, sp));
+            guard("ReliabilityV25Test", () -> ReliabilityV25Test.run(ctx, sp));
+            guard("TextHotkeysTest", () -> TextHotkeysTest.run(ctx, sp));
+        }
+        ctx.setScreen(net.minecraft.client.gui.screen.TitleScreen::new);
+        System.out.println("[wp4tests] done");
+    }
+
+    private static void guard(String name, Runnable r) {
+        try {
+            r.run();
+            System.out.println("[wp4tests] " + name + " finished");
+        } catch (Throwable t) {
+            System.out.println("[wp4tests] " + name + " FAILED: " + t);
+            try { MinecraftClient.getInstance().execute(() -> MinecraftClient.getInstance().setScreen(null)); } catch (Throwable ignored) {}
+        }
     }
 
     private static void size(ClientGameTestContext ctx, int w, int h, int gui) {
@@ -92,7 +134,18 @@ final class Wp4Shots {
         some(ctx, sfx);
         shot(ctx, "setup-tune", c -> { var w = new SetupWizardScreen(null); w.nextForTest(); return w; });
         shot(ctx, "setup-tips", c -> { var w = new SetupWizardScreen(null); w.nextForTest(); w.nextForTest(); return w; });
+        ctx.runOnClient(c -> {
+            var w = EvadeClient.modules.get(net.evadeclient.module.visuals.Waypoints.class);
+            w.setEnabled(true);
+            for (String n : new String[]{"WP4 Base", "WP4 Mine", "WP4 Village"})
+                if (w.allInWorld().stream().noneMatch(pt -> pt.name().equals(n)))
+                    w.addAt(n, null, c.player.getBlockPos().add(n.length() * 37, 0, -n.length() * 11));
+        });
         shot(ctx, "waypoints", c -> new WaypointManagerScreen(null));
+        shot(ctx, "waypoints-edit", c -> {
+            var w = EvadeClient.modules.get(net.evadeclient.module.visuals.Waypoints.class);
+            return WaypointManagerScreen.editing(null, w.allInWorld().stream().filter(pt -> pt.name().equals("WP4 Mine")).findFirst().orElse(null));
+        });
         shot(ctx, "shader-packs", c -> new ShaderPackScreen(null));
         shot(ctx, "pack-features", c -> new PackFeaturesScreen(null));
         shot(ctx, "benchmark", c -> new BenchmarkResultScreen(null, new net.evadeclient.util.BenchmarkScene.Result(
@@ -106,6 +159,13 @@ final class Wp4Shots {
         shot(ctx, "hypixel-key", c -> new HypixelKeyScreen(null, "", k -> {}));
         shot(ctx, "launcher-join", c -> new LauncherJoinScreen(null, new net.evadeclient.util.LauncherBridge.Request("server", "play.example.net", "Example Server")));
         shot(ctx, "text-hotkeys", c -> new TextHotkeysScreen(null));
+        shot(ctx, "text-hotkeys-edit", c -> {
+            var s = new TextHotkeysScreen(null);
+            var th = net.evadeclient.module.misc.TextHotkeys.get();
+            if (th != null && th.hotkeys().isEmpty()) th.addPreset(0);
+            if (th != null && !th.hotkeys().isEmpty()) s.editForTest(0);
+            return s;
+        });
         shot(ctx, "gallery", c -> new ScreenshotGalleryScreen(null));
         shot(ctx, "crosshair-editor", c -> new CrosshairEditorScreen(null, EvadeClient.modules.get(net.evadeclient.module.mods.Crosshair.class)));
         shot(ctx, "world-map", c -> { WorldMapScreen.open(null); return c.currentScreen; });

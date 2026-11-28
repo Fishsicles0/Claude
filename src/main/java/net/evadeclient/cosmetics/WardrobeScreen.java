@@ -205,7 +205,7 @@ public final class WardrobeScreen extends Screen {
         WardrobePreview.draw(ctx, shown, previewEmote, yawBase + yawDrag + sway, pitch, time,
                 Math.round((cx - pw / 2) * vs), Math.round((py2 - ph) * vs), Math.round((cx + pw / 2) * vs), Math.round(py2 * vs));
         String hint = trying != null ? "Trying on · not yours yet" : "Drag to turn";
-        kit.text(hint, x1 + 14, y2 - 18, trying != null ? Tokens.WARN : Tokens.N600, Role.SMALL);
+        kit.text(hint, x1 + 16, y1 + 14, trying != null ? Tokens.WARN : Tokens.N600, Role.SMALL);
         if (lit != null) {
             String r = lit.partner != null ? lit.partner : lit.rarity.label;
             int bw = Badge.width(kit, r);

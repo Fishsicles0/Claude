@@ -64,6 +64,17 @@ public final class MenuV3Test {
             double[] hud = ctx.computeOnClient(c -> ((EvadeMenu) c.currentScreen).controlCentreForTest("nav:HUD"));
             check(hud != null && Math.abs(hud[0] - 132) < 4 && Math.abs(hud[1] - 246) < 4,
                     "Menu v3: the sidebar's HUD item is where the menu tests click it (" + (hud == null ? "none" : (int) hud[0] + "," + (int) hud[1]) + ")");
+            // The All / Enabled filter where testMenu clicks it (x ~246..330, y ~66..88 GUI at 1080p GUI 2).
+            int allN = ctx.computeOnClient(c -> ((EvadeMenu) c.currentScreen).visibleModules().size());
+            ctx.getInput().setCursorPos(300 * 2, 77 * 2);
+            ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            ctx.waitTicks(3);
+            int enN = ctx.computeOnClient(c -> ((EvadeMenu) c.currentScreen).visibleModules().size());
+            ctx.getInput().setCursorPos(260 * 2, 77 * 2);
+            ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            ctx.waitTicks(3);
+            int backN = ctx.computeOnClient(c -> ((EvadeMenu) c.currentScreen).visibleModules().size());
+            check(enN < allN && enN > 0 && backN == allN, "Menu v3: the All / Enabled filter narrows the list and back (" + allN + " -> " + enN + " -> " + backN + ")");
             scale(ctx, 1920, 1080, 3);
             ctx.setScreen(EvadeMenu::new);
             ctx.waitTicks(12);

@@ -131,9 +131,9 @@ public final class TitleScreenTest {
 
         // The loading screen: a reload over the menu (logo flies in), mid-load, and the hand-over back (flies out).
         ctx.runOnClient(MinecraftClient::reloadResources);
-        for (int i = 0; i < 3; i++) { ctx.waitTicks(3); ctx.takeScreenshot("wp2-reload-in-" + i); }
+        for (int i = 0; i < 3; i++) { ctx.waitTicks(1); ctx.takeScreenshot("wp2-reload-in-" + i); }
         ctx.waitFor(c -> c.getOverlay() == null || net.evadeclient.gui.EvadeSplash.handingOver(), 20 * 60);
-        for (int i = 0; i < 6; i++) { ctx.takeScreenshot("wp2-handoff-" + i); ctx.waitTicks(3); }
+        for (int i = 0; i < 6; i++) { ctx.takeScreenshot("wp2-handoff-" + i); ctx.waitTicks(1); }
         ctx.waitFor(c -> c.getOverlay() == null, 20 * 30);
         ctx.waitTicks(10);
         ctx.takeScreenshot("wp2-after-handoff");
