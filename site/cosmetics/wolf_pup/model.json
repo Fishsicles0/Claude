@@ -1,0 +1,340 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  22,
+  22
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "wolf",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -3.75,
+    0.25
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.75,
+      -4.25,
+      -1.25
+     ],
+     "size": [
+      3,
+      2,
+      3
+     ],
+     "uv": [
+      0,
+      11
+     ]
+    },
+    {
+     "origin": [
+      7.0,
+      -3.75,
+      -1.75
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ],
+     "uv": [
+      0,
+      16
+     ]
+    },
+    {
+     "origin": [
+      8.5,
+      -3.75,
+      -1.75
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ],
+     "uv": [
+      4,
+      16
+     ]
+    },
+    {
+     "origin": [
+      6.75,
+      -2.75,
+      0.5
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      14,
+      16
+     ]
+    },
+    {
+     "origin": [
+      8.75,
+      -2.75,
+      0.5
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ],
+     "uv": [
+      18,
+      16
+     ]
+    },
+    {
+     "origin": [
+      6.25,
+      -4.25,
+      -1.75
+     ],
+     "size": [
+      4,
+      1,
+      4
+     ],
+     "uv": [
+      0,
+      6
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 0.6,
+    "speed": 1.6
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -4.25,
+    -1.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.25,
+      -7.25,
+      -2.5
+     ],
+     "size": [
+      4,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      7.25,
+      -5.5,
+      -3.5
+     ],
+     "size": [
+      2,
+      1,
+      1
+     ],
+     "uv": [
+      8,
+      16
+     ]
+    }
+   ],
+   "parent": "wolf",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -6.25,
+    -2.52
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.75,
+      -6.25,
+      -2.52
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      4,
+      19
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "ear_r",
+   "attach": "root",
+   "pivot": [
+    7.25,
+    -7.25,
+    -1.0
+   ],
+   "rotation": [
+    0,
+    0,
+    10
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.25,
+      -9.25,
+      -1.0
+     ],
+     "size": [
+      2,
+      2,
+      0
+     ],
+     "uv": [
+      0,
+      19
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "sway",
+    "amp": 7,
+    "speed": 0.45
+   }
+  },
+  {
+   "name": "ear_l",
+   "attach": "root",
+   "pivot": [
+    9.25,
+    -7.25,
+    -1.0
+   ],
+   "rotation": [
+    0,
+    0,
+    -10
+   ],
+   "cubes": [
+    {
+     "origin": [
+      8.25,
+      -9.25,
+      -1.0
+     ],
+     "size": [
+      2,
+      2,
+      0
+     ],
+     "uv": [
+      0,
+      19
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "sway",
+    "amp": 7,
+    "speed": 0.45,
+    "side": -1,
+    "phase": 0.5
+   }
+  },
+  {
+   "name": "tail",
+   "attach": "root",
+   "pivot": [
+    8.25,
+    -3.0,
+    1.75
+   ],
+   "rotation": [
+    32,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      7.25,
+      -4.0,
+      1.75
+     ],
+     "size": [
+      2,
+      2,
+      3
+     ],
+     "uv": [
+      12,
+      11
+     ]
+    }
+   ],
+   "parent": "wolf",
+   "anim": {
+    "type": "wing",
+    "side": 1,
+    "base": 0.0,
+    "amp": 18,
+    "speed": 1.1,
+    "phase": 0.0,
+    "fold": 0
+   }
+  }
+ ]
+}

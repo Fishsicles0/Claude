@@ -1,0 +1,266 @@
+{
+ "format": "evade-cosmetic-model/1",
+ "space": "entity",
+ "texture": [
+  16,
+  16
+ ],
+ "textureScale": 8,
+ "bones": [
+  {
+   "name": "bat",
+   "attach": "root",
+   "pivot": [
+    12.0,
+    -4.75,
+    0.75
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.5,
+      -5.75,
+      -1.0
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      6
+     ]
+    },
+    {
+     "origin": [
+      10.75,
+      -2.75,
+      0.5
+     ],
+     "size": [
+      1,
+      1,
+      0
+     ],
+     "uv": [
+      6,
+      15
+     ]
+    },
+    {
+     "origin": [
+      12.25,
+      -2.75,
+      0.5
+     ],
+     "size": [
+      1,
+      1,
+      0
+     ],
+     "uv": [
+      8,
+      15
+     ]
+    }
+   ],
+   "anim": {
+    "type": "pet",
+    "amp": 1.0,
+    "speed": 1.8
+   }
+  },
+  {
+   "name": "head",
+   "attach": "root",
+   "pivot": [
+    12.0,
+    -5.75,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.0,
+      -8.75,
+      -1.5
+     ],
+     "size": [
+      4,
+      3,
+      3
+     ],
+     "uv": [
+      0,
+      0
+     ]
+    },
+    {
+     "origin": [
+      10.0,
+      -11.75,
+      -0.25
+     ],
+     "size": [
+      2,
+      3,
+      0
+     ],
+     "uv": [
+      8,
+      12
+     ]
+    },
+    {
+     "origin": [
+      12.0,
+      -11.75,
+      -0.25
+     ],
+     "size": [
+      2,
+      3,
+      0
+     ],
+     "uv": [
+      12,
+      12
+     ]
+    }
+   ],
+   "parent": "bat",
+   "anim": {
+    "type": "pet_head",
+    "amp": 12
+   }
+  },
+  {
+   "name": "lids",
+   "attach": "root",
+   "pivot": [
+    12.0,
+    -8.0,
+    -1.52
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "origin": [
+      10.5,
+      -8.0,
+      -1.52
+     ],
+     "size": [
+      3,
+      1,
+      0
+     ],
+     "uv": [
+      0,
+      15
+     ]
+    }
+   ],
+   "parent": "head",
+   "anim": {
+    "type": "blink",
+    "speed": 0.27,
+    "phase": 0.0
+   }
+  },
+  {
+   "name": "wing_r",
+   "attach": "root",
+   "pivot": [
+    10.0,
+    -4.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    15
+   ],
+   "cubes": [
+    {
+     "origin": [
+      6.0,
+      -5.25,
+      0.5
+     ],
+     "size": [
+      4,
+      3,
+      0
+     ],
+     "uv": [
+      0,
+      12
+     ]
+    }
+   ],
+   "parent": "bat",
+   "anim": {
+    "type": "sway",
+    "amp": 20,
+    "speed": 1.9
+   }
+  },
+  {
+   "name": "wing_l",
+   "attach": "root",
+   "pivot": [
+    14.0,
+    -4.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    -15
+   ],
+   "cubes": [
+    {
+     "origin": [
+      14.0,
+      -5.25,
+      0.5
+     ],
+     "size": [
+      4,
+      3,
+      0
+     ],
+     "uv": [
+      0,
+      12
+     ],
+     "mirror": true
+    }
+   ],
+   "parent": "bat",
+   "anim": {
+    "type": "sway",
+    "amp": 20,
+    "speed": 1.9,
+    "side": -1,
+    "phase": 0.5
+   }
+  }
+ ]
+}

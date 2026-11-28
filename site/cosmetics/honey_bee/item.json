@@ -1,0 +1,10 @@
+{
+ "id": "honey_bee",
+ "name": "Honey Bee",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A fuzzy striped bee with see-through wings that hovers by your shoulder."
+}

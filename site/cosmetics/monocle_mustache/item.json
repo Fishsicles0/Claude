@@ -1,0 +1,10 @@
+{
+ "id": "monocle_mustache",
+ "name": "Monocle & Mustache",
+ "slot": "MASK",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A curled mustache and a gold monocle on a fine chain."
+}

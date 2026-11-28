@@ -1,0 +1,84 @@
+{
+ "id": "wave",
+ "name": "Wave",
+ "slot": "EMOTE",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A big, cheerful wave hello.",
+ "fx": {
+  "type": "aura",
+  "shape": "toss",
+  "particle": "soft",
+  "colors": [
+   "#FFE27A",
+   "#FFFFFF"
+  ],
+  "rate": 5,
+  "height": 1.95,
+  "size": 0.45,
+  "sizeEnd": 0.1,
+  "life": 0.8,
+  "fade": 0.3,
+  "gravity": -0.05
+ },
+ "emote": {
+  "length": 1.6,
+  "loop": true,
+  "parts": {
+   "rightArm": [
+    [
+     0,
+     -170,
+     0,
+     15
+    ],
+    [
+     0.4,
+     -170,
+     0,
+     -15
+    ],
+    [
+     0.8,
+     -170,
+     0,
+     15
+    ],
+    [
+     1.2,
+     -170,
+     0,
+     -15
+    ],
+    [
+     1.6,
+     -170,
+     0,
+     15
+    ]
+   ],
+   "head": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.8,
+     0,
+     0,
+     6
+    ],
+    [
+     1.6,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ }
+}

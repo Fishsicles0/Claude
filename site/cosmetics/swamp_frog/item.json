@@ -1,0 +1,10 @@
+{
+ "id": "swamp_frog",
+ "name": "Swamp Frog",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A bright green frog with golden eyes perched on your shoulder."
+}

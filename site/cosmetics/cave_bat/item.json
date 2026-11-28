@@ -1,0 +1,10 @@
+{
+ "id": "cave_bat",
+ "name": "Cave Bat",
+ "slot": "PET",
+ "rarity": "REGULAR",
+ "colourable": false,
+ "defaultColor": null,
+ "partner": null,
+ "description": "A little brown cave bat with big ears and two tiny fangs that hovers by your shoulder on fluttering leathery wings, looking about and blinking."
+}

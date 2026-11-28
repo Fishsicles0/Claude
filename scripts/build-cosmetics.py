@@ -4795,7 +4795,7 @@ item("ember_fox", "Ember Fox", "PET", "REGULAR", 600,
 # -------- Jungle Parrot: the classic shoulder pet, scarlet with yellow and blue wings, a white face and a hooked beak
 
 PAR_RED, PAR_RED_D, PAR_YEL, PAR_BLUE, PAR_BLUE_D = "#e8302a", "#a01818", "#ffc828", "#2a68e0", "#183c9a"
-PAR_FACE, PAR_BEAK, PAR_BEAK_D, PAR_FEET = "#f8f2e8", "#4a4450", "#26222a", "#6a666e"
+PAR_FACE, PAR_BEAK, PAR_BEAK_D, PAR_FEET = "#f8f2e8", "#efe2c2", "#2e282e", "#6a666e"
 PARROT = PERCH
 
 
@@ -4832,23 +4832,28 @@ def par_head(face, A):
 
 
 def par_beak(face, A):
-    """The big hooked beak: dark horn with a lighter ridge, curving down to a point; the lower jaw tucked behind."""
-    xs = (A.x + 0.5) / A.w
-    ys = (A.y + 0.5) / A.h
-    if face == "north":                        # 8 x 8: the hook narrows to a point at the bottom middle
-        hook = np.abs(xs - 0.5) < 0.5 - np.clip(ys - 0.4, 0, 1) * 0.9
-        A.put(~hook & (ys > 0.4), PAR_BEAK_D)
-        A.put(hook & (ys > 0.7), "#1e1a20")
-        A.put((np.abs(xs - 0.5) < 0.13) & (ys < 0.62), "#9a929e")
-        A.pix([(3, 1)], "#d8d2dc")
-        A.clip(~((ys < 0.15) & ((A.x == 0) | (A.x == A.w - 1))) & (hook | (ys < 0.9)))
-    elif face in ("east", "west"):             # 4 x 8: the curve of the upper beak over the jaw
-        zs = xs if face == "west" else 1 - xs
-        A.put((ys > 0.5) & (zs > 0.5), PAR_BEAK_D)
-        A.put((ys > 0.7) & (zs <= 0.5), "#1e1a20")
-        A.clip(~((ys > 0.85) & (zs > 0.5)))
+    """The upper mandible: pale horn with a light ridge, curving down to a hooked tip in the middle."""
+    if face == "north":                        # 8 x 4: full width at the top, narrowing to a 2 px hook
+        keep = ((A.y <= 1) & ~((A.y == 0) & ((A.x == 0) | (A.x == A.w - 1)))) \
+            | ((A.y == 2) & (A.x >= 1) & (A.x <= A.w - 2)) | ((A.y == 3) & (A.x >= 3) & (A.x <= 4))
+        A.put((A.y >= 2), shade(PAR_BEAK, 0.86))
+        A.put((A.y == 3), "#a89880")
+        A.pix([(3, 0), (4, 0)], "#fffaf0")
+        A.clip(keep)
+    elif face in ("east", "west"):             # 4 x 4: the curve of the hook at the front, open below at the back
+        zs = (A.x + 0.5) / A.w if face == "west" else 1 - (A.x + 0.5) / A.w
+        A.put(A.y >= 2, shade(PAR_BEAK, 0.86))
+        A.clip(~((A.y == 3) & (zs > 0.5)) & ~((A.y == 0) & (zs < 0.3)))
     elif face == "top":
-        A.put(np.abs(xs - 0.5) < 0.13, "#9a929e")
+        A.put((A.x >= 3) & (A.x <= 4), "#fffaf0")
+    elif face == "bottom":
+        A.fill(shade(PAR_BEAK, 0.7))
+
+
+def par_jaw(face, A):
+    """The lower mandible: dark, tucked in under the hook."""
+    if face == "north":
+        A.pix([(1, 0), (2, 0)], "#4a444c")
 
 
 def par_wing(face, A):
@@ -4895,7 +4900,8 @@ def parrot_pet():
         PC(a, (0.25, -1, -1.5), (1, 1, 1), px(PAR_FEET, par_foot))])
     head = Bone("head", "root", P(a, 0, -3, -0.25), cubes=[
         PC(a, (-2, -6, -1.75), (4, 3, 3), px(PAR_RED, par_head)),
-        PC(a, (-1, -4, -2.75), (2, 2, 1), px(PAR_BEAK, par_beak))],
+        PC(a, (-1, -3.75, -2.75), (2, 1, 1), px(PAR_BEAK, par_beak)),
+        PC(a, (-0.5, -3, -2.5), (1, 1, 1), px(PAR_BEAK_D, par_jaw))],
         anim={"type": "pet_head", "amp": 16}, parent="parrot")
     lids = blink_bone("lids", "head", a, (-1.5, -5.25, -1.77), (3, 1, 0), lid_paint(PAR_FACE, [(0, 4), (8, 4)], PAR_RED_D))
     wing = Bone("wing_r", "root", P(a, -1.5, -2, -0.75), cubes=[
